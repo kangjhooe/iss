@@ -35,7 +35,8 @@
           </div>
           <div class="stat-body">
             <h3 class="stat-title">Total Siswa</h3>
-            <p class="stat-value">{{ formatNumber(studentCount) }}</p>
+            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
+            <p v-else class="stat-value">{{ formatNumber(studentCount) }}</p>
             <span class="stat-label">Siswa Aktif</span>
           </div>
         </div>
@@ -51,7 +52,8 @@
           </div>
           <div class="stat-body">
             <h3 class="stat-title">Total Guru</h3>
-            <p class="stat-value">{{ formatNumber(teacherCount) }}</p>
+            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
+            <p v-else class="stat-value">{{ formatNumber(teacherCount) }}</p>
             <span class="stat-label">Guru Aktif</span>
           </div>
         </div>
@@ -133,12 +135,14 @@ import { teacherApi } from '@/api/teacher'
 const institution = ref(null)
 const studentCount = ref(0)
 const teacherCount = ref(0)
+const loading = ref(true)
 
 const formatNumber = (num) => {
   return new Intl.NumberFormat('id-ID').format(num)
 }
 
 onMounted(async () => {
+  loading.value = true
   try {
     const [instRes, studentRes, teacherRes] = await Promise.all([
       institutionApi.getMy(),
@@ -147,10 +151,16 @@ onMounted(async () => {
     ])
     
     institution.value = instRes.data
-    studentCount.value = studentRes.data.total || 0
-    teacherCount.value = teacherRes.data.total || 0
+    // Laravel pagination returns meta.total for total count
+    studentCount.value = studentRes.data.meta?.total || 0
+    teacherCount.value = teacherRes.data.meta?.total || 0
   } catch (error) {
     console.error('Error loading dashboard:', error)
+    // Set counts to 0 on error
+    studentCount.value = 0
+    teacherCount.value = 0
+  } finally {
+    loading.value = false
   }
 })
 </script>

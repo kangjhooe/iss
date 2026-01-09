@@ -122,11 +122,11 @@ const fieldErrors = ref({
 
 const validationRules = {
   email: [
-    validators.required('Email wajib diisi'),
-    validators.email('Format email tidak valid')
+    (value) => validators.required(value, 'Email wajib diisi'),
+    (value) => validators.email(value, 'Format email tidak valid')
   ],
   password: [
-    validators.required('Password wajib diisi')
+    (value) => validators.required(value, 'Password wajib diisi')
   ]
 }
 
@@ -148,7 +148,13 @@ const handleLogin = async () => {
   try {
     await authStore.login(form.value)
     toast.success('Login Berhasil', 'Selamat datang kembali!')
-    router.push('/dashboard')
+    
+    // Redirect based on user role
+    if (authStore.user?.role === 'super_admin') {
+      router.push('/super-admin/dashboard')
+    } else {
+      router.push('/dashboard')
+    }
   } catch (err) {
     const errorMessage = err.formattedMessage || err.response?.data?.message || 'Email atau password salah'
     error.value = errorMessage

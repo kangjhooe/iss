@@ -1,0 +1,195 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Institution;
+use App\Models\SchoolClass;
+use App\Repositories\ClassRepository;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+
+class ClassService
+{
+    public function __construct(
+        protected ClassRepository $classRepository
+    ) {}
+
+    /**
+     * Get list of classes with filters.
+     */
+    public function list(array $filters, ?int $institutionId = null, int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->classRepository->list($filters, $institutionId, $perPage);
+    }
+
+    /**
+     * Create a new class.
+     */
+    public function create(array $data): SchoolClass
+    {
+        // Validate grade based on institution level
+        $institution = Institution::findOrFail($data['institution_id']);
+        $this->validateGradeForInstitutionLevel($data['grade'] ?? null, $institution->level);
+
+        // Auto-fill academic_year from academic_year_id if not provided
+        if (isset($data['academic_year_id']) && !isset($data['academic_year'])) {
+            $academicYear = \App\Models\AcademicYear::find($data['academic_year_id']);
+            if ($academicYear) {
+                $data['academic_year'] = $academicYear->code;
+            }
+        }
+
+        // Validate teacher is not already a wali kelas
+        if (isset($data['teacher_id']) && $data['teacher_id'] && isset($data['academic_year_id'])) {
+            if ($this->classRepository->isTeacherAlreadyWaliKelas($data['teacher_id'], $data['academic_year_id'])) {
+                throw ValidationException::withMessages([
+                    'teacher_id' => 'Guru ini sudah menjadi wali kelas untuk kelas lain di tahun ajaran yang sama.'
+                ]);
+            }
+        }
+
+        // Validate room is not already used
+        if (isset($data['room_id']) && $data['room_id'] && isset($data['academic_year_id'])) {
+            if ($this->classRepository->isRoomAlreadyUsed($data['room_id'], $data['academic_year_id'])) {
+                throw ValidationException::withMessages([
+                    'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di tahun ajaran yang sama.'
+                ]);
+            }
+        }
+
+        $class = $this->classRepository->create($data);
+
+        Log::info('Class created', [
+            'class_id' => $class->id,
+            'institution_id' => $class->institution_id,
+        ]);
+
+        return $class;
+    }
+
+    /**
+     * Get class by ID.
+     */
+    public function find(int $id): SchoolClass
+    {
+        return $this->classRepository->findWithRelations($id);
+    }
+
+    /**
+     * Update class.
+     */
+    public function update(SchoolClass $class, array $data): SchoolClass
+    {
+        // Validate grade based on institution level
+        $institution = $class->institution;
+        if (isset($data['grade'])) {
+            $this->validateGradeForInstitutionLevel($data['grade'], $institution->level);
+        }
+
+        // Validate teacher is not already a wali kelas (exclude current class)
+        if (isset($data['teacher_id']) && $data['teacher_id']) {
+            $academicYearId = $data['academic_year_id'] ?? $class->academic_year_id;
+            if ($academicYearId && $this->classRepository->isTeacherAlreadyWaliKelas($data['teacher_id'], $academicYearId, $class->id)) {
+                throw ValidationException::withMessages([
+                    'teacher_id' => 'Guru ini sudah menjadi wali kelas untuk kelas lain di tahun ajaran yang sama.'
+                ]);
+            }
+        }
+
+        // Validate room is not already used (exclude current class)
+        if (isset($data['room_id']) && $data['room_id']) {
+            $academicYearId = $data['academic_year_id'] ?? $class->academic_year_id;
+            if ($academicYearId && $this->classRepository->isRoomAlreadyUsed($data['room_id'], $academicYearId, $class->id)) {
+                throw ValidationException::withMessages([
+                    'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di tahun ajaran yang sama.'
+                ]);
+            }
+        }
+
+        // Ensure academic_year is synced with academic_year_id if academic_year_id exists
+        $academicYearId = $data['academic_year_id'] ?? $class->academic_year_id;
+        if ($academicYearId && (!isset($data['academic_year']) || $data['academic_year'] !== $class->academic_year)) {
+            $academicYear = \App\Models\AcademicYear::find($academicYearId);
+            if ($academicYear) {
+                $data['academic_year'] = $academicYear->code;
+            }
+        }
+
+        $this->classRepository->update($class, $data);
+
+        Log::info('Class updated', [
+            'class_id' => $class->id,
+        ]);
+
+        return $class->fresh(['institution', 'room', 'teacher', 'students']);
+    }
+
+    /**
+     * Delete class (soft delete).
+     */
+    public function delete(SchoolClass $class): bool
+    {
+        $classId = $class->id;
+        $result = $this->classRepository->delete($class);
+
+        Log::info('Class deleted', [
+            'class_id' => $classId,
+        ]);
+
+        return $result;
+    }
+
+    /**
+     * Validate grade based on institution level.
+     */
+    protected function validateGradeForInstitutionLevel(?int $grade, ?string $level): void
+    {
+        if ($grade === null) {
+            // Grade can be null for PAUD (only A and B classes)
+            if ($level !== 'PAUD' && $level !== 'TK') {
+                throw ValidationException::withMessages([
+                    'grade' => 'Tingkat kelas wajib diisi untuk jenjang ini.'
+                ]);
+            }
+            return;
+        }
+
+        $validGrades = $this->getValidGradesForLevel($level);
+
+        if ($validGrades === null) {
+            // PAUD/TK doesn't use numeric grades
+            throw ValidationException::withMessages([
+                'grade' => 'Jenjang PAUD/TK tidak menggunakan tingkat numerik. Gunakan kelas A atau B.'
+            ]);
+        }
+
+        if (!in_array($grade, $validGrades)) {
+            throw ValidationException::withMessages([
+                'grade' => "Tingkat kelas tidak valid untuk jenjang {$level}. Tingkat yang valid: " . implode(', ', $validGrades)
+            ]);
+        }
+    }
+
+    /**
+     * Get valid grades for institution level.
+     */
+    protected function getValidGradesForLevel(?string $level): ?array
+    {
+        return match($level) {
+            'SD', 'MI' => [1, 2, 3, 4, 5, 6],
+            'SMP', 'MTs' => [7, 8, 9],
+            'SMA', 'MA', 'MAK', 'SMK' => [10, 11, 12],
+            'PAUD', 'TK' => null, // No numeric grades, only A and B
+            default => null,
+        };
+    }
+
+    /**
+     * Get available grades for institution level.
+     */
+    public function getAvailableGrades(?string $level): ?array
+    {
+        return $this->getValidGradesForLevel($level);
+    }
+}

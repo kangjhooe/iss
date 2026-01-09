@@ -26,7 +26,7 @@ class StoreInstitutionRequest extends FormRequest
             'name' => 'required|string|max:255',
             'npsn' => 'nullable|string|size:8|regex:/^[0-9]{8}$/|unique:institution,npsn',
             'nss' => 'nullable|string|max:255',
-            'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MTs,MI,PAUD',
+            'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MAK,MTs,MI,PAUD',
             'type' => 'required|in:Negeri,Swasta',
             'address' => 'nullable|string',
             'village' => 'nullable|string|max:255',
@@ -56,8 +56,8 @@ class StoreInstitutionRequest extends FormRequest
             'npsn.size' => 'NPSN harus terdiri dari 8 digit',
             'npsn.regex' => 'NPSN harus berupa angka 8 digit',
             'npsn.unique' => 'NPSN sudah terdaftar',
-            'type.required' => 'Jenis institusi wajib diisi',
-            'type.in' => 'Jenis institusi harus Negeri atau Swasta',
+            'type.required' => 'Status institusi wajib diisi',
+            'type.in' => 'Status institusi harus Negeri atau Swasta',
         ];
     }
 }

@@ -2,15 +2,15 @@ import api from './index'
 
 export const authApi = {
   register(data) {
-    return api.post('/register', data)
+    return api.post('/v1/register', data)
   },
   login(data) {
-    return api.post('/login', data)
+    return api.post('/v1/login', data)
   },
   logout() {
-    return api.post('/logout')
+    return api.post('/v1/logout')
   },
   me() {
-    return api.get('/me')
+    return api.get('/v1/me')
   }
 }

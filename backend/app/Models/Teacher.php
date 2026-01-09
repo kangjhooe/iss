@@ -60,6 +60,14 @@ class Teacher extends Model
     }
 
     /**
+     * Get the user account associated with this teacher (by email).
+     */
+    public function userAccount()
+    {
+        return $this->belongsTo(User::class, 'email', 'email');
+    }
+
+    /**
      * Scope a query to only include active teachers.
      */
     public function scopeActive($query)
@@ -73,5 +81,45 @@ class Teacher extends Model
     public function scopeForInstitution($query, $institutionId)
     {
         return $query->where('institution_id', $institutionId);
+    }
+
+    /**
+     * Scope a query to filter by employment status.
+     */
+    public function scopeByEmploymentStatus($query, string $status)
+    {
+        return $query->where('employment_status', $status);
+    }
+
+    /**
+     * Scope a query to filter by education level.
+     */
+    public function scopeByEducationLevel($query, string $level)
+    {
+        return $query->where('education_level', $level);
+    }
+
+    /**
+     * Scope a query to filter by subject.
+     */
+    public function scopeBySubject($query, string $subject)
+    {
+        return $query->where('subject', $subject);
+    }
+
+    /**
+     * Get the classes where this teacher is the wali kelas.
+     */
+    public function classes()
+    {
+        return $this->hasMany(SchoolClass::class);
+    }
+
+    /**
+     * Check if teacher has user account.
+     */
+    public function hasUserAccount(): bool
+    {
+        return $this->email && User::where('email', $this->email)->exists();
     }
 }

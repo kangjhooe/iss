@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import { authApi } from '@/api/auth'
 import router from '@/router'
+import { getToken, setToken, removeToken, setRefreshToken, getRefreshToken, isAuthenticated } from '@/utils/tokenStorage'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: localStorage.getItem('token') || null,
-    isAuthenticated: !!localStorage.getItem('token')
+    token: getToken(),
+    isAuthenticated: isAuthenticated()
   }),
 
   actions: {
@@ -16,7 +17,10 @@ export const useAuthStore = defineStore('auth', {
         this.token = response.data.token
         this.user = response.data.user
         this.isAuthenticated = true
-        localStorage.setItem('token', this.token)
+        setToken(this.token)
+        if (response.data.refresh_token) {
+          setRefreshToken(response.data.refresh_token)
+        }
         return response.data
       } catch (error) {
         throw error
@@ -29,7 +33,10 @@ export const useAuthStore = defineStore('auth', {
         this.token = response.data.token
         this.user = response.data.user
         this.isAuthenticated = true
-        localStorage.setItem('token', this.token)
+        setToken(this.token)
+        if (response.data.refresh_token) {
+          setRefreshToken(response.data.refresh_token)
+        }
         return response.data
       } catch (error) {
         throw error
@@ -45,7 +52,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.token = null
         this.isAuthenticated = false
-        localStorage.removeItem('token')
+        removeToken()
         router.push('/login')
       }
     },

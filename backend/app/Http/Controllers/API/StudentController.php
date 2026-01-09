@@ -31,6 +31,7 @@ class StudentController extends Controller
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%')
+                      ->orWhere('nik', 'like', '%' . $search . '%')
                       ->orWhere('nis', 'like', '%' . $search . '%')
                       ->orWhere('nisn', 'like', '%' . $search . '%');
                 });
@@ -40,12 +41,20 @@ class StudentController extends Controller
                 $query->where('class', $request->class);
             }
 
+            if ($request->has('academic_year')) {
+                $query->where('academic_year', $request->academic_year);
+            }
+
+            if ($request->has('academic_year_id')) {
+                $query->where('academic_year_id', $request->academic_year_id);
+            }
+
             if ($request->has('status')) {
                 $query->where('status', $request->status);
             }
 
             $perPage = min($request->get('per_page', 15), 100); // Max 100 per page
-            $students = $query->select(['id', 'institution_id', 'nis', 'nisn', 'name', 'gender', 'class', 'status', 'created_at'])
+            $students = $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'status', 'created_at'])
                 ->with('institution:id,name')
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);

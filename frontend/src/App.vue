@@ -1,12 +1,15 @@
 <template>
   <div id="app">
-    <router-view />
+    <ErrorBoundary>
+      <router-view />
+    </ErrorBoundary>
     <Toast />
   </div>
 </template>
 
 <script setup>
 import Toast from '@/components/Toast.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 </script>
 
 <style>

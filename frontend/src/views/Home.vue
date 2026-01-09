@@ -2,15 +2,25 @@
   <div class="home-container">
     <div class="home-content">
       <div class="header">
-        <div class="logo">
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#667eea"/>
-            <path d="M2 17L12 22L22 17" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+        <div class="header-content">
+          <div class="header-left">
+            <div class="logo">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#667eea"/>
+                <path d="M2 17L12 22L22 17" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="header-text">
+              <h1>Indonesia Smart School</h1>
+              <p class="subtitle">Sistem Manajemen Sekolah Terintegrasi</p>
+            </div>
+          </div>
+          <div class="header-actions">
+            <router-link to="/login" class="btn btn-primary">Masuk</router-link>
+            <router-link to="/register" class="btn btn-secondary">Daftar</router-link>
+          </div>
         </div>
-        <h1>Indonesia Smart School</h1>
-        <p class="subtitle">Sistem Manajemen Sekolah Terintegrasi</p>
       </div>
 
       <div class="description">
@@ -56,11 +66,6 @@
           <p>Kelola informasi dan data guru dengan sistem yang terintegrasi</p>
         </div>
       </div>
-
-      <div class="actions">
-        <router-link to="/login" class="btn btn-primary">Masuk</router-link>
-        <router-link to="/register" class="btn btn-secondary">Daftar</router-link>
-      </div>
     </div>
   </div>
 </template>
@@ -88,10 +93,30 @@
   margin-bottom: 56px;
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
 .logo {
   display: flex;
   justify-content: center;
   margin-bottom: 32px;
+}
+
+.header-text {
+  text-align: center;
 }
 
 .header h1 {
@@ -108,6 +133,13 @@
   color: #64748b;
   margin: 0;
   font-weight: 400;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .description {
@@ -167,13 +199,6 @@
   color: #64748b;
   line-height: 1.6;
   margin: 0;
-}
-
-.actions {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
 }
 
 .btn {
@@ -243,12 +268,19 @@
     padding: 32px 24px;
   }
 
-  .actions {
+  .header-content {
     flex-direction: column;
+    align-items: center;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: center;
   }
 
   .btn {
-    width: 100%;
+    flex: 1;
+    min-width: 120px;
   }
 }
 
@@ -267,6 +299,15 @@
 
   .description p {
     font-size: 15px;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn {
+    width: 100%;
   }
 }
 </style>

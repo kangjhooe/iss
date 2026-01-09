@@ -20,8 +20,32 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'role' => $this->role,
+            'email_verified_at' => $this->email_verified_at?->toISOString(),
+            'is_locked' => $this->isLocked(),
+            'failed_login_attempts' => $this->failed_login_attempts ?? 0,
             'institution' => $this->whenLoaded('institution', function () {
                 return new InstitutionResource($this->institution);
+            }),
+            'student_profile' => $this->whenLoaded('studentProfile', function () {
+                return [
+                    'id' => $this->studentProfile->id,
+                    'nis' => $this->studentProfile->nis,
+                    'nisn' => $this->studentProfile->nisn,
+                    'class' => $this->studentProfile->class,
+                    'status' => $this->studentProfile->status,
+                ];
+            }),
+            'teacher_profile' => $this->whenLoaded('teacherProfile', function () {
+                return [
+                    'id' => $this->teacherProfile->id,
+                    'nip' => $this->teacherProfile->nip,
+                    'nuptk' => $this->teacherProfile->nuptk,
+                    'status' => $this->teacherProfile->status,
+                    'employment_status' => $this->teacherProfile->employment_status,
+                ];
+            }),
+            'change_requests_count' => $this->whenLoaded('changeRequests', function () {
+                return $this->changeRequests->count();
             }),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

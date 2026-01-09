@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getToken, removeToken, getRefreshToken } from '@/utils/tokenStorage'
 
 const api = axios.create({
   baseURL: '/api',
@@ -12,7 +13,7 @@ const api = axios.create({
 // Request interceptor untuk menambahkan token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const token = getToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -26,10 +27,31 @@ api.interceptors.request.use(
 // Response interceptor untuk handle error
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Try to refresh token
+      const refreshToken = getRefreshToken()
+      if (refreshToken) {
+        try {
+          const refreshResponse = await axios.post('/api/v1/refresh-token', {
+            refresh_token: refreshToken
+          })
+          const newToken = refreshResponse.data.token
+          const { setToken } = await import('@/utils/tokenStorage')
+          setToken(newToken)
+          
+          // Retry original request
+          error.config.headers.Authorization = `Bearer ${newToken}`
+          return api.request(error.config)
+        } catch (refreshError) {
+          // Refresh failed, logout user
+          removeToken()
+          window.location.href = '/login'
+        }
+      } else {
+        removeToken()
+        window.location.href = '/login'
+      }
     }
     
     // Format error message untuk ditampilkan ke user

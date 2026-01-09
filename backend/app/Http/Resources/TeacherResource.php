@@ -41,6 +41,15 @@ class TeacherResource extends JsonResource
             'status' => $this->status,
             'join_date' => $this->join_date?->format('Y-m-d'),
             'notes' => $this->notes,
+            'has_user_account' => $this->hasUserAccount(),
+            'user_account' => $this->whenLoaded('userAccount', function () {
+                return [
+                    'id' => $this->userAccount->id,
+                    'name' => $this->userAccount->name,
+                    'email' => $this->userAccount->email,
+                    'role' => $this->userAccount->role,
+                ];
+            }),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

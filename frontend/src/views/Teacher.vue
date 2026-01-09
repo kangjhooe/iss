@@ -335,24 +335,24 @@ const deleteTeacher = async (id) => {
 
 const validationRules = {
   name: [
-    validators.required('Nama lengkap wajib diisi'),
-    validators.maxLength(form.value.name, 255, 'Nama maksimal 255 karakter')
+    (value) => validators.required(value, 'Nama lengkap wajib diisi'),
+    (value) => validators.maxLength(value, 255, 'Nama maksimal 255 karakter')
   ],
   gender: [
-    validators.required('Jenis kelamin wajib diisi')
+    (value) => validators.required(value, 'Jenis kelamin wajib diisi')
   ],
   email: [
-    () => form.value.email ? validators.email('Format email tidak valid')(form.value.email) : null,
-    () => form.value.email ? validators.maxLength(form.value.email, 255, 'Email maksimal 255 karakter')(form.value.email) : null
+    (value) => validators.email(value, 'Format email tidak valid'),
+    (value) => validators.maxLength(value, 255, 'Email maksimal 255 karakter')
   ],
   phone: [
-    () => form.value.phone ? validators.phone('Format nomor telepon tidak valid')(form.value.phone) : null
+    (value) => validators.phone(value, 'Format nomor telepon tidak valid')
   ],
   birth_date: [
-    () => form.value.birth_date ? validators.date('Format tanggal tidak valid')(form.value.birth_date) : null
+    (value) => validators.date(value, 'Format tanggal tidak valid')
   ],
   join_date: [
-    () => form.value.join_date ? validators.date('Format tanggal tidak valid')(form.value.join_date) : null
+    (value) => validators.date(value, 'Format tanggal tidak valid')
   ]
 }
 

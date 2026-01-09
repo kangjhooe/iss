@@ -25,7 +25,13 @@ const router = createRouter({
       path: '/dashboard',
       name: 'Dashboard',
       component: () => import('@/views/Dashboard.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, requiresInstitutionAdmin: true }
+    },
+    {
+      path: '/super-admin/dashboard',
+      name: 'SuperAdminDashboard',
+      component: () => import('@/views/SuperAdminDashboard.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
       path: '/institution',
@@ -44,17 +50,87 @@ const router = createRouter({
       name: 'Teacher',
       component: () => import('@/views/Teacher.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/facility',
+      name: 'Facility',
+      component: () => import('@/views/Facility.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/class',
+      name: 'Class',
+      component: () => import('@/views/Class.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/academic-year',
+      name: 'AcademicYear',
+      component: () => import('@/views/AcademicYear.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/institution-change-requests',
+      name: 'InstitutionChangeRequests',
+      component: () => import('@/views/InstitutionChangeRequests.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
     }
   ]
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next('/dashboard')
+    // Redirect based on user role
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        next('/login')
+        return
+      }
+    }
+    
+    if (authStore.user?.role === 'super_admin') {
+      next('/super-admin/dashboard')
+    } else {
+      next('/dashboard')
+    }
+  } else if (to.meta.requiresSuperAdmin) {
+    // Ensure user data is loaded
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        next('/login')
+        return
+      }
+    }
+    
+    if (authStore.user?.role !== 'super_admin') {
+      next('/dashboard')
+    } else {
+      next()
+    }
+  } else if (to.meta.requiresInstitutionAdmin) {
+    // Ensure user data is loaded
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        next('/login')
+        return
+      }
+    }
+    
+    if (authStore.user?.role === 'super_admin') {
+      next('/super-admin/dashboard')
+    } else {
+      next()
+    }
   } else {
     next()
   }
