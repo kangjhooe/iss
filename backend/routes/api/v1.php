@@ -6,6 +6,7 @@ use App\Http\Controllers\API\ClassController;
 use App\Http\Controllers\API\FacilityController;
 use App\Http\Controllers\API\InstitutionChangeRequestController;
 use App\Http\Controllers\API\InstitutionController;
+use App\Http\Controllers\API\ReportController;
 use App\Http\Controllers\API\SemesterController;
 use App\Http\Controllers\API\StudentController;
 use App\Http\Controllers\API\TeacherController;
@@ -137,5 +138,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/rooms', [FacilityController::class, 'createRoom']);
         Route::put('/rooms/{id}', [FacilityController::class, 'updateRoom']);
         Route::delete('/rooms/{id}', [FacilityController::class, 'deleteRoom']);
+    });
+
+    // Report routes (Laporan/Statistik)
+    Route::prefix('report')->group(function () {
+        Route::get('/institution/{institutionId?}', [ReportController::class, 'getStatistics'])->name('report.statistics');
     });
 });

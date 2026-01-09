@@ -143,7 +143,7 @@
           <div class="filters">
             <input 
               v-model="buildingFilters.search" 
-              @input="loadBuildings" 
+              @input="handleBuildingSearch" 
               placeholder="Cari nama atau kode gedung..."
               class="search-input"
             />
@@ -593,6 +593,32 @@
           </form>
         </div>
       </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
+        <div class="modal-content" @click.stop style="max-width: 500px;">
+          <div class="modal-header">
+            <h3>Konfirmasi Hapus</h3>
+            <button @click="cancelDelete" class="btn-close">×</button>
+          </div>
+          <div class="modal-body">
+            <p style="font-size: 16px; color: #1e293b; margin-bottom: 24px;">
+              Apakah Anda yakin ingin menghapus <strong>{{ deleteName }}</strong>?
+            </p>
+            <p style="font-size: 14px; color: #ef4444; margin-bottom: 24px;">
+              Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div class="modal-footer">
+              <button type="button" @click="cancelDelete" class="btn-secondary" :disabled="deleteLoading">
+                Batal
+              </button>
+              <button type="button" @click="confirmDelete" class="btn-danger" :disabled="deleteLoading">
+                {{ deleteLoading ? 'Menghapus...' : 'Hapus' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </Layout>
 </template>
@@ -604,6 +630,13 @@ import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
+
+// Delete confirmation state
+const showDeleteConfirm = ref(false)
+const deleteType = ref(null) // 'land', 'building', 'room'
+const deleteId = ref(null)
+const deleteName = ref('')
+const deleteLoading = ref(false)
 
 // Tab state
 const activeTab = ref('land')
@@ -739,7 +772,8 @@ const loadBuildings = async (resetFilters = false) => {
     }
   } catch (err) {
     console.error('Error loading buildings:', err)
-    toast.error('Gagal', 'Gagal memuat data gedung')
+    const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal memuat data gedung'
+    toast.error('Gagal', errorMsg)
     buildings.value = []
   } finally {
     buildingLoading.value = false
@@ -772,7 +806,8 @@ const loadRooms = async (resetFilters = false) => {
     }
   } catch (err) {
     console.error('Error loading rooms:', err)
-    toast.error('Gagal', 'Gagal memuat data ruangan')
+    const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal memuat data ruangan'
+    toast.error('Gagal', errorMsg)
     rooms.value = []
   } finally {
     roomLoading.value = false
@@ -833,7 +868,7 @@ const saveLand = async () => {
     // Reload data without filters to show all data (this will also reset filters)
     await loadLands(true)
   } catch (err) {
-    const errorMsg = err.response?.data?.message || err.message || 'Gagal menyimpan data tanah'
+    const errorMsg = err.formattedMessage || err.response?.data?.message || err.message || 'Gagal menyimpan data tanah'
     landError.value = errorMsg
     toast.error('Gagal', errorMsg)
   } finally {
@@ -841,17 +876,12 @@ const saveLand = async () => {
   }
 }
 
-const deleteLand = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus data tanah ini?')) return
-  
-  try {
-    await facilityApi.deleteLand(id)
-    toast.success('Berhasil', 'Data tanah berhasil dihapus')
-    // Reload with current filters
-    loadLands()
-  } catch (err) {
-    toast.error('Gagal', err.response?.data?.message || 'Gagal menghapus data tanah')
-  }
+const deleteLand = (id) => {
+  const land = lands.value.find(l => l.id === id)
+  deleteType.value = 'land'
+  deleteId.value = id
+  deleteName.value = land?.name || 'data tanah ini'
+  showDeleteConfirm.value = true
 }
 
 // Building CRUD
@@ -912,7 +942,7 @@ const saveBuilding = async () => {
     // Reload data without filters to show all data (this will also reset filters)
     await loadBuildings(true)
   } catch (err) {
-    const errorMsg = err.response?.data?.message || 'Gagal menyimpan data gedung'
+    const errorMsg = err.formattedMessage || err.response?.data?.message || err.message || 'Gagal menyimpan data gedung'
     buildingError.value = errorMsg
     toast.error('Gagal', errorMsg)
   } finally {
@@ -920,16 +950,12 @@ const saveBuilding = async () => {
   }
 }
 
-const deleteBuilding = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus data gedung ini?')) return
-  
-  try {
-    await facilityApi.deleteBuilding(id)
-    toast.success('Berhasil', 'Data gedung berhasil dihapus')
-    loadBuildings()
-  } catch (err) {
-    toast.error('Gagal', err.response?.data?.message || 'Gagal menghapus data gedung')
-  }
+const deleteBuilding = (id) => {
+  const building = buildings.value.find(b => b.id === id)
+  deleteType.value = 'building'
+  deleteId.value = id
+  deleteName.value = building?.name || 'data gedung ini'
+  showDeleteConfirm.value = true
 }
 
 // Room CRUD
@@ -992,7 +1018,7 @@ const saveRoom = async () => {
     // Reload data without filters to show all data (this will also reset filters)
     await loadRooms(true)
   } catch (err) {
-    const errorMsg = err.response?.data?.message || 'Gagal menyimpan data ruangan'
+    const errorMsg = err.formattedMessage || err.response?.data?.message || err.message || 'Gagal menyimpan data ruangan'
     roomError.value = errorMsg
     toast.error('Gagal', errorMsg)
   } finally {
@@ -1000,15 +1026,46 @@ const saveRoom = async () => {
   }
 }
 
-const deleteRoom = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus data ruangan ini?')) return
+const deleteRoom = (id) => {
+  const room = rooms.value.find(r => r.id === id)
+  deleteType.value = 'room'
+  deleteId.value = id
+  deleteName.value = room?.name || 'data ruangan ini'
+  showDeleteConfirm.value = true
+}
+
+// Delete confirmation handlers
+const cancelDelete = () => {
+  showDeleteConfirm.value = false
+  deleteType.value = null
+  deleteId.value = null
+  deleteName.value = ''
+}
+
+const confirmDelete = async () => {
+  if (!deleteId.value || !deleteType.value) return
   
+  deleteLoading.value = true
   try {
-    await facilityApi.deleteRoom(id)
-    toast.success('Berhasil', 'Data ruangan berhasil dihapus')
-    loadRooms()
+    if (deleteType.value === 'land') {
+      await facilityApi.deleteLand(deleteId.value)
+      toast.success('Berhasil', 'Data tanah berhasil dihapus')
+      loadLands()
+    } else if (deleteType.value === 'building') {
+      await facilityApi.deleteBuilding(deleteId.value)
+      toast.success('Berhasil', 'Data gedung berhasil dihapus')
+      loadBuildings()
+    } else if (deleteType.value === 'room') {
+      await facilityApi.deleteRoom(deleteId.value)
+      toast.success('Berhasil', 'Data ruangan berhasil dihapus')
+      loadRooms()
+    }
+    cancelDelete()
   } catch (err) {
-    toast.error('Gagal', err.response?.data?.message || 'Gagal menghapus data ruangan')
+    const errorMsg = err.formattedMessage || err.response?.data?.message || `Gagal menghapus data ${deleteType.value}`
+    toast.error('Gagal', errorMsg)
+  } finally {
+    deleteLoading.value = false
   }
 }
 
@@ -1518,5 +1575,29 @@ onMounted(() => {
   margin-bottom: 24px;
   border: 1px solid #fecaca;
   font-size: 14px;
+}
+
+.btn-danger {
+  padding: 12px 24px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.btn-danger:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 </style>

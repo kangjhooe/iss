@@ -5,6 +5,9 @@ export const facilityApi = {
   getLands(params) {
     return api.get('/v1/facility/lands', { params })
   },
+  getLand(id) {
+    return api.get(`/v1/facility/lands/${id}`)
+  },
   createLand(data) {
     return api.post('/v1/facility/lands', data)
   },
@@ -19,6 +22,9 @@ export const facilityApi = {
   getBuildings(params) {
     return api.get('/v1/facility/buildings', { params })
   },
+  getBuilding(id) {
+    return api.get(`/v1/facility/buildings/${id}`)
+  },
   createBuilding(data) {
     return api.post('/v1/facility/buildings', data)
   },
@@ -32,6 +38,9 @@ export const facilityApi = {
   // Room (Ruangan)
   getRooms(params) {
     return api.get('/v1/facility/rooms', { params })
+  },
+  getRoom(id) {
+    return api.get(`/v1/facility/rooms/${id}`)
   },
   createRoom(data) {
     return api.post('/v1/facility/rooms', data)

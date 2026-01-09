@@ -55,40 +55,13 @@ class FacilityController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            $user = $request->user();
-            Log::info('Get lands', [
-                'user_id' => $user->id,
-                'user_name' => $user->name,
-                'user_email' => $user->email,
-                'user_role' => $user->role,
-                'user_is_admin' => $user->isAdmin(),
-                'user_is_super_admin' => $user->isSuperAdmin(),
-                'user_institution_id' => $user->institution_id,
-                'lands_count' => $lands->count(),
-                'filters' => $request->only(['search', 'status']),
-                'sql_query' => $query->toSql(),
-                'sql_bindings' => $query->getBindings(),
-                'request_has_institution_id' => $request->has('institution_id'),
-                'request_institution_id' => $request->institution_id
-            ]);
-
-            // Debug: Log actual data
-            if ($lands->count() > 0) {
-                Log::info('Get lands - Data found', [
-                    'first_land' => $lands->first()->toArray()
-                ]);
-            } else {
-                Log::warning('Get lands - No data found', [
-                    'user_role' => $user->role,
-                    'user_is_super_admin' => $user->isSuperAdmin(),
-                    'user_is_admin' => $user->isAdmin(),
-                    'user_institution_id' => $user->institution_id,
-                    'query_conditions' => [
-                        'institution_id_filter' => $user->isSuperAdmin() || $user->isAdmin() ? 'all' : $user->institution_id,
-                        'search' => $request->has('search') ? $request->search : null,
-                        'status' => $request->has('status') ? $request->status : null
-                    ],
-                    'total_lands_in_db' => Land::count()
+            // Only log in debug mode
+            if (config('app.debug')) {
+                $user = $request->user();
+                Log::debug('Get lands', [
+                    'user_id' => $user->id,
+                    'lands_count' => $lands->count(),
+                    'filters' => $request->only(['search', 'status'])
                 ]);
             }
 
@@ -123,9 +96,6 @@ class FacilityController extends Controller
                 // Super admin must provide institution_id
                 $institutionId = $request->institution_id;
                 if (!$institutionId) {
-                    Log::warning('Create land failed: super admin must provide institution_id', [
-                        'user_id' => $user->id
-                    ]);
                     return response()->json(['message' => 'Super admin harus menyertakan institution_id'], 400);
                 }
             } elseif ($user->isAdmin()) {
@@ -135,34 +105,26 @@ class FacilityController extends Controller
             }
 
             if (!$institutionId) {
-                Log::warning('Create land failed: institution_id not found', [
-                    'user_id' => $user->id,
-                    'is_admin' => $user->isAdmin(),
-                    'is_super_admin' => $user->isSuperAdmin()
-                ]);
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
             $validated['institution_id'] = $institutionId;
             
-            Log::info('Creating land', [
-                'validated' => $validated,
-                'institution_id' => $institutionId
-            ]);
-            
             $land = Land::create($validated);
-            
-            Log::info('Land created successfully', [
-                'land_id' => $land->id,
-                'name' => $land->name
-            ]);
+
+            if (config('app.debug')) {
+                Log::debug('Land created', [
+                    'land_id' => $land->id,
+                    'name' => $land->name,
+                    'institution_id' => $institutionId
+                ]);
+            }
 
             return response()->json([
                 'message' => 'Data tanah berhasil ditambahkan',
                 'data' => $land->load('institution')
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::warning('Land validation failed', ['errors' => $e->errors()]);
             return response()->json([
                 'message' => 'Validasi gagal',
                 'errors' => $e->errors()
@@ -316,9 +278,6 @@ class FacilityController extends Controller
                 // Super admin must provide institution_id
                 $institutionId = $request->institution_id;
                 if (!$institutionId) {
-                    Log::warning('Create building failed: super admin must provide institution_id', [
-                        'user_id' => $user->id
-                    ]);
                     return response()->json(['message' => 'Super admin harus menyertakan institution_id'], 400);
                 }
             } elseif ($user->isAdmin()) {
@@ -328,11 +287,6 @@ class FacilityController extends Controller
             }
 
             if (!$institutionId) {
-                Log::warning('Create building failed: institution_id not found', [
-                    'user_id' => $user->id,
-                    'is_admin' => $user->isAdmin(),
-                    'is_super_admin' => $user->isSuperAdmin()
-                ]);
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
@@ -515,9 +469,6 @@ class FacilityController extends Controller
                 // Super admin must provide institution_id
                 $institutionId = $request->institution_id;
                 if (!$institutionId) {
-                    Log::warning('Create room failed: super admin must provide institution_id', [
-                        'user_id' => $user->id
-                    ]);
                     return response()->json(['message' => 'Super admin harus menyertakan institution_id'], 400);
                 }
             } elseif ($user->isAdmin()) {
@@ -527,11 +478,6 @@ class FacilityController extends Controller
             }
 
             if (!$institutionId) {
-                Log::warning('Create room failed: institution_id not found', [
-                    'user_id' => $user->id,
-                    'is_admin' => $user->isAdmin(),
-                    'is_super_admin' => $user->isSuperAdmin()
-                ]);
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
