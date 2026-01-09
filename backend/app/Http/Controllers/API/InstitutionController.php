@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreInstitutionRequest;
+use App\Http\Requests\UpdateInstitutionRequest;
 use App\Http\Resources\InstitutionResource;
 use App\Models\Institution;
 use Illuminate\Http\Request;
@@ -44,7 +46,9 @@ class InstitutionController extends Controller
             }
 
             $perPage = min($request->get('per_page', 15), 100); // Max 100 per page
-            $institutions = $query->orderBy('created_at', 'desc')->paginate($perPage);
+            $institutions = $query->select(['id', 'name', 'npsn', 'level', 'type', 'is_active', 'created_at'])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
             return InstitutionResource::collection($institutions);
         } catch (\Exception $e) {
@@ -62,43 +66,10 @@ class InstitutionController extends Controller
     /**
      * Store a newly created institution.
      */
-    public function store(Request $request)
+    public function store(StoreInstitutionRequest $request)
     {
         try {
-            // Only admin can create institutions
-            if (!$request->user()->isAdmin()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'npsn' => 'nullable|string|size:8|regex:/^[0-9]{8}$/|unique:institution,npsn',
-                'nss' => 'nullable|string|max:255',
-                'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MTs,MI,PAUD',
-                'type' => 'required|in:Negeri,Swasta',
-                'address' => 'nullable|string',
-                'village' => 'nullable|string|max:255',
-                'sub_district' => 'nullable|string|max:255',
-                'district' => 'nullable|string|max:255',
-                'province' => 'nullable|string|max:255',
-                'postal_code' => 'nullable|string|max:10',
-                'phone' => 'nullable|string|max:20',
-                'email' => 'nullable|email|max:255',
-                'website' => 'nullable|url|max:255',
-                'principal_name' => 'nullable|string|max:255',
-                'principal_nip' => 'nullable|string|max:255',
-                'description' => 'nullable|string',
-                'is_active' => 'sometimes|boolean',
-            ], [
-                'name.required' => 'Nama institusi wajib diisi',
-                'npsn.size' => 'NPSN harus terdiri dari 8 digit',
-                'npsn.regex' => 'NPSN harus berupa angka 8 digit',
-                'npsn.unique' => 'NPSN sudah terdaftar',
-                'type.required' => 'Jenis institusi wajib diisi',
-                'type.in' => 'Jenis institusi harus Negeri atau Swasta',
-            ]);
-
-            $institution = Institution::create($validated);
+            $institution = Institution::create($request->validated());
 
             Log::info('Institution created', [
                 'institution_id' => $institution->id,
@@ -109,8 +80,6 @@ class InstitutionController extends Controller
                 'message' => 'Institusi berhasil dibuat',
                 'data' => new InstitutionResource($institution),
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to create institution', [
                 'error' => $e->getMessage(),
@@ -129,7 +98,7 @@ class InstitutionController extends Controller
     public function show(Request $request, $id)
     {
         try {
-            $institution = Institution::findOrFail($id);
+            $institution = Institution::with(['users', 'students', 'teachers'])->findOrFail($id);
 
             // Jika bukan admin, hanya bisa melihat institusi sendiri
             if (!$request->user()->isAdmin() && $request->user()->institution_id != $institution->id) {
@@ -157,42 +126,12 @@ class InstitutionController extends Controller
     /**
      * Update the specified institution.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateInstitutionRequest $request, $id)
     {
         try {
             $institution = Institution::findOrFail($id);
 
-            // Jika bukan admin, hanya bisa update institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $institution->id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
-            $validated = $request->validate([
-                'name' => 'sometimes|required|string|max:255',
-                'npsn' => 'nullable|string|size:8|regex:/^[0-9]{8}$/|unique:institution,npsn,' . $id,
-                'nss' => 'nullable|string|max:255',
-                'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MTs,MI,PAUD',
-                'type' => 'sometimes|required|in:Negeri,Swasta',
-                'address' => 'nullable|string',
-                'village' => 'nullable|string|max:255',
-                'sub_district' => 'nullable|string|max:255',
-                'district' => 'nullable|string|max:255',
-                'province' => 'nullable|string|max:255',
-                'postal_code' => 'nullable|string|max:10',
-                'phone' => 'nullable|string|max:20',
-                'email' => 'nullable|email|max:255',
-                'website' => 'nullable|url|max:255',
-                'principal_name' => 'nullable|string|max:255',
-                'principal_nip' => 'nullable|string|max:255',
-                'description' => 'nullable|string',
-                'is_active' => 'sometimes|boolean',
-            ], [
-                'npsn.size' => 'NPSN harus terdiri dari 8 digit',
-                'npsn.regex' => 'NPSN harus berupa angka 8 digit',
-                'npsn.unique' => 'NPSN sudah terdaftar',
-            ]);
-
-            $institution->update($validated);
+            $institution->update($request->validated());
 
             Log::info('Institution updated', [
                 'institution_id' => $institution->id,

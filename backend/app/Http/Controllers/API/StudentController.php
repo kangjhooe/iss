@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreStudentRequest;
+use App\Http\Requests\UpdateStudentRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -43,7 +45,10 @@ class StudentController extends Controller
             }
 
             $perPage = min($request->get('per_page', 15), 100); // Max 100 per page
-            $students = $query->with('institution')->orderBy('created_at', 'desc')->paginate($perPage);
+            $students = $query->select(['id', 'institution_id', 'nis', 'nisn', 'name', 'gender', 'class', 'status', 'created_at'])
+                ->with('institution:id,name')
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
             return StudentResource::collection($students);
         } catch (\Exception $e) {
@@ -61,7 +66,7 @@ class StudentController extends Controller
     /**
      * Store a newly created student.
      */
-    public function store(Request $request)
+    public function store(StoreStudentRequest $request)
     {
         try {
             $institutionId = $request->user()->isAdmin() 
@@ -72,29 +77,8 @@ class StudentController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
-            $validated = $request->validate([
-            'institution_id' => 'sometimes|exists:institution,id',
-            'nis' => 'nullable|string',
-            'nisn' => 'nullable|string|unique:student,nisn',
-            'name' => 'required|string|max:255',
-            'gender' => 'required|in:L,P',
-            'birth_date' => 'nullable|date',
-            'birth_place' => 'nullable|string',
-            'address' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'religion' => 'nullable|string',
-            'class' => 'nullable|string',
-            'academic_year' => 'nullable|string',
-            'status' => 'nullable|in:Aktif,Lulus,Pindah,Drop Out,Tidak Aktif',
-            'father_name' => 'nullable|string',
-            'mother_name' => 'nullable|string',
-            'guardian_name' => 'nullable|string',
-            'guardian_phone' => 'nullable|string',
-            'notes' => 'nullable|string',
-        ]);
-
-        $validated['institution_id'] = $institutionId;
+            $validated = $request->validated();
+            $validated['institution_id'] = $institutionId;
 
             $student = Student::create($validated);
 
@@ -108,8 +92,6 @@ class StudentController extends Controller
                 'message' => 'Siswa berhasil ditambahkan',
                 'data' => new StudentResource($student->load('institution')),
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to create student', [
                 'error' => $e->getMessage(),
@@ -156,7 +138,7 @@ class StudentController extends Controller
     /**
      * Update the specified student.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateStudentRequest $request, $id)
     {
         try {
             $student = Student::findOrFail($id);
@@ -166,28 +148,7 @@ class StudentController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $validated = $request->validate([
-            'nis' => 'nullable|string',
-            'nisn' => 'nullable|string|unique:student,nisn,' . $id,
-            'name' => 'sometimes|required|string|max:255',
-            'gender' => 'sometimes|required|in:L,P',
-            'birth_date' => 'nullable|date',
-            'birth_place' => 'nullable|string',
-            'address' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'religion' => 'nullable|string',
-            'class' => 'nullable|string',
-            'academic_year' => 'nullable|string',
-            'status' => 'nullable|in:Aktif,Lulus,Pindah,Drop Out,Tidak Aktif',
-            'father_name' => 'nullable|string',
-            'mother_name' => 'nullable|string',
-            'guardian_name' => 'nullable|string',
-            'guardian_phone' => 'nullable|string',
-            'notes' => 'nullable|string',
-        ]);
-
-            $student->update($validated);
+            $student->update($request->validated());
 
             Log::info('Student updated', [
                 'student_id' => $student->id,
@@ -202,8 +163,6 @@ class StudentController extends Controller
             return response()->json([
                 'message' => 'Siswa tidak ditemukan',
             ], 404);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to update student', [
                 'student_id' => $id,

@@ -101,6 +101,9 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { validateForm, validators } from '@/utils/validation'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -144,10 +147,12 @@ const handleLogin = async () => {
   
   try {
     await authStore.login(form.value)
+    toast.success('Login Berhasil', 'Selamat datang kembali!')
     router.push('/dashboard')
   } catch (err) {
     const errorMessage = err.formattedMessage || err.response?.data?.message || 'Email atau password salah'
     error.value = errorMessage
+    toast.error('Login Gagal', errorMessage)
     
     // Handle field-specific errors
     if (err.response?.data?.errors) {

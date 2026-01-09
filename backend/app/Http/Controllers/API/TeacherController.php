@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTeacherRequest;
+use App\Http\Requests\UpdateTeacherRequest;
 use App\Http\Resources\TeacherResource;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
@@ -43,7 +45,10 @@ class TeacherController extends Controller
             }
 
             $perPage = min($request->get('per_page', 15), 100); // Max 100 per page
-            $teachers = $query->with('institution')->orderBy('created_at', 'desc')->paginate($perPage);
+            $teachers = $query->select(['id', 'institution_id', 'nip', 'nuptk', 'name', 'gender', 'status', 'employment_status', 'created_at'])
+                ->with('institution:id,name')
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
             return TeacherResource::collection($teachers);
         } catch (\Exception $e) {
@@ -61,7 +66,7 @@ class TeacherController extends Controller
     /**
      * Store a newly created teacher.
      */
-    public function store(Request $request)
+    public function store(StoreTeacherRequest $request)
     {
         try {
             $institutionId = $request->user()->isAdmin() 
@@ -72,27 +77,7 @@ class TeacherController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
-            $validated = $request->validate([
-            'institution_id' => 'sometimes|exists:institution,id',
-            'nip' => 'nullable|string',
-            'nuptk' => 'nullable|string|unique:teacher,nuptk',
-            'name' => 'required|string|max:255',
-            'gender' => 'required|in:L,P',
-            'birth_date' => 'nullable|date',
-            'birth_place' => 'nullable|string',
-            'address' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'religion' => 'nullable|string',
-            'employment_status' => 'nullable|in:PNS,CPNS,Guru Tetap Yayasan,Guru Honor Sekolah,Guru Kontrak',
-            'education_level' => 'nullable|in:SMA,D3,S1,S2,S3',
-            'major' => 'nullable|string',
-            'subject' => 'nullable|string',
-            'status' => 'nullable|in:Aktif,Pensiun,Pindah,Tidak Aktif',
-            'join_date' => 'nullable|date',
-            'notes' => 'nullable|string',
-        ]);
-
+            $validated = $request->validated();
             $validated['institution_id'] = $institutionId;
 
             $teacher = Teacher::create($validated);
@@ -107,8 +92,6 @@ class TeacherController extends Controller
                 'message' => 'Guru berhasil ditambahkan',
                 'data' => new TeacherResource($teacher->load('institution')),
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to create teacher', [
                 'error' => $e->getMessage(),
@@ -155,7 +138,7 @@ class TeacherController extends Controller
     /**
      * Update the specified teacher.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateTeacherRequest $request, $id)
     {
         try {
             $teacher = Teacher::findOrFail($id);
@@ -165,27 +148,7 @@ class TeacherController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $validated = $request->validate([
-            'nip' => 'nullable|string',
-            'nuptk' => 'nullable|string|unique:teacher,nuptk,' . $id,
-            'name' => 'sometimes|required|string|max:255',
-            'gender' => 'sometimes|required|in:L,P',
-            'birth_date' => 'nullable|date',
-            'birth_place' => 'nullable|string',
-            'address' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'religion' => 'nullable|string',
-            'employment_status' => 'nullable|in:PNS,CPNS,Guru Tetap Yayasan,Guru Honor Sekolah,Guru Kontrak',
-            'education_level' => 'nullable|in:SMA,D3,S1,S2,S3',
-            'major' => 'nullable|string',
-            'subject' => 'nullable|string',
-            'status' => 'nullable|in:Aktif,Pensiun,Pindah,Tidak Aktif',
-            'join_date' => 'nullable|date',
-            'notes' => 'nullable|string',
-        ]);
-
-            $teacher->update($validated);
+            $teacher->update($request->validated());
 
             Log::info('Teacher updated', [
                 'teacher_id' => $teacher->id,
@@ -200,8 +163,6 @@ class TeacherController extends Controller
             return response()->json([
                 'message' => 'Guru tidak ditemukan',
             ], 404);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to update teacher', [
                 'teacher_id' => $id,

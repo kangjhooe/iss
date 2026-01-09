@@ -219,6 +219,9 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { validateForm, validators } from '@/utils/validation'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -325,10 +328,12 @@ const handleRegister = async () => {
   
   try {
     await authStore.register(form.value)
+    toast.success('Registrasi Berhasil', 'Selamat! Akun Anda berhasil dibuat')
     router.push('/dashboard')
   } catch (err) {
     const errorMessage = err.formattedMessage || err.response?.data?.message || 'Terjadi kesalahan saat pendaftaran'
     error.value = errorMessage
+    toast.error('Registrasi Gagal', errorMessage)
     
     // Handle field-specific errors
     if (err.response?.data?.errors) {

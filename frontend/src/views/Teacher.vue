@@ -252,6 +252,9 @@ import { ref, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { teacherApi } from '@/api/teacher'
 import { validateForm, validators } from '@/utils/validation'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const teachers = ref([])
 const loading = ref(true)
@@ -323,9 +326,10 @@ const deleteTeacher = async (id) => {
   
   try {
     await teacherApi.delete(id)
+    toast.success('Berhasil', 'Guru berhasil dihapus')
     loadTeachers()
   } catch (err) {
-    alert('Gagal menghapus guru')
+    toast.error('Gagal', err.formattedMessage || 'Gagal menghapus guru')
   }
 }
 
@@ -367,13 +371,17 @@ const handleSubmit = async () => {
   try {
     if (editingId) {
       await teacherApi.update(editingId, form.value)
+      toast.success('Berhasil', 'Data guru berhasil diperbarui')
     } else {
       await teacherApi.create(form.value)
+      toast.success('Berhasil', 'Guru berhasil ditambahkan')
     }
     closeModal()
     loadTeachers()
   } catch (err) {
-    error.value = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
+    const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
+    error.value = errorMsg
+    toast.error('Gagal', errorMsg)
   } finally {
     saving.value = false
   }

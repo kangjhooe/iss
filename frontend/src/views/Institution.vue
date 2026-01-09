@@ -267,6 +267,9 @@ import { ref, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { institutionApi } from '@/api/institution'
 import { validateForm, validators } from '@/utils/validation'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const institution = ref(null)
 const loading = ref(true)
@@ -348,8 +351,11 @@ const handleUpdate = async () => {
     const response = await institutionApi.update(institution.value.id, form.value)
     institution.value = response.data.data
     showEditModal.value = false
+    toast.success('Berhasil', 'Profil institusi berhasil diperbarui')
   } catch (err) {
-    error.value = err.formattedMessage || err.response?.data?.message || 'Gagal memperbarui data'
+    const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal memperbarui data'
+    error.value = errorMsg
+    toast.error('Gagal', errorMsg)
   } finally {
     updating.value = false
   }
