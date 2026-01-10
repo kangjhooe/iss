@@ -35,6 +35,7 @@ class Institution extends Model
         'principal_name',
         'principal_nip',
         'description',
+        'logo',
         'is_active',
         'active_academic_year_id',
         'active_semester_id',
@@ -70,10 +71,19 @@ class Institution extends Model
 
     /**
      * Get the teachers for the institution.
+     * Note: Using Employee model as teacher table has been renamed to employee
      */
     public function teachers()
     {
-        return $this->hasMany(Teacher::class);
+        return $this->hasMany(Employee::class)->where('type', 'Guru');
+    }
+
+    /**
+     * Get the employees for the institution.
+     */
+    public function employees()
+    {
+        return $this->hasMany(Employee::class);
     }
 
     /**

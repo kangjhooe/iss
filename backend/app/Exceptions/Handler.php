@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use App\Services\ErrorTrackingService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
@@ -31,7 +32,12 @@ class Handler extends ExceptionHandler
     public function register(): void
     {
         $this->reportable(function (Throwable $e) {
-            //
+            // Track error using ErrorTrackingService
+            if (app()->bound(ErrorTrackingService::class)) {
+                app(ErrorTrackingService::class)->track($e, [
+                    'request_data' => request()->all(),
+                ]);
+            }
         });
     }
 

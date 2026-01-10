@@ -27,7 +27,7 @@ class ClassController extends Controller
         $filters = $request->only(['search', 'grade', 'academic_year', 'academic_year_id', 'status', 'room_id', 'teacher_id']);
         
         $institutionId = null;
-        if (!$request->user()->isAdmin()) {
+        if (!$request->user()->isAdminOrSuperAdmin()) {
             $institutionId = $request->user()->institution_id;
         } elseif ($request->has('institution_id')) {
             $institutionId = $request->get('institution_id');
@@ -52,7 +52,7 @@ class ClassController extends Controller
      */
     public function store(StoreClassRequest $request)
     {
-        $institutionId = $request->user()->isAdmin() 
+        $institutionId = $request->user()->isAdminOrSuperAdmin() 
             ? $request->institution_id 
             : $request->user()->institution_id;
 
@@ -98,8 +98,8 @@ class ClassController extends Controller
     {
         $class = $this->classService->find($id);
 
-        // Jika bukan admin, hanya bisa melihat kelas dari institusi sendiri
-        if (!$request->user()->isAdmin() && $request->user()->institution_id != $class->institution_id) {
+        // Jika bukan admin/super admin, hanya bisa melihat kelas dari institusi sendiri
+        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -163,8 +163,8 @@ class ClassController extends Controller
     {
         $class = SchoolClass::findOrFail($id);
 
-        // Jika bukan admin, hanya bisa menambah siswa ke kelas dari institusi sendiri
-        if (!$request->user()->isAdmin() && $request->user()->institution_id != $class->institution_id) {
+        // Jika bukan admin/super admin, hanya bisa menambah siswa ke kelas dari institusi sendiri
+        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -233,8 +233,8 @@ class ClassController extends Controller
     {
         $class = SchoolClass::findOrFail($id);
 
-        // Jika bukan admin, hanya bisa melihat siswa dari institusi sendiri
-        if (!$request->user()->isAdmin() && $request->user()->institution_id != $class->institution_id) {
+        // Jika bukan admin/super admin, hanya bisa melihat siswa dari institusi sendiri
+        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -269,8 +269,8 @@ class ClassController extends Controller
     {
         $class = SchoolClass::findOrFail($id);
 
-        // Jika bukan admin, hanya bisa menghapus siswa dari kelas dari institusi sendiri
-        if (!$request->user()->isAdmin() && $request->user()->institution_id != $class->institution_id) {
+        // Jika bukan admin/super admin, hanya bisa menghapus siswa dari kelas dari institusi sendiri
+        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -309,8 +309,8 @@ class ClassController extends Controller
     {
         $class = SchoolClass::findOrFail($id);
 
-        // Jika bukan admin, hanya bisa melihat siswa dari kelas dari institusi sendiri
-        if (!$request->user()->isAdmin() && $request->user()->institution_id != $class->institution_id) {
+        // Jika bukan admin/super admin, hanya bisa melihat siswa dari kelas dari institusi sendiri
+        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

@@ -119,10 +119,19 @@ class User extends Authenticatable
 
     /**
      * Get the teacher profile associated with this user (by email).
+     * Note: Using Employee model as teacher table has been renamed to employee
      */
     public function teacherProfile()
     {
-        return $this->hasOne(Teacher::class, 'email', 'email');
+        return $this->hasOne(Employee::class, 'email', 'email')->where('type', 'Guru');
+    }
+
+    /**
+     * Get the employee profile associated with this user (by email).
+     */
+    public function employeeProfile()
+    {
+        return $this->hasOne(Employee::class, 'email', 'email');
     }
 
     /**

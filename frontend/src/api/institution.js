@@ -21,5 +21,14 @@ export const institutionApi = {
   },
   updateActiveAcademicYear(id, data) {
     return api.put(`/v1/institution/${id}/active-academic-year`, data)
+  },
+  uploadLogo(id, file) {
+    const formData = new FormData()
+    formData.append('logo', file)
+    return api.post(`/v1/institution/${id}/logo`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 }

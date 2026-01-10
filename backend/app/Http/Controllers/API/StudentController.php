@@ -21,7 +21,7 @@ class StudentController extends Controller
             $query = Student::query();
 
             // Filter berdasarkan institusi user yang login
-            if (!$request->user()->isAdmin()) {
+            if (!$request->user()->isAdminOrSuperAdmin()) {
                 $query->where('institution_id', $request->user()->institution_id);
             } elseif ($request->has('institution_id')) {
                 $query->where('institution_id', $request->institution_id);
@@ -78,7 +78,7 @@ class StudentController extends Controller
     public function store(StoreStudentRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdmin() 
+            $institutionId = $request->user()->isAdminOrSuperAdmin() 
                 ? $request->institution_id 
                 : $request->user()->institution_id;
 
@@ -121,8 +121,8 @@ class StudentController extends Controller
         try {
             $student = Student::with('institution')->findOrFail($id);
 
-            // Jika bukan admin, hanya bisa melihat siswa dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $student->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa melihat siswa dari institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -152,8 +152,8 @@ class StudentController extends Controller
         try {
             $student = Student::findOrFail($id);
 
-            // Jika bukan admin, hanya bisa update siswa dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $student->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa update siswa dari institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -193,8 +193,8 @@ class StudentController extends Controller
         try {
             $student = Student::findOrFail($id);
 
-            // Jika bukan admin, hanya bisa hapus siswa dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $student->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa hapus siswa dari institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 

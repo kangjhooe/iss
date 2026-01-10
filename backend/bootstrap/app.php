@@ -5,6 +5,9 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
 return Application::configure(basePath: dirname(__DIR__))
+    ->withProviders([
+        \L5Swagger\L5SwaggerServiceProvider::class,
+    ])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
@@ -20,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'cache' => \App\Http\Middleware\CacheResponse::class,
         ]);
 
         // Force JSON response for API routes FIRST (before authentication)

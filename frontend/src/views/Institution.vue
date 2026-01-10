@@ -288,6 +288,34 @@
         </div>
 
         <div class="info-section">
+          <h3>Logo Sekolah</h3>
+          <div class="logo-section">
+            <div v-if="institution.logo" class="logo-preview">
+              <img :src="institution.logo" alt="Logo Sekolah" />
+            </div>
+            <div v-else class="logo-placeholder">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L22 16M2 20H22M3 4H21C21.5523 4 22 4.44772 22 5V15C22 15.5523 21.5523 16 21 16H3C2.44772 16 2 15.5523 2 15V5C2 4.44772 2.44772 4 3 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p>Belum ada logo</p>
+            </div>
+            <button @click="triggerLogoUpload" :disabled="uploadingLogo" class="btn-primary" style="margin-top: 16px;">
+              <svg v-if="!uploadingLogo" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>{{ uploadingLogo ? 'Mengunggah...' : (institution.logo ? 'Ganti Logo' : 'Unggah Logo') }}</span>
+            </button>
+            <input 
+              ref="logoInput" 
+              type="file" 
+              accept="image/*" 
+              @change="handleLogoUpload" 
+              style="display: none"
+            />
+          </div>
+        </div>
+
+        <div class="info-section">
           <h3>Tahun Ajaran & Semester Aktif</h3>
           <div class="info-grid">
             <div class="info-item">
@@ -443,6 +471,31 @@
             <div class="form-group">
               <label>Deskripsi</label>
               <textarea v-model="form.description" rows="4"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Logo Sekolah</label>
+              <div class="logo-upload-section">
+                <div v-if="institution?.logo" class="logo-preview-small">
+                  <img :src="institution.logo" alt="Logo Sekolah" />
+                </div>
+                <div v-else class="logo-placeholder-small">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L22 16M2 20H22M3 4H21C21.5523 4 22 4.44772 22 5V15C22 15.5523 21.5523 16 21 16H3C2.44772 16 2 15.5523 2 15V5C2 4.44772 2.44772 4 3 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <button type="button" @click="triggerLogoUpload" :disabled="uploadingLogo" class="btn-secondary" style="margin-top: 8px;">
+                  {{ uploadingLogo ? 'Mengunggah...' : (institution?.logo ? 'Ganti Logo' : 'Unggah Logo') }}
+                </button>
+                <input 
+                  ref="logoInput" 
+                  type="file" 
+                  accept="image/*" 
+                  @change="handleLogoUpload" 
+                  style="display: none"
+                />
+              </div>
+              <small class="form-hint">Format: JPG, PNG, GIF, SVG (Maks. 2MB)</small>
             </div>
 
             <div v-if="error" class="error-message">{{ error }}</div>
@@ -724,6 +777,8 @@ const academicYears = ref([])
 const semesters = ref([])
 const updatingAcademicYear = ref(false)
 const academicYearError = ref('')
+const logoInput = ref(null)
+const uploadingLogo = ref(false)
 
 const isSuperAdmin = computed(() => authStore.user?.role === 'super_admin')
 
@@ -1221,6 +1276,61 @@ const formatDate = (dateString) => {
     month: 'long',
     day: 'numeric'
   })
+}
+
+const triggerLogoUpload = () => {
+  logoInput.value?.click()
+}
+
+const handleLogoUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  // Validate file size (2MB max)
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error('Gagal', 'Ukuran file maksimal 2MB')
+    return
+  }
+
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml']
+  if (!validTypes.includes(file.type)) {
+    toast.error('Gagal', 'Format file tidak didukung. Gunakan JPG, PNG, GIF, atau SVG')
+    return
+  }
+
+  uploadingLogo.value = true
+
+  try {
+    const institutionId = institution.value?.id
+    if (!institutionId) {
+      toast.error('Gagal', 'Institusi tidak ditemukan')
+      return
+    }
+
+    const response = await institutionApi.uploadLogo(institutionId, file)
+    
+    // Update institution data
+    const updatedData = response.data?.data || response.data
+    if (updatedData) {
+      institution.value = updatedData
+      if (form.value) {
+        Object.assign(form.value, updatedData)
+      }
+    }
+    
+    toast.success('Berhasil', 'Logo berhasil diupload')
+    
+    // Reset file input
+    if (logoInput.value) {
+      logoInput.value.value = ''
+    }
+  } catch (err) {
+    const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal mengupload logo'
+    toast.error('Gagal', errorMsg)
+  } finally {
+    uploadingLogo.value = false
+  }
 }
 
 onMounted(async () => {
@@ -1723,5 +1833,89 @@ onMounted(async () => {
   font-size: 14px;
   color: #64748b;
   margin: 0 0 24px 0;
+}
+
+.logo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.logo-preview {
+  width: 200px;
+  height: 200px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-placeholder {
+  width: 200px;
+  height: 200px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.logo-placeholder p {
+  font-size: 12px;
+  margin: 0;
+  color: #94a3b8;
+}
+
+.logo-upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.logo-preview-small {
+  width: 120px;
+  height: 120px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.logo-preview-small img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-placeholder-small {
+  width: 120px;
+  height: 120px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  background: #f8fafc;
 }
 </style>

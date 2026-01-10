@@ -70,7 +70,7 @@
               </svg>
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ reportData.summary.total_students }}</div>
+              <div class="stat-value">{{ reportData.summary?.total_students ?? calculatedTotalStudents }}</div>
               <div class="stat-label">Total Siswa</div>
             </div>
           </div>
@@ -84,7 +84,7 @@
               </svg>
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ reportData.summary.total_teachers }}</div>
+              <div class="stat-value">{{ reportData.summary?.total_teachers || 0 }}</div>
               <div class="stat-label">Total Guru</div>
             </div>
           </div>
@@ -97,7 +97,7 @@
               </svg>
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ reportData.summary.total_classes }}</div>
+              <div class="stat-value">{{ reportData.summary?.total_classes || 0 }}</div>
               <div class="stat-label">Total Kelas</div>
             </div>
           </div>
@@ -108,7 +108,7 @@
               </svg>
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ reportData.summary.total_facilities }}</div>
+              <div class="stat-value">{{ reportData.summary?.total_facilities || 0 }}</div>
               <div class="stat-label">Sarana Prasarana</div>
             </div>
           </div>
@@ -156,14 +156,24 @@
         <!-- Students Statistics -->
         <div class="section">
           <h3 class="section-title">Data Siswa</h3>
-          <div class="chart-container">
+          <div v-if="calculatedTotalStudents === 0" class="empty-state">
+            <p>Tidak ada data siswa yang ditemukan. Pastikan:</p>
+            <ul>
+              <li>Siswa memiliki status "Aktif"</li>
+              <li>Siswa terhubung ke kelas dengan grade 7, 8, atau 9</li>
+              <li>Tahun ajaran aktif sudah ditetapkan</li>
+            </ul>
+          </div>
+          <div v-else class="chart-container">
             <div class="chart-wrapper">
               <h4>Jumlah Siswa per Kelas</h4>
-              <Bar :data="studentsChartData" :options="chartOptions" />
+              <Bar v-if="studentsChartData" :data="studentsChartData" :options="chartOptions" />
+              <div v-else class="chart-placeholder">Memuat data chart...</div>
             </div>
             <div class="chart-wrapper">
               <h4>Distribusi Siswa per Kelas</h4>
-              <Doughnut :data="studentsPieChartData" :options="pieChartOptions" />
+              <Doughnut v-if="studentsPieChartData" :data="studentsPieChartData" :options="pieChartOptions" />
+              <div v-else class="chart-placeholder">Memuat data chart...</div>
             </div>
           </div>
           <div class="data-table-container">
@@ -179,27 +189,27 @@
               <tbody>
                 <tr>
                   <td><strong>Kelas 7</strong></td>
-                  <td>{{ reportData.students.grade_7.male }}</td>
-                  <td>{{ reportData.students.grade_7.female }}</td>
-                  <td><strong>{{ reportData.students.grade_7.total }}</strong></td>
+                  <td>{{ reportData.students?.grade_7?.male || 0 }}</td>
+                  <td>{{ reportData.students?.grade_7?.female || 0 }}</td>
+                  <td><strong>{{ reportData.students?.grade_7?.total || 0 }}</strong></td>
                 </tr>
                 <tr>
                   <td><strong>Kelas 8</strong></td>
-                  <td>{{ reportData.students.grade_8.male }}</td>
-                  <td>{{ reportData.students.grade_8.female }}</td>
-                  <td><strong>{{ reportData.students.grade_8.total }}</strong></td>
+                  <td>{{ reportData.students?.grade_8?.male || 0 }}</td>
+                  <td>{{ reportData.students?.grade_8?.female || 0 }}</td>
+                  <td><strong>{{ reportData.students?.grade_8?.total || 0 }}</strong></td>
                 </tr>
                 <tr>
                   <td><strong>Kelas 9</strong></td>
-                  <td>{{ reportData.students.grade_9.male }}</td>
-                  <td>{{ reportData.students.grade_9.female }}</td>
-                  <td><strong>{{ reportData.students.grade_9.total }}</strong></td>
+                  <td>{{ reportData.students?.grade_9?.male || 0 }}</td>
+                  <td>{{ reportData.students?.grade_9?.female || 0 }}</td>
+                  <td><strong>{{ reportData.students?.grade_9?.total || 0 }}</strong></td>
                 </tr>
                 <tr class="total-row">
                   <td><strong>Total</strong></td>
                   <td><strong>{{ totalMaleStudents }}</strong></td>
                   <td><strong>{{ totalFemaleStudents }}</strong></td>
-                  <td><strong>{{ reportData.summary.total_students }}</strong></td>
+                  <td><strong>{{ calculatedTotalStudents }}</strong></td>
                 </tr>
               </tbody>
             </table>
@@ -226,15 +236,15 @@
               <tbody>
                 <tr>
                   <td>Laki-laki</td>
-                  <td>{{ reportData.teachers.male }}</td>
+                  <td>{{ reportData.employees?.teachers_male || reportData.teachers?.male || 0 }}</td>
                 </tr>
                 <tr>
                   <td>Perempuan</td>
-                  <td>{{ reportData.teachers.female }}</td>
+                  <td>{{ reportData.employees?.teachers_female || reportData.teachers?.female || 0 }}</td>
                 </tr>
                 <tr class="total-row">
                   <td><strong>Total</strong></td>
-                  <td><strong>{{ reportData.teachers.total }}</strong></td>
+                  <td><strong>{{ reportData.employees?.teachers || reportData.teachers?.total || 0 }}</strong></td>
                 </tr>
               </tbody>
             </table>
@@ -394,7 +404,24 @@ const comparisonChartOptions = {
 }
 
 const studentsChartData = computed(() => {
-  if (!reportData.value) return null
+  if (!reportData.value || !reportData.value.students) {
+    console.log('Chart data: reportData or students is null')
+    return null
+  }
+  
+  const maleData = [
+    reportData.value.students.grade_7?.male || 0,
+    reportData.value.students.grade_8?.male || 0,
+    reportData.value.students.grade_9?.male || 0
+  ]
+  
+  const femaleData = [
+    reportData.value.students.grade_7?.female || 0,
+    reportData.value.students.grade_8?.female || 0,
+    reportData.value.students.grade_9?.female || 0
+  ]
+  
+  console.log('Chart data - Male:', maleData, 'Female:', femaleData)
   
   return {
     labels: ['Kelas 7', 'Kelas 8', 'Kelas 9'],
@@ -402,36 +429,28 @@ const studentsChartData = computed(() => {
       {
         label: 'Laki-laki',
         backgroundColor: '#667eea',
-        data: [
-          reportData.value.students.grade_7.male,
-          reportData.value.students.grade_8.male,
-          reportData.value.students.grade_9.male
-        ]
+        data: maleData
       },
       {
         label: 'Perempuan',
         backgroundColor: '#f093fb',
-        data: [
-          reportData.value.students.grade_7.female,
-          reportData.value.students.grade_8.female,
-          reportData.value.students.grade_9.female
-        ]
+        data: femaleData
       }
     ]
   }
 })
 
 const studentsPieChartData = computed(() => {
-  if (!reportData.value) return null
+  if (!reportData.value || !reportData.value.students) return null
   
   return {
     labels: ['Kelas 7', 'Kelas 8', 'Kelas 9'],
     datasets: [{
       backgroundColor: ['#667eea', '#f093fb', '#4facfe'],
       data: [
-        reportData.value.students.grade_7.total,
-        reportData.value.students.grade_8.total,
-        reportData.value.students.grade_9.total
+        reportData.value.students.grade_7?.total || 0,
+        reportData.value.students.grade_8?.total || 0,
+        reportData.value.students.grade_9?.total || 0
       ]
     }]
   }
@@ -440,25 +459,28 @@ const studentsPieChartData = computed(() => {
 const teachersChartData = computed(() => {
   if (!reportData.value) return null
   
+  const teachersMale = reportData.value.employees?.teachers_male || reportData.value.teachers?.male || 0
+  const teachersFemale = reportData.value.employees?.teachers_female || reportData.value.teachers?.female || 0
+  
   return {
     labels: ['Guru'],
     datasets: [
       {
         label: 'Laki-laki',
         backgroundColor: '#667eea',
-        data: [reportData.value.teachers.male]
+        data: [teachersMale]
       },
       {
         label: 'Perempuan',
         backgroundColor: '#f093fb',
-        data: [reportData.value.teachers.female]
+        data: [teachersFemale]
       }
     ]
   }
 })
 
 const comparisonChartData = computed(() => {
-  if (!reportData.value || !reportData.value.comparison) return null
+  if (!reportData.value || !reportData.value.comparison || !reportData.value.students) return null
   
   const current = reportData.value.students
   const previous = reportData.value.comparison.students
@@ -470,18 +492,18 @@ const comparisonChartData = computed(() => {
         label: reportData.value.academic_year?.name || 'Tahun Ajaran Aktif',
         backgroundColor: '#667eea',
         data: [
-          current.grade_7.total,
-          current.grade_8.total,
-          current.grade_9.total
+          current.grade_7?.total || 0,
+          current.grade_8?.total || 0,
+          current.grade_9?.total || 0
         ]
       },
       {
         label: reportData.value.comparison.academic_year || 'Tahun Ajaran Sebelumnya',
         backgroundColor: '#94a3b8',
         data: [
-          previous.grade_7.total,
-          previous.grade_8.total,
-          previous.grade_9.total
+          previous.grade_7?.total || 0,
+          previous.grade_8?.total || 0,
+          previous.grade_9?.total || 0
         ]
       }
     ]
@@ -489,17 +511,22 @@ const comparisonChartData = computed(() => {
 })
 
 const totalMaleStudents = computed(() => {
-  if (!reportData.value) return 0
-  return reportData.value.students.grade_7.male + 
-         reportData.value.students.grade_8.male + 
-         reportData.value.students.grade_9.male
+  if (!reportData.value || !reportData.value.students) return 0
+  return (reportData.value.students.grade_7?.male || 0) + 
+         (reportData.value.students.grade_8?.male || 0) + 
+         (reportData.value.students.grade_9?.male || 0)
 })
 
 const totalFemaleStudents = computed(() => {
-  if (!reportData.value) return 0
-  return reportData.value.students.grade_7.female + 
-         reportData.value.students.grade_8.female + 
-         reportData.value.students.grade_9.female
+  if (!reportData.value || !reportData.value.students) return 0
+  return (reportData.value.students.grade_7?.female || 0) + 
+         (reportData.value.students.grade_8?.female || 0) + 
+         (reportData.value.students.grade_9?.female || 0)
+})
+
+const calculatedTotalStudents = computed(() => {
+  if (!reportData.value || !reportData.value.students) return 0
+  return totalMaleStudents.value + totalFemaleStudents.value
 })
 
 const loadReport = async () => {
@@ -512,8 +539,72 @@ const loadReport = async () => {
     
     const response = await reportApi.getStatistics(null, params)
     
-    if (response.data && response.data.data) {
-      reportData.value = response.data.data
+      // Debug: Log raw response
+      console.log('Raw API Response:', response)
+      console.log('Response data:', response.data)
+      
+      if (response.data && response.data.data) {
+      const data = response.data.data
+      
+      // Debug: Log raw data structure
+      console.log('Raw data structure:', JSON.stringify(data, null, 2))
+      console.log('Students data (raw):', data.students)
+      console.log('Summary data (raw):', data.summary)
+      
+      // Normalize data structure - ensure students structure exists
+      if (!data.students) {
+        data.students = {
+          grade_7: { male: 0, female: 0, total: 0 },
+          grade_8: { male: 0, female: 0, total: 0 },
+          grade_9: { male: 0, female: 0, total: 0 }
+        }
+      } else {
+        // Ensure each grade has the required structure and recalculate totals
+        ['grade_7', 'grade_8', 'grade_9'].forEach(grade => {
+          if (!data.students[grade]) {
+            data.students[grade] = { male: 0, female: 0, total: 0 }
+          } else {
+            // Ensure values are numbers
+            data.students[grade].male = Number(data.students[grade].male) || 0
+            data.students[grade].female = Number(data.students[grade].female) || 0
+            // Recalculate total from male + female to ensure accuracy
+            data.students[grade].total = data.students[grade].male + data.students[grade].female
+          }
+        })
+      }
+      
+      // Recalculate summary.total_students from actual students data
+      if (data.summary) {
+        const calculatedTotal = (data.students.grade_7?.total || 0) + 
+                                (data.students.grade_8?.total || 0) + 
+                                (data.students.grade_9?.total || 0)
+        data.summary.total_students = calculatedTotal
+        
+        // Debug log
+        console.log('=== Students Data Normalized ===')
+        console.log('Grade 7:', data.students.grade_7)
+        console.log('Grade 8:', data.students.grade_8)
+        console.log('Grade 9:', data.students.grade_9)
+        console.log('Calculated Total:', calculatedTotal)
+        console.log('Summary Total (before):', data.summary.total_students)
+        console.log('Summary Total (after):', calculatedTotal)
+      } else {
+        console.warn('Summary data is missing!')
+      }
+      
+      // Normalize employees/teachers structure
+      if (data.employees && !data.teachers) {
+        // Create teachers object from employees for backward compatibility
+        data.teachers = {
+          male: data.employees.teachers_male || 0,
+          female: data.employees.teachers_female || 0,
+          total: data.employees.teachers || 0
+        }
+      } else if (!data.teachers) {
+        data.teachers = { male: 0, female: 0, total: 0 }
+      }
+      
+      reportData.value = data
     } else {
       throw new Error('Format data tidak valid')
     }
@@ -580,27 +671,27 @@ const exportPDF = async () => {
     const studentsTableRows = `
       <tr>
         <td><strong>Kelas 7</strong></td>
-        <td>${reportData.value.students.grade_7.male}</td>
-        <td>${reportData.value.students.grade_7.female}</td>
-        <td><strong>${reportData.value.students.grade_7.total}</strong></td>
+        <td>${reportData.value.students?.grade_7?.male || 0}</td>
+        <td>${reportData.value.students?.grade_7?.female || 0}</td>
+        <td><strong>${reportData.value.students?.grade_7?.total || 0}</strong></td>
       </tr>
       <tr>
         <td><strong>Kelas 8</strong></td>
-        <td>${reportData.value.students.grade_8.male}</td>
-        <td>${reportData.value.students.grade_8.female}</td>
-        <td><strong>${reportData.value.students.grade_8.total}</strong></td>
+        <td>${reportData.value.students?.grade_8?.male || 0}</td>
+        <td>${reportData.value.students?.grade_8?.female || 0}</td>
+        <td><strong>${reportData.value.students?.grade_8?.total || 0}</strong></td>
       </tr>
       <tr>
         <td><strong>Kelas 9</strong></td>
-        <td>${reportData.value.students.grade_9.male}</td>
-        <td>${reportData.value.students.grade_9.female}</td>
-        <td><strong>${reportData.value.students.grade_9.total}</strong></td>
+        <td>${reportData.value.students?.grade_9?.male || 0}</td>
+        <td>${reportData.value.students?.grade_9?.female || 0}</td>
+        <td><strong>${reportData.value.students?.grade_9?.total || 0}</strong></td>
       </tr>
       <tr>
         <td><strong>Total</strong></td>
         <td><strong>${totalMaleStudents.value}</strong></td>
         <td><strong>${totalFemaleStudents.value}</strong></td>
-        <td><strong>${reportData.value.summary.total_students}</strong></td>
+        <td><strong>${calculatedTotalStudents.value || reportData.value.summary?.total_students || 0}</strong></td>
       </tr>
     `
     
@@ -638,6 +729,18 @@ const exportPDF = async () => {
           padding-bottom: 12px;
           margin-bottom: 20px;
           text-align: center;
+        }
+        .kop-header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+          margin-bottom: 12px;
+        }
+        .kop-logo {
+          max-width: 80px;
+          max-height: 80px;
+          object-fit: contain;
         }
         .kop-name {
           font-size: 18px;
@@ -774,8 +877,13 @@ const exportPDF = async () => {
       </head>
       <body>
         <div class="kop">
-          <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
-          <div class="kop-address">${fullAddress}</div>
+          <div class="kop-header">
+            ${institution.logo ? `<img src="${institution.logo}" alt="Logo Sekolah" class="kop-logo" />` : ''}
+            <div style="flex: 1;">
+              <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
+              <div class="kop-address">${fullAddress}</div>
+            </div>
+          </div>
           <div class="kop-info">
             <div>NPSN: ${institution.npsn || '-'}</div>
             <div>NSS: ${institution.nss || '-'}</div>
@@ -793,19 +901,19 @@ const exportPDF = async () => {
           <div class="summary-box">
             <div class="summary-grid">
               <div class="summary-item">
-                <div class="summary-value">${reportData.value.summary.total_students}</div>
+                <div class="summary-value">${calculatedTotalStudents.value || reportData.value.summary?.total_students || 0}</div>
                 <div class="summary-label">Total Siswa</div>
               </div>
               <div class="summary-item">
-                <div class="summary-value">${reportData.value.summary.total_teachers}</div>
+                <div class="summary-value">${reportData.value.summary?.total_teachers || 0}</div>
                 <div class="summary-label">Total Guru</div>
               </div>
               <div class="summary-item">
-                <div class="summary-value">${reportData.value.summary.total_classes}</div>
+                <div class="summary-value">${reportData.value.summary?.total_classes || 0}</div>
                 <div class="summary-label">Total Kelas</div>
               </div>
               <div class="summary-item">
-                <div class="summary-value">${reportData.value.summary.total_facilities}</div>
+                <div class="summary-value">${reportData.value.summary?.total_facilities || 0}</div>
                 <div class="summary-label">Sarana Prasarana</div>
               </div>
             </div>
@@ -879,15 +987,15 @@ const exportPDF = async () => {
             <tbody>
               <tr>
                 <td>Laki-laki</td>
-                <td>${reportData.value.teachers.male}</td>
+                <td>${reportData.value.employees?.teachers_male || reportData.value.teachers?.male || 0}</td>
               </tr>
               <tr>
                 <td>Perempuan</td>
-                <td>${reportData.value.teachers.female}</td>
+                <td>${reportData.value.employees?.teachers_female || reportData.value.teachers?.female || 0}</td>
               </tr>
               <tr class="total-row">
                 <td><strong>Total</strong></td>
-                <td><strong>${reportData.value.teachers.total}</strong></td>
+                <td><strong>${reportData.value.employees?.teachers || reportData.value.teachers?.total || 0}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -950,21 +1058,21 @@ const exportPDF = async () => {
             <tbody>
               <tr>
                 <td>Kelas 7</td>
-                <td>${reportData.value.students.grade_7.total}</td>
-                <td>${reportData.value.comparison.students.grade_7.total}</td>
-                <td>${reportData.value.students.grade_7.total - reportData.value.comparison.students.grade_7.total}</td>
+                <td>${reportData.value.students?.grade_7?.total || 0}</td>
+                <td>${reportData.value.comparison.students?.grade_7?.total || 0}</td>
+                <td>${(reportData.value.students?.grade_7?.total || 0) - (reportData.value.comparison.students?.grade_7?.total || 0)}</td>
               </tr>
               <tr>
                 <td>Kelas 8</td>
-                <td>${reportData.value.students.grade_8.total}</td>
-                <td>${reportData.value.comparison.students.grade_8.total}</td>
-                <td>${reportData.value.students.grade_8.total - reportData.value.comparison.students.grade_8.total}</td>
+                <td>${reportData.value.students?.grade_8?.total || 0}</td>
+                <td>${reportData.value.comparison.students?.grade_8?.total || 0}</td>
+                <td>${(reportData.value.students?.grade_8?.total || 0) - (reportData.value.comparison.students?.grade_8?.total || 0)}</td>
               </tr>
               <tr>
                 <td>Kelas 9</td>
-                <td>${reportData.value.students.grade_9.total}</td>
-                <td>${reportData.value.comparison.students.grade_9.total}</td>
-                <td>${reportData.value.students.grade_9.total - reportData.value.comparison.students.grade_9.total}</td>
+                <td>${reportData.value.students?.grade_9?.total || 0}</td>
+                <td>${reportData.value.comparison.students?.grade_9?.total || 0}</td>
+                <td>${(reportData.value.students?.grade_9?.total || 0) - (reportData.value.comparison.students?.grade_9?.total || 0)}</td>
               </tr>
             </tbody>
           </table>
@@ -1368,6 +1476,37 @@ onMounted(() => {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.empty-state {
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+}
+
+.empty-state p {
+  margin-bottom: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.empty-state ul {
+  margin: 0;
+  padding-left: 24px;
+  color: #64748b;
+}
+
+.empty-state li {
+  margin-bottom: 8px;
+}
+
+.chart-placeholder {
+  padding: 40px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
 }
 
 @media (max-width: 768px) {

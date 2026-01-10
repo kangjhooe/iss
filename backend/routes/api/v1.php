@@ -77,21 +77,41 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Institution routes
     Route::get('/institution/my', [InstitutionController::class, 'myInstitution']);
     Route::put('/institution/{id}/active-academic-year', [InstitutionController::class, 'updateActiveAcademicYear'])->name('institution.update-active-academic-year');
+    Route::post('/institution/{id}/logo', [InstitutionController::class, 'uploadLogo'])->name('institution.upload-logo');
+    Route::get('/institution/{id}/logo', [InstitutionController::class, 'getLogo'])->name('institution.get-logo');
     Route::apiResource('institution', InstitutionController::class);
 
-    // Student routes
-    Route::apiResource('student', StudentController::class);
+    // Student routes with caching
+    Route::middleware('cache:300')->group(function () {
+        Route::get('/student', [StudentController::class, 'index']);
+    });
+    Route::get('/student/{id}', [StudentController::class, 'show']);
+    Route::post('/student', [StudentController::class, 'store']);
+    Route::put('/student/{id}', [StudentController::class, 'update']);
+    Route::delete('/student/{id}', [StudentController::class, 'destroy']);
     Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
 
-    // Employee routes
-    Route::apiResource('employee', EmployeeController::class);
+    // Employee routes with caching
+    Route::middleware('cache:300')->group(function () {
+        Route::get('/employee', [EmployeeController::class, 'index']);
+    });
+    Route::get('/employee/{id}', [EmployeeController::class, 'show']);
+    Route::post('/employee', [EmployeeController::class, 'store']);
+    Route::put('/employee/{id}', [EmployeeController::class, 'update']);
+    Route::delete('/employee/{id}', [EmployeeController::class, 'destroy']);
     Route::post('/employee/import', [EmployeeController::class, 'import'])->name('employee.import');
     Route::post('/employee/{id}/documents', [EmployeeController::class, 'uploadDocument'])->name('employee.upload-document');
     Route::delete('/employee/{id}/documents/{documentId}', [EmployeeController::class, 'deleteDocument'])->name('employee.delete-document');
     Route::get('/employee/{id}/documents/{documentId}/download', [EmployeeController::class, 'downloadDocument'])->name('employee.download-document');
 
-    // Class routes
-    Route::apiResource('class', ClassController::class);
+    // Class routes with caching
+    Route::middleware('cache:300')->group(function () {
+        Route::get('/class', [ClassController::class, 'index']);
+    });
+    Route::get('/class/{id}', [ClassController::class, 'show']);
+    Route::post('/class', [ClassController::class, 'store']);
+    Route::put('/class/{id}', [ClassController::class, 'update']);
+    Route::delete('/class/{id}', [ClassController::class, 'destroy']);
     Route::get('/class/{id}/available-students', [ClassController::class, 'getAvailableStudents'])->name('class.available-students');
     Route::get('/class/{id}/students', [ClassController::class, 'getStudents'])->name('class.students');
     Route::post('/class/{id}/students', [ClassController::class, 'addStudents'])->name('class.add-students');

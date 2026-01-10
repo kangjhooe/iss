@@ -1,6 +1,27 @@
 <template>
   <div class="layout">
-    <nav class="sidebar">
+    <!-- Mobile Menu Button -->
+    <button 
+      @click="toggleSidebar" 
+      class="mobile-menu-btn"
+      :aria-label="sidebarOpen ? 'Tutup menu' : 'Buka menu'"
+    >
+      <svg v-if="!sidebarOpen" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <!-- Overlay for mobile -->
+    <div 
+      v-if="sidebarOpen" 
+      class="sidebar-overlay"
+      @click="closeSidebar"
+    ></div>
+
+    <nav class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="logo">
         <div class="logo-icon">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -162,13 +183,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+const sidebarOpen = ref(false)
 
 const pageTitle = computed(() => {
   const titles = {
@@ -184,6 +207,37 @@ const pageTitle = computed(() => {
     InstitutionChangeRequests: 'Request Perubahan'
   }
   return titles[route.name] || 'Dashboard'
+})
+
+const toggleSidebar = () => {
+  sidebarOpen.value = !sidebarOpen.value
+}
+
+const closeSidebar = () => {
+  sidebarOpen.value = false
+}
+
+// Close sidebar when route changes (mobile)
+const handleRouteChange = () => {
+  if (window.innerWidth <= 1024) {
+    closeSidebar()
+  }
+}
+
+// Handle window resize
+const handleResize = () => {
+  if (window.innerWidth > 1024) {
+    sidebarOpen.value = false
+  }
+}
+
+onMounted(() => {
+  router.afterEach(handleRouteChange)
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 
 const handleLogout = async () => {
@@ -436,24 +490,180 @@ const handleLogout = async () => {
   margin: 0 auto;
 }
 
-@media (max-width: 768px) {
+/* Mobile Menu Button */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1001;
+  width: 44px;
+  height: 44px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-btn:hover {
+  background: #f8fafc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-menu-btn:active {
+  transform: scale(0.95);
+}
+
+.mobile-menu-btn svg {
+  color: #1e293b;
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+
   .sidebar {
-    width: 240px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
   }
-  
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
   .main-content {
-    margin-left: 240px;
+    margin-left: 0;
   }
-  
-  .content {
-    padding: 20px;
+
+  .topbar {
+    padding-left: 60px;
   }
-  
+
   .topbar-content {
-    padding: 20px;
+    padding: 16px 20px;
+  }
+
+  .topbar h1 {
+    font-size: 22px;
+  }
+
+  .breadcrumb {
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+
+  .content {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    top: 12px;
+    left: 12px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .sidebar {
+    width: 280px;
+  }
+
+  .topbar {
+    padding-left: 56px;
+  }
+
+  .topbar-content {
+    padding: 12px 16px;
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 8px;
+  }
+
+  .topbar h1 {
+    font-size: 20px;
+  }
+
+  .breadcrumb {
+    font-size: 11px;
+  }
+
+  .content {
+    padding: 16px 12px;
+  }
+
+  .logo {
+    padding: 20px 16px;
+  }
+
+  .logo-text h2 {
+    font-size: 20px;
+  }
+
+  .nav-item {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .user-section {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .topbar h1 {
+    font-size: 18px;
+  }
+
+  .content {
+    padding: 12px;
+  }
+
+  .logo-text h2 {
+    font-size: 18px;
+  }
+
+  .logo-text p {
+    font-size: 10px;
+  }
+}
+
+/* Tablet specific adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .content {
+    padding: 24px;
+  }
+
+  .topbar-content {
+    padding: 20px 24px;
   }
 }
 </style>

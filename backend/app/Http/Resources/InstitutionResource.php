@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class InstitutionResource extends JsonResource
 {
@@ -33,6 +34,7 @@ class InstitutionResource extends JsonResource
             'principal_name' => $this->principal_name,
             'principal_nip' => $this->principal_nip,
             'description' => $this->description,
+            'logo' => $this->logo ? url('/api/v1/institution/' . $this->id . '/logo') : null,
             'is_active' => $this->is_active,
             'users_count' => $this->whenLoaded('users', function () {
                 return $this->users->count();

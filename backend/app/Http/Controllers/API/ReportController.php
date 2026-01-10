@@ -218,12 +218,23 @@ class ReportController extends Controller
                 // Fallback: try to extract from class field (string field in student table)
                 // Access the raw attribute to avoid relationship conflict
                 try {
-                    $classStr = $student->getAttributes()['class'] ?? '';
+                    $attributes = $student->getAttributes();
+                    $classStr = $attributes['class'] ?? $attributes['class_name'] ?? '';
+                    
+                    // Try multiple patterns to extract grade
                     if (preg_match('/\b([789])\b/', $classStr, $matches)) {
+                        $grade = (int)$matches[1];
+                    } elseif (preg_match('/kelas\s*([789])/i', $classStr, $matches)) {
+                        $grade = (int)$matches[1];
+                    } elseif (preg_match('/class\s*([789])/i', $classStr, $matches)) {
                         $grade = (int)$matches[1];
                     }
                 } catch (\Exception $e) {
-                    // If class field doesn't exist, skip this student
+                    // If class field doesn't exist, log and continue
+                    Log::debug('Student grade extraction failed', [
+                        'student_id' => $student->id,
+                        'error' => $e->getMessage()
+                    ]);
                     continue;
                 }
             }
@@ -231,15 +242,31 @@ class ReportController extends Controller
             if ($grade >= 7 && $grade <= 9) {
                 $gradeKey = 'grade_' . $grade;
                 if (isset($result[$gradeKey])) {
-                    if ($student->gender === 'L') {
+                    if ($student->gender === 'L' || $student->gender === 'Laki-laki' || $student->gender === 'Male') {
                         $result[$gradeKey]['male']++;
                     } else {
                         $result[$gradeKey]['female']++;
                     }
                     $result[$gradeKey]['total']++;
                 }
+            } else {
+                // Log students that couldn't be categorized
+                Log::debug('Student grade not in range 7-9', [
+                    'student_id' => $student->id,
+                    'grade' => $grade,
+                    'class_id' => $student->class_id,
+                    'class_string' => $student->getAttributes()['class'] ?? null
+                ]);
             }
         }
+        
+        // Log final result for debugging
+        Log::debug('Students by grade result', [
+            'institution_id' => $institutionId,
+            'academic_year_id' => $academicYearId,
+            'total_students_processed' => $students->count(),
+            'result' => $result
+        ]);
 
         return $result;
     }

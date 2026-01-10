@@ -1694,6 +1694,18 @@ const printPDF = async () => {
           margin-bottom: 20px;
           text-align: center;
         }
+        .kop-header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+          margin-bottom: 12px;
+        }
+        .kop-logo {
+          max-width: 80px;
+          max-height: 80px;
+          object-fit: contain;
+        }
         .kop-name {
           font-size: 18px;
           font-weight: bold;
@@ -1834,8 +1846,13 @@ const printPDF = async () => {
       </head>
       <body>
         <div class="kop">
-          <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
-          <div class="kop-address">${fullAddress}</div>
+          <div class="kop-header">
+            ${institution.logo ? `<img src="${institution.logo}" alt="Logo Sekolah" class="kop-logo" />` : ''}
+            <div style="flex: 1;">
+              <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
+              <div class="kop-address">${fullAddress}</div>
+            </div>
+          </div>
           <div class="kop-info">
             <div class="kop-info-item">
               <span class="kop-info-label">NPSN:</span>
@@ -2655,5 +2672,156 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 500;
   margin: 0;
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .action-buttons-group {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .search-input,
+  .filter-select {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .header-content h2 {
+    font-size: 22px;
+  }
+
+  .header-content p {
+    font-size: 13px;
+  }
+
+  .filters {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .table-container {
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+
+  .data-table {
+    min-width: 800px;
+  }
+
+  .data-table th {
+    padding: 12px 14px;
+    font-size: 11px;
+  }
+
+  .data-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .btn-action {
+    width: 40px;
+    height: 40px;
+    padding: 6px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-width: 95%;
+    margin: 20px auto;
+    max-height: 90vh;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .biodata-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .biodata-item .label {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .biodata-item:last-child .label {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content h2 {
+    font-size: 20px;
+  }
+
+  .action-buttons-group {
+    flex-direction: column;
+  }
+
+  .action-buttons-group button,
+  .action-buttons-group label {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .data-table th {
+    font-size: 10px;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .tabs-nav {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .tab-button {
+    flex: 1;
+    min-width: auto;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
 }
 </style>

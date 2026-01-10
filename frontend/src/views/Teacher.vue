@@ -2276,4 +2276,130 @@ onMounted(() => {
   height: 16px;
   flex-shrink: 0;
 }
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .action-buttons-group {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .search-input,
+  .filter-select {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .header-content h2 {
+    font-size: 22px;
+  }
+
+  .header-content p {
+    font-size: 13px;
+  }
+
+  .filters {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .table-container {
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+
+  .data-table {
+    min-width: 800px;
+  }
+
+  .data-table th {
+    padding: 12px 14px;
+    font-size: 11px;
+  }
+
+  .data-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .btn-action {
+    width: 40px;
+    height: 40px;
+    padding: 6px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-width: 95%;
+    margin: 20px auto;
+    max-height: 90vh;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content h2 {
+    font-size: 20px;
+  }
+
+  .action-buttons-group {
+    flex-direction: column;
+  }
+
+  .action-buttons-group button,
+  .action-buttons-group label {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .data-table th {
+    font-size: 10px;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+}
 </style>

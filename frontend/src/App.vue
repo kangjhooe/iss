@@ -166,6 +166,129 @@ input, textarea, select {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Responsive Table Styles */
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-container {
+    border-radius: 12px;
+  }
+
+  .data-table {
+    min-width: 600px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .data-table th {
+    font-size: 11px;
+    padding: 10px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Responsive Form Styles */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Touch-friendly button sizes */
+@media (max-width: 768px) {
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .btn-action {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 16px;
+  }
+}
+
+/* Responsive Grid Improvements */
+@media (max-width: 768px) {
+  .stats-grid,
+  .actions-grid,
+  .info-grid,
+  .facilities-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* Responsive Modal/Dialog */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 20px auto !important;
+    max-height: 90vh !important;
+  }
+}
+
+/* Responsive Filters */
+@media (max-width: 768px) {
+  .filters {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .filters .search-input,
+  .filters .filter-select {
+    width: 100% !important;
+    min-width: auto !important;
+  }
+}
+
+/* Responsive Action Buttons */
+@media (max-width: 768px) {
+  .action-buttons-group {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .action-buttons-group button,
+  .action-buttons-group label {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Responsive Page Headers */
+@media (max-width: 768px) {
+  .page-header .header-content {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+
+  .page-header h2 {
+    font-size: 20px !important;
+  }
+}
+
 /* Print styles */
 @media print {
   body {
@@ -176,7 +299,8 @@ input, textarea, select {
   .btn-primary,
   .btn-secondary,
   .btn-edit,
-  .btn-delete {
+  .btn-delete,
+  .mobile-menu-btn {
     display: none !important;
   }
 }

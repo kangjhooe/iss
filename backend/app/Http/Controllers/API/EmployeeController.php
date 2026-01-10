@@ -24,7 +24,7 @@ class EmployeeController extends Controller
             $query = Employee::query();
 
             // Filter berdasarkan institusi user yang login
-            if (!$request->user()->isAdmin()) {
+            if (!$request->user()->isAdminOrSuperAdmin()) {
                 $query->where('institution_id', $request->user()->institution_id);
             } elseif ($request->has('institution_id')) {
                 $query->where('institution_id', $request->institution_id);
@@ -76,7 +76,7 @@ class EmployeeController extends Controller
     public function store(StoreEmployeeRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdmin() 
+            $institutionId = $request->user()->isAdminOrSuperAdmin() 
                 ? $request->institution_id 
                 : $request->user()->institution_id;
 
@@ -142,8 +142,8 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::with(['institution', 'educations', 'documents'])->findOrFail($id);
 
-            // Jika bukan admin, hanya bisa melihat pegawai dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa melihat pegawai dari institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 

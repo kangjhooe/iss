@@ -9,6 +9,7 @@ use App\Http\Resources\InstitutionResource;
 use App\Models\Institution;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class InstitutionController extends Controller
 {
@@ -124,8 +125,8 @@ class InstitutionController extends Controller
             
             $institution = Institution::with($with)->findOrFail($id);
 
-            // Jika bukan admin, hanya bisa melihat institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $institution->id) {
+            // Jika bukan admin/super admin, hanya bisa melihat institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $institution->id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -225,8 +226,8 @@ class InstitutionController extends Controller
         try {
             $institution = Institution::findOrFail($id);
 
-            // Hanya admin yang bisa menghapus
-            if (!$request->user()->isAdmin()) {
+            // Hanya admin/super admin yang bisa menghapus
+            if (!$request->user()->isAdminOrSuperAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -303,8 +304,8 @@ class InstitutionController extends Controller
                 ], 401);
             }
 
-            // Only institution admin can update their own institution
-            if (!$user->isAdmin() && $user->institution_id != $institution->id) {
+            // Only institution admin/super admin can update their own institution
+            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $institution->id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -365,6 +366,113 @@ class InstitutionController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat memperbarui tahun ajaran aktif',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload logo for institution.
+     */
+    public function uploadLogo(Request $request, $id)
+    {
+        try {
+            $institution = Institution::findOrFail($id);
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Unauthorized',
+                ], 401);
+            }
+
+            // Only institution admin/super admin can upload logo
+            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $institution->id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $request->validate([
+                'logo' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Max 2MB
+            ]);
+
+            $file = $request->file('logo');
+            
+            // Delete old logo if exists
+            if ($institution->logo && Storage::disk('public')->exists($institution->logo)) {
+                Storage::disk('public')->delete($institution->logo);
+            }
+
+            // Store new logo
+            $fileName = 'institution_' . $institution->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $filePath = $file->storeAs('institution_logos', $fileName, 'public');
+
+            $institution->update(['logo' => $filePath]);
+
+            Log::info('Institution logo uploaded', [
+                'institution_id' => $institution->id,
+                'user_id' => $user->id,
+                'logo_path' => $filePath,
+            ]);
+
+            return response()->json([
+                'message' => 'Logo berhasil diupload',
+                'data' => new InstitutionResource($institution),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Institusi tidak ditemukan',
+            ], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to upload logo', [
+                'institution_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengupload logo',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get logo for institution.
+     */
+    public function getLogo(Request $request, $id)
+    {
+        try {
+            $institution = Institution::findOrFail($id);
+
+            if (!$institution->logo) {
+                return response()->json([
+                    'message' => 'Logo tidak ditemukan',
+                ], 404);
+            }
+
+            if (!Storage::disk('public')->exists($institution->logo)) {
+                return response()->json([
+                    'message' => 'File logo tidak ditemukan',
+                ], 404);
+            }
+
+            return Storage::disk('public')->response($institution->logo);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Institusi tidak ditemukan',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to get logo', [
+                'institution_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengambil logo',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
