@@ -19,10 +19,10 @@
             </svg>
           </div>
           <div class="stat-body">
-            <h3 class="stat-title">Profil Instansi</h3>
+            <h3 class="stat-title">Profil {{ institutionTypeLabel }}</h3>
             <p v-if="institution" class="stat-value">{{ institution.name }}</p>
             <p v-else class="stat-value loading-text">Memuat...</p>
-            <span class="stat-label">Sekolah Terdaftar</span>
+            <span class="stat-label">{{ institutionTypeLabel }} Terdaftar</span>
           </div>
         </div>
         
@@ -73,7 +73,7 @@
               </svg>
             </div>
             <div class="action-content">
-              <h4>Edit Profil Instansi</h4>
+              <h4>Edit Profil {{ institutionTypeLabel }}</h4>
             </div>
             <div class="action-arrow">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -126,11 +126,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { institutionApi } from '@/api/institution'
 import { studentApi } from '@/api/student'
 import { teacherApi } from '@/api/teacher'
+import { getInstitutionTypeLabel } from '@/utils/institution'
 
 const institution = ref(null)
 const studentCount = ref(0)
@@ -140,6 +141,10 @@ const loading = ref(true)
 const formatNumber = (num) => {
   return new Intl.NumberFormat('id-ID').format(num)
 }
+
+const institutionTypeLabel = computed(() => {
+  return getInstitutionTypeLabel(institution.value?.level)
+})
 
 onMounted(async () => {
   loading.value = true

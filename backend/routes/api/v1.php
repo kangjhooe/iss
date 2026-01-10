@@ -9,7 +9,7 @@ use App\Http\Controllers\API\InstitutionController;
 use App\Http\Controllers\API\ReportController;
 use App\Http\Controllers\API\SemesterController;
 use App\Http\Controllers\API\StudentController;
-use App\Http\Controllers\API\TeacherController;
+use App\Http\Controllers\API\EmployeeController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
@@ -41,11 +41,11 @@ Route::get('/', function () {
                 'POST /api/v1/student' => 'Create student',
                 'PUT /api/v1/student/{id}' => 'Update student',
                 'DELETE /api/v1/student/{id}' => 'Delete student',
-                'GET /api/v1/teacher' => 'List teachers',
-                'GET /api/v1/teacher/{id}' => 'Get teacher detail',
-                'POST /api/v1/teacher' => 'Create teacher',
-                'PUT /api/v1/teacher/{id}' => 'Update teacher',
-                'DELETE /api/v1/teacher/{id}' => 'Delete teacher',
+                'GET /api/v1/employee' => 'List employees',
+                'GET /api/v1/employee/{id}' => 'Get employee detail',
+                'POST /api/v1/employee' => 'Create employee',
+                'PUT /api/v1/employee/{id}' => 'Update employee',
+                'DELETE /api/v1/employee/{id}' => 'Delete employee',
                 'GET /api/v1/class' => 'List classes',
                 'GET /api/v1/class/{id}' => 'Get class detail',
                 'POST /api/v1/class' => 'Create class',
@@ -81,9 +81,14 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
     // Student routes
     Route::apiResource('student', StudentController::class);
+    Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
 
-    // Teacher routes
-    Route::apiResource('teacher', TeacherController::class);
+    // Employee routes
+    Route::apiResource('employee', EmployeeController::class);
+    Route::post('/employee/import', [EmployeeController::class, 'import'])->name('employee.import');
+    Route::post('/employee/{id}/documents', [EmployeeController::class, 'uploadDocument'])->name('employee.upload-document');
+    Route::delete('/employee/{id}/documents/{documentId}', [EmployeeController::class, 'deleteDocument'])->name('employee.delete-document');
+    Route::get('/employee/{id}/documents/{documentId}/download', [EmployeeController::class, 'downloadDocument'])->name('employee.download-document');
 
     // Class routes
     Route::apiResource('class', ClassController::class);

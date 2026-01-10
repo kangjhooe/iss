@@ -224,4 +224,93 @@ class StudentController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Import students from Excel data.
+     */
+    public function import(Request $request)
+    {
+        try {
+            $studentsData = $request->input('students', []);
+            
+            if (empty($studentsData) || !is_array($studentsData)) {
+                return response()->json([
+                    'message' => 'Data siswa tidak valid',
+                ], 400);
+            }
+
+            $institutionId = $request->user()->isAdmin() 
+                ? $request->input('institution_id')
+                : $request->user()->institution_id;
+
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
+            }
+
+            $successCount = 0;
+            $errorCount = 0;
+            $errors = [];
+
+            foreach ($studentsData as $index => $studentData) {
+                try {
+                    // Validasi data minimal
+                    if (empty($studentData['nik']) || empty($studentData['name'])) {
+                        $errors[] = "Baris " . ($index + 1) . ": NIK dan Nama Lengkap wajib diisi";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Cek apakah siswa sudah ada berdasarkan NIK
+                    $existingStudent = Student::where('institution_id', $institutionId)
+                        ->where('nik', $studentData['nik'])
+                        ->first();
+
+                    if ($existingStudent) {
+                        // Update jika sudah ada
+                        $existingStudent->update(array_merge($studentData, [
+                            'institution_id' => $institutionId
+                        ]));
+                        $successCount++;
+                    } else {
+                        // Create jika belum ada
+                        Student::create(array_merge($studentData, [
+                            'institution_id' => $institutionId
+                        ]));
+                        $successCount++;
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Baris " . ($index + 1) . ": " . $e->getMessage();
+                    $errorCount++;
+                    Log::error('Failed to import student', [
+                        'row' => $index + 1,
+                        'error' => $e->getMessage(),
+                        'data' => $studentData,
+                    ]);
+                }
+            }
+
+            Log::info('Students imported', [
+                'success_count' => $successCount,
+                'error_count' => $errorCount,
+                'institution_id' => $institutionId,
+                'user_id' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Import selesai',
+                'success_count' => $successCount,
+                'error_count' => $errorCount,
+                'errors' => $errors,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Failed to import students', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengimpor data siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
 }

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Institution;
 use App\Models\Student;
-use App\Models\Teacher;
+use App\Models\Employee;
 use App\Models\SchoolClass;
 use App\Models\Land;
 use App\Models\Building;
@@ -88,8 +88,8 @@ class ReportController extends Controller
             // Get students statistics by grade (7, 8, 9)
             $studentsByGrade = $this->getStudentsByGrade($targetInstitutionId, $activeAcademicYearId, $month, $year);
             
-            // Get teachers statistics
-            $teachersStats = $this->getTeachersStatistics($targetInstitutionId);
+            // Get employees statistics
+            $employeesStats = $this->getEmployeesStatistics($targetInstitutionId);
             
             // Get facilities statistics
             $facilitiesStats = $this->getFacilitiesStatistics($targetInstitutionId);
@@ -109,7 +109,7 @@ class ReportController extends Controller
                     $comparisonData = [
                         'academic_year' => $previousAcademicYear->name,
                         'students' => $this->getStudentsByGrade($targetInstitutionId, $previousAcademicYear->id, null, null),
-                        'teachers' => $this->getTeachersStatistics($targetInstitutionId),
+                        'employees' => $this->getEmployeesStatistics($targetInstitutionId),
                         'classes' => $this->getClassesStatistics($targetInstitutionId, $previousAcademicYear->id),
                     ];
                 }
@@ -117,11 +117,13 @@ class ReportController extends Controller
 
             // Calculate summary statistics
             $totalStudents = array_sum(array_column($studentsByGrade, 'total'));
-            $totalTeachers = $teachersStats['total'];
+            $totalEmployees = $employeesStats['total'];
+            $totalTeachers = $employeesStats['teachers'];
             $totalClasses = array_sum(array_column($classesStats, 'count'));
             
             $summary = [
                 'total_students' => $totalStudents,
+                'total_employees' => $totalEmployees,
                 'total_teachers' => $totalTeachers,
                 'total_classes' => $totalClasses,
                 'total_facilities' => $facilitiesStats['total'],
@@ -139,7 +141,7 @@ class ReportController extends Controller
                     ] : null,
                     'summary' => $summary,
                     'students' => $studentsByGrade,
-                    'teachers' => $teachersStats,
+                    'employees' => $employeesStats,
                     'classes' => $classesStats,
                     'facilities' => $facilitiesStats,
                     'comparison' => $comparisonData,
@@ -243,21 +245,32 @@ class ReportController extends Controller
     }
 
     /**
-     * Get teachers statistics
+     * Get employees statistics
      */
-    private function getTeachersStatistics($institutionId)
+    private function getEmployeesStatistics($institutionId)
     {
-        $teachers = Teacher::where('institution_id', $institutionId)
+        $employees = Employee::where('institution_id', $institutionId)
             ->where('status', 'Aktif')
             ->get();
 
-        $male = $teachers->where('gender', 'L')->count();
-        $female = $teachers->where('gender', 'P')->count();
+        $teachers = $employees->where('type', 'Guru');
+        $staff = $employees->where('type', '!=', 'Guru');
+        
+        $male = $employees->where('gender', 'L')->count();
+        $female = $employees->where('gender', 'P')->count();
+        
+        $maleTeachers = $teachers->where('gender', 'L')->count();
+        $femaleTeachers = $teachers->where('gender', 'P')->count();
 
         return [
-            'total' => $teachers->count(),
+            'total' => $employees->count(),
+            'teachers' => $teachers->count(),
+            'staff' => $staff->count(),
             'male' => $male,
             'female' => $female,
+            'teachers_male' => $maleTeachers,
+            'teachers_female' => $femaleTeachers,
+            'by_type' => $employees->groupBy('type')->map->count(),
         ];
     }
 

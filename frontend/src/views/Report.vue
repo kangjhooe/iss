@@ -143,11 +143,11 @@
               <span class="info-value">{{ formatAddress(reportData.institution) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Kepala Sekolah</span>
+              <span class="info-label">Kepala {{ getInstitutionTypeLabel(reportData.institution?.level) || 'Sekolah/Madrasah' }}</span>
               <span class="info-value">{{ reportData.institution.principal_name || '-' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">NIP Kepala Sekolah</span>
+              <span class="info-label">NIP Kepala {{ getInstitutionTypeLabel(reportData.institution?.level) || 'Sekolah/Madrasah' }}</span>
               <span class="info-value">{{ reportData.institution.principal_nip || '-' }}</span>
             </div>
           </div>
@@ -315,6 +315,7 @@ import Layout from '@/components/Layout.vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
 import { reportApi } from '@/api/report'
+import { getInstitutionTypeLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 // Register Chart.js components
@@ -557,6 +558,10 @@ const formatNumber = (num) => {
   return new Intl.NumberFormat('id-ID').format(num)
 }
 
+const getPrincipalLabel = (institution) => {
+  return `Kepala ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}`
+}
+
 const exportPDF = async () => {
   if (!reportData.value) {
     toast.error('Gagal', 'Tidak ada data untuk diekspor')
@@ -569,6 +574,7 @@ const exportPDF = async () => {
     const filename = `Laporan_${institution.name}_${new Date().toISOString().split('T')[0]}.pdf`
     
     const fullAddress = formatAddress(institution)
+    const principalLabel = getPrincipalLabel(institution)
     
     // Build students table HTML
     const studentsTableRows = `
@@ -834,7 +840,7 @@ const exportPDF = async () => {
               <span class="info-value">${fullAddress}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Kepala Sekolah</span>
+              <span class="info-label">${principalLabel}</span>
               <span class="info-value">${institution.principal_name || '-'}</span>
             </div>
             <div class="info-item">
@@ -977,7 +983,7 @@ const exportPDF = async () => {
               ${institution.district || 'Kota/Kabupaten'}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
             <div class="footer-signature">
-              <div class="footer-signature-label">Kepala Sekolah</div>
+              <div class="footer-signature-label">${principalLabel}</div>
               <div class="footer-signature-name">${institution.principal_name || '___________________'}</div>
               <div class="footer-signature-nip">${institution.principal_nip ? 'NIP. ' + institution.principal_nip : 'NIP. ___________________'}</div>
             </div>

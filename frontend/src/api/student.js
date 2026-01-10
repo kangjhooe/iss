@@ -15,5 +15,8 @@ export const studentApi = {
   },
   delete(id) {
     return api.delete(`/v1/student/${id}`)
+  },
+  import(data) {
+    return api.post('/v1/student/import', { students: data })
   }
 }

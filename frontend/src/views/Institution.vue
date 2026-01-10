@@ -7,7 +7,7 @@
           <div class="header-content">
             <div>
               <h2>Daftar Instansi</h2>
-              <p>Kelola semua institusi yang terdaftar</p>
+              <p>Kelola semua sekolah dan madrasah yang terdaftar</p>
             </div>
             <button @click="openAddModal" class="btn-primary">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -63,7 +63,7 @@
             <thead>
               <tr>
                 <th>NPSN</th>
-                <th>Nama Sekolah</th>
+                <th>Nama Sekolah/Madrasah</th>
                 <th>Jenjang</th>
                 <th>Status</th>
                 <th>Alamat</th>
@@ -110,7 +110,7 @@
               <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <h3>Tidak ada data instansi</h3>
-            <p>Mulai dengan menambahkan instansi baru</p>
+            <p>Mulai dengan menambahkan sekolah atau madrasah baru</p>
             <button @click="openAddModal" class="btn-primary">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -126,8 +126,8 @@
         <div class="page-header">
           <div class="header-content">
             <div>
-              <h2>Profil Instansi</h2>
-              <p>Kelola informasi sekolah Anda</p>
+              <h2>Profil {{ institutionTypeLabel }}</h2>
+              <p>Kelola informasi {{ institutionTypeLabel.toLowerCase() }} Anda</p>
             </div>
             <button @click="openEditModal" class="btn-primary">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -156,7 +156,7 @@
           <h3>Informasi Umum</h3>
           <div class="info-grid">
             <div class="info-item">
-              <label>Nama Sekolah</label>
+              <label>Nama {{ institutionTypeLabel }}</label>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <p>{{ institution.name || '-' }}</p>
                 <button 
@@ -269,7 +269,7 @@
         </div>
 
         <div class="info-section">
-          <h3>Kepala Sekolah</h3>
+          <h3>Kepala {{ institutionTypeLabel }}</h3>
           <div class="info-grid">
             <div class="info-item">
               <label>Nama</label>
@@ -318,21 +318,21 @@
       <div v-if="showEditModal" class="modal-overlay" @click="closeEditModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
-            <h3>Edit Profil Instansi</h3>
+            <h3>Edit Profil {{ institutionTypeLabel }}</h3>
             <button @click="closeEditModal" class="btn-close">×</button>
           </div>
           
           <form @submit.prevent="handleUpdate" class="modal-body">
             <div class="form-row">
               <div class="form-group">
-                <label>Nama Sekolah *</label>
+                <label>Nama {{ institutionTypeLabel }} *</label>
                 <input 
                   v-model="form.name" 
                   :disabled="!isSuperAdmin"
                   :required="isSuperAdmin"
                 />
                 <small v-if="!isSuperAdmin" class="form-hint">
-                  Perubahan nama sekolah memerlukan persetujuan super admin. Gunakan tombol "Ubah" di profil untuk request perubahan.
+                  Perubahan nama {{ institutionTypeLabel.toLowerCase() }} memerlukan persetujuan super admin. Gunakan tombol "Ubah" di profil untuk request perubahan.
                 </small>
               </div>
               <div class="form-group">
@@ -431,11 +431,11 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>Nama Kepala Sekolah</label>
+                <label>Nama Kepala Sekolah/Madrasah</label>
                 <input v-model="form.principal_name" />
               </div>
               <div class="form-group">
-                <label>NIP Kepala Sekolah</label>
+                <label>NIP Kepala Sekolah/Madrasah</label>
                 <input v-model="form.principal_nip" />
               </div>
             </div>
@@ -461,7 +461,7 @@
       <div v-if="showRequestChangeModal" class="modal-overlay" @click="showRequestChangeModal = false">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
-            <h3>Request Perubahan {{ requestField === 'name' ? 'Nama Sekolah' : 'NPSN' }}</h3>
+            <h3>Request Perubahan {{ requestField === 'name' ? `Nama ${institutionTypeLabel}` : 'NPSN' }}</h3>
             <button @click="showRequestChangeModal = false" class="btn-close">×</button>
           </div>
           
@@ -475,12 +475,12 @@
               <label>Nilai Baru *</label>
               <input 
                 v-model="requestForm.newValue" 
-                :placeholder="requestField === 'npsn' ? 'Masukkan 8 digit NPSN' : 'Masukkan nama sekolah baru'"
+                :placeholder="requestField === 'npsn' ? 'Masukkan 8 digit NPSN' : `Masukkan nama ${institutionTypeLabel.toLowerCase()} baru`"
                 :maxlength="requestField === 'npsn' ? 8 : 255"
                 required 
               />
               <small class="form-hint">
-                {{ requestField === 'npsn' ? 'NPSN harus terdiri dari 8 digit angka' : 'Nama sekolah maksimal 255 karakter' }}
+                {{ requestField === 'npsn' ? 'NPSN harus terdiri dari 8 digit angka' : `Nama ${institutionTypeLabel.toLowerCase()} maksimal 255 karakter` }}
               </small>
             </div>
 
@@ -500,14 +500,14 @@
       <div v-if="showAddModal || showEditModalSuperAdmin" class="modal-overlay" @click="closeSuperAdminModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
-            <h3>{{ showEditModalSuperAdmin ? 'Edit' : 'Tambah' }} Instansi</h3>
+            <h3>{{ showEditModalSuperAdmin ? 'Edit' : 'Tambah' }} Sekolah/Madrasah</h3>
             <button @click="closeSuperAdminModal" class="btn-close">×</button>
           </div>
           
           <form @submit.prevent="showEditModalSuperAdmin ? handleUpdateSuperAdmin() : handleAddInstitution()" class="modal-body">
             <div class="form-row">
               <div class="form-group">
-                <label>Nama Sekolah *</label>
+                <label>Nama Sekolah/Madrasah *</label>
                 <input v-model="form.name" required />
               </div>
               <div class="form-group">
@@ -600,11 +600,11 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>Nama Kepala Sekolah</label>
+                <label>Nama Kepala Sekolah/Madrasah</label>
                 <input v-model="form.principal_name" />
               </div>
               <div class="form-group">
-                <label>NIP Kepala Sekolah</label>
+                <label>NIP Kepala Sekolah/Madrasah</label>
                 <input v-model="form.principal_nip" />
               </div>
             </div>
@@ -702,6 +702,7 @@ import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
 import { academicYearApi } from '@/api/academicYear'
 import { semesterApi } from '@/api/semester'
 import { validateForm, validators } from '@/utils/validation'
+import { getInstitutionTypeLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 
@@ -725,6 +726,12 @@ const updatingAcademicYear = ref(false)
 const academicYearError = ref('')
 
 const isSuperAdmin = computed(() => authStore.user?.role === 'super_admin')
+
+// Computed untuk mendapatkan label jenis instansi
+const institutionTypeLabel = computed(() => {
+  if (isSuperAdmin.value) return 'Instansi'
+  return getInstitutionTypeLabel(institution.value?.level)
+})
 
 // Super Admin state
 const institutions = ref([])
@@ -895,8 +902,8 @@ const handleRequestChange = async () => {
 const getValidationRules = () => {
   return {
     name: [
-      (value) => validators.required(value, 'Nama sekolah wajib diisi'),
-      (value) => validators.maxLength(value, 255, 'Nama sekolah maksimal 255 karakter')
+      (value) => validators.required(value, `Nama ${institutionTypeLabel.value.toLowerCase()} wajib diisi`),
+      (value) => validators.maxLength(value, 255, `Nama ${institutionTypeLabel.value.toLowerCase()} maksimal 255 karakter`)
     ],
     npsn: [
       (value) => value ? validators.npsn(value, 'NPSN harus terdiri dari 8 digit angka') : null
@@ -929,7 +936,7 @@ const handleUpdate = async () => {
     const newNpsn = (form.value.npsn || '').trim()
     
     if (currentName !== newName) {
-      error.value = 'Perubahan nama sekolah memerlukan persetujuan super admin. Silakan gunakan tombol "Ubah" di profil untuk request perubahan.'
+      error.value = `Perubahan nama ${institutionTypeLabel.value.toLowerCase()} memerlukan persetujuan super admin. Silakan gunakan tombol "Ubah" di profil untuk request perubahan.`
       return
     }
     if (currentNpsn !== newNpsn) {

@@ -7,13 +7,42 @@
             <h2>Data Siswa</h2>
             <p>Kelola data siswa sekolah Anda</p>
           </div>
-          <button @click="showAddModal = true" class="btn-primary">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Tambah Siswa</span>
-          </button>
+          <div class="action-buttons-group">
+            <button @click="exportToExcel" class="btn-secondary btn-compact">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Export</span>
+            </button>
+            <button @click="downloadTemplate" class="btn-secondary btn-compact">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Template</span>
+            </button>
+            <label for="import-excel" class="btn-secondary btn-compact" style="cursor: pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Import</span>
+            </label>
+            <input type="file" id="import-excel" accept=".xlsx,.xls" style="display: none;" @change="handleImportExcel">
+            <button @click="showAddModal = true" class="btn-primary btn-compact">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Siswa</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -907,7 +936,9 @@ import Layout from '@/components/Layout.vue'
 import { studentApi } from '@/api/student'
 import { institutionApi } from '@/api/institution'
 import { validateForm, validators } from '@/utils/validation'
+import { getInstitutionTypeLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
+import * as XLSX from 'xlsx'
 
 const toast = useToast()
 
@@ -1267,6 +1298,352 @@ const formatGuardianType = (type) => {
   return typeMap[type] || type
 }
 
+// Export to Excel
+const exportToExcel = async () => {
+  try {
+    loading.value = true
+    // Ambil semua data siswa tanpa pagination
+    const params = { per_page: 10000 }
+    if (filters.value.search) params.search = filters.value.search
+    if (filters.value.class) params.class = filters.value.class
+    if (filters.value.status) params.status = filters.value.status
+    
+    const response = await studentApi.getAll(params)
+    const allStudents = response.data.data || []
+    
+    // Siapkan data untuk Excel
+    const excelData = allStudents.map(student => ({
+      'NIK': student.nik || '',
+      'NIS': student.nis || '',
+      'NISN': student.nisn || '',
+      'Nama Lengkap': student.name || '',
+      'Jenis Kelamin': student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : '',
+      'Tempat Lahir': student.birth_place || '',
+      'Tanggal Lahir': student.birth_date ? new Date(student.birth_date).toLocaleDateString('id-ID') : '',
+      'Alamat': student.address || '',
+      'No. Telepon': student.phone || '',
+      'Email': student.email || '',
+      'Agama': student.religion || '',
+      'No. KK': student.no_kk || '',
+      'Cita-cita': student.aspiration || '',
+      'Hobi': student.hobby || '',
+      'Disabilitas': student.disability || '',
+      'Tinggi Badan (cm)': student.height || '',
+      'Berat Badan (kg)': student.weight || '',
+      'Sekolah Sebelumnya': student.previous_school || '',
+      'Jenis Tempat Tinggal': formatResidenceType(student.residence_type) || '',
+      'Kelas': student.class || '',
+      'Tahun Ajaran': student.academic_year || '',
+      'Status': student.status || '',
+      'Nama Ayah': student.father_name || '',
+      'Status Ayah': formatStatus(student.father_status) || '',
+      'NIK Ayah': student.father_nik || '',
+      'Tempat Lahir Ayah': student.father_birth_place || '',
+      'Tanggal Lahir Ayah': student.father_birth_date ? new Date(student.father_birth_date).toLocaleDateString('id-ID') : '',
+      'Pendidikan Ayah': student.father_education || '',
+      'Pekerjaan Ayah': student.father_occupation || '',
+      'Penghasilan Ayah': student.father_income || '',
+      'Nama Ibu': student.mother_name || '',
+      'Status Ibu': formatStatus(student.mother_status) || '',
+      'NIK Ibu': student.mother_nik || '',
+      'Tempat Lahir Ibu': student.mother_birth_place || '',
+      'Tanggal Lahir Ibu': student.mother_birth_date ? new Date(student.mother_birth_date).toLocaleDateString('id-ID') : '',
+      'Pendidikan Ibu': student.mother_education || '',
+      'Pekerjaan Ibu': student.mother_occupation || '',
+      'Penghasilan Ibu': student.mother_income || '',
+      'Nama Wali': student.guardian_name || '',
+      'No. Telepon Wali': student.guardian_phone || '',
+      'Jenis Wali': formatGuardianType(student.guardian_type) || '',
+      'Status Wali': formatStatus(student.guardian_status) || '',
+      'NIK Wali': student.guardian_nik || '',
+      'Tempat Lahir Wali': student.guardian_birth_place || '',
+      'Tanggal Lahir Wali': student.guardian_birth_date ? new Date(student.guardian_birth_date).toLocaleDateString('id-ID') : '',
+      'Pendidikan Wali': student.guardian_education || '',
+      'Pekerjaan Wali': student.guardian_occupation || '',
+      'Penghasilan Wali': student.guardian_income || '',
+      'Catatan': student.notes || ''
+    }))
+    
+    // Buat workbook
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(excelData)
+    
+    // Set column widths
+    const colWidths = [
+      { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 15 },
+      { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
+      { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 30 }
+    ]
+    ws['!cols'] = colWidths
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa')
+    
+    // Download file
+    const fileName = `Data_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    toast.success('Berhasil', 'Data berhasil diekspor ke Excel')
+  } catch (err) {
+    console.error(err)
+    toast.error('Gagal', 'Gagal mengekspor data ke Excel')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Download Template Excel
+const downloadTemplate = () => {
+  try {
+    // Buat data template dengan header dan 1 baris contoh
+    const templateData = [
+      {
+        'NIK': '1234567890123456',
+        'NIS': '2024001',
+        'NISN': '0012345678',
+        'Nama Lengkap': 'Ahmad Fauzi',
+        'Jenis Kelamin': 'L',
+        'Tempat Lahir': 'Jakarta',
+        'Tanggal Lahir': '2010-01-15',
+        'Alamat': 'Jl. Contoh No. 123',
+        'No. Telepon': '081234567890',
+        'Email': 'ahmad@example.com',
+        'Agama': 'Islam',
+        'No. KK': '1234567890123456',
+        'Cita-cita': 'Dokter',
+        'Hobi': 'Membaca',
+        'Disabilitas': '',
+        'Tinggi Badan (cm)': '150',
+        'Berat Badan (kg)': '45',
+        'Sekolah Sebelumnya': 'SD Negeri 1',
+        'Jenis Tempat Tinggal': 'tinggal_dengan_orang_tua',
+        'Kelas': '1',
+        'Tahun Ajaran': '2024/2025',
+        'Status': 'Aktif',
+        'Nama Ayah': 'Budi Santoso',
+        'Status Ayah': 'masih_hidup',
+        'NIK Ayah': '1234567890123457',
+        'Tempat Lahir Ayah': 'Jakarta',
+        'Tanggal Lahir Ayah': '1980-05-20',
+        'Pendidikan Ayah': 'S1',
+        'Pekerjaan Ayah': 'Pegawai Swasta',
+        'Penghasilan Ayah': '5000000',
+        'Nama Ibu': 'Siti Nurhaliza',
+        'Status Ibu': 'masih_hidup',
+        'NIK Ibu': '1234567890123458',
+        'Tempat Lahir Ibu': 'Bandung',
+        'Tanggal Lahir Ibu': '1982-08-10',
+        'Pendidikan Ibu': 'S1',
+        'Pekerjaan Ibu': 'Guru',
+        'Penghasilan Ibu': '4000000',
+        'Nama Wali': '',
+        'No. Telepon Wali': '',
+        'Jenis Wali': '',
+        'Status Wali': '',
+        'NIK Wali': '',
+        'Tempat Lahir Wali': '',
+        'Tanggal Lahir Wali': '',
+        'Pendidikan Wali': '',
+        'Pekerjaan Wali': '',
+        'Penghasilan Wali': '',
+        'Catatan': ''
+      }
+    ]
+    
+    // Buat workbook
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(templateData)
+    
+    // Set column widths
+    const colWidths = [
+      { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 15 },
+      { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
+      { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+      { wch: 30 }
+    ]
+    ws['!cols'] = colWidths
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Import Siswa')
+    
+    // Download file
+    const fileName = `Template_Import_Siswa.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    toast.success('Berhasil', 'Template Excel berhasil didownload. Silakan isi data sesuai format yang ada.')
+  } catch (err) {
+    console.error(err)
+    toast.error('Gagal', 'Gagal mendownload template Excel')
+  }
+}
+
+// Import from Excel
+const handleImportExcel = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  try {
+    loading.value = true
+    
+    // Baca file Excel
+    const data = await file.arrayBuffer()
+    const workbook = XLSX.read(data, { type: 'array' })
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+    const jsonData = XLSX.utils.sheet_to_json(firstSheet)
+    
+    if (jsonData.length === 0) {
+      toast.error('Gagal', 'File Excel kosong')
+      return
+    }
+    
+    // Mapping kolom Excel ke field database
+    const mappedData = jsonData.map(row => {
+      const mapField = (excelCol, dbField) => {
+        const value = row[excelCol]
+        if (value === undefined || value === null || value === '') return null
+        return value
+      }
+      
+      // Parse tanggal
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null
+        if (dateStr instanceof Date) return dateStr.toISOString().split('T')[0]
+        // Coba parse berbagai format tanggal
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0]
+        }
+        return null
+      }
+      
+      // Parse jenis kelamin
+      const parseGender = (val) => {
+        if (!val) return null
+        const str = String(val).toLowerCase()
+        if (str.includes('laki') || str === 'l' || str === 'laki-laki') return 'L'
+        if (str.includes('perempuan') || str === 'p' || str === 'perempuan') return 'P'
+        return null
+      }
+      
+      // Parse status
+      const parseStatus = (val) => {
+        if (!val) return null
+        const str = String(val).toLowerCase()
+        if (str.includes('hidup') || str === 'masih hidup') return 'masih_hidup'
+        if (str.includes('meninggal') || str === 'meninggal dunia') return 'meninggal_dunia'
+        if (str.includes('tidak') || str === 'tidak diketahui') return 'tidak_diketahui'
+        return null
+      }
+      
+      // Parse jenis tempat tinggal
+      const parseResidenceType = (val) => {
+        if (!val) return null
+        const str = String(val).toLowerCase()
+        if (str.includes('asrama')) return 'asrama'
+        if (str.includes('kost') || str.includes('kontrak')) return 'kost_kontrak'
+        if (str.includes('orang tua') || str.includes('tinggal')) return 'tinggal_dengan_orang_tua'
+        return 'lainnya'
+      }
+      
+      // Parse jenis wali
+      const parseGuardianType = (val) => {
+        if (!val) return null
+        const str = String(val).toLowerCase()
+        if (str.includes('ayah')) return 'sama_dengan_ayah'
+        if (str.includes('ibu')) return 'sama_dengan_ibu'
+        return 'lainnya'
+      }
+      
+      return {
+        nik: mapField('NIK', 'nik'),
+        nis: mapField('NIS', 'nis'),
+        nisn: mapField('NISN', 'nisn'),
+        name: mapField('Nama Lengkap', 'name'),
+        gender: parseGender(mapField('Jenis Kelamin', 'gender')),
+        birth_place: mapField('Tempat Lahir', 'birth_place'),
+        birth_date: parseDate(mapField('Tanggal Lahir', 'birth_date')),
+        address: mapField('Alamat', 'address'),
+        phone: mapField('No. Telepon', 'phone'),
+        email: mapField('Email', 'email'),
+        religion: mapField('Agama', 'religion'),
+        no_kk: mapField('No. KK', 'no_kk'),
+        aspiration: mapField('Cita-cita', 'aspiration'),
+        hobby: mapField('Hobi', 'hobby'),
+        disability: mapField('Disabilitas', 'disability'),
+        height: mapField('Tinggi Badan (cm)', 'height') ? parseFloat(mapField('Tinggi Badan (cm)', 'height')) : null,
+        weight: mapField('Berat Badan (kg)', 'weight') ? parseFloat(mapField('Berat Badan (kg)', 'weight')) : null,
+        previous_school: mapField('Sekolah Sebelumnya', 'previous_school'),
+        residence_type: parseResidenceType(mapField('Jenis Tempat Tinggal', 'residence_type')),
+        class: mapField('Kelas', 'class'),
+        academic_year: mapField('Tahun Ajaran', 'academic_year'),
+        status: mapField('Status', 'status') || 'Aktif',
+        father_name: mapField('Nama Ayah', 'father_name'),
+        father_status: parseStatus(mapField('Status Ayah', 'father_status')),
+        father_nik: mapField('NIK Ayah', 'father_nik'),
+        father_birth_place: mapField('Tempat Lahir Ayah', 'father_birth_place'),
+        father_birth_date: parseDate(mapField('Tanggal Lahir Ayah', 'father_birth_date')),
+        father_education: mapField('Pendidikan Ayah', 'father_education'),
+        father_occupation: mapField('Pekerjaan Ayah', 'father_occupation'),
+        father_income: mapField('Penghasilan Ayah', 'father_income') ? parseFloat(mapField('Penghasilan Ayah', 'father_income')) : null,
+        mother_name: mapField('Nama Ibu', 'mother_name'),
+        mother_status: parseStatus(mapField('Status Ibu', 'mother_status')),
+        mother_nik: mapField('NIK Ibu', 'mother_nik'),
+        mother_birth_place: mapField('Tempat Lahir Ibu', 'mother_birth_place'),
+        mother_birth_date: parseDate(mapField('Tanggal Lahir Ibu', 'mother_birth_date')),
+        mother_education: mapField('Pendidikan Ibu', 'mother_education'),
+        mother_occupation: mapField('Pekerjaan Ibu', 'mother_occupation'),
+        mother_income: mapField('Penghasilan Ibu', 'mother_income') ? parseFloat(mapField('Penghasilan Ibu', 'mother_income')) : null,
+        guardian_name: mapField('Nama Wali', 'guardian_name'),
+        guardian_phone: mapField('No. Telepon Wali', 'guardian_phone'),
+        guardian_type: parseGuardianType(mapField('Jenis Wali', 'guardian_type')),
+        guardian_status: parseStatus(mapField('Status Wali', 'guardian_status')),
+        guardian_nik: mapField('NIK Wali', 'guardian_nik'),
+        guardian_birth_place: mapField('Tempat Lahir Wali', 'guardian_birth_place'),
+        guardian_birth_date: parseDate(mapField('Tanggal Lahir Wali', 'guardian_birth_date')),
+        guardian_education: mapField('Pendidikan Wali', 'guardian_education'),
+        guardian_occupation: mapField('Pekerjaan Wali', 'guardian_occupation'),
+        guardian_income: mapField('Penghasilan Wali', 'guardian_income') ? parseFloat(mapField('Penghasilan Wali', 'guardian_income')) : null,
+        notes: mapField('Catatan', 'notes')
+      }
+    })
+    
+    // Filter data yang valid (minimal harus ada NIK dan Nama)
+    const validData = mappedData.filter(item => item.nik && item.name)
+    
+    if (validData.length === 0) {
+      toast.error('Gagal', 'Tidak ada data valid yang dapat diimpor. Pastikan kolom NIK dan Nama Lengkap terisi.')
+      return
+    }
+    
+    // Kirim ke backend
+    const response = await studentApi.import(validData)
+    
+    toast.success('Berhasil', `Berhasil mengimpor ${response.data.success_count || validData.length} data siswa`)
+    loadStudents()
+    
+    // Reset input file
+    event.target.value = ''
+  } catch (err) {
+    console.error(err)
+    toast.error('Gagal', err.formattedMessage || 'Gagal mengimpor data dari Excel')
+  } finally {
+    loading.value = false
+  }
+}
+
 const printPDF = async () => {
   if (!viewingStudent.value) return
   
@@ -1288,6 +1665,7 @@ const printPDF = async () => {
     if (institution.province) addressParts.push(institution.province)
     if (institution.postal_code) addressParts.push(institution.postal_code)
     const fullAddress = addressParts.join(', ') || '-'
+    const principalLabel = `Kepala ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}`
     
     const content = `
       <!DOCTYPE html>
@@ -1566,7 +1944,7 @@ const printPDF = async () => {
             ${institution.district || 'Kota/Kabupaten'}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
           <div class="footer-signature">
-            <div class="footer-signature-label">Kepala Sekolah</div>
+            <div class="footer-signature-label">${principalLabel}</div>
             <div class="footer-signature-name">${institution.principal_name || '___________________'}</div>
             <div class="footer-signature-nip">${institution.principal_nip ? 'NIP. ' + institution.principal_nip : 'NIP. ___________________'}</div>
           </div>
@@ -2179,18 +2557,37 @@ onMounted(() => {
   border-top: 2px solid #f1f5f9;
 }
 
+.action-buttons-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-compact {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  gap: 6px !important;
+  border-radius: 10px;
+}
+
+.btn-compact svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .btn-primary {
-  padding: 12px 24px;
+  padding: 10px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
@@ -2207,18 +2604,18 @@ onMounted(() => {
 }
 
 .btn-secondary {
-  padding: 12px 24px;
+  padding: 8px 16px;
   background: #ffffff;
   color: #475569;
   border: 2px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 

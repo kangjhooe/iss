@@ -61,11 +61,11 @@ class SchoolClass extends Model
     }
 
     /**
-     * Get the teacher (wali kelas) assigned to this class.
+     * Get the employee (wali kelas) assigned to this class.
      */
     public function teacher()
     {
-        return $this->belongsTo(Teacher::class);
+        return $this->belongsTo(Employee::class, 'teacher_id');
     }
 
     /**

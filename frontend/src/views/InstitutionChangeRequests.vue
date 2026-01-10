@@ -5,7 +5,7 @@
         <div class="header-content">
           <div>
             <h2>Manajemen Request Perubahan</h2>
-            <p>Kelola request perubahan nama sekolah dan NPSN</p>
+            <p>Kelola request perubahan nama sekolah/madrasah dan NPSN</p>
           </div>
         </div>
       </div>
@@ -63,7 +63,7 @@
           <div v-for="request in requests" :key="request.id" class="request-card">
             <div class="request-header">
               <div class="request-info">
-                <h3>{{ request.field_name === 'name' ? 'Nama Sekolah' : 'NPSN' }}</h3>
+                <h3>{{ request.field_name === 'name' ? `Nama ${getInstitutionTypeLabel(request.institution?.level) || 'Sekolah/Madrasah'}` : 'NPSN' }}</h3>
                 <p class="institution-name">{{ request.institution?.name }}</p>
               </div>
               <span :class="['status-badge', `status-${request.status}`]">
@@ -128,7 +128,7 @@
             <div class="approval-details">
               <div class="detail-row">
                 <span class="label">Field:</span>
-                <span class="value">{{ selectedRequest?.field_name === 'name' ? 'Nama Sekolah' : 'NPSN' }}</span>
+                <span class="value">{{ selectedRequest?.field_name === 'name' ? `Nama ${getInstitutionTypeLabel(selectedRequest?.institution?.level) || 'Sekolah/Madrasah'}` : 'NPSN' }}</span>
               </div>
               <div class="detail-row">
                 <span class="label">Dari:</span>
@@ -182,9 +182,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
+import { getInstitutionTypeLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 
