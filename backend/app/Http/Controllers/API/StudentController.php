@@ -7,57 +7,43 @@ use App\Http\Requests\StoreStudentRequest;
 use App\Http\Requests\UpdateStudentRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
+use App\Models\StudentDocument;
+use App\Services\StudentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class StudentController extends Controller
 {
+    protected StudentService $studentService;
+
+    public function __construct(StudentService $studentService)
+    {
+        $this->studentService = $studentService;
+    }
+
     /**
      * Display a listing of students.
      */
     public function index(Request $request)
     {
         try {
-            $query = Student::query();
-
-            // Filter berdasarkan institusi user yang login
+            // Determine institution ID
+            $institutionId = null;
             if (!$request->user()->isAdminOrSuperAdmin()) {
-                $query->where('institution_id', $request->user()->institution_id);
+                $institutionId = $request->user()->institution_id;
             } elseif ($request->has('institution_id')) {
-                $query->where('institution_id', $request->institution_id);
+                $institutionId = $request->institution_id;
             }
 
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%')
-                      ->orWhere('nik', 'like', '%' . $search . '%')
-                      ->orWhere('nis', 'like', '%' . $search . '%')
-                      ->orWhere('nisn', 'like', '%' . $search . '%');
-                });
-            }
+            // Get filters
+            $filters = $request->only(['search', 'class', 'class_id', 'academic_year', 'academic_year_id', 'status', 'gender']);
+            
+            // Get per page
+            $perPage = min($request->get('per_page', 15), 100);
 
-            if ($request->has('class')) {
-                $query->where('class', $request->class);
-            }
-
-            if ($request->has('academic_year')) {
-                $query->where('academic_year', $request->academic_year);
-            }
-
-            if ($request->has('academic_year_id')) {
-                $query->where('academic_year_id', $request->academic_year_id);
-            }
-
-            if ($request->has('status')) {
-                $query->where('status', $request->status);
-            }
-
-            $perPage = min($request->get('per_page', 15), 100); // Max 100 per page
-            $students = $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'status', 'created_at'])
-                ->with('institution:id,name')
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
+            // Use service to get students
+            $students = $this->studentService->list($filters, $institutionId, $perPage);
 
             return StudentResource::collection($students);
         } catch (\Exception $e) {
@@ -89,7 +75,8 @@ class StudentController extends Controller
             $validated = $request->validated();
             $validated['institution_id'] = $institutionId;
 
-            $student = Student::create($validated);
+            // Use service to create student
+            $student = $this->studentService->create($validated);
 
             Log::info('Student created', [
                 'student_id' => $student->id,
@@ -99,7 +86,7 @@ class StudentController extends Controller
 
             return response()->json([
                 'message' => 'Siswa berhasil ditambahkan',
-                'data' => new StudentResource($student->load('institution')),
+                'data' => new StudentResource($student),
             ], 201);
         } catch (\Exception $e) {
             Log::error('Failed to create student', [
@@ -119,10 +106,11 @@ class StudentController extends Controller
     public function show(Request $request, $id)
     {
         try {
-            $student = Student::with('institution')->findOrFail($id);
+            // Use service to find student
+            $student = $this->studentService->find($id, ['institution', 'documents', 'class', 'academicYear', 'classHistory']);
 
-            // Jika bukan admin/super admin, hanya bisa melihat siswa dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+            // Check authorization
+            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -150,14 +138,16 @@ class StudentController extends Controller
     public function update(UpdateStudentRequest $request, $id)
     {
         try {
-            $student = Student::findOrFail($id);
+            // Use service to find student
+            $student = $this->studentService->find($id);
 
-            // Jika bukan admin/super admin, hanya bisa update siswa dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+            // Check authorization
+            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $student->update($request->validated());
+            // Use service to update student (with automatic history tracking)
+            $student = $this->studentService->update($student, $request->validated());
 
             Log::info('Student updated', [
                 'student_id' => $student->id,
@@ -166,7 +156,7 @@ class StudentController extends Controller
 
             return response()->json([
                 'message' => 'Siswa berhasil diperbarui',
-                'data' => new StudentResource($student->load('institution')),
+                'data' => new StudentResource($student),
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
@@ -191,14 +181,16 @@ class StudentController extends Controller
     public function destroy(Request $request, $id)
     {
         try {
-            $student = Student::findOrFail($id);
+            // Use service to find student
+            $student = $this->studentService->find($id);
 
-            // Jika bukan admin/super admin, hanya bisa hapus siswa dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+            // Check authorization
+            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $student->delete();
+            // Use service to delete student
+            $this->studentService->delete($student);
 
             Log::info('Student deleted', [
                 'student_id' => $id,
@@ -309,6 +301,175 @@ class StudentController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat mengimpor data siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload document for student.
+     */
+    public function uploadDocument(Request $request, $id)
+    {
+        try {
+            $student = Student::findOrFail($id);
+
+            // Jika bukan admin/super admin, hanya bisa upload dokumen siswa dari institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            // Check document count limit (max 20)
+            $documentCount = $student->documents()->count();
+            if ($documentCount >= 20) {
+                return response()->json([
+                    'message' => 'Maksimal 20 file dokumen per siswa'
+                ], 400);
+            }
+
+            $request->validate([
+                'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048', // Max 2MB
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+            ]);
+
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('student_documents/' . $student->id, $fileName, 'public');
+
+            $document = $student->documents()->create([
+                'name' => $request->name,
+                'file_path' => $filePath,
+                'file_name' => $file->getClientOriginalName(),
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'description' => $request->description,
+            ]);
+
+            Log::info('Student document uploaded', [
+                'student_id' => $student->id,
+                'document_id' => $document->id,
+                'user_id' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Dokumen berhasil diupload',
+                'data' => $document,
+            ], 201);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Siswa tidak ditemukan',
+            ], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to upload student document', [
+                'student_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengupload dokumen',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete document for student.
+     */
+    public function deleteDocument(Request $request, $id, $documentId)
+    {
+        try {
+            $student = Student::findOrFail($id);
+            $document = StudentDocument::findOrFail($documentId);
+
+            // Verifikasi dokumen milik siswa yang benar
+            if ($document->student_id != $student->id) {
+                return response()->json(['message' => 'Dokumen tidak ditemukan'], 404);
+            }
+
+            // Jika bukan admin/super admin, hanya bisa hapus dokumen siswa dari institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            // Hapus file dari storage
+            if (Storage::disk('public')->exists($document->file_path)) {
+                Storage::disk('public')->delete($document->file_path);
+            }
+
+            $document->delete();
+
+            Log::info('Student document deleted', [
+                'student_id' => $student->id,
+                'document_id' => $documentId,
+                'user_id' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Dokumen berhasil dihapus',
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Siswa atau dokumen tidak ditemukan',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete student document', [
+                'student_id' => $id,
+                'document_id' => $documentId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat menghapus dokumen',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Download document for student.
+     */
+    public function downloadDocument(Request $request, $id, $documentId)
+    {
+        try {
+            $student = Student::findOrFail($id);
+            $document = StudentDocument::findOrFail($documentId);
+
+            // Verifikasi dokumen milik siswa yang benar
+            if ($document->student_id != $student->id) {
+                return response()->json(['message' => 'Dokumen tidak ditemukan'], 404);
+            }
+
+            // Jika bukan admin/super admin, hanya bisa download dokumen siswa dari institusi sendiri
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if (!Storage::disk('public')->exists($document->file_path)) {
+                return response()->json([
+                    'message' => 'File dokumen tidak ditemukan',
+                ], 404);
+            }
+
+            return Storage::disk('public')->download($document->file_path, $document->file_name);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Siswa atau dokumen tidak ditemukan',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to download student document', [
+                'student_id' => $id,
+                'document_id' => $documentId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengunduh dokumen',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

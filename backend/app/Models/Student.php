@@ -123,6 +123,14 @@ class Student extends Model
     }
 
     /**
+     * Get the documents for this student.
+     */
+    public function documents()
+    {
+        return $this->hasMany(StudentDocument::class);
+    }
+
+    /**
      * Scope a query to only include active students.
      */
     public function scopeActive($query)

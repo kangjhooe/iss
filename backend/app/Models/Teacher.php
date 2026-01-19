@@ -10,7 +10,7 @@ class Teacher extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'teacher';
+    protected $table = 'employee';
 
     /**
      * The attributes that are mass assignable.
@@ -19,6 +19,7 @@ class Teacher extends Model
      */
     protected $fillable = [
         'institution_id',
+        'type',
         'nip',
         'nuptk',
         'name',
@@ -112,7 +113,20 @@ class Teacher extends Model
      */
     public function classes()
     {
-        return $this->hasMany(SchoolClass::class);
+        return $this->hasMany(SchoolClass::class, 'teacher_id');
+    }
+
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Always filter by type = 'Guru' for Teacher model
+        static::addGlobalScope('teacher', function ($builder) {
+            $builder->where('type', 'Guru');
+        });
     }
 
     /**

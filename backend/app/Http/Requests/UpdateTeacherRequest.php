@@ -30,7 +30,7 @@ class UpdateTeacherRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:16',
-                Rule::unique('teacher', 'nuptk')->ignore($teacherId),
+                Rule::unique('employee', 'nuptk')->ignore($teacherId),
             ],
             'name' => 'sometimes|required|string|max:255',
             'gender' => 'sometimes|required|in:L,P',

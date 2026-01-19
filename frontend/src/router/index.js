@@ -80,6 +80,36 @@ const router = createRouter({
       name: 'InstitutionChangeRequests',
       component: () => import('@/views/InstitutionChangeRequests.vue'),
       meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/correspondence',
+      name: 'Correspondence',
+      component: () => import('@/views/Correspondence.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('@/views/ForgotPassword.vue'),
+      meta: { requiresGuest: true }
+    },
+    {
+      path: '/reset-password',
+      name: 'ResetPassword',
+      component: () => import('@/views/ResetPassword.vue'),
+      meta: { requiresGuest: true }
+    },
+    {
+      path: '/verify-email',
+      name: 'VerifyEmail',
+      component: () => import('@/views/VerifyEmail.vue'),
+      meta: { requiresGuest: true }
+    },
+    {
+      path: '/semester',
+      name: 'Semester',
+      component: () => import('@/views/Semester.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

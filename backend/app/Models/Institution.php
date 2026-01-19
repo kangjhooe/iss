@@ -143,6 +143,22 @@ class Institution extends Model
     }
 
     /**
+     * Get the correspondence for the institution.
+     */
+    public function correspondence()
+    {
+        return $this->hasMany(Correspondence::class);
+    }
+
+    /**
+     * Get the correspondence categories for the institution.
+     */
+    public function correspondenceCategories()
+    {
+        return $this->hasMany(CorrespondenceCategory::class);
+    }
+
+    /**
      * Scope a query to only include active institutions.
      */
     public function scopeActive($query)

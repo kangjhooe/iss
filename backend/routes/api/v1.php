@@ -3,6 +3,8 @@
 use App\Http\Controllers\API\AcademicYearController;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ClassController;
+use App\Http\Controllers\API\CorrespondenceController;
+use App\Http\Controllers\API\AttachmentController;
 use App\Http\Controllers\API\FacilityController;
 use App\Http\Controllers\API\InstitutionChangeRequestController;
 use App\Http\Controllers\API\InstitutionController;
@@ -90,6 +92,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::put('/student/{id}', [StudentController::class, 'update']);
     Route::delete('/student/{id}', [StudentController::class, 'destroy']);
     Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
+    Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
+    Route::delete('/student/{id}/documents/{documentId}', [StudentController::class, 'deleteDocument'])->name('student.delete-document');
+    Route::get('/student/{id}/documents/{documentId}/download', [StudentController::class, 'downloadDocument'])->name('student.download-document');
 
     // Employee routes with caching
     Route::middleware('cache:300')->group(function () {
@@ -169,4 +174,40 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::prefix('report')->group(function () {
         Route::get('/institution/{institutionId?}', [ReportController::class, 'getStatistics'])->name('report.statistics');
     });
+
+    // Correspondence routes (Persuratan)
+    Route::prefix('correspondence')->group(function () {
+        Route::get('/categories', [CorrespondenceController::class, 'categories'])->name('correspondence.categories');
+        Route::get('/letter-types', [CorrespondenceController::class, 'letterTypes'])->name('correspondence.letter-types');
+        Route::get('/users', [CorrespondenceController::class, 'users'])->name('correspondence.users');
+        Route::get('/statistics', [CorrespondenceStatisticsController::class, 'index'])->name('correspondence.statistics');
+        Route::get('/export/excel', [CorrespondenceExportController::class, 'exportExcel'])->name('correspondence.export.excel');
+        Route::get('/export/pdf', [CorrespondenceExportController::class, 'exportPdf'])->name('correspondence.export.pdf');
+        Route::get('/export/download/{filePath}', [CorrespondenceExportController::class, 'downloadExcel'])->name('correspondence.export.download');
+        Route::get('/export/pdf/{filePath}', [CorrespondenceExportController::class, 'downloadPdf'])->name('correspondence.export.pdf.download');
+        Route::post('/import', [CorrespondenceImportController::class, 'import'])->name('correspondence.import');
+        Route::get('/import/template', [CorrespondenceImportController::class, 'downloadTemplate'])->name('correspondence.import.template');
+        Route::get('/{id}/print', [CorrespondenceController::class, 'print'])->name('correspondence.print');
+        Route::post('/{id}/approve', [CorrespondenceController::class, 'approve'])->name('correspondence.approve');
+        Route::post('/{id}/send', [CorrespondenceController::class, 'send'])->name('correspondence.send');
+        Route::post('/{id}/archive', [CorrespondenceController::class, 'archive'])->name('correspondence.archive');
+        
+        // Disposition routes
+        Route::get('/{correspondenceId}/dispositions', [DispositionController::class, 'index'])->name('correspondence.dispositions.index');
+        Route::post('/{correspondenceId}/dispositions', [DispositionController::class, 'store'])->name('correspondence.dispositions.store');
+        Route::put('/dispositions/{id}', [DispositionController::class, 'update'])->name('correspondence.dispositions.update');
+        Route::post('/dispositions/{id}/complete', [DispositionController::class, 'complete'])->name('correspondence.dispositions.complete');
+        Route::delete('/dispositions/{id}', [DispositionController::class, 'destroy'])->name('correspondence.dispositions.destroy');
+        
+        // Attachment routes
+        Route::get('/{correspondenceId}/attachments', [AttachmentController::class, 'index'])->name('correspondence.attachments.index');
+        Route::post('/{correspondenceId}/attachments', [AttachmentController::class, 'store'])->name('correspondence.attachments.store');
+        Route::get('/attachments/{id}/download', [AttachmentController::class, 'download'])->name('correspondence.attachments.download');
+        Route::put('/attachments/{id}', [AttachmentController::class, 'update'])->name('correspondence.attachments.update');
+        Route::delete('/attachments/{id}', [AttachmentController::class, 'destroy'])->name('correspondence.attachments.destroy');
+    });
+    Route::apiResource('correspondence', CorrespondenceController::class);
+    
+    // Disposition routes (standalone)
+    Route::get('/dispositions/pending', [DispositionController::class, 'pending'])->name('dispositions.pending');
 });

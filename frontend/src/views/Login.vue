@@ -56,6 +56,10 @@
           <span v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</span>
         </div>
         
+        <div class="forgot-password-link">
+          <router-link to="/forgot-password" class="link">Lupa password?</router-link>
+        </div>
+        
         <button type="submit" :disabled="loading" class="btn-primary">
           <span v-if="!loading">Masuk</span>
           <span v-else class="loading-spinner">
@@ -393,6 +397,16 @@ const handleLogin = async () => {
 .link:hover {
   color: #5568d3;
   text-decoration: underline;
+}
+
+.forgot-password-link {
+  text-align: right;
+  margin-bottom: 16px;
+  margin-top: -8px;
+}
+
+.forgot-password-link .link {
+  font-size: 13px;
 }
 
 @media (max-width: 640px) {

@@ -24,7 +24,7 @@ class StoreTeacherRequest extends FormRequest
         return [
             'institution_id' => 'sometimes|exists:institution,id',
             'nip' => 'nullable|string|max:50',
-            'nuptk' => 'nullable|string|max:16|unique:teacher,nuptk',
+            'nuptk' => 'nullable|string|max:16|unique:employee,nuptk',
             'name' => 'required|string|max:255',
             'gender' => 'required|in:L,P',
             'birth_date' => 'nullable|date',

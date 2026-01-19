@@ -224,6 +224,17 @@
                 </svg>
                 <span>Data Wali</span>
               </button>
+              <button 
+                type="button"
+                @click="activeTab = 6" 
+                :class="['tab-btn', { active: activeTab === 6 }]"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Dokumen</span>
+              </button>
             </div>
 
             <!-- Tab 1: Identitas -->
@@ -621,13 +632,86 @@
               </div>
             </div>
 
+            <!-- Tab 6: Dokumen -->
+            <div v-show="activeTab === 6" class="tab-content">
+              <div class="documents-section">
+                <div v-if="!editingId" class="no-documents">
+                  <p>Simpan data siswa terlebih dahulu untuk mengupload dokumen</p>
+                </div>
+                <template v-else>
+                  <div class="upload-section">
+                    <h3>Upload Dokumen</h3>
+                    <div class="form-group">
+                      <label>Nama Dokumen *</label>
+                      <input v-model="documentForm.name" placeholder="Contoh: Kartu Keluarga, Ijazah, dll" />
+                    </div>
+                    <div class="form-group">
+                      <label>Deskripsi</label>
+                      <textarea v-model="documentForm.description" rows="3" placeholder="Deskripsi dokumen (opsional)"></textarea>
+                    </div>
+                    <div class="form-group">
+                      <label>File *</label>
+                      <input 
+                        type="file" 
+                        ref="fileInput"
+                        @change="handleFileSelect"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                      />
+                      <small class="text-muted">Format: JPG, PNG, PDF. Maksimal 2 MB per file. Maksimal 20 file.</small>
+                    </div>
+                    <div v-if="selectedFile" class="file-preview">
+                      <p><strong>File terpilih:</strong> {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})</p>
+                    </div>
+                    <button 
+                      @click="uploadDocument" 
+                      :disabled="uploadingDocument || !documentForm.name || !selectedFile"
+                      class="btn btn-primary"
+                      type="button"
+                    >
+                      {{ uploadingDocument ? 'Mengupload...' : 'Upload Dokumen' }}
+                    </button>
+                  </div>
+
+                  <div class="documents-list" v-if="currentStudentDocuments && currentStudentDocuments.length > 0">
+                    <h3>Daftar Dokumen ({{ currentStudentDocuments.length }}/20)</h3>
+                    <div class="document-grid">
+                      <div v-for="doc in currentStudentDocuments" :key="doc.id" class="document-card">
+                        <div class="document-icon">
+                          <svg v-if="doc.mime_type === 'application/pdf'" width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2"/>
+                          </svg>
+                          <svg v-else width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                            <path d="M3 9H21" stroke="currentColor" stroke-width="2"/>
+                          </svg>
+                        </div>
+                        <div class="document-info">
+                          <h4>{{ doc.name }}</h4>
+                          <p class="text-muted">{{ doc.file_name }}</p>
+                          <p class="text-muted">{{ doc.file_size_human || formatFileSize(doc.file_size) }}</p>
+                          <p v-if="doc.description" class="text-muted">{{ doc.description }}</p>
+                        </div>
+                        <div class="document-actions">
+                          <button @click="downloadDocument(doc.id)" class="btn btn-sm btn-secondary" type="button">Download</button>
+                          <button @click="deleteDocument(doc.id)" class="btn btn-sm btn-danger" type="button">Hapus</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="no-documents">
+                    <p>Belum ada dokumen yang diupload</p>
+                  </div>
+                </template>
+              </div>
+            </div>
+
             <div v-if="error" class="error-message">{{ error }}</div>
 
             <div class="modal-footer">
               <button type="button" @click="closeModal" class="btn-secondary">Batal</button>
               <button v-if="activeTab > 1" type="button" @click="activeTab--" class="btn-secondary">Sebelumnya</button>
-              <button v-if="activeTab < 5" type="button" @click="activeTab++" class="btn-secondary">Selanjutnya</button>
-              <button type="submit" :disabled="saving" class="btn-primary">
+              <button v-if="activeTab < 6" type="button" @click="activeTab++" class="btn-secondary">Selanjutnya</button>
+              <button v-if="activeTab !== 6" type="submit" :disabled="saving" class="btn-primary">
                 {{ saving ? 'Menyimpan...' : 'Simpan' }}
               </button>
             </div>
@@ -1010,6 +1094,15 @@ const form = ref({
   notes: ''
 })
 
+const documentForm = ref({
+  name: '',
+  description: ''
+})
+const selectedFile = ref(null)
+const uploadingDocument = ref(false)
+const currentStudentDocuments = ref([])
+const fileInput = ref(null)
+
 let editingId = null
 
 const loadStudents = async () => {
@@ -1030,7 +1123,7 @@ const loadStudents = async () => {
   }
 }
 
-const editStudent = (student) => {
+const editStudent = async (student) => {
   editingId = student.id
   Object.assign(form.value, student)
   // Format dates
@@ -1048,6 +1141,8 @@ const editStudent = (student) => {
   }
   activeTab.value = 1
   showEditModal.value = true
+  // Load dokumen
+  await loadStudentDocuments()
 }
 
 const handleGuardianTypeChange = () => {
@@ -1230,6 +1325,13 @@ const closeModal = () => {
     guardian_occupation: '',
     guardian_income: null,
     notes: ''
+  }
+  // Reset dokumen
+  currentStudentDocuments.value = []
+  documentForm.value = { name: '', description: '' }
+  selectedFile.value = null
+  if (fileInput.value) {
+    fileInput.value.value = ''
   }
   error.value = ''
 }
@@ -1982,6 +2084,132 @@ const printPDF = async () => {
   } catch (err) {
     console.error('Error loading institution data:', err)
     toast.error('Gagal', 'Gagal memuat data institusi untuk KOP surat')
+  }
+}
+
+// Methods untuk dokumen
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+const handleFileSelect = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // Validasi ukuran file (2MB = 2 * 1024 * 1024 bytes)
+  const maxSize = 2 * 1024 * 1024
+  if (file.size > maxSize) {
+    error.value = 'Ukuran file terlalu besar. Maksimal 2 MB'
+    event.target.value = ''
+    selectedFile.value = null
+    return
+  }
+
+  // Validasi tipe file
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
+  if (!allowedTypes.includes(file.type)) {
+    error.value = 'Format file tidak didukung. Hanya JPG, PNG, dan PDF'
+    event.target.value = ''
+    selectedFile.value = null
+    return
+  }
+
+  selectedFile.value = file
+  error.value = ''
+}
+
+const loadStudentDocuments = async () => {
+  if (!editingId) return
+
+  try {
+    const response = await studentApi.get(editingId)
+    currentStudentDocuments.value = response.data.data.documents || []
+  } catch (err) {
+    console.error('Failed to load documents', err)
+  }
+}
+
+const uploadDocument = async () => {
+  if (!editingId) {
+    error.value = 'Simpan data siswa terlebih dahulu'
+    return
+  }
+
+  if (!documentForm.value.name || !selectedFile.value) {
+    error.value = 'Nama dokumen dan file wajib diisi'
+    return
+  }
+
+  uploadingDocument.value = true
+  error.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    formData.append('name', documentForm.value.name)
+    if (documentForm.value.description) {
+      formData.append('description', documentForm.value.description)
+    }
+
+    await studentApi.uploadDocument(editingId, formData)
+    toast.success('Berhasil', 'Dokumen berhasil diupload')
+
+    // Reset form
+    documentForm.value = { name: '', description: '' }
+    selectedFile.value = null
+    if (fileInput.value) {
+      fileInput.value.value = ''
+    }
+
+    // Reload dokumen
+    await loadStudentDocuments()
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 'Gagal mengupload dokumen'
+    error.value = errorMsg
+    toast.error('Gagal', errorMsg)
+  } finally {
+    uploadingDocument.value = false
+  }
+}
+
+const deleteDocument = async (documentId) => {
+  if (!editingId) return
+
+  if (!confirm('Yakin ingin menghapus dokumen ini?')) return
+
+  try {
+    await studentApi.deleteDocument(editingId, documentId)
+    toast.success('Berhasil', 'Dokumen berhasil dihapus')
+    await loadStudentDocuments()
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 'Gagal menghapus dokumen'
+    toast.error('Gagal', errorMsg)
+  }
+}
+
+const downloadDocument = async (documentId) => {
+  if (!editingId) return
+
+  try {
+    const response = await studentApi.downloadDocument(editingId, documentId)
+    const doc = currentStudentDocuments.value.find(d => d.id === documentId)
+    const fileName = doc?.file_name || 'document'
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', fileName)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 'Gagal mengunduh dokumen'
+    toast.error('Gagal', errorMsg)
   }
 }
 
@@ -2823,5 +3051,136 @@ onMounted(() => {
     font-size: 12px;
     padding: 8px 12px;
   }
+}
+
+/* Documents Section Styles */
+.documents-section {
+  padding: 1rem 0;
+}
+
+.upload-section {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  border: 1px solid #e2e8f0;
+}
+
+.upload-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.file-preview {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #e0f2fe;
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+}
+
+.file-preview p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #0369a1;
+}
+
+.text-muted {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.documents-list {
+  margin-top: 2rem;
+}
+
+.documents-list h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.document-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.document-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
+}
+
+.document-icon {
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.document-info {
+  flex: 1;
+}
+
+.document-info h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.document-info p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.document-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.no-documents {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 2px dashed #cbd5e1;
+}
+
+.no-documents p {
+  margin: 0;
+  font-size: 0.875rem;
 }
 </style>

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreStudentRequest extends FormRequest
 {
@@ -21,11 +22,32 @@ class StoreStudentRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Get institution ID for unique validation
+        $institutionId = $this->user()->isAdminOrSuperAdmin() 
+            ? $this->input('institution_id')
+            : $this->user()->institution_id;
+
         return [
             'institution_id' => 'sometimes|exists:institution,id',
-            'nik' => 'required|string|max:16|unique:student,nik',
+            'nik' => [
+                'required',
+                'string',
+                'size:16',
+                'regex:/^[0-9]{16}$/',
+                Rule::unique('student', 'nik')->where(function ($query) use ($institutionId) {
+                    return $query->where('institution_id', $institutionId);
+                }),
+            ],
             'nis' => 'nullable|string|max:50',
-            'nisn' => 'nullable|string|max:10|unique:student,nisn',
+            'nisn' => [
+                'nullable',
+                'string',
+                'size:10',
+                'regex:/^[0-9]{10}$/',
+                Rule::unique('student', 'nisn')->where(function ($query) use ($institutionId) {
+                    return $query->where('institution_id', $institutionId);
+                }),
+            ],
             'name' => 'required|string|max:255',
             'gender' => 'required|in:L,P',
             'birth_date' => 'required|date',
@@ -43,7 +65,9 @@ class StoreStudentRequest extends FormRequest
             'previous_school' => 'nullable|string|max:255',
             'residence_type' => 'nullable|in:asrama,kost_kontrak,tinggal_dengan_orang_tua,lainnya',
             'class' => 'nullable|string|max:50',
+            'class_id' => 'nullable|exists:class,id',
             'academic_year' => 'nullable|string|max:10',
+            'academic_year_id' => 'nullable|exists:academic_years,id',
             'status' => 'nullable|in:Aktif,Lulus,Pindah,Drop Out,Tidak Aktif',
             'father_name' => 'nullable|string|max:255',
             'father_status' => 'nullable|in:masih_hidup,meninggal_dunia,tidak_diketahui',
@@ -84,13 +108,17 @@ class StoreStudentRequest extends FormRequest
     {
         return [
             'nik.required' => 'NIK wajib diisi',
-            'nik.unique' => 'NIK sudah terdaftar',
+            'nik.size' => 'NIK harus terdiri dari 16 digit',
+            'nik.regex' => 'NIK harus berupa angka 16 digit',
+            'nik.unique' => 'NIK sudah terdaftar di institusi ini',
+            'nisn.size' => 'NISN harus terdiri dari 10 digit',
+            'nisn.regex' => 'NISN harus berupa angka 10 digit',
+            'nisn.unique' => 'NISN sudah terdaftar di institusi ini',
             'name.required' => 'Nama siswa wajib diisi',
             'gender.required' => 'Jenis kelamin wajib diisi',
             'gender.in' => 'Jenis kelamin harus L atau P',
             'birth_date.required' => 'Tanggal lahir wajib diisi',
             'birth_place.required' => 'Tempat lahir wajib diisi',
-            'nisn.unique' => 'NISN sudah terdaftar',
             'email.email' => 'Format email tidak valid',
         ];
     }

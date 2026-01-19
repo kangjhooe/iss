@@ -44,7 +44,23 @@ class StudentResource extends JsonResource
             'previous_school' => $this->previous_school,
             'residence_type' => $this->residence_type,
             'class' => $this->class,
+            'class_id' => $this->class_id,
+            'class_detail' => $this->whenLoaded('class', function () {
+                return [
+                    'id' => $this->class->id,
+                    'name' => $this->class->name,
+                    'grade' => $this->class->grade,
+                ];
+            }),
             'academic_year' => $this->academic_year,
+            'academic_year_id' => $this->academic_year_id,
+            'academic_year_detail' => $this->whenLoaded('academicYear', function () {
+                return [
+                    'id' => $this->academicYear->id,
+                    'name' => $this->academicYear->name,
+                    'code' => $this->academicYear->code,
+                ];
+            }),
             'status' => $this->status,
             'father_name' => $this->father_name,
             'father_status' => $this->father_status,
@@ -73,6 +89,20 @@ class StudentResource extends JsonResource
             'guardian_occupation' => $this->guardian_occupation,
             'guardian_income' => $this->guardian_income,
             'notes' => $this->notes,
+            'documents' => $this->whenLoaded('documents', function () {
+                return $this->documents->map(function ($doc) {
+                    return [
+                        'id' => $doc->id,
+                        'name' => $doc->name,
+                        'file_name' => $doc->file_name,
+                        'file_size' => $doc->file_size,
+                        'file_size_human' => $doc->file_size_human,
+                        'mime_type' => $doc->mime_type,
+                        'description' => $doc->description,
+                        'created_at' => $doc->created_at?->toISOString(),
+                    ];
+                });
+            }),
             'has_user_account' => $this->hasUserAccount(),
             'user_account' => $this->whenLoaded('userAccount', function () {
                 return [
@@ -81,6 +111,20 @@ class StudentResource extends JsonResource
                     'email' => $this->userAccount->email,
                     'role' => $this->userAccount->role,
                 ];
+            }),
+            'class_history' => $this->whenLoaded('classHistory', function () {
+                return $this->classHistory->map(function ($history) {
+                    return [
+                        'id' => $history->id,
+                        'class_id' => $history->class_id,
+                        'academic_year_id' => $history->academic_year_id,
+                        'academic_year' => $history->academic_year,
+                        'start_date' => $history->start_date?->format('Y-m-d'),
+                        'end_date' => $history->end_date?->format('Y-m-d'),
+                        'status' => $history->status,
+                        'notes' => $history->notes,
+                    ];
+                });
             }),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

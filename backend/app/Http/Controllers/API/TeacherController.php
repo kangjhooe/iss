@@ -79,6 +79,7 @@ class TeacherController extends Controller
 
             $validated = $request->validated();
             $validated['institution_id'] = $institutionId;
+            $validated['type'] = 'Guru'; // Ensure type is set to Guru
 
             $teacher = Teacher::create($validated);
 
