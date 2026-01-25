@@ -19,7 +19,11 @@ class AttachmentService
 
         foreach ($files as $file) {
             try {
-                $fileName = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
+                // Sanitize file name to prevent path traversal
+                $originalName = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension();
+                $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+                $fileName = time() . '_' . uniqid() . '_' . $safeName . '.' . $extension;
                 $filePath = $file->storeAs(
                     'correspondence/' . $correspondence->institution_id . '/attachments',
                     $fileName,
@@ -29,7 +33,7 @@ class AttachmentService
                 $attachment = CorrespondenceAttachment::create([
                     'correspondence_id' => $correspondence->id,
                     'file_path' => $filePath,
-                    'file_name' => $file->getClientOriginalName(),
+                    'file_name' => $originalName, // Keep original name for display
                     'file_size' => $file->getSize(),
                     'mime_type' => $file->getMimeType(),
                 ]);

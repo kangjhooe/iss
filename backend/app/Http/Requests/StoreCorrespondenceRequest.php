@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Helpers\FileUploadRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCorrespondenceRequest extends FormRequest
@@ -30,8 +31,10 @@ class StoreCorrespondenceRequest extends FormRequest
             'status' => 'nullable|in:draft,pending,approved,sent,archived',
             'category_id' => 'nullable|exists:correspondence_categories,id',
             'description' => 'nullable|string',
-            'file' => 'nullable|file|mimes:pdf|max:5120', // Max 5MB
         ];
+
+        // Add file upload rules using helper
+        $rules = array_merge($rules, FileUploadRules::correspondenceFile(false));
 
         // Rules for surat masuk
         if ($this->type === 'masuk') {
@@ -63,7 +66,7 @@ class StoreCorrespondenceRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
+        $messages = [
             'type.required' => 'Tipe surat wajib diisi',
             'type.in' => 'Tipe surat harus masuk, keluar, atau internal',
             'letter_type_code.required' => 'Jenis surat wajib diisi',
@@ -73,9 +76,17 @@ class StoreCorrespondenceRequest extends FormRequest
             'date.required' => 'Tanggal surat wajib diisi',
             'from.required' => 'Pengirim wajib diisi untuk surat masuk',
             'to.required' => 'Penerima wajib diisi untuk surat keluar',
-            'file.mimes' => 'File harus berformat PDF',
-            'file.max' => 'Ukuran file maksimal 5MB',
             'category_id.exists' => 'Kategori tidak ditemukan',
         ];
+
+        // Add file upload messages using helper
+        $messages = array_merge($messages, FileUploadRules::messages(
+            FileUploadRules::TYPE_PDF_ONLY,
+            FileUploadRules::SIZE_MEDIUM,
+            'file',
+            false
+        ));
+
+        return $messages;
     }
 }

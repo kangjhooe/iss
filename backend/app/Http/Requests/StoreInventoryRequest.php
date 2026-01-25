@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Helpers\FileUploadRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreInventoryRequest extends FormRequest
@@ -21,7 +22,7 @@ class StoreInventoryRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'category_id' => 'required|exists:inventory_category,id',
             'code' => 'nullable|string|max:100|unique:inventory_item,code',
             'custom_code' => 'nullable|string|max:20', // Kode khusus seperti BKBA
@@ -41,8 +42,12 @@ class StoreInventoryRequest extends FormRequest
             'location_note' => 'nullable|string',
             'warranty_expiry' => 'nullable|date',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'reference_number' => 'nullable|string|max:255', // Untuk transaksi masuk
         ];
+
+        // Add image upload rules using helper
+        $rules = array_merge($rules, FileUploadRules::inventoryImage());
+
+        return $rules;
     }
 }

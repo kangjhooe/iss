@@ -384,14 +384,29 @@ class StudentController extends Controller
                 ], 400);
             }
 
-            $request->validate([
-                'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048', // Max 2MB
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-            ]);
+            // Use standardized file upload validation
+            $rules = array_merge(
+                \App\Helpers\FileUploadRules::studentDocument(),
+                [
+                    'name' => 'required|string|max:255',
+                    'description' => 'nullable|string',
+                ]
+            );
+            $messages = \App\Helpers\FileUploadRules::messages(
+                \App\Helpers\FileUploadRules::TYPE_MIXED,
+                \App\Helpers\FileUploadRules::SIZE_SMALL,
+                'file',
+                false
+            );
+            
+            $request->validate($rules, $messages);
 
             $file = $request->file('file');
-            $fileName = time() . '_' . $file->getClientOriginalName();
+            // Sanitize file name to prevent path traversal
+            $originalName = $file->getClientOriginalName();
+            $extension = $file->getClientOriginalExtension();
+            $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+            $fileName = time() . '_' . $safeName . '.' . $extension;
             $filePath = $file->storeAs('student_documents/' . $student->id, $fileName, 'public');
 
             $document = $student->documents()->create([

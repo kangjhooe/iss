@@ -13,32 +13,110 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async login(credentials) {
       try {
+        console.log('=== LOGIN REQUEST START ===')
+        console.log('Credentials:', { ...credentials, password: '***' })
+        
         const response = await authApi.login(credentials)
         
+        // Log full response for debugging
+        console.log('=== LOGIN RESPONSE DEBUG ===')
+        console.log('Full response object:', response)
+        console.log('Response type:', typeof response)
+        console.log('Response.data:', response?.data)
+        console.log('Response.data type:', typeof response?.data)
+        console.log('Response.status:', response?.status)
+        console.log('Response keys:', Object.keys(response || {}))
+        if (response?.data) {
+          console.log('Response.data keys:', Object.keys(response.data))
+          console.log('Response.data.token:', response.data.token)
+          console.log('Response.data.user:', response.data.user)
+        }
+        console.log('=== END RESPONSE DEBUG ===')
+        
         // Validate response structure
-        if (!response || !response.data) {
+        if (!response) {
+          console.error('No response received')
+          throw new Error('Tidak ada response dari server')
+        }
+        
+        // Check if response has error status
+        if (response.status && response.status >= 400) {
+          const errorMessage = response.data?.message || response.data?.error || 'Terjadi kesalahan saat login'
+          throw new Error(errorMessage)
+        }
+        
+        // Validate response data - check if data exists
+        const responseData = response.data || response
+        if (!responseData) {
+          console.error('Invalid response structure - no data:', response)
           throw new Error('Invalid response from server')
         }
         
-        if (!response.data.token) {
-          throw new Error('Token tidak ditemukan dalam response')
+        // Check for token in different possible locations
+        const token = responseData.token || responseData.access_token || responseData.accessToken
+        if (!token) {
+          console.error('Token not found in response.')
+          console.error('Response data:', responseData)
+          console.error('Available keys:', Object.keys(responseData || {}))
+          console.error('Response structure:', JSON.stringify(responseData, null, 2))
+          throw new Error('Token tidak ditemukan dalam response. Silakan coba lagi atau hubungi administrator.')
         }
         
-        if (!response.data.user) {
+        if (!responseData.user) {
+          console.error('User data not found in response. Response data:', responseData)
           throw new Error('Data user tidak ditemukan dalam response')
         }
         
-        this.token = response.data.token
-        this.user = response.data.user
+        this.token = token
+        this.user = responseData.user
         this.isAuthenticated = true
         setToken(this.token)
-        if (response.data.refresh_token) {
-          setRefreshToken(response.data.refresh_token)
+        if (responseData.refresh_token || responseData.refreshToken) {
+          setRefreshToken(responseData.refresh_token || responseData.refreshToken)
         }
-        return response.data
+        return responseData
       } catch (error) {
-        console.error('Auth store login error:', error)
-        throw error
+        console.error('=== LOGIN ERROR DEBUG ===')
+        console.error('Error object:', error)
+        console.error('Error type:', typeof error)
+        console.error('Error.response:', error.response)
+        console.error('Error.response?.status:', error.response?.status)
+        console.error('Error.response?.statusText:', error.response?.statusText)
+        console.error('Error.response?.data:', error.response?.data)
+        console.error('Error.response?.headers:', error.response?.headers)
+        console.error('Error.message:', error.message)
+        console.error('Error.code:', error.code)
+        console.error('Error.config:', error.config)
+        console.error('Error.stack:', error.stack)
+        console.error('=== END ERROR DEBUG ===')
+        
+        // Re-throw with better error message
+        if (error.response) {
+          // Server responded with error
+          if (error.response.data) {
+            if (error.response.data.message) {
+              throw new Error(error.response.data.message)
+            } else if (error.response.data.error) {
+              throw new Error(error.response.data.error)
+            } else if (error.response.data.errors) {
+              // Handle validation errors
+              const errors = error.response.data.errors
+              const firstError = Object.values(errors)[0]
+              const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError
+              throw new Error(errorMessage)
+            }
+          }
+          // Response exists but no data
+          throw new Error(`Server error: ${error.response.status} ${error.response.statusText || ''}`)
+        } else if (error.request) {
+          // Request was made but no response received
+          throw new Error('Tidak ada response dari server. Periksa koneksi internet Anda.')
+        } else if (error.message) {
+          // Error occurred in setting up the request
+          throw error
+        } else {
+          throw new Error('Terjadi kesalahan saat login. Silakan coba lagi.')
+        }
       }
     },
 

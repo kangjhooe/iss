@@ -12,9 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modify enum to add 'deleted' action
+        // Modify enum to add 'deleted' and 'disposition_deleted' actions
         // MySQL doesn't support direct enum modification, so we use raw SQL
-        DB::statement("ALTER TABLE correspondence_histories MODIFY COLUMN action ENUM('created', 'updated', 'approved', 'rejected', 'sent', 'disposed', 'archived', 'disposition_completed', 'deleted') NOT NULL");
+        DB::statement("ALTER TABLE correspondence_histories MODIFY COLUMN action ENUM('created', 'updated', 'approved', 'rejected', 'sent', 'disposed', 'archived', 'disposition_completed', 'disposition_deleted', 'deleted') NOT NULL");
     }
 
     /**
@@ -22,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove 'deleted' from enum
-        // Note: This will fail if there are any records with 'deleted' action
+        // Remove 'deleted' and 'disposition_deleted' from enum
+        // Note: This will fail if there are any records with these actions
         DB::statement("ALTER TABLE correspondence_histories MODIFY COLUMN action ENUM('created', 'updated', 'approved', 'rejected', 'sent', 'disposed', 'archived', 'disposition_completed') NOT NULL");
     }
 };

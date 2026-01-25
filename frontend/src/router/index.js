@@ -153,6 +153,12 @@ const hasModuleAccess = (user, moduleKey) => {
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
+  // Prevent infinite redirects
+  if (to.path === from.path) {
+    next()
+    return
+  }
+  
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
@@ -161,25 +167,41 @@ router.beforeEach(async (to, from, next) => {
       try {
         await authStore.fetchUser()
       } catch (error) {
+        // If fetchUser fails, user is not actually authenticated
+        authStore.isAuthenticated = false
+        authStore.user = null
         next('/login')
         return
       }
     }
 
-    next(getDefaultRoute(authStore.user?.role))
+    const defaultRoute = getDefaultRoute(authStore.user?.role)
+    // Prevent redirect to same route
+    if (to.path !== defaultRoute) {
+      next(defaultRoute)
+    } else {
+      next()
+    }
   } else if (to.meta.requiresSuperAdmin) {
     // Ensure user data is loaded
     if (!authStore.user) {
       try {
         await authStore.fetchUser()
       } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
         next('/login')
         return
       }
     }
     
     if (authStore.user?.role !== 'super_admin') {
-      next(getDefaultRoute(authStore.user?.role))
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
     } else {
       next()
     }
@@ -188,13 +210,20 @@ router.beforeEach(async (to, from, next) => {
       try {
         await authStore.fetchUser()
       } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
         next('/login')
         return
       }
     }
 
     if (authStore.user?.role !== 'teacher') {
-      next(getDefaultRoute(authStore.user?.role))
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
     } else {
       next()
     }
@@ -204,32 +233,54 @@ router.beforeEach(async (to, from, next) => {
       try {
         await authStore.fetchUser()
       } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
         next('/login')
         return
       }
     }
     
     if (authStore.user?.role === 'super_admin') {
-      next('/super-admin/dashboard')
+      if (to.path !== '/super-admin/dashboard') {
+        next('/super-admin/dashboard')
+      } else {
+        next()
+      }
     } else if (authStore.user?.role === 'teacher') {
-      next('/teacher/dashboard')
+      if (to.path !== '/teacher/dashboard') {
+        next('/teacher/dashboard')
+      } else {
+        next()
+      }
     } else if (authStore.user?.role === 'institution_admin' || authStore.user?.role === 'admin') {
       next()
     } else {
-      next(getDefaultRoute(authStore.user?.role))
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
     }
   } else if (to.meta.requiresModule) {
     if (!authStore.user) {
       try {
         await authStore.fetchUser()
       } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
         next('/login')
         return
       }
     }
 
     if (!hasModuleAccess(authStore.user, to.meta.requiresModule)) {
-      next(getDefaultRoute(authStore.user?.role))
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
     } else {
       next()
     }

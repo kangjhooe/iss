@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Helpers\FileUploadRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,7 @@ class UpdateInventoryRequest extends FormRequest
     {
         $itemId = $this->route('item') ? $this->route('item')->id : null;
 
-        return [
+        $rules = [
             'category_id' => 'sometimes|exists:inventory_category,id',
             'code' => [
                 'sometimes',
@@ -53,7 +54,11 @@ class UpdateInventoryRequest extends FormRequest
             'location_note' => 'nullable|string',
             'warranty_expiry' => 'nullable|date',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ];
+
+        // Add image upload rules using helper
+        $rules = array_merge($rules, FileUploadRules::inventoryImage());
+
+        return $rules;
     }
 }

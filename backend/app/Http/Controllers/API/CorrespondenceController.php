@@ -133,11 +133,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = $this->service->find($id);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('view', $correspondence);
 
             return response()->json([
                 'data' => new CorrespondenceResource($correspondence),
@@ -164,11 +161,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = Correspondence::findOrFail($id);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('update', $correspondence);
 
             $data = $request->validated();
             $file = $request->hasFile('file') ? $request->file('file') : null;
@@ -201,11 +195,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = Correspondence::findOrFail($id);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('delete', $correspondence);
 
             $this->service->delete($correspondence, $request->user()->id);
 
@@ -234,10 +225,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = Correspondence::withTrashed()->findOrFail($id);
 
-            if (!$request->user()->isAdminOrSuperAdmin() &&
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('restore', $correspondence);
 
             if ($correspondence->trashed()) {
                 $correspondence->restore();
@@ -269,11 +258,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = Correspondence::findOrFail($id);
 
-            // Check authorization - only admin can approve
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('approve', $correspondence);
 
             $correspondence = $this->service->approve($correspondence, $request->user()->id);
 
@@ -296,11 +282,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = Correspondence::findOrFail($id);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('send', $correspondence);
 
             $correspondence = $this->service->send($correspondence, $request->user()->id);
 
@@ -323,11 +306,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = Correspondence::findOrFail($id);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('archive', $correspondence);
 
             $correspondence = $this->service->archive($correspondence, $request->user()->id);
 
@@ -453,11 +433,8 @@ class CorrespondenceController extends Controller
         try {
             $correspondence = $this->service->find($id);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+            // Check authorization using Policy
+            $this->authorize('view', $correspondence);
 
             $institution = $correspondence->institution;
             

@@ -1,6 +1,7 @@
 <template>
-  <Layout>
-    <div class="dashboard">
+  <div>
+    <Layout>
+      <div class="dashboard">
       <!-- Welcome Section -->
       <div class="welcome-section">
         <div class="welcome-content">
@@ -122,12 +123,15 @@
         </div>
       </div>
     </div>
-  </Layout>
+    </Layout>
+    <HelpSidebar />
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import HelpSidebar from '@/components/HelpSidebar.vue'
 import { institutionApi } from '@/api/institution'
 import { studentApi } from '@/api/student'
 import { teacherApi } from '@/api/teacher'

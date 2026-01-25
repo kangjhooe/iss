@@ -45,7 +45,11 @@ class InventoryService
             // Handle image upload
             if ($file) {
                 try {
-                    $fileName = time() . '_' . $file->getClientOriginalName();
+                    // Sanitize file name to prevent path traversal
+                    $originalName = $file->getClientOriginalName();
+                    $extension = $file->getClientOriginalExtension();
+                    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+                    $fileName = time() . '_' . $safeName . '.' . $extension;
                     $filePath = $file->storeAs(
                         'inventory/' . $data['institution_id'],
                         $fileName,
@@ -102,7 +106,11 @@ class InventoryService
                 }
 
                 try {
-                    $fileName = time() . '_' . $file->getClientOriginalName();
+                    // Sanitize file name to prevent path traversal
+                    $originalName = $file->getClientOriginalName();
+                    $extension = $file->getClientOriginalExtension();
+                    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+                    $fileName = time() . '_' . $safeName . '.' . $extension;
                     $filePath = $file->storeAs(
                         'inventory/' . $item->institution_id,
                         $fileName,

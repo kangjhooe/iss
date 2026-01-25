@@ -17,8 +17,8 @@
             </div>
           </div>
           <div class="header-actions">
-            <router-link to="/login" class="btn btn-primary">Masuk</router-link>
-            <router-link to="/register" class="btn btn-secondary">Daftar</router-link>
+            <router-link to="/login" class="btn btn-primary" @click.prevent="handleLoginClick">Masuk</router-link>
+            <router-link to="/register" class="btn btn-secondary" @click.prevent="handleRegisterClick">Daftar</router-link>
           </div>
         </div>
       </div>
@@ -71,6 +71,17 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const handleLoginClick = () => {
+  router.push('/login')
+}
+
+const handleRegisterClick = () => {
+  router.push('/register')
+}
 </script>
 
 <style scoped>
@@ -81,6 +92,8 @@
   justify-content: center;
   background: #ffffff;
   padding: 60px 24px;
+  position: relative;
+  z-index: 0;
 }
 
 .home-content {
@@ -140,6 +153,8 @@
   gap: 12px;
   align-items: center;
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 .description {
@@ -213,6 +228,11 @@
   justify-content: center;
   cursor: pointer;
   border: none;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-primary {
@@ -223,6 +243,12 @@
 .btn-primary:hover {
   background: #5568d3;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2);
 }
 
 .btn-secondary {
@@ -235,6 +261,11 @@
   background: #f8fafc;
   border-color: #5568d3;
   color: #5568d3;
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
 }
 
 @media (max-width: 768px) {

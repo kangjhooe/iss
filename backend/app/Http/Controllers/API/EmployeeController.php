@@ -482,14 +482,29 @@ class EmployeeController extends Controller
                 ], 400);
             }
 
-            $request->validate([
-                'file' => 'required|file|mimes:pdf|max:2048', // Max 2MB
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-            ]);
+            // Use standardized file upload validation
+            $rules = array_merge(
+                \App\Helpers\FileUploadRules::employeeDocument(),
+                [
+                    'name' => 'required|string|max:255',
+                    'description' => 'nullable|string',
+                ]
+            );
+            $messages = \App\Helpers\FileUploadRules::messages(
+                \App\Helpers\FileUploadRules::TYPE_PDF_ONLY,
+                \App\Helpers\FileUploadRules::SIZE_SMALL,
+                'file',
+                false
+            );
+            
+            $request->validate($rules, $messages);
 
             $file = $request->file('file');
-            $fileName = time() . '_' . $file->getClientOriginalName();
+            // Sanitize file name to prevent path traversal
+            $originalName = $file->getClientOriginalName();
+            $extension = $file->getClientOriginalExtension();
+            $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+            $fileName = time() . '_' . $safeName . '.' . $extension;
             $filePath = $file->storeAs('employee_documents/' . $employee->id, $fileName, 'public');
 
             $document = $employee->documents()->create([

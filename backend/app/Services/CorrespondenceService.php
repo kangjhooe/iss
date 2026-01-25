@@ -79,14 +79,18 @@ class CorrespondenceService
             // Handle file upload
             if ($file) {
                 try {
-                    $fileName = time() . '_' . $file->getClientOriginalName();
+                    // Sanitize file name to prevent path traversal
+                    $originalName = $file->getClientOriginalName();
+                    $extension = $file->getClientOriginalExtension();
+                    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+                    $fileName = time() . '_' . $safeName . '.' . $extension;
                     $filePath = $file->storeAs(
                         'correspondence/' . $data['institution_id'],
                         $fileName,
                         'public'
                     );
                     $data['file_path'] = $filePath;
-                    $data['file_name'] = $file->getClientOriginalName();
+                    $data['file_name'] = $originalName; // Keep original name for display
                 } catch (\Exception $e) {
                     Log::error('Failed to upload file', [
                         'error' => $e->getMessage(),
@@ -196,14 +200,18 @@ class CorrespondenceService
                     Storage::disk('public')->delete($correspondence->file_path);
                 }
 
-                $fileName = time() . '_' . $file->getClientOriginalName();
+                // Sanitize file name to prevent path traversal
+                $originalName = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension();
+                $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+                $fileName = time() . '_' . $safeName . '.' . $extension;
                 $filePath = $file->storeAs(
                     'correspondence/' . $correspondence->institution_id,
                     $fileName,
                     'public'
                 );
                 $data['file_path'] = $filePath;
-                $data['file_name'] = $file->getClientOriginalName();
+                $data['file_name'] = $originalName; // Keep original name for display
             }
 
             $correspondence->update($data);

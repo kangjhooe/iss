@@ -55,19 +55,16 @@ class AttachmentController extends Controller
     public function store(Request $request, int $correspondenceId)
     {
         try {
-            $request->validate([
-                'files' => 'required|array|min:1|max:10',
-                'files.*' => 'required|file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
-            ], [
-                'files.required' => 'Minimal 1 file harus diunggah',
-                'files.array' => 'Format file tidak valid',
-                'files.min' => 'Minimal 1 file harus diunggah',
-                'files.max' => 'Maksimal 10 file dapat diunggah sekaligus',
-                'files.*.required' => 'File wajib diisi',
-                'files.*.file' => 'File tidak valid',
-                'files.*.max' => 'Ukuran file maksimal 10MB',
-                'files.*.mimes' => 'Format file harus PDF, DOC, DOCX, JPG, JPEG, atau PNG',
-            ]);
+            // Use standardized file upload validation
+            $rules = \App\Helpers\FileUploadRules::correspondenceAttachments();
+            $messages = \App\Helpers\FileUploadRules::messages(
+                \App\Helpers\FileUploadRules::TYPE_MIXED,
+                \App\Helpers\FileUploadRules::SIZE_LARGE,
+                'files',
+                true
+            );
+            
+            $request->validate($rules, $messages);
 
             $correspondence = Correspondence::findOrFail($correspondenceId);
 
