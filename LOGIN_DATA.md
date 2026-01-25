@@ -2,7 +2,7 @@
 
 ## Login
 
-**Endpoint:** `POST /api/login`
+**Endpoint:** `POST /api/v1/login`
 
 **Request:**
 ```json
@@ -20,14 +20,14 @@
 **Password:** `admin123`  
 **Role:** `super_admin`
 
-**Cara membuat:** Jalankan seeder:
+**Cara membuat / reset password:** Jalankan seeder (akan reset password & buka lock jika sudah ada):
 ```bash
 php artisan db:seed --class=SuperAdminSeeder
 ```
 
 ## Registrasi
 
-**Endpoint:** `POST /api/register`
+**Endpoint:** `POST /api/v1/register`
 
 **Request:**
 ```json
@@ -72,6 +72,7 @@ VALUES (NULL, 'Super Admin', 'superadmin@iss.id', '$2y$12$...', 'super_admin', N
 - Email: wajib, format valid, terdaftar di database
 - Password: wajib, di-hash dengan bcrypt
 - Institusi: harus aktif (`is_active = true`)
+- Akun terkunci: setelah 5 percobaan gagal (30 menit)
 - Rate limiting: 5 requests/minute per IP
 - Token: Laravel Sanctum, simpan untuk request selanjutnya
-- Logout: `POST /api/logout` dengan header `Authorization: Bearer {token}`
+- Logout: `POST /api/v1/logout` dengan header `Authorization: Bearer {token}`

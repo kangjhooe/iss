@@ -11,17 +11,29 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('institution', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('institution') && !Schema::hasColumn('institution', 'deleted_at')) {
+            Schema::table('institution', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('student', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('student') && !Schema::hasColumn('student', 'deleted_at')) {
+            Schema::table('student', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('employee', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('teacher') && !Schema::hasColumn('teacher', 'deleted_at')) {
+            Schema::table('teacher', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
+
+        if (Schema::hasTable('employee') && !Schema::hasColumn('employee', 'deleted_at')) {
+            Schema::table('employee', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
     }
 
     /**
@@ -29,16 +41,28 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('institution', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('institution') && Schema::hasColumn('institution', 'deleted_at')) {
+            Schema::table('institution', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('student', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('student') && Schema::hasColumn('student', 'deleted_at')) {
+            Schema::table('student', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('employee', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('teacher') && Schema::hasColumn('teacher', 'deleted_at')) {
+            Schema::table('teacher', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
+
+        if (Schema::hasTable('employee') && Schema::hasColumn('employee', 'deleted_at')) {
+            Schema::table('employee', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
     }
 };

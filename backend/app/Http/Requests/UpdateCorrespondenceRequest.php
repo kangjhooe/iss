@@ -22,8 +22,19 @@ class UpdateCorrespondenceRequest extends FormRequest
     public function rules(): array
     {
         // Get correspondence type from request or existing model
-        $correspondence = $this->route('correspondence') ?? \App\Models\Correspondence::find($this->route('id'));
-        $type = $this->input('type') ?? $correspondence?->type;
+        $correspondenceId = $this->route('correspondence');
+        $correspondence = null;
+        
+        // If route parameter is ID (string), find the model
+        if ($correspondenceId && is_numeric($correspondenceId)) {
+            $correspondence = \App\Models\Correspondence::find($correspondenceId);
+        } elseif ($correspondenceId && is_object($correspondenceId)) {
+            // If it's already a model instance
+            $correspondence = $correspondenceId;
+        }
+        
+        // Get type from request first, then fallback to existing model
+        $type = $this->input('type') ?? ($correspondence?->type ?? null);
         
         $rules = [
             'type' => 'sometimes|in:masuk,keluar,internal',
@@ -36,9 +47,6 @@ class UpdateCorrespondenceRequest extends FormRequest
             'description' => 'nullable|string',
             'file' => 'nullable|file|mimes:pdf|max:5120', // Max 5MB
         ];
-
-        // Use the type from request or existing model
-        $type = $this->input('type') ?? $type;
 
         // Rules for surat masuk
         if ($type === 'masuk') {

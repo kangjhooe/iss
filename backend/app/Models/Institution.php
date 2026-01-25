@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\Auditable;
 
 class Institution extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Auditable;
 
     protected $table = 'institution';
 
@@ -156,6 +157,46 @@ class Institution extends Model
     public function correspondenceCategories()
     {
         return $this->hasMany(CorrespondenceCategory::class);
+    }
+
+    /**
+     * Get the inventory categories for the institution.
+     */
+    public function inventoryCategories()
+    {
+        return $this->hasMany(InventoryCategory::class);
+    }
+
+    /**
+     * Get the inventory items for the institution.
+     */
+    public function inventoryItems()
+    {
+        return $this->hasMany(InventoryItem::class);
+    }
+
+    /**
+     * Get the inventory transactions for the institution.
+     */
+    public function inventoryTransactions()
+    {
+        return $this->hasMany(InventoryTransaction::class);
+    }
+
+    /**
+     * Get the inventory maintenances for the institution.
+     */
+    public function inventoryMaintenances()
+    {
+        return $this->hasMany(InventoryMaintenance::class);
+    }
+
+    /**
+     * Get the inventory loans for the institution.
+     */
+    public function inventoryLoans()
+    {
+        return $this->hasMany(InventoryLoan::class);
     }
 
     /**

@@ -4,7 +4,7 @@
  * Usage:
  * import { useFormValidation } from '@/composables/useFormValidation'
  * 
- * const { form, fieldErrors, validateField, validateForm, resetForm } = useFormValidation({
+ * const { form, fieldErrors, validateField, validateAll, resetForm } = useFormValidation({
  *   initialValues: { name: '', email: '' },
  *   rules: {
  *     name: [(v) => validators.required(v, 'Nama wajib diisi')],
@@ -16,18 +16,19 @@
  * })
  */
 
-import { ref, reactive } from 'vue'
+import { ref, reactive, isRef } from 'vue'
 import { validateForm as validateFormUtil, validators } from '@/utils/validation'
 
 export function useFormValidation(config = {}) {
-  const { initialValues = {}, rules = {} } = config
+  const { initialValues = {}, rules = {}, form: providedForm = null } = config
 
-  // Create reactive form from initial values
-  const form = reactive({ ...initialValues })
+  const form = providedForm || reactive({ ...initialValues })
+  const getFormData = () => (isRef(form) ? form.value : form)
+  const initialKeys = Object.keys(initialValues).length ? initialValues : getFormData()
 
   // Create reactive field errors
   const fieldErrors = reactive(
-    Object.keys(initialValues).reduce((acc, key) => {
+    Object.keys(initialKeys).reduce((acc, key) => {
       acc[key] = ''
       return acc
     }, {})
@@ -42,7 +43,7 @@ export function useFormValidation(config = {}) {
     }
 
     const validation = validateFormUtil(
-      { [fieldName]: form[fieldName] },
+      { [fieldName]: getFormData()[fieldName] },
       { [fieldName]: rules[fieldName] }
     )
 
@@ -54,7 +55,7 @@ export function useFormValidation(config = {}) {
    * Validate all fields
    */
   const validateAll = () => {
-    const validation = validateFormUtil(form, rules)
+    const validation = validateFormUtil(getFormData(), rules)
     
     // Update all field errors
     Object.keys(fieldErrors).forEach(key => {
@@ -78,7 +79,11 @@ export function useFormValidation(config = {}) {
    */
   const resetForm = () => {
     Object.keys(initialValues).forEach(key => {
-      form[key] = initialValues[key]
+      if (isRef(form)) {
+        form.value[key] = initialValues[key]
+      } else {
+        form[key] = initialValues[key]
+      }
     })
     clearErrors()
   }
@@ -104,16 +109,33 @@ export function useFormValidation(config = {}) {
     return Object.values(fieldErrors).some(error => error !== '')
   }
 
+  /**
+   * Set errors from server response or custom errors
+   */
+  const setErrors = (errors = {}) => {
+    Object.keys(fieldErrors).forEach(key => {
+      fieldErrors[key] = ''
+    })
+
+    Object.entries(errors).forEach(([key, value]) => {
+      if (Object.prototype.hasOwnProperty.call(fieldErrors, key)) {
+        fieldErrors[key] = Array.isArray(value) ? value[0] : value
+      }
+    })
+  }
+
   return {
     form,
     fieldErrors,
     validateField,
     validateAll,
+    validateForm: validateAll, // Alias for backward compatibility
     clearErrors,
     resetForm,
     isValid,
     getErrors,
     hasErrors,
+    setErrors,
     validators // Export validators for convenience
   }
 }

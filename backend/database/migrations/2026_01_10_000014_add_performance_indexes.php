@@ -24,7 +24,10 @@ return new class extends Migration
                 if (!$this->indexExists('student', 'idx_student_gender_status')) {
                     $table->index(['gender', 'status'], 'idx_student_gender_status');
                 }
-                if (!$this->indexExists('student', 'idx_student_academic_year')) {
+                if (
+                    Schema::hasColumn('student', 'academic_year_id')
+                    && !$this->indexExists('student', 'idx_student_academic_year')
+                ) {
                     $table->index('academic_year_id', 'idx_student_academic_year');
                 }
             });
@@ -45,10 +48,16 @@ return new class extends Migration
         // Add indexes for class table (note: table name is 'class', not 'school_class')
         if (Schema::hasTable('class')) {
             Schema::table('class', function (Blueprint $table) {
-                if (!$this->indexExists('class', 'idx_class_institution_year_status')) {
+                if (
+                    Schema::hasColumn('class', 'academic_year_id')
+                    && !$this->indexExists('class', 'idx_class_institution_year_status')
+                ) {
                     $table->index(['institution_id', 'academic_year_id', 'status'], 'idx_class_institution_year_status');
                 }
-                if (!$this->indexExists('class', 'idx_class_grade_year')) {
+                if (
+                    Schema::hasColumn('class', 'academic_year_id')
+                    && !$this->indexExists('class', 'idx_class_grade_year')
+                ) {
                     $table->index(['grade', 'academic_year_id'], 'idx_class_grade_year');
                 }
             });
@@ -90,10 +99,16 @@ return new class extends Migration
         // Add indexes for report queries
         if (Schema::hasTable('class_student_history')) {
             Schema::table('class_student_history', function (Blueprint $table) {
-                if (!$this->indexExists('class_student_history', 'idx_history_year_class')) {
+                if (
+                    Schema::hasColumn('class_student_history', 'academic_year_id')
+                    && !$this->indexExists('class_student_history', 'idx_history_year_class')
+                ) {
                     $table->index(['academic_year_id', 'class_id'], 'idx_history_year_class');
                 }
-                if (!$this->indexExists('class_student_history', 'idx_history_student_year')) {
+                if (
+                    Schema::hasColumn('class_student_history', 'academic_year_id')
+                    && !$this->indexExists('class_student_history', 'idx_history_student_year')
+                ) {
                     $table->index(['student_id', 'academic_year_id'], 'idx_history_student_year');
                 }
             });
@@ -164,13 +179,13 @@ return new class extends Migration
         try {
             $connection = Schema::getConnection();
             $databaseName = $connection->getDatabaseName();
-            
+
             $result = DB::select(
                 "SELECT COUNT(*) as count FROM information_schema.statistics 
                  WHERE table_schema = ? AND table_name = ? AND index_name = ?",
                 [$databaseName, $table, $index]
             );
-            
+
             return $result[0]->count > 0;
         } catch (\Exception $e) {
             return false;

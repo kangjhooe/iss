@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTeacherRequest extends FormRequest
 {
@@ -23,6 +24,14 @@ class StoreTeacherRequest extends FormRequest
     {
         return [
             'institution_id' => 'sometimes|exists:institution,id',
+            'type' => 'sometimes|in:Guru',
+            'nik' => [
+                'required',
+                'string',
+                'size:16',
+                'regex:/^[0-9]{16}$/',
+                Rule::unique('employee', 'nik'),
+            ],
             'nip' => 'nullable|string|max:50',
             'nuptk' => 'nullable|string|max:16|unique:employee,nuptk',
             'name' => 'required|string|max:255',
@@ -33,7 +42,7 @@ class StoreTeacherRequest extends FormRequest
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',
-            'employment_status' => 'nullable|in:PNS,CPNS,Guru Tetap Yayasan,Guru Honor Sekolah,Guru Kontrak',
+            'employment_status' => 'nullable|in:PNS,CPNS,Guru Tetap Yayasan,Guru Honor Sekolah,Guru Kontrak,Pegawai Tetap Yayasan,Pegawai Honor,Pegawai Kontrak',
             'education_level' => 'nullable|in:SMA,D3,S1,S2,S3',
             'major' => 'nullable|string|max:255',
             'subject' => 'nullable|string|max:255',
@@ -51,6 +60,10 @@ class StoreTeacherRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'nik.required' => 'NIK wajib diisi',
+            'nik.size' => 'NIK harus terdiri dari 16 digit',
+            'nik.regex' => 'NIK harus berupa angka 16 digit',
+            'nik.unique' => 'NIK sudah terdaftar',
             'name.required' => 'Nama guru wajib diisi',
             'gender.required' => 'Jenis kelamin wajib diisi',
             'gender.in' => 'Jenis kelamin harus L atau P',

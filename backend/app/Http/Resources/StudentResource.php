@@ -61,6 +61,14 @@ class StudentResource extends JsonResource
                     'code' => $this->academicYear->code,
                 ];
             }),
+            'semester_id' => $this->semester_id,
+            'semester' => $this->whenLoaded('semester', function () {
+                return [
+                    'id' => $this->semester->id,
+                    'name' => $this->semester->name,
+                    'academic_year_id' => $this->semester->academic_year_id,
+                ];
+            }),
             'status' => $this->status,
             'father_name' => $this->father_name,
             'father_status' => $this->father_status,
@@ -118,6 +126,7 @@ class StudentResource extends JsonResource
                         'id' => $history->id,
                         'class_id' => $history->class_id,
                         'academic_year_id' => $history->academic_year_id,
+                        'semester_id' => $history->semester_id,
                         'academic_year' => $history->academic_year,
                         'start_date' => $history->start_date?->format('Y-m-d'),
                         'end_date' => $history->end_date?->format('Y-m-d'),

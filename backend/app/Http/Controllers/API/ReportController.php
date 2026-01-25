@@ -85,8 +85,8 @@ class ReportController extends Controller
                 'principal_nip' => $institution->principal_nip,
             ];
 
-            // Get students statistics by grade (7, 8, 9)
-            $studentsByGrade = $this->getStudentsByGrade($targetInstitutionId, $activeAcademicYearId, $month, $year);
+            // Get students statistics by grade (dynamically based on institution level)
+            $studentsByGrade = $this->getStudentsByGrade($targetInstitutionId, $institution->level, $activeAcademicYearId, $month, $year);
             
             // Get employees statistics
             $employeesStats = $this->getEmployeesStatistics($targetInstitutionId);
@@ -94,8 +94,14 @@ class ReportController extends Controller
             // Get facilities statistics
             $facilitiesStats = $this->getFacilitiesStatistics($targetInstitutionId);
             
-            // Get classes statistics
-            $classesStats = $this->getClassesStatistics($targetInstitutionId, $activeAcademicYearId);
+            // Get classes statistics (dynamically based on institution level)
+            $classesStats = $this->getClassesStatistics($targetInstitutionId, $institution->level, $activeAcademicYearId);
+            
+            // Get detailed classes/rombongan belajar data
+            $classesDetail = $this->getClassesDetail($targetInstitutionId, $institution->level, $activeAcademicYearId);
+            
+            // Get students by status
+            $studentsByStatus = $this->getStudentsByStatus($targetInstitutionId, $activeAcademicYearId);
             
             // Get comparison data if requested
             $comparisonData = null;
@@ -108,9 +114,9 @@ class ReportController extends Controller
                 if ($previousAcademicYear) {
                     $comparisonData = [
                         'academic_year' => $previousAcademicYear->name,
-                        'students' => $this->getStudentsByGrade($targetInstitutionId, $previousAcademicYear->id, null, null),
+                        'students' => $this->getStudentsByGrade($targetInstitutionId, $institution->level, $previousAcademicYear->id, null, null),
                         'employees' => $this->getEmployeesStatistics($targetInstitutionId),
-                        'classes' => $this->getClassesStatistics($targetInstitutionId, $previousAcademicYear->id),
+                        'classes' => $this->getClassesStatistics($targetInstitutionId, $institution->level, $previousAcademicYear->id),
                     ];
                 }
             }
@@ -119,16 +125,21 @@ class ReportController extends Controller
             $totalStudents = array_sum(array_column($studentsByGrade, 'total'));
             $totalEmployees = $employeesStats['total'];
             $totalTeachers = $employeesStats['teachers'];
+            $totalStaff = $employeesStats['staff'];
             $totalClasses = array_sum(array_column($classesStats, 'count'));
+            $totalActiveStudents = $studentsByStatus['Aktif'] ?? 0;
             
             $summary = [
                 'total_students' => $totalStudents,
+                'total_active_students' => $totalActiveStudents,
                 'total_employees' => $totalEmployees,
                 'total_teachers' => $totalTeachers,
+                'total_staff' => $totalStaff,
                 'total_classes' => $totalClasses,
                 'total_facilities' => $facilitiesStats['total'],
-                'student_teacher_ratio' => $totalTeachers > 0 ? round($totalStudents / $totalTeachers, 2) : 0,
-                'average_students_per_class' => $totalClasses > 0 ? round($totalStudents / $totalClasses, 2) : 0,
+                'student_teacher_ratio' => $totalTeachers > 0 ? round($totalActiveStudents / $totalTeachers, 2) : 0,
+                'average_students_per_class' => $totalClasses > 0 ? round($totalActiveStudents / $totalClasses, 2) : 0,
+                'average_students_per_rombel' => $classesDetail['total_rombel'] > 0 ? round($totalActiveStudents / $classesDetail['total_rombel'], 2) : 0,
             ];
 
             return response()->json([
@@ -141,8 +152,10 @@ class ReportController extends Controller
                     ] : null,
                     'summary' => $summary,
                     'students' => $studentsByGrade,
+                    'students_by_status' => $studentsByStatus,
                     'employees' => $employeesStats,
                     'classes' => $classesStats,
+                    'classes_detail' => $classesDetail,
                     'facilities' => $facilitiesStats,
                     'comparison' => $comparisonData,
                     'generated_at' => now()->format('Y-m-d H:i:s'),
@@ -175,9 +188,32 @@ class ReportController extends Controller
     }
 
     /**
+     * Get grade range based on institution level
+     */
+    private function getGradeRange($level)
+    {
+        // Map institution levels to grade ranges
+        $gradeRanges = [
+            'TK' => [1, 1], // Taman Kanak-kanak (usually no grades, but we'll use 1)
+            'PAUD' => [1, 1], // Pendidikan Anak Usia Dini
+            'SD' => [1, 6], // Sekolah Dasar
+            'MI' => [1, 6], // Madrasah Ibtidaiyah
+            'SMP' => [7, 9], // Sekolah Menengah Pertama
+            'MTs' => [7, 9], // Madrasah Tsanawiyah
+            'SMA' => [10, 12], // Sekolah Menengah Atas
+            'MA' => [10, 12], // Madrasah Aliyah
+            'SMK' => [10, 12], // Sekolah Menengah Kejuruan
+            'MAK' => [10, 12], // Madrasah Aliyah Kejuruan
+        ];
+
+        // Default to SMP/MTs range if level not found
+        return $gradeRanges[$level] ?? [7, 9];
+    }
+
+    /**
      * Get students statistics by grade
      */
-    private function getStudentsByGrade($institutionId, $academicYearId = null, $month = null, $year = null)
+    private function getStudentsByGrade($institutionId, $institutionLevel, $academicYearId = null, $month = null, $year = null)
     {
         $query = Student::where('institution_id', $institutionId)
             ->where('status', 'Aktif');
@@ -199,11 +235,14 @@ class ReportController extends Controller
             $q->select('id', 'grade', 'name');
         }])->get();
         
-        $result = [
-            'grade_7' => ['male' => 0, 'female' => 0, 'total' => 0],
-            'grade_8' => ['male' => 0, 'female' => 0, 'total' => 0],
-            'grade_9' => ['male' => 0, 'female' => 0, 'total' => 0],
-        ];
+        // Get grade range based on institution level
+        [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
+        
+        // Initialize result structure dynamically
+        $result = [];
+        for ($grade = $minGrade; $grade <= $maxGrade; $grade++) {
+            $result['grade_' . $grade] = ['male' => 0, 'female' => 0, 'total' => 0];
+        }
 
         foreach ($students as $student) {
             $grade = null;
@@ -221,12 +260,12 @@ class ReportController extends Controller
                     $attributes = $student->getAttributes();
                     $classStr = $attributes['class'] ?? $attributes['class_name'] ?? '';
                     
-                    // Try multiple patterns to extract grade
-                    if (preg_match('/\b([789])\b/', $classStr, $matches)) {
+                    // Try to extract any grade number
+                    if (preg_match('/\b(\d+)\b/', $classStr, $matches)) {
                         $grade = (int)$matches[1];
-                    } elseif (preg_match('/kelas\s*([789])/i', $classStr, $matches)) {
+                    } elseif (preg_match('/kelas\s*(\d+)/i', $classStr, $matches)) {
                         $grade = (int)$matches[1];
-                    } elseif (preg_match('/class\s*([789])/i', $classStr, $matches)) {
+                    } elseif (preg_match('/class\s*(\d+)/i', $classStr, $matches)) {
                         $grade = (int)$matches[1];
                     }
                 } catch (\Exception $e) {
@@ -239,7 +278,8 @@ class ReportController extends Controller
                 }
             }
 
-            if ($grade >= 7 && $grade <= 9) {
+            // Check if grade is within the valid range for this institution level
+            if ($grade !== null && $grade >= $minGrade && $grade <= $maxGrade) {
                 $gradeKey = 'grade_' . $grade;
                 if (isset($result[$gradeKey])) {
                     if ($student->gender === 'L' || $student->gender === 'Laki-laki' || $student->gender === 'Male') {
@@ -251,9 +291,11 @@ class ReportController extends Controller
                 }
             } else {
                 // Log students that couldn't be categorized
-                Log::debug('Student grade not in range 7-9', [
+                Log::debug('Student grade not in valid range', [
                     'student_id' => $student->id,
                     'grade' => $grade,
+                    'institution_level' => $institutionLevel,
+                    'valid_range' => [$minGrade, $maxGrade],
                     'class_id' => $student->class_id,
                     'class_string' => $student->getAttributes()['class'] ?? null
                 ]);
@@ -263,7 +305,9 @@ class ReportController extends Controller
         // Log final result for debugging
         Log::debug('Students by grade result', [
             'institution_id' => $institutionId,
+            'institution_level' => $institutionLevel,
             'academic_year_id' => $academicYearId,
+            'grade_range' => [$minGrade, $maxGrade],
             'total_students_processed' => $students->count(),
             'result' => $result
         ]);
@@ -288,6 +332,9 @@ class ReportController extends Controller
         
         $maleTeachers = $teachers->where('gender', 'L')->count();
         $femaleTeachers = $teachers->where('gender', 'P')->count();
+        
+        $maleStaff = $staff->where('gender', 'L')->count();
+        $femaleStaff = $staff->where('gender', 'P')->count();
 
         return [
             'total' => $employees->count(),
@@ -297,6 +344,8 @@ class ReportController extends Controller
             'female' => $female,
             'teachers_male' => $maleTeachers,
             'teachers_female' => $femaleTeachers,
+            'staff_male' => $maleStaff,
+            'staff_female' => $femaleStaff,
             'by_type' => $employees->groupBy('type')->map->count(),
         ];
     }
@@ -304,7 +353,7 @@ class ReportController extends Controller
     /**
      * Get classes statistics
      */
-    private function getClassesStatistics($institutionId, $academicYearId = null)
+    private function getClassesStatistics($institutionId, $institutionLevel, $academicYearId = null)
     {
         $query = SchoolClass::where('institution_id', $institutionId)
             ->where('status', 'Aktif');
@@ -315,14 +364,17 @@ class ReportController extends Controller
 
         $classes = $query->get();
 
-        $result = [
-            'grade_7' => ['count' => 0, 'total_capacity' => 0, 'total_students' => 0],
-            'grade_8' => ['count' => 0, 'total_capacity' => 0, 'total_students' => 0],
-            'grade_9' => ['count' => 0, 'total_capacity' => 0, 'total_students' => 0],
-        ];
+        // Get grade range based on institution level
+        [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
+        
+        // Initialize result structure dynamically
+        $result = [];
+        for ($grade = $minGrade; $grade <= $maxGrade; $grade++) {
+            $result['grade_' . $grade] = ['count' => 0, 'total_capacity' => 0, 'total_students' => 0];
+        }
 
         foreach ($classes as $class) {
-            if ($class->grade >= 7 && $class->grade <= 9) {
+            if ($class->grade !== null && $class->grade >= $minGrade && $class->grade <= $maxGrade) {
                 $gradeKey = 'grade_' . $class->grade;
                 if (isset($result[$gradeKey])) {
                     $result[$gradeKey]['count']++;
@@ -332,6 +384,103 @@ class ReportController extends Controller
             }
         }
 
+        return $result;
+    }
+
+    /**
+     * Get detailed classes/rombongan belajar statistics
+     */
+    private function getClassesDetail($institutionId, $institutionLevel, $academicYearId = null)
+    {
+        $query = SchoolClass::where('institution_id', $institutionId)
+            ->where('status', 'Aktif');
+
+        if ($academicYearId) {
+            $query->where('academic_year_id', $academicYearId);
+        }
+
+        $classes = $query->with(['teacher:id,name', 'room:id,name,code'])
+            ->get();
+
+        // Get grade range based on institution level
+        [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
+        
+        $rombelByGrade = [];
+        $totalRombel = 0;
+        $totalCapacity = 0;
+        $totalStudents = 0;
+        $rombelList = [];
+
+        foreach ($classes as $class) {
+            if ($class->grade !== null && $class->grade >= $minGrade && $class->grade <= $maxGrade) {
+                $gradeKey = 'grade_' . $class->grade;
+                
+                if (!isset($rombelByGrade[$gradeKey])) {
+                    $rombelByGrade[$gradeKey] = [];
+                }
+                
+                $studentCount = $class->students()->where('status', 'Aktif')->count();
+                $capacity = $class->capacity ?? 0;
+                
+                $rombelByGrade[$gradeKey][] = [
+                    'name' => $class->name,
+                    'code' => $class->code,
+                    'wali_kelas' => $class->teacher ? $class->teacher->name : '-',
+                    'room' => $class->room ? $class->room->name : '-',
+                    'students' => $studentCount,
+                    'capacity' => $capacity,
+                    'utilization' => $capacity > 0 ? round(($studentCount / $capacity) * 100, 2) : 0,
+                ];
+                
+                $totalRombel++;
+                $totalCapacity += $capacity;
+                $totalStudents += $studentCount;
+            }
+        }
+
+        return [
+            'by_grade' => $rombelByGrade,
+            'total_rombel' => $totalRombel,
+            'total_capacity' => $totalCapacity,
+            'total_students' => $totalStudents,
+            'average_capacity' => $totalRombel > 0 ? round($totalCapacity / $totalRombel, 2) : 0,
+            'average_students_per_rombel' => $totalRombel > 0 ? round($totalStudents / $totalRombel, 2) : 0,
+        ];
+    }
+
+    /**
+     * Get students statistics by status
+     */
+    private function getStudentsByStatus($institutionId, $academicYearId = null)
+    {
+        $query = Student::where('institution_id', $institutionId);
+
+        if ($academicYearId) {
+            $query->where('academic_year_id', $academicYearId);
+        }
+
+        $students = $query->get();
+        
+        $statusCounts = $students->groupBy('status')->map->count();
+        
+        // Ensure common statuses exist
+        $result = [
+            'Aktif' => $statusCounts['Aktif'] ?? 0,
+            'Lulus' => $statusCounts['Lulus'] ?? 0,
+            'Pindah' => $statusCounts['Pindah'] ?? 0,
+            'Drop Out' => $statusCounts['Drop Out'] ?? 0,
+            'Lainnya' => 0,
+        ];
+        
+        // Count other statuses
+        foreach ($statusCounts as $status => $count) {
+            if (!isset($result[$status])) {
+                $result['Lainnya'] += $count;
+            }
+        }
+        
+        $result['total'] = $students->count();
+        
         return $result;
     }
 

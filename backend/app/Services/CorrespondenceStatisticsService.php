@@ -28,28 +28,28 @@ class CorrespondenceStatisticsService
         }
 
         // Total counts by type
-        $totalByType = $query->clone()
+        $totalByType = (clone $query)
             ->select('type', DB::raw('count(*) as total'))
             ->groupBy('type')
             ->pluck('total', 'type')
             ->toArray();
 
         // Total counts by status
-        $totalByStatus = $query->clone()
+        $totalByStatus = (clone $query)
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status')
             ->toArray();
 
         // Total counts by priority
-        $totalByPriority = $query->clone()
+        $totalByPriority = (clone $query)
             ->select('priority', DB::raw('count(*) as total'))
             ->groupBy('priority')
             ->pluck('total', 'priority')
             ->toArray();
 
         // Monthly trend (last 12 months)
-        $monthlyTrend = $query->clone()
+        $monthlyTrend = (clone $query)
             ->select(
                 DB::raw('YEAR(date) as year'),
                 DB::raw('MONTH(date) as month'),
@@ -70,7 +70,7 @@ class CorrespondenceStatisticsService
             ->toArray();
 
         // Pending approvals
-        $pendingApprovals = $query->clone()
+        $pendingApprovals = (clone $query)
             ->where('status', 'pending')
             ->count();
 
@@ -85,12 +85,12 @@ class CorrespondenceStatisticsService
             ->count();
 
         // Recent correspondence (last 7 days)
-        $recentCount = $query->clone()
+        $recentCount = (clone $query)
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
 
         // By letter type code
-        $byLetterType = $query->clone()
+        $byLetterType = (clone $query)
             ->select('letter_type_code', DB::raw('count(*) as total'))
             ->whereNotNull('letter_type_code')
             ->groupBy('letter_type_code')
@@ -99,7 +99,7 @@ class CorrespondenceStatisticsService
 
         return [
             'summary' => [
-                'total' => $query->clone()->count(),
+                'total' => (clone $query)->count(),
                 'masuk' => $totalByType['masuk'] ?? 0,
                 'keluar' => $totalByType['keluar'] ?? 0,
                 'internal' => $totalByType['internal'] ?? 0,

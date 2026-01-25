@@ -1011,20 +1011,35 @@
         </div>
       </div>
     </div>
+    
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { studentApi } from '@/api/student'
 import { institutionApi } from '@/api/institution'
-import { validateForm, validators } from '@/utils/validation'
+import { validators } from '@/utils/validation'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { getInstitutionTypeLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import * as XLSX from 'xlsx'
 
 const toast = useToast()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const students = ref([])
 const loading = ref(true)
@@ -1033,6 +1048,7 @@ const showEditModal = ref(false)
 const showViewModal = ref(false)
 const viewingStudent = ref(null)
 const saving = ref(false)
+const deleteLoading = ref(false)
 const error = ref('')
 const activeTab = ref(1)
 
@@ -1180,14 +1196,23 @@ const handleGuardianTypeChange = () => {
 }
 
 const deleteStudent = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus siswa ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus siswa ini?',
+    warning: 'Data siswa akan dihapus secara permanen dan tidak dapat dikembalikan.'
+  })
   
+  if (!confirmed) return
+  
+  setDeleteLoading(true)
   try {
     await studentApi.delete(id)
     toast.success('Berhasil', 'Siswa berhasil dihapus')
     loadStudents()
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || 'Gagal menghapus siswa')
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
@@ -1218,6 +1243,13 @@ const validationRules = {
   ]
 }
 
+// Setup form validation
+const { validateAll, setErrors } = useFormValidation({
+  form,
+  initialValues: {},
+  rules: validationRules
+})
+
 const handleSubmit = async () => {
   error.value = ''
   
@@ -1243,9 +1275,9 @@ const handleSubmit = async () => {
   }
   
   // Validate form
-  const validation = validateForm(form.value, validationRules)
-  if (!validation.isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form: ' + Object.values(validation.errors).join(', ')
+  const isValid = validateAll()
+  if (!isValid) {
+    error.value = 'Mohon perbaiki kesalahan pada form'
     return
   }
   
@@ -1265,6 +1297,11 @@ const handleSubmit = async () => {
     const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
     error.value = errorMsg
     toast.error('Gagal', errorMsg)
+    
+    // Set field errors from server
+    if (err.response?.data?.errors) {
+      setErrors(err.response.data.errors)
+    }
   } finally {
     saving.value = false
   }
@@ -2179,8 +2216,15 @@ const uploadDocument = async () => {
 const deleteDocument = async (documentId) => {
   if (!editingId) return
 
-  if (!confirm('Yakin ingin menghapus dokumen ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Yakin ingin menghapus dokumen ini?',
+    warning: 'Dokumen akan dihapus secara permanen.'
+  })
+  
+  if (!confirmed) return
 
+  setDeleteLoading(true)
   try {
     await studentApi.deleteDocument(editingId, documentId)
     toast.success('Berhasil', 'Dokumen berhasil dihapus')
@@ -2188,6 +2232,8 @@ const deleteDocument = async (documentId) => {
   } catch (err) {
     const errorMsg = err.response?.data?.message || 'Gagal menghapus dokumen'
     toast.error('Gagal', errorMsg)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 

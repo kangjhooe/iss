@@ -230,6 +230,17 @@
         </div>
       </div>
     </div>
+    
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
@@ -239,8 +250,11 @@ import Layout from '@/components/Layout.vue'
 import { semesterApi } from '@/api/semester'
 import { academicYearApi } from '@/api/academicYear'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const toast = useToast()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const semesters = ref([])
 const academicYears = ref([])
@@ -318,9 +332,13 @@ const editSemester = (semester) => {
 }
 
 const activateSemester = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin mengaktifkan semester ini? Semester aktif lainnya dalam tahun ajaran yang sama akan dinonaktifkan.')) {
-    return
-  }
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Aktifkan',
+    message: 'Apakah Anda yakin ingin mengaktifkan semester ini?',
+    warning: 'Semester aktif lainnya dalam tahun ajaran yang sama akan dinonaktifkan.'
+  })
+  
+  if (!confirmed) return
 
   try {
     await semesterApi.activate(id)

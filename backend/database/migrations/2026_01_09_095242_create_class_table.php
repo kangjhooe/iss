@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('class', function (Blueprint $table) {
             $table->id();
             $table->foreignId('institution_id')->constrained('institution')->onDelete('cascade');
-            $table->foreignId('room_id')->nullable()->constrained('room')->onDelete('set null');
+            $table->foreignId('room_id')->nullable();
             $table->foreignId('teacher_id')->nullable()->constrained('teacher')->onDelete('set null');
             $table->string('code')->nullable(); // Kode kelas (contoh: VII-A, 10-IPA-1)
             $table->string('name'); // Nama kelas (contoh: VII-A, 10 IPA 1, Kelas A)

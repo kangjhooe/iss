@@ -5,18 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Surat Menyurat</title>
     <style>
+        @page {
+            size: A4 landscape;
+            margin: 15mm;
+        }
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             color: #333;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
         }
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             border-bottom: 2px solid #333;
-            padding-bottom: 20px;
+            padding-bottom: 15px;
         }
         .header h1 {
             margin: 0;
@@ -28,30 +32,61 @@
             font-size: 11px;
         }
         .info-section {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         .info-section table {
             width: 100%;
             border-collapse: collapse;
         }
         .info-section td {
-            padding: 5px;
+            padding: 8px;
             font-size: 11px;
+            vertical-align: top;
         }
         .info-section td:first-child {
             font-weight: bold;
             width: 150px;
+            background-color: #f2f2f2;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 15px;
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 6px 8px;
             text-align: left;
-            font-size: 10px;
+            font-size: 9px;
+        }
+        th:nth-child(1), td:nth-child(1) {
+            width: 3%;
+        }
+        th:nth-child(2), td:nth-child(2) {
+            width: 12%;
+        }
+        th:nth-child(3), td:nth-child(3) {
+            width: 15%;
+        }
+        th:nth-child(4), td:nth-child(4) {
+            width: 25%;
+        }
+        th:nth-child(5), td:nth-child(5) {
+            width: 15%;
+        }
+        th:nth-child(6), td:nth-child(6) {
+            width: 8%;
+        }
+        th:nth-child(7), td:nth-child(7) {
+            width: 10%;
+        }
+        th:nth-child(8), td:nth-child(8) {
+            width: 12%;
+        }
+        .info-section td:last-child {
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            min-height: 20px;
         }
         th {
             background-color: #f2f2f2;
@@ -61,9 +96,9 @@
             background-color: #f9f9f9;
         }
         .footer {
-            margin-top: 30px;
+            margin-top: 20px;
             text-align: right;
-            font-size: 10px;
+            font-size: 9px;
             color: #666;
         }
         .no-data {
@@ -76,7 +111,21 @@
 </head>
 <body>
     <div class="header">
-        <h1>LAPORAN SURAT MENYURAT</h1>
+        <h1>
+            @if(isset($filters['type']))
+                @if($filters['type'] === 'masuk')
+                    LAPORAN SURAT MASUK
+                @elseif($filters['type'] === 'keluar')
+                    LAPORAN SURAT KELUAR
+                @elseif($filters['type'] === 'internal')
+                    LAPORAN SURAT INTERNAL
+                @else
+                    LAPORAN SURAT MENYURAT
+                @endif
+            @else
+                LAPORAN SURAT MENYURAT
+            @endif
+        </h1>
         @if($institution)
         <p>{{ $institution->name }}</p>
         <p>NPSN: {{ $institution->npsn ?? '-' }}</p>
@@ -84,27 +133,35 @@
         <p>Dicetak pada: {{ $generated_at->format('d F Y H:i:s') }}</p>
     </div>
 
-    @if(count($filters) > 0)
+    @php
+        $hasOtherFilters = false;
+        $filterText = '';
+        
+        if (isset($filters['status']) && !empty($filters['status'])) {
+            $hasOtherFilters = true;
+            $filterText .= 'Status: ' . ucfirst($filters['status']) . '<br>';
+        }
+        
+        if (isset($filters['priority']) && !empty($filters['priority'])) {
+            $hasOtherFilters = true;
+            $filterText .= 'Prioritas: ' . ucfirst(str_replace('_', ' ', $filters['priority'])) . '<br>';
+        }
+        
+        if ((isset($filters['date_from']) && !empty($filters['date_from'])) || (isset($filters['date_to']) && !empty($filters['date_to']))) {
+            $hasOtherFilters = true;
+            $filterText .= 'Periode: ';
+            $filterText .= isset($filters['date_from']) && !empty($filters['date_from']) ? date('d/m/Y', strtotime($filters['date_from'])) : 'Awal';
+            $filterText .= ' - ';
+            $filterText .= isset($filters['date_to']) && !empty($filters['date_to']) ? date('d/m/Y', strtotime($filters['date_to'])) : 'Akhir';
+        }
+    @endphp
+
+    @if($hasOtherFilters)
     <div class="info-section">
         <table>
             <tr>
                 <td>Filter yang Diterapkan:</td>
-                <td>
-                    @if(isset($filters['type']))
-                        Tipe: {{ ucfirst($filters['type']) }}<br>
-                    @endif
-                    @if(isset($filters['status']))
-                        Status: {{ ucfirst($filters['status']) }}<br>
-                    @endif
-                    @if(isset($filters['priority']))
-                        Prioritas: {{ ucfirst(str_replace('_', ' ', $filters['priority'])) }}<br>
-                    @endif
-                    @if(isset($filters['date_from']) || isset($filters['date_to']))
-                        Periode: 
-                        {{ isset($filters['date_from']) ? date('d/m/Y', strtotime($filters['date_from'])) : 'Awal' }} - 
-                        {{ isset($filters['date_to']) ? date('d/m/Y', strtotime($filters['date_to'])) : 'Akhir' }}
-                    @endif
-                </td>
+                <td>{!! $filterText !!}</td>
             </tr>
         </table>
     </div>
@@ -115,7 +172,6 @@
         <thead>
             <tr>
                 <th>No</th>
-                <th>Tipe</th>
                 <th>Jenis</th>
                 <th>Nomor Surat</th>
                 <th>Perihal</th>
@@ -129,7 +185,6 @@
             @foreach($correspondence as $index => $item)
             <tr>
                 <td>{{ $index + 1 }}</td>
-                <td>{{ ucfirst($item->type) }}</td>
                 <td>{{ $item->letter_type_name ?? '-' }}</td>
                 <td>{{ $item->letter_number ?? $item->reference_number ?? '-' }}</td>
                 <td>{{ $item->subject }}</td>

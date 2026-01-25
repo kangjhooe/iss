@@ -22,6 +22,12 @@ class CorrespondenceRepository extends BaseRepository
     {
         $query = $this->query();
 
+        if (!empty($filters['only_trashed'])) {
+            $query->onlyTrashed();
+        } elseif (!empty($filters['with_trashed'])) {
+            $query->withTrashed();
+        }
+
         // Filter by institution if provided
         if ($institutionId) {
             $query->where('institution_id', $institutionId);

@@ -37,7 +37,17 @@ class StudentController extends Controller
             }
 
             // Get filters
-            $filters = $request->only(['search', 'class', 'class_id', 'academic_year', 'academic_year_id', 'status', 'gender']);
+            $filters = $request->only(['search', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'gender']);
+            $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
+            $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
+            
+            // Jika tidak ada filter semester_id, gunakan active_semester_id dari institusi
+            if (!isset($filters['semester_id']) && $institutionId) {
+                $institution = \App\Models\Institution::find($institutionId);
+                if ($institution && $institution->active_semester_id) {
+                    $filters['semester_id'] = $institution->active_semester_id;
+                }
+            }
             
             // Get per page
             $perPage = min($request->get('per_page', 15), 100);
@@ -72,8 +82,18 @@ class StudentController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
+            // Get institution with active semester
+            $institution = \App\Models\Institution::with('activeSemester')->findOrFail($institutionId);
+            
+            if (!$institution->active_semester_id) {
+                return response()->json([
+                    'message' => 'Semester aktif belum ditetapkan untuk institusi ini'
+                ], 400);
+            }
+
             $validated = $request->validated();
             $validated['institution_id'] = $institutionId;
+            $validated['semester_id'] = $validated['semester_id'] ?? $institution->active_semester_id; // Set otomatis dari semester aktif jika tidak ada
 
             // Use service to create student
             $student = $this->studentService->create($validated);
@@ -212,6 +232,43 @@ class StudentController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat menghapus siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Restore a soft-deleted student.
+     */
+    public function restore(Request $request, $id)
+    {
+        try {
+            $student = Student::withTrashed()->findOrFail($id);
+
+            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if ($student->trashed()) {
+                $student->restore();
+            }
+
+            return response()->json([
+                'message' => 'Siswa berhasil dipulihkan',
+                'data' => new StudentResource($student->fresh()),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Siswa tidak ditemukan',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to restore student', [
+                'student_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memulihkan siswa',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

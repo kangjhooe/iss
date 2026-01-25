@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\Auditable;
 
 class Student extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Auditable;
 
     protected $table = 'student';
 
@@ -41,6 +42,7 @@ class Student extends Model
         'class',
         'academic_year',
         'academic_year_id',
+        'semester_id',
         'status',
         'father_name',
         'father_status',
@@ -179,11 +181,27 @@ class Student extends Model
     }
 
     /**
+     * Scope a query to filter by semester ID.
+     */
+    public function scopeBySemesterId($query, int $semesterId)
+    {
+        return $query->where('semester_id', $semesterId);
+    }
+
+    /**
      * Get the academic year for this student.
      */
     public function academicYear()
     {
         return $this->belongsTo(AcademicYear::class, 'academic_year_id');
+    }
+
+    /**
+     * Get the semester for this student.
+     */
+    public function semester()
+    {
+        return $this->belongsTo(Semester::class, 'semester_id');
     }
 
     /**

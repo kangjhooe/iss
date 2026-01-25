@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Models\CorrespondenceCategory;
 
 class CorrespondenceResource extends JsonResource
 {
@@ -38,7 +39,7 @@ class CorrespondenceResource extends JsonResource
             'priority' => $this->priority,
             'status' => $this->status,
             'category_id' => $this->category_id,
-            'category' => $this->when($this->category, function () {
+            'category' => $this->when($this->category_id && $this->category && $this->category instanceof CorrespondenceCategory && $this->category->exists, function () {
                 return [
                     'id' => $this->category->id ?? null,
                     'name' => $this->category->name ?? null,

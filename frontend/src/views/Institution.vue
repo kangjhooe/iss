@@ -692,7 +692,7 @@
               <label>Tahun Ajaran *</label>
               <select 
                 v-model="academicYearForm.active_academic_year_id" 
-                @change="loadSemesters"
+                @change="handleAcademicYearChange"
                 required
                 class="form-input"
               >
@@ -710,25 +710,17 @@
             <div class="form-group">
               <label>Semester *</label>
               <select 
-                v-model="academicYearForm.active_semester_id" 
-                :disabled="!academicYearForm.active_academic_year_id || semesters.length === 0"
+                v-model="academicYearForm.semester_name" 
+                :disabled="!academicYearForm.active_academic_year_id"
                 required
                 class="form-input"
               >
                 <option value="">Pilih Semester</option>
-                <option 
-                  v-for="semester in semesters" 
-                  :key="semester.id" 
-                  :value="semester.id"
-                >
-                  {{ semester.name }}
-                </option>
+                <option value="Ganjil">Ganjil</option>
+                <option value="Genap">Genap</option>
               </select>
               <small v-if="!academicYearForm.active_academic_year_id" class="form-hint">
                 Pilih tahun ajaran terlebih dahulu
-              </small>
-              <small v-else-if="semesters.length === 0" class="form-hint">
-                Tidak ada semester untuk tahun ajaran ini
               </small>
             </div>
 
@@ -744,6 +736,17 @@
         </div>
       </div>
     </div>
+    
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
@@ -754,18 +757,25 @@ import { institutionApi } from '@/api/institution'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
 import { academicYearApi } from '@/api/academicYear'
 import { semesterApi } from '@/api/semester'
-import { validateForm, validators } from '@/utils/validation'
+import { validators } from '@/utils/validation'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { getInstitutionTypeLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 
 const toast = useToast()
+const router = useRouter()
 const authStore = useAuthStore()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const institution = ref(null)
 const loading = ref(true)
 const showEditModal = ref(false)
 const updating = ref(false)
+const deleteLoading = ref(false)
 const error = ref('')
 const showRequestChangeModal = ref(false)
 const requestField = ref('')
@@ -774,7 +784,6 @@ const requestError = ref('')
 const pendingRequests = ref({ name: null, npsn: null })
 const showAcademicYearModal = ref(false)
 const academicYears = ref([])
-const semesters = ref([])
 const updatingAcademicYear = ref(false)
 const academicYearError = ref('')
 const logoInput = ref(null)
@@ -805,7 +814,7 @@ const requestForm = ref({
 
 const academicYearForm = ref({
   active_academic_year_id: null,
-  active_semester_id: null
+  semester_name: '' // Store semester name instead of ID
 })
 
 const form = ref({
@@ -835,6 +844,12 @@ const loadInstitution = async () => {
     // Response structure: { data: { id, name, npsn, ... } }
     institution.value = response.data.data || response.data
     
+    // Ensure address data is properly loaded
+    if (institution.value && !institution.value.address && form.value.address) {
+      // If address exists in form but not in institution, sync it
+      institution.value.address = form.value.address
+    }
+    
     // Jika email institution kosong, ambil dari user email
     if (!institution.value.email && authStore.user?.email) {
       institution.value.email = authStore.user.email
@@ -851,6 +866,7 @@ const loadInstitution = async () => {
   } catch (err) {
     error.value = 'Gagal memuat data institusi'
     toast.error('Gagal', 'Gagal memuat data institusi')
+    console.error('Error loading institution:', err)
   } finally {
     loading.value = false
   }
@@ -980,6 +996,13 @@ const getValidationRules = () => {
   }
 }
 
+// Setup form validation
+const { validateAll, setErrors } = useFormValidation({
+  form,
+  initialValues: {},
+  rules: getValidationRules()
+})
+
 const handleUpdate = async () => {
   error.value = ''
   
@@ -1001,9 +1024,9 @@ const handleUpdate = async () => {
   }
   
   // Validate form
-  const validation = validateForm(form.value, getValidationRules())
-  if (!validation.isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form: ' + Object.values(validation.errors).join(', ')
+  const isValid = validateAll()
+  if (!isValid) {
+    error.value = 'Mohon perbaiki kesalahan pada form'
     return
   }
   
@@ -1023,8 +1046,29 @@ const handleUpdate = async () => {
     // Update institution data
     const updatedData = response.data?.data || response.data
     if (updatedData) {
-      institution.value = updatedData
+      // Ensure all address fields are properly updated
+      institution.value = { ...institution.value, ...updatedData }
       Object.assign(form.value, updatedData)
+      
+      // Force reactivity update for address fields
+      if (updatedData.address !== undefined) {
+        institution.value.address = updatedData.address
+      }
+      if (updatedData.village !== undefined) {
+        institution.value.village = updatedData.village
+      }
+      if (updatedData.sub_district !== undefined) {
+        institution.value.sub_district = updatedData.sub_district
+      }
+      if (updatedData.district !== undefined) {
+        institution.value.district = updatedData.district
+      }
+      if (updatedData.province !== undefined) {
+        institution.value.province = updatedData.province
+      }
+      if (updatedData.postal_code !== undefined) {
+        institution.value.postal_code = updatedData.postal_code
+      }
     }
     
     showEditModal.value = false
@@ -1035,6 +1079,11 @@ const handleUpdate = async () => {
     const errorMsg = err.formattedMessage || err.response?.data?.message || err.response?.data?.error || 'Gagal memperbarui data'
     error.value = errorMsg
     toast.error('Gagal', errorMsg)
+    
+    // Set field errors from server
+    if (err.response?.data?.errors) {
+      setErrors(err.response.data.errors)
+    }
   } finally {
     updating.value = false
   }
@@ -1059,55 +1108,32 @@ const loadAcademicYears = async () => {
   }
 }
 
-const loadSemesters = async () => {
-  if (!academicYearForm.value.active_academic_year_id) {
-    semesters.value = []
-    return
-  }
 
-  try {
-    const response = await semesterApi.getByAcademicYear(academicYearForm.value.active_academic_year_id)
-    // Handle both paginated and non-paginated responses
-    if (response.data.data) {
-      semesters.value = Array.isArray(response.data.data) ? response.data.data : []
-    } else if (Array.isArray(response.data)) {
-      semesters.value = response.data
-    } else {
-      semesters.value = []
-    }
-    
-    // Reset semester selection if current selection is not in the list
-    if (academicYearForm.value.active_semester_id) {
-      const exists = semesters.value.some(s => s.id === academicYearForm.value.active_semester_id)
-      if (!exists) {
-        academicYearForm.value.active_semester_id = null
-      }
-    }
-  } catch (err) {
-    console.error('Failed to load semesters:', err)
-    const errorMsg = err.response?.data?.message || err.formattedMessage || 'Gagal memuat data semester'
-    toast.error('Gagal', errorMsg)
-    semesters.value = []
-  }
+const handleAcademicYearChange = () => {
+  // Reset semester selection when academic year changes
+  academicYearForm.value.semester_name = ''
 }
 
-const openAcademicYearModal = () => {
+const openAcademicYearModal = async () => {
+  // Get current semester name if exists
+  let currentSemesterName = ''
+  if (institution.value?.active_semester?.name) {
+    currentSemesterName = institution.value.active_semester.name
+  }
+  
   academicYearForm.value = {
     active_academic_year_id: institution.value?.active_academic_year_id || null,
-    active_semester_id: institution.value?.active_semester_id || null
+    semester_name: currentSemesterName
   }
   academicYearError.value = ''
   showAcademicYearModal.value = true
-  loadAcademicYears()
-  if (academicYearForm.value.active_academic_year_id) {
-    loadSemesters()
-  }
+  await loadAcademicYears()
 }
 
 const handleUpdateAcademicYear = async () => {
   academicYearError.value = ''
   
-  if (!academicYearForm.value.active_academic_year_id || !academicYearForm.value.active_semester_id) {
+  if (!academicYearForm.value.active_academic_year_id || !academicYearForm.value.semester_name) {
     academicYearError.value = 'Tahun ajaran dan semester wajib dipilih'
     return
   }
@@ -1117,7 +1143,7 @@ const handleUpdateAcademicYear = async () => {
   try {
     await institutionApi.updateActiveAcademicYear(institution.value.id, {
       active_academic_year_id: academicYearForm.value.active_academic_year_id,
-      active_semester_id: academicYearForm.value.active_semester_id
+      semester_name: academicYearForm.value.semester_name
     })
     
     toast.success('Berhasil', 'Tahun ajaran dan semester aktif berhasil diperbarui')
@@ -1177,10 +1203,15 @@ const editInstitution = (inst) => {
 }
 
 const deleteInstitution = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus institusi ini?')) {
-    return
-  }
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus institusi ini?',
+    warning: 'Data institusi akan dihapus secara permanen dan tidak dapat dikembalikan.'
+  })
   
+  if (!confirmed) return
+  
+  setDeleteLoading(true)
   try {
     await institutionApi.delete(id)
     toast.success('Berhasil', 'Institusi berhasil dihapus')
@@ -1188,6 +1219,8 @@ const deleteInstitution = async (id) => {
   } catch (err) {
     const errorMsg = err.response?.data?.message || 'Gagal menghapus institusi'
     toast.error('Gagal', errorMsg)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
@@ -1195,9 +1228,9 @@ const handleAddInstitution = async () => {
   error.value = ''
   
   // Validate form
-  const validation = validateForm(form.value, getValidationRules())
-  if (!validation.isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form: ' + Object.values(validation.errors).join(', ')
+  const isValid = validateAll()
+  if (!isValid) {
+    error.value = 'Mohon perbaiki kesalahan pada form'
     return
   }
   
@@ -1213,6 +1246,11 @@ const handleAddInstitution = async () => {
     const errorMsg = err.response?.data?.message || 'Gagal menambahkan institusi'
     error.value = errorMsg
     toast.error('Gagal', errorMsg)
+    
+    // Set field errors from server
+    if (err.response?.data?.errors) {
+      setErrors(err.response.data.errors)
+    }
   } finally {
     updating.value = false
   }
@@ -1222,9 +1260,9 @@ const handleUpdateSuperAdmin = async () => {
   error.value = ''
   
   // Validate form
-  const validation = validateForm(form.value, getValidationRules())
-  if (!validation.isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form: ' + Object.values(validation.errors).join(', ')
+  const isValid = validateAll()
+  if (!isValid) {
+    error.value = 'Mohon perbaiki kesalahan pada form'
     return
   }
   
@@ -1239,6 +1277,11 @@ const handleUpdateSuperAdmin = async () => {
     const errorMsg = err.response?.data?.message || 'Gagal memperbarui institusi'
     error.value = errorMsg
     toast.error('Gagal', errorMsg)
+    
+    // Set field errors from server
+    if (err.response?.data?.errors) {
+      setErrors(err.response.data.errors)
+    }
   } finally {
     updating.value = false
   }
@@ -1668,6 +1711,17 @@ onMounted(async () => {
   color: #64748b;
   cursor: not-allowed;
 }
+
+.form-input.error-border {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.form-input.error-border:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
 
 /* Super Admin Table Styles */
 .filters {

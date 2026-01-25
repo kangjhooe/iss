@@ -26,6 +26,28 @@
               </svg>
               <span>Template</span>
             </button>
+            <button
+              v-if="isInstitutionAdmin"
+              @click="openAssignmentRequestModal"
+              class="btn-secondary btn-compact"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Non Induk</span>
+            </button>
+            <button
+              v-if="isInstitutionAdmin"
+              @click="openAssignmentRequestsModal"
+              class="btn-secondary btn-compact"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Permintaan</span>
+            </button>
             <label for="import-excel-employee" class="btn-secondary btn-compact" style="cursor: pointer;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -99,6 +121,7 @@
           <thead>
             <tr>
               <th>Tipe</th>
+              <th>NIK</th>
               <th>NIP</th>
               <th>NUPTK</th>
               <th>Nama</th>
@@ -112,12 +135,18 @@
           <tbody>
             <tr v-for="teacher in teachers" :key="teacher.id">
               <td>{{ teacher.type || 'Guru' }}</td>
+              <td>{{ teacher.nik || '-' }}</td>
               <td>{{ teacher.nip || '-' }}</td>
               <td>{{ teacher.nuptk || '-' }}</td>
-              <td>{{ teacher.name }}</td>
+              <td>
+                <div class="name-cell">
+                  <span>{{ teacher.name }}</span>
+                  <span v-if="teacher.affiliation === 'non_induk'" class="badge-non-induk">Non-Induk</span>
+                </div>
+              </td>
               <td>{{ teacher.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
               <td>{{ teacher.employment_status || '-' }}</td>
-              <td>{{ teacher.subject || '-' }}</td>
+              <td>{{ getTeacherSubject(teacher) }}</td>
               <td>
                 <span :class="getStatusClass(teacher.status)">
                   {{ teacher.status }}
@@ -248,158 +277,207 @@
 
             <!-- Tab 1: Identitas -->
             <div v-show="activeTab === 1" class="tab-content">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Tipe Pegawai *</label>
-                  <select v-model="form.type" required>
-                    <option value="Guru">Guru</option>
-                    <option value="Staff">Staff</option>
-                    <option value="Tenaga Administrasi">Tenaga Administrasi</option>
-                    <option value="Tenaga Kebersihan">Tenaga Kebersihan</option>
-                    <option value="Tenaga Keamanan">Tenaga Keamanan</option>
-                    <option value="Lainnya">Lainnya</option>
-                  </select>
+              <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Tipe Pegawai *</label>
+                    <select v-model="form.type" required>
+                      <option value="Guru">Guru</option>
+                      <option value="Staff">Staff</option>
+                      <option value="Tenaga Administrasi">Tenaga Administrasi</option>
+                      <option value="Tenaga Kebersihan">Tenaga Kebersihan</option>
+                      <option value="Tenaga Keamanan">Tenaga Keamanan</option>
+                      <option value="Lainnya">Lainnya</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>NIK *</label>
+                    <input v-model="form.nik" required />
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>NIP</label>
-                  <input v-model="form.nip" />
-                </div>
-              </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label>NUPTK</label>
-                  <input v-model="form.nuptk" />
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>NIP</label>
+                    <input v-model="form.nip" />
+                  </div>
+                  <div class="form-group">
+                    <label>NUPTK</label>
+                    <input v-model="form.nuptk" />
+                  </div>
                 </div>
-              </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Nama Lengkap *</label>
-                  <input v-model="form.name" required />
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Nama Lengkap *</label>
+                    <input v-model="form.name" required />
+                  </div>
+                  <div class="form-group">
+                    <label>Jenis Kelamin *</label>
+                    <select v-model="form.gender" required>
+                      <option value="">Pilih</option>
+                      <option value="L">Laki-laki</option>
+                      <option value="P">Perempuan</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Jenis Kelamin *</label>
-                  <select v-model="form.gender" required>
-                    <option value="">Pilih</option>
-                    <option value="L">Laki-laki</option>
-                    <option value="P">Perempuan</option>
-                  </select>
-                </div>
-              </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Tanggal Lahir</label>
-                  <input type="date" v-model="form.birth_date" />
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Tanggal Lahir</label>
+                    <input type="date" v-model="form.birth_date" />
+                  </div>
+                  <div class="form-group">
+                    <label>Tempat Lahir</label>
+                    <input v-model="form.birth_place" />
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Tempat Lahir</label>
-                  <input v-model="form.birth_place" />
-                </div>
-              </div>
 
-              <div class="form-group">
-                <label>Alamat</label>
-                <textarea v-model="form.address" rows="3"></textarea>
-              </div>
+                <div class="form-group">
+                  <label>Alamat</label>
+                  <textarea v-model="form.address" rows="3"></textarea>
+                </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Telepon</label>
-                  <input v-model="form.phone" />
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Telepon</label>
+                    <input v-model="form.phone" />
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" v-model="form.email" />
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" v-model="form.email" />
-                </div>
-              </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Agama</label>
-                  <select v-model="form.religion">
-                    <option value="">Pilih</option>
-                    <option value="Islam">Islam</option>
-                    <option value="Kristen">Kristen</option>
-                    <option value="Katolik">Katolik</option>
-                    <option value="Hindu">Hindu</option>
-                    <option value="Buddha">Buddha</option>
-                    <option value="Konghucu">Konghucu</option>
-                  </select>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Agama</label>
+                    <select v-model="form.religion">
+                      <option value="">Pilih</option>
+                      <option value="Islam">Islam</option>
+                      <option value="Kristen">Kristen</option>
+                      <option value="Katolik">Katolik</option>
+                      <option value="Hindu">Hindu</option>
+                      <option value="Buddha">Buddha</option>
+                      <option value="Konghucu">Konghucu</option>
+                    </select>
+                  </div>
                 </div>
+              </fieldset>
+
+              <div v-if="isNonIndukEdit" class="info-box">
+                <p>Biodata hanya dapat diubah oleh sekolah induk.</p>
               </div>
             </div>
 
             <!-- Tab 2: Kepegawaian -->
             <div v-show="activeTab === 2" class="tab-content">
-            <div class="form-row">
-              <div class="form-group">
-                <label>Status Kepegawaian</label>
-                <select v-model="form.employment_status">
-                  <option value="">Pilih</option>
-                  <option value="PNS">PNS</option>
-                  <option value="CPNS">CPNS</option>
-                  <option value="Guru Tetap Yayasan">Guru Tetap Yayasan</option>
-                  <option value="Guru Honor Sekolah">Guru Honor Sekolah</option>
-                  <option value="Guru Kontrak">Guru Kontrak</option>
-                  <option value="Pegawai Tetap Yayasan">Pegawai Tetap Yayasan</option>
-                  <option value="Pegawai Honor">Pegawai Honor</option>
-                  <option value="Pegawai Kontrak">Pegawai Kontrak</option>
-                </select>
-              </div>
+            <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
+              <div class="form-row">
                 <div class="form-group">
-                  <label>Pendidikan Terakhir</label>
-                  <select v-model="form.education_level">
+                  <label>Status Kepegawaian</label>
+                  <select v-model="form.employment_status">
                     <option value="">Pilih</option>
-                    <option value="SMA">SMA</option>
-                    <option value="D3">D3</option>
-                    <option value="S1">S1</option>
-                    <option value="S2">S2</option>
-                    <option value="S3">S3</option>
+                    <option value="PNS">PNS</option>
+                    <option value="CPNS">CPNS</option>
+                    <option value="Guru Tetap Yayasan">Guru Tetap Yayasan</option>
+                    <option value="Guru Honor Sekolah">Guru Honor Sekolah</option>
+                    <option value="Guru Kontrak">Guru Kontrak</option>
+                    <option value="Pegawai Tetap Yayasan">Pegawai Tetap Yayasan</option>
+                    <option value="Pegawai Honor">Pegawai Honor</option>
+                    <option value="Pegawai Kontrak">Pegawai Kontrak</option>
                   </select>
                 </div>
-              </div>
+                  <div class="form-group">
+                    <label>Pendidikan Terakhir</label>
+                    <select v-model="form.education_level">
+                      <option value="">Pilih</option>
+                      <option value="SMA">SMA</option>
+                      <option value="D3">D3</option>
+                      <option value="S1">S1</option>
+                      <option value="S2">S2</option>
+                      <option value="S3">S3</option>
+                    </select>
+                  </div>
+                </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Jurusan</label>
-                  <input v-model="form.major" />
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Jurusan</label>
+                    <input v-model="form.major" />
+                  </div>
+                  <div class="form-group">
+                    <label>Mata Pelajaran</label>
+                    <input v-model="form.subject" />
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Mata Pelajaran</label>
-                  <input v-model="form.subject" />
-                </div>
-              </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Tanggal Bergabung</label>
-                  <input type="date" v-model="form.join_date" />
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Tanggal Bergabung</label>
+                    <input type="date" v-model="form.join_date" />
+                  </div>
+                  <div class="form-group">
+                    <label>Status</label>
+                    <select v-model="form.status">
+                      <option value="Aktif">Aktif</option>
+                      <option value="Pensiun">Pensiun</option>
+                      <option value="Pindah">Pindah</option>
+                      <option value="Tidak Aktif">Tidak Aktif</option>
+                    </select>
+                  </div>
+                </div>
+              </fieldset>
+
+              <div v-if="isNonIndukEdit" class="assignment-section">
+                <h4>Penugasan Non-Induk</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Mata Pelajaran</label>
+                    <input v-model="form.assignment_subject" />
+                  </div>
+                  <div class="form-group">
+                    <label>Penugasan</label>
+                    <input v-model="form.assignment_title" />
+                  </div>
                 </div>
                 <div class="form-group">
-                  <label>Status</label>
-                  <select v-model="form.status">
-                    <option value="Aktif">Aktif</option>
-                    <option value="Pensiun">Pensiun</option>
-                    <option value="Pindah">Pindah</option>
-                    <option value="Tidak Aktif">Tidak Aktif</option>
-                  </select>
+                  <label>Catatan Penugasan</label>
+                  <textarea v-model="form.assignment_notes" rows="3"></textarea>
                 </div>
               </div>
             </div>
 
             <!-- Tab 3: Tambahan -->
             <div v-show="activeTab === 3" class="tab-content">
-              <div class="form-group">
-                <label>Catatan</label>
-                <textarea v-model="form.notes" rows="5"></textarea>
+              <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
+                <div class="form-group">
+                  <label>Catatan</label>
+                  <textarea v-model="form.notes" rows="5"></textarea>
+                </div>
+
+                <div v-if="form.type === 'Guru'" class="module-access">
+                  <h4>Akses Modul</h4>
+                  <div v-if="loadingPermissions" class="info-box">
+                    <p>Memuat daftar modul...</p>
+                  </div>
+                  <div v-else class="module-grid">
+                    <label v-for="module in availableModules" :key="module.key" class="module-option">
+                      <input type="checkbox" :value="module.key" v-model="form.permission_keys" />
+                      <span>{{ module.label }}</span>
+                    </label>
+                  </div>
+                  <p class="form-hint">Hanya modul yang dicentang dapat diakses oleh akun guru.</p>
+                </div>
+              </fieldset>
+              <div v-if="isNonIndukEdit" class="info-box">
+                <p>Catatan hanya dapat diubah oleh sekolah induk.</p>
               </div>
             </div>
 
             <!-- Tab 4: Pendidikan -->
             <div v-show="activeTab === 4" class="tab-content">
-              <div class="education-section">
+              <div v-if="!isNonIndukEdit" class="education-section">
                 <div class="section-header">
                   <h4>Riwayat Pendidikan</h4>
                   <button type="button" @click="addEducation" class="btn-add-education">
@@ -472,11 +550,14 @@
                   </div>
                 </div>
               </div>
+              <div v-else class="info-box">
+                <p>Riwayat pendidikan hanya dapat diubah oleh sekolah induk.</p>
+              </div>
             </div>
 
             <!-- Tab 5: Berkas -->
             <div v-show="activeTab === 5" class="tab-content">
-              <div class="documents-section">
+              <div v-if="!isNonIndukEdit" class="documents-section">
                 <div class="section-header">
                   <h4>Berkas Dokumen</h4>
                   <div class="documents-info">
@@ -553,6 +634,9 @@
                   <p>Belum ada berkas yang diupload</p>
                 </div>
               </div>
+              <div v-else class="info-box">
+                <p>Berkas hanya dapat diubah oleh sekolah induk.</p>
+              </div>
             </div>
 
             <div v-if="error" class="error-message">{{ error }}</div>
@@ -591,6 +675,10 @@
                 <div class="biodata-item">
                   <span class="label">NIP</span>
                   <span class="value">{{ viewingTeacher.nip || '-' }}</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">NIK</span>
+                  <span class="value">{{ viewingTeacher.nik || '-' }}</span>
                 </div>
                 <div class="biodata-item">
                   <span class="label">Tipe Pegawai</span>
@@ -751,6 +839,57 @@
               </div>
             </div>
 
+            <!-- Riwayat Non-Induk -->
+            <div class="biodata-section" v-if="viewingTeacher.assignments && viewingTeacher.assignments.length > 0">
+              <h4 class="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Riwayat Non-Induk
+              </h4>
+              <div class="assignment-history">
+                <div v-for="assignment in viewingTeacher.assignments" :key="assignment.id" class="assignment-item">
+                  <div class="assignment-item-header">
+                    <div>
+                      <h5>{{ assignment.institution?.name || '-' }}</h5>
+                      <span class="assignment-status" :class="`status-${assignment.status}`">{{ assignment.status }}</span>
+                    </div>
+                    <button
+                      v-if="canEndAssignment(assignment)"
+                      type="button"
+                      class="btn-secondary"
+                      @click="endAssignment(assignment)"
+                    >
+                      Akhiri
+                    </button>
+                  </div>
+                  <div class="biodata-grid">
+                    <div class="biodata-item">
+                      <span class="label">Mata Pelajaran</span>
+                      <span class="value">{{ assignment.subject || '-' }}</span>
+                    </div>
+                    <div class="biodata-item">
+                      <span class="label">Penugasan</span>
+                      <span class="value">{{ assignment.assignment_title || '-' }}</span>
+                    </div>
+                    <div class="biodata-item">
+                      <span class="label">Mulai</span>
+                      <span class="value">{{ assignment.started_at || '-' }}</span>
+                    </div>
+                    <div class="biodata-item">
+                      <span class="label">Selesai</span>
+                      <span class="value">{{ assignment.ended_at || '-' }}</span>
+                    </div>
+                    <div class="biodata-item" v-if="assignment.assignment_notes">
+                      <span class="label">Catatan</span>
+                      <span class="value">{{ assignment.assignment_notes }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Catatan -->
             <div class="biodata-section" v-if="viewingTeacher.notes">
               <h4 class="section-title">
@@ -769,29 +908,270 @@
           </div>
         </div>
       </div>
+
+      <!-- Non-Induk Request Modal -->
+      <div v-if="showAssignmentModal" class="modal-overlay" @click="closeAssignmentModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Tambah Guru Non-Induk</h3>
+            <button @click="closeAssignmentModal" class="btn-close">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>NIK</label>
+                <input v-model="nikSearch" placeholder="Masukkan NIK 16 digit" />
+              </div>
+              <div class="form-group">
+                <label>&nbsp;</label>
+                <button type="button" class="btn-secondary" @click="searchByNik" :disabled="searchLoading">
+                  {{ searchLoading ? 'Mencari...' : 'Cari' }}
+                </button>
+              </div>
+            </div>
+
+            <div v-if="searchResult" class="assignment-result">
+              <div class="info-box">
+                <p><strong>Nama:</strong> {{ searchResult.name }}</p>
+                <p><strong>NIK:</strong> {{ searchResult.nik }}</p>
+                <p><strong>Sekolah Induk:</strong> {{ searchResult.institution?.name || '-' }}</p>
+              </div>
+
+              <div v-if="isSameInstitution(searchResult)" class="info-box">
+                <p>Guru ini sudah menjadi induk di sekolah Anda.</p>
+              </div>
+
+              <div v-else class="assignment-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Mata Pelajaran</label>
+                    <input v-model="assignmentForm.subject" />
+                  </div>
+                  <div class="form-group">
+                    <label>Penugasan</label>
+                    <input v-model="assignmentForm.assignment_title" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Catatan Penugasan</label>
+                  <textarea v-model="assignmentForm.assignment_notes" rows="3"></textarea>
+                </div>
+                <button type="button" class="btn-primary" @click="submitAssignmentRequest" :disabled="assignmentSubmitting">
+                  {{ assignmentSubmitting ? 'Mengirim...' : 'Ajukan Non-Induk' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending Non-Induk Requests Modal -->
+      <div v-if="showAssignmentRequestsModal" class="modal-overlay" @click="closeAssignmentRequestsModal">
+        <div class="modal-content view-modal" @click.stop>
+          <div class="modal-header">
+            <h3>Permintaan Non-Induk</h3>
+            <button @click="closeAssignmentRequestsModal" class="btn-close">×</button>
+          </div>
+          <div class="modal-body">
+            <div v-if="loadingPendingAssignments" class="loading-state">
+              <div class="loading-spinner">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
+                    <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
+                    <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
+                  </circle>
+                </svg>
+              </div>
+              <p>Memuat permintaan...</p>
+            </div>
+
+            <div v-else-if="pendingAssignments.length === 0" class="empty-state">
+              <h3>Tidak ada permintaan</h3>
+              <p>Belum ada permintaan non-induk yang masuk.</p>
+            </div>
+
+            <div v-else class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Guru</th>
+                    <th>Sekolah Peminta</th>
+                    <th>Mata Pelajaran</th>
+                    <th>Penugasan</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="request in pendingAssignments" :key="request.id">
+                    <td>
+                      <div class="name-cell">
+                        <span>{{ request.employee?.name || '-' }}</span>
+                        <span class="badge-request">Pending</span>
+                      </div>
+                    </td>
+                    <td>{{ request.institution?.name || '-' }}</td>
+                    <td>{{ request.subject || '-' }}</td>
+                    <td>{{ request.assignment_title || '-' }}</td>
+                    <td>
+                      <div class="action-buttons">
+                        <button @click="approveAssignment(request)" class="btn-action btn-view" title="Setujui">
+                          ✓
+                        </button>
+                        <button @click="rejectAssignment(request)" class="btn-action btn-delete" title="Tolak">
+                          ×
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import Result Modal -->
+      <div v-if="showImportResultModal" class="modal-overlay" @click="closeImportResultModal">
+        <div class="modal-content view-modal" @click.stop>
+          <div class="modal-header">
+            <h3>Hasil Import Guru</h3>
+            <button @click="closeImportResultModal" class="btn-close">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="import-summary">
+              <div class="summary-card">
+                <span class="summary-label">Akun dibuat</span>
+                <span class="summary-value">{{ importResult.created_accounts.length }}</span>
+              </div>
+              <div class="summary-card">
+                <span class="summary-label">Konflik email</span>
+                <span class="summary-value">{{ importResult.account_conflicts.length }}</span>
+              </div>
+              <div class="summary-card">
+                <span class="summary-label">Error validasi</span>
+                <span class="summary-value">{{ importResult.errors.length }}</span>
+              </div>
+            </div>
+
+            <div class="import-actions" v-if="importResult.created_accounts.length">
+              <button class="btn-secondary btn-compact" @click="downloadImportCredentials">
+                Download Password
+              </button>
+              <span class="import-note">Simpan password ini dan minta guru mengganti setelah login.</span>
+            </div>
+
+            <div v-if="importResult.created_accounts.length" class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Baris</th>
+                    <th>Email</th>
+                    <th>Password Awal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in importResult.created_accounts" :key="`${item.row}-${item.email}`">
+                    <td>{{ item.row }}</td>
+                    <td>{{ item.email }}</td>
+                    <td><span class="import-tag">{{ item.password }}</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="importResult.account_conflicts.length" class="table-container">
+              <h4 class="section-subtitle">Konflik Email</h4>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Baris</th>
+                    <th>Email</th>
+                    <th>Role Terdeteksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in importResult.account_conflicts" :key="`${item.row}-${item.email}`">
+                    <td>{{ item.row }}</td>
+                    <td>{{ item.email }}</td>
+                    <td>{{ item.role }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="importResult.errors.length" class="table-container">
+              <h4 class="section-subtitle">Error Import</h4>
+              <ul class="import-errors">
+                <li v-for="(error, index) in importResult.errors" :key="index">{{ error }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+    
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { employeeApi } from '@/api/teacher'
-import { validateForm, validators } from '@/utils/validation'
+import { permissionApi } from '@/api/permissions'
+import { validators } from '@/utils/validation'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 import * as XLSX from 'xlsx'
 
 const toast = useToast()
+const authStore = useAuthStore()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
+
+const availableModules = ref([])
+const loadingPermissions = ref(false)
 
 const teachers = ref([])
 const loading = ref(true)
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
+const showAssignmentModal = ref(false)
+const showAssignmentRequestsModal = ref(false)
+const showImportResultModal = ref(false)
 const viewingTeacher = ref(null)
 const activeTab = ref(1)
 const saving = ref(false)
+const deleteLoading = ref(false)
 const error = ref('')
+const nikSearch = ref('')
+const searchResult = ref(null)
+const searchLoading = ref(false)
+const assignmentSubmitting = ref(false)
+const assignmentForm = ref({
+  subject: '',
+  assignment_title: '',
+  assignment_notes: ''
+})
+const pendingAssignments = ref([])
+const loadingPendingAssignments = ref(false)
+const importResult = ref({
+  created_accounts: [],
+  account_conflicts: [],
+  errors: []
+})
 
 const filters = ref({
   search: '',
@@ -802,6 +1182,7 @@ const filters = ref({
 
 const form = ref({
   type: 'Guru',
+  nik: '',
   nip: '',
   nuptk: '',
   name: '',
@@ -819,6 +1200,12 @@ const form = ref({
   status: 'Aktif',
   join_date: '',
   notes: '',
+  permission_keys: ['correspondence'],
+  affiliation: null,
+  current_assignment: null,
+  assignment_subject: '',
+  assignment_title: '',
+  assignment_notes: '',
   educations: [{
     level: '',
     school_name: '',
@@ -831,7 +1218,23 @@ const form = ref({
   documents: []
 })
 
-let editingId = null
+const editingId = ref(null)
+
+const isInstitutionAdmin = computed(() => authStore.user?.role === 'institution_admin')
+const isNonIndukEdit = computed(() => Boolean(editingId.value && form.value.affiliation === 'non_induk'))
+
+const loadPermissions = async () => {
+  loadingPermissions.value = true
+  try {
+    const response = await permissionApi.getAll()
+    availableModules.value = response.data.data || []
+  } catch (err) {
+    console.error(err)
+    toast.error('Gagal', 'Gagal memuat daftar modul')
+  } finally {
+    loadingPermissions.value = false
+  }
+}
 
 const loadTeachers = async () => {
   loading.value = true
@@ -852,6 +1255,188 @@ const loadTeachers = async () => {
   }
 }
 
+const getTeacherSubject = (teacher) => {
+  if (teacher?.affiliation === 'non_induk') {
+    return teacher?.current_assignment?.subject || '-'
+  }
+  return teacher?.subject || '-'
+}
+
+const isSameInstitution = (employee) => {
+  return employee?.institution?.id === authStore.user?.institution_id
+}
+
+const openAssignmentRequestModal = () => {
+  showAssignmentModal.value = true
+  nikSearch.value = ''
+  searchResult.value = null
+  assignmentForm.value = {
+    subject: '',
+    assignment_title: '',
+    assignment_notes: ''
+  }
+}
+
+const closeAssignmentModal = () => {
+  showAssignmentModal.value = false
+  nikSearch.value = ''
+  searchResult.value = null
+  assignmentSubmitting.value = false
+}
+
+const searchByNik = async () => {
+  if (!nikSearch.value) {
+    toast.error('Gagal', 'NIK wajib diisi')
+    return
+  }
+
+  searchLoading.value = true
+  try {
+    const response = await employeeApi.searchByNik(nikSearch.value)
+    searchResult.value = response.data.data
+  } catch (err) {
+    searchResult.value = null
+    toast.error('Gagal', err.formattedMessage || 'Pegawai tidak ditemukan')
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const submitAssignmentRequest = async () => {
+  if (!searchResult.value) return
+
+  assignmentSubmitting.value = true
+  try {
+    await employeeApi.requestAssignment(searchResult.value.id, assignmentForm.value)
+    toast.success('Berhasil', 'Permintaan non-induk berhasil dikirim')
+    closeAssignmentModal()
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || 'Gagal mengirim permintaan')
+  } finally {
+    assignmentSubmitting.value = false
+  }
+}
+
+const openAssignmentRequestsModal = async () => {
+  showAssignmentRequestsModal.value = true
+  await loadPendingAssignments()
+}
+
+const closeAssignmentRequestsModal = () => {
+  showAssignmentRequestsModal.value = false
+}
+
+const closeImportResultModal = () => {
+  showImportResultModal.value = false
+  importResult.value = {
+    created_accounts: [],
+    account_conflicts: [],
+    errors: []
+  }
+}
+
+const downloadImportCredentials = () => {
+  if (!importResult.value.created_accounts.length) return
+
+  const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  const header = ['Row', 'Email', 'Password']
+  const rows = importResult.value.created_accounts.map((item) => [
+    item.row,
+    item.email,
+    item.password
+  ])
+
+  const csvContent = [
+    header.map(escapeCsv).join(','),
+    ...rows.map((row) => row.map(escapeCsv).join(','))
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `akun_guru_import_${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+const loadPendingAssignments = async () => {
+  loadingPendingAssignments.value = true
+  try {
+    const response = await employeeApi.getPendingAssignments({ per_page: 100 })
+    pendingAssignments.value = response.data.data || []
+  } catch (err) {
+    toast.error('Gagal', 'Gagal memuat permintaan non-induk')
+    console.error(err)
+  } finally {
+    loadingPendingAssignments.value = false
+  }
+}
+
+const approveAssignment = async (assignment) => {
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Persetujuan',
+    message: 'Setujui permintaan non-induk ini?',
+    warning: ''
+  })
+  
+  if (!confirmed) return
+
+  try {
+    await employeeApi.approveAssignment(assignment.id)
+    toast.success('Berhasil', 'Permintaan disetujui')
+    loadPendingAssignments()
+    loadTeachers()
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || 'Gagal menyetujui permintaan')
+  }
+}
+
+const rejectAssignment = async (assignment) => {
+  const reason = prompt('Alasan penolakan:', '')
+  if (!reason) return
+
+  try {
+    await employeeApi.rejectAssignment(assignment.id, { rejection_reason: reason })
+    toast.success('Berhasil', 'Permintaan ditolak')
+    loadPendingAssignments()
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || 'Gagal menolak permintaan')
+  }
+}
+
+const canEndAssignment = (assignment) => {
+  return assignment?.status === 'approved'
+    && isInstitutionAdmin.value
+    && viewingTeacher.value?.institution_id === authStore.user?.institution_id
+}
+
+const endAssignment = async (assignment) => {
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Akhiri Penugasan',
+    message: 'Akhiri penugasan non-induk ini?',
+    warning: ''
+  })
+  
+  if (!confirmed) return
+
+  const reason = prompt('Alasan mengakhiri penugasan (opsional):', '') || null
+
+  try {
+    await employeeApi.endAssignment(assignment.id, { ended_reason: reason })
+    toast.success('Berhasil', 'Penugasan diakhiri')
+    if (viewingTeacher.value?.id) {
+      const response = await employeeApi.get(viewingTeacher.value.id)
+      viewingTeacher.value = response.data.data
+    }
+    loadTeachers()
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || 'Gagal mengakhiri penugasan')
+  }
+}
+
 const viewTeacher = async (teacher) => {
   try {
     // Load full employee data with educations and documents
@@ -865,7 +1450,7 @@ const viewTeacher = async (teacher) => {
 }
 
 const editTeacher = async (teacher) => {
-  editingId = teacher.id
+  editingId.value = teacher.id
   activeTab.value = 1
   
   // Load full employee data with educations and documents
@@ -874,6 +1459,12 @@ const editTeacher = async (teacher) => {
     const fullData = response.data.data
     
     Object.assign(form.value, fullData)
+    form.value.affiliation = fullData.affiliation || null
+    form.value.current_assignment = fullData.current_assignment || null
+    form.value.assignment_subject = fullData.current_assignment?.subject || ''
+    form.value.assignment_title = fullData.current_assignment?.assignment_title || ''
+    form.value.assignment_notes = fullData.current_assignment?.assignment_notes || ''
+    form.value.permission_keys = fullData.user_account?.permissions || []
     if (fullData.birth_date) {
       form.value.birth_date = fullData.birth_date.split('T')[0]
     }
@@ -905,18 +1496,31 @@ const editTeacher = async (teacher) => {
 }
 
 const deleteTeacher = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus guru ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus guru ini?',
+    warning: 'Data guru akan dihapus secara permanen dan tidak dapat dikembalikan.'
+  })
   
+  if (!confirmed) return
+  
+  setDeleteLoading(true)
   try {
     await employeeApi.delete(id)
     toast.success('Berhasil', 'Guru berhasil dihapus')
     loadTeachers()
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || 'Gagal menghapus guru')
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
 const validationRules = {
+  nik: [
+    (value) => validators.required(value, 'NIK wajib diisi'),
+    (value) => validators.nik(value, 'NIK harus terdiri dari 16 digit angka')
+  ],
   name: [
     (value) => validators.required(value, 'Nama lengkap wajib diisi'),
     (value) => validators.maxLength(value, 255, 'Nama maksimal 255 karakter')
@@ -925,6 +1529,9 @@ const validationRules = {
     (value) => validators.required(value, 'Jenis kelamin wajib diisi')
   ],
   email: [
+    (value) => form.value.type === 'Guru'
+      ? validators.required(value, 'Email wajib diisi untuk guru')
+      : null,
     (value) => validators.email(value, 'Format email tidak valid'),
     (value) => validators.maxLength(value, 255, 'Email maksimal 255 karakter')
   ],
@@ -939,25 +1546,82 @@ const validationRules = {
   ]
 }
 
+// Setup form validation
+const { validateAll, setErrors } = useFormValidation({
+  form,
+  initialValues: {},
+  rules: validationRules
+})
+
 const handleSubmit = async () => {
   error.value = ''
+
+  if (isNonIndukEdit.value) {
+    saving.value = true
+    try {
+      const assignmentId = form.value.current_assignment?.id
+      if (!assignmentId) {
+        error.value = 'Data penugasan non-induk tidak ditemukan'
+        return
+      }
+
+      await employeeApi.updateAssignment(assignmentId, {
+        subject: form.value.assignment_subject,
+        assignment_title: form.value.assignment_title,
+        assignment_notes: form.value.assignment_notes
+      })
+
+      toast.success('Berhasil', 'Penugasan non-induk berhasil diperbarui')
+      closeModal()
+      loadTeachers()
+    } catch (err) {
+      const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan penugasan'
+      error.value = errorMsg
+      toast.error('Gagal', errorMsg)
+    } finally {
+      saving.value = false
+    }
+    return
+  }
   
   // Validate form
-  const validation = validateForm(form.value, validationRules)
-  if (!validation.isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form: ' + Object.values(validation.errors).join(', ')
+  const isValid = validateAll()
+  if (!isValid) {
+    error.value = 'Mohon perbaiki kesalahan pada form'
     return
   }
   
   saving.value = true
   
   try {
-    if (editingId) {
-      await employeeApi.update(editingId, form.value)
+    let response = null
+    const payload = { ...form.value }
+    if (payload.type !== 'Guru') {
+      delete payload.permission_keys
+    }
+
+    if (editingId.value) {
+      response = await employeeApi.update(editingId.value, payload)
       toast.success('Berhasil', 'Data guru berhasil diperbarui')
     } else {
-      await employeeApi.create(form.value)
+      response = await employeeApi.create(payload)
       toast.success('Berhasil', 'Guru berhasil ditambahkan')
+    }
+
+    const generatedPassword = response?.data?.generated_password
+    if (generatedPassword) {
+      toast.success(
+        'Password Akun Guru',
+        `Password awal: ${generatedPassword}. Harap simpan dan ganti setelah login.`
+      )
+    }
+
+    const userConflict = response?.data?.user_conflict
+    if (userConflict?.email && userConflict?.role) {
+      toast.warning(
+        'Perhatian',
+        `Email ${userConflict.email} sudah digunakan akun role ${userConflict.role}.`
+      )
     }
     closeModal()
     loadTeachers()
@@ -965,6 +1629,11 @@ const handleSubmit = async () => {
     const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
     error.value = errorMsg
     toast.error('Gagal', errorMsg)
+    
+    // Set field errors from server
+    if (err.response?.data?.errors) {
+      setErrors(err.response.data.errors)
+    }
   } finally {
     saving.value = false
   }
@@ -973,10 +1642,11 @@ const handleSubmit = async () => {
 const closeModal = () => {
   showAddModal.value = false
   showEditModal.value = false
-  editingId = null
+  editingId.value = null
   activeTab.value = 1
   form.value = {
     type: 'Guru',
+    nik: '',
     nip: '',
     nuptk: '',
     name: '',
@@ -994,6 +1664,12 @@ const closeModal = () => {
     status: 'Aktif',
     join_date: '',
     notes: '',
+    permission_keys: ['correspondence'],
+    affiliation: null,
+    current_assignment: null,
+    assignment_subject: '',
+    assignment_title: '',
+    assignment_notes: '',
     educations: [{
       level: '',
       school_name: '',
@@ -1076,7 +1752,7 @@ const handleDocumentUpload = async (event) => {
     return
   }
 
-  if (!editingId) {
+  if (!editingId.value) {
     toast.error('Gagal', 'Simpan data pegawai terlebih dahulu')
     event.target.value = ''
     return
@@ -1103,7 +1779,7 @@ const handleDocumentUpload = async (event) => {
     formData.append('file', file)
     formData.append('name', docName.trim())
 
-    const response = await employeeApi.uploadDocument(editingId, formData)
+    const response = await employeeApi.uploadDocument(editingId.value, formData)
 
     // Add document to form
     form.value.documents.push(response.data.data)
@@ -1119,16 +1795,22 @@ const handleDocumentUpload = async (event) => {
 }
 
 const deleteDocument = async (documentId, index) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus dokumen ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus dokumen ini?',
+    warning: 'Dokumen akan dihapus secara permanen.'
+  })
+  
+  if (!confirmed) return
 
-  if (!editingId) {
+  if (!editingId.value) {
     toast.error('Gagal', 'ID pegawai tidak ditemukan')
     return
   }
 
   try {
     saving.value = true
-    await employeeApi.deleteDocument(editingId, documentId)
+    await employeeApi.deleteDocument(editingId.value, documentId)
     
     // Remove from form
     form.value.documents.splice(index, 1)
@@ -1168,6 +1850,7 @@ const exportToExcel = async () => {
     // Siapkan data untuk Excel
     const excelData = allEmployees.map(employee => ({
       'Tipe Pegawai': employee.type || '',
+      'NIK': employee.nik || '',
       'NIP': employee.nip || '',
       'NUPTK': employee.nuptk || '',
       'Nama Lengkap': employee.name || '',
@@ -1193,7 +1876,7 @@ const exportToExcel = async () => {
     
     // Set column widths
     const colWidths = [
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 },
       { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
       { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
       { wch: 15 }, { wch: 15 }, { wch: 30 }
@@ -1222,6 +1905,7 @@ const downloadTemplate = () => {
     const templateData = [
       {
         'Tipe Pegawai': 'Guru',
+        'NIK': '1234567890123456',
         'NIP': '1234567890123456',
         'NUPTK': '1234567890123456',
         'Nama Lengkap': 'Ahmad Fauzi',
@@ -1248,7 +1932,7 @@ const downloadTemplate = () => {
     
     // Set column widths
     const colWidths = [
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 },
       { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
       { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
       { wch: 15 }, { wch: 15 }, { wch: 30 }
@@ -1318,6 +2002,7 @@ const handleImportExcel = async (event) => {
       
       return {
         type: mapField('Tipe Pegawai', 'type') || 'Guru',
+        nik: mapField('NIK', 'nik'),
         nip: mapField('NIP', 'nip'),
         nuptk: mapField('NUPTK', 'nuptk'),
         name: mapField('Nama Lengkap', 'name'),
@@ -1339,24 +2024,36 @@ const handleImportExcel = async (event) => {
     })
     
     // Filter data yang valid (minimal harus ada Nama)
-    const validData = mappedData.filter(item => item.name)
+    const validData = mappedData.filter(item => item.name && item.nik)
     
     if (validData.length === 0) {
-      toast.error('Gagal', 'Tidak ada data valid yang dapat diimpor. Pastikan kolom Nama Lengkap terisi.')
+      toast.error('Gagal', 'Tidak ada data valid yang dapat diimpor. Pastikan kolom Nama Lengkap dan NIK terisi.')
       return
     }
     
     // Kirim ke backend (batch import)
     const response = await employeeApi.import(validData)
+    const createdAccounts = response.data.created_accounts || []
+    const accountConflicts = response.data.account_conflicts || []
+    const importErrors = response.data.errors || []
     
     if (response.data.success_count > 0) {
       toast.success('Berhasil', `Berhasil mengimpor ${response.data.success_count} data pegawai${response.data.error_count > 0 ? `, ${response.data.error_count} gagal` : ''}`)
-      if (response.data.errors && response.data.errors.length > 0) {
-        console.warn('Import errors:', response.data.errors)
+      if (importErrors.length > 0) {
+        console.warn('Import errors:', importErrors)
       }
       loadTeachers()
     } else {
       toast.error('Gagal', 'Gagal mengimpor data pegawai')
+    }
+
+    if (createdAccounts.length || accountConflicts.length || importErrors.length) {
+      importResult.value = {
+        created_accounts: createdAccounts,
+        account_conflicts: accountConflicts,
+        errors: importErrors
+      }
+      showImportResultModal.value = true
     }
     
     // Reset input file
@@ -1371,6 +2068,7 @@ const handleImportExcel = async (event) => {
 
 onMounted(() => {
   loadTeachers()
+  loadPermissions()
 })
 </script>
 
@@ -1511,6 +2209,34 @@ onMounted(() => {
   align-items: center;
 }
 
+.name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.badge-non-induk {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fde68a;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-request {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .btn-action {
   padding: 8px;
   border: none;
@@ -1635,6 +2361,78 @@ onMounted(() => {
 
 .modal-body {
   padding: 30px;
+}
+
+.import-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.summary-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.import-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.import-note {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.import-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.section-subtitle {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.import-errors {
+  margin: 0;
+  padding-left: 18px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.import-errors li {
+  margin-bottom: 6px;
 }
 
 .form-row {
@@ -1830,6 +2628,85 @@ onMounted(() => {
 
 .view-modal {
   max-width: 1000px;
+}
+
+.fieldset-reset {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.assignment-section {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.assignment-section h4 {
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.assignment-history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.assignment-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.assignment-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.assignment-item-header h5 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.assignment-status {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.assignment-status.status-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.assignment-status.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.assignment-status.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.assignment-status.status-ended {
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .view-body {
@@ -2068,6 +2945,45 @@ onMounted(() => {
 .info-box p {
   margin: 0;
   font-size: 14px;
+}
+
+.module-access {
+  margin-top: 16px;
+}
+
+.module-access h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.module-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 13px;
+  color: #334155;
+}
+
+.module-option input {
+  accent-color: #6366f1;
+}
+
+.form-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .documents-list {

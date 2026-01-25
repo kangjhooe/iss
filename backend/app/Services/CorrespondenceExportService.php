@@ -5,12 +5,6 @@ namespace App\Services;
 use App\Models\Correspondence;
 use App\Repositories\CorrespondenceRepository;
 use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithStyles;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 
 class CorrespondenceExportService
@@ -20,76 +14,65 @@ class CorrespondenceExportService
     ) {}
 
     /**
-     * Export correspondence to Excel.
+     * Export correspondence to CSV.
      */
     public function exportToExcel(array $filters, ?int $institutionId = null): string
     {
         $correspondence = $this->repository->list($filters, $institutionId, 10000); // Get all matching records
         
-        $export = new class($correspondence->items()) implements FromCollection, WithHeadings, WithMapping, WithStyles {
-            private $items;
-
-            public function __construct($items) {
-                $this->items = $items;
-            }
-
-            public function collection() {
-                return collect($this->items);
-            }
-
-            public function headings(): array {
-                return [
-                    'No',
-                    'Tipe',
-                    'Jenis Surat',
-                    'Nomor Surat',
-                    'Nomor Referensi',
-                    'Perihal',
-                    'Dari/Kepada',
-                    'Tanggal Surat',
-                    'Tanggal Terima',
-                    'Prioritas',
-                    'Status',
-                    'Kategori',
-                    'Pembuat',
-                    'Disetujui Oleh',
-                    'Tanggal Disetujui',
-                    'Keterangan',
-                ];
-            }
-
-            public function map($correspondence): array {
-                return [
-                    $correspondence->id,
-                    ucfirst($correspondence->type),
-                    $correspondence->letter_type_name ?? '-',
-                    $correspondence->letter_number ?? '-',
-                    $correspondence->reference_number ?? '-',
-                    $correspondence->subject,
-                    $correspondence->type === 'masuk' ? ($correspondence->from ?? '-') : ($correspondence->to ?? '-'),
-                    $correspondence->date?->format('Y-m-d'),
-                    $correspondence->received_date?->format('Y-m-d'),
-                    ucfirst(str_replace('_', ' ', $correspondence->priority)),
-                    ucfirst($correspondence->status),
-                    $correspondence->category?->name ?? '-',
-                    $correspondence->creator?->name ?? '-',
-                    $correspondence->approver?->name ?? '-',
-                    $correspondence->approved_at?->format('Y-m-d H:i:s'),
-                    $correspondence->description ?? '-',
-                ];
-            }
-
-            public function styles(Worksheet $sheet) {
-                return [
-                    1 => ['font' => ['bold' => true]],
-                ];
-            }
-        };
-
-        $fileName = 'correspondence_export_' . date('Y-m-d_His') . '.xlsx';
+        // Create CSV format (simpler, no need for Excel package)
+        $fileName = 'correspondence_export_' . date('Y-m-d_His') . '.csv';
         $filePath = 'exports/' . $fileName;
+        Storage::disk('public')->makeDirectory('exports');
         
-        Excel::store($export, $filePath, 'public');
+        $file = fopen(Storage::disk('public')->path($filePath), 'w');
+        
+        // Add BOM for UTF-8
+        fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Headers
+        fputcsv($file, [
+            'No',
+            'Tipe',
+            'Jenis Surat',
+            'Nomor Surat',
+            'Nomor Referensi',
+            'Perihal',
+            'Dari/Kepada',
+            'Tanggal Surat',
+            'Tanggal Terima',
+            'Prioritas',
+            'Status',
+            'Kategori',
+            'Pembuat',
+            'Disetujui Oleh',
+            'Tanggal Disetujui',
+            'Keterangan',
+        ]);
+        
+        // Data
+        foreach ($correspondence->items() as $index => $item) {
+            fputcsv($file, [
+                $index + 1,
+                ucfirst($item->type),
+                $item->letter_type_name ?? '-',
+                $item->letter_number ?? '-',
+                $item->reference_number ?? '-',
+                $item->subject,
+                $item->type === 'masuk' ? ($item->from ?? '-') : ($item->to ?? '-'),
+                $item->date?->format('Y-m-d'),
+                $item->received_date?->format('Y-m-d'),
+                ucfirst(str_replace('_', ' ', $item->priority)),
+                ucfirst($item->status),
+                $item->category?->name ?? '-',
+                $item->creator?->name ?? '-',
+                $item->approver?->name ?? '-',
+                $item->approved_at?->format('Y-m-d H:i:s'),
+                $item->description ?? '-',
+            ]);
+        }
+        
+        fclose($file);
 
         return $filePath;
     }
@@ -103,13 +86,14 @@ class CorrespondenceExportService
         
         $fileName = 'correspondence_report_' . date('Y-m-d_His') . '.pdf';
         $filePath = 'exports/' . $fileName;
+        Storage::disk('public')->makeDirectory('exports');
 
         $pdf = DomPDF::loadView('correspondence.report', [
             'correspondence' => $correspondence->items(),
             'filters' => $filters,
             'institution' => $institution,
             'generated_at' => now(),
-        ]);
+        ])->setPaper('a4', 'landscape');
 
         Storage::disk('public')->put($filePath, $pdf->output());
 

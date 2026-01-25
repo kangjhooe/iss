@@ -14,6 +14,20 @@ export const useAuthStore = defineStore('auth', {
     async login(credentials) {
       try {
         const response = await authApi.login(credentials)
+        
+        // Validate response structure
+        if (!response || !response.data) {
+          throw new Error('Invalid response from server')
+        }
+        
+        if (!response.data.token) {
+          throw new Error('Token tidak ditemukan dalam response')
+        }
+        
+        if (!response.data.user) {
+          throw new Error('Data user tidak ditemukan dalam response')
+        }
+        
         this.token = response.data.token
         this.user = response.data.user
         this.isAuthenticated = true
@@ -23,6 +37,7 @@ export const useAuthStore = defineStore('auth', {
         }
         return response.data
       } catch (error) {
+        console.error('Auth store login error:', error)
         throw error
       }
     },

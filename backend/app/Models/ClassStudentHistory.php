@@ -21,6 +21,7 @@ class ClassStudentHistory extends Model
         'class_id',
         'academic_year',
         'academic_year_id',
+        'semester_id',
         'start_date',
         'end_date',
         'status',
@@ -89,10 +90,26 @@ class ClassStudentHistory extends Model
     }
 
     /**
+     * Scope a query to filter by semester ID.
+     */
+    public function scopeBySemesterId($query, int $semesterId)
+    {
+        return $query->where('semester_id', $semesterId);
+    }
+
+    /**
      * Get the academic year for this history record.
      */
     public function academicYear()
     {
         return $this->belongsTo(AcademicYear::class, 'academic_year_id');
+    }
+
+    /**
+     * Get the semester for this history record.
+     */
+    public function semester()
+    {
+        return $this->belongsTo(Semester::class, 'semester_id');
     }
 }

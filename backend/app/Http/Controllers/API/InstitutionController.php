@@ -310,33 +310,53 @@ class InstitutionController extends Controller
             }
 
             $request->validate([
-                'active_academic_year_id' => 'nullable|exists:academic_years,id',
-                'active_semester_id' => 'nullable|exists:semesters,id',
+                'active_academic_year_id' => 'required|exists:academic_years,id',
+                'semester_name' => 'required|in:Ganjil,Genap',
             ]);
 
-            // Validate semester belongs to academic year
-            if ($request->active_semester_id && $request->active_academic_year_id) {
-                $semester = \App\Models\Semester::findOrFail($request->active_semester_id);
-                if ($semester->academic_year_id != $request->active_academic_year_id) {
-                    return response()->json([
-                        'message' => 'Semester tidak sesuai dengan tahun ajaran yang dipilih',
-                    ], 422);
-                }
-            }
+            $academicYearId = $request->active_academic_year_id;
+            $semesterName = $request->semester_name;
 
-            // If only semester is provided, validate it belongs to current academic year
-            if ($request->active_semester_id && !$request->has('active_academic_year_id')) {
-                $semester = \App\Models\Semester::findOrFail($request->active_semester_id);
-                if ($institution->active_academic_year_id && $semester->academic_year_id != $institution->active_academic_year_id) {
-                    return response()->json([
-                        'message' => 'Semester tidak sesuai dengan tahun ajaran aktif saat ini',
-                    ], 422);
+            // Find or create semester
+            $semester = \App\Models\Semester::where('academic_year_id', $academicYearId)
+                ->where('name', $semesterName)
+                ->first();
+
+            if (!$semester) {
+                // Auto-create semester if doesn't exist
+                $academicYear = \App\Models\AcademicYear::findOrFail($academicYearId);
+                
+                // Calculate semester dates
+                $startDate = \Carbon\Carbon::parse($academicYear->start_date);
+                $endDate = \Carbon\Carbon::parse($academicYear->end_date);
+                $totalDays = $startDate->diffInDays($endDate);
+                $midDate = $startDate->copy()->addDays(floor($totalDays / 2));
+                
+                // Determine dates based on semester name
+                if ($semesterName === 'Ganjil') {
+                    $semesterStartDate = $startDate;
+                    $semesterEndDate = $midDate;
+                    $order = 1;
+                } else {
+                    $semesterStartDate = $midDate->copy()->addDay();
+                    $semesterEndDate = $endDate;
+                    $order = 2;
                 }
+
+                $semester = \App\Models\Semester::create([
+                    'academic_year_id' => $academicYearId,
+                    'name' => $semesterName,
+                    'order' => $order,
+                    'start_date' => $semesterStartDate->format('Y-m-d'),
+                    'end_date' => $semesterEndDate->format('Y-m-d'),
+                    'status' => 'Draft',
+                    'description' => 'Semester ' . $semesterName . ' - Auto-generated'
+                ]);
             }
 
             $institution->update([
-                'active_academic_year_id' => $request->active_academic_year_id ?? $institution->active_academic_year_id,
-                'active_semester_id' => $request->active_semester_id ?? $institution->active_semester_id,
+                'active_academic_year_id' => $academicYearId,
+                'active_semester_id' => $semester->id,
             ]);
 
             $institution->load(['activeAcademicYear', 'activeSemester']);

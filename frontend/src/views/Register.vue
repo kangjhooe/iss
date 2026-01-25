@@ -27,10 +27,7 @@
               placeholder="Nomor Pokok Sekolah Nasional (8 angka)"
               maxlength="8"
               @input="handleNpsnInput"
-              @blur="() => {
-                const validation = validateForm({ npsn: form.npsn }, { npsn: validationRules.npsn })
-                fieldErrors.npsn = validation.errors.npsn || ''
-              }"
+              @blur="() => validateField('npsn')"
             />
           </div>
           <small class="form-hint">8 digit angka NPSN sekolah Anda</small>
@@ -47,10 +44,7 @@
               type="text" 
               v-model="form.institution_name" 
               :class="{ 'input-error': fieldErrors.institution_name }"
-              @blur="() => {
-                const validation = validateForm({ institution_name: form.institution_name }, { institution_name: validationRules.institution_name })
-                fieldErrors.institution_name = validation.errors.institution_name || ''
-              }"
+              @blur="() => validateField('institution_name')"
               placeholder="Nama sekolah/madrasah"
             />
           </div>
@@ -68,10 +62,7 @@
               type="text" 
               v-model="form.name" 
               :class="{ 'input-error': fieldErrors.name }"
-              @blur="() => {
-                const validation = validateForm({ name: form.name }, { name: validationRules.name })
-                fieldErrors.name = validation.errors.name || ''
-              }"
+              @blur="() => validateField('name')"
               placeholder="Nama lengkap admin"
             />
           </div>
@@ -83,16 +74,13 @@
           <div class="input-wrapper">
             <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="L22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <input 
               type="email" 
               v-model="form.email" 
               :class="{ 'input-error': fieldErrors.email }"
-              @blur="() => {
-                const validation = validateForm({ email: form.email }, { email: validationRules.email })
-                fieldErrors.email = validation.errors.email || ''
-              }"
+              @blur="() => validateField('email')"
               placeholder="nama@email.com"
             />
           </div>
@@ -111,10 +99,7 @@
               :class="{ 'input-error': fieldErrors.phone }"
               placeholder="08xxxxxxxxxx"
               @input="handlePhoneInput"
-              @blur="() => {
-                const validation = validateForm({ phone: form.phone }, { phone: validationRules.phone })
-                fieldErrors.phone = validation.errors.phone || ''
-              }"
+              @blur="() => validateField('phone')"
             />
           </div>
           <span v-if="fieldErrors.phone" class="error-text">{{ fieldErrors.phone }}</span>
@@ -134,15 +119,9 @@
               placeholder="Minimal 8 karakter"
               minlength="8"
               @blur="() => {
-                const validation = validateForm({ password: form.password }, { password: validationRules.password })
-                fieldErrors.password = validation.errors.password || ''
-                // Re-validate password_confirmation if it has value
+                validateField('password')
                 if (form.password_confirmation) {
-                  const confirmValidation = validateForm(
-                    { password_confirmation: form.password_confirmation }, 
-                    { password_confirmation: validationRules.password_confirmation }
-                  )
-                  fieldErrors.password_confirmation = confirmValidation.errors.password_confirmation || ''
+                  validateField('password_confirmation')
                 }
               }"
             />
@@ -162,13 +141,7 @@
               v-model="form.password_confirmation" 
               :class="{ 'input-error': fieldErrors.password_confirmation }"
               placeholder="Ulangi password"
-              @blur="() => {
-                const validation = validateForm(
-                  { password_confirmation: form.password_confirmation }, 
-                  { password_confirmation: validationRules.password_confirmation }
-                )
-                fieldErrors.password_confirmation = validation.errors.password_confirmation || ''
-              }"
+              @blur="() => validateField('password_confirmation')"
             />
           </div>
           <span v-if="fieldErrors.password_confirmation" class="error-text">{{ fieldErrors.password_confirmation }}</span>
@@ -218,7 +191,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { validateForm, validators } from '@/utils/validation'
+import { validators } from '@/utils/validation'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -226,7 +200,7 @@ const toast = useToast()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const form = ref({
+const initialForm = {
   npsn: '',
   institution_name: '',
   name: '',
@@ -234,61 +208,57 @@ const form = ref({
   phone: '',
   password: '',
   password_confirmation: ''
-})
+}
+const form = ref({ ...initialForm })
 
 const loading = ref(false)
 const error = ref('')
-const fieldErrors = ref({
-  npsn: '',
-  institution_name: '',
-  name: '',
-  email: '',
-  phone: '',
-  password: '',
-  password_confirmation: ''
-})
-
 const validationRules = {
   npsn: [
-    validators.required('NPSN wajib diisi'),
-    validators.npsn('NPSN harus terdiri dari 8 digit angka')
+    (value) => validators.required(value, 'NPSN wajib diisi'),
+    (value) => validators.npsn(value, 'NPSN harus terdiri dari 8 digit angka')
   ],
   institution_name: [
-    validators.required('Nama sekolah/madrasah wajib diisi'),
-    validators.maxLength(form.value.institution_name, 255, 'Nama sekolah/madrasah maksimal 255 karakter')
+    (value) => validators.required(value, 'Nama sekolah/madrasah wajib diisi'),
+    (value) => validators.maxLength(value, 255, 'Nama sekolah/madrasah maksimal 255 karakter')
   ],
   name: [
-    validators.required('Nama lengkap wajib diisi'),
-    validators.maxLength(form.value.name, 255, 'Nama maksimal 255 karakter')
+    (value) => validators.required(value, 'Nama lengkap wajib diisi'),
+    (value) => validators.maxLength(value, 255, 'Nama maksimal 255 karakter')
   ],
   email: [
-    validators.required('Email wajib diisi'),
-    validators.email('Format email tidak valid'),
-    validators.maxLength(form.value.email, 255, 'Email maksimal 255 karakter')
+    (value) => validators.required(value, 'Email wajib diisi'),
+    (value) => validators.email(value, 'Format email tidak valid'),
+    (value) => validators.maxLength(value, 255, 'Email maksimal 255 karakter')
   ],
   phone: [
-    validators.required('Nomor telepon wajib diisi'),
-    validators.phone('Format nomor telepon tidak valid (10-15 digit)'),
-    validators.maxLength(form.value.phone, 20, 'Nomor telepon maksimal 20 karakter')
+    (value) => validators.required(value, 'Nomor telepon wajib diisi'),
+    (value) => validators.phone(value, 'Format nomor telepon tidak valid (10-15 digit)'),
+    (value) => validators.maxLength(value, 20, 'Nomor telepon maksimal 20 karakter')
   ],
   password: [
-    validators.required('Password wajib diisi'),
-    validators.minLength(form.value.password, 8, 'Password minimal 8 karakter')
+    (value) => validators.required(value, 'Password wajib diisi'),
+    (value) => validators.minLength(value, 8, 'Password minimal 8 karakter')
   ],
   password_confirmation: [
-    validators.required('Konfirmasi password wajib diisi'),
-    () => validators.match(form.value.password_confirmation, form.value.password, 'Password dan konfirmasi password tidak sama')
+    (value) => validators.required(value, 'Konfirmasi password wajib diisi'),
+    (value) => validators.match(value, form.value.password, 'Password dan konfirmasi password tidak sama')
   ]
 }
+
+const { fieldErrors, validateField, validateAll, clearErrors, setErrors } = useFormValidation({
+  form,
+  initialValues: initialForm,
+  rules: validationRules
+})
 
 const handleNpsnInput = (e) => {
   // Hanya allow angka
   e.target.value = e.target.value.replace(/[^0-9]/g, '')
   form.value.npsn = e.target.value
   // Clear error saat user mengetik
-  if (fieldErrors.value.npsn) {
-    const validation = validateForm({ npsn: form.value.npsn }, { npsn: validationRules.npsn })
-    fieldErrors.value.npsn = validation.errors.npsn || ''
+  if (fieldErrors.npsn) {
+    validateField('npsn')
   }
 }
 
@@ -297,29 +267,19 @@ const handlePhoneInput = (e) => {
   e.target.value = e.target.value.replace(/[^0-9]/g, '')
   form.value.phone = e.target.value
   // Clear error saat user mengetik
-  if (fieldErrors.value.phone) {
-    const validation = validateForm({ phone: form.value.phone }, { phone: validationRules.phone })
-    fieldErrors.value.phone = validation.errors.phone || ''
+  if (fieldErrors.phone) {
+    validateField('phone')
   }
 }
 
 const handleRegister = async () => {
   // Clear previous errors
   error.value = ''
-  fieldErrors.value = {
-    npsn: '',
-    institution_name: '',
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    password_confirmation: ''
-  }
+  clearErrors()
   
   // Validate form
-  const validation = validateForm(form.value, validationRules)
-  if (!validation.isValid) {
-    fieldErrors.value = validation.errors
+  const isValid = validateAll()
+  if (!isValid) {
     error.value = 'Mohon perbaiki kesalahan pada form'
     return
   }
@@ -337,14 +297,7 @@ const handleRegister = async () => {
     
     // Handle field-specific errors
     if (err.response?.data?.errors) {
-      const serverErrors = err.response.data.errors
-      Object.keys(serverErrors).forEach(key => {
-        if (fieldErrors.value.hasOwnProperty(key)) {
-          fieldErrors.value[key] = Array.isArray(serverErrors[key]) 
-            ? serverErrors[key][0] 
-            : serverErrors[key]
-        }
-      })
+      setErrors(err.response.data.errors)
     }
   } finally {
     loading.value = false

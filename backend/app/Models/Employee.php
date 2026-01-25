@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\Auditable;
 
 class Employee extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Auditable;
 
     protected $table = 'employee';
 
@@ -19,6 +20,7 @@ class Employee extends Model
      */
     protected $fillable = [
         'institution_id',
+        'nik',
         'type',
         'nip',
         'nuptk',
@@ -58,6 +60,14 @@ class Employee extends Model
     public function institution()
     {
         return $this->belongsTo(Institution::class);
+    }
+
+    /**
+     * Get the non-induk assignments for this employee.
+     */
+    public function assignments()
+    {
+        return $this->hasMany(EmployeeInstitutionAssignment::class);
     }
 
     /**

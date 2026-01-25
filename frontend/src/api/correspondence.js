@@ -145,5 +145,44 @@ export default {
 
   deleteAttachment(id) {
     return api.delete(`/v1/correspondence/attachments/${id}`)
+  },
+
+  // Statistics
+  getStatistics(params = {}) {
+    return api.get('/v1/correspondence/statistics', { params })
+  },
+
+  // Export
+  exportExcel(params = {}) {
+    return api.get('/v1/correspondence/export/excel', { params })
+  },
+
+  exportPdf(params = {}) {
+    return api.get('/v1/correspondence/export/pdf', { params })
+  },
+
+  downloadExport(filePath) {
+    return api.get(`/v1/correspondence/export/download/${filePath}`, {
+      responseType: 'blob'
+    })
+  },
+
+  downloadPdf(filePath) {
+    return api.get(`/v1/correspondence/export/pdf/${filePath}`, {
+      responseType: 'blob'
+    })
+  },
+
+  // Import
+  import(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/v1/correspondence/import', formData)
+  },
+
+  downloadImportTemplate() {
+    return api.get('/v1/correspondence/import/template', {
+      responseType: 'blob'
+    })
   }
 }

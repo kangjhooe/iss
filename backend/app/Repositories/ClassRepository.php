@@ -48,6 +48,10 @@ class ClassRepository extends BaseRepository
             $query->where('academic_year_id', $filters['academic_year_id']);
         }
 
+        if (isset($filters['semester_id'])) {
+            $query->where('semester_id', $filters['semester_id']);
+        }
+
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -74,7 +78,7 @@ class ClassRepository extends BaseRepository
     public function findWithRelations(int $id): SchoolClass
     {
         return $this->query()
-            ->with(['institution', 'room', 'teacher', 'students', 'academicYear'])
+            ->with(['institution', 'room', 'teacher', 'students', 'academicYear', 'semester'])
             ->findOrFail($id);
     }
 

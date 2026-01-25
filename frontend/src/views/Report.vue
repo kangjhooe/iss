@@ -156,15 +156,7 @@
         <!-- Students Statistics -->
         <div class="section">
           <h3 class="section-title">Data Siswa</h3>
-          <div v-if="calculatedTotalStudents === 0" class="empty-state">
-            <p>Tidak ada data siswa yang ditemukan. Pastikan:</p>
-            <ul>
-              <li>Siswa memiliki status "Aktif"</li>
-              <li>Siswa terhubung ke kelas dengan grade 7, 8, atau 9</li>
-              <li>Tahun ajaran aktif sudah ditetapkan</li>
-            </ul>
-          </div>
-          <div v-else class="chart-container">
+          <div class="chart-container">
             <div class="chart-wrapper">
               <h4>Jumlah Siswa per Kelas</h4>
               <Bar v-if="studentsChartData" :data="studentsChartData" :options="chartOptions" />
@@ -187,23 +179,11 @@
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td><strong>Kelas 7</strong></td>
-                  <td>{{ reportData.students?.grade_7?.male || 0 }}</td>
-                  <td>{{ reportData.students?.grade_7?.female || 0 }}</td>
-                  <td><strong>{{ reportData.students?.grade_7?.total || 0 }}</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Kelas 8</strong></td>
-                  <td>{{ reportData.students?.grade_8?.male || 0 }}</td>
-                  <td>{{ reportData.students?.grade_8?.female || 0 }}</td>
-                  <td><strong>{{ reportData.students?.grade_8?.total || 0 }}</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Kelas 9</strong></td>
-                  <td>{{ reportData.students?.grade_9?.male || 0 }}</td>
-                  <td>{{ reportData.students?.grade_9?.female || 0 }}</td>
-                  <td><strong>{{ reportData.students?.grade_9?.total || 0 }}</strong></td>
+                <tr v-for="grade in gradeRange" :key="grade">
+                  <td><strong>Kelas {{ grade }}</strong></td>
+                  <td>{{ reportData.students?.[`grade_${grade}`]?.male || 0 }}</td>
+                  <td>{{ reportData.students?.[`grade_${grade}`]?.female || 0 }}</td>
+                  <td><strong>{{ reportData.students?.[`grade_${grade}`]?.total || 0 }}</strong></td>
                 </tr>
                 <tr class="total-row">
                   <td><strong>Total</strong></td>
@@ -216,35 +196,128 @@
           </div>
         </div>
 
-        <!-- Teachers Statistics -->
+        <!-- Students Status Statistics -->
         <div class="section">
-          <h3 class="section-title">Data Guru</h3>
+          <h3 class="section-title">Status Siswa</h3>
           <div class="chart-container">
             <div class="chart-wrapper">
-              <h4>Jumlah Guru per Jenis Kelamin</h4>
-              <Bar :data="teachersChartData" :options="chartOptions" />
+              <h4>Distribusi Siswa per Status</h4>
+              <Doughnut v-if="studentsStatusChartData" :data="studentsStatusChartData" :options="pieChartOptions" />
             </div>
           </div>
           <div class="data-table-container">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Jenis Kelamin</th>
+                  <th>Status</th>
                   <th>Jumlah</th>
+                  <th>Persentase</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(count, status) in reportData.students_by_status" :key="status" v-if="status !== 'total'">
+                  <td><strong>{{ status }}</strong></td>
+                  <td>{{ count }}</td>
+                  <td>{{ reportData.students_by_status?.total > 0 ? ((count / reportData.students_by_status.total) * 100).toFixed(2) : 0 }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Classes Detail -->
+        <div class="section" v-if="reportData.classes_detail">
+          <h3 class="section-title">Rombongan Belajar (Rombel)</h3>
+          <div class="info-grid" style="margin-bottom: 20px;">
+            <div class="info-item">
+              <span class="info-label">Total Rombel</span>
+              <span class="info-value">{{ reportData.classes_detail.total_rombel || 0 }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Rata-rata Siswa per Rombel</span>
+              <span class="info-value">{{ reportData.classes_detail.average_students_per_rombel || 0 }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Rata-rata Kapasitas per Rombel</span>
+              <span class="info-value">{{ reportData.classes_detail.average_capacity || 0 }}</span>
+            </div>
+          </div>
+          <div v-for="(rombelList, gradeKey) in reportData.classes_detail.by_grade" :key="gradeKey" style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 12px; color: #475569; font-size: 16px;">{{ gradeKey.replace('grade_', 'Kelas ') }}</h4>
+            <div class="data-table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nama Rombel</th>
+                    <th>Kode</th>
+                    <th>Wali Kelas</th>
+                    <th>Ruangan</th>
+                    <th>Siswa</th>
+                    <th>Kapasitas</th>
+                    <th>Utilisasi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(rombel, index) in rombelList" :key="index">
+                    <td>{{ rombel.name }}</td>
+                    <td>{{ rombel.code || '-' }}</td>
+                    <td>{{ rombel.wali_kelas }}</td>
+                    <td>{{ rombel.room }}</td>
+                    <td>{{ rombel.students }}</td>
+                    <td>{{ rombel.capacity || '-' }}</td>
+                    <td>
+                      <span :style="{ color: rombel.utilization > 100 ? '#ef4444' : rombel.utilization > 80 ? '#f59e0b' : '#10b981' }">
+                        {{ rombel.utilization }}%
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Employees Statistics -->
+        <div class="section">
+          <h3 class="section-title">Data Tenaga Kependidikan</h3>
+          <div class="chart-container">
+            <div class="chart-wrapper">
+              <h4>Distribusi Tenaga Kependidikan</h4>
+              <Doughnut v-if="employeesChartData" :data="employeesChartData" :options="pieChartOptions" />
+            </div>
+            <div class="chart-wrapper">
+              <h4>Tenaga Kependidikan per Jenis Kelamin</h4>
+              <Bar v-if="employeesGenderChartData" :data="employeesGenderChartData" :options="chartOptions" />
+            </div>
+          </div>
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Kategori</th>
+                  <th>Laki-laki</th>
+                  <th>Perempuan</th>
+                  <th>Total</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Laki-laki</td>
-                  <td>{{ reportData.employees?.teachers_male || reportData.teachers?.male || 0 }}</td>
+                  <td><strong>Guru</strong></td>
+                  <td>{{ reportData.employees?.teachers_male || 0 }}</td>
+                  <td>{{ reportData.employees?.teachers_female || 0 }}</td>
+                  <td><strong>{{ reportData.employees?.teachers || 0 }}</strong></td>
                 </tr>
                 <tr>
-                  <td>Perempuan</td>
-                  <td>{{ reportData.employees?.teachers_female || reportData.teachers?.female || 0 }}</td>
+                  <td><strong>Tenaga Administrasi/Staff</strong></td>
+                  <td>{{ reportData.employees?.staff_male || 0 }}</td>
+                  <td>{{ reportData.employees?.staff_female || 0 }}</td>
+                  <td><strong>{{ reportData.employees?.staff || 0 }}</strong></td>
                 </tr>
                 <tr class="total-row">
-                  <td><strong>Total</strong></td>
-                  <td><strong>{{ reportData.employees?.teachers || reportData.teachers?.total || 0 }}</strong></td>
+                  <td><strong>Total Tenaga Kependidikan</strong></td>
+                  <td><strong>{{ reportData.employees?.male || 0 }}</strong></td>
+                  <td><strong>{{ reportData.employees?.female || 0 }}</strong></td>
+                  <td><strong>{{ reportData.employees?.total || 0 }}</strong></td>
                 </tr>
               </tbody>
             </table>
@@ -299,6 +372,52 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ratios and Indicators -->
+        <div class="section">
+          <h3 class="section-title">Rasio dan Indikator</h3>
+          <div class="ratios-grid">
+            <div class="ratio-card">
+              <div class="ratio-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="ratio-content">
+                <div class="ratio-value">{{ reportData.summary?.student_teacher_ratio || 0 }}</div>
+                <div class="ratio-label">Rasio Siswa : Guru</div>
+              </div>
+            </div>
+            <div class="ratio-card">
+              <div class="ratio-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 19.5C4 18.6716 4.67157 18 5.5 18H18.5C19.3284 18 20 18.6716 20 19.5C20 20.3284 19.3284 21 18.5 21H5.5C4.67157 21 4 20.3284 4 19.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M4 4.5C4 3.67157 4.67157 3 5.5 3H18.5C19.3284 3 20 3.67157 20 4.5C20 5.32843 19.3284 6 18.5 6H5.5C4.67157 6 4 5.32843 4 4.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M4 12C4 11.1716 4.67157 10.5 5.5 10.5H18.5C19.3284 10.5 20 11.1716 20 12C20 12.8284 19.3284 13.5 18.5 13.5H5.5C4.67157 13.5 4 12.8284 4 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="ratio-content">
+                <div class="ratio-value">{{ reportData.summary?.average_students_per_class || 0 }}</div>
+                <div class="ratio-label">Rata-rata Siswa per Kelas</div>
+              </div>
+            </div>
+            <div class="ratio-card" v-if="reportData.summary?.average_students_per_rombel">
+              <div class="ratio-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="ratio-content">
+                <div class="ratio-value">{{ reportData.summary?.average_students_per_rombel || 0 }}</div>
+                <div class="ratio-label">Rata-rata Siswa per Rombel</div>
               </div>
             </div>
           </div>
@@ -403,28 +522,47 @@ const comparisonChartOptions = {
   }
 }
 
+const gradeRange = computed(() => {
+  if (!reportData.value?.institution?.level) {
+    return [7, 8, 9] // Default to SMP/MTs
+  }
+  
+  const level = reportData.value.institution.level
+  const gradeRanges = {
+    'TK': [1],
+    'PAUD': [1],
+    'SD': [1, 2, 3, 4, 5, 6],
+    'MI': [1, 2, 3, 4, 5, 6],
+    'SMP': [7, 8, 9],
+    'MTs': [7, 8, 9],
+    'SMA': [10, 11, 12],
+    'MA': [10, 11, 12],
+    'SMK': [10, 11, 12],
+    'MAK': [10, 11, 12],
+  }
+  
+  return gradeRanges[level] || [7, 8, 9]
+})
+
 const studentsChartData = computed(() => {
   if (!reportData.value || !reportData.value.students) {
-    console.log('Chart data: reportData or students is null')
+    if (import.meta.env.DEV) {
+      console.log('Chart data: reportData or students is null')
+    }
     return null
   }
   
-  const maleData = [
-    reportData.value.students.grade_7?.male || 0,
-    reportData.value.students.grade_8?.male || 0,
-    reportData.value.students.grade_9?.male || 0
-  ]
+  const grades = gradeRange.value
+  const labels = grades.map(g => `Kelas ${g}`)
+  const maleData = grades.map(grade => reportData.value.students[`grade_${grade}`]?.male || 0)
+  const femaleData = grades.map(grade => reportData.value.students[`grade_${grade}`]?.female || 0)
   
-  const femaleData = [
-    reportData.value.students.grade_7?.female || 0,
-    reportData.value.students.grade_8?.female || 0,
-    reportData.value.students.grade_9?.female || 0
-  ]
-  
-  console.log('Chart data - Male:', maleData, 'Female:', femaleData)
+  if (import.meta.env.DEV) {
+    console.log('Chart data - Male:', maleData, 'Female:', femaleData)
+  }
   
   return {
-    labels: ['Kelas 7', 'Kelas 8', 'Kelas 9'],
+    labels: labels,
     datasets: [
       {
         label: 'Laki-laki',
@@ -443,15 +581,15 @@ const studentsChartData = computed(() => {
 const studentsPieChartData = computed(() => {
   if (!reportData.value || !reportData.value.students) return null
   
+  const grades = gradeRange.value
+  const labels = grades.map(g => `Kelas ${g}`)
+  const colors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#38f9d7', '#f5576c', '#764ba2', '#667eea', '#f093fb', '#4facfe', '#43e97b', '#38f9d7']
+  
   return {
-    labels: ['Kelas 7', 'Kelas 8', 'Kelas 9'],
+    labels: labels,
     datasets: [{
-      backgroundColor: ['#667eea', '#f093fb', '#4facfe'],
-      data: [
-        reportData.value.students.grade_7?.total || 0,
-        reportData.value.students.grade_8?.total || 0,
-        reportData.value.students.grade_9?.total || 0
-      ]
+      backgroundColor: colors.slice(0, grades.length),
+      data: grades.map(grade => reportData.value.students[`grade_${grade}`]?.total || 0)
     }]
   }
 })
@@ -479,32 +617,90 @@ const teachersChartData = computed(() => {
   }
 })
 
+const employeesChartData = computed(() => {
+  if (!reportData.value || !reportData.value.employees) return null
+  
+  const teachers = reportData.value.employees.teachers || 0
+  const staff = reportData.value.employees.staff || 0
+  
+  return {
+    labels: ['Guru', 'Tenaga Administrasi/Staff'],
+    datasets: [{
+      backgroundColor: ['#667eea', '#f093fb'],
+      data: [teachers, staff]
+    }]
+  }
+})
+
+const employeesGenderChartData = computed(() => {
+  if (!reportData.value || !reportData.value.employees) return null
+  
+  const male = reportData.value.employees.male || 0
+  const female = reportData.value.employees.female || 0
+  
+  return {
+    labels: ['Tenaga Kependidikan'],
+    datasets: [
+      {
+        label: 'Laki-laki',
+        backgroundColor: '#667eea',
+        data: [male]
+      },
+      {
+        label: 'Perempuan',
+        backgroundColor: '#f093fb',
+        data: [female]
+      }
+    ]
+  }
+})
+
+const studentsStatusChartData = computed(() => {
+  if (!reportData.value || !reportData.value.students_by_status) return null
+  
+  const statusData = reportData.value.students_by_status
+  const labels = []
+  const data = []
+  const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8']
+  let colorIndex = 0
+  
+  for (const [status, count] of Object.entries(statusData)) {
+    if (status !== 'total' && count > 0) {
+      labels.push(status)
+      data.push(count)
+      colorIndex++
+    }
+  }
+  
+  return {
+    labels: labels,
+    datasets: [{
+      backgroundColor: colors.slice(0, labels.length),
+      data: data
+    }]
+  }
+})
+
 const comparisonChartData = computed(() => {
   if (!reportData.value || !reportData.value.comparison || !reportData.value.students) return null
   
   const current = reportData.value.students
   const previous = reportData.value.comparison.students
+  const grades = gradeRange.value
+  const labels = grades.map(g => `Kelas ${g}`)
   
   return {
-    labels: ['Kelas 7', 'Kelas 8', 'Kelas 9'],
+    labels: labels,
     datasets: [
       {
         label: reportData.value.academic_year?.name || 'Tahun Ajaran Aktif',
         backgroundColor: '#667eea',
-        data: [
-          current.grade_7?.total || 0,
-          current.grade_8?.total || 0,
-          current.grade_9?.total || 0
-        ]
+        data: grades.map(grade => current[`grade_${grade}`]?.total || 0)
       },
       {
         label: reportData.value.comparison.academic_year || 'Tahun Ajaran Sebelumnya',
         backgroundColor: '#94a3b8',
-        data: [
-          previous.grade_7?.total || 0,
-          previous.grade_8?.total || 0,
-          previous.grade_9?.total || 0
-        ]
+        data: grades.map(grade => previous[`grade_${grade}`]?.total || 0)
       }
     ]
   }
@@ -512,16 +708,16 @@ const comparisonChartData = computed(() => {
 
 const totalMaleStudents = computed(() => {
   if (!reportData.value || !reportData.value.students) return 0
-  return (reportData.value.students.grade_7?.male || 0) + 
-         (reportData.value.students.grade_8?.male || 0) + 
-         (reportData.value.students.grade_9?.male || 0)
+  return gradeRange.value.reduce((sum, grade) => {
+    return sum + (reportData.value.students[`grade_${grade}`]?.male || 0)
+  }, 0)
 })
 
 const totalFemaleStudents = computed(() => {
   if (!reportData.value || !reportData.value.students) return 0
-  return (reportData.value.students.grade_7?.female || 0) + 
-         (reportData.value.students.grade_8?.female || 0) + 
-         (reportData.value.students.grade_9?.female || 0)
+  return gradeRange.value.reduce((sum, grade) => {
+    return sum + (reportData.value.students[`grade_${grade}`]?.female || 0)
+  }, 0)
 })
 
 const calculatedTotalStudents = computed(() => {
@@ -539,57 +735,79 @@ const loadReport = async () => {
     
     const response = await reportApi.getStatistics(null, params)
     
-      // Debug: Log raw response
-      console.log('Raw API Response:', response)
-      console.log('Response data:', response.data)
-      
       if (response.data && response.data.data) {
       const data = response.data.data
       
-      // Debug: Log raw data structure
-      console.log('Raw data structure:', JSON.stringify(data, null, 2))
-      console.log('Students data (raw):', data.students)
-      console.log('Summary data (raw):', data.summary)
+      // Debug logging (development only)
+      if (import.meta.env.DEV) {
+        console.log('Raw API Response:', response)
+        console.log('Response data:', response.data)
+        console.log('Raw data structure:', JSON.stringify(data, null, 2))
+        console.log('Students data (raw):', data.students)
+        console.log('Summary data (raw):', data.summary)
+      }
       
       // Normalize data structure - ensure students structure exists
+      // Get grade range based on institution level
+      const institutionLevel = data.institution?.level
+      const gradeRanges = {
+        'TK': [1],
+        'PAUD': [1],
+        'SD': [1, 2, 3, 4, 5, 6],
+        'MI': [1, 2, 3, 4, 5, 6],
+        'SMP': [7, 8, 9],
+        'MTs': [7, 8, 9],
+        'SMA': [10, 11, 12],
+        'MA': [10, 11, 12],
+        'SMK': [10, 11, 12],
+        'MAK': [10, 11, 12],
+      }
+      const grades = gradeRanges[institutionLevel] || [7, 8, 9]
+      
       if (!data.students) {
-        data.students = {
-          grade_7: { male: 0, female: 0, total: 0 },
-          grade_8: { male: 0, female: 0, total: 0 },
-          grade_9: { male: 0, female: 0, total: 0 }
-        }
+        data.students = {}
+        grades.forEach(grade => {
+          data.students[`grade_${grade}`] = { male: 0, female: 0, total: 0 }
+        })
       } else {
         // Ensure each grade has the required structure and recalculate totals
-        ['grade_7', 'grade_8', 'grade_9'].forEach(grade => {
-          if (!data.students[grade]) {
-            data.students[grade] = { male: 0, female: 0, total: 0 }
+        grades.forEach(grade => {
+          const gradeKey = `grade_${grade}`
+          if (!data.students[gradeKey]) {
+            data.students[gradeKey] = { male: 0, female: 0, total: 0 }
           } else {
             // Ensure values are numbers
-            data.students[grade].male = Number(data.students[grade].male) || 0
-            data.students[grade].female = Number(data.students[grade].female) || 0
+            data.students[gradeKey].male = Number(data.students[gradeKey].male) || 0
+            data.students[gradeKey].female = Number(data.students[gradeKey].female) || 0
             // Recalculate total from male + female to ensure accuracy
-            data.students[grade].total = data.students[grade].male + data.students[grade].female
+            data.students[gradeKey].total = data.students[gradeKey].male + data.students[gradeKey].female
           }
         })
       }
       
       // Recalculate summary.total_students from actual students data
       if (data.summary) {
-        const calculatedTotal = (data.students.grade_7?.total || 0) + 
-                                (data.students.grade_8?.total || 0) + 
-                                (data.students.grade_9?.total || 0)
+        const calculatedTotal = grades.reduce((sum, grade) => {
+          return sum + (data.students[`grade_${grade}`]?.total || 0)
+        }, 0)
         data.summary.total_students = calculatedTotal
         
-        // Debug log
-        console.log('=== Students Data Normalized ===')
-        console.log('Grade 7:', data.students.grade_7)
-        console.log('Grade 8:', data.students.grade_8)
-        console.log('Grade 9:', data.students.grade_9)
-        console.log('Calculated Total:', calculatedTotal)
-        console.log('Summary Total (before):', data.summary.total_students)
-        console.log('Summary Total (after):', calculatedTotal)
+        // Debug log (development only)
+        if (import.meta.env.DEV) {
+          console.log('=== Students Data Normalized ===')
+          console.log('Institution Level:', institutionLevel)
+          console.log('Grade Range:', grades)
+          grades.forEach(grade => {
+            console.log(`Grade ${grade}:`, data.students[`grade_${grade}`])
+          })
+          console.log('Calculated Total:', calculatedTotal)
+          console.log('Summary Total (before):', data.summary.total_students)
+          console.log('Summary Total (after):', calculatedTotal)
+        }
       } else {
-        console.warn('Summary data is missing!')
+        if (import.meta.env.DEV) {
+          console.warn('Summary data is missing!')
+        }
       }
       
       // Normalize employees/teachers structure
@@ -602,6 +820,30 @@ const loadReport = async () => {
         }
       } else if (!data.teachers) {
         data.teachers = { male: 0, female: 0, total: 0 }
+      }
+      
+      // Ensure students_by_status exists
+      if (!data.students_by_status) {
+        data.students_by_status = {
+          'Aktif': 0,
+          'Lulus': 0,
+          'Pindah': 0,
+          'Drop Out': 0,
+          'Lainnya': 0,
+          'total': 0
+        }
+      }
+      
+      // Ensure classes_detail exists
+      if (!data.classes_detail) {
+        data.classes_detail = {
+          by_grade: {},
+          total_rombel: 0,
+          total_capacity: 0,
+          total_students: 0,
+          average_capacity: 0,
+          average_students_per_rombel: 0
+        }
       }
       
       reportData.value = data
@@ -667,26 +909,16 @@ const exportPDF = async () => {
     const fullAddress = formatAddress(institution)
     const principalLabel = getPrincipalLabel(institution)
     
-    // Build students table HTML
-    const studentsTableRows = `
+    // Build students table HTML dynamically based on grade range
+    const grades = gradeRange.value
+    const studentsTableRows = grades.map(grade => `
       <tr>
-        <td><strong>Kelas 7</strong></td>
-        <td>${reportData.value.students?.grade_7?.male || 0}</td>
-        <td>${reportData.value.students?.grade_7?.female || 0}</td>
-        <td><strong>${reportData.value.students?.grade_7?.total || 0}</strong></td>
+        <td><strong>Kelas ${grade}</strong></td>
+        <td>${reportData.value.students?.[`grade_${grade}`]?.male || 0}</td>
+        <td>${reportData.value.students?.[`grade_${grade}`]?.female || 0}</td>
+        <td><strong>${reportData.value.students?.[`grade_${grade}`]?.total || 0}</strong></td>
       </tr>
-      <tr>
-        <td><strong>Kelas 8</strong></td>
-        <td>${reportData.value.students?.grade_8?.male || 0}</td>
-        <td>${reportData.value.students?.grade_8?.female || 0}</td>
-        <td><strong>${reportData.value.students?.grade_8?.total || 0}</strong></td>
-      </tr>
-      <tr>
-        <td><strong>Kelas 9</strong></td>
-        <td>${reportData.value.students?.grade_9?.male || 0}</td>
-        <td>${reportData.value.students?.grade_9?.female || 0}</td>
-        <td><strong>${reportData.value.students?.grade_9?.total || 0}</strong></td>
-      </tr>
+    `).join('') + `
       <tr>
         <td><strong>Total</strong></td>
         <td><strong>${totalMaleStudents.value}</strong></td>
@@ -909,8 +1141,16 @@ const exportPDF = async () => {
                 <div class="summary-label">Total Guru</div>
               </div>
               <div class="summary-item">
+                <div class="summary-value">${reportData.value.summary?.total_staff || 0}</div>
+                <div class="summary-label">Total Staff</div>
+              </div>
+              <div class="summary-item">
                 <div class="summary-value">${reportData.value.summary?.total_classes || 0}</div>
                 <div class="summary-label">Total Kelas</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-value">${reportData.value.classes_detail?.total_rombel || 0}</div>
+                <div class="summary-label">Total Rombel</div>
               </div>
               <div class="summary-item">
                 <div class="summary-value">${reportData.value.summary?.total_facilities || 0}</div>
@@ -975,27 +1215,108 @@ const exportPDF = async () => {
           </table>
         </div>
         
+        ${reportData.value.students_by_status ? `
         <div class="section">
-          <h3 class="section-title">Data Guru</h3>
+          <h3 class="section-title">Status Siswa</h3>
           <table class="data-table">
             <thead>
               <tr>
-                <th>Jenis Kelamin</th>
+                <th>Status</th>
                 <th>Jumlah</th>
+                <th>Persentase</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(reportData.value.students_by_status).filter(([status]) => status !== 'total').map(([status, count]) => `
+              <tr>
+                <td><strong>${status}</strong></td>
+                <td>${count}</td>
+                <td>${reportData.value.students_by_status?.total > 0 ? ((count / reportData.value.students_by_status.total) * 100).toFixed(2) : 0}%</td>
+              </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+        
+        ${reportData.value.classes_detail && reportData.value.classes_detail.total_rombel > 0 ? `
+        <div class="section">
+          <h3 class="section-title">Rombongan Belajar (Rombel)</h3>
+          <div class="info-grid" style="margin-bottom: 12px;">
+            <div class="info-item">
+              <span class="info-label">Total Rombel</span>
+              <span class="info-value">${reportData.value.classes_detail.total_rombel || 0}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Rata-rata Siswa per Rombel</span>
+              <span class="info-value">${reportData.value.classes_detail.average_students_per_rombel || 0}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Rata-rata Kapasitas per Rombel</span>
+              <span class="info-value">${reportData.value.classes_detail.average_capacity || 0}</span>
+            </div>
+          </div>
+          ${Object.entries(reportData.value.classes_detail.by_grade || {}).map(([gradeKey, rombelList]) => `
+          <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 13px; font-weight: bold;">${gradeKey.replace('grade_', 'Kelas ')}</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nama Rombel</th>
+                <th>Kode</th>
+                <th>Wali Kelas</th>
+                <th>Ruangan</th>
+                <th>Siswa</th>
+                <th>Kapasitas</th>
+                <th>Utilisasi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rombelList.map(rombel => `
+              <tr>
+                <td>${rombel.name}</td>
+                <td>${rombel.code || '-'}</td>
+                <td>${rombel.wali_kelas}</td>
+                <td>${rombel.room}</td>
+                <td>${rombel.students}</td>
+                <td>${rombel.capacity || '-'}</td>
+                <td>${rombel.utilization}%</td>
+              </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          `).join('')}
+        </div>
+        ` : ''}
+        
+        <div class="section">
+          <h3 class="section-title">Data Tenaga Kependidikan</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Kategori</th>
+                <th>Laki-laki</th>
+                <th>Perempuan</th>
+                <th>Total</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>Laki-laki</td>
-                <td>${reportData.value.employees?.teachers_male || reportData.value.teachers?.male || 0}</td>
+                <td><strong>Guru</strong></td>
+                <td>${reportData.value.employees?.teachers_male || 0}</td>
+                <td>${reportData.value.employees?.teachers_female || 0}</td>
+                <td><strong>${reportData.value.employees?.teachers || 0}</strong></td>
               </tr>
               <tr>
-                <td>Perempuan</td>
-                <td>${reportData.value.employees?.teachers_female || reportData.value.teachers?.female || 0}</td>
+                <td><strong>Tenaga Administrasi/Staff</strong></td>
+                <td>${reportData.value.employees?.staff_male || 0}</td>
+                <td>${reportData.value.employees?.staff_female || 0}</td>
+                <td><strong>${reportData.value.employees?.staff || 0}</strong></td>
               </tr>
               <tr class="total-row">
-                <td><strong>Total</strong></td>
-                <td><strong>${reportData.value.employees?.teachers || reportData.value.teachers?.total || 0}</strong></td>
+                <td><strong>Total Tenaga Kependidikan</strong></td>
+                <td><strong>${reportData.value.employees?.male || 0}</strong></td>
+                <td><strong>${reportData.value.employees?.female || 0}</strong></td>
+                <td><strong>${reportData.value.employees?.total || 0}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -1041,6 +1362,26 @@ const exportPDF = async () => {
           ` : ''}
         </div>
         
+        <div class="section">
+          <h3 class="section-title">Rasio dan Indikator</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Rasio Siswa : Guru</span>
+              <span class="info-value">${reportData.value.summary?.student_teacher_ratio || 0}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Rata-rata Siswa per Kelas</span>
+              <span class="info-value">${reportData.value.summary?.average_students_per_class || 0}</span>
+            </div>
+            ${reportData.value.summary?.average_students_per_rombel ? `
+            <div class="info-item">
+              <span class="info-label">Rata-rata Siswa per Rombel</span>
+              <span class="info-value">${reportData.value.summary.average_students_per_rombel}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        
         ${reportData.value.comparison ? `
         <div class="section">
           <h3 class="section-title">Perbandingan dengan Tahun Ajaran Sebelumnya</h3>
@@ -1056,24 +1397,14 @@ const exportPDF = async () => {
               </tr>
             </thead>
             <tbody>
+              ${gradeRange.value.map(grade => `
               <tr>
-                <td>Kelas 7</td>
-                <td>${reportData.value.students?.grade_7?.total || 0}</td>
-                <td>${reportData.value.comparison.students?.grade_7?.total || 0}</td>
-                <td>${(reportData.value.students?.grade_7?.total || 0) - (reportData.value.comparison.students?.grade_7?.total || 0)}</td>
+                <td>Kelas ${grade}</td>
+                <td>${reportData.value.students?.[`grade_${grade}`]?.total || 0}</td>
+                <td>${reportData.value.comparison.students?.[`grade_${grade}`]?.total || 0}</td>
+                <td>${(reportData.value.students?.[`grade_${grade}`]?.total || 0) - (reportData.value.comparison.students?.[`grade_${grade}`]?.total || 0)}</td>
               </tr>
-              <tr>
-                <td>Kelas 8</td>
-                <td>${reportData.value.students?.grade_8?.total || 0}</td>
-                <td>${reportData.value.comparison.students?.grade_8?.total || 0}</td>
-                <td>${(reportData.value.students?.grade_8?.total || 0) - (reportData.value.comparison.students?.grade_8?.total || 0)}</td>
-              </tr>
-              <tr>
-                <td>Kelas 9</td>
-                <td>${reportData.value.students?.grade_9?.total || 0}</td>
-                <td>${reportData.value.comparison.students?.grade_9?.total || 0}</td>
-                <td>${(reportData.value.students?.grade_9?.total || 0) - (reportData.value.comparison.students?.grade_9?.total || 0)}</td>
-              </tr>
+              `).join('')}
             </tbody>
           </table>
         </div>
@@ -1507,6 +1838,58 @@ onMounted(() => {
   text-align: center;
   color: #94a3b8;
   font-size: 14px;
+}
+
+.ratios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.ratio-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ratio-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ratio-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.ratio-content {
+  flex: 1;
+}
+
+.ratio-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.ratio-label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 @media (max-width: 768px) {

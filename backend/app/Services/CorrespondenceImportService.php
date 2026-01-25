@@ -5,11 +5,11 @@ namespace App\Services;
 use App\Models\Correspondence;
 use App\Models\CorrespondenceCategory;
 use App\Repositories\CorrespondenceRepository;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
+use Carbon\Carbon;
 
 class CorrespondenceImportService
 {
@@ -18,7 +18,7 @@ class CorrespondenceImportService
     ) {}
 
     /**
-     * Import correspondence from Excel file.
+     * Import correspondence from CSV file (template provided by API).
      */
     public function importFromExcel(string $filePath, int $institutionId, int $userId): array
     {
@@ -29,11 +29,35 @@ class CorrespondenceImportService
         ];
 
         try {
-            $data = \Maatwebsite\Excel\Facades\Excel::toCollection(new class implements ToCollection, WithHeadingRow {
-                public function collection(Collection $rows) {
-                    return $rows;
+            // Read CSV file from public disk
+            $fullPath = Storage::disk('public')->path($filePath);
+            $file = fopen($fullPath, 'r');
+            if ($file === false) {
+                throw new \Exception('Gagal membuka file CSV untuk dibaca');
+            }
+            
+            // Skip header row
+            $rawHeaders = fgetcsv($file);
+            if ($rawHeaders === false) {
+                throw new \Exception('File CSV kosong atau tidak valid');
+            }
+            $headers = array_map([$this, 'normalizeHeader'], $rawHeaders);
+            
+            $data = [];
+            while (($row = fgetcsv($file)) !== false) {
+                if (count($row) < count($headers)) {
+                    continue;
                 }
-            }, $filePath)->first();
+
+                $row = array_slice($row, 0, count($headers));
+                $combined = array_combine($headers, $row);
+                if (is_array($combined)) {
+                    $data[] = $combined;
+                }
+            }
+            fclose($file);
+            
+            $data = collect($data);
 
             DB::beginTransaction();
 
@@ -42,7 +66,11 @@ class CorrespondenceImportService
                     $rowNumber = $index + 2; // +2 because index starts at 0 and we skip header row
 
                     // Validate required fields
-                    if (empty($row['tipe']) || empty($row['perihal']) || empty($row['tanggal_surat'])) {
+                    $typeRaw = $this->clean($row['tipe'] ?? $row['type'] ?? null);
+                    $subject = $this->clean($row['perihal'] ?? $row['subject'] ?? null);
+                    $dateRaw = $this->clean($row['tanggal_surat'] ?? $row['date'] ?? null);
+
+                    if (empty($typeRaw) || empty($subject) || empty($dateRaw)) {
                         $results['failed']++;
                         $results['errors'][] = "Baris {$rowNumber}: Tipe, Perihal, dan Tanggal Surat wajib diisi";
                         continue;
@@ -51,41 +79,48 @@ class CorrespondenceImportService
                     // Map Excel columns to database fields
                     $correspondenceData = [
                         'institution_id' => $institutionId,
-                        'type' => strtolower($row['tipe'] ?? 'masuk'),
-                        'subject' => $row['perihal'],
-                        'date' => $this->parseDate($row['tanggal_surat']),
-                        'priority' => $this->mapPriority($row['prioritas'] ?? 'biasa'),
-                        'status' => $this->mapStatus($row['status'] ?? 'draft'),
+                        'type' => strtolower($typeRaw),
+                        'subject' => $subject,
+                        'date' => $this->parseDate($dateRaw),
+                        'priority' => $this->mapPriority($this->clean($row['prioritas'] ?? null) ?? 'biasa'),
+                        'status' => $this->mapStatus($this->clean($row['status'] ?? null) ?? 'draft'),
                         'created_by' => $userId,
                     ];
 
                     // Optional fields
-                    if (!empty($row['jenis_surat'])) {
-                        $correspondenceData['letter_type_code'] = str_pad($row['jenis_surat'], 2, '0', STR_PAD_LEFT);
+                    $letterType = $this->clean($row['jenis_surat'] ?? ($row['jenis_surat_01_16'] ?? null));
+                    if (!empty($letterType)) {
+                        $correspondenceData['letter_type_code'] = str_pad($letterType, 2, '0', STR_PAD_LEFT);
                     }
 
-                    if (!empty($row['nomor_surat'])) {
-                        $correspondenceData['letter_number'] = $row['nomor_surat'];
+                    $letterNumber = $this->clean($row['nomor_surat'] ?? null);
+                    if (!empty($letterNumber)) {
+                        $correspondenceData['letter_number'] = $letterNumber;
                     }
 
-                    if (!empty($row['nomor_referensi'])) {
-                        $correspondenceData['reference_number'] = $row['nomor_referensi'];
+                    $referenceNumber = $this->clean($row['nomor_referensi'] ?? null);
+                    if (!empty($referenceNumber)) {
+                        $correspondenceData['reference_number'] = $referenceNumber;
                     }
 
-                    if (!empty($row['dari'])) {
-                        $correspondenceData['from'] = $row['dari'];
+                    $from = $this->clean($row['dari'] ?? null);
+                    if (!empty($from)) {
+                        $correspondenceData['from'] = $from;
                     }
 
-                    if (!empty($row['kepada'])) {
-                        $correspondenceData['to'] = $row['kepada'];
+                    $to = $this->clean($row['kepada'] ?? null);
+                    if (!empty($to)) {
+                        $correspondenceData['to'] = $to;
                     }
 
-                    if (!empty($row['tanggal_terima'])) {
-                        $correspondenceData['received_date'] = $this->parseDate($row['tanggal_terima']);
+                    $receivedDate = $this->clean($row['tanggal_terima'] ?? null);
+                    if (!empty($receivedDate)) {
+                        $correspondenceData['received_date'] = $this->parseDate($receivedDate);
                     }
 
-                    if (!empty($row['kategori'])) {
-                        $category = CorrespondenceCategory::where('name', $row['kategori'])
+                    $categoryName = $this->clean($row['kategori'] ?? null);
+                    if (!empty($categoryName)) {
+                        $category = CorrespondenceCategory::where('name', $categoryName)
                             ->where('institution_id', $institutionId)
                             ->first();
                         if ($category) {
@@ -93,8 +128,9 @@ class CorrespondenceImportService
                         }
                     }
 
-                    if (!empty($row['keterangan'])) {
-                        $correspondenceData['description'] = $row['keterangan'];
+                    $description = $this->clean($row['keterangan'] ?? null);
+                    if (!empty($description)) {
+                        $correspondenceData['description'] = $description;
                     }
 
                     // Validate type
@@ -112,7 +148,7 @@ class CorrespondenceImportService
                     $results['failed']++;
                     $results['errors'][] = "Baris " . ($index + 2) . ": " . $e->getMessage();
                     Log::error('Failed to import correspondence row', [
-                        'row' => $row->toArray(),
+                        'row' => $row,
                         'error' => $e->getMessage(),
                     ]);
                 }
@@ -129,6 +165,34 @@ class CorrespondenceImportService
     }
 
     /**
+     * Normalize CSV header to a predictable snake_case key.
+     */
+    private function normalizeHeader(?string $header): string
+    {
+        $header = (string) ($header ?? '');
+        // Strip UTF-8 BOM if present
+        $header = preg_replace('/^\xEF\xBB\xBF/u', '', $header) ?? $header;
+        $header = strtolower(trim($header));
+        $header = str_replace(['/', '-', '(', ')'], ' ', $header);
+        $header = preg_replace('/\s+/', '_', $header) ?? $header;
+        $header = preg_replace('/[^a-z0-9_]/', '', $header) ?? $header;
+        $header = preg_replace('/_+/', '_', $header) ?? $header;
+        return trim($header, '_');
+    }
+
+    /**
+     * Clean string value from CSV (trim, turn empty into null).
+     */
+    private function clean($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $value = trim((string) $value);
+        return $value === '' ? null : $value;
+    }
+
+    /**
      * Parse date from various formats.
      */
     private function parseDate($date): ?string
@@ -137,18 +201,26 @@ class CorrespondenceImportService
             return null;
         }
 
-        // Try to parse as Carbon date
-        try {
-            return \Carbon\Carbon::parse($date)->format('Y-m-d');
-        } catch (\Exception $e) {
-            // Try Excel date format (numeric)
-            if (is_numeric($date)) {
-                try {
-                    return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($date)->format('Y-m-d');
-                } catch (\Exception $e2) {
-                    return null;
-                }
+        // Excel numeric date or unix timestamp often ends up in CSV as a number
+        if (is_numeric($date)) {
+            $n = (float) $date;
+
+            // Excel serial date (days since 1899-12-30)
+            if ($n > 20000 && $n < 80000) {
+                $timestamp = (int) round(($n - 25569) * 86400);
+                return Carbon::createFromTimestampUTC($timestamp)->format('Y-m-d');
             }
+
+            // Unix timestamp (seconds)
+            if ($n > 1000000000 && $n < 9999999999) {
+                return Carbon::createFromTimestamp((int) $n)->format('Y-m-d');
+            }
+        }
+
+        // Try to parse as Carbon date string
+        try {
+            return Carbon::parse($date)->format('Y-m-d');
+        } catch (\Exception $e) {
             return null;
         }
     }

@@ -216,4 +216,58 @@ class SemesterService
 
         return $semester->fresh();
     }
+
+    /**
+     * Auto-generate Ganjil and Genap semesters for an academic year.
+     */
+    public function autoGenerateForAcademicYear(int $academicYearId): array
+    {
+        $academicYear = \App\Models\AcademicYear::findOrFail($academicYearId);
+
+        // Check if semesters already exist
+        $existingSemesters = $this->semesterRepository->getByAcademicYear($academicYearId);
+        if ($existingSemesters->count() > 0) {
+            throw ValidationException::withMessages([
+                'academic_year_id' => 'Semester untuk tahun ajaran ini sudah ada. Hapus semester yang ada terlebih dahulu jika ingin membuat ulang.'
+            ]);
+        }
+
+        // Calculate semester dates
+        $startDate = \Carbon\Carbon::parse($academicYear->start_date);
+        $endDate = \Carbon\Carbon::parse($academicYear->end_date);
+        
+        // Calculate mid date (halfway between start and end)
+        $totalDays = $startDate->diffInDays($endDate);
+        $midDate = $startDate->copy()->addDays(floor($totalDays / 2));
+
+        // Create Ganjil semester (first half)
+        $ganjil = $this->semesterRepository->create([
+            'academic_year_id' => $academicYearId,
+            'name' => 'Ganjil',
+            'order' => 1,
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $midDate->format('Y-m-d'),
+            'status' => 'Draft',
+            'description' => 'Semester Ganjil - Auto-generated'
+        ]);
+
+        // Create Genap semester (second half)
+        $genap = $this->semesterRepository->create([
+            'academic_year_id' => $academicYearId,
+            'name' => 'Genap',
+            'order' => 2,
+            'start_date' => $midDate->copy()->addDay()->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'status' => 'Draft',
+            'description' => 'Semester Genap - Auto-generated'
+        ]);
+
+        Log::info('Semesters auto-generated', [
+            'academic_year_id' => $academicYearId,
+            'ganjil_id' => $ganjil->id,
+            'genap_id' => $genap->id,
+        ]);
+
+        return [$ganjil, $genap];
+    }
 }

@@ -27,5 +27,8 @@ export const semesterApi = {
   },
   activate(id) {
     return api.post(`/v1/semesters/${id}/activate`)
+  },
+  autoGenerate(academicYearId) {
+    return api.post(`/v1/semesters/academic-year/${academicYearId}/auto-generate`)
   }
 }

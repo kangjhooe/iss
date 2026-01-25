@@ -30,6 +30,8 @@ class CorrespondenceController extends Controller
                 'type', 'status', 'priority', 'category_id', 'letter_type_code', 'search',
                 'date_from', 'date_to'
             ]);
+            $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
+            $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
 
             $institutionId = null;
             if (!$request->user()->isAdminOrSuperAdmin()) {
@@ -219,6 +221,41 @@ class CorrespondenceController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat menghapus surat',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Restore a soft-deleted correspondence.
+     */
+    public function restore(Request $request, $id)
+    {
+        try {
+            $correspondence = Correspondence::withTrashed()->findOrFail($id);
+
+            if (!$request->user()->isAdminOrSuperAdmin() &&
+                $correspondence->institution_id !== $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if ($correspondence->trashed()) {
+                $correspondence->restore();
+            }
+
+            return response()->json([
+                'message' => 'Surat berhasil dipulihkan',
+                'data' => new CorrespondenceResource($correspondence->fresh(['category', 'creator', 'institution'])),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Surat tidak ditemukan'], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to restore correspondence', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memulihkan surat',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

@@ -20,6 +20,17 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'role' => $this->role,
+            'permissions' => $this->when(
+                $this->relationLoaded('permissions'),
+                function () {
+                    try {
+                        return $this->permissions->pluck('key')->values();
+                    } catch (\Exception $e) {
+                        return [];
+                    }
+                },
+                []
+            ),
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'is_locked' => $this->isLocked(),
             'failed_login_attempts' => $this->failed_login_attempts ?? 0,

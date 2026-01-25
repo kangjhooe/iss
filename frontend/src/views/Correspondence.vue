@@ -17,10 +17,134 @@
         </div>
       </div>
 
+      <!-- Statistics Dashboard -->
+      <div v-if="statistics" class="statistics-dashboard">
+        <div class="stat-card">
+          <div class="stat-icon stat-total">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ statistics.summary?.total || 0 }}</div>
+            <div class="stat-label">Total Surat</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-masuk">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ statistics.summary?.masuk || 0 }}</div>
+            <div class="stat-label">Surat Masuk</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-keluar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ statistics.summary?.keluar || 0 }}</div>
+            <div class="stat-label">Surat Keluar</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-internal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ statistics.summary?.internal || 0 }}</div>
+            <div class="stat-label">Surat Internal</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-pending">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ (statistics.pending?.approvals || 0) + (statistics.pending?.dispositions || 0) }}</div>
+            <div class="stat-label">Pending</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="action-bar">
+        <div class="action-group">
+          <button @click="showAdvancedSearch = !showAdvancedSearch" class="btn-secondary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Pencarian Lanjutan
+          </button>
+          <button @click="showExportModal = true" class="btn-secondary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Export
+          </button>
+          <button @click="showImportModal = true" class="btn-secondary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Import
+          </button>
+        </div>
+      </div>
+
+      <!-- Advanced Search -->
+      <div v-if="showAdvancedSearch" class="advanced-search">
+        <div class="search-row">
+          <div class="form-group">
+            <label>Tanggal Dari</label>
+            <input v-model="filters.date_from" type="date" class="form-input" @change="loadCorrespondence" />
+          </div>
+          <div class="form-group">
+            <label>Tanggal Sampai</label>
+            <input v-model="filters.date_to" type="date" class="form-input" @change="loadCorrespondence" />
+          </div>
+          <div class="form-group">
+            <label>Jenis Surat</label>
+            <select v-model="filters.letter_type_code" @change="loadCorrespondence" class="form-input">
+              <option value="">Semua Jenis</option>
+              <option v-for="lt in letterTypes" :key="lt.code" :value="lt.code">
+                {{ lt.code }} - {{ lt.abbr }} ({{ lt.name }})
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Kategori</label>
+            <select v-model="filters.category_id" @change="loadCorrespondence" class="form-input">
+              <option value="">Semua Kategori</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+            </select>
+          </div>
+        </div>
+        <button @click="resetFilters" class="btn-secondary btn-sm">Reset Filter</button>
+      </div>
+
       <div class="filters">
         <input 
           v-model="filters.search" 
-          @input="loadCorrespondence" 
+          @input="debounceSearch" 
           placeholder="Cari nomor surat, perihal, atau pengirim..."
           class="search-input"
         />
@@ -62,53 +186,38 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>No. Surat</th>
-              <th>Tipe & Jenis</th>
-              <th>Perihal</th>
-              <th>Dari/Kepada</th>
-              <th>Tanggal</th>
-              <th>Prioritas</th>
-              <th>Status</th>
-              <th>Aksi</th>
+              <th class="col-no-surat">No. Surat</th>
+              <th class="col-tipe">Tipe</th>
+              <th class="col-jenis">Jenis</th>
+              <th class="col-perihal">Perihal</th>
+              <th class="col-dari-kepada">Dari/Kepada</th>
+              <th class="col-tanggal">Tanggal</th>
+              <th class="col-aksi">Aksi</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in correspondence" :key="item.id">
-              <td>{{ item.letter_number || item.reference_number || '-' }}</td>
-              <td>
+              <td class="col-no-surat">{{ item.letter_number || item.reference_number || '-' }}</td>
+              <td class="col-tipe">
                 <span :class="['badge', getTypeClass(item.type)]">
                   {{ getTypeLabel(item.type) }}
                 </span>
+              </td>
+              <td class="col-jenis">
                 <span v-if="item.letter_type_name" class="letter-type-badge">
                   {{ item.letter_type_code }} - {{ item.letter_type_abbr }} ({{ item.letter_type_name }})
                 </span>
+                <span v-else>-</span>
               </td>
-              <td>{{ item.subject }}</td>
-              <td>{{ item.type === 'masuk' ? (item.from || '-') : (item.to || '-') }}</td>
-              <td>{{ formatDate(item.date) }}</td>
-              <td>
-                <span :class="['badge', getPriorityClass(item.priority)]">
-                  {{ getPriorityLabel(item.priority) }}
-                </span>
-              </td>
-              <td>
-                <span :class="['badge', getStatusClass(item.status)]">
-                  {{ getStatusLabel(item.status) }}
-                </span>
-              </td>
-              <td>
+              <td class="col-perihal">{{ item.subject }}</td>
+              <td class="col-dari-kepada">{{ item.type === 'masuk' ? (item.from || '-') : (item.to || '-') }}</td>
+              <td class="col-tanggal">{{ formatDate(item.date) }}</td>
+              <td class="col-aksi">
                 <div class="action-buttons">
                   <button @click="viewCorrespondence(item)" class="btn-action btn-view" title="Lihat Detail">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="printCorrespondence(item.id)" class="btn-action btn-print" title="Cetak PDF">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </button>
                   <button v-if="item.status === 'pending'" @click="approveCorrespondence(item.id)" class="btn-action btn-approve" title="Setujui">
@@ -266,10 +375,13 @@
 
               <div class="form-group">
                 <label>Kategori</label>
-                <select v-model="form.category_id" class="form-input">
+                <select v-model="form.category_id" class="form-input" :disabled="!form.type">
                   <option value="">Pilih Kategori (Opsional)</option>
-                  <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                  <option v-for="cat in filteredCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                 </select>
+                <p v-if="!form.type" class="form-hint" style="color: #64748b; margin-top: 4px;">
+                  Pilih tipe surat terlebih dahulu
+                </p>
               </div>
             </div>
 
@@ -619,6 +731,78 @@
       </div>
     </div>
 
+    <!-- Export Modal -->
+    <div v-if="showExportModal" class="modal-overlay" @click="showExportModal = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Export Data</h3>
+          <button @click="showExportModal = false" class="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Pilih format export:</p>
+          <div class="export-options">
+            <button @click="exportData('excel')" class="btn-primary" :disabled="exporting">
+              {{ exporting ? 'Mengekspor...' : 'Export ke Excel (CSV)' }}
+            </button>
+          </div>
+          <div class="export-pdf-section">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Export ke PDF:</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select v-model="pdfExportType" class="form-input" style="flex: 1;">
+                <option value="">Pilih tipe surat</option>
+                <option value="masuk">Surat Masuk</option>
+                <option value="keluar">Surat Keluar</option>
+                <option value="internal">Surat Internal</option>
+              </select>
+              <button @click="exportData('pdf', pdfExportType)" class="btn-primary" :disabled="exporting || !pdfExportType">
+                {{ exporting ? 'Mengekspor...' : 'Export PDF' }}
+              </button>
+            </div>
+          </div>
+          <p class="form-hint">Data akan diekspor sesuai dengan filter yang sedang aktif</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div v-if="showImportModal" class="modal-overlay" @click="showImportModal = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Import Data</h3>
+          <button @click="showImportModal = false" class="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>File CSV <span class="required">*</span></label>
+            <input 
+              ref="importFileInput"
+              type="file" 
+              accept=".csv"
+              class="form-input"
+            />
+            <p class="form-hint">Format file: CSV (.csv)</p>
+            <p class="form-hint">Maksimal ukuran: 10MB</p>
+          </div>
+          <div class="form-group">
+            <button @click="downloadImportTemplate" class="btn-secondary btn-sm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Download Template
+            </button>
+          </div>
+          <div class="modal-footer">
+            <button @click="showImportModal = false" class="btn-secondary">Batal</button>
+            <button @click="importData" class="btn-primary" :disabled="importing">
+              {{ importing ? 'Mengimpor...' : 'Import' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Disposition Modal -->
     <div v-if="showDispositionModal" class="modal-overlay" @click="closeDispositionModal">
       <div class="modal-content" @click.stop>
@@ -657,17 +841,31 @@
         </div>
       </div>
     </div>
+    
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import correspondenceApi from '@/api/correspondence'
 import api from '@/api'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const toast = useToast()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const correspondence = ref([])
 const categories = ref([])
@@ -691,7 +889,16 @@ const viewingItem = ref(null)
 const editingDisposition = ref(null)
 const fileInput = ref(null)
 const attachmentFileInput = ref(null)
+const importFileInput = ref(null)
 const currentUserId = ref(null)
+const statistics = ref(null)
+const showAdvancedSearch = ref(false)
+const showExportModal = ref(false)
+const showImportModal = ref(false)
+const exporting = ref(false)
+const importing = ref(false)
+const searchTimeout = ref(null)
+const pdfExportType = ref('')
 
 const filters = ref({
   search: '',
@@ -745,8 +952,11 @@ const loadCorrespondence = async (page = 1) => {
 
     const response = await correspondenceApi.list(params)
     
-    console.log('Correspondence response:', response)
-    console.log('Response data:', response.data)
+    // Debug logging (development only)
+    if (import.meta.env.DEV) {
+      console.log('Correspondence response:', response)
+      console.log('Response data:', response.data)
+    }
     
     // Handle paginated response from Laravel Resource Collection
     // Laravel Resource Collection with pagination format: 
@@ -825,10 +1035,22 @@ const loadCategories = async () => {
   }
 }
 
+// Filter kategori berdasarkan tipe surat yang dipilih
+const filteredCategories = computed(() => {
+  if (!form.value.type) {
+    return []
+  }
+  return categories.value.filter(cat => cat.type === form.value.type)
+})
+
 const loadLetterTypes = async () => {
   try {
     const response = await correspondenceApi.getLetterTypes()
-    console.log('Letter types response:', response)
+    
+    // Debug logging (development only)
+    if (import.meta.env.DEV) {
+      console.log('Letter types response:', response)
+    }
     
     // Handle different response formats
     if (response.data) {
@@ -843,7 +1065,10 @@ const loadLetterTypes = async () => {
       letterTypes.value = []
     }
     
-    console.log('Loaded letter types:', letterTypes.value)
+    // Debug logging (development only)
+    if (import.meta.env.DEV) {
+      console.log('Loaded letter types:', letterTypes.value)
+    }
   } catch (error) {
     console.error('Failed to load letter types:', error)
     console.error('Error response:', error.response)
@@ -999,7 +1224,13 @@ const saveDisposition = async () => {
 }
 
 const completeDisposition = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menyelesaikan disposisi ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Selesaikan',
+    message: 'Apakah Anda yakin ingin menyelesaikan disposisi ini?',
+    warning: ''
+  })
+  
+  if (!confirmed) return
 
   try {
     await correspondenceApi.completeDisposition(id)
@@ -1013,8 +1244,15 @@ const completeDisposition = async (id) => {
 }
 
 const deleteDisposition = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus disposisi ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus disposisi ini?',
+    warning: 'Disposisi akan dihapus secara permanen.'
+  })
+  
+  if (!confirmed) return
 
+  setDeleteLoading(true)
   try {
     await correspondenceApi.deleteDisposition(id)
     toast.success('Berhasil', 'Disposisi berhasil dihapus')
@@ -1023,6 +1261,8 @@ const deleteDisposition = async (id) => {
     const message = error.response?.data?.message || 'Gagal menghapus disposisi'
     toast.error('Gagal', message)
     console.error(error)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
@@ -1099,8 +1339,15 @@ const uploadAttachments = async () => {
 }
 
 const deleteAttachment = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus lampiran ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus lampiran ini?',
+    warning: 'Lampiran akan dihapus secara permanen.'
+  })
+  
+  if (!confirmed) return
 
+  setDeleteLoading(true)
   try {
     await correspondenceApi.deleteAttachment(id)
     toast.success('Berhasil', 'Lampiran berhasil dihapus')
@@ -1109,6 +1356,8 @@ const deleteAttachment = async (id) => {
     const message = error.response?.data?.message || 'Gagal menghapus lampiran'
     toast.error('Gagal', message)
     console.error(error)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
@@ -1121,6 +1370,143 @@ const formatFileSize = (bytes) => {
     return (bytes / 1024).toFixed(2) + ' KB'
   }
   return bytes + ' bytes'
+}
+
+const loadStatistics = async () => {
+  try {
+    const response = await correspondenceApi.getStatistics()
+    statistics.value = response.data.data || response.data
+  } catch (error) {
+    console.error('Failed to load statistics:', error)
+  }
+}
+
+const debounceSearch = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+  searchTimeout.value = setTimeout(() => {
+    loadCorrespondence()
+  }, 500)
+}
+
+const resetFilters = () => {
+  filters.value = {
+    search: '',
+    type: '',
+    status: '',
+    priority: '',
+    date_from: '',
+    date_to: '',
+    letter_type_code: '',
+    category_id: ''
+  }
+  loadCorrespondence()
+}
+
+const exportData = async (format, type = null) => {
+  exporting.value = true
+  try {
+    const params = {}
+    if (filters.value.search) params.search = filters.value.search
+    if (filters.value.status) params.status = filters.value.status
+    if (filters.value.priority) params.priority = filters.value.priority
+    if (filters.value.date_from) params.date_from = filters.value.date_from
+    if (filters.value.date_to) params.date_to = filters.value.date_to
+    if (filters.value.letter_type_code) params.letter_type_code = filters.value.letter_type_code
+    if (filters.value.category_id) params.category_id = filters.value.category_id
+
+    // Untuk Excel, gunakan filter type yang ada
+    // Untuk PDF, gunakan type yang dipilih dari dropdown
+    if (format === 'excel') {
+      if (filters.value.type) params.type = filters.value.type
+    } else if (format === 'pdf') {
+      if (type) {
+        params.type = type
+      } else {
+        toast.error('Gagal', 'Pilih tipe surat terlebih dahulu')
+        exporting.value = false
+        return
+      }
+    }
+
+    let response
+    if (format === 'excel') {
+      response = await correspondenceApi.exportExcel(params)
+    } else {
+      response = await correspondenceApi.exportPdf(params)
+    }
+
+    const downloadUrl = response.data.download_url || response.data.data?.download_url
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank')
+      toast.success('Berhasil', 'Export berhasil, file sedang diunduh')
+    } else {
+      toast.error('Gagal', 'URL download tidak ditemukan')
+    }
+    showExportModal.value = false
+    pdfExportType.value = '' // Reset setelah export
+  } catch (error) {
+    const message = error.response?.data?.message || 'Gagal mengekspor data'
+    toast.error('Gagal', message)
+    console.error(error)
+  } finally {
+    exporting.value = false
+  }
+}
+
+const importData = async () => {
+  if (!importFileInput.value || !importFileInput.value.files || !importFileInput.value.files[0]) {
+    toast.error('Gagal', 'Pilih file terlebih dahulu')
+    return
+  }
+
+  importing.value = true
+  try {
+    const response = await correspondenceApi.import(importFileInput.value.files[0])
+    const results = response.data.data || response.data
+    
+    if (results.success > 0) {
+      toast.success('Berhasil', `${results.success} data berhasil diimpor`)
+      loadCorrespondence()
+      loadStatistics()
+    }
+    
+    if (results.failed > 0 && results.errors && results.errors.length > 0) {
+      const errorMsg = results.errors.slice(0, 5).join('\n')
+      toast.error('Peringatan', `${results.failed} data gagal diimpor:\n${errorMsg}`)
+    }
+    
+    showImportModal.value = false
+    if (importFileInput.value) {
+      importFileInput.value.value = ''
+    }
+  } catch (error) {
+    const message = error.response?.data?.message || 'Gagal mengimpor data'
+    toast.error('Gagal', message)
+    console.error(error)
+  } finally {
+    importing.value = false
+  }
+}
+
+const downloadImportTemplate = async () => {
+  try {
+    const response = await correspondenceApi.downloadImportTemplate()
+    const blob = new Blob([response.data], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'template_import_surat.csv'
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+    toast.success('Berhasil', 'Template berhasil diunduh')
+  } catch (error) {
+    toast.error('Gagal', 'Gagal mengunduh template')
+    console.error(error)
+  }
 }
 
 const closeModal = () => {
@@ -1254,8 +1640,15 @@ const saveCorrespondence = async () => {
 }
 
 const deleteCorrespondence = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus surat ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus surat ini?',
+    warning: 'Surat akan dihapus secara permanen dan tidak dapat dikembalikan.'
+  })
+  
+  if (!confirmed) return
 
+  setDeleteLoading(true)
   try {
     await correspondenceApi.delete(id)
     toast.success('Berhasil', 'Surat berhasil dihapus')
@@ -1264,11 +1657,19 @@ const deleteCorrespondence = async (id) => {
     const message = error.response?.data?.message || 'Gagal menghapus surat'
     toast.error('Gagal', message)
     console.error(error)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
 const approveCorrespondence = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menyetujui surat ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Setujui',
+    message: 'Apakah Anda yakin ingin menyetujui surat ini?',
+    warning: ''
+  })
+  
+  if (!confirmed) return
 
   try {
     await correspondenceApi.approve(id)
@@ -1287,7 +1688,13 @@ const approveCorrespondence = async (id) => {
 }
 
 const sendCorrespondence = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin mengirim surat ini?')) return
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Kirim',
+    message: 'Apakah Anda yakin ingin mengirim surat ini?',
+    warning: 'Surat yang sudah dikirim tidak dapat diubah.'
+  })
+  
+  if (!confirmed) return
 
   try {
     await correspondenceApi.send(id)
@@ -1398,10 +1805,13 @@ const getTypeLabel = (type) => {
 }
 
 onMounted(async () => {
-  loadCorrespondence(1)
-  loadCategories()
-  loadLetterTypes()
-  await loadUsers()
+  await Promise.all([
+    loadCorrespondence(1),
+    loadCategories(),
+    loadLetterTypes(),
+    loadUsers(),
+    loadStatistics()
+  ])
   
   // Get current user ID
   try {
@@ -1558,6 +1968,61 @@ onMounted(async () => {
   letter-spacing: 0.5px;
 }
 
+/* Column Widths */
+.data-table th.col-no-surat,
+.data-table td.col-no-surat {
+  width: 220px;
+  max-width: 220px;
+  min-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.data-table th.col-tipe,
+.data-table td.col-tipe {
+  width: 110px;
+  max-width: 110px;
+  min-width: 110px;
+}
+
+.data-table th.col-jenis,
+.data-table td.col-jenis {
+  width: 200px;
+  max-width: 200px;
+  min-width: 200px;
+}
+
+.data-table th.col-perihal,
+.data-table td.col-perihal {
+  min-width: 200px;
+  /* Flexible width, takes remaining space */
+  word-break: break-word;
+}
+
+.data-table th.col-dari-kepada,
+.data-table td.col-dari-kepada {
+  width: 180px;
+  max-width: 180px;
+  min-width: 180px;
+  word-break: break-word;
+}
+
+.data-table th.col-tanggal,
+.data-table td.col-tanggal {
+  width: 150px;
+  max-width: 150px;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.data-table th.col-aksi,
+.data-table td.col-aksi {
+  width: 100px;
+  max-width: 100px;
+  min-width: 100px;
+}
+
 .data-table td {
   padding: 16px;
   border-bottom: 1px solid #e2e8f0;
@@ -1692,9 +2157,16 @@ onMounted(async () => {
 }
 
 .letter-type-badge {
+  display: inline-block;
   font-size: 11px;
-  color: #64748b;
-  margin-top: 4px;
+  color: #475569;
+  padding: 4px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+  max-width: 100%;
 }
 
 .form-hint {
@@ -2278,5 +2750,136 @@ textarea.form-input {
 
 .btn-remove-file:hover {
   background: #fecaca;
+}
+
+/* Statistics Dashboard */
+.statistics-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon.stat-total {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.stat-icon.stat-masuk {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.stat-icon.stat-keluar {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.stat-icon.stat-internal {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+}
+
+.stat-icon.stat-pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Action Bar */
+.action-bar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-group {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Advanced Search */
+.advanced-search {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Export Options */
+.export-options {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.export-options button {
+  flex: 1;
+}
+
+.export-pdf-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
 }
 </style>

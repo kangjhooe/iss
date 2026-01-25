@@ -84,7 +84,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Registrasi berhasil. Silakan cek email untuk verifikasi.',
-                'user' => new UserResource($user->load('institution')),
+                'user' => new UserResource($user->load(['institution', 'permissions'])),
                 'token' => $accessToken,
                 'refresh_token' => $refreshToken,
             ], 201);
@@ -162,9 +162,28 @@ class AuthController extends Controller
 
             Log::info('User logged in', ['user_id' => $user->id]);
 
+            // Load relationships safely
+            try {
+                $user->load(['institution']);
+                // Try to load permissions, but don't fail if table doesn't exist
+                try {
+                    $user->load(['permissions']);
+                } catch (\Exception $e) {
+                    Log::warning('Could not load permissions', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error loading user relationships', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Login berhasil',
-                'user' => new UserResource($user->load('institution')),
+                'user' => new UserResource($user),
                 'token' => $accessToken,
                 'refresh_token' => $refreshToken,
             ]);
@@ -214,7 +233,7 @@ class AuthController extends Controller
     {
         try {
             return response()->json([
-                'user' => new UserResource($request->user()->load('institution')),
+                'user' => new UserResource($request->user()->load(['institution', 'permissions'])),
             ]);
         } catch (\Exception $e) {
             Log::error('Get user failed', [

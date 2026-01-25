@@ -47,6 +47,14 @@ class ClassResource extends JsonResource
             'academic_year' => $this->whenLoaded('academicYear', function () {
                 return $this->academicYear->code ?? $this->academic_year;
             }, $this->academic_year),
+            'semester_id' => $this->semester_id,
+            'semester' => $this->whenLoaded('semester', function () {
+                return [
+                    'id' => $this->semester->id,
+                    'name' => $this->semester->name,
+                    'academic_year_id' => $this->semester->academic_year_id,
+                ];
+            }),
             'capacity' => $this->capacity,
             'status' => $this->status,
             'description' => $this->description,

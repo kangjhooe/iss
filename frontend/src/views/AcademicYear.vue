@@ -218,6 +218,17 @@
         </div>
       </div>
     </div>
+    
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
@@ -226,8 +237,11 @@ import { ref, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { academicYearApi } from '@/api/academicYear'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const toast = useToast()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const academicYears = ref([])
 const loading = ref(true)
@@ -292,9 +306,13 @@ const editAcademicYear = (year) => {
 }
 
 const activateAcademicYear = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin mengaktifkan tahun ajaran ini? Tahun ajaran aktif lainnya akan dinonaktifkan.')) {
-    return
-  }
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Aktifkan',
+    message: 'Apakah Anda yakin ingin mengaktifkan tahun ajaran ini?',
+    warning: 'Tahun ajaran aktif lainnya akan dinonaktifkan.'
+  })
+  
+  if (!confirmed) return
 
   try {
     await academicYearApi.activate(id)
@@ -307,10 +325,15 @@ const activateAcademicYear = async (id) => {
 }
 
 const deleteAcademicYear = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus tahun ajaran ini?')) {
-    return
-  }
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus tahun ajaran ini?',
+    warning: 'Data tahun ajaran akan dihapus secara permanen dan tidak dapat dikembalikan.'
+  })
+  
+  if (!confirmed) return
 
+  setDeleteLoading(true)
   try {
     await academicYearApi.delete(id)
     toast.success('Berhasil', 'Tahun ajaran berhasil dihapus')
@@ -318,6 +341,8 @@ const deleteAcademicYear = async (id) => {
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus tahun ajaran'
     toast.error('Gagal', message)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 

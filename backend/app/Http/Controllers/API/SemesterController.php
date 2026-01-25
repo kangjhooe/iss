@@ -142,4 +142,28 @@ class SemesterController extends Controller
             'data' => new SemesterResource($semester->load('academicYear')),
         ]);
     }
+
+    /**
+     * Auto-generate Ganjil and Genap semesters for an academic year.
+     */
+    public function autoGenerate(Request $request, $academicYearId)
+    {
+        try {
+            $semesters = $this->semesterService->autoGenerateForAcademicYear($academicYearId);
+
+            return response()->json([
+                'message' => 'Semester Ganjil dan Genap berhasil dibuat otomatis',
+                'data' => SemesterResource::collection($semesters),
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Gagal membuat semester otomatis: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

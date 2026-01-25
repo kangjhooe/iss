@@ -25,6 +25,15 @@ class UpdateTeacherRequest extends FormRequest
         $teacherId = $this->route('teacher')->id ?? $this->route('id');
         
         return [
+            'nik' => [
+                'sometimes',
+                'required',
+                'string',
+                'size:16',
+                'regex:/^[0-9]{16}$/',
+                Rule::unique('employee', 'nik')->ignore($teacherId),
+            ],
+            'type' => 'sometimes|required|in:Guru',
             'nip' => 'nullable|string|max:50',
             'nuptk' => [
                 'nullable',
@@ -40,7 +49,7 @@ class UpdateTeacherRequest extends FormRequest
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',
-            'employment_status' => 'nullable|in:PNS,CPNS,Guru Tetap Yayasan,Guru Honor Sekolah,Guru Kontrak',
+            'employment_status' => 'nullable|in:PNS,CPNS,Guru Tetap Yayasan,Guru Honor Sekolah,Guru Kontrak,Pegawai Tetap Yayasan,Pegawai Honor,Pegawai Kontrak',
             'education_level' => 'nullable|in:SMA,D3,S1,S2,S3',
             'major' => 'nullable|string|max:255',
             'subject' => 'nullable|string|max:255',
@@ -58,6 +67,10 @@ class UpdateTeacherRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'nik.required' => 'NIK wajib diisi',
+            'nik.size' => 'NIK harus terdiri dari 16 digit',
+            'nik.regex' => 'NIK harus berupa angka 16 digit',
+            'nik.unique' => 'NIK sudah terdaftar',
             'name.required' => 'Nama guru wajib diisi',
             'gender.required' => 'Jenis kelamin wajib diisi',
             'gender.in' => 'Jenis kelamin harus L atau P',

@@ -19,18 +19,37 @@ class TeacherController extends Controller
     {
         try {
             $query = Teacher::query();
+            $user = $request->user();
+            $institutionId = null;
+
+            if (filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN)) {
+                $query->onlyTrashed();
+            } elseif (filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN)) {
+                $query->withTrashed();
+            }
 
             // Filter berdasarkan institusi user yang login
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $query->where('institution_id', $request->user()->institution_id);
+            if (!$user->isAdminOrSuperAdmin()) {
+                $institutionId = $user->institution_id;
             } elseif ($request->has('institution_id')) {
-                $query->where('institution_id', $request->institution_id);
+                $institutionId = $request->institution_id;
+            }
+
+            if ($institutionId) {
+                $query->where(function ($q) use ($institutionId) {
+                    $q->where('institution_id', $institutionId)
+                        ->orWhereHas('assignments', function ($assignmentQuery) use ($institutionId) {
+                            $assignmentQuery->where('institution_id', $institutionId)
+                                ->where('status', 'approved');
+                        });
+                });
             }
 
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%')
+                      ->orWhere('nik', 'like', '%' . $search . '%')
                       ->orWhere('nip', 'like', '%' . $search . '%')
                       ->orWhere('nuptk', 'like', '%' . $search . '%');
                 });
@@ -45,10 +64,22 @@ class TeacherController extends Controller
             }
 
             $perPage = min($request->get('per_page', 15), 100); // Max 100 per page
-            $teachers = $query->select(['id', 'institution_id', 'nip', 'nuptk', 'name', 'gender', 'status', 'employment_status', 'created_at'])
-                ->with('institution:id,name')
+            $relations = ['institution:id,name'];
+            if ($institutionId) {
+                $relations['assignments'] = function ($assignmentQuery) use ($institutionId) {
+                    $assignmentQuery->where('institution_id', $institutionId)
+                        ->where('status', 'approved');
+                };
+            }
+
+            $teachers = $query->select(['id', 'institution_id', 'nik', 'type', 'nip', 'nuptk', 'name', 'gender', 'subject', 'status', 'employment_status', 'created_at'])
+                ->with($relations)
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
+
+            if ($institutionId) {
+                $request->attributes->set('current_institution_id', $institutionId);
+            }
 
             return TeacherResource::collection($teachers);
         } catch (\Exception $e) {
@@ -111,11 +142,40 @@ class TeacherController extends Controller
     public function show(Request $request, $id)
     {
         try {
-            $teacher = Teacher::with('institution')->findOrFail($id);
+            $teacher = Teacher::findOrFail($id);
+            $user = $request->user();
+            $currentInstitutionId = $request->get('institution_id') ?? $user->institution_id;
 
             // Jika bukan admin/super admin, hanya bisa melihat guru dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $teacher->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if (!$user->isAdminOrSuperAdmin() && $currentInstitutionId != $teacher->institution_id) {
+                $hasApprovedAssignment = $teacher->assignments()
+                    ->where('institution_id', $currentInstitutionId)
+                    ->where('status', 'approved')
+                    ->exists();
+
+                if (!$hasApprovedAssignment) {
+                    return response()->json(['message' => 'Unauthorized'], 403);
+                }
+            }
+
+            $relations = ['institution'];
+
+            if ($user->isAdminOrSuperAdmin() || $teacher->institution_id == $currentInstitutionId) {
+                $relations[] = 'assignments.institution';
+                $relations[] = 'assignments.requester';
+                $relations[] = 'assignments.approver';
+            } else {
+                $relations['assignments'] = function ($assignmentQuery) use ($currentInstitutionId) {
+                    $assignmentQuery->where('institution_id', $currentInstitutionId)
+                        ->where('status', 'approved')
+                        ->with('institution:id,name');
+                };
+            }
+
+            $teacher->load($relations);
+
+            if ($currentInstitutionId) {
+                $request->attributes->set('current_institution_id', $currentInstitutionId);
             }
 
             return new TeacherResource($teacher);
@@ -212,6 +272,43 @@ class TeacherController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat menghapus guru',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Restore a soft-deleted teacher.
+     */
+    public function restore(Request $request, $id)
+    {
+        try {
+            $teacher = Teacher::withTrashed()->findOrFail($id);
+
+            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $teacher->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if ($teacher->trashed()) {
+                $teacher->restore();
+            }
+
+            return response()->json([
+                'message' => 'Guru berhasil dipulihkan',
+                'data' => new TeacherResource($teacher->fresh(['institution'])),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Guru tidak ditemukan',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to restore teacher', [
+                'teacher_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memulihkan guru',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

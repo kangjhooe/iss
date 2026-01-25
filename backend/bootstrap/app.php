@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'cache' => \App\Http\Middleware\CacheResponse::class,
+            'module' => \App\Http\Middleware\EnsureModuleAccess::class,
         ]);
 
         // Force JSON response for API routes FIRST (before authentication)

@@ -380,6 +380,17 @@
         </div>
       </div>
     </div>
+    
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
@@ -393,8 +404,11 @@ import { teacherApi } from '@/api/teacher'
 import { academicYearApi } from '@/api/academicYear'
 import { studentApi } from '@/api/student'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const toast = useToast()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const classes = ref([])
 const loading = ref(true)
@@ -548,10 +562,15 @@ const loadClassStudents = async () => {
 const removeStudentFromClass = async (studentId) => {
   if (!selectedClass.value) return
   
-  if (!confirm('Apakah Anda yakin ingin menghapus siswa ini dari kelas?')) {
-    return
-  }
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus siswa ini dari kelas?',
+    warning: ''
+  })
+  
+  if (!confirmed) return
 
+  setDeleteLoading(true)
   try {
     await classApi.removeStudent(selectedClass.value.id, studentId)
     toast.success('Berhasil', 'Siswa berhasil dihapus dari kelas')
@@ -560,6 +579,8 @@ const removeStudentFromClass = async (studentId) => {
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus siswa dari kelas'
     toast.error('Gagal', message)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
@@ -650,10 +671,15 @@ const editClass = (classItem) => {
 }
 
 const deleteClass = async (id) => {
-  if (!confirm('Apakah Anda yakin ingin menghapus kelas ini?')) {
-    return
-  }
+  const confirmed = await showConfirm({
+    title: 'Konfirmasi Hapus',
+    message: 'Apakah Anda yakin ingin menghapus kelas ini?',
+    warning: 'Data kelas akan dihapus secara permanen dan tidak dapat dikembalikan.'
+  })
+  
+  if (!confirmed) return
 
+  setDeleteLoading(true)
   try {
     await classApi.delete(id)
     toast.success('Berhasil', 'Kelas berhasil dihapus')
@@ -661,6 +687,8 @@ const deleteClass = async (id) => {
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus kelas'
     toast.error('Gagal', message)
+  } finally {
+    setDeleteLoading(false)
   }
 }
 

@@ -58,7 +58,7 @@ class AuthService
             ]);
 
             return [
-                'user' => $user->load('institution'),
+                'user' => $user->load(['institution', 'permissions']),
                 'institution' => $institution,
                 'access_token' => $accessToken,
                 'refresh_token' => $refreshToken,
@@ -124,7 +124,7 @@ class AuthService
         Log::info('User logged in', ['user_id' => $user->id]);
 
         return [
-            'user' => $user->load('institution'),
+            'user' => $user->load(['institution', 'permissions']),
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
         ];

@@ -31,7 +31,17 @@ class SuperAdminSeeder extends Seeder
             $this->command->info('Email: superadmin@iss.id');
             $this->command->info('Password: admin123');
         } else {
-            $this->command->warn('Super Admin sudah ada dengan email: superadmin@iss.id');
+            $existingSuperAdmin->update([
+                'password' => Hash::make('admin123'),
+                'role' => 'super_admin',
+                'email_verified_at' => $existingSuperAdmin->email_verified_at ?? now(),
+                'failed_login_attempts' => 0,
+                'locked_until' => null,
+            ]);
+
+            $this->command->warn('Super Admin sudah ada. Password direset ke default.');
+            $this->command->info('Email: superadmin@iss.id');
+            $this->command->info('Password: admin123');
         }
     }
 }

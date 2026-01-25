@@ -30,6 +30,7 @@ class StoreClassRequest extends FormRequest
             'grade' => 'nullable|integer|min:1|max:12',
             // academic_year_id tidak perlu di-require, akan di-set otomatis dari active_academic_year_id
             'academic_year_id' => 'nullable|exists:academic_years,id',
+            'semester_id' => 'nullable|exists:semesters,id',
             'capacity' => 'nullable|integer|min:1',
             'status' => 'nullable|in:Aktif,Nonaktif',
             'description' => 'nullable|string',

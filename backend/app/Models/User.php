@@ -94,6 +94,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Permissions assigned to the user.
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions');
+    }
+
+    /**
+     * Check if user has access to a module.
+     */
+    public function hasModuleAccess(string $moduleKey): bool
+    {
+        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+            return true;
+        }
+
+        if ($this->relationLoaded('permissions')) {
+            return $this->permissions->contains('key', $moduleKey);
+        }
+
+        return $this->permissions()->where('key', $moduleKey)->exists();
+    }
+
+    /**
      * Get the change requests requested by this user.
      */
     public function changeRequests()

@@ -19,16 +19,13 @@
           <div class="input-wrapper">
             <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="L22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <input 
               type="email" 
               v-model="form.email" 
               :class="{ 'input-error': fieldErrors.email }"
-              @blur="() => {
-                const validation = validateForm({ email: form.email }, { email: validationRules.email })
-                fieldErrors.email = validation.errors.email || ''
-              }"
+              @blur="() => validateField('email')"
               placeholder="nama@email.com"
             />
           </div>
@@ -46,10 +43,7 @@
               type="password" 
               v-model="form.password" 
               :class="{ 'input-error': fieldErrors.password }"
-              @blur="() => {
-                const validation = validateForm({ password: form.password }, { password: validationRules.password })
-                fieldErrors.password = validation.errors.password || ''
-              }"
+              @blur="() => validateField('password')"
               placeholder="Masukkan password"
             />
           </div>
@@ -104,7 +98,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { validateForm, validators } from '@/utils/validation'
+import { validators } from '@/utils/validation'
+import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -112,18 +107,14 @@ const toast = useToast()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const form = ref({
+const initialForm = {
   email: '',
   password: ''
-})
+}
+const form = ref({ ...initialForm })
 
 const loading = ref(false)
 const error = ref('')
-const fieldErrors = ref({
-  email: '',
-  password: ''
-})
-
 const validationRules = {
   email: [
     (value) => validators.required(value, 'Email wajib diisi'),
@@ -134,15 +125,20 @@ const validationRules = {
   ]
 }
 
+const { fieldErrors, validateField, validateAll, clearErrors, setErrors } = useFormValidation({
+  form,
+  initialValues: initialForm,
+  rules: validationRules
+})
+
 const handleLogin = async () => {
   // Clear previous errors
   error.value = ''
-  fieldErrors.value = { email: '', password: '' }
+  clearErrors()
   
   // Validate form
-  const validation = validateForm(form.value, validationRules)
-  if (!validation.isValid) {
-    fieldErrors.value = validation.errors
+  const isValid = validateAll()
+  if (!isValid) {
     error.value = 'Mohon perbaiki kesalahan pada form'
     return
   }
@@ -156,24 +152,54 @@ const handleLogin = async () => {
     // Redirect based on user role
     if (authStore.user?.role === 'super_admin') {
       router.push('/super-admin/dashboard')
+    } else if (authStore.user?.role === 'teacher') {
+      router.push('/teacher/dashboard')
     } else {
       router.push('/dashboard')
     }
   } catch (err) {
-    const errorMessage = err.formattedMessage || err.response?.data?.message || 'Email atau password salah'
+    console.error('Login error:', err)
+    
+    // Handle different types of errors
+    let errorMessage = 'Terjadi kesalahan saat login'
+    
+    if (err.formattedMessage) {
+      errorMessage = err.formattedMessage
+    } else if (err.response?.data?.message) {
+      errorMessage = err.response.data.message
+    } else if (err.response?.data?.error) {
+      // Backend returns error field for non-validation errors
+      errorMessage = err.response.data.error
+    } else if (err.response?.data?.errors) {
+      // Validation errors
+      const errors = err.response.data.errors
+      const firstError = Object.values(errors)[0]
+      errorMessage = Array.isArray(firstError) ? firstError[0] : firstError
+    } else if (err.message) {
+      // Network errors or other errors
+      if (err.message.includes('Network Error') || err.code === 'ERR_NETWORK') {
+        errorMessage = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.'
+      } else if (err.message.includes('timeout')) {
+        errorMessage = 'Request timeout. Silakan coba lagi.'
+      } else {
+        errorMessage = err.message
+      }
+    } else if (err.response?.status === 401) {
+      errorMessage = 'Email atau password salah'
+    } else if (err.response?.status === 422) {
+      errorMessage = 'Data yang dimasukkan tidak valid'
+    } else if (err.response?.status === 429) {
+      errorMessage = 'Terlalu banyak percobaan. Silakan tunggu sebentar.'
+    } else if (err.response?.status >= 500) {
+      errorMessage = 'Terjadi kesalahan pada server. Silakan coba lagi nanti.'
+    }
+    
     error.value = errorMessage
     toast.error('Login Gagal', errorMessage)
     
     // Handle field-specific errors
     if (err.response?.data?.errors) {
-      const serverErrors = err.response.data.errors
-      Object.keys(serverErrors).forEach(key => {
-        if (fieldErrors.value.hasOwnProperty(key)) {
-          fieldErrors.value[key] = Array.isArray(serverErrors[key]) 
-            ? serverErrors[key][0] 
-            : serverErrors[key]
-        }
-      })
+      setErrors(err.response.data.errors)
     }
   } finally {
     loading.value = false

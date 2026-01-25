@@ -21,11 +21,11 @@ class CorrespondenceImportController extends Controller
     {
         try {
             $request->validate([
-                'file' => 'required|file|mimes:xlsx,xls|max:10240',
+                'file' => 'required|file|mimes:csv,txt|max:10240',
             ], [
                 'file.required' => 'File wajib diunggah',
                 'file.file' => 'File tidak valid',
-                'file.mimes' => 'Format file harus Excel (.xlsx atau .xls)',
+                'file.mimes' => 'Format file harus CSV (.csv)',
                 'file.max' => 'Ukuran file maksimal 10MB',
             ]);
 
@@ -40,7 +40,7 @@ class CorrespondenceImportController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
-            // Store uploaded file temporarily
+            // Store uploaded file temporarily (CSV)
             $file = $request->file('file');
             $filePath = $file->storeAs('imports', 'correspondence_import_' . time() . '.' . $file->getClientOriginalExtension(), 'public');
 
@@ -72,19 +72,19 @@ class CorrespondenceImportController extends Controller
     }
 
     /**
-     * Download template Excel for import.
+     * Download template CSV for import.
      */
     public function downloadTemplate()
     {
         try {
-            $templatePath = 'templates/correspondence_import_template.xlsx';
+            $templatePath = 'templates/correspondence_import_template.csv';
             
             // Create template if not exists
             if (!Storage::disk('public')->exists($templatePath)) {
                 $this->createTemplate($templatePath);
             }
 
-            return Storage::disk('public')->download($templatePath, 'template_import_surat.xlsx');
+            return Storage::disk('public')->download($templatePath, 'template_import_surat.csv');
         } catch (\Exception $e) {
             Log::error('Failed to download import template', [
                 'error' => $e->getMessage(),
@@ -97,50 +97,50 @@ class CorrespondenceImportController extends Controller
     }
 
     /**
-     * Create Excel template file.
+     * Create CSV template file.
      */
     private function createTemplate(string $filePath): void
     {
-        $export = new class implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings {
-            public function array(): array {
-                return [
-                    [
-                        'masuk',
-                        '01',
-                        '',
-                        'REF-001',
-                        'Contoh Surat Masuk',
-                        'Dari Instansi',
-                        '',
-                        '2026-01-15',
-                        '2026-01-15',
-                        'biasa',
-                        'draft',
-                        '',
-                        'Keterangan contoh',
-                    ],
-                ];
-            }
-
-            public function headings(): array {
-                return [
-                    'Tipe',
-                    'Jenis Surat (01-16)',
-                    'Nomor Surat',
-                    'Nomor Referensi',
-                    'Perihal',
-                    'Dari',
-                    'Kepada',
-                    'Tanggal Surat',
-                    'Tanggal Terima',
-                    'Prioritas',
-                    'Status',
-                    'Kategori',
-                    'Keterangan',
-                ];
-            }
-        };
-
-        \Maatwebsite\Excel\Facades\Excel::store($export, $filePath, 'public');
+        Storage::disk('public')->makeDirectory(dirname($filePath));
+        $file = fopen(Storage::disk('public')->path($filePath), 'w');
+        
+        // Add BOM for UTF-8
+        fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Headers
+        fputcsv($file, [
+            'Tipe',
+            'Jenis Surat (01-16)',
+            'Nomor Surat',
+            'Nomor Referensi',
+            'Perihal',
+            'Dari',
+            'Kepada',
+            'Tanggal Surat',
+            'Tanggal Terima',
+            'Prioritas',
+            'Status',
+            'Kategori',
+            'Keterangan',
+        ]);
+        
+        // Example row
+        fputcsv($file, [
+            'masuk',
+            '01',
+            '',
+            'REF-001',
+            'Contoh Surat Masuk',
+            'Dari Instansi',
+            '',
+            '2026-01-15',
+            '2026-01-15',
+            'biasa',
+            'draft',
+            '',
+            'Keterangan contoh',
+        ]);
+        
+        fclose($file);
     }
 }

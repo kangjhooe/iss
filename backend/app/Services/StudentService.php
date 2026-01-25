@@ -16,6 +16,12 @@ class StudentService
     {
         $query = Student::query();
 
+        if (!empty($filters['only_trashed'])) {
+            $query->onlyTrashed();
+        } elseif (!empty($filters['with_trashed'])) {
+            $query->withTrashed();
+        }
+
         // Filter by institution if provided
         if ($institutionId) {
             $query->where('institution_id', $institutionId);
@@ -48,6 +54,10 @@ class StudentService
             $query->where('academic_year_id', $filters['academic_year_id']);
         }
 
+        if (isset($filters['semester_id'])) {
+            $query->where('semester_id', $filters['semester_id']);
+        }
+
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -59,11 +69,12 @@ class StudentService
         $perPage = min($perPage, 100); // Max 100 per page
 
         // Optimize eager loading - only load necessary relationships
-        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year', 'academic_year_id', 'status', 'created_at'])
+        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'created_at'])
             ->with([
                 'institution:id,name,npsn',
                 'class:id,name,grade,academic_year_id',
-                'academicYear:id,name,code'
+                'academicYear:id,name,code',
+                'semester:id,name,academic_year_id'
             ])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
@@ -78,7 +89,8 @@ class StudentService
 
         // Create initial class history if class_id is provided
         if (isset($data['class_id']) && isset($data['academic_year_id'])) {
-            $this->createClassHistory($student, $data['class_id'], $data['academic_year_id'], 'masuk');
+            $semesterId = $data['semester_id'] ?? null;
+            $this->createClassHistory($student, $data['class_id'], $data['academic_year_id'], $semesterId, 'masuk');
         }
 
         Log::info('Student created', [
@@ -86,13 +98,13 @@ class StudentService
             'institution_id' => $student->institution_id,
         ]);
 
-        return $student->load(['institution', 'class', 'academicYear']);
+        return $student->load(['institution', 'class', 'academicYear', 'semester']);
     }
 
     /**
      * Get student by ID with relationships.
      */
-    public function find(int $id, array $with = ['institution', 'documents', 'class', 'academicYear', 'classHistory']): Student
+    public function find(int $id, array $with = ['institution', 'documents', 'class', 'academicYear', 'semester', 'classHistory']): Student
     {
         return Student::with($with)->findOrFail($id);
     }
@@ -133,7 +145,8 @@ class StudentService
             // Create new history record if new class/year is set
             if ($newClassId && $newAcademicYearId) {
                 $historyStatus = $this->determineHistoryStatus($classChanged, $academicYearChanged, $statusChanged, $newStatus);
-                $this->createClassHistory($student, $newClassId, $newAcademicYearId, $historyStatus);
+                $semesterId = $student->semester_id ?? $data['semester_id'] ?? null;
+                $this->createClassHistory($student, $newClassId, $newAcademicYearId, $semesterId, $historyStatus);
             }
         }
 
@@ -144,7 +157,7 @@ class StudentService
             'status_changed' => $statusChanged,
         ]);
 
-        return $student->fresh(['institution', 'class', 'academicYear', 'documents']);
+        return $student->fresh(['institution', 'class', 'academicYear', 'semester', 'documents']);
     }
 
     /**
@@ -186,7 +199,7 @@ class StudentService
     /**
      * Create class history record.
      */
-    protected function createClassHistory(Student $student, ?int $classId, ?int $academicYearId, string $status = 'masuk'): ?ClassStudentHistory
+    protected function createClassHistory(Student $student, ?int $classId, ?int $academicYearId, ?int $semesterId = null, string $status = 'masuk'): ?ClassStudentHistory
     {
         if (!$classId || !$academicYearId) {
             return null;
@@ -205,11 +218,17 @@ class StudentService
             return null;
         }
 
+        // Use semester_id from student if not provided
+        if (!$semesterId) {
+            $semesterId = $student->semester_id;
+        }
+
         return ClassStudentHistory::create([
             'student_id' => $student->id,
             'class_id' => $classId,
             'academic_year' => $academicYear->name ?? $student->academic_year,
             'academic_year_id' => $academicYearId,
+            'semester_id' => $semesterId,
             'start_date' => now(),
             'status' => $status,
             'notes' => "Auto-generated: {$status}",

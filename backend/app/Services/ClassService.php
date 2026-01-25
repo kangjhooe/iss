@@ -40,21 +40,59 @@ class ClassService
             }
         }
 
-        // Validate teacher is not already a wali kelas
-        if (isset($data['teacher_id']) && $data['teacher_id'] && isset($data['academic_year_id'])) {
-            if ($this->classRepository->isTeacherAlreadyWaliKelas($data['teacher_id'], $data['academic_year_id'])) {
-                throw ValidationException::withMessages([
-                    'teacher_id' => 'Guru ini sudah menjadi wali kelas untuk kelas lain di tahun ajaran yang sama.'
-                ]);
+        // Validate teacher is not already a wali kelas (check by semester if semester_id provided, otherwise by academic_year)
+        if (isset($data['teacher_id']) && $data['teacher_id']) {
+            $academicYearId = $data['academic_year_id'] ?? null;
+            $semesterId = $data['semester_id'] ?? null;
+            
+            if ($academicYearId) {
+                // If semester_id provided, check within same semester
+                if ($semesterId) {
+                    $existingClass = $this->classRepository->query()
+                        ->where('teacher_id', $data['teacher_id'])
+                        ->where('academic_year_id', $academicYearId)
+                        ->where('semester_id', $semesterId)
+                        ->where('status', 'Aktif')
+                        ->first();
+                } else {
+                    // Otherwise check within same academic year
+                    if ($this->classRepository->isTeacherAlreadyWaliKelas($data['teacher_id'], $academicYearId)) {
+                        throw ValidationException::withMessages([
+                            'teacher_id' => 'Guru ini sudah menjadi wali kelas untuk kelas lain di tahun ajaran yang sama.'
+                        ]);
+                    }
+                }
             }
         }
 
-        // Validate room is not already used
-        if (isset($data['room_id']) && $data['room_id'] && isset($data['academic_year_id'])) {
-            if ($this->classRepository->isRoomAlreadyUsed($data['room_id'], $data['academic_year_id'])) {
-                throw ValidationException::withMessages([
-                    'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di tahun ajaran yang sama.'
-                ]);
+        // Validate room is not already used (check by semester if semester_id provided, otherwise by academic_year)
+        if (isset($data['room_id']) && $data['room_id']) {
+            $academicYearId = $data['academic_year_id'] ?? null;
+            $semesterId = $data['semester_id'] ?? null;
+            
+            if ($academicYearId) {
+                // If semester_id provided, check within same semester
+                if ($semesterId) {
+                    $existingClass = $this->classRepository->query()
+                        ->where('room_id', $data['room_id'])
+                        ->where('academic_year_id', $academicYearId)
+                        ->where('semester_id', $semesterId)
+                        ->where('status', 'Aktif')
+                        ->first();
+                    
+                    if ($existingClass) {
+                        throw ValidationException::withMessages([
+                            'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di semester yang sama.'
+                        ]);
+                    }
+                } else {
+                    // Otherwise check within same academic year
+                    if ($this->classRepository->isRoomAlreadyUsed($data['room_id'], $academicYearId)) {
+                        throw ValidationException::withMessages([
+                            'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di tahun ajaran yang sama.'
+                        ]);
+                    }
+                }
             }
         }
 
@@ -90,20 +128,64 @@ class ClassService
         // Validate teacher is not already a wali kelas (exclude current class)
         if (isset($data['teacher_id']) && $data['teacher_id']) {
             $academicYearId = $data['academic_year_id'] ?? $class->academic_year_id;
-            if ($academicYearId && $this->classRepository->isTeacherAlreadyWaliKelas($data['teacher_id'], $academicYearId, $class->id)) {
-                throw ValidationException::withMessages([
-                    'teacher_id' => 'Guru ini sudah menjadi wali kelas untuk kelas lain di tahun ajaran yang sama.'
-                ]);
+            $semesterId = $data['semester_id'] ?? $class->semester_id;
+            
+            if ($academicYearId) {
+                // If semester_id provided, check within same semester
+                if ($semesterId) {
+                    $existingClass = $this->classRepository->query()
+                        ->where('teacher_id', $data['teacher_id'])
+                        ->where('academic_year_id', $academicYearId)
+                        ->where('semester_id', $semesterId)
+                        ->where('status', 'Aktif')
+                        ->where('id', '!=', $class->id)
+                        ->first();
+                    
+                    if ($existingClass) {
+                        throw ValidationException::withMessages([
+                            'teacher_id' => 'Guru ini sudah menjadi wali kelas untuk kelas lain di semester yang sama.'
+                        ]);
+                    }
+                } else {
+                    // Otherwise check within same academic year
+                    if ($this->classRepository->isTeacherAlreadyWaliKelas($data['teacher_id'], $academicYearId, $class->id)) {
+                        throw ValidationException::withMessages([
+                            'teacher_id' => 'Guru ini sudah menjadi wali kelas untuk kelas lain di tahun ajaran yang sama.'
+                        ]);
+                    }
+                }
             }
         }
 
         // Validate room is not already used (exclude current class)
         if (isset($data['room_id']) && $data['room_id']) {
             $academicYearId = $data['academic_year_id'] ?? $class->academic_year_id;
-            if ($academicYearId && $this->classRepository->isRoomAlreadyUsed($data['room_id'], $academicYearId, $class->id)) {
-                throw ValidationException::withMessages([
-                    'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di tahun ajaran yang sama.'
-                ]);
+            $semesterId = $data['semester_id'] ?? $class->semester_id;
+            
+            if ($academicYearId) {
+                // If semester_id provided, check within same semester
+                if ($semesterId) {
+                    $existingClass = $this->classRepository->query()
+                        ->where('room_id', $data['room_id'])
+                        ->where('academic_year_id', $academicYearId)
+                        ->where('semester_id', $semesterId)
+                        ->where('status', 'Aktif')
+                        ->where('id', '!=', $class->id)
+                        ->first();
+                    
+                    if ($existingClass) {
+                        throw ValidationException::withMessages([
+                            'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di semester yang sama.'
+                        ]);
+                    }
+                } else {
+                    // Otherwise check within same academic year
+                    if ($this->classRepository->isRoomAlreadyUsed($data['room_id'], $academicYearId, $class->id)) {
+                        throw ValidationException::withMessages([
+                            'room_id' => 'Ruangan ini sudah digunakan oleh kelas lain di tahun ajaran yang sama.'
+                        ]);
+                    }
+                }
             }
         }
 

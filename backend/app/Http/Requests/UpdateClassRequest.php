@@ -29,6 +29,7 @@ class UpdateClassRequest extends FormRequest
             'grade' => 'nullable|integer|min:1|max:12',
             // academic_year_id tidak bisa diubah setelah kelas dibuat
             'academic_year_id' => 'nullable|exists:academic_years,id',
+            'semester_id' => 'nullable|exists:semesters,id',
             'capacity' => 'nullable|integer|min:1',
             'status' => 'nullable|in:Aktif,Nonaktif',
             'description' => 'nullable|string',

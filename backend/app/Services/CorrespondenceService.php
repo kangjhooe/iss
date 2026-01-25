@@ -228,22 +228,10 @@ class CorrespondenceService
         return DB::transaction(function () use ($correspondence, $userId) {
             $correspondenceId = $correspondence->id;
 
-            // Delete file if exists
-            if ($correspondence->file_path && Storage::disk('public')->exists($correspondence->file_path)) {
-                Storage::disk('public')->delete($correspondence->file_path);
-            }
-
-            // Delete attachments
-            foreach ($correspondence->attachments as $attachment) {
-                if (Storage::disk('public')->exists($attachment->file_path)) {
-                    Storage::disk('public')->delete($attachment->file_path);
-                }
-            }
-
             $result = $correspondence->delete();
 
             // Create history
-            $this->createHistory($correspondenceId, $userId, 'archived', 'Surat diarsipkan');
+            $this->createHistory($correspondenceId, $userId, 'deleted', 'Surat dihapus');
 
             Log::info('Correspondence deleted', [
                 'correspondence_id' => $correspondenceId,

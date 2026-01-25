@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\Auditable;
 
 class SchoolClass extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Auditable;
 
     protected $table = 'class';
 
@@ -26,6 +27,7 @@ class SchoolClass extends Model
         'grade',
         'academic_year',
         'academic_year_id',
+        'semester_id',
         'capacity',
         'status',
         'description',
@@ -93,11 +95,27 @@ class SchoolClass extends Model
     }
 
     /**
+     * Get the semester for this class.
+     */
+    public function semester()
+    {
+        return $this->belongsTo(Semester::class, 'semester_id');
+    }
+
+    /**
      * Scope a query to only include active classes.
      */
     public function scopeActive($query)
     {
         return $query->where('status', 'Aktif');
+    }
+
+    /**
+     * Scope a query to filter by semester ID.
+     */
+    public function scopeBySemesterId($query, int $semesterId)
+    {
+        return $query->where('semester_id', $semesterId);
     }
 
     /**

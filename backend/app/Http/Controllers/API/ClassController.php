@@ -24,7 +24,7 @@ class ClassController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'grade', 'academic_year', 'academic_year_id', 'status', 'room_id', 'teacher_id']);
+        $filters = $request->only(['search', 'grade', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'room_id', 'teacher_id']);
         
         $institutionId = null;
         if (!$request->user()->isAdminOrSuperAdmin()) {
@@ -38,6 +38,14 @@ class ClassController extends Controller
             $institution = Institution::find($institutionId);
             if ($institution && $institution->active_academic_year_id) {
                 $filters['academic_year_id'] = $institution->active_academic_year_id;
+            }
+        }
+
+        // Jika tidak ada filter semester_id, gunakan active_semester_id dari institusi
+        if (!isset($filters['semester_id']) && $institutionId) {
+            $institution = Institution::find($institutionId);
+            if ($institution && $institution->active_semester_id) {
+                $filters['semester_id'] = $institution->active_semester_id;
             }
         }
 
@@ -60,12 +68,18 @@ class ClassController extends Controller
             return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
         }
 
-        // Get institution with active academic year
-        $institution = Institution::with('activeAcademicYear')->findOrFail($institutionId);
+        // Get institution with active academic year and semester
+        $institution = Institution::with(['activeAcademicYear', 'activeSemester'])->findOrFail($institutionId);
         
         if (!$institution->active_academic_year_id) {
             return response()->json([
                 'message' => 'Tahun ajaran aktif belum ditetapkan untuk institusi ini'
+            ], 400);
+        }
+
+        if (!$institution->active_semester_id) {
+            return response()->json([
+                'message' => 'Semester aktif belum ditetapkan untuk institusi ini'
             ], 400);
         }
 
@@ -80,6 +94,7 @@ class ClassController extends Controller
         $validated = $request->validated();
         $validated['institution_id'] = $institutionId;
         $validated['academic_year_id'] = $institution->active_academic_year_id; // Set otomatis dari tahun ajaran aktif
+        $validated['semester_id'] = $validated['semester_id'] ?? $institution->active_semester_id; // Set otomatis dari semester aktif jika tidak ada
         $validated['academic_year'] = $academicYear->code; // Set academic_year string dari code
         $validated['status'] = $validated['status'] ?? 'Aktif';
 
@@ -87,7 +102,7 @@ class ClassController extends Controller
 
         return response()->json([
             'message' => 'Kelas berhasil ditambahkan',
-            'data' => new ClassResource($class->load(['institution', 'room', 'teacher', 'academicYear'])),
+            'data' => new ClassResource($class->load(['institution', 'room', 'teacher', 'academicYear', 'semester'])),
         ], 201);
     }
 

@@ -17,6 +17,8 @@ class TeacherResource extends JsonResource
         return [
             'id' => $this->id,
             'institution_id' => $this->institution_id,
+            'type' => $this->type,
+            'nik' => $this->nik,
             'institution' => $this->whenLoaded('institution', function () {
                 return [
                     'id' => $this->institution->id,
@@ -41,6 +43,8 @@ class TeacherResource extends JsonResource
             'status' => $this->status,
             'join_date' => $this->join_date?->format('Y-m-d'),
             'notes' => $this->notes,
+            'affiliation' => $this->getAffiliation($request),
+            'current_assignment' => $this->getCurrentAssignment($request),
             'has_user_account' => $this->hasUserAccount(),
             'user_account' => $this->whenLoaded('userAccount', function () {
                 return [
@@ -50,8 +54,50 @@ class TeacherResource extends JsonResource
                     'role' => $this->userAccount->role,
                 ];
             }),
+            'assignments' => $this->whenLoaded('assignments', function () {
+                return EmployeeInstitutionAssignmentResource::collection($this->assignments);
+            }),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];
+    }
+
+    private function getAffiliation(Request $request): ?string
+    {
+        $currentInstitutionId = $request->attributes->get('current_institution_id')
+            ?? $request->get('institution_id')
+            ?? $request->user()?->institution_id;
+
+        if (!$currentInstitutionId) {
+            return null;
+        }
+
+        return $this->institution_id == $currentInstitutionId ? 'induk' : 'non_induk';
+    }
+
+    private function getCurrentAssignment(Request $request): ?array
+    {
+        if (!$this->relationLoaded('assignments')) {
+            return null;
+        }
+
+        $currentInstitutionId = $request->attributes->get('current_institution_id')
+            ?? $request->get('institution_id')
+            ?? $request->user()?->institution_id;
+
+        if (!$currentInstitutionId) {
+            return null;
+        }
+
+        $assignment = $this->assignments
+            ->where('institution_id', (int) $currentInstitutionId)
+            ->where('status', 'approved')
+            ->first();
+
+        if (!$assignment) {
+            return null;
+        }
+
+        return (new EmployeeInstitutionAssignmentResource($assignment))->toArray($request);
     }
 }

@@ -61,6 +61,9 @@ api.interceptors.response.use(
     // Format error message untuk ditampilkan ke user
     if (error.response?.data?.message) {
       error.formattedMessage = error.response.data.message
+    } else if (error.response?.data?.error) {
+      // Handle error field from backend
+      error.formattedMessage = error.response.data.error
     } else if (error.response?.data?.errors) {
       // Handle validation errors
       const errors = error.response.data.errors

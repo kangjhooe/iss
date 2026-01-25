@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreEmployeeRequest extends FormRequest
 {
@@ -23,6 +24,13 @@ class StoreEmployeeRequest extends FormRequest
     {
         return [
             'institution_id' => 'sometimes|exists:institution,id',
+            'nik' => [
+                'required',
+                'string',
+                'size:16',
+                'regex:/^[0-9]{16}$/',
+                Rule::unique('employee', 'nik'),
+            ],
             'type' => 'required|in:Guru,Staff,Tenaga Administrasi,Tenaga Kebersihan,Tenaga Keamanan,Lainnya',
             'nip' => 'nullable|string|max:50',
             'nuptk' => 'nullable|string|max:16|unique:employee,nuptk',
@@ -32,7 +40,12 @@ class StoreEmployeeRequest extends FormRequest
             'birth_place' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::requiredIf($this->input('type') === 'Guru'),
+            ],
             'religion' => 'nullable|string|max:50',
             'employment_status' => 'nullable|in:PNS,CPNS,Guru Tetap Yayasan,Guru Honor Sekolah,Guru Kontrak,Pegawai Tetap Yayasan,Pegawai Honor,Pegawai Kontrak',
             'education_level' => 'nullable|in:SMA,D3,S1,S2,S3',
@@ -49,6 +62,8 @@ class StoreEmployeeRequest extends FormRequest
             'educations.*.certificate_number' => 'nullable|string|max:255',
             'educations.*.city' => 'nullable|string|max:255',
             'educations.*.notes' => 'nullable|string',
+            'permission_keys' => 'nullable|array',
+            'permission_keys.*' => 'string|exists:permissions,key',
         ];
     }
 
@@ -60,6 +75,10 @@ class StoreEmployeeRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'nik.required' => 'NIK wajib diisi',
+            'nik.size' => 'NIK harus terdiri dari 16 digit',
+            'nik.regex' => 'NIK harus berupa angka 16 digit',
+            'nik.unique' => 'NIK sudah terdaftar',
             'type.required' => 'Tipe pegawai wajib diisi',
             'type.in' => 'Tipe pegawai tidak valid',
             'name.required' => 'Nama pegawai wajib diisi',
