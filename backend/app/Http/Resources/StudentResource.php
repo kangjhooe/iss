@@ -43,7 +43,7 @@ class StudentResource extends JsonResource
             'weight' => $this->weight,
             'previous_school' => $this->previous_school,
             'residence_type' => $this->residence_type,
-            'class' => $this->class,
+            'class' => $this->getRawOriginal('class'), // string column; use class_detail for relation
             'class_id' => $this->class_id,
             'class_detail' => $this->whenLoaded('class', function () {
                 return [

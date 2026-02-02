@@ -1,0 +1,323 @@
+/**
+ * Layout konsisten untuk halaman modul (Data Siswa, Guru, Kelas, dll):
+ * - Header: judul + tombol aksi dalam 1 baris ke samping (horizontal)
+ * - Filter + pencarian: 1 baris ke samping (horizontal)
+ * - Responsif: tetap horizontal di mobile
+ */
+.main-content .page-header {
+  margin-bottom: 24px;
+}
+
+.main-content .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.main-content .header-content h2,
+.main-content .header-content .page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+
+.main-content .header-content .page-title {
+  margin: 0 0 4px 0;
+}
+
+.main-content .header-content p,
+.main-content .header-content .page-subtitle {
+  color: #64748b;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Tombol aksi: 1 baris ke samping (horizontal) */
+.main-content .action-buttons-group,
+.main-content .header-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.main-content .action-buttons-group .btn-compact,
+.main-content .header-actions .btn-compact {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.main-content .btn-compact {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  gap: 4px !important;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-content .btn-compact svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.main-content .btn-add {
+  border-color: #667eea;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.main-content .btn-add:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+  color: #5a67d8;
+}
+
+/* Filter + pencarian: 1 baris ke samping (horizontal) */
+.main-content .filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.main-content .filters-inline {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.main-content .filters-inline::-webkit-scrollbar {
+  height: 3px;
+}
+
+.main-content .filters-inline .search-input {
+  flex: 1 1 auto;
+  min-width: 60px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.main-content .filters-inline .filter-select,
+.main-content .filters-inline input[type="date"] {
+  flex: 0 0 auto;
+  min-width: 85px;
+  padding: 6px 26px 6px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.main-content .filters-inline input[type="date"] {
+  padding: 6px 8px;
+  min-width: 100px;
+}
+
+/* Halaman dengan filter-group (mis. Laporan) */
+.main-content .filters-inline .filter-group {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Responsive: tetap 1 baris ke samping */
+@media (max-width: 1024px) {
+  .main-content .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .main-content .action-buttons-group,
+  .main-content .header-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .main-content .action-buttons-group .btn-compact,
+  .main-content .header-actions .btn-compact {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 36px;
+    padding: 0 4px !important;
+    font-size: 11px !important;
+    justify-content: center;
+    border-radius: 8px;
+  }
+
+  .main-content .action-buttons-group .btn-compact svg,
+  .main-content .header-actions .btn-compact svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .main-content .action-buttons-group .btn-compact span,
+  .main-content .header-actions .btn-compact span {
+    display: none;
+  }
+
+  .main-content .filters-inline {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .main-content .filters-inline .search-input {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .main-content .filters-inline .filter-select,
+  .main-content .filters-inline input[type="date"] {
+    flex: 0 0 auto;
+    min-width: 72px;
+    max-width: 95px;
+    padding: 6px 22px 6px 6px;
+    font-size: 11px;
+  }
+
+  .main-content .filters-inline input[type="date"] {
+    min-width: 92px;
+    max-width: 110px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content .page-header {
+    margin-bottom: 16px;
+    padding: 12px 0;
+  }
+
+  .main-content .header-content {
+    gap: 12px;
+  }
+
+  .main-content .header-content h2,
+  .main-content .header-content .page-title {
+    font-size: 20px;
+  }
+
+  .main-content .header-content p,
+  .main-content .header-content .page-subtitle {
+    font-size: 12px;
+  }
+
+  .main-content .action-buttons-group,
+  .main-content .header-actions {
+    gap: 4px;
+  }
+
+  .main-content .action-buttons-group .btn-compact,
+  .main-content .header-actions .btn-compact {
+    height: 34px;
+    padding: 0 4px !important;
+    font-size: 10px !important;
+  }
+
+  .main-content .action-buttons-group .btn-compact svg,
+  .main-content .header-actions .btn-compact svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .main-content .filters-inline {
+    padding: 5px 6px;
+    margin-bottom: 10px;
+    gap: 5px;
+  }
+
+  .main-content .filters-inline .search-input {
+    padding: 5px 6px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+
+  .main-content .filters-inline .filter-select,
+  .main-content .filters-inline input[type="date"] {
+    min-width: 62px;
+    max-width: 82px;
+    padding: 5px 18px 5px 6px;
+    font-size: 10px;
+    min-height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content .page-header {
+    margin-bottom: 12px;
+    padding: 8px 0;
+  }
+
+  .main-content .header-content h2,
+  .main-content .header-content .page-title {
+    font-size: 18px;
+    line-height: 1.25;
+  }
+
+  .main-content .header-content p,
+  .main-content .header-content .page-subtitle {
+    font-size: 11px;
+  }
+
+  .main-content .action-buttons-group .btn-compact,
+  .main-content .header-actions .btn-compact {
+    height: 32px;
+    border-radius: 6px;
+    padding: 0 3px !important;
+    font-size: 10px !important;
+  }
+
+  .main-content .action-buttons-group .btn-compact svg,
+  .main-content .header-actions .btn-compact svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .main-content .filters-inline {
+    padding: 4px 6px;
+    margin-bottom: 8px;
+    gap: 4px;
+  }
+
+  .main-content .filters-inline .search-input {
+    font-size: 11px;
+    min-height: 30px;
+    padding: 4px 6px;
+  }
+
+  .main-content .filters-inline .filter-select,
+  .main-content .filters-inline input[type="date"] {
+    min-height: 30px;
+    min-width: 56px;
+    max-width: 72px;
+    padding: 4px 16px 4px 5px;
+    font-size: 10px;
+  }
+}

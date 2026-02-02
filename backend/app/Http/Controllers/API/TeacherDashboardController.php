@@ -21,12 +21,12 @@ class TeacherDashboardController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user || !$user->isTeacher()) {
+            if (!$user || !$user->isTeacherOrStaff()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $user->load('teacherProfile');
-            $teacher = $user->teacherProfile;
+            $user->load(['teacherProfile', 'employeeProfile']);
+            $teacher = $user->teacherProfile ?? $user->employeeProfile;
 
             if (!$teacher) {
                 return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);

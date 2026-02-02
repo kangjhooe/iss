@@ -134,6 +134,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the violations reported by this user.
+     */
+    public function violationsReported()
+    {
+        return $this->hasMany(Violation::class, 'reported_by');
+    }
+
+    /**
+     * Get the achievements given by this user.
+     */
+    public function achievementsGiven()
+    {
+        return $this->hasMany(Achievement::class, 'given_by');
+    }
+
+    /**
+     * Get the student action logs recorded by this user.
+     */
+    public function studentActionLogsRecorded()
+    {
+        return $this->hasMany(StudentActionLog::class, 'recorded_by');
+    }
+
+    /**
      * Get the student profile associated with this user (by email).
      */
     public function studentProfile()
@@ -205,6 +229,22 @@ class User extends Authenticatable
     public function isTeacher(): bool
     {
         return $this->role === 'teacher';
+    }
+
+    /**
+     * Check if user is staff (non-teacher employee).
+     */
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    /**
+     * Check if user is teacher or staff (employee with login).
+     */
+    public function isTeacherOrStaff(): bool
+    {
+        return $this->isTeacher() || $this->isStaff();
     }
 
     /**

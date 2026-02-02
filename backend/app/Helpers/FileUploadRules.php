@@ -15,6 +15,7 @@ class FileUploadRules
     public const TYPE_MIXED = 'mixed';            // PDF, DOC, DOCX, JPG, JPEG, PNG
     public const TYPE_PDF_ONLY = 'pdf_only';     // PDF only
     public const TYPE_IMAGE_ONLY = 'image_only'; // JPG, JPEG, PNG only
+    public const TYPE_IMAGE_LOGO = 'image_logo'; // JPG, JPEG, PNG, GIF (untuk logo institusi)
 
     /**
      * Size constants (in KB)
@@ -123,6 +124,7 @@ class FileUploadRules
             self::TYPE_MIXED => ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
             self::TYPE_PDF_ONLY => ['pdf'],
             self::TYPE_IMAGE_ONLY => ['jpg', 'jpeg', 'png'],
+            self::TYPE_IMAGE_LOGO => ['jpg', 'jpeg', 'png', 'gif'],
             default => ['pdf', 'doc', 'docx'],
         };
     }
@@ -141,6 +143,7 @@ class FileUploadRules
             self::TYPE_MIXED => 'PDF, DOC, DOCX, JPG, JPEG, atau PNG',
             self::TYPE_PDF_ONLY => 'PDF',
             self::TYPE_IMAGE_ONLY => 'JPG, JPEG, atau PNG',
+            self::TYPE_IMAGE_LOGO => 'JPG, JPEG, PNG, atau GIF',
             default => 'PDF, DOC, atau DOCX',
         };
     }
@@ -194,5 +197,15 @@ class FileUploadRules
     public static function inventoryImage(): array
     {
         return self::rules(self::TYPE_IMAGE_ONLY, self::SIZE_SMALL, false, 'image');
+    }
+
+    /**
+     * Get validation rules for institution logo upload
+     *
+     * @return array Validation rules
+     */
+    public static function institutionLogo(): array
+    {
+        return self::rules(self::TYPE_IMAGE_LOGO, self::SIZE_SMALL, true, 'logo');
     }
 }

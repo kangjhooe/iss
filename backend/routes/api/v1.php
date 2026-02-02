@@ -15,6 +15,15 @@ use App\Http\Controllers\API\InstitutionController;
 use App\Http\Controllers\API\ReportController;
 use App\Http\Controllers\API\SemesterController;
 use App\Http\Controllers\API\StudentController;
+use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\StudentMutationController;
+use App\Http\Controllers\API\ViolationController;
+use App\Http\Controllers\API\ViolationTypeController;
+use App\Http\Controllers\API\AchievementController;
+use App\Http\Controllers\API\AchievementTypeController;
+use App\Http\Controllers\API\PointThresholdController;
+use App\Http\Controllers\API\StudentActionLogController;
+use App\Http\Controllers\API\StudentPointController;
 use App\Http\Controllers\API\EmployeeController;
 use App\Http\Controllers\API\EmployeeInstitutionAssignmentController;
 use App\Http\Controllers\API\InventoryController;
@@ -25,6 +34,8 @@ use App\Http\Controllers\API\InventoryLoanController;
 use App\Http\Controllers\API\InventoryReportController;
 use App\Http\Controllers\API\TeacherDashboardController;
 use App\Http\Controllers\API\PermissionController;
+use App\Http\Controllers\API\SubjectController;
+use App\Http\Controllers\API\LessonScheduleController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
@@ -89,6 +100,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
     Route::get('/permissions', [PermissionController::class, 'index']);
     Route::get('/permissions/teachers', [PermissionController::class, 'getTeachers']);
     Route::put('/permissions/users/{userId}', [PermissionController::class, 'updateUserPermissions']);
@@ -116,6 +131,56 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
         Route::delete('/student/{id}/documents/{documentId}', [StudentController::class, 'deleteDocument'])->name('student.delete-document');
         Route::get('/student/{id}/documents/{documentId}/download', [StudentController::class, 'downloadDocument'])->name('student.download-document');
+        // Student mutation (mutasi siswa)
+        Route::get('/student-mutations/target-institutions', [StudentMutationController::class, 'searchTargetInstitutions'])->name('student-mutations.target-institutions');
+        Route::get('/student-mutations/origin-institutions', [StudentMutationController::class, 'searchOriginInstitutions'])->name('student-mutations.origin-institutions');
+        Route::post('/student-mutations/pull', [StudentMutationController::class, 'pull'])->name('student-mutations.pull');
+        Route::post('/student-mutations/{student_mutation}/approve', [StudentMutationController::class, 'approve'])->name('student-mutations.approve');
+        Route::get('/student-mutations', [StudentMutationController::class, 'index']);
+        Route::get('/student-mutations/report', [StudentMutationController::class, 'report'])->name('student-mutations.report');
+        Route::get('/student-mutations/by-student/{student_id}', [StudentMutationController::class, 'historyByStudent'])->name('student-mutations.by-student');
+        Route::get('/student-mutations/history-by-nisn', [StudentMutationController::class, 'historyByNisn'])->name('student-mutations.history-by-nisn');
+        Route::post('/student-mutations', [StudentMutationController::class, 'store']);
+        Route::get('/student-mutations/{student_mutation}', [StudentMutationController::class, 'show']);
+    });
+
+    // Violation routes (Pelanggaran)
+    Route::middleware('module:violation')->group(function () {
+        Route::get('/violations', [ViolationController::class, 'index']);
+        Route::post('/violations', [ViolationController::class, 'store']);
+        Route::get('/violations/by-student/{studentId}', [ViolationController::class, 'byStudent'])->name('violations.by-student');
+        Route::get('/violations/{violation}', [ViolationController::class, 'show']);
+        Route::put('/violations/{violation}', [ViolationController::class, 'update']);
+        Route::delete('/violations/{violation}', [ViolationController::class, 'destroy']);
+        Route::get('/violation-types', [ViolationTypeController::class, 'index']);
+        Route::post('/violation-types', [ViolationTypeController::class, 'store']);
+        Route::get('/violation-types/{violation_type}', [ViolationTypeController::class, 'show']);
+        Route::put('/violation-types/{violation_type}', [ViolationTypeController::class, 'update']);
+        Route::delete('/violation-types/{violation_type}', [ViolationTypeController::class, 'destroy']);
+        // Prestasi (achievement) - pengurangan poin
+        Route::get('/achievements', [AchievementController::class, 'index']);
+        Route::post('/achievements', [AchievementController::class, 'store']);
+        Route::get('/achievements/by-student/{studentId}', [AchievementController::class, 'byStudent']);
+        Route::get('/achievements/{achievement}', [AchievementController::class, 'show']);
+        Route::delete('/achievements/{achievement}', [AchievementController::class, 'destroy']);
+        Route::get('/achievement-types', [AchievementTypeController::class, 'index']);
+        Route::post('/achievement-types', [AchievementTypeController::class, 'store']);
+        Route::get('/achievement-types/{achievement_type}', [AchievementTypeController::class, 'show']);
+        Route::put('/achievement-types/{achievement_type}', [AchievementTypeController::class, 'update']);
+        Route::delete('/achievement-types/{achievement_type}', [AchievementTypeController::class, 'destroy']);
+        // Aturan tindakan (threshold poin)
+        Route::get('/point-thresholds', [PointThresholdController::class, 'index']);
+        Route::post('/point-thresholds', [PointThresholdController::class, 'store']);
+        Route::get('/point-thresholds/{point_threshold}', [PointThresholdController::class, 'show']);
+        Route::put('/point-thresholds/{point_threshold}', [PointThresholdController::class, 'update']);
+        Route::delete('/point-thresholds/{point_threshold}', [PointThresholdController::class, 'destroy']);
+        // Catatan tindakan (panggilan orang tua, dll.)
+        Route::get('/student-action-logs', [StudentActionLogController::class, 'index']);
+        Route::post('/student-action-logs', [StudentActionLogController::class, 'store']);
+        Route::get('/student-action-logs/by-student/{studentId}', [StudentActionLogController::class, 'byStudent']);
+        // Ringkasan poin siswa + tindakan yang harus dilakukan
+        Route::get('/student-points', [StudentPointController::class, 'index']);
+        Route::get('/student-points/{studentId}/summary', [StudentPointController::class, 'summary']);
     });
 
     // Employee routes with caching
@@ -129,6 +194,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::put('/employee/{id}', [EmployeeController::class, 'update']);
         Route::delete('/employee/{id}', [EmployeeController::class, 'destroy']);
     Route::post('/employee/{id}/restore', [EmployeeController::class, 'restore']);
+        Route::post('/employee/{id}/reset-password', [EmployeeController::class, 'resetPasswordByAdmin'])->name('employee.reset-password');
         Route::post('/employee/import', [EmployeeController::class, 'import'])->name('employee.import');
         Route::post('/employee/{id}/documents', [EmployeeController::class, 'uploadDocument'])->name('employee.upload-document');
         Route::delete('/employee/{id}/documents/{documentId}', [EmployeeController::class, 'deleteDocument'])->name('employee.delete-document');
@@ -154,6 +220,18 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('/class/{id}/students', [ClassController::class, 'getStudents'])->name('class.students');
         Route::post('/class/{id}/students', [ClassController::class, 'addStudents'])->name('class.add-students');
         Route::delete('/class/{id}/students/{studentId}', [ClassController::class, 'removeStudent'])->name('class.remove-student');
+    });
+
+    // Jadwal Pelajaran (Schedule) routes
+    Route::middleware('module:schedule')->group(function () {
+        Route::apiResource('subjects', SubjectController::class);
+        Route::get('/lesson-schedules/by-class/{classId}', [LessonScheduleController::class, 'byClass'])->name('lesson-schedules.by-class');
+        Route::get('/lesson-schedules/by-teacher/{employeeId}', [LessonScheduleController::class, 'byTeacher'])->name('lesson-schedules.by-teacher');
+        Route::get('/lesson-schedules/by-room/{roomId}', [LessonScheduleController::class, 'byRoom'])->name('lesson-schedules.by-room');
+        Route::post('/lesson-schedules/copy-semester', [LessonScheduleController::class, 'copySemester'])->name('lesson-schedules.copy-semester');
+        Route::delete('/lesson-schedules/by-class/{classId}', [LessonScheduleController::class, 'deleteByClass'])->name('lesson-schedules.delete-by-class');
+        Route::delete('/lesson-schedules/by-semester/{semesterId}', [LessonScheduleController::class, 'deleteBySemester'])->name('lesson-schedules.delete-by-semester');
+        Route::apiResource('lesson-schedules', LessonScheduleController::class);
     });
 
     // Academic Year routes

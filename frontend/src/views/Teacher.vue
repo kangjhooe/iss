@@ -57,7 +57,7 @@
               <span>Import</span>
             </label>
             <input type="file" id="import-excel-employee" accept=".xlsx,.xls" style="display: none;" @change="handleImportExcel">
-            <button @click="showAddModal = true" class="btn-primary btn-compact">
+            <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -68,7 +68,7 @@
         </div>
       </div>
 
-      <div class="filters">
+      <div class="filters filters-inline">
         <input 
           v-model="filters.search" 
           @input="loadTeachers" 
@@ -456,18 +456,33 @@
                   <textarea v-model="form.notes" rows="5"></textarea>
                 </div>
 
-                <div v-if="form.type === 'Guru'" class="module-access">
-                  <h4>Akses Modul</h4>
-                  <div v-if="loadingPermissions" class="info-box">
-                    <p>Memuat daftar modul...</p>
+                <div class="module-access">
+                  <h4>Akun Login & Akses Modul</h4>
+                  <p class="form-hint">Isi email untuk membuat akun login pegawai. Semua pegawai (Guru, Staff, dll.) bisa punya akun dengan role dan modul akses.</p>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Role akun login</label>
+                      <select v-model="form.user_role" class="form-input">
+                        <option value="">Tidak buat akun</option>
+                        <option value="teacher">Guru (teacher)</option>
+                        <option value="staff">Staff (staff)</option>
+                      </select>
+                      <span class="form-hint">Pilih role untuk akun login. Email wajib diisi jika memilih role.</span>
+                    </div>
                   </div>
-                  <div v-else class="module-grid">
-                    <label v-for="module in availableModules" :key="module.key" class="module-option">
-                      <input type="checkbox" :value="module.key" v-model="form.permission_keys" />
-                      <span>{{ module.label }}</span>
-                    </label>
+                  <div v-if="form.user_role" class="module-access-grid">
+                    <h5>Akses Modul</h5>
+                    <div v-if="loadingPermissions" class="info-box">
+                      <p>Memuat daftar modul...</p>
+                    </div>
+                    <div v-else class="module-grid">
+                      <label v-for="module in availableModules" :key="module.key" class="module-option">
+                        <input type="checkbox" :value="module.key" v-model="form.permission_keys" />
+                        <span>{{ module.label }}</span>
+                      </label>
+                    </div>
+                    <p class="form-hint">Hanya modul yang dicentang dapat diakses oleh akun ini.</p>
                   </div>
-                  <p class="form-hint">Hanya modul yang dicentang dapat diakses oleh akun guru.</p>
                 </div>
               </fieldset>
               <div v-if="isNonIndukEdit" class="info-box">
@@ -654,16 +669,39 @@
       </div>
 
       <!-- View Teacher Modal -->
-      <div v-if="showViewModal" class="modal-overlay" @click="closeViewModal">
+      <div v-if="showViewModal" class="modal-overlay view-modal-overlay" @click="closeViewModal">
         <div class="modal-content view-modal" @click.stop>
-          <div class="modal-header">
-            <h3>Biodata Lengkap Guru</h3>
-            <button @click="closeViewModal" class="btn-close">×</button>
+          <div class="view-modal-header">
+            <div class="view-header-actions">
+              <button type="button" class="btn-print" @click="printPDF" title="Cetak PDF">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Cetak PDF</span>
+              </button>
+              <button type="button" class="view-modal-close" @click="closeViewModal" aria-label="Tutup">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div class="view-profile-strip" v-if="viewingTeacher">
+              <div class="view-profile-avatar">
+                {{ (viewingTeacher.name || 'P').charAt(0).toUpperCase() }}
+              </div>
+              <div class="view-profile-info">
+                <h2 class="view-profile-name">{{ viewingTeacher.name || '-' }}</h2>
+                <div class="view-profile-meta">
+                  <span class="view-profile-type">{{ viewingTeacher.type || 'Pegawai' }}</span>
+                  <span class="view-profile-status" :class="getStatusClass(viewingTeacher.status)">{{ viewingTeacher.status || '-' }}</span>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div class="view-body" v-if="viewingTeacher">
-            <!-- Identitas Guru -->
-            <div class="biodata-section">
+            <!-- Identitas -->
+            <div class="biodata-section view-card">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -724,7 +762,7 @@
             </div>
 
             <!-- Data Kepegawaian -->
-            <div class="biodata-section">
+            <div class="biodata-section view-card">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -761,8 +799,57 @@
               </div>
             </div>
 
+            <!-- Akun Login -->
+            <div class="biodata-section view-card biodata-section-akun">
+              <h4 class="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Akun Login
+              </h4>
+              <div class="biodata-grid" v-if="viewingTeacher.has_user_account && viewingTeacher.user_account">
+                <div class="biodata-item">
+                  <span class="label">Email (untuk login)</span>
+                  <span class="value">{{ viewingTeacher.user_account.email || '-' }}</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">Role</span>
+                  <span class="value">{{ formatUserRole(viewingTeacher.user_account.role) }}</span>
+                </div>
+                <div class="biodata-item full-width" v-if="viewingTeacher.user_account.permissions && viewingTeacher.user_account.permissions.length">
+                  <span class="label">Modul akses</span>
+                  <span class="value">
+                    <span v-for="key in viewingTeacher.user_account.permissions" :key="key" class="permission-tag">{{ key }}</span>
+                  </span>
+                </div>
+                <div class="biodata-item full-width" v-else>
+                  <span class="label">Modul akses</span>
+                  <span class="value">-</span>
+                </div>
+                <div class="biodata-item full-width">
+                  <span class="label">Ubah akses</span>
+                  <span class="value hint">Gunakan tombol <strong>Edit</strong> di tabel untuk mengubah modul akses (permission) akun ini.</span>
+                </div>
+                <div class="biodata-item full-width" v-if="canResetEmployeePassword">
+                  <span class="label">Reset sandi</span>
+                  <span class="value">
+                    <button type="button" class="btn-reset-password" @click="openResetPasswordModal">
+                      Reset sandi login
+                    </button>
+                    <span class="hint">Beri tahu pegawai sandi baru secara aman setelah direset.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="biodata-grid" v-else>
+                <div class="biodata-item full-width">
+                  <span class="value hint">Akun login belum dibuat. Isi email dan pilih role di form <strong>Edit</strong> pegawai lalu simpan untuk membuat akun.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Riwayat Pendidikan -->
-            <div class="biodata-section" v-if="viewingTeacher.educations && viewingTeacher.educations.length > 0">
+            <div class="biodata-section view-card" v-if="viewingTeacher.educations && viewingTeacher.educations.length > 0">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -808,7 +895,7 @@
             </div>
 
             <!-- Berkas Dokumen -->
-            <div class="biodata-section" v-if="viewingTeacher.documents && viewingTeacher.documents.length > 0">
+            <div class="biodata-section view-card" v-if="viewingTeacher.documents && viewingTeacher.documents.length > 0">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -840,7 +927,7 @@
             </div>
 
             <!-- Riwayat Non-Induk -->
-            <div class="biodata-section" v-if="viewingTeacher.assignments && viewingTeacher.assignments.length > 0">
+            <div class="biodata-section view-card" v-if="viewingTeacher.assignments && viewingTeacher.assignments.length > 0">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -891,7 +978,7 @@
             </div>
 
             <!-- Catatan -->
-            <div class="biodata-section" v-if="viewingTeacher.notes">
+            <div class="biodata-section view-card" v-if="viewingTeacher.notes">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -905,6 +992,47 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reset Sandi Modal (admin) -->
+      <div v-if="showResetPasswordModal" class="modal-overlay" @click="closeResetPasswordModal">
+        <div class="modal-content reset-password-modal" @click.stop>
+          <div class="modal-header">
+            <h3>Reset sandi login</h3>
+            <button type="button" class="btn-close" @click="closeResetPasswordModal">×</button>
+          </div>
+          <div class="modal-body">
+            <p v-if="viewingTeacher" class="reset-password-target">
+              Pegawai: <strong>{{ viewingTeacher.name }}</strong> ({{ viewingTeacher.user_account?.email || viewingTeacher.email }})
+            </p>
+            <div class="form-group">
+              <label>Sandi baru</label>
+              <input
+                v-model="resetPasswordForm.password"
+                type="password"
+                placeholder="Min. 8 karakter, huruf dan angka"
+                autocomplete="new-password"
+              />
+              <span v-if="resetPasswordError" class="error-text">{{ resetPasswordError }}</span>
+            </div>
+            <div class="form-group">
+              <label>Konfirmasi sandi</label>
+              <input
+                v-model="resetPasswordForm.password_confirmation"
+                type="password"
+                placeholder="Ulangi sandi baru"
+                autocomplete="new-password"
+              />
+            </div>
+            <p class="form-hint">Setelah direset, beri tahu pegawai sandi baru secara aman (lisan/dokumen internal) dan sarankan ganti sandi setelah login.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="closeResetPasswordModal">Batal</button>
+            <button type="button" class="btn-primary" @click="submitResetPassword" :disabled="resetPasswordLoading">
+              {{ resetPasswordLoading ? 'Memproses...' : 'Reset sandi' }}
+            </button>
           </div>
         </div>
       </div>
@@ -1127,7 +1255,9 @@
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { employeeApi } from '@/api/teacher'
+import { institutionApi } from '@/api/institution'
 import { permissionApi } from '@/api/permissions'
+import { getInstitutionTypeLabel } from '@/utils/institution'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
@@ -1148,6 +1278,7 @@ const loading = ref(true)
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
+const showResetPasswordModal = ref(false)
 const showAssignmentModal = ref(false)
 const showAssignmentRequestsModal = ref(false)
 const showImportResultModal = ref(false)
@@ -1172,6 +1303,9 @@ const importResult = ref({
   account_conflicts: [],
   errors: []
 })
+const resetPasswordForm = ref({ password: '', password_confirmation: '' })
+const resetPasswordLoading = ref(false)
+const resetPasswordError = ref('')
 
 const filters = ref({
   search: '',
@@ -1200,6 +1334,7 @@ const form = ref({
   status: 'Aktif',
   join_date: '',
   notes: '',
+  user_role: '',
   permission_keys: ['correspondence'],
   affiliation: null,
   current_assignment: null,
@@ -1222,6 +1357,11 @@ const editingId = ref(null)
 
 const isInstitutionAdmin = computed(() => authStore.user?.role === 'institution_admin')
 const isNonIndukEdit = computed(() => Boolean(editingId.value && form.value.affiliation === 'non_induk'))
+const isViewingGuru = computed(() => (viewingTeacher.value?.type || '').toString().toLowerCase() === 'guru')
+const canResetEmployeePassword = computed(() => {
+  const role = authStore.user?.role
+  return role === 'institution_admin' || role === 'admin' || role === 'super_admin'
+})
 
 const loadPermissions = async () => {
   loadingPermissions.value = true
@@ -1239,14 +1379,15 @@ const loadPermissions = async () => {
 const loadTeachers = async () => {
   loading.value = true
   try {
-    const params = {}
+    const params = { per_page: 200 }
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.type) params.type = filters.value.type
     if (filters.value.employment_status) params.employment_status = filters.value.employment_status
     
     const response = await employeeApi.getAll(params)
-    teachers.value = response.data.data || []
+    const list = response.data?.data ?? response.data ?? []
+    teachers.value = Array.isArray(list) ? list : []
   } catch (err) {
     error.value = 'Gagal memuat data guru'
     console.error(err)
@@ -1260,6 +1401,13 @@ const getTeacherSubject = (teacher) => {
     return teacher?.current_assignment?.subject || '-'
   }
   return teacher?.subject || '-'
+}
+
+const formatUserRole = (role) => {
+  if (!role) return '-'
+  if (role === 'teacher') return 'Guru'
+  if (role === 'staff') return 'Staff'
+  return role
 }
 
 const isSameInstitution = (employee) => {
@@ -1464,7 +1612,10 @@ const editTeacher = async (teacher) => {
     form.value.assignment_subject = fullData.current_assignment?.subject || ''
     form.value.assignment_title = fullData.current_assignment?.assignment_title || ''
     form.value.assignment_notes = fullData.current_assignment?.assignment_notes || ''
-    form.value.permission_keys = fullData.user_account?.permissions || []
+    form.value.user_role = (fullData.user_account?.role && ['teacher', 'staff'].includes(fullData.user_account.role))
+      ? fullData.user_account.role
+      : ''
+    form.value.permission_keys = fullData.user_account?.permissions || ['correspondence']
     if (fullData.birth_date) {
       form.value.birth_date = fullData.birth_date.split('T')[0]
     }
@@ -1596,7 +1747,8 @@ const handleSubmit = async () => {
   try {
     let response = null
     const payload = { ...form.value }
-    if (payload.type !== 'Guru') {
+    if (!payload.user_role) {
+      delete payload.user_role
       delete payload.permission_keys
     }
 
@@ -1606,6 +1758,10 @@ const handleSubmit = async () => {
     } else {
       response = await employeeApi.create(payload)
       toast.success('Berhasil', 'Guru berhasil ditambahkan')
+      const newTeacher = response?.data?.data
+      if (newTeacher && typeof newTeacher === 'object') {
+        teachers.value = [newTeacher, ...teachers.value]
+      }
     }
 
     const generatedPassword = response?.data?.generated_password
@@ -1624,7 +1780,7 @@ const handleSubmit = async () => {
       )
     }
     closeModal()
-    loadTeachers()
+    await loadTeachers()
   } catch (err) {
     const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
     error.value = errorMsg
@@ -1664,6 +1820,7 @@ const closeModal = () => {
     status: 'Aktif',
     join_date: '',
     notes: '',
+    user_role: '',
     permission_keys: ['correspondence'],
     affiliation: null,
     current_assignment: null,
@@ -1692,6 +1849,51 @@ const closeViewModal = () => {
   viewingTeacher.value = null
 }
 
+const openResetPasswordModal = () => {
+  resetPasswordForm.value = { password: '', password_confirmation: '' }
+  resetPasswordError.value = ''
+  showResetPasswordModal.value = true
+}
+
+const closeResetPasswordModal = () => {
+  showResetPasswordModal.value = false
+  resetPasswordForm.value = { password: '', password_confirmation: '' }
+  resetPasswordError.value = ''
+}
+
+const submitResetPassword = async () => {
+  const { password, password_confirmation } = resetPasswordForm.value
+  resetPasswordError.value = ''
+  if (!password || password.length < 8) {
+    resetPasswordError.value = 'Sandi minimal 8 karakter dan harus mengandung huruf serta angka.'
+    return
+  }
+  if (password !== password_confirmation) {
+    resetPasswordError.value = 'Konfirmasi sandi tidak cocok.'
+    return
+  }
+  if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+    resetPasswordError.value = 'Sandi harus mengandung huruf dan angka.'
+    return
+  }
+  if (!viewingTeacher.value?.id) return
+  resetPasswordLoading.value = true
+  try {
+    await employeeApi.resetPasswordByAdmin(viewingTeacher.value.id, {
+      password,
+      password_confirmation
+    })
+    toast.success('Berhasil', 'Sandi berhasil direset. Beri tahu pegawai sandi baru secara aman dan sarankan ganti sandi setelah login.')
+    closeResetPasswordModal()
+  } catch (err) {
+    const msg = err.response?.data?.message || err.formattedMessage || 'Gagal reset sandi'
+    resetPasswordError.value = msg
+    toast.error('Gagal', msg)
+  } finally {
+    resetPasswordLoading.value = false
+  }
+}
+
 const formatDate = (date) => {
   if (!date) return '-'
   const d = new Date(date)
@@ -1700,6 +1902,163 @@ const formatDate = (date) => {
     month: 'long', 
     day: 'numeric' 
   })
+}
+
+const printPDF = async () => {
+  if (!viewingTeacher.value) return
+  try {
+    const institutionResponse = await institutionApi.getMy()
+    const institution = institutionResponse.data?.data || institutionResponse.data || {}
+    const printWindow = window.open('', '_blank')
+    const emp = viewingTeacher.value
+    const filename = `${emp.nik || 'NIK'}_${emp.name || 'Pegawai'}.pdf`
+    const addressParts = []
+    if (institution.address) addressParts.push(institution.address)
+    if (institution.village) addressParts.push(institution.village)
+    if (institution.sub_district) addressParts.push(`Kec. ${institution.sub_district}`)
+    if (institution.district) addressParts.push(institution.district)
+    if (institution.province) addressParts.push(institution.province)
+    if (institution.postal_code) addressParts.push(institution.postal_code)
+    const fullAddress = addressParts.join(', ') || '-'
+    const principalLabel = `Kepala ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}`
+    const roleLabel = (r) => { if (!r) return '-'; if (r === 'teacher') return 'Guru'; if (r === 'staff') return 'Staff'; return r }
+    const content = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Biodata ${emp.name}</title>
+  <style>
+  @media print { @page { size: A4; margin: 1cm 1.5cm 1cm 1.5cm; } }
+  body { font-family: 'Times New Roman', serif; line-height: 1.15; color: #000; max-width: 800px; margin: 0 auto; padding: 0; font-size: 12px; }
+  .kop { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; text-align: center; }
+  .kop-header { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 6px; }
+  .kop-logo { max-width: 64px; max-height: 64px; object-fit: contain; }
+  .kop-name { font-size: 16px; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.15; }
+  .kop-address { font-size: 11px; margin-bottom: 4px; line-height: 1.2; }
+  .kop-info { font-size: 10px; margin-top: 4px; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+  .kop-info-item { display: flex; gap: 4px; }
+  .kop-info-label { font-weight: bold; }
+  .header { text-align: center; margin-bottom: 10px; margin-top: 8px; }
+  .header h1 { color: #000; margin: 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.15; }
+  .header p { margin-top: 2px; font-size: 12px; line-height: 1.15; }
+  .section { margin-bottom: 10px; page-break-inside: avoid; }
+  .section-title { background: #f0f0f0; color: #000; padding: 4px 10px; margin: 0 0 6px 0; font-size: 12px; font-weight: bold; border-left: 3px solid #000; line-height: 1.2; }
+  .biodata-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 0; margin-bottom: 6px; border: 1px solid #ddd; }
+  .biodata-item { display: contents; }
+  .label { font-weight: bold; color: #000; padding: 3px 8px; background: #f8f8f8; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; font-size: 11px; line-height: 1.2; }
+  .value { padding: 3px 8px; border-bottom: 1px solid #ddd; font-size: 11px; line-height: 1.2; }
+  .biodata-grid .biodata-item:last-child .label, .biodata-grid .biodata-item:nth-last-child(2) .label { border-bottom: none; }
+  .biodata-grid .biodata-item:last-child .value, .biodata-grid .biodata-item:nth-last-child(2) .value { border-bottom: none; }
+  .footer { margin-top: 16px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: flex-start; }
+  .footer-right { flex: 1; text-align: right; }
+  .footer-date { font-size: 11px; margin-bottom: 24px; line-height: 1.2; }
+  .footer-signature-label { margin-bottom: 36px; font-weight: bold; font-size: 11px; }
+  .footer-signature-name { font-weight: bold; text-decoration: underline; font-size: 12px; }
+  .footer-signature-nip { font-size: 10px; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="kop">
+    <div class="kop-header">
+      ${institution.logo ? `<img src="${institution.logo}" alt="Logo" class="kop-logo" />` : ''}
+      <div style="flex: 1;">
+        <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
+        <div class="kop-address">${fullAddress}</div>
+      </div>
+    </div>
+    <div class="kop-info">
+      <div class="kop-info-item"><span class="kop-info-label">NPSN:</span><span>${institution.npsn || '-'}</span></div>
+      <div class="kop-info-item"><span class="kop-info-label">No. Statistik:</span><span>${institution.nss || '-'}</span></div>
+    </div>
+  </div>
+  <div class="header">
+    <h1>Biodata Pegawai</h1>
+    <p>${emp.name || ''}</p>
+  </div>
+  <div class="section">
+    <h3 class="section-title">Identitas</h3>
+    <div class="biodata-grid">
+      <div class="biodata-item"><span class="label">NIP</span><span class="value">${emp.nip || '-'}</span></div>
+      <div class="biodata-item"><span class="label">NIK</span><span class="value">${emp.nik || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Tipe Pegawai</span><span class="value">${emp.type || '-'}</span></div>
+      <div class="biodata-item"><span class="label">NUPTK</span><span class="value">${emp.nuptk || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Nama Lengkap</span><span class="value">${emp.name || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Jenis Kelamin</span><span class="value">${emp.gender === 'L' ? 'Laki-laki' : emp.gender === 'P' ? 'Perempuan' : '-'}</span></div>
+      <div class="biodata-item"><span class="label">Tempat Lahir</span><span class="value">${emp.birth_place || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Tanggal Lahir</span><span class="value">${formatDate(emp.birth_date)}</span></div>
+      <div class="biodata-item"><span class="label">Alamat</span><span class="value">${emp.address || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Telepon</span><span class="value">${emp.phone || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Email</span><span class="value">${emp.email || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Agama</span><span class="value">${emp.religion || '-'}</span></div>
+    </div>
+  </div>
+  <div class="section">
+    <h3 class="section-title">Data Kepegawaian</h3>
+    <div class="biodata-grid">
+      <div class="biodata-item"><span class="label">Status Kepegawaian</span><span class="value">${emp.employment_status || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Pendidikan Terakhir</span><span class="value">${emp.education_level || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Jurusan</span><span class="value">${emp.major || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Mata Pelajaran</span><span class="value">${emp.subject || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Tanggal Bergabung</span><span class="value">${formatDate(emp.join_date)}</span></div>
+      <div class="biodata-item"><span class="label">Status</span><span class="value">${emp.status || '-'}</span></div>
+    </div>
+  </div>
+  ${emp.has_user_account && emp.user_account ? `
+  <div class="section">
+    <h3 class="section-title">Akun Login</h3>
+    <div class="biodata-grid">
+      <div class="biodata-item"><span class="label">Email (login)</span><span class="value">${emp.user_account.email || '-'}</span></div>
+      <div class="biodata-item"><span class="label">Role</span><span class="value">${roleLabel(emp.user_account.role)}</span></div>
+    </div>
+  </div>
+  ` : ''}
+  ${emp.educations && emp.educations.length ? `
+  <div class="section">
+    <h3 class="section-title">Riwayat Pendidikan</h3>
+    ${emp.educations.map((edu, i) => `
+    <div style="margin-bottom: 6px;">
+      <div style="font-weight: bold; margin-bottom: 3px; font-size: 11px;">${edu.level || '-'}</div>
+      <div class="biodata-grid">
+        <div class="biodata-item"><span class="label">Nama Sekolah</span><span class="value">${edu.school_name || '-'}</span></div>
+        <div class="biodata-item"><span class="label">Jurusan</span><span class="value">${edu.major || '-'}</span></div>
+        <div class="biodata-item"><span class="label">Tahun Lulus</span><span class="value">${edu.graduation_year || '-'}</span></div>
+        <div class="biodata-item"><span class="label">Nomor Ijazah</span><span class="value">${edu.certificate_number || '-'}</span></div>
+      </div>
+    </div>
+    `).join('')}
+  </div>
+  ` : ''}
+  ${emp.notes ? `
+  <div class="section">
+    <h3 class="section-title">Catatan</h3>
+    <p style="margin: 0; font-size: 11px; line-height: 1.2;">${emp.notes}</p>
+  </div>
+  ` : ''}
+  <div class="footer">
+    <div></div>
+    <div class="footer-right">
+      <div class="footer-date">${institution.district || 'Kota/Kabupaten'}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+      <div>
+        <div class="footer-signature-label">${principalLabel}</div>
+        <div class="footer-signature-name">${institution.principal_name || '___________________'}</div>
+        <div class="footer-signature-nip">${institution.principal_nip ? 'NIP. ' + institution.principal_nip : 'NIP. ___________________'}</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+`
+    printWindow.document.write(content)
+    printWindow.document.close()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.document.title = filename
+    }, 250)
+  } catch (err) {
+    console.error('Error loading institution for print:', err)
+    toast.error('Gagal', 'Gagal memuat data institusi untuk KOP surat')
+  }
 }
 
 const formatFileSize = (bytes) => {
@@ -2481,6 +2840,41 @@ onMounted(() => {
   margin-top: 30px;
 }
 
+.reset-password-modal .modal-body {
+  padding: 20px 24px;
+}
+.reset-password-modal .error-text {
+  color: #dc2626;
+  font-size: 13px;
+  margin-top: 4px;
+  display: block;
+}
+.reset-password-target {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #475569;
+}
+.btn-reset-password {
+  padding: 8px 16px;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-reset-password:hover {
+  background: #d97706;
+}
+.btn-reset-password + .hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
 .btn-primary {
   padding: 12px 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -2626,9 +3020,165 @@ onMounted(() => {
   }
 }
 
-.view-modal {
-  max-width: 1000px;
+/* View modal – clean & professional */
+.view-modal-overlay {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
 }
+.view-modal {
+  max-width: 720px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+.view-modal-header {
+  position: relative;
+  padding: 24px 24px 28px;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: white;
+}
+.view-header-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.view-header-actions .btn-print {
+  padding: 9px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.view-header-actions .btn-print:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.view-header-actions .view-modal-close {
+  position: static;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.view-header-actions .view-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.view-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.view-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.view-profile-strip {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.view-profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
+.view-profile-info {
+  min-width: 0;
+}
+.view-profile-name {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
+  color: white;
+}
+.view-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.view-profile-type {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+.view-profile-status {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.view-profile-status.status-active {
+  background: rgba(34, 197, 94, 0.25);
+  color: #86efac;
+}
+.view-profile-status.status-success,
+.view-profile-status.status-inactive {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+.view-profile-status.status-warning {
+  background: rgba(251, 191, 36, 0.25);
+  color: #fde047;
+}
+
+@media (max-width: 560px) {
+  .view-modal { max-width: 95%; }
+  .view-profile-strip { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .view-profile-name { font-size: 18px; }
+  .view-body .biodata-grid { grid-template-columns: 1fr; }
+  .view-body .biodata-item:nth-last-child(-n+2) { border-bottom: 1px solid #f1f5f9; }
+  .view-body .biodata-item:last-child { border-bottom: none; }
+}
+
+.biodata-section-akun {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+}
+.biodata-section-akun .section-title { padding-left: 12px; border-left-color: #0ea5e9; }
 
 .fieldset-reset {
   border: none;
@@ -2655,13 +3205,13 @@ onMounted(() => {
 .assignment-history {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .assignment-item {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 16px;
+  padding: 16px 18px;
   background: #f8fafc;
 }
 
@@ -2670,13 +3220,15 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .assignment-item-header h5 {
   margin: 0;
   font-size: 15px;
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 600;
+  color: #334155;
 }
 
 .assignment-status {
@@ -2710,52 +3262,65 @@ onMounted(() => {
 }
 
 .view-body {
-  padding: 30px;
-  max-height: calc(90vh - 100px);
+  padding: 24px;
+  max-height: calc(90vh - 180px);
   overflow-y: auto;
+  background: #f1f5f9;
 }
 
-.biodata-section {
-  margin-bottom: 32px;
+.biodata-section.view-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
 }
 
 .biodata-section:last-child {
   margin-bottom: 0;
 }
 
-.section-title {
+.biodata-section .section-title {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e2e8f0;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0 0 16px 0;
+  padding: 0 0 0 12px;
+  border-left: 4px solid #6366f1;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
-.section-title svg {
-  color: #667eea;
+.biodata-section .section-title svg {
+  color: #6366f1;
+  opacity: 0.9;
+  flex-shrink: 0;
 }
 
 .biodata-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
 }
 
 .biodata-item {
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid #e2e8f0;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: transparent;
 }
 
 .biodata-item:nth-child(odd) {
-  border-right: 1px solid #e2e8f0;
+  border-right: none;
 }
 
 .biodata-item:nth-last-child(-n+2) {
@@ -2763,26 +3328,48 @@ onMounted(() => {
 }
 
 .biodata-item .label {
-  padding: 12px 18px;
-  background: #f8fafc;
+  padding: 10px 0 4px 0;
+  background: transparent;
   color: #64748b;
   font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid #e2e8f0;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  border: none;
 }
 
 .biodata-item .value {
-  padding: 14px 18px;
-  color: #1e293b;
+  padding: 0 0 14px 0;
+  color: #0f172a;
   font-size: 14px;
-  border-bottom: 1px solid #e2e8f0;
+  font-weight: 500;
+  border: none;
+  line-height: 1.4;
 }
 
 .biodata-item:last-child .value,
 .biodata-item:nth-last-child(2) .value {
-  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.biodata-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.biodata-item .value.hint {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.permission-tag {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 4px 10px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 6px;
+  font-size: 12px;
 }
 
 /* Education Section Styles */
@@ -2951,6 +3538,16 @@ onMounted(() => {
   margin-top: 16px;
 }
 
+.module-access-grid {
+  margin-top: 12px;
+}
+.module-access-grid h5 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
 .module-access h4 {
   margin: 0 0 8px 0;
   font-size: 14px;
@@ -3107,23 +3704,28 @@ onMounted(() => {
   gap: 20px;
 }
 
+.educations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 .education-view-item {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 20px;
+  padding: 18px 20px;
 }
 
 .education-view-header {
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .education-view-header h5 {
-  font-size: 18px;
-  font-weight: 700;
-  color: #667eea;
+  font-size: 15px;
+  font-weight: 600;
+  color: #475569;
   margin: 0;
 }
 
@@ -3131,17 +3733,17 @@ onMounted(() => {
 .documents-view-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .document-view-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: white;
+  padding: 14px 16px;
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .document-view-info {

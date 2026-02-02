@@ -2,7 +2,7 @@ import axios from 'axios'
 import { getToken, removeToken, getRefreshToken } from '@/utils/tokenStorage'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -57,7 +57,7 @@ api.interceptors.response.use(
       const refreshToken = getRefreshToken()
       if (refreshToken) {
         try {
-          const refreshResponse = await axios.post('/api/v1/refresh-token', {
+          const refreshResponse = await api.post('/v1/refresh-token', {
             refresh_token: refreshToken
           })
           const newToken = refreshResponse.data.token

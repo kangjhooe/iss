@@ -104,19 +104,21 @@ class CorrespondenceService
             } catch (\Illuminate\Database\QueryException $e) {
                 Log::error('Failed to create correspondence', [
                     'error' => $e->getMessage(),
-                    'data' => $data,
+                    'correspondence_type' => $data['type'] ?? null,
+                    'institution_id' => $data['institution_id'] ?? null,
                 ]);
-                
+
                 // Check for specific database errors
                 if ($e->getCode() === '23000') {
                     throw new \Exception('Data surat tidak valid atau duplikat');
                 }
-                
+
                 throw new \Exception('Gagal menyimpan surat: ' . $e->getMessage());
             } catch (\Exception $e) {
                 Log::error('Failed to create correspondence', [
                     'error' => $e->getMessage(),
-                    'data' => $data,
+                    'correspondence_type' => $data['type'] ?? null,
+                    'institution_id' => $data['institution_id'] ?? null,
                 ]);
                 throw $e;
             }

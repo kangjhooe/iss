@@ -52,6 +52,30 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
+      path: '/student-mutation',
+      name: 'StudentMutation',
+      component: () => import('@/views/StudentMutation.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
+      path: '/violation',
+      name: 'Violation',
+      component: () => import('../views/Violation.vue'),
+      meta: { requiresAuth: true, requiresModule: 'violation' }
+    },
+    {
+      path: '/subject',
+      name: 'Subject',
+      component: () => import('@/views/Subject.vue'),
+      meta: { requiresAuth: true, requiresModule: 'schedule' }
+    },
+    {
+      path: '/lesson-schedule',
+      name: 'LessonSchedule',
+      component: () => import('@/views/LessonSchedule.vue'),
+      meta: { requiresAuth: true, requiresModule: 'schedule' }
+    },
+    {
       path: '/teacher',
       name: 'Teacher',
       component: () => import('@/views/Teacher.vue'),
@@ -136,7 +160,7 @@ const getDefaultRoute = (role) => {
   if (role === 'super_admin') {
     return '/super-admin/dashboard'
   }
-  if (role === 'teacher') {
+  if (role === 'teacher' || role === 'staff') {
     return '/teacher/dashboard'
   }
   return '/dashboard'
@@ -156,6 +180,23 @@ router.beforeEach(async (to, from, next) => {
   // Prevent infinite redirects
   if (to.path === from.path) {
     next()
+    return
+  }
+
+  // Redirect logged-in users from home to their dashboard
+  if (to.path === '/' && authStore.isAuthenticated) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next()
+        return
+      }
+    }
+    const defaultRoute = getDefaultRoute(authStore.user?.role)
+    next(defaultRoute)
     return
   }
   
@@ -217,7 +258,7 @@ router.beforeEach(async (to, from, next) => {
       }
     }
 
-    if (authStore.user?.role !== 'teacher') {
+    if (authStore.user?.role !== 'teacher' && authStore.user?.role !== 'staff') {
       const defaultRoute = getDefaultRoute(authStore.user?.role)
       if (to.path !== defaultRoute) {
         next(defaultRoute)
@@ -246,7 +287,7 @@ router.beforeEach(async (to, from, next) => {
       } else {
         next()
       }
-    } else if (authStore.user?.role === 'teacher') {
+    } else if (authStore.user?.role === 'teacher' || authStore.user?.role === 'staff') {
       if (to.path !== '/teacher/dashboard') {
         next('/teacher/dashboard')
       } else {

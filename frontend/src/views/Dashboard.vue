@@ -406,10 +406,11 @@ onMounted(async () => {
   color: #f59e0b;
 }
 
-/* Responsive Design */
+/* Responsive Design - Tablet */
 @media (max-width: 768px) {
   .welcome-section {
     padding: 20px 24px;
+    border-radius: 16px;
   }
   
   .welcome-content h1 {
@@ -444,6 +445,107 @@ onMounted(async () => {
   
   .section-header h2 {
     font-size: 18px;
+  }
+}
+
+/* Mobile - smartphone: grid 2 kolom aksi cepat, tampilan lebih menarik */
+@media (max-width: 480px) {
+  .dashboard {
+    padding-bottom: 8px;
+  }
+
+  .welcome-section {
+    padding: 20px 20px;
+    margin-bottom: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+  }
+
+  .welcome-content h1 {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+
+  .welcome-content p {
+    font-size: 14px;
+    opacity: 0.95;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    padding: 18px 20px;
+    border-radius: 14px;
+    min-height: auto;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .stat-value {
+    font-size: 26px;
+  }
+
+  .quick-actions {
+    padding: 20px 16px;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .section-header {
+    margin-bottom: 16px;
+  }
+
+  .section-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  /* Aksi cepat: 2 kolom seperti tombol shortcut */
+  .actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .action-card {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px 12px;
+    min-height: 120px;
+    border-radius: 14px;
+    gap: 12px;
+  }
+
+  .action-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .action-content {
+    order: 2;
+  }
+
+  .action-content h4 {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .action-arrow {
+    display: none;
   }
 }
 </style>

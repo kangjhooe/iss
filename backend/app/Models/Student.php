@@ -133,6 +133,38 @@ class Student extends Model
     }
 
     /**
+     * Get the violations for this student.
+     */
+    public function violations()
+    {
+        return $this->hasMany(Violation::class);
+    }
+
+    /**
+     * Get the achievements (prestasi) for this student.
+     */
+    public function achievements()
+    {
+        return $this->hasMany(Achievement::class);
+    }
+
+    /**
+     * Get the action logs (tindakan yang sudah dilaksanakan) for this student.
+     */
+    public function actionLogs()
+    {
+        return $this->hasMany(StudentActionLog::class);
+    }
+
+    /**
+     * Get the student mutations (mutasi) for this student.
+     */
+    public function studentMutations()
+    {
+        return $this->hasMany(StudentMutation::class);
+    }
+
+    /**
      * Scope a query to only include active students.
      */
     public function scopeActive($query)

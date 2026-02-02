@@ -47,7 +47,7 @@
       <!-- Tab Content: Land -->
       <div v-show="activeTab === 'land'" class="tab-content">
         <div class="tab-header">
-          <div class="filters">
+          <div class="filters filters-inline">
             <input 
               v-model="landFilters.search" 
               @input="loadLands" 
@@ -140,7 +140,7 @@
       <!-- Tab Content: Building -->
       <div v-show="activeTab === 'building'" class="tab-content">
         <div class="tab-header">
-          <div class="filters">
+          <div class="filters filters-inline">
             <input 
               v-model="buildingFilters.search" 
               @input="handleBuildingSearch" 
@@ -239,7 +239,7 @@
       <!-- Tab Content: Room -->
       <div v-show="activeTab === 'room'" class="tab-content">
         <div class="tab-header">
-          <div class="filters">
+          <div class="filters filters-inline">
             <input 
               v-model="roomFilters.search" 
               @input="loadRooms" 

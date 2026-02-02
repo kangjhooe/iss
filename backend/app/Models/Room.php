@@ -68,4 +68,12 @@ class Room extends Model
     {
         return $this->hasMany(SchoolClass::class);
     }
+
+    /**
+     * Get the lesson schedules that use this room.
+     */
+    public function lessonSchedules()
+    {
+        return $this->hasMany(LessonSchedule::class);
+    }
 }

@@ -200,6 +200,86 @@ class Institution extends Model
     }
 
     /**
+     * Student mutations where this institution is the origin.
+     */
+    public function studentMutationsAsOrigin()
+    {
+        return $this->hasMany(StudentMutation::class, 'origin_institution_id');
+    }
+
+    /**
+     * Student mutations where this institution is the target.
+     */
+    public function studentMutationsAsTarget()
+    {
+        return $this->hasMany(StudentMutation::class, 'target_institution_id');
+    }
+
+    /**
+     * Violations (pelanggaran) for students in this institution.
+     */
+    public function violations()
+    {
+        return $this->hasMany(Violation::class);
+    }
+
+    /**
+     * Violation types (jenis pelanggaran) for this institution.
+     */
+    public function violationTypes()
+    {
+        return $this->hasMany(ViolationType::class);
+    }
+
+    /**
+     * Achievements (prestasi) for students in this institution.
+     */
+    public function achievements()
+    {
+        return $this->hasMany(Achievement::class);
+    }
+
+    /**
+     * Achievement types (jenis prestasi) for this institution.
+     */
+    public function achievementTypes()
+    {
+        return $this->hasMany(AchievementType::class);
+    }
+
+    /**
+     * Point thresholds (aturan tindakan) for this institution.
+     */
+    public function pointThresholds()
+    {
+        return $this->hasMany(PointThreshold::class);
+    }
+
+    /**
+     * Student action logs (catatan tindakan) for this institution.
+     */
+    public function studentActionLogs()
+    {
+        return $this->hasMany(StudentActionLog::class);
+    }
+
+    /**
+     * Subjects (mata pelajaran) for this institution.
+     */
+    public function subjects()
+    {
+        return $this->hasMany(Subject::class);
+    }
+
+    /**
+     * Lesson schedules (jadwal pelajaran) for this institution.
+     */
+    public function lessonSchedules()
+    {
+        return $this->hasMany(LessonSchedule::class);
+    }
+
+    /**
      * Scope a query to only include active institutions.
      */
     public function scopeActive($query)
@@ -213,6 +293,35 @@ class Institution extends Model
     public function scopeByLevel($query, string $level)
     {
         return $query->where('level', $level);
+    }
+
+    /**
+     * Get mutasi level group: mutasi hanya antar jenjang dalam kelompok yang sama.
+     * SD-MI, SMP-MTs, SMA-MA-SMK-MAK, PAUD-TK.
+     */
+    public static function getMutasiLevelGroup(?string $level): ?string
+    {
+        if ($level === null) {
+            return null;
+        }
+        $level = strtoupper($level);
+        return match ($level) {
+            'SD', 'MI' => 'dasar',
+            'SMP', 'MTs' => 'menengah',
+            'SMA', 'MA', 'SMK', 'MAK' => 'atas',
+            'PAUD', 'TK' => 'paud',
+            default => null,
+        };
+    }
+
+    /**
+     * Check if this institution can mutate to/from another (same jenjang group).
+     */
+    public function canMutateWith(Institution $other): bool
+    {
+        $my = self::getMutasiLevelGroup($this->level);
+        $their = self::getMutasiLevelGroup($other->level);
+        return $my !== null && $my === $their;
     }
 
     /**

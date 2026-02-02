@@ -41,6 +41,10 @@ class StudentRepository extends BaseRepository
             $query->where('class', $filters['class']);
         }
 
+        if (isset($filters['class_id'])) {
+            $query->where('class_id', $filters['class_id']);
+        }
+
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -51,8 +55,8 @@ class StudentRepository extends BaseRepository
 
         $perPage = min($perPage, 100);
 
-        return $query->select(['id', 'institution_id', 'nis', 'nisn', 'name', 'gender', 'class', 'status', 'created_at'])
-            ->with('institution:id,name')
+        return $query->select(['id', 'institution_id', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year_id', 'status', 'created_at'])
+            ->with(['institution:id,name', 'class:id,name,grade'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
     }

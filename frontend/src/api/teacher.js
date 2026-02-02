@@ -53,6 +53,9 @@ export const employeeApi = {
     return api.get(`/v1/employee/${employeeId}/documents/${documentId}/download`, {
       responseType: 'blob'
     })
+  },
+  resetPasswordByAdmin(employeeId, data) {
+    return api.post(`/v1/employee/${employeeId}/reset-password`, data)
   }
 }
 

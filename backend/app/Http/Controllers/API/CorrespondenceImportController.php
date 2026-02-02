@@ -40,9 +40,10 @@ class CorrespondenceImportController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
-            // Store uploaded file temporarily (CSV)
+            // Store uploaded file temporarily (nama aman, mencegah path traversal)
             $file = $request->file('file');
-            $filePath = $file->storeAs('imports', 'correspondence_import_' . time() . '.' . $file->getClientOriginalExtension(), 'public');
+            $safeFileName = \App\Helpers\FileUploadHelper::safeImportFileName($file, 'correspondence_import');
+            $filePath = $file->storeAs('imports', $safeFileName, 'public');
 
             // Import data
             $results = $this->service->importFromExcel($filePath, $institutionId, $request->user()->id);

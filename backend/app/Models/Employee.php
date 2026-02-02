@@ -135,6 +135,14 @@ class Employee extends Model
     }
 
     /**
+     * Get the lesson schedules (jadwal mengajar) for this employee.
+     */
+    public function lessonSchedules()
+    {
+        return $this->hasMany(LessonSchedule::class);
+    }
+
+    /**
      * Get the educations for this employee.
      */
     public function educations()

@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Http\Controllers\API;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class NotificationController extends Controller
+{
+    /**
+     * List unread notifications for the current user.
+     */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $perPage = min($request->get('per_page', 20), 50);
+        $notifications = $user->unreadNotifications()->paginate($perPage);
+        $items = $notifications->map(function ($n) {
+            return [
+                'id' => $n->id,
+                'type' => $n->data['type'] ?? null,
+                'action' => $n->data['action'] ?? null,
+                'message' => $n->data['message'] ?? null,
+                'data' => $n->data,
+                'created_at' => $n->created_at->toIso8601String(),
+            ];
+        });
+        return response()->json([
+            'data' => $items,
+            'meta' => [
+                'current_page' => $notifications->currentPage(),
+                'last_page' => $notifications->lastPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Mark a notification as read.
+     */
+    public function markAsRead(Request $request, string $id)
+    {
+        $user = $request->user();
+        $notification = $user->unreadNotifications()->where('id', $id)->first();
+        if (!$notification) {
+            return response()->json(['message' => 'Notifikasi tidak ditemukan.'], 404);
+        }
+        $notification->markAsRead();
+        return response()->json(['message' => 'Notifikasi ditandai sudah dibaca.']);
+    }
+
+    /**
+     * Mark all notifications as read.
+     */
+    public function markAllAsRead(Request $request)
+    {
+        $user = $request->user();
+        $user->unreadNotifications()->update(['read_at' => now()]);
+        return response()->json(['message' => 'Semua notifikasi ditandai sudah dibaca.']);
+    }
+
+    /**
+     * Unread count (for badge).
+     */
+    public function unreadCount(Request $request)
+    {
+        $user = $request->user();
+        $count = $user->unreadNotifications()->count();
+        return response()->json(['count' => $count]);
+    }
+}

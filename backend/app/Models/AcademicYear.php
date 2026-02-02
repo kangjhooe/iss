@@ -73,6 +73,22 @@ class AcademicYear extends Model
     }
 
     /**
+     * Get the violations for this academic year.
+     */
+    public function violations()
+    {
+        return $this->hasMany(Violation::class, 'academic_year_id');
+    }
+
+    /**
+     * Get the achievements for this academic year.
+     */
+    public function achievements()
+    {
+        return $this->hasMany(Achievement::class, 'academic_year_id');
+    }
+
+    /**
      * Scope a query to only include active academic years.
      */
     public function scopeActive($query)

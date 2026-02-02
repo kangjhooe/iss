@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AdminResetEmployeePasswordRequest;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
 use App\Http\Resources\EmployeeResource;
@@ -162,9 +163,13 @@ class EmployeeController extends Controller
             unset($validated['educations']);
 
             $permissionKeys = $validated['permission_keys'] ?? null;
-            unset($validated['permission_keys']);
+            $userRole = $validated['user_role'] ?? null;
+            unset($validated['permission_keys'], $validated['user_role']);
             if (!$request->user()->isAdminOrSuperAdmin() && !$request->user()->isInstitutionAdmin()) {
                 $permissionKeys = null;
+            }
+            if (!empty($validated['email']) && $userRole === null) {
+                $userRole = $validated['type'] === 'Guru' ? 'teacher' : 'staff';
             }
 
             $employee = Employee::create($validated);
@@ -187,7 +192,7 @@ class EmployeeController extends Controller
                 }
             }
 
-            $accountResult = $this->ensureTeacherUserAccount($employee, null, $permissionKeys);
+            $accountResult = $this->ensureEmployeeUserAccount($employee, null, $permissionKeys, $userRole);
 
             Log::info('Employee created', [
                 'employee_id' => $employee->id,
@@ -309,12 +314,19 @@ class EmployeeController extends Controller
             unset($validated['educations']);
 
             $permissionKeys = null;
+            $userRole = null;
             if (array_key_exists('permission_keys', $validated)) {
                 $permissionKeys = $validated['permission_keys'];
             }
-            unset($validated['permission_keys']);
+            if (array_key_exists('user_role', $validated)) {
+                $userRole = $validated['user_role'];
+            }
+            unset($validated['permission_keys'], $validated['user_role']);
             if (!$request->user()->isAdminOrSuperAdmin() && !$request->user()->isInstitutionAdmin()) {
                 $permissionKeys = null;
+            }
+            if (!empty($validated['email'] ?? $employee->email) && $userRole === null) {
+                $userRole = $employee->type === 'Guru' ? 'teacher' : 'staff';
             }
 
             $employee->update($validated);
@@ -341,7 +353,7 @@ class EmployeeController extends Controller
                 }
             }
 
-            $accountResult = $this->ensureTeacherUserAccount($employee, $previousEmail, $permissionKeys);
+            $accountResult = $this->ensureEmployeeUserAccount($employee, $previousEmail, $permissionKeys, $userRole);
 
             Log::info('Employee updated', [
                 'employee_id' => $employee->id,
@@ -379,6 +391,73 @@ class EmployeeController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat memperbarui pegawai',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset employee user password (by admin/institution_admin).
+     */
+    public function resetPasswordByAdmin(AdminResetEmployeePasswordRequest $request, $id)
+    {
+        try {
+            $employee = Employee::findOrFail($id);
+            $user = $request->user();
+
+            if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $employee->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if (!$employee->email || !$employee->hasUserAccount()) {
+                return response()->json([
+                    'message' => 'Pegawai ini belum memiliki akun login.',
+                ], 422);
+            }
+
+            $accountUser = User::where('email', $employee->email)->first();
+            if (!$accountUser) {
+                return response()->json([
+                    'message' => 'Akun login tidak ditemukan.',
+                ], 404);
+            }
+
+            if (!in_array($accountUser->role, ['teacher', 'staff'], true)) {
+                return response()->json([
+                    'message' => 'Hanya dapat mereset sandi akun pegawai (guru/staff).',
+                ], 422);
+            }
+
+            $accountUser->update([
+                'password' => Hash::make($request->validated('password')),
+            ]);
+            $accountUser->resetFailedLoginAttempts();
+
+            Log::info('Employee password reset by admin', [
+                'employee_id' => $employee->id,
+                'user_id' => $accountUser->id,
+                'reset_by' => $user->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Sandi berhasil direset. Beri tahu pegawai sandi baru secara aman dan sarankan ganti sandi setelah login.',
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Pegawai tidak ditemukan',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Admin reset employee password failed', [
+                'employee_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat reset sandi',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -724,7 +803,8 @@ class EmployeeController extends Controller
                     }
 
                     if ($employee) {
-                        $accountResult = $this->ensureTeacherUserAccount($employee, $previousEmail, null);
+                        $importRole = $employee->type === 'Guru' ? 'teacher' : 'staff';
+                        $accountResult = $this->ensureEmployeeUserAccount($employee, $previousEmail, null, $importRole);
 
                         if (!empty($accountResult['generated_password'])) {
                             $createdAccounts[] = [
@@ -781,9 +861,10 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Ensure teacher user account exists and is in sync.
+     * Ensure employee user account exists and is in sync.
+     * All employees with email can have an account (role: teacher or staff).
      */
-    protected function ensureTeacherUserAccount(Employee $employee, ?string $previousEmail = null, ?array $permissionKeys = null): array
+    protected function ensureEmployeeUserAccount(Employee $employee, ?string $previousEmail = null, ?array $permissionKeys = null, ?string $userRole = null): array
     {
         $result = [
             'user_created' => false,
@@ -792,18 +873,20 @@ class EmployeeController extends Controller
             'user_conflict' => null,
         ];
 
-        if ($employee->type !== 'Guru' || empty($employee->email)) {
+        if (empty($employee->email)) {
             return $result;
         }
 
+        $role = in_array($userRole, ['teacher', 'staff'], true) ? $userRole : ($employee->type === 'Guru' ? 'teacher' : 'staff');
         $currentEmail = $employee->email;
         $existingUser = User::where('email', $currentEmail)->first();
 
         if ($existingUser) {
-            if ($existingUser->role === 'teacher') {
+            if (in_array($existingUser->role, ['teacher', 'staff'], true)) {
                 $existingUser->update([
                     'name' => $employee->name,
                     'institution_id' => $employee->institution_id,
+                    'role' => $role,
                 ]);
                 if ($permissionKeys !== null) {
                     $this->syncPermissionsForUser($existingUser, $permissionKeys);
@@ -821,24 +904,24 @@ class EmployeeController extends Controller
 
         if ($previousEmail && $previousEmail !== $currentEmail) {
             $previousUser = User::where('email', $previousEmail)->first();
-            if ($previousUser) {
-                if ($previousUser->role === 'teacher') {
-                    $previousUser->update([
-                        'institution_id' => $employee->institution_id,
-                        'name' => $employee->name,
-                        'email' => $currentEmail,
-                    ]);
-                    if ($permissionKeys !== null) {
-                        $this->syncPermissionsForUser($previousUser, $permissionKeys);
-                    }
-                    $result['user_updated'] = true;
-                } else {
-                    $result['user_conflict'] = [
-                        'email' => $previousEmail,
-                        'role' => $previousUser->role,
-                    ];
+            if ($previousUser && in_array($previousUser->role, ['teacher', 'staff'], true)) {
+                $previousUser->update([
+                    'institution_id' => $employee->institution_id,
+                    'name' => $employee->name,
+                    'email' => $currentEmail,
+                    'role' => $role,
+                ]);
+                if ($permissionKeys !== null) {
+                    $this->syncPermissionsForUser($previousUser, $permissionKeys);
                 }
-
+                $result['user_updated'] = true;
+                return $result;
+            }
+            if ($previousUser) {
+                $result['user_conflict'] = [
+                    'email' => $previousEmail,
+                    'role' => $previousUser->role,
+                ];
                 return $result;
             }
         }
@@ -850,16 +933,17 @@ class EmployeeController extends Controller
             'name' => $employee->name,
             'email' => $currentEmail,
             'password' => Hash::make($plainPassword),
-            'role' => 'teacher',
+            'role' => $role,
             'email_verified_at' => now(),
         ]);
 
         $keysToAssign = $permissionKeys ?? $this->getDefaultTeacherPermissions();
         $this->syncPermissionsForUser($user, $keysToAssign);
 
-        Log::info('Teacher user account created', [
+        Log::info('Employee user account created', [
             'employee_id' => $employee->id,
             'user_id' => $user->id,
+            'role' => $role,
         ]);
 
         $result['user_created'] = true;

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -27,37 +28,46 @@ class PermissionController extends Controller
 
     /**
      * Get teachers with their permissions.
+     * Sources from Employee (type Guru) that have a User account (by email match).
      */
     public function getTeachers(Request $request)
     {
         try {
             $user = $request->user();
-            
+
             if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $institutionId = $user->isAdminOrSuperAdmin() 
-                ? $request->get('institution_id', $user->institution_id)
+            $institutionId = $user->isAdminOrSuperAdmin()
+                ? $request->get('institution_id')
                 : $user->institution_id;
 
-            $teachers = User::where('role', 'teacher')
-                ->where('institution_id', $institutionId)
-                ->with(['permissions', 'teacherProfile'])
-                ->get()
-                ->map(function ($user) {
+            $employeesQuery = Employee::where('type', 'Guru')
+                ->whereHas('userAccount')
+                ->with(['userAccount.permissions']);
+
+            if ($institutionId !== null) {
+                $employeesQuery->where('institution_id', $institutionId);
+            }
+
+            $teachers = $employeesQuery->get()
+                ->map(function (Employee $employee) {
+                    $account = $employee->userAccount;
                     return [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'teacher_profile' => $user->teacherProfile ? [
-                            'id' => $user->teacherProfile->id,
-                            'nip' => $user->teacherProfile->nip,
-                            'nuptk' => $user->teacherProfile->nuptk,
-                        ] : null,
-                        'permissions' => $user->permissions->pluck('key')->toArray(),
+                        'id' => $account->id,
+                        'name' => $account->name,
+                        'email' => $account->email,
+                        'teacher_profile' => [
+                            'id' => $employee->id,
+                            'nip' => $employee->nip,
+                            'nuptk' => $employee->nuptk,
+                        ],
+                        'permissions' => $account->permissions->pluck('key')->toArray(),
                     ];
-                });
+                })
+                ->values()
+                ->all();
 
             return response()->json([
                 'data' => $teachers,
@@ -93,9 +103,14 @@ class PermissionController extends Controller
 
             $targetUser = User::findOrFail($userId);
 
-            if ($targetUser->role !== 'teacher') {
+            $isEmployeeRole = in_array($targetUser->role, ['teacher', 'staff'], true);
+            $isEmployeeByEmail = Employee::where('email', $targetUser->email)
+                ->where('institution_id', $targetUser->institution_id)
+                ->exists();
+
+            if (!$isEmployeeRole && !$isEmployeeByEmail) {
                 return response()->json([
-                    'message' => 'Hanya dapat mengatur permissions untuk akun guru',
+                    'message' => 'Hanya dapat mengatur permissions untuk akun pegawai (guru/staff)',
                 ], 422);
             }
 

@@ -240,14 +240,14 @@ Pastikan CORS dikonfigurasi dengan benar:
 
 ## 📝 Checklist Perbaikan
 
-- [ ] Hapus duplikasi migrasi enum
-- [ ] Perbaiki relasi `school_class_id` → `class_id`
-- [ ] Standarisasi validasi file upload
-- [ ] Implementasi Policy untuk authorization
-- [ ] Sanitasi file name saat upload
-- [ ] Standarisasi error messages
-- [ ] Perbaiki logging untuk menghindari sensitive data
-- [ ] Review CORS configuration
+- [x] Hapus duplikasi migrasi enum (file 025413 tidak ada / sudah dihapus)
+- [x] Perbaiki relasi `school_class_id` → `class_id` (SchoolClass->students() explicit `class_id`, `id`)
+- [x] Standarisasi validasi file upload (FileUploadRules + institutionLogo; Attachment/Student/Employee sudah pakai)
+- [x] Implementasi Policy untuk authorization (CorrespondencePolicy dipakai di CorrespondenceController & AttachmentController)
+- [x] Sanitasi file name saat upload (FileUploadHelper::safeStorageName, safeImportFileName; Institution, Import, AttachmentService, dll)
+- [x] Standarisasi error messages (ApiResponse helper: unauthorized, forbidden, notFound, validationFailed, serverError)
+- [x] Perbaiki logging untuk menghindari sensitive data (CorrespondenceService: log type & institution_id saja)
+- [ ] Review CORS configuration (sudah whitelist env, bukan * di production)
 - [ ] Test semua endpoint untuk memastikan authorization bekerja
 - [ ] Review semua raw SQL queries (jika ada)
 

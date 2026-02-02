@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCorrespondenceRequest;
 use App\Http\Requests\UpdateCorrespondenceRequest;
@@ -139,17 +140,13 @@ class CorrespondenceController extends Controller
             return response()->json([
                 'data' => new CorrespondenceResource($correspondence),
             ]);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return ApiResponse::forbidden($e->getMessage() ?: null);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Surat tidak ditemukan'], 404);
+            return ApiResponse::notFound('Surat tidak ditemukan');
         } catch (\Exception $e) {
-            Log::error('Failed to show correspondence', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'Terjadi kesalahan saat mengambil data surat',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
+            Log::error('Failed to show correspondence', ['error' => $e->getMessage()]);
+            return ApiResponse::serverError('Terjadi kesalahan saat mengambil data surat', $e->getMessage());
         }
     }
 
@@ -173,17 +170,13 @@ class CorrespondenceController extends Controller
                 'message' => 'Surat berhasil diperbarui',
                 'data' => new CorrespondenceResource($correspondence),
             ]);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return ApiResponse::forbidden($e->getMessage() ?: null);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Surat tidak ditemukan'], 404);
+            return ApiResponse::notFound('Surat tidak ditemukan');
         } catch (\Exception $e) {
-            Log::error('Failed to update correspondence', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'Terjadi kesalahan saat memperbarui surat',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
+            Log::error('Failed to update correspondence', ['error' => $e->getMessage()]);
+            return ApiResponse::serverError('Terjadi kesalahan saat memperbarui surat', $e->getMessage());
         }
     }
 
@@ -203,17 +196,13 @@ class CorrespondenceController extends Controller
             return response()->json([
                 'message' => 'Surat berhasil dihapus',
             ]);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return ApiResponse::forbidden($e->getMessage() ?: null);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Surat tidak ditemukan'], 404);
+            return ApiResponse::notFound('Surat tidak ditemukan');
         } catch (\Exception $e) {
-            Log::error('Failed to delete correspondence', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'Terjadi kesalahan saat menghapus surat',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
+            Log::error('Failed to delete correspondence', ['error' => $e->getMessage()]);
+            return ApiResponse::serverError('Terjadi kesalahan saat menghapus surat', $e->getMessage());
         }
     }
 
@@ -236,17 +225,13 @@ class CorrespondenceController extends Controller
                 'message' => 'Surat berhasil dipulihkan',
                 'data' => new CorrespondenceResource($correspondence->fresh(['category', 'creator', 'institution'])),
             ]);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return ApiResponse::forbidden($e->getMessage() ?: null);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Surat tidak ditemukan'], 404);
+            return ApiResponse::notFound('Surat tidak ditemukan');
         } catch (\Exception $e) {
-            Log::error('Failed to restore correspondence', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'Terjadi kesalahan saat memulihkan surat',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
+            Log::error('Failed to restore correspondence', ['error' => $e->getMessage()]);
+            return ApiResponse::serverError('Terjadi kesalahan saat memulihkan surat', $e->getMessage());
         }
     }
 

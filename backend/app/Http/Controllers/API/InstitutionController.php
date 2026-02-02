@@ -401,29 +401,33 @@ class InstitutionController extends Controller
             $user = $request->user();
 
             if (!$user) {
-                return response()->json([
-                    'message' => 'Unauthorized',
-                ], 401);
+                return \App\Helpers\ApiResponse::unauthorized();
             }
 
             // Only institution admin/super admin can upload logo
             if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $institution->id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+                return \App\Helpers\ApiResponse::forbidden();
             }
 
-            $request->validate([
-                'logo' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Max 2MB
-            ]);
+            $request->validate(
+                \App\Helpers\FileUploadRules::institutionLogo(),
+                \App\Helpers\FileUploadRules::messages(
+                    \App\Helpers\FileUploadRules::TYPE_IMAGE_LOGO,
+                    \App\Helpers\FileUploadRules::SIZE_SMALL,
+                    'logo',
+                    false
+                )
+            );
 
             $file = $request->file('logo');
-            
+
             // Delete old logo if exists
             if ($institution->logo && Storage::disk('public')->exists($institution->logo)) {
                 Storage::disk('public')->delete($institution->logo);
             }
 
-            // Store new logo
-            $fileName = 'institution_' . $institution->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            // Sanitasi nama file (mencegah path traversal)
+            $fileName = \App\Helpers\FileUploadHelper::safeStorageName($file, 'institution_' . $institution->id);
             $filePath = $file->storeAs('institution_logos', $fileName, 'public');
 
             $institution->update(['logo' => $filePath]);
@@ -439,24 +443,15 @@ class InstitutionController extends Controller
                 'data' => new InstitutionResource($institution),
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Institusi tidak ditemukan',
-            ], 404);
+            return \App\Helpers\ApiResponse::notFound('Institusi tidak ditemukan');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Validasi gagal',
-                'errors' => $e->errors(),
-            ], 422);
+            return \App\Helpers\ApiResponse::validationFailed($e->errors());
         } catch (\Exception $e) {
             Log::error('Failed to upload logo', [
                 'institution_id' => $id,
                 'error' => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'message' => 'Terjadi kesalahan saat mengupload logo',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
+            return \App\Helpers\ApiResponse::serverError('Terjadi kesalahan saat mengupload logo', $e->getMessage());
         }
     }
 

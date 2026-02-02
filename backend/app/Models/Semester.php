@@ -51,6 +51,54 @@ class Semester extends Model
     }
 
     /**
+     * Get the lesson schedules for this semester.
+     */
+    public function lessonSchedules()
+    {
+        return $this->hasMany(LessonSchedule::class);
+    }
+
+    /**
+     * Get the classes for this semester.
+     */
+    public function classes()
+    {
+        return $this->hasMany(SchoolClass::class, 'semester_id');
+    }
+
+    /**
+     * Get the students for this semester.
+     */
+    public function students()
+    {
+        return $this->hasMany(Student::class, 'semester_id');
+    }
+
+    /**
+     * Get the violations for this semester.
+     */
+    public function violations()
+    {
+        return $this->hasMany(Violation::class, 'semester_id');
+    }
+
+    /**
+     * Get the achievements for this semester.
+     */
+    public function achievements()
+    {
+        return $this->hasMany(Achievement::class, 'semester_id');
+    }
+
+    /**
+     * Get the class student history for this semester.
+     */
+    public function classStudentHistory()
+    {
+        return $this->hasMany(ClassStudentHistory::class, 'semester_id');
+    }
+
+    /**
      * Scope a query to only include active semesters.
      */
     public function scopeActive($query)

@@ -7,16 +7,19 @@
             <h2>Manajemen Semester</h2>
             <p>Kelola data semester per tahun ajaran</p>
           </div>
-          <button @click="showAddModal = true" class="btn-primary">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Tambah Semester</span>
-          </button>
+          <div class="action-buttons-group">
+            <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Semester</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="filters">
+      <div class="filters filters-inline">
         <input 
           v-model="filters.search" 
           @input="loadSemesters" 

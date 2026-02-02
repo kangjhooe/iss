@@ -35,7 +35,7 @@
               <span>Import</span>
             </label>
             <input type="file" id="import-excel" accept=".xlsx,.xls" style="display: none;" @change="handleImportExcel">
-            <button @click="showAddModal = true" class="btn-primary btn-compact">
+            <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -46,11 +46,11 @@
         </div>
       </div>
 
-      <div class="filters">
+      <div class="filters filters-inline">
         <input 
           v-model="filters.search" 
           @input="loadStudents" 
-          placeholder="Cari nama, NIK, NIS, atau NISN..."
+          placeholder="Cari nama, NIK, NIS, NISN..."
           class="search-input"
         />
         <select v-model="filters.class" @change="loadStudents" class="filter-select">
@@ -84,58 +84,104 @@
         <p>Memuat data...</p>
       </div>
       
-      <div v-else class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>NIK</th>
-              <th>NIS</th>
-              <th>NISN</th>
-              <th>Nama</th>
-              <th>Jenis Kelamin</th>
-              <th>Kelas</th>
-              <th>Status</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="student in students" :key="student.id">
-              <td>{{ student.nik || '-' }}</td>
-              <td>{{ student.nis || '-' }}</td>
-              <td>{{ student.nisn || '-' }}</td>
-              <td>{{ student.name }}</td>
-              <td>{{ student.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
-              <td>{{ student.class || '-' }}</td>
-              <td>
-                <span :class="getStatusClass(student.status)">
-                  {{ student.status }}
+      <div v-else class="content-wrapper">
+        <!-- Desktop: table (hidden when empty) -->
+        <div v-if="students.length > 0" class="table-container table-desktop">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>NIK</th>
+                <th>NIS</th>
+                <th>NISN</th>
+                <th>Nama</th>
+                <th>Jenis Kelamin</th>
+                <th>Kelas</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="student in students" :key="student.id">
+                <td>{{ student.nik || '-' }}</td>
+                <td>{{ student.nis || '-' }}</td>
+                <td>{{ student.nisn || '-' }}</td>
+                <td>{{ student.name }}</td>
+                <td>{{ student.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
+                <td>{{ student.class || '-' }}</td>
+                <td>
+                  <span :class="getStatusClass(student.status)">
+                    {{ student.status }}
+                  </span>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <button @click="viewStudent(student)" class="btn-action btn-view" title="Lihat Biodata">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button @click="editStudent(student)" class="btn-action btn-edit" title="Edit">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button @click="deleteStudent(student.id)" class="btn-action btn-delete" title="Hapus">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile: cards (hidden when empty) -->
+        <div v-if="students.length > 0" class="student-cards table-mobile">
+          <div
+            v-for="student in students"
+            :key="student.id"
+            class="student-card"
+          >
+            <div class="student-card-main">
+              <h3 class="student-card-name">{{ student.name }}</h3>
+              <div class="student-card-meta">
+                <span v-if="student.nis || student.nisn" class="student-card-id">
+                  {{ student.nis ? `NIS: ${student.nis}` : '' }}{{ student.nis && student.nisn ? ' · ' : '' }}{{ student.nisn ? `NISN: ${student.nisn}` : '' }}
                 </span>
-              </td>
-              <td>
-                <div class="action-buttons">
-                  <button @click="viewStudent(student)" class="btn-action btn-view" title="Lihat Biodata">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="editStudent(student)" class="btn-action btn-edit" title="Edit">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="deleteStudent(student.id)" class="btn-action btn-delete" title="Hapus">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <span v-else class="student-card-id">NIK: {{ student.nik || '-' }}</span>
+                <span class="student-card-class">{{ student.class || '-' }}</span>
+              </div>
+              <span :class="['student-card-status', getStatusClass(student.status)]">
+                {{ student.status }}
+              </span>
+            </div>
+            <div class="student-card-actions">
+              <button @click="viewStudent(student)" class="btn-action btn-view" title="Lihat">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button @click="editStudent(student)" class="btn-action btn-edit" title="Edit">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button @click="deleteStudent(student.id)" class="btn-action btn-delete" title="Hapus">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div v-if="students.length === 0" class="empty-state">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -144,9 +190,10 @@
           </svg>
           <h3>Tidak ada data siswa</h3>
           <p>Mulai dengan menambahkan siswa baru</p>
-          <button @click="showAddModal = true" class="btn-primary">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span>Tambah Siswa</span>
           </button>
@@ -2281,7 +2328,7 @@ onMounted(() => {
 }
 
 .header-content h2 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 4px;
@@ -2290,7 +2337,7 @@ onMounted(() => {
 
 .header-content p {
   color: #64748b;
-  font-size: 14px;
+  font-size: 13px;
   margin: 0;
 }
 
@@ -2304,6 +2351,39 @@ onMounted(() => {
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
+}
+
+/* Filter + pencarian: 1 baris ke samping (horizontal), diperkecil agar tidak perlu scroll */
+.filters-inline {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filters-inline::-webkit-scrollbar {
+  height: 3px;
+}
+
+.filters-inline .search-input {
+  flex: 1 1 auto;
+  min-width: 60px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.filters-inline .filter-select {
+  flex: 0 0 auto;
+  min-width: 85px;
+  padding: 6px 26px 6px 8px;
+  font-size: 12px;
+  border-radius: 8px;
 }
 
 .search-input,
@@ -2333,12 +2413,90 @@ onMounted(() => {
   min-width: 180px;
 }
 
+.content-wrapper {
+  position: relative;
+}
+
 .table-container {
   background: white;
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
+}
+
+/* Mobile cards (hidden on desktop) */
+.student-cards.table-mobile {
+  display: none;
+}
+
+.student-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+}
+
+.student-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.student-card-id {
+  flex-shrink: 0;
+}
+
+.student-card-class {
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.student-card-status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.student-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.student-card-actions .btn-action {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
 }
 
 .data-table {
@@ -2848,23 +3006,43 @@ onMounted(() => {
   border-top: 2px solid #f1f5f9;
 }
 
+/* Tombol aksi: 1 baris ke samping (horizontal), bukan ke bawah */
 .action-buttons-group {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
 }
 
+.action-buttons-group .btn-compact {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .btn-compact {
-  padding: 8px 16px !important;
-  font-size: 13px !important;
-  gap: 6px !important;
-  border-radius: 10px;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  gap: 4px !important;
+  border-radius: 8px;
 }
 
 .btn-compact svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
+}
+
+.btn-add {
+  border-color: #667eea;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.btn-add:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+  color: #5a67d8;
 }
 
 .btn-primary {
@@ -2956,25 +3134,70 @@ onMounted(() => {
     gap: 16px;
   }
 
-  .action-buttons-group {
-    width: 100%;
-    flex-wrap: wrap;
+  /* Tombol aksi: 1 baris ke samping (horizontal), 4 tombol sejajar */
+  .student-page .action-buttons-group {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px;
   }
 
-  .filters {
-    flex-direction: column;
+  .student-page .action-buttons-group .btn-compact {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 36px;
+    padding: 0 4px !important;
+    font-size: 11px !important;
+    justify-content: center;
+    border-radius: 8px;
   }
 
-  .search-input,
-  .filter-select {
-    width: 100%;
-    min-width: auto;
+  .student-page .action-buttons-group .btn-compact svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .student-page .action-buttons-group .btn-compact span {
+    display: none;
+  }
+
+  /* Filter + pencarian: 1 baris ke samping, diperkecil */
+  .student-page .filters-inline {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .student-page .filters-inline .search-input {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .student-page .filters-inline .filter-select {
+    flex: 0 0 auto;
+    min-width: 72px;
+    max-width: 95px;
+    padding: 6px 22px 6px 6px;
+    font-size: 11px;
   }
 }
 
 @media (max-width: 768px) {
+  .student-page {
+    padding: 0 8px;
+  }
+
   .page-header {
     margin-bottom: 16px;
+    padding: 12px 0;
+  }
+
+  .header-content {
+    gap: 12px;
   }
 
   .header-content h2 {
@@ -2985,9 +3208,61 @@ onMounted(() => {
     font-size: 13px;
   }
 
-  .filters {
-    padding: 16px;
-    margin-bottom: 16px;
+  /* Tombol aksi: 1 baris ke samping (horizontal) */
+  .student-page .action-buttons-group {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px;
+  }
+
+  .student-page .action-buttons-group .btn-compact {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 34px;
+    padding: 0 4px !important;
+    font-size: 10px !important;
+  }
+
+  .student-page .action-buttons-group .btn-compact svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* Filter + pencarian: 1 baris ke samping, diperkecil */
+  .student-page .filters-inline {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    padding: 5px 6px;
+    margin-bottom: 10px;
+    gap: 5px;
+  }
+
+  .student-page .filters-inline .search-input {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 5px 6px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+
+  .student-page .filters-inline .filter-select {
+    flex: 0 0 auto;
+    min-width: 62px;
+    max-width: 82px;
+    padding: 5px 18px 5px 6px;
+    font-size: 10px;
+    min-height: 32px;
+  }
+
+  /* Mobile: show cards, hide table */
+  .table-container.table-desktop {
+    display: none;
+  }
+
+  .student-cards.table-mobile {
+    display: block;
   }
 
   .table-container {
@@ -3027,8 +3302,22 @@ onMounted(() => {
     max-height: 90vh;
   }
 
+  .modal-header {
+    padding: 20px 20px;
+  }
+
+  .modal-header h3 {
+    font-size: 20px;
+  }
+
   .modal-body {
     padding: 20px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
   }
 
   .form-grid {
@@ -3036,7 +3325,7 @@ onMounted(() => {
   }
 
   .biodata-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 
   .biodata-item .label {
@@ -3047,21 +3336,126 @@ onMounted(() => {
   .biodata-item:last-child .label {
     border-bottom: none;
   }
+
+  .tabs-nav {
+    margin-bottom: 24px;
+    padding-bottom: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    padding: 12px 16px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 20px;
+    margin-top: 24px;
+  }
+
+  .modal-footer .btn-primary,
+  .modal-footer .btn-secondary {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+
+  .view-body {
+    padding: 20px;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
 }
 
 @media (max-width: 480px) {
+  .student-page {
+    padding: 0 8px;
+  }
+
+  .page-header {
+    margin-bottom: 12px;
+    padding: 8px 0;
+  }
+
   .header-content h2 {
     font-size: 20px;
+    line-height: 1.25;
   }
 
-  .action-buttons-group {
+  .header-content p {
+    font-size: 12px;
+  }
+
+  /* Tombol aksi: diperkecil agar tidak perlu scroll */
+  .student-page .action-buttons-group .btn-compact {
+    height: 32px;
+    border-radius: 6px;
+    padding: 0 3px !important;
+    font-size: 10px !important;
+  }
+
+  .student-page .action-buttons-group .btn-compact svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  /* Filter + pencarian: diperkecil agar tidak perlu scroll */
+  .student-page .filters-inline {
+    padding: 4px 6px;
+    margin-bottom: 8px;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 4px;
+  }
+
+  .student-page .filters-inline .search-input {
+    font-size: 11px;
+    min-height: 30px;
+    padding: 4px 6px;
+  }
+
+  .student-page .filters-inline .filter-select {
+    min-height: 30px;
+    min-width: 56px;
+    max-width: 72px;
+    padding: 4px 16px 4px 5px;
+    font-size: 10px;
+  }
+
+  .student-card {
+    padding: 14px 12px;
     flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 
-  .action-buttons-group button,
-  .action-buttons-group label {
-    width: 100%;
-    justify-content: center;
+  .student-card-main {
+    padding-bottom: 0;
+  }
+
+  .student-card-name {
+    font-size: 15px;
+  }
+
+  .student-card-meta {
+    font-size: 12px;
+  }
+
+  .student-card-actions {
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .student-card-actions .btn-action {
+    width: 44px;
+    height: 44px;
   }
 
   .data-table th,
@@ -3082,20 +3476,59 @@ onMounted(() => {
     max-height: 100vh;
   }
 
+  .modal-header {
+    padding: 16px 16px;
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+  }
+
   .modal-body {
     padding: 16px;
   }
 
   .tabs-nav {
-    flex-wrap: wrap;
-    gap: 4px;
+    margin-bottom: 20px;
+    gap: 2px;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .tab-button {
-    flex: 1;
-    min-width: auto;
-    font-size: 12px;
-    padding: 8px 12px;
+  .tab-btn {
+    flex: 0 0 auto;
+    min-width: 0;
+    font-size: 11px;
+    padding: 10px 10px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 12px 14px;
+    font-size: 16px;
+    min-height: 48px;
+  }
+
+  .modal-footer {
+    padding: 16px 0 0;
+    margin-top: 20px;
+  }
+
+  .modal-footer .btn-secondary,
+  .modal-footer .btn-primary {
+    padding: 12px 16px;
+  }
+
+  .empty-state {
+    padding: 40px 20px;
+  }
+
+  .empty-state h3 {
+    font-size: 18px;
+  }
+
+  .empty-state p {
+    font-size: 13px;
   }
 }
 

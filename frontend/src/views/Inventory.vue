@@ -28,7 +28,7 @@
       <!-- ITEMS TAB -->
       <div v-show="activeTab === 'items'" class="tab-content">
         <div class="tab-header">
-          <div class="filters">
+          <div class="filters filters-inline">
             <input
               v-model="itemFilters.search"
               @input="debounceLoadItems"
@@ -166,7 +166,7 @@
       <!-- CATEGORIES TAB -->
       <div v-show="activeTab === 'categories'" class="tab-content">
         <div class="tab-header">
-          <div class="filters">
+          <div class="filters filters-inline">
             <input
               v-model="categoryFilters.search"
               @input="debounceLoadCategories"
@@ -253,7 +253,7 @@
       <!-- TRANSACTIONS TAB -->
       <div v-show="activeTab === 'transactions'" class="tab-content">
         <div class="tab-header">
-          <div class="filters">
+          <div class="filters filters-inline">
             <select v-model="transactionFilters.transaction_type" @change="loadTransactions(1)" class="filter-select">
               <option value="">Semua Jenis</option>
               <option value="Masuk">Masuk</option>

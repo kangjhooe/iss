@@ -72,10 +72,11 @@ class SchoolClass extends Model
 
     /**
      * Get the students in this class.
+     * Explicit foreign key: student.class_id -> class.id (bukan school_class_id).
      */
     public function students()
     {
-        return $this->hasMany(Student::class, 'class_id');
+        return $this->hasMany(Student::class, 'class_id', 'id');
     }
 
     /**
@@ -100,6 +101,14 @@ class SchoolClass extends Model
     public function semester()
     {
         return $this->belongsTo(Semester::class, 'semester_id');
+    }
+
+    /**
+     * Get the lesson schedules for this class.
+     */
+    public function lessonSchedules()
+    {
+        return $this->hasMany(LessonSchedule::class, 'class_id');
     }
 
     /**
