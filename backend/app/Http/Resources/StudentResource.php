@@ -45,13 +45,17 @@ class StudentResource extends JsonResource
             'residence_type' => $this->residence_type,
             'class' => $this->getRawOriginal('class'), // string column; use class_detail for relation
             'class_id' => $this->class_id,
-            'class_detail' => $this->whenLoaded('class', function () {
-                return [
-                    'id' => $this->class->id,
-                    'name' => $this->class->name,
-                    'grade' => $this->class->grade,
-                ];
-            }),
+            'class_detail' => $this->when(
+                $this->relationLoaded('class') && $this->getRelation('class') instanceof \App\Models\SchoolClass,
+                function () {
+                    $classModel = $this->getRelation('class');
+                    return [
+                        'id' => $classModel->id,
+                        'name' => $classModel->name,
+                        'grade' => $classModel->grade,
+                    ];
+                }
+            ),
             'academic_year' => $this->academic_year,
             'academic_year_id' => $this->academic_year_id,
             'academic_year_detail' => $this->whenLoaded('academicYear', function () {
@@ -70,6 +74,7 @@ class StudentResource extends JsonResource
                 ];
             }),
             'status' => $this->status,
+            'graduation_year' => $this->graduation_year,
             'father_name' => $this->father_name,
             'father_status' => $this->father_status,
             'father_nik' => $this->father_nik,
@@ -132,6 +137,33 @@ class StudentResource extends JsonResource
                         'end_date' => $history->end_date?->format('Y-m-d'),
                         'status' => $history->status,
                         'notes' => $history->notes,
+                    ];
+                });
+            }),
+            'current_alumni_destination' => $this->whenLoaded('currentAlumniDestination', function () {
+                $d = $this->currentAlumniDestination;
+                if (!$d) {
+                    return null;
+                }
+                return [
+                    'id' => $d->id,
+                    'destination_type' => $d->destination_type,
+                    'destination_name' => $d->destination_name,
+                    'program_or_position' => $d->program_or_position,
+                    'year_entered' => $d->year_entered,
+                    'notes' => $d->notes,
+                ];
+            }),
+            'alumni_destinations' => $this->whenLoaded('alumniDestinations', function () {
+                return $this->alumniDestinations->map(function ($d) {
+                    return [
+                        'id' => $d->id,
+                        'destination_type' => $d->destination_type,
+                        'destination_name' => $d->destination_name,
+                        'program_or_position' => $d->program_or_position,
+                        'year_entered' => $d->year_entered,
+                        'notes' => $d->notes,
+                        'created_at' => $d->created_at?->toIso8601String(),
                     ];
                 });
             }),

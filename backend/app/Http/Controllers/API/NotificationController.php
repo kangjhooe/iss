@@ -8,13 +8,23 @@ use Illuminate\Http\Request;
 class NotificationController extends Controller
 {
     /**
-     * List unread notifications for the current user.
+     * List notifications for the current user.
+     * Query: filter=all|unread|read (default unread), per_page, page.
      */
     public function index(Request $request)
     {
         $user = $request->user();
-        $perPage = min($request->get('per_page', 20), 50);
-        $notifications = $user->unreadNotifications()->paginate($perPage);
+        $perPage = min((int) $request->get('per_page', 20), 50);
+        $filter = $request->get('filter', 'unread');
+
+        $query = $user->notifications()->orderBy('created_at', 'desc');
+        if ($filter === 'unread') {
+            $query->whereNull('read_at');
+        } elseif ($filter === 'read') {
+            $query->whereNotNull('read_at');
+        }
+
+        $notifications = $query->paginate($perPage);
         $items = $notifications->map(function ($n) {
             return [
                 'id' => $n->id,
@@ -22,6 +32,7 @@ class NotificationController extends Controller
                 'action' => $n->data['action'] ?? null,
                 'message' => $n->data['message'] ?? null,
                 'data' => $n->data,
+                'read_at' => $n->read_at?->toIso8601String(),
                 'created_at' => $n->created_at->toIso8601String(),
             ];
         });

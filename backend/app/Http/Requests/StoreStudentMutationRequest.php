@@ -24,13 +24,19 @@ class StoreStudentMutationRequest extends FormRequest
      */
     public function rules(): array
     {
+        $external = $this->boolean('external');
+
         return [
+            'external' => 'sometimes|boolean',
             'target_npsn' => [
                 'required',
                 'string',
                 'size:8',
                 'regex:/^[0-9]{8}$/',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($external) {
+                    if ($external) {
+                        return;
+                    }
                     $originInstitution = Institution::find($this->user()->institution_id);
                     if (!$originInstitution) {
                         $fail('Sekolah asal tidak ditemukan.');
@@ -50,10 +56,11 @@ class StoreStudentMutationRequest extends FormRequest
                     }
                 },
             ],
+            'target_school_name' => 'required_if:external,true|nullable|string|max:255',
             'nisn' => [
                 'required',
                 'string',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($external) {
                     $institutionId = $this->user()->institution_id;
                     $student = Student::where('nisn', $value)
                         ->where('institution_id', $institutionId)
@@ -61,6 +68,9 @@ class StoreStudentMutationRequest extends FormRequest
                         ->first();
                     if (!$student) {
                         $fail('Siswa dengan NISN tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+                        return;
+                    }
+                    if ($external) {
                         return;
                     }
                     $targetNpsn = $this->input('target_npsn');
@@ -91,6 +101,7 @@ class StoreStudentMutationRequest extends FormRequest
             'target_npsn.required' => 'NPSN sekolah tujuan wajib diisi.',
             'target_npsn.size' => 'NPSN harus 8 digit.',
             'target_npsn.regex' => 'NPSN harus berupa 8 digit angka.',
+            'target_school_name.required_if' => 'Nama sekolah tujuan wajib diisi untuk mutasi ke sekolah luar sistem.',
             'nisn.required' => 'NISN siswa wajib diisi.',
         ];
     }

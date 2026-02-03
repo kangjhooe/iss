@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\AddTokenFromCookie;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RefreshTokenRequest;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +24,88 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     /**
+     * Buat cookie untuk access token (httpOnly, aman dari XSS).
+     */
+    private function makeAuthCookie(string $token): \Symfony\Component\HttpFoundation\Cookie
+    {
+        $minutes = 24 * 60; // 24 jam
+        $secure = request()->secure();
+        return Cookie::make(
+            AddTokenFromCookie::COOKIE_AUTH,
+            $token,
+            $minutes,
+            '/',
+            env('COOKIE_DOMAIN'), // null = current host (localhost / api domain)
+            $secure,
+            true,  // httpOnly
+            false,
+            'lax'
+        );
+    }
+
+    /**
+     * Buat cookie untuk refresh token (httpOnly).
+     */
+    private function makeRefreshCookie(string $token): \Symfony\Component\HttpFoundation\Cookie
+    {
+        $minutes = 30 * 24 * 60; // 30 hari
+        $secure = request()->secure();
+        return Cookie::make(
+            AddTokenFromCookie::COOKIE_REFRESH,
+            $token,
+            $minutes,
+            '/',
+            env('COOKIE_DOMAIN'), // null = current host (localhost / api domain)
+            $secure,
+            true,  // httpOnly
+            false,
+            'lax'
+        );
+    }
+
+    /**
+     * Cookie untuk menghapus auth_token dan refresh_token (expire di masa lalu).
+     */
+    private function clearAuthCookies(): array
+    {
+        $secure = request()->secure();
+        $domain = env('COOKIE_DOMAIN');
+        return [
+            Cookie::make(AddTokenFromCookie::COOKIE_AUTH, '', -1, '/', $domain, $secure, true, false, 'lax'),
+            Cookie::make(AddTokenFromCookie::COOKIE_REFRESH, '', -1, '/', $domain, $secure, true, false, 'lax'),
+        ];
+    }
+
+    /**
      * Register a new institution and admin user.
+     *
+     * @OA\Post(
+     *     path="/api/v1/register",
+     *     summary="Registrasi institusi dan admin",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"npsn","institution_name","name","email","phone","password","password_confirmation"},
+     *             @OA\Property(property="npsn", type="string", example="12345678"),
+     *             @OA\Property(property="institution_name", type="string", example="Sekolah Contoh"),
+     *             @OA\Property(property="name", type="string", example="Admin Sekolah"),
+     *             @OA\Property(property="email", type="string", format="email", example="admin@sekolah.id"),
+     *             @OA\Property(property="phone", type="string", example="081234567890"),
+     *             @OA\Property(property="password", type="string", format="password", example="Password123!"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="Password123!")
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="Registrasi berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Registrasi berhasil. Silakan cek email untuk verifikasi."),
+     *             @OA\Property(property="user", type="object"),
+     *             @OA\Property(property="token", type="string", example="1|..."),
+     *             @OA\Property(property="refresh_token", type="string", example="2|...")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Validasi gagal")
+     * )
      */
     public function register(RegisterRequest $request)
     {
@@ -82,12 +165,15 @@ class AuthController extends Controller
                 'user_id' => $user->id,
             ]);
 
-            return response()->json([
+            $response = response()->json([
                 'message' => 'Registrasi berhasil. Silakan cek email untuk verifikasi.',
                 'user' => new UserResource($user->load(['institution', 'permissions'])),
                 'token' => $accessToken,
                 'refresh_token' => $refreshToken,
             ], 201);
+            $response->cookie($this->makeAuthCookie($accessToken));
+            $response->cookie($this->makeRefreshCookie($refreshToken));
+            return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
             throw $e;
@@ -107,6 +193,29 @@ class AuthController extends Controller
 
     /**
      * Login user.
+     *
+     * @OA\Post(
+     *     path="/api/v1/login",
+     *     summary="Login pengguna",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email","password"},
+     *             @OA\Property(property="email", type="string", format="email", example="admin@sekolah.id"),
+     *             @OA\Property(property="password", type="string", format="password", example="Password123!")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Login berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Login berhasil"),
+     *             @OA\Property(property="user", type="object"),
+     *             @OA\Property(property="token", type="string", example="1|..."),
+     *             @OA\Property(property="refresh_token", type="string", example="2|...")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Kredensial salah atau email belum diverifikasi")
+     * )
      */
     public function login(LoginRequest $request)
     {
@@ -181,12 +290,15 @@ class AuthController extends Controller
                 ]);
             }
 
-            return response()->json([
+            $response = response()->json([
                 'message' => 'Login berhasil',
                 'user' => new UserResource($user),
                 'token' => $accessToken,
                 'refresh_token' => $refreshToken,
             ]);
+            $response->cookie($this->makeAuthCookie($accessToken));
+            $response->cookie($this->makeRefreshCookie($refreshToken));
+            return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
@@ -208,13 +320,18 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user();
-            $user->currentAccessToken()->delete();
+            if ($user) {
+                $user->currentAccessToken()->delete();
+                Log::info('User logged out', ['user_id' => $user->id]);
+            }
 
-            Log::info('User logged out', ['user_id' => $user->id]);
-
-            return response()->json([
+            $response = response()->json([
                 'message' => 'Logout berhasil',
             ]);
+            foreach ($this->clearAuthCookies() as $cookie) {
+                $response->cookie($cookie);
+            }
+            return $response;
         } catch (\Exception $e) {
             Log::error('Logout failed', [
                 'error' => $e->getMessage(),
@@ -492,11 +609,18 @@ class AuthController extends Controller
     public function refreshToken(RefreshTokenRequest $request)
     {
         try {
-            $validated = $request->validated();
-            
-            // Find token
+            // Ambil refresh_token dari body atau dari httpOnly cookie
+            $refreshTokenValue = $request->input('refresh_token')
+                ?? $request->cookie(AddTokenFromCookie::COOKIE_REFRESH);
+
+            if (empty($refreshTokenValue)) {
+                return response()->json([
+                    'message' => 'Refresh token tidak ditemukan. Silakan login ulang.',
+                ], 401);
+            }
+
             $token = DB::table('personal_access_tokens')
-                ->where('token', hash('sha256', $validated['refresh_token']))
+                ->where('token', hash('sha256', $refreshTokenValue))
                 ->where('name', 'refresh_token')
                 ->first();
 
@@ -528,10 +652,12 @@ class AuthController extends Controller
 
             Log::info('Token refreshed', ['user_id' => $user->id]);
 
-            return response()->json([
+            $response = response()->json([
                 'message' => 'Token berhasil di-refresh',
                 'token' => $accessToken,
             ]);
+            $response->cookie($this->makeAuthCookie($accessToken));
+            return $response;
         } catch (\Exception $e) {
             Log::error('Refresh token failed', [
                 'error' => $e->getMessage(),

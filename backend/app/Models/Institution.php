@@ -264,6 +264,22 @@ class Institution extends Model
     }
 
     /**
+     * Counseling types (jenis bimbingan) for this institution.
+     */
+    public function counselingTypes()
+    {
+        return $this->hasMany(CounselingType::class);
+    }
+
+    /**
+     * Counseling sessions for this institution.
+     */
+    public function counselingSessions()
+    {
+        return $this->hasMany(CounselingSession::class);
+    }
+
+    /**
      * Subjects (mata pelajaran) for this institution.
      */
     public function subjects()
@@ -277,6 +293,62 @@ class Institution extends Model
     public function lessonSchedules()
     {
         return $this->hasMany(LessonSchedule::class);
+    }
+
+    /**
+     * Grades (nilai) for this institution.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class);
+    }
+
+    /**
+     * Teaching journals (jurnal mengajar) for this institution.
+     */
+    public function teachingJournals()
+    {
+        return $this->hasMany(TeachingJournal::class);
+    }
+
+    /**
+     * Guest visits (buku tamu) for this institution.
+     */
+    public function guestVisits()
+    {
+        return $this->hasMany(GuestVisit::class);
+    }
+
+    /**
+     * Digital archive categories for this institution.
+     */
+    public function digitalArchiveCategories()
+    {
+        return $this->hasMany(DigitalArchiveCategory::class);
+    }
+
+    /**
+     * Digital archives for this institution.
+     */
+    public function digitalArchives()
+    {
+        return $this->hasMany(DigitalArchive::class);
+    }
+
+    /**
+     * Student attendances for this institution.
+     */
+    public function studentAttendances()
+    {
+        return $this->hasMany(StudentAttendance::class);
+    }
+
+    /**
+     * Employee attendances for this institution.
+     */
+    public function employeeAttendances()
+    {
+        return $this->hasMany(EmployeeAttendance::class);
     }
 
     /**

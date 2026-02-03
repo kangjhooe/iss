@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Baca token dari httpOnly cookie ke Authorization header (sebelum auth:sanctum)
+        $middleware->api(prepend: [
+            \App\Http\Middleware\AddTokenFromCookie::class,
+        ]);
+
         // CSRF protection tidak diperlukan untuk API routes yang menggunakan Bearer token
         $middleware->validateCsrfTokens(except: [
             'api/*',

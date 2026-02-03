@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ClassResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\AcademicYear;
+use App\Models\Grade;
 use App\Models\Institution;
+use App\Models\LessonSchedule;
 use App\Models\SchoolClass;
+use App\Models\TeachingJournal;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -64,6 +68,47 @@ class TeacherDashboardController extends Controller
 
             $totalStudents = $classes->sum('students_count');
 
+            $jurnalThisWeekCount = 0;
+            $gradesPending = [];
+            $activeSemesterId = null;
+            if ($institutionId) {
+                $institution = Institution::find($institutionId);
+                if ($institution && $institution->active_semester_id) {
+                    $activeSemesterId = $institution->active_semester_id;
+                }
+            }
+            if ($activeSemesterId) {
+                $startOfWeek = Carbon::now()->startOfWeek();
+                $endOfWeek = Carbon::now()->endOfWeek();
+                $jurnalThisWeekCount = TeachingJournal::where('employee_id', $teacher->id)
+                    ->where('institution_id', $institutionId)
+                    ->whereBetween('journal_date', [$startOfWeek, $endOfWeek])
+                    ->count();
+
+                $schedules = LessonSchedule::with(['schoolClass:id,name', 'subject:id,name'])
+                    ->where('employee_id', $teacher->id)
+                    ->where('institution_id', $institutionId)
+                    ->where('semester_id', $activeSemesterId)
+                    ->get();
+                foreach ($schedules as $s) {
+                    $studentCount = SchoolClass::find($s->class_id)?->students()->count() ?? 0;
+                    $gradeCount = Grade::where('class_id', $s->class_id)
+                        ->where('subject_id', $s->subject_id)
+                        ->where('semester_id', $activeSemesterId)
+                        ->distinct()
+                        ->count('student_id');
+                    if ($studentCount > 0 && $gradeCount < $studentCount) {
+                        $gradesPending[] = [
+                            'class_id' => $s->class_id,
+                            'class_name' => $s->schoolClass?->name ?? '',
+                            'subject_id' => $s->subject_id,
+                            'subject_name' => $s->subject?->name ?? '',
+                            'semester_id' => $activeSemesterId,
+                        ];
+                    }
+                }
+            }
+
             return response()->json([
                 'data' => [
                     'teacher' => new EmployeeResource($teacher->load('institution')),
@@ -77,6 +122,8 @@ class TeacherDashboardController extends Controller
                         'name' => $activeAcademicYear->name,
                         'code' => $activeAcademicYear->code,
                     ] : null,
+                    'jurnal_this_week_count' => $jurnalThisWeekCount,
+                    'grades_pending' => $gradesPending,
                 ],
             ]);
         } catch (\Exception $e) {

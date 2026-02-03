@@ -56,6 +56,11 @@ class UpdateTeacherRequest extends FormRequest
             'status' => 'nullable|in:Aktif,Pensiun,Pindah,Tidak Aktif',
             'join_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'certification_status' => 'nullable|in:Sudah,Belum',
+            'certification_date' => 'nullable|date',
+            'teacher_registration_number' => 'nullable|string|max:50',
+            'certification_number' => 'nullable|string|max:100',
+            'certification_issuing_authority' => 'nullable|string|max:255',
         ];
     }
 

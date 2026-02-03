@@ -7,6 +7,7 @@ use App\Http\Requests\StoreLessonScheduleRequest;
 use App\Http\Requests\UpdateLessonScheduleRequest;
 use App\Http\Requests\CopyLessonScheduleRequest;
 use App\Http\Resources\LessonScheduleResource;
+use App\Models\Institution;
 use App\Models\LessonSchedule;
 use App\Services\LessonScheduleService;
 use Illuminate\Http\Request;
@@ -32,7 +33,13 @@ class LessonScheduleController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $filters = $request->only(['semester_id', 'class_id', 'employee_id', 'day_of_week', 'subject_id']);
+            $filters = $request->only(['semester_id', 'class_id', 'employee_id', 'day_of_week', 'subject_id', 'room_id']);
+            if (!isset($filters['semester_id']) || $filters['semester_id'] === '') {
+                $institution = Institution::find($institutionId);
+                if ($institution && $institution->active_semester_id) {
+                    $filters['semester_id'] = $institution->active_semester_id;
+                }
+            }
             $perPage = min($request->get('per_page', 50), 100);
             $schedules = $this->lessonScheduleService->listForInstitution($institutionId, $filters, $perPage);
 

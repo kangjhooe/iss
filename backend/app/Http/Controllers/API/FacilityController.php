@@ -4,7 +4,11 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Building;
+use App\Models\Employee;
+use App\Models\Institution;
+use App\Models\InventoryItem;
 use App\Models\Land;
+use App\Models\LessonSchedule;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -436,7 +440,11 @@ class FacilityController extends Controller
                 $query->where('building_id', $request->building_id);
             }
 
-            $rooms = $query->with(['institution:id,name', 'building:id,name'])
+            if ($request->has('lab_type') && $request->lab_type !== '') {
+                $query->where('lab_type', $request->lab_type);
+            }
+
+            $rooms = $query->with(['institution:id,name', 'building:id,name', 'responsibleEmployee:id,name,nip,nuptk'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -457,11 +465,13 @@ class FacilityController extends Controller
                 'name' => 'required|string|max:255',
                 'code' => 'nullable|string|max:255',
                 'type' => 'required|in:Kelas,Laboratorium,Perpustakaan,Kantor,Aula,Musholla,Kantin,Toilet,Gudang,Lainnya',
+                'lab_type' => 'nullable|in:IPA,Komputer,Bahasa,Lainnya',
                 'floor' => 'required|integer|min:1',
                 'area' => 'nullable|numeric|min:0',
                 'capacity' => 'nullable|integer|min:0',
                 'condition' => 'required|in:Baik,Rusak Ringan,Rusak Sedang,Rusak Berat',
                 'description' => 'nullable|string',
+                'responsible_employee_id' => 'nullable|exists:employee,id',
             ]);
 
             $user = $request->user();
@@ -481,6 +491,14 @@ class FacilityController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
+            // Normalize lab_type: only for Laboratorium
+            $validated['lab_type'] = ($validated['type'] ?? '') === 'Laboratorium' ? ($validated['lab_type'] ?? null) : null;
+            if ($validated['lab_type'] === '') {
+                $validated['lab_type'] = null;
+            }
+            // Normalize empty responsible_employee_id to null
+            $validated['responsible_employee_id'] = !empty($validated['responsible_employee_id']) ? $validated['responsible_employee_id'] : null;
+
             // Validate building_id belongs to same institution
             if ($validated['building_id']) {
                 $building = Building::findOrFail($validated['building_id']);
@@ -489,12 +507,20 @@ class FacilityController extends Controller
                 }
             }
 
+            // Validate responsible_employee_id belongs to same institution
+            if (!empty($validated['responsible_employee_id'])) {
+                $employee = Employee::findOrFail($validated['responsible_employee_id']);
+                if ($employee->institution_id != $institutionId) {
+                    return response()->json(['message' => 'Pegawai tidak ditemukan atau tidak sesuai institusi'], 422);
+                }
+            }
+
             $validated['institution_id'] = $institutionId;
             $room = Room::create($validated);
 
             return response()->json([
                 'message' => 'Data ruangan berhasil ditambahkan',
-                'data' => $room->load(['institution', 'building'])
+                'data' => $room->load(['institution', 'building', 'responsibleEmployee'])
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -524,12 +550,20 @@ class FacilityController extends Controller
                 'name' => 'required|string|max:255',
                 'code' => 'nullable|string|max:255',
                 'type' => 'required|in:Kelas,Laboratorium,Perpustakaan,Kantor,Aula,Musholla,Kantin,Toilet,Gudang,Lainnya',
+                'lab_type' => 'nullable|in:IPA,Komputer,Bahasa,Lainnya',
                 'floor' => 'required|integer|min:1',
                 'area' => 'nullable|numeric|min:0',
                 'capacity' => 'nullable|integer|min:0',
                 'condition' => 'required|in:Baik,Rusak Ringan,Rusak Sedang,Rusak Berat',
                 'description' => 'nullable|string',
+                'responsible_employee_id' => 'nullable|exists:employee,id',
             ]);
+
+            // Normalize lab_type: only for Laboratorium
+            $validated['lab_type'] = ($validated['type'] ?? '') === 'Laboratorium' ? ($validated['lab_type'] ?? null) : null;
+            if (($validated['lab_type'] ?? '') === '') {
+                $validated['lab_type'] = null;
+            }
 
             // Validate building_id belongs to same institution
             if ($validated['building_id']) {
@@ -539,11 +573,25 @@ class FacilityController extends Controller
                 }
             }
 
+            // Normalize empty responsible_employee_id to null
+            $validated['responsible_employee_id'] = $validated['responsible_employee_id'] ?? null;
+            if ($validated['responsible_employee_id'] === '') {
+                $validated['responsible_employee_id'] = null;
+            }
+
+            // Validate responsible_employee_id belongs to same institution
+            if ($validated['responsible_employee_id']) {
+                $employee = Employee::findOrFail($validated['responsible_employee_id']);
+                if ($employee->institution_id != $room->institution_id) {
+                    return response()->json(['message' => 'Pegawai tidak ditemukan atau tidak sesuai institusi'], 422);
+                }
+            }
+
             $room->update($validated);
 
             return response()->json([
                 'message' => 'Data ruangan berhasil diperbarui',
-                'data' => $room->load(['institution', 'building'])
+                'data' => $room->load(['institution', 'building', 'responsibleEmployee'])
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Data ruangan tidak ditemukan'], 404);
@@ -578,6 +626,156 @@ class FacilityController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to delete room', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal menghapus data ruangan'], 500);
+        }
+    }
+
+    /**
+     * Laporan khusus lab: ringkasan dan daftar lab dengan jumlah inventaris & jadwal.
+     */
+    public function getLabReport(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $institutionId = $user->institution_id;
+            if ($user->isSuperAdmin() || $user->isAdmin()) {
+                $institutionId = $request->get('institution_id', $institutionId);
+            }
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            $activeSemesterId = $institution?->active_semester_id;
+
+            $rooms = Room::with(['building:id,name', 'responsibleEmployee:id,name,nip'])
+                ->where('institution_id', $institutionId)
+                ->where('type', 'Laboratorium')
+                ->orderBy('name')
+                ->get();
+
+            $roomIds = $rooms->pluck('id')->toArray();
+            $inventoryCounts = InventoryItem::whereIn('room_id', $roomIds)
+                ->selectRaw('room_id, COUNT(*) as cnt')
+                ->groupBy('room_id')
+                ->pluck('cnt', 'room_id');
+
+            $scheduleCounts = [];
+            if ($activeSemesterId) {
+                $scheduleCounts = LessonSchedule::whereIn('room_id', $roomIds)
+                    ->where('semester_id', $activeSemesterId)
+                    ->selectRaw('room_id, COUNT(*) as cnt')
+                    ->groupBy('room_id')
+                    ->pluck('cnt', 'room_id')
+                    ->toArray();
+            }
+
+            $byCondition = [];
+            $byLabType = [];
+            $labs = [];
+            foreach ($rooms as $room) {
+                $byCondition[$room->condition] = ($byCondition[$room->condition] ?? 0) + 1;
+                $lt = $room->lab_type ?? 'Lainnya';
+                $byLabType[$lt] = ($byLabType[$lt] ?? 0) + 1;
+                $labs[] = [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                    'code' => $room->code,
+                    'lab_type' => $room->lab_type,
+                    'building' => $room->building ? ['id' => $room->building->id, 'name' => $room->building->name] : null,
+                    'condition' => $room->condition,
+                    'responsible_employee' => $room->responsibleEmployee ? [
+                        'id' => $room->responsibleEmployee->id,
+                        'name' => $room->responsibleEmployee->name,
+                        'nip' => $room->responsibleEmployee->nip,
+                    ] : null,
+                    'inventory_count' => $inventoryCounts[$room->id] ?? 0,
+                    'schedule_count' => $scheduleCounts[$room->id] ?? 0,
+                ];
+            }
+
+            return response()->json([
+                'data' => [
+                    'summary' => [
+                        'total_labs' => $rooms->count(),
+                        'by_condition' => $byCondition,
+                        'by_lab_type' => $byLabType,
+                    ],
+                    'labs' => $labs,
+                    'active_semester_id' => $activeSemesterId,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get lab report', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal mengambil laporan lab'], 500);
+        }
+    }
+
+    /**
+     * Lab yang menjadi tanggung jawab user saat ini (Kepala Lab).
+     */
+    public function getMyLabs(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $employee = $user->employeeProfile()->first();
+            if (!$employee) {
+                return response()->json(['data' => ['labs' => [], 'summary' => ['total' => 0]]]);
+            }
+
+            $institutionId = $employee->institution_id;
+            $institution = Institution::find($institutionId);
+            $activeSemesterId = $institution?->active_semester_id;
+
+            $rooms = Room::with(['building:id,name'])
+                ->where('institution_id', $institutionId)
+                ->where('type', 'Laboratorium')
+                ->where('responsible_employee_id', $employee->id)
+                ->orderBy('name')
+                ->get();
+
+            $roomIds = $rooms->pluck('id')->toArray();
+            $inventoryCounts = $roomIds ? InventoryItem::whereIn('room_id', $roomIds)
+                ->selectRaw('room_id, COUNT(*) as cnt')
+                ->groupBy('room_id')
+                ->pluck('cnt', 'room_id') : collect();
+            $scheduleCounts = [];
+            if ($activeSemesterId && $roomIds) {
+                $scheduleCounts = LessonSchedule::whereIn('room_id', $roomIds)
+                    ->where('semester_id', $activeSemesterId)
+                    ->selectRaw('room_id, COUNT(*) as cnt')
+                    ->groupBy('room_id')
+                    ->pluck('cnt', 'room_id')
+                    ->toArray();
+            }
+
+            $byCondition = [];
+            $labs = [];
+            foreach ($rooms as $room) {
+                $byCondition[$room->condition] = ($byCondition[$room->condition] ?? 0) + 1;
+                $labs[] = [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                    'code' => $room->code,
+                    'lab_type' => $room->lab_type,
+                    'building' => $room->building ? ['id' => $room->building->id, 'name' => $room->building->name] : null,
+                    'condition' => $room->condition,
+                    'inventory_count' => $inventoryCounts[$room->id] ?? 0,
+                    'schedule_count' => $scheduleCounts[$room->id] ?? 0,
+                ];
+            }
+
+            return response()->json([
+                'data' => [
+                    'summary' => [
+                        'total' => $rooms->count(),
+                        'by_condition' => $byCondition,
+                    ],
+                    'labs' => $labs,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get my labs', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal mengambil data lab Anda'], 500);
         }
     }
 }

@@ -1,437 +1,838 @@
 <template>
-  <!-- Overlay for mobile -->
-  <div 
-    v-if="isOpen" 
+  <div
+    v-if="isOpen && isMobileOverlay"
     class="help-overlay"
     @click="toggleSidebar"
-  ></div>
+    aria-hidden="true"
+  />
 
-  <div class="help-sidebar" :class="{ 'help-sidebar-open': isOpen, 'help-sidebar-collapsed': !isOpen }">
-    <!-- Toggle Button -->
-    <button 
-      @click="toggleSidebar" 
-      class="help-toggle-btn"
-      :aria-label="isOpen ? 'Tutup petunjuk' : 'Buka petunjuk'"
+  <aside
+    class="help-sidebar"
+    :class="{
+      'help-sidebar--open': isOpen,
+      'help-sidebar--collapsed': !isOpen,
+      'help-sidebar--overlay': isMobileOverlay && isOpen
+    }"
+    role="complementary"
+    aria-label="Petunjuk penggunaan"
+  >
+    <button
+      type="button"
+      class="help-toggle"
+      :aria-label="isOpen ? 'Sembunyikan petunjuk' : 'Tampilkan petunjuk'"
+      :title="isOpen ? 'Sembunyikan petunjuk' : 'Tampilkan petunjuk'"
+      @click="toggleSidebar"
     >
-      <svg v-if="isOpen" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg class="help-toggle-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path v-if="isOpen" d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path v-else d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <span v-if="!isOpen" class="help-toggle-label">Bantuan</span>
     </button>
 
-    <!-- Sidebar Content -->
-    <div class="help-content" v-if="isOpen">
-      <div class="help-header">
-        <div class="help-header-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 16V12M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+    <div v-show="isOpen" class="help-panel">
+      <header class="help-header">
+        <div class="help-header-glow" aria-hidden="true" />
+        <div class="help-header-inner">
+          <div class="help-header-badge">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="help-header-text">
+            <h2 class="help-header-title">Petunjuk Penggunaan</h2>
+            <p class="help-header-subtitle">Navigasi sesuai menu sidebar kiri</p>
+          </div>
         </div>
-        <h2>Petunjuk Penggunaan</h2>
-      </div>
+      </header>
 
       <div class="help-body">
-        <!-- Getting Started -->
-        <div class="help-section">
-          <h3 class="help-section-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+        <!-- Memulai -->
+        <section class="help-section help-section--start">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--amber">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
             Memulai
           </h3>
-          <div class="help-item">
-            <p class="help-item-title">1. Lengkapi Profil Instansi</p>
-            <p class="help-item-desc">Pastikan data instansi Anda lengkap dan akurat di menu <strong>Profil Instansi</strong>.</p>
+          <div class="help-steps">
+            <div class="help-step">
+              <span class="help-step-num">1</span>
+              <span>Lengkapi <strong>Profil Instansi</strong> (nama, alamat, jenjang).</span>
+            </div>
+            <div class="help-step">
+              <span class="help-step-num">2</span>
+              <span>Atur <strong>Semester</strong> & tahun ajaran aktif (menu Semester / Tahun Ajaran).</span>
+            </div>
+            <div class="help-step">
+              <span class="help-step-num">3</span>
+              <span>Untuk admin: aktifkan modul yang dipakai di <strong>Kelola Akses Modul</strong>.</span>
+            </div>
           </div>
-          <div class="help-item">
-            <p class="help-item-title">2. Kelola Akses Modul</p>
-            <p class="help-item-desc">Atur modul yang dapat diakses oleh pengguna di menu <strong>Kelola Akses Modul</strong>.</p>
-          </div>
-          <div class="help-item">
-            <p class="help-item-title">3. Tambah Data Dasar</p>
-            <p class="help-item-desc">Mulai dengan menambahkan data siswa dan guru untuk memulai penggunaan sistem.</p>
-          </div>
-        </div>
+        </section>
 
-        <!-- Fitur Utama -->
-        <div class="help-section">
-          <h3 class="help-section-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Fitur Utama
+        <!-- Master Data -->
+        <section class="help-section help-section--master">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 7h6M9 12h6M9 17h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Master Data
           </h3>
-          <div class="help-item">
-            <p class="help-item-title">📊 Data Siswa</p>
-            <p class="help-item-desc">Kelola data siswa, tambah, edit, dan hapus informasi siswa dengan mudah.</p>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--blue">🏫</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Profil Instansi</div>
+                <p class="help-card-desc">Nama, alamat, jenjang. Dasar untuk modul lain. Super Admin mengelola di Kelola Institusi & Tahun Ajaran.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--teal">🏢</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Sarana Prasarana & Lab</div>
+                <p class="help-card-desc">Ruang, gedung, fasilitas, dan manajemen lab (peminjaman, jadwal).</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--violet">📦</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Inventaris</div>
+                <p class="help-card-desc">Barang & aset: peminjaman, pengembalian, stok.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--indigo">📚</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Kelas</div>
+                <p class="help-card-desc">Daftar kelas per tingkat/jurusan. Dipakai Data Siswa, Jadwal, dan Buku Nilai.</p>
+              </div>
+            </div>
           </div>
-          <div class="help-item">
-            <p class="help-item-title">👨‍🏫 Data Guru</p>
-            <p class="help-item-desc">Kelola data guru dan informasi pengajar di instansi Anda.</p>
-          </div>
-          <div class="help-item">
-            <p class="help-item-title">📝 Persuratan</p>
-            <p class="help-item-desc">Kelola surat masuk dan surat keluar dengan sistem yang terorganisir.</p>
-          </div>
-          <div class="help-item">
-            <p class="help-item-title">📦 Inventaris</p>
-            <p class="help-item-desc">Kelola inventaris barang dan aset instansi dengan pencatatan yang rapi.</p>
-          </div>
-          <div class="help-item">
-            <p class="help-item-title">📈 Laporan</p>
-            <p class="help-item-desc">Akses berbagai laporan dan statistik untuk monitoring instansi.</p>
-          </div>
-        </div>
+        </section>
 
-        <!-- Tips & Best Practices -->
-        <div class="help-section">
-          <h3 class="help-section-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5291C20.3248 17.7719 20.3766 18.0322 20.3766 18.295C20.3766 18.5578 20.3248 18.8181 20.2241 19.0609C20.1235 19.3037 19.976 19.5243 19.79 19.71C19.6043 19.896 19.3837 20.0435 19.1409 20.1441C18.8981 20.2448 18.6378 20.2966 18.375 20.2966C18.1122 20.2966 17.8519 20.2448 17.6091 20.1441C17.3663 20.0435 17.1457 19.896 16.96 19.71L16.9 19.65C16.6643 19.4195 16.365 19.2648 16.0406 19.206C15.7162 19.1472 15.3816 19.1869 15.08 19.32C14.7842 19.4468 14.532 19.6572 14.3543 19.9255C14.1766 20.1938 14.0813 20.5082 14.08 20.83V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.5795 9.96512 20.258 9.77251 19.9887C9.5799 19.7194 9.31074 19.5143 9 19.4C8.69838 19.2669 8.36381 19.2272 8.03941 19.286C7.71502 19.3448 7.41568 19.4995 7.18 19.73L7.12 19.79C6.93425 19.976 6.71368 20.1235 6.47088 20.2241C6.22808 20.3248 5.96783 20.3766 5.705 20.3766C5.44217 20.3766 5.18192 20.3248 4.93912 20.2241C4.69632 20.1235 4.47575 19.976 4.29 19.79C4.10405 19.6043 3.95653 19.3837 3.85588 19.1409C3.75523 18.8981 3.70343 18.6378 3.70343 18.375C3.70343 18.1122 3.75523 17.8519 3.85588 17.6091C3.95653 17.3663 4.10405 17.1457 4.29 16.96L4.35 16.9C4.58054 16.6643 4.73519 16.365 4.794 16.0406C4.85282 15.7162 4.81312 15.3816 4.68 15.08C4.55324 14.7842 4.34276 14.532 4.07447 14.3543C3.80618 14.1766 3.49179 14.0813 3.17 14.08H3C2.46957 14.08 1.96086 13.8693 1.58579 13.4942C1.21071 13.1191 1 12.6104 1 12.08C1 11.5496 1.21071 11.0409 1.58579 10.6658C1.96086 10.2907 2.46957 10.08 3 10.08H3.09C3.42054 10.0723 3.742 9.96512 4.0113 9.77251C4.28059 9.5799 4.48572 9.31074 4.6 9C4.73312 8.69838 4.77282 8.36381 4.714 8.03941C4.65519 7.71502 4.50054 7.41568 4.27 7.18L4.21 7.12C4.02405 6.93425 3.87653 6.71368 3.77588 6.47088C3.67523 6.22808 3.62343 5.96783 3.62343 5.705C3.62343 5.44217 3.67523 5.18192 3.77588 4.93912C3.87653 4.69632 4.02405 4.47575 4.21 4.29C4.39575 4.10405 4.61632 3.95653 4.85912 3.85588C5.10192 3.75523 5.36217 3.70343 5.625 3.70343C5.88783 3.70343 6.14808 3.75523 6.39088 3.85588C6.63368 3.95653 6.85425 4.10405 7.04 4.29L7.1 4.35C7.33568 4.58054 7.63502 4.73519 7.95941 4.794C8.28381 4.85282 8.61838 4.81312 8.92 4.68H9C9.29577 4.55324 9.54802 4.34276 9.72569 4.07447C9.90337 3.80618 9.99872 3.49179 10 3.17V3C10 2.46957 10.2107 1.96086 10.5858 1.58579C10.9609 1.21071 11.4696 1 12 1C12.5304 1 13.0391 1.21071 13.4142 1.58579C13.7893 1.96086 14 2.46957 14 3V3.09C14.0013 3.41179 14.0966 3.72618 14.2743 3.99447C14.452 4.26276 14.7042 4.47324 15 4.6C15.3016 4.73312 15.6362 4.77282 15.9606 4.714C16.285 4.65519 16.5843 4.50054 16.82 4.27L16.88 4.21C17.0657 4.02405 17.2863 3.87653 17.5291 3.77588C17.7719 3.67523 18.0322 3.62343 18.295 3.62343C18.5578 3.62343 18.8181 3.67523 19.0609 3.77588C19.3037 3.87653 19.5243 4.02405 19.71 4.21C19.896 4.39575 20.0435 4.61632 20.1441 4.85912C20.2448 5.10192 20.2966 5.36217 20.2966 5.625C20.2966 5.88783 20.2448 6.14808 20.1441 6.39088C20.0435 6.63368 19.896 6.85425 19.71 7.04L19.65 7.1C19.4195 7.33568 19.2648 7.63502 19.206 7.95941C19.1472 8.28381 19.1869 8.61838 19.32 8.92V9C19.4468 9.29577 19.6572 9.54802 19.9255 9.72569C20.1938 9.90337 20.5082 9.99872 20.83 10H21C21.5304 10 22.0391 10.2107 22.4142 10.5858C22.7893 10.9609 23 11.4696 23 12C23 12.5304 22.7893 13.0391 22.4142 13.4142C22.0391 13.7893 21.5304 14 21 14H20.91C20.5882 14.0013 20.2738 14.0966 20.0055 14.2743C19.7372 14.452 19.5268 14.7042 19.4 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Tips & Praktik Terbaik
+        <!-- Akademik -->
+        <section class="help-section help-section--academic">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--emerald">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7h8M8 11h8M8 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Akademik
           </h3>
-          <div class="help-item">
-            <p class="help-item-title">✅ Backup Data Rutin</p>
-            <p class="help-item-desc">Lakukan backup data secara berkala untuk menjaga keamanan informasi.</p>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">👤</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Data Siswa</div>
+                <p class="help-card-desc">NIS, nama, kelas, gender. Filter, pencarian, impor/ekspor.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--green">👨‍🏫</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Data Guru</div>
+                <p class="help-card-desc">NIP, nama, mapel, status kepegawaian.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--lime">📅</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Jadwal Pelajaran</div>
+                <p class="help-card-desc">Hari, jam, mata pelajaran, guru pengampu per kelas.</p>
+              </div>
+            </div>
           </div>
-          <div class="help-item">
-            <p class="help-item-title">✅ Update Informasi</p>
-            <p class="help-item-desc">Pastikan data siswa dan guru selalu diperbarui dan akurat.</p>
-          </div>
-          <div class="help-item">
-            <p class="help-item-title">✅ Gunakan Filter & Pencarian</p>
-            <p class="help-item-desc">Manfaatkan fitur filter dan pencarian untuk menemukan data dengan cepat.</p>
-          </div>
-          <div class="help-item">
-            <p class="help-item-title">✅ Kelola Persuratan dengan Baik</p>
-            <p class="help-item-desc">Lampirkan dokumen yang diperlukan dan isi informasi dengan lengkap.</p>
-          </div>
-        </div>
+        </section>
 
-        <!-- FAQ -->
-        <div class="help-section">
-          <h3 class="help-section-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 11C9 11.5523 9.44772 12 10 12H11C11.5523 12 12 11.5523 12 11V10C12 9.44772 11.5523 9 11 9H10C9.44772 9 9 9.44772 9 10V11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 17H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            FAQ
+        <!-- Kesiswaan -->
+        <section class="help-section help-section--student">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--amber">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 8l4 4-4 4M3 12h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Kesiswaan
           </h3>
-          <div class="help-item">
-            <p class="help-item-title">Q: Bagaimana cara reset password?</p>
-            <p class="help-item-desc">A: Gunakan fitur "Lupa Password" di halaman login atau hubungi administrator.</p>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--amber">↔️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Mutasi Siswa</div>
+                <p class="help-card-desc">Pindah masuk/keluar & notifikasi. Akses dari ikon lonceng di header.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--orange">🎓</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Alumni</div>
+                <p class="help-card-desc">Siswa lulus per tahun. Filter & ekspor data alumni.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--orange">📄</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Pengambilan Ijazah</div>
+                <p class="help-card-desc">Catatan pengambilan dokumen (ijazah, raport, SKHUN) oleh alumni, tanggal, foto, nomor ijazah/kode blangko.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--red">⚠️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Pelanggaran</div>
+                <p class="help-card-desc">Jenis, sanksi, riwayat. Untuk pembinaan siswa.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--cyan">💬</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Konseling</div>
+                <p class="help-card-desc">Sesi konseling siswa, jenis konseling, ringkasan & tindak lanjut.</p>
+              </div>
+            </div>
           </div>
-          <div class="help-item">
-            <p class="help-item-title">Q: Bagaimana cara menambah akses modul?</p>
-            <p class="help-item-desc">A: Akses menu "Kelola Akses Modul" dan aktifkan modul yang diinginkan.</p>
-          </div>
-          <div class="help-item">
-            <p class="help-item-title">Q: Apakah data bisa diekspor?</p>
-            <p class="help-item-desc">A: Ya, beberapa modul menyediakan fitur ekspor data dalam format Excel.</p>
-          </div>
-        </div>
+        </section>
 
-        <!-- Bantuan -->
-        <div class="help-section help-section-last">
-          <h3 class="help-section-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Butuh Bantuan?
+        <!-- Administrasi -->
+        <section class="help-section help-section--admin">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--violet">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Administrasi
           </h3>
-          <div class="help-item">
-            <p class="help-item-desc">Jika mengalami kendala atau memiliki pertanyaan, silakan hubungi tim support atau konsultasikan dengan administrator sistem.</p>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--violet">📝</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Persuratan</div>
+                <p class="help-card-desc">Surat masuk/keluar, disposisi, lampiran, alur persetujuan.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--fuchsia">📊</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Laporan</div>
+                <p class="help-card-desc">Statistik siswa, guru, pelanggaran. Ekspor untuk dinas.</p>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
+
+        <!-- Pengaturan -->
+        <section class="help-section help-section--settings">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--slate">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009.19 18a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Pengaturan
+          </h3>
+          <div class="help-card help-card--single">
+            <span class="help-card-icon help-card-icon--slate">🔐</span>
+            <div class="help-card-body">
+              <div class="help-card-title">Kelola Akses Modul</div>
+              <p class="help-card-desc">Aktif/nonaktif modul per instansi. Hanya admin instansi.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tips -->
+        <section class="help-section help-section--tips">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--sky">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Tips
+          </h3>
+          <div class="help-tips">
+            <div class="help-tip">
+              <span class="help-tip-bulb">💡</span>
+              <span>Gunakan <strong>filter</strong> dan <strong>pencarian</strong> di tiap halaman.</span>
+            </div>
+            <div class="help-tip">
+              <span class="help-tip-bulb">💾</span>
+              <span>Backup rutin & perbarui tahun ajaran saat ganti periode.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- FAQ & Kontak -->
+        <section class="help-section help-section--faq">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--rose">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Pertanyaan Umum
+          </h3>
+          <div class="help-faq-list">
+            <div class="help-faq-item">
+              <p class="help-faq-q">Lupa password?</p>
+              <p class="help-faq-a">Gunakan "Lupa Password" di login atau minta reset ke administrator.</p>
+            </div>
+            <div class="help-faq-item">
+              <p class="help-faq-q">Ekspor data?</p>
+              <p class="help-faq-a">Banyak modul punya tombol ekspor (Excel/PDF). Cek atas tabel atau menu aksi.</p>
+            </div>
+          </div>
+          <div class="help-cta">
+            <span class="help-cta-icon">📞</span>
+            <p class="help-cta-text">Butuh bantuan lebih? Hubungi administrator atau tim support instansi Anda.</p>
+          </div>
+        </section>
       </div>
     </div>
-  </div>
+  </aside>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
-const isOpen = ref(true)
 const STORAGE_KEY = 'helpSidebarOpen'
+const isOpen = ref(false)
+const isMobileOverlay = ref(false)
+
+function checkMobile() {
+  isMobileOverlay.value = window.innerWidth < 1024
+}
 
 const toggleSidebar = () => {
   isOpen.value = !isOpen.value
-  localStorage.setItem(STORAGE_KEY, isOpen.value.toString())
+  try {
+    localStorage.setItem(STORAGE_KEY, isOpen.value ? 'true' : 'false')
+  } catch (_) {}
 }
 
 onMounted(() => {
-  const savedState = localStorage.getItem(STORAGE_KEY)
-  if (savedState !== null) {
-    isOpen.value = savedState === 'true'
-  }
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved !== null) {
+      isOpen.value = saved === 'true'
+    }
+  } catch (_) {}
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
 <style scoped>
 .help-overlay {
   display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 997;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .help-sidebar {
-  position: fixed;
-  right: 0;
-  top: 0;
+  --help-width: 360px;
+  --help-tab-width: 48px;
+  flex-shrink: 0;
+  width: var(--help-tab-width);
   height: 100vh;
-  z-index: 998;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.04);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
 }
 
-.help-sidebar-collapsed {
-  transform: translateX(calc(100% - 50px));
+.help-sidebar--open {
+  width: calc(var(--help-tab-width) + var(--help-width));
 }
 
-.help-sidebar-open {
-  transform: translateX(0);
+.help-sidebar--collapsed {
+  width: var(--help-tab-width);
 }
 
-.help-toggle-btn {
-  position: absolute;
-  left: -50px;
-  top: 100px;
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 10px 0 0 10px;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1000;
-}
-
-.help-toggle-btn:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  box-shadow: -4px 0 12px rgba(102, 126, 234, 0.3);
-  transform: translateX(-2px);
-}
-
-.help-content {
-  width: 320px;
-  height: 100vh;
-  background: white;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+/* Toggle tab */
+.help-toggle {
+  width: var(--help-tab-width);
+  min-width: var(--help-tab-width);
+  height: 100%;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 88px;
+  gap: 8px;
+  background: #f8fafc;
+  border: none;
+  border-right: 1px solid #e5e7eb;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.help-toggle:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.help-toggle:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.help-toggle-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.help-toggle-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  line-height: 1.3;
+}
+
+/* Panel */
+.help-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
   overflow: hidden;
 }
 
+/* Header */
 .help-header {
-  padding: 24px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  gap: 12px;
   flex-shrink: 0;
+  position: relative;
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid #e5e7eb;
+  overflow: hidden;
 }
 
-.help-header-icon {
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
+.help-header-glow {
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 70%;
+  height: 140%;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.help-header-inner {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.help-header-badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
 }
 
-.help-header h2 {
-  font-size: 18px;
-  font-weight: 700;
+.help-header-badge svg {
+  width: 24px;
+  height: 24px;
+}
+
+.help-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.help-header-title {
+  margin: 0 0 2px 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.help-header-subtitle {
   margin: 0;
-  letter-spacing: -0.3px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
 }
 
+/* Body */
 .help-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  background: #f8fafc;
+  padding: 18px 18px 24px;
+  background: linear-gradient(180deg, #fafbfc 0%, #f8fafc 100%);
 }
 
 .help-body::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .help-body::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 
 .help-body::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 3px;
+  border-radius: 10px;
 }
 
 .help-body::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
+/* Section */
 .help-section {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
-.help-section-last {
+.help-section:last-child {
   margin-bottom: 0;
 }
 
-.help-section-title {
+.help-section-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e293b;
+  gap: 10px;
   margin: 0 0 12px 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
+  padding-left: 2px;
 }
 
-.help-section-title svg {
-  color: #667eea;
+.help-section-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.help-item {
-  background: white;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+.help-section-icon svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
 }
 
-.help-item:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+.help-section-icon--amber { background: #fef3c7; color: #d97706; }
+.help-section-icon--blue { background: #dbeafe; color: #2563eb; }
+.help-section-icon--emerald { background: #d1fae5; color: #059669; }
+.help-section-icon--violet { background: #ede9fe; color: #7c3aed; }
+.help-section-icon--slate { background: #f1f5f9; color: #475569; }
+.help-section-icon--sky { background: #e0f2fe; color: #0284c7; }
+.help-section-icon--rose { background: #ffe4e6; color: #e11d48; }
+
+/* Steps (Memulai) */
+.help-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.help-item-title {
+.help-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
   font-size: 13px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0 0 6px 0;
-  line-height: 1.4;
+  color: #475569;
+  line-height: 1.45;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.help-item-desc {
+.help-step:hover {
+  border-color: #fcd34d;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.15);
+}
+
+.help-step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #fbbf24 0%, #f59e0b 100%);
+  color: #fff;
   font-size: 12px;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.5;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.help-item-desc strong {
+.help-step strong {
   color: #1e293b;
   font-weight: 600;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
+/* Cards */
+.help-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.help-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s ease;
+}
+
+.help-card:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+  transform: translateX(2px);
+}
+
+.help-card--single {
+  margin-bottom: 0;
+}
+
+.help-card-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.help-card-icon--blue { background: #dbeafe; }
+.help-card-icon--teal { background: #ccfbf1; }
+.help-card-icon--violet { background: #ede9fe; }
+.help-card-icon--indigo { background: #e0e7ff; }
+.help-card-icon--emerald { background: #d1fae5; }
+.help-card-icon--green { background: #dcfce7; }
+.help-card-icon--lime { background: #ecfccb; }
+.help-card-icon--amber { background: #fef3c7; }
+.help-card-icon--orange { background: #ffedd5; }
+.help-card-icon--red { background: #fee2e2; }
+.help-card-icon--cyan { background: #cffafe; }
+.help-card-icon--fuchsia { background: #fae8ff; }
+.help-card-icon--slate { background: #f1f5f9; }
+
+.help-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.help-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.help-card-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.48;
+}
+
+/* Tips */
+.help-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.help-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 10px;
+  border: 1px solid #bae6fd;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.help-tip-bulb {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.help-tip strong {
+  color: #0c4a6e;
+  font-weight: 600;
+}
+
+/* FAQ */
+.help-faq-list {
+  margin-bottom: 14px;
+}
+
+.help-faq-item {
+  padding: 12px 14px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+
+.help-faq-item:last-child {
+  margin-bottom: 0;
+}
+
+.help-faq-item:hover {
+  border-color: #fecdd3;
+}
+
+.help-faq-q {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.help-faq-a {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* CTA */
+.help-cta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+}
+
+.help-cta-icon {
+  flex-shrink: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.help-cta-text {
+  margin: 0;
+  font-size: 12px;
+  color: #991b1b;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* Mobile overlay */
+@media (max-width: 1023px) {
   .help-overlay {
     display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 998;
+    animation: helpOverlayIn 0.2s ease;
   }
 
   .help-sidebar {
-    transform: translateX(100%);
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: var(--help-tab-width);
+    height: 100vh;
+    z-index: 999;
   }
 
-  .help-sidebar-open {
-    transform: translateX(0);
+  .help-sidebar--open.help-sidebar--overlay {
+    width: min(calc(var(--help-tab-width) + var(--help-width)), 100vw);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
   }
 
-  .help-toggle-btn {
-    left: -44px;
-    width: 44px;
-    height: 44px;
-    top: 70px;
+  .help-sidebar--collapsed {
+    width: var(--help-tab-width);
   }
 
-  .help-content {
-    width: 300px;
+  .help-panel {
+    max-width: var(--help-width);
   }
 }
 
-@media (max-width: 768px) {
-  .help-content {
-    width: 100%;
-    max-width: 320px;
-  }
-
-  .help-toggle-btn {
-    left: -40px;
-    width: 40px;
-    height: 40px;
-    top: 60px;
-    border-radius: 8px 0 0 8px;
-  }
-
-  .help-header {
-    padding: 20px 16px;
-  }
-
-  .help-header h2 {
-    font-size: 16px;
-  }
-
-  .help-body {
-    padding: 16px;
-  }
-
-  .help-section {
-    margin-bottom: 20px;
-  }
-
-  .help-item {
-    padding: 10px;
-  }
+@keyframes helpOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (max-width: 480px) {
-  .help-sidebar-collapsed {
-    transform: translateX(100%);
+  .help-sidebar {
+    --help-width: 300px;
+    --help-tab-width: 44px;
   }
 
-  .help-toggle-btn {
-    left: -36px;
-    width: 36px;
-    height: 36px;
+  .help-toggle {
+    padding-top: 72px;
+  }
+
+  .help-header {
+    padding: 16px 16px 14px;
+  }
+
+  .help-header-badge {
+    width: 40px;
+    height: 40px;
+  }
+
+  .help-header-title {
+    font-size: 15px;
+  }
+
+  .help-body {
+    padding: 14px 14px 20px;
+  }
+
+  .help-section-head {
+    margin-bottom: 10px;
+  }
+
+  .help-section-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .help-card,
+  .help-step {
+    padding: 10px 12px;
+  }
+
+  .help-card-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
 }
 </style>

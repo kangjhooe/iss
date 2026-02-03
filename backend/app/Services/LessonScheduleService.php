@@ -45,6 +45,9 @@ class LessonScheduleService
         if (!empty($filters['subject_id'])) {
             $query->where('subject_id', $filters['subject_id']);
         }
+        if (!empty($filters['room_id'])) {
+            $query->where('room_id', $filters['room_id']);
+        }
 
         return $query->paginate($perPage);
     }

@@ -81,10 +81,11 @@ class SchoolClass extends Model
 
     /**
      * Get the class student history records.
+     * FK di class_student_history: class_id -> class.id
      */
     public function studentHistory()
     {
-        return $this->hasMany(ClassStudentHistory::class);
+        return $this->hasMany(ClassStudentHistory::class, 'class_id');
     }
 
     /**
@@ -109,6 +110,30 @@ class SchoolClass extends Model
     public function lessonSchedules()
     {
         return $this->hasMany(LessonSchedule::class, 'class_id');
+    }
+
+    /**
+     * Get the counseling sessions for this class.
+     */
+    public function counselingSessions()
+    {
+        return $this->hasMany(CounselingSession::class, 'class_id');
+    }
+
+    /**
+     * Get the grades (nilai) for this class.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class, 'class_id');
+    }
+
+    /**
+     * Get the teaching journals for this class.
+     */
+    public function teachingJournals()
+    {
+        return $this->hasMany(TeachingJournal::class, 'class_id');
     }
 
     /**

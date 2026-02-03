@@ -189,8 +189,8 @@ onMounted(async () => {
 
 <style scoped>
 .super-admin-dashboard {
-  max-width: 1400px;
   width: 100%;
+  max-width: 100%;
   padding: 0;
 }
 

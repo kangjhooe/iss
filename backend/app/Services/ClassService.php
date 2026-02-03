@@ -12,7 +12,8 @@ use Illuminate\Validation\ValidationException;
 class ClassService
 {
     public function __construct(
-        protected ClassRepository $classRepository
+        protected ClassRepository $classRepository,
+        protected WaliKelasPermissionService $waliKelasPermissionService
     ) {}
 
     /**
@@ -97,6 +98,10 @@ class ClassService
         }
 
         $class = $this->classRepository->create($data);
+
+        if (!empty($data['teacher_id'])) {
+            $this->waliKelasPermissionService->grantWaliKelasPermissionsToEmployee((int) $data['teacher_id']);
+        }
 
         Log::info('Class created', [
             'class_id' => $class->id,
@@ -199,6 +204,10 @@ class ClassService
         }
 
         $this->classRepository->update($class, $data);
+
+        if (array_key_exists('teacher_id', $data) && !empty($data['teacher_id'])) {
+            $this->waliKelasPermissionService->grantWaliKelasPermissionsToEmployee((int) $data['teacher_id']);
+        }
 
         Log::info('Class updated', [
             'class_id' => $class->id,

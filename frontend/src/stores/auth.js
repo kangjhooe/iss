@@ -1,13 +1,12 @@
 import { defineStore } from 'pinia'
 import { authApi } from '@/api/auth'
 import router from '@/router'
-import { getToken, setToken, removeToken, setRefreshToken, getRefreshToken, isAuthenticated } from '@/utils/tokenStorage'
+import { clearAuth } from '@/utils/tokenStorage'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: getToken(),
-    isAuthenticated: isAuthenticated()
+    isAuthenticated: false // Ditentukan dari /me atau setelah login; token via httpOnly cookie
   }),
 
   actions: {
@@ -52,28 +51,14 @@ export const useAuthStore = defineStore('auth', {
           throw new Error('Invalid response from server')
         }
         
-        // Check for token in different possible locations
-        const token = responseData.token || responseData.access_token || responseData.accessToken
-        if (!token) {
-          console.error('Token not found in response.')
-          console.error('Response data:', responseData)
-          console.error('Available keys:', Object.keys(responseData || {}))
-          console.error('Response structure:', JSON.stringify(responseData, null, 2))
-          throw new Error('Token tidak ditemukan dalam response. Silakan coba lagi atau hubungi administrator.')
-        }
-        
         if (!responseData.user) {
           console.error('User data not found in response. Response data:', responseData)
           throw new Error('Data user tidak ditemukan dalam response')
         }
-        
-        this.token = token
+
+        // Auth token & refresh token disimpan di httpOnly cookie oleh backend; tidak disimpan di localStorage
         this.user = responseData.user
         this.isAuthenticated = true
-        setToken(this.token)
-        if (responseData.refresh_token || responseData.refreshToken) {
-          setRefreshToken(responseData.refresh_token || responseData.refreshToken)
-        }
         return responseData
       } catch (error) {
         console.error('=== LOGIN ERROR DEBUG ===')
@@ -123,13 +108,8 @@ export const useAuthStore = defineStore('auth', {
     async register(data) {
       try {
         const response = await authApi.register(data)
-        this.token = response.data.token
         this.user = response.data.user
         this.isAuthenticated = true
-        setToken(this.token)
-        if (response.data.refresh_token) {
-          setRefreshToken(response.data.refresh_token)
-        }
         return response.data
       } catch (error) {
         throw error
@@ -143,9 +123,8 @@ export const useAuthStore = defineStore('auth', {
         console.error('Logout error:', error)
       } finally {
         this.user = null
-        this.token = null
         this.isAuthenticated = false
-        removeToken()
+        clearAuth()
         router.push('/login')
       }
     },
@@ -154,9 +133,11 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await authApi.me()
         this.user = response.data.user
+        this.isAuthenticated = true
         return response.data.user
       } catch (error) {
-        this.logout()
+        this.isAuthenticated = false
+        this.user = null
         throw error
       }
     }

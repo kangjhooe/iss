@@ -7,10 +7,14 @@ use App\Http\Requests\ApproveStudentMutationRequest;
 use App\Http\Requests\StoreStudentMutationPullRequest;
 use App\Http\Requests\StoreStudentMutationRequest;
 use App\Http\Resources\StudentMutationResource;
+use App\Models\Institution;
 use App\Models\StudentMutation;
 use App\Services\StudentMutationService;
+use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
+use Illuminate\Http\StreamedResponse;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class StudentMutationController extends Controller
 {
@@ -46,27 +50,45 @@ class StudentMutationController extends Controller
 
     /**
      * Create mutation request from origin school (NPSN tujuan + NISN siswa).
+     * Jika external=true: sekolah tujuan belum terdaftar, NPSN + nama dicatat manual, status langsung approved.
      */
     public function store(StoreStudentMutationRequest $request)
     {
         try {
             $user = $request->user();
             $institutionId = $user->institution_id;
+            $external = $request->validated('external', false);
 
-            $mutation = $this->mutationService->createFromOrigin(
-                $institutionId,
-                $request->validated('target_npsn'),
-                $request->validated('nisn'),
-                $user->id,
-                $request->validated('notes')
-            );
-
-            $mutation->load([
-                'originInstitution:id,name,npsn,level',
-                'targetInstitution:id,name,npsn,level',
-                'student:id,nisn,nis,name,gender,status',
-                'requester:id,name,email',
-            ]);
+            if ($external) {
+                $mutation = $this->mutationService->createFromOriginExternal(
+                    $institutionId,
+                    $request->validated('target_npsn'),
+                    $request->validated('target_school_name'),
+                    $request->validated('nisn'),
+                    $user->id,
+                    $request->validated('notes')
+                );
+                $mutation->load([
+                    'originInstitution:id,name,npsn,level',
+                    'student:id,nisn,nis,name,gender,status',
+                    'requester:id,name,email',
+                    'approver:id,name',
+                ]);
+            } else {
+                $mutation = $this->mutationService->createFromOrigin(
+                    $institutionId,
+                    $request->validated('target_npsn'),
+                    $request->validated('nisn'),
+                    $user->id,
+                    $request->validated('notes')
+                );
+                $mutation->load([
+                    'originInstitution:id,name,npsn,level',
+                    'targetInstitution:id,name,npsn,level',
+                    'student:id,nisn,nis,name,gender,status',
+                    'requester:id,name,email',
+                ]);
+            }
 
             return (new StudentMutationResource($mutation))
                 ->response()
@@ -81,33 +103,55 @@ class StudentMutationController extends Controller
     }
 
     /**
-     * Create mutation request from target school (tarik siswa: NPSN asal + NISN siswa).
-     * Admin sekolah tujuan memulai; admin sekolah asal nanti menyetujui.
+     * Create mutation request from target school (tarik siswa).
+     * Jika external=true: sekolah asal belum terdaftar, input manual NPSN + nama asal + data siswa; langsung approved.
      */
     public function pull(StoreStudentMutationPullRequest $request)
     {
         try {
             $user = $request->user();
             $targetInstitutionId = $user->institution_id;
+            $external = $request->validated('external', false);
 
-            $mutation = $this->mutationService->createFromTarget(
-                $targetInstitutionId,
-                $request->validated('origin_npsn'),
-                $request->validated('nisn'),
-                $user->id,
-                $request->validated('notes')
-            );
-
-            $mutation->load([
-                'originInstitution:id,name,npsn,level',
-                'targetInstitution:id,name,npsn,level',
-                'student:id,nisn,nis,name,gender,status',
-                'requester:id,name,email',
-            ]);
+            if ($external) {
+                $mutation = $this->mutationService->createFromTargetExternal(
+                    $targetInstitutionId,
+                    $request->validated('origin_npsn'),
+                    $request->validated('origin_school_name'),
+                    $request->validated('student_name'),
+                    $request->validated('nisn'),
+                    $request->validated('student_gender'),
+                    $request->validated('student_grade'),
+                    $user->id,
+                    $request->validated('notes')
+                );
+                $mutation->load([
+                    'targetInstitution:id,name,npsn,level',
+                    'student:id,nisn,nis,name,gender,status',
+                    'requester:id,name,email',
+                    'approver:id,name',
+                ]);
+            } else {
+                $mutation = $this->mutationService->createFromTarget(
+                    $targetInstitutionId,
+                    $request->validated('origin_npsn'),
+                    $request->validated('nisn'),
+                    $user->id,
+                    $request->validated('notes')
+                );
+                $mutation->load([
+                    'originInstitution:id,name,npsn,level',
+                    'targetInstitution:id,name,npsn,level',
+                    'student:id,nisn,nis,name,gender,status',
+                    'requester:id,name,email',
+                ]);
+            }
 
             return (new StudentMutationResource($mutation))
                 ->response()
                 ->setStatusCode(201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             Log::error('Student mutation pull failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -314,6 +358,90 @@ class StudentMutationController extends Controller
             Log::error('Student mutation report failed', ['error' => $e->getMessage()]);
             return response()->json([
                 'message' => 'Gagal mengambil laporan mutasi.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Export Buku Mutasi: PDF atau CSV (filter from, to, type sama seperti report).
+     */
+    public function export(Request $request): Response|StreamedResponse|\Illuminate\Http\JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $institutionId = $user->institution_id;
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $from = $request->get('from');
+            $to = $request->get('to');
+            $type = $request->get('type', 'all');
+            if (!in_array($type, ['out', 'in', 'all'], true)) {
+                $type = 'all';
+            }
+            $format = $request->get('format', 'pdf');
+            if (!in_array($format, ['pdf', 'csv'], true)) {
+                $format = 'pdf';
+            }
+
+            $institution = Institution::find($institutionId);
+            $mutations = $this->mutationService->listForExport($institutionId, $from, $to, $type, 2000);
+
+            if ($format === 'csv') {
+                $filename = 'Buku_Mutasi_' . date('Y-m-d_His') . '.csv';
+                return response()->streamDownload(function () use ($mutations, $institutionId) {
+                    $out = fopen('php://output', 'w');
+                    fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+                    fputcsv($out, [
+                        'No', 'Tanggal', 'NISN', 'Nama Siswa', 'JK', 'Kelas', 'Jenis', 'Sekolah Asal', 'NPSN Asal',
+                        'Sekolah Tujuan', 'NPSN Tujuan', 'Alasan/Keterangan', 'Disetujui oleh',
+                    ]);
+                    foreach ($mutations as $idx => $m) {
+                        $isOut = $m->origin_institution_id === $institutionId;
+                        $jenis = $isOut ? 'Keluar' : 'Masuk';
+                        $tanggal = $m->approved_at ? $m->approved_at->format('Y-m-d') : ($m->created_at ? $m->created_at->format('Y-m-d') : '');
+                        $targetName = $m->targetInstitution?->name ?? $m->target_school_name ?? '';
+                        $targetNpsn = $m->targetInstitution?->npsn ?? $m->target_npsn ?? '';
+                        fputcsv($out, [
+                            $idx + 1,
+                            $tanggal,
+                            $m->student?->nisn ?? '',
+                            $m->student?->name ?? '',
+                            $m->student_gender ?? $m->student?->gender ?? '',
+                            $m->student_grade ?? '',
+                            $jenis,
+                            $m->originInstitution?->name ?? $m->origin_school_name ?? '',
+                            $m->originInstitution?->npsn ?? $m->origin_npsn ?? '',
+                            $targetName,
+                            $targetNpsn,
+                            $m->notes ?? '',
+                            $m->approver?->name ?? '',
+                        ]);
+                    }
+                    fclose($out);
+                }, $filename, [
+                    'Content-Type' => 'text/csv; charset=UTF-8',
+                ]);
+            }
+
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $data = [
+                'institution' => $institution,
+                'institution_id' => $institutionId,
+                'mutations' => $mutations,
+                'date_from' => $from,
+                'date_to' => $to,
+                'printed_at' => $printedAt,
+            ];
+            $pdf = DomPDF::loadView('buku_mutasi.print', $data);
+            $pdfFilename = 'Buku_Mutasi_' . date('Y-m-d_His') . '.pdf';
+            return $pdf->download($pdfFilename);
+        } catch (\Exception $e) {
+            Log::error('Student mutation export failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal mengekspor Buku Mutasi.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

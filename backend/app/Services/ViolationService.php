@@ -47,6 +47,12 @@ class ViolationService
                     ->orWhere('nisn', 'like', "%{$search}%");
             });
         }
+        if (!empty($filters['academic_year_id'])) {
+            $query->where('academic_year_id', $filters['academic_year_id']);
+        }
+        if (!empty($filters['semester_id'])) {
+            $query->where('semester_id', $filters['semester_id']);
+        }
 
         return $query->paginate($perPage);
     }

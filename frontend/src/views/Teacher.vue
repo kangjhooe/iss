@@ -3,10 +3,8 @@
     <div class="teacher-page">
       <div class="page-header">
         <div class="header-content">
-          <div>
-            <h2>Data Guru</h2>
-            <p>Kelola data guru sekolah Anda</p>
-          </div>
+          <h1 class="page-title">Data Guru</h1>
+          <p class="page-subtitle">Kelola data guru sekolah Anda</p>
           <div class="action-buttons-group">
             <button @click="exportToExcel" class="btn-secondary btn-compact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -48,7 +46,7 @@
               </svg>
               <span>Permintaan</span>
             </button>
-            <label for="import-excel-employee" class="btn-secondary btn-compact" style="cursor: pointer;">
+            <label for="import-excel-employee" class="btn-secondary btn-compact cursor-pointer">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -56,7 +54,7 @@
               </svg>
               <span>Import</span>
             </label>
-            <input type="file" id="import-excel-employee" accept=".xlsx,.xls" style="display: none;" @change="handleImportExcel">
+            <input type="file" id="import-excel-employee" accept=".xlsx,.xls" class="input-hidden" @change="handleImportExcel">
             <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -68,149 +66,57 @@
         </div>
       </div>
 
-      <div class="filters filters-inline">
-        <input 
-          v-model="filters.search" 
-          @input="loadTeachers" 
-          placeholder="Cari nama, NIP, atau NUPTK..."
-          class="search-input"
-        />
-        <select v-model="filters.status" @change="loadTeachers" class="filter-select">
-          <option value="">Semua Status</option>
-          <option value="Aktif">Aktif</option>
-          <option value="Pensiun">Pensiun</option>
-          <option value="Pindah">Pindah</option>
-          <option value="Tidak Aktif">Tidak Aktif</option>
-        </select>
-        <select v-model="filters.type" @change="loadTeachers" class="filter-select">
-          <option value="">Semua Tipe</option>
-          <option value="Guru">Guru</option>
-          <option value="Staff">Staff</option>
-          <option value="Tenaga Administrasi">Tenaga Administrasi</option>
-          <option value="Tenaga Kebersihan">Tenaga Kebersihan</option>
-          <option value="Tenaga Keamanan">Tenaga Keamanan</option>
-          <option value="Lainnya">Lainnya</option>
-        </select>
-        <select v-model="filters.employment_status" @change="loadTeachers" class="filter-select">
-          <option value="">Semua Status Kepegawaian</option>
-          <option value="PNS">PNS</option>
-          <option value="CPNS">CPNS</option>
-          <option value="Guru Tetap Yayasan">Guru Tetap Yayasan</option>
-          <option value="Guru Honor Sekolah">Guru Honor Sekolah</option>
-          <option value="Guru Kontrak">Guru Kontrak</option>
-          <option value="Pegawai Tetap Yayasan">Pegawai Tetap Yayasan</option>
-          <option value="Pegawai Honor">Pegawai Honor</option>
-          <option value="Pegawai Kontrak">Pegawai Kontrak</option>
-        </select>
-      </div>
+      <TeacherFilters
+        :model-value="filters"
+        @update:model-value="(v) => Object.assign(filters.value, v)"
+        @filter="loadTeachers"
+      />
 
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-              <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-        <p>Memuat data...</p>
-      </div>
-      
-      <div v-else class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Tipe</th>
-              <th>NIK</th>
-              <th>NIP</th>
-              <th>NUPTK</th>
-              <th>Nama</th>
-              <th>Jenis Kelamin</th>
-              <th>Status Kepegawaian</th>
-              <th>Mata Pelajaran</th>
-              <th>Status</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="teacher in teachers" :key="teacher.id">
-              <td>{{ teacher.type || 'Guru' }}</td>
-              <td>{{ teacher.nik || '-' }}</td>
-              <td>{{ teacher.nip || '-' }}</td>
-              <td>{{ teacher.nuptk || '-' }}</td>
-              <td>
-                <div class="name-cell">
-                  <span>{{ teacher.name }}</span>
-                  <span v-if="teacher.affiliation === 'non_induk'" class="badge-non-induk">Non-Induk</span>
-                </div>
-              </td>
-              <td>{{ teacher.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
-              <td>{{ teacher.employment_status || '-' }}</td>
-              <td>{{ getTeacherSubject(teacher) }}</td>
-              <td>
-                <span :class="getStatusClass(teacher.status)">
-                  {{ teacher.status }}
-                </span>
-              </td>
-              <td>
-                <div class="action-buttons">
-                  <button @click="viewTeacher(teacher)" class="btn-action btn-view" title="Lihat Biodata">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="editTeacher(teacher)" class="btn-action btn-edit" title="Edit">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="deleteTeacher(teacher.id)" class="btn-action btn-delete" title="Hapus">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <p v-if="listError" class="error-message">{{ listError }}</p>
 
-        <div v-if="teachers.length === 0" class="empty-state">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <h3>Tidak ada data guru</h3>
-          <p>Mulai dengan menambahkan guru baru</p>
-          <button @click="showAddModal = true" class="btn-primary">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Tambah Guru</span>
-          </button>
-        </div>
-      </div>
+      <TeacherTableSkeleton v-if="loading" />
+
+      <TeacherTable
+        v-else
+        :teachers="teachers"
+        :get-teacher-subject="getTeacherSubject"
+        :get-status-class="getStatusClass"
+        @view="viewTeacher"
+        @edit="editTeacher"
+        @delete="deleteTeacher"
+        @add="showAddModal = true"
+      />
 
       <!-- Add/Edit Modal -->
-      <div v-if="showAddModal || showEditModal" class="modal-overlay" @click="closeModal">
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3>{{ showEditModal ? 'Edit' : 'Tambah' }} Guru</h3>
-            <button @click="closeModal" class="btn-close">×</button>
+      <div v-if="showAddModal || showEditModal" class="modal-overlay form-modal-overlay" @click="closeModal">
+        <div class="modal-content form-modal-content" @click.stop>
+          <div class="form-modal-header">
+            <div class="form-modal-title-wrap">
+              <div class="form-modal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="form-modal-title">{{ showEditModal ? 'Edit' : 'Tambah' }} Guru</h3>
+                <p class="form-modal-subtitle">{{ showEditModal ? 'Perbarui data guru' : 'Isi data guru baru' }}</p>
+              </div>
+            </div>
+            <button type="button" @click="closeModal" class="btn-close-modal" aria-label="Tutup">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
           </div>
-          
-          <form @submit.prevent="handleSubmit" class="modal-body">
+
+          <form @submit.prevent="handleSubmit" class="form-modal-body">
             <!-- Tabs Navigation -->
-            <div class="tabs-nav">
+            <div class="form-tabs-nav">
               <button 
                 type="button"
                 @click="activeTab = 1" 
-                :class="['tab-btn', { active: activeTab === 1 }]"
+                :class="['form-tab-btn', { active: activeTab === 1 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -221,7 +127,7 @@
               <button 
                 type="button"
                 @click="activeTab = 2" 
-                :class="['tab-btn', { active: activeTab === 2 }]"
+                :class="['form-tab-btn', { active: activeTab === 2 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -233,7 +139,7 @@
               <button 
                 type="button"
                 @click="activeTab = 3" 
-                :class="['tab-btn', { active: activeTab === 3 }]"
+                :class="['form-tab-btn', { active: activeTab === 3 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -247,7 +153,7 @@
               <button 
                 type="button"
                 @click="activeTab = 4" 
-                :class="['tab-btn', { active: activeTab === 4 }]"
+                :class="['form-tab-btn', { active: activeTab === 4 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -262,7 +168,7 @@
               <button 
                 type="button"
                 @click="activeTab = 5" 
-                :class="['tab-btn', { active: activeTab === 5 }]"
+                :class="['form-tab-btn', { active: activeTab === 5 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -276,7 +182,7 @@
             </div>
 
             <!-- Tab 1: Identitas -->
-            <div v-show="activeTab === 1" class="tab-content">
+            <div v-show="activeTab === 1" class="form-tab-content">
               <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
                 <div class="form-row">
                   <div class="form-group">
@@ -371,7 +277,7 @@
             </div>
 
             <!-- Tab 2: Kepegawaian -->
-            <div v-show="activeTab === 2" class="tab-content">
+            <div v-show="activeTab === 2" class="form-tab-content">
             <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
               <div class="form-row">
                 <div class="form-group">
@@ -427,6 +333,36 @@
                     </select>
                   </div>
                 </div>
+
+                <h4 class="form-subsection-title">Sertifikasi Guru</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Status Sertifikasi</label>
+                    <select v-model="form.certification_status">
+                      <option value="">Pilih</option>
+                      <option value="Sudah">Sudah</option>
+                      <option value="Belum">Belum</option>
+                    </select>
+                  </div>
+                  <div class="form-group" v-if="form.certification_status === 'Sudah'">
+                    <label>Tanggal Sertifikasi</label>
+                    <input type="date" v-model="form.certification_date" />
+                  </div>
+                  <div class="form-group">
+                    <label>Nomor Registrasi Guru (NRG)</label>
+                    <input v-model="form.teacher_registration_number" placeholder="NRG" />
+                  </div>
+                </div>
+                <div class="form-row" v-if="form.certification_status === 'Sudah'">
+                  <div class="form-group">
+                    <label>Nomor Sertifikat Pendidik</label>
+                    <input v-model="form.certification_number" placeholder="Nomor sertifikat" />
+                  </div>
+                  <div class="form-group">
+                    <label>Lembaga Penerbit</label>
+                    <input v-model="form.certification_issuing_authority" placeholder="Contoh: Kemendikbud" />
+                  </div>
+                </div>
               </fieldset>
 
               <div v-if="isNonIndukEdit" class="assignment-section">
@@ -449,7 +385,7 @@
             </div>
 
             <!-- Tab 3: Tambahan -->
-            <div v-show="activeTab === 3" class="tab-content">
+            <div v-show="activeTab === 3" class="form-tab-content">
               <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
                 <div class="form-group">
                   <label>Catatan</label>
@@ -469,6 +405,19 @@
                       </select>
                       <span class="form-hint">Pilih role untuk akun login. Email wajib diisi jika memilih role.</span>
                     </div>
+                  </div>
+                  <div class="form-section additional-duties-section">
+                    <h5>Tugas Tambahan</h5>
+                    <div v-if="loadingAdditionalDuties" class="info-box">
+                      <p>Memuat daftar tugas tambahan...</p>
+                    </div>
+                    <div v-else class="module-grid">
+                      <label v-for="duty in availableAdditionalDuties" :key="duty.id" class="module-option">
+                        <input type="checkbox" :value="duty.id" v-model="form.additional_duty_ids" />
+                        <span>{{ duty.label }}</span>
+                      </label>
+                    </div>
+                    <p class="form-hint">Tugas tambahan memberi akses otomatis ke modul terkait (digabung dengan akses modul di bawah).</p>
                   </div>
                   <div v-if="form.user_role" class="module-access-grid">
                     <h5>Akses Modul</h5>
@@ -491,7 +440,7 @@
             </div>
 
             <!-- Tab 4: Pendidikan -->
-            <div v-show="activeTab === 4" class="tab-content">
+            <div v-show="activeTab === 4" class="form-tab-content">
               <div v-if="!isNonIndukEdit" class="education-section">
                 <div class="section-header">
                   <h4>Riwayat Pendidikan</h4>
@@ -571,7 +520,7 @@
             </div>
 
             <!-- Tab 5: Berkas -->
-            <div v-show="activeTab === 5" class="tab-content">
+            <div v-show="activeTab === 5" class="form-tab-content">
               <div v-if="!isNonIndukEdit" class="documents-section">
                 <div class="section-header">
                   <h4>Berkas Dokumen</h4>
@@ -656,13 +605,16 @@
 
             <div v-if="error" class="error-message">{{ error }}</div>
 
-            <div class="modal-footer">
-              <button type="button" @click="closeModal" class="btn-secondary">Batal</button>
-              <button v-if="activeTab > 1" type="button" @click="activeTab--" class="btn-secondary">Sebelumnya</button>
-              <button v-if="activeTab < 5" type="button" @click="activeTab++" class="btn-secondary">Selanjutnya</button>
-              <button type="submit" :disabled="saving" class="btn-primary">
-                {{ saving ? 'Menyimpan...' : 'Simpan' }}
-              </button>
+            <div class="form-modal-footer">
+              <button type="button" @click="closeModal" class="btn-ghost">Batal</button>
+              <div class="form-modal-footer-actions">
+                <button v-if="activeTab > 1" type="button" @click="activeTab--" class="btn-outline">Sebelumnya</button>
+                <button v-if="activeTab < 5" type="button" @click="activeTab++" class="btn-outline">Selanjutnya</button>
+                <button type="submit" :disabled="saving" class="btn-submit">
+                  <span v-if="saving" class="btn-spinner"></span>
+                  <span>{{ saving ? 'Menyimpan...' : 'Simpan' }}</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -799,6 +751,39 @@
               </div>
             </div>
 
+            <!-- Sertifikasi Guru -->
+            <div class="biodata-section view-card" v-if="isViewingGuru">
+              <h4 class="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5292C20.3248 17.7721 20.3766 18.0325 20.3766 18.296C20.3766 18.5595 20.3248 18.8199 20.2241 19.0628C20.1235 19.3057 19.976 19.5263 19.79 19.712C19.6043 19.898 19.3837 20.0455 19.1408 20.1461C18.8979 20.2468 18.6375 20.2986 18.374 20.2986C18.1105 20.2986 17.8501 20.2468 17.6072 20.1461C17.3643 20.0455 17.1437 19.898 16.958 19.712L16.898 19.652C16.6623 19.4215 16.363 19.2668 16.0386 19.208C15.7142 19.1492 15.3796 19.1889 15.078 19.322C14.7842 19.4508 14.532 19.6574 14.3543 19.9175C14.1766 20.1776 14.0813 20.4801 14.08 20.79V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.6052 9.96512 20.3125 9.77251 20.0752C9.5799 19.8379 9.31274 19.6687 9.01 19.59C8.70838 19.4569 8.37381 19.4172 8.04941 19.476C7.72502 19.5348 7.42568 19.6895 7.19 19.92L7.13 19.98C6.94425 20.166 6.72368 20.3135 6.48077 20.4141C6.23786 20.5148 5.97747 20.5666 5.714 20.5666C5.45053 20.5666 5.19014 20.5148 4.94723 20.4141C4.70432 20.3135 4.48375 20.166 4.298 19.98C4.11205 19.7943 3.96453 19.5737 3.86388 19.3308C3.76322 19.0879 3.71144 18.8275 3.71144 18.564C3.71144 18.3005 3.76322 18.0401 3.86388 17.7972C3.96453 17.5543 4.11205 17.3337 4.298 17.148L4.358 17.088C4.59368 16.8575 4.74841 16.5582 4.8072 16.2338C4.86598 15.9094 4.82628 15.5748 4.692 15.273C4.56321 14.9792 4.35659 14.727 4.09651 14.5493C3.83642 14.3716 3.53394 14.2763 3.224 14.275H3C2.46957 14.275 1.96086 14.0643 1.58579 13.6892C1.21071 13.3141 1 12.8054 1 12.275C1 11.7446 1.21071 11.2359 1.58579 10.8608C1.96086 10.4857 2.46957 10.275 3 10.275H3.09C3.39482 10.2673 3.68752 10.1601 3.92482 9.96751C4.16212 9.7749 4.3313 9.50774 4.41 9.205C4.54312 8.90338 4.5828 8.56881 4.52402 8.24441C4.46524 7.92002 4.31049 7.62068 4.08 7.385L4.02 7.325C3.83425 7.13925 3.68673 6.91868 3.58608 6.67577C3.48542 6.43286 3.43364 6.17247 3.43364 5.909C3.43364 5.64553 3.48542 5.38514 3.58608 5.14223C3.68673 4.89932 3.83425 4.67875 4.02 4.493C4.20575 4.30705 4.42632 4.15953 4.66923 4.05888C4.91214 3.95822 5.17253 3.90644 5.436 3.90644C5.69947 3.90644 5.95986 3.95822 6.20277 4.05888C6.44568 4.15953 6.66625 4.30705 6.852 4.493L6.912 4.553C7.14347 4.78868 7.44281 4.94341 7.7672 5.0022C8.09159 5.06098 8.42624 5.02128 8.728 4.887V4.89C9.02179 4.76121 9.274 4.55459 9.45169 4.29451C9.62938 4.03442 9.72472 3.73194 9.726 3.422V3.275C9.726 2.74457 9.93672 2.23586 10.3118 1.86079C10.6869 1.48572 11.1956 1.275 11.726 1.275C12.2564 1.275 12.7651 1.48572 13.1402 1.86079C13.5153 2.23586 13.726 2.74457 13.726 3.275V3.365C13.7283 3.67494 13.8236 3.97742 14.0013 4.23751C14.179 4.49759 14.4312 4.70421 14.725 4.833C15.0266 4.96612 15.3612 5.0058 15.6856 4.94702C16.01 4.88824 16.3093 4.73349 16.545 4.503L16.605 4.443C16.7907 4.25725 17.0113 4.10973 17.2542 4.00908C17.4971 3.90842 17.7575 3.85664 18.021 3.85664C18.2845 3.85664 18.5449 3.90842 18.7878 4.00908C19.0307 4.10973 19.2512 4.25725 19.437 4.443L19.497 4.503C19.7327 4.73349 20.032 4.88824 20.3564 4.94702C20.6808 5.0058 21.0154 4.96612 21.317 4.833C21.6108 4.70421 21.863 4.49759 22.0407 4.23751C22.2184 3.97742 22.3137 3.67494 22.316 3.365V3.275C22.316 2.74457 22.5267 2.23586 22.9018 1.86079C23.2769 1.48572 23.7856 1.275 24.316 1.275C24.8464 1.275 25.3551 1.48572 25.7302 1.86079C26.1053 2.23586 26.316 2.74457 26.316 3.275V3.422C26.3173 3.73194 26.4126 4.03442 26.5903 4.29451C26.768 4.55459 27.0202 4.76121 27.314 4.89C27.6156 5.02312 27.9502 5.0628 28.2746 5.00402C28.599 4.94524 28.8983 4.79049 29.134 4.56L29.194 4.5C29.3797 4.31425 29.6003 4.16673 29.8432 4.06608C30.0861 3.96542 30.3465 3.91364 30.61 3.91364C30.8735 3.91364 31.1339 3.96542 31.3768 4.06608C31.6197 4.16673 31.8402 4.31425 32.026 4.5L32.086 4.56C32.3165 4.79568 32.4712 5.09502 32.53 5.41941C32.5888 5.74381 32.5491 6.07844 32.416 6.38V6.39C32.2872 6.68379 32.0806 6.936 31.8205 7.11369C31.5604 7.29138 31.2579 7.38672 30.948 7.388H30.8C30.4906 7.38928 30.1881 7.48463 29.928 7.66232C29.668 7.84001 29.4613 8.09221 29.333 8.386V8.385C29.1999 8.68662 29.1602 9.02119 29.219 9.34558C29.2777 9.66998 29.4325 9.96932 29.663 10.205L29.723 10.265C29.9087 10.4507 30.0562 10.6713 30.1569 10.9142C30.2575 11.1571 30.3093 11.4175 30.3093 11.681C30.3093 11.9445 30.2575 12.2049 30.1569 12.4478C30.0562 12.6907 29.9087 12.9112 29.723 13.097L29.663 13.157C29.4325 13.3927 29.2777 13.692 29.219 14.0164C29.1602 14.3408 29.1999 14.6754 29.333 14.977C29.4613 15.271 29.668 15.5232 29.928 15.7009C30.1881 15.8786 30.4906 15.9739 30.8 15.975H30.9C31.2099 15.9763 31.5124 16.0716 31.7725 16.2493C32.0326 16.427 32.2392 16.6792 32.368 16.973V17C32.368 17.5304 32.1573 18.0391 31.7822 18.4142C31.4071 18.7893 30.8984 19 30.368 19H30.316C30.0061 19.0013 29.7036 19.0966 29.4435 19.2743C29.1834 19.452 28.9768 19.7042 28.848 19.998C28.7149 20.2996 28.6752 20.6342 28.7339 20.9586C28.7927 21.283 28.9475 21.5823 29.178 21.818L29.238 21.878C29.4237 22.0637 29.5712 22.2843 29.6719 22.5272C29.7725 22.7701 29.8243 23.0305 29.8243 23.294C29.8243 23.5575 29.7725 23.8179 29.6719 24.0608C29.5712 24.3037 29.4237 24.5242 29.238 24.71L29.178 24.77C28.9475 25.0057 28.7927 25.305 28.7339 25.6294C28.6752 25.9538 28.7149 26.2884 28.848 26.59V26.59C28.9768 26.884 29.1834 27.1362 29.4435 27.3139C29.7036 27.4916 30.0061 27.5869 30.316 27.588H30.368C30.8984 27.588 31.4071 27.7987 31.7822 28.1738C32.1573 28.5489 32.368 29.0576 32.368 29.588C32.368 30.1184 32.1573 30.6271 31.7822 31.0022C31.4071 31.3773 30.8984 31.588 30.368 31.588H30.09C29.7842 31.5957 29.4915 31.7029 29.2542 31.8955C29.0169 32.0881 28.8477 32.3553 28.77 32.658C28.6369 32.9596 28.5972 33.2942 28.656 33.6186C28.7148 33.943 28.8695 34.2423 29.1 34.478L29.16 34.538C29.3457 34.7237 29.4932 34.9443 29.5939 35.1872C29.6945 35.4301 29.7463 35.6905 29.7463 35.954C29.7463 36.2175 29.6945 36.4779 29.5939 36.7208C29.4932 36.9637 29.3457 37.1842 29.16 37.37L29.1 37.43C28.8643 37.6605 28.7096 37.9598 28.6508 38.2842C28.592 38.6086 28.6317 38.9432 28.765 39.245C28.8937 39.539 29.1003 39.7912 29.3604 39.9689C29.6205 40.1466 29.923 40.2419 30.232 40.243H30.368C30.8984 40.243 31.4071 40.4537 31.7822 40.8288C32.1573 41.2039 32.368 41.7126 32.368 42.243C32.368 42.7734 32.1573 43.2821 31.7822 43.6572C31.4071 44.0323 30.8984 44.243 30.368 44.243H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Sertifikasi Guru
+              </h4>
+              <div class="biodata-grid">
+                <div class="biodata-item">
+                  <span class="label">Status Sertifikasi</span>
+                  <span class="value">{{ viewingTeacher.certification_status || '-' }}</span>
+                </div>
+                <div class="biodata-item" v-if="viewingTeacher.certification_status === 'Sudah'">
+                  <span class="label">Tanggal Sertifikasi</span>
+                  <span class="value">{{ formatDate(viewingTeacher.certification_date) }}</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">Nomor Registrasi Guru (NRG)</span>
+                  <span class="value">{{ viewingTeacher.teacher_registration_number || '-' }}</span>
+                </div>
+                <div class="biodata-item" v-if="viewingTeacher.certification_status === 'Sudah'">
+                  <span class="label">Nomor Sertifikat Pendidik</span>
+                  <span class="value">{{ viewingTeacher.certification_number || '-' }}</span>
+                </div>
+                <div class="biodata-item" v-if="viewingTeacher.certification_status === 'Sudah'">
+                  <span class="label">Lembaga Penerbit</span>
+                  <span class="value">{{ viewingTeacher.certification_issuing_authority || '-' }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Akun Login -->
             <div class="biodata-section view-card biodata-section-akun">
               <h4 class="section-title">
@@ -816,6 +801,12 @@
                 <div class="biodata-item">
                   <span class="label">Role</span>
                   <span class="value">{{ formatUserRole(viewingTeacher.user_account.role) }}</span>
+                </div>
+                <div class="biodata-item full-width" v-if="viewingTeacher.additional_duties && viewingTeacher.additional_duties.length">
+                  <span class="label">Tugas tambahan</span>
+                  <span class="value">
+                    <span v-for="d in viewingTeacher.additional_duties" :key="d.id" class="permission-tag">{{ d.label }}</span>
+                  </span>
                 </div>
                 <div class="biodata-item full-width" v-if="viewingTeacher.user_account.permissions && viewingTeacher.user_account.permissions.length">
                   <span class="label">Modul akses</span>
@@ -1254,9 +1245,14 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TeacherFilters from '@/components/teacher/TeacherFilters.vue'
+import TeacherTable from '@/components/teacher/TeacherTable.vue'
+import TeacherTableSkeleton from '@/components/TeacherTableSkeleton.vue'
+import { useTeacherList } from '@/composables/useTeacherList'
 import { employeeApi } from '@/api/teacher'
 import { institutionApi } from '@/api/institution'
 import { permissionApi } from '@/api/permissions'
+import { additionalDutiesApi } from '@/api/additionalDuties'
 import { getInstitutionTypeLabel } from '@/utils/institution'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
@@ -1272,9 +1268,10 @@ const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: set
 
 const availableModules = ref([])
 const loadingPermissions = ref(false)
+const availableAdditionalDuties = ref([])
+const loadingAdditionalDuties = ref(false)
 
-const teachers = ref([])
-const loading = ref(true)
+const { teachers, loading, error: listError, filters, loadTeachers, getTeacherSubject, getStatusClass } = useTeacherList()
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
@@ -1307,13 +1304,6 @@ const resetPasswordForm = ref({ password: '', password_confirmation: '' })
 const resetPasswordLoading = ref(false)
 const resetPasswordError = ref('')
 
-const filters = ref({
-  search: '',
-  status: '',
-  type: '',
-  employment_status: ''
-})
-
 const form = ref({
   type: 'Guru',
   nik: '',
@@ -1334,8 +1324,14 @@ const form = ref({
   status: 'Aktif',
   join_date: '',
   notes: '',
+  certification_status: '',
+  certification_date: '',
+  teacher_registration_number: '',
+  certification_number: '',
+  certification_issuing_authority: '',
   user_role: '',
   permission_keys: ['correspondence'],
+  additional_duty_ids: [],
   affiliation: null,
   current_assignment: null,
   assignment_subject: '',
@@ -1376,31 +1372,17 @@ const loadPermissions = async () => {
   }
 }
 
-const loadTeachers = async () => {
-  loading.value = true
+const loadAdditionalDuties = async () => {
+  loadingAdditionalDuties.value = true
   try {
-    const params = { per_page: 200 }
-    if (filters.value.search) params.search = filters.value.search
-    if (filters.value.status) params.status = filters.value.status
-    if (filters.value.type) params.type = filters.value.type
-    if (filters.value.employment_status) params.employment_status = filters.value.employment_status
-    
-    const response = await employeeApi.getAll(params)
-    const list = response.data?.data ?? response.data ?? []
-    teachers.value = Array.isArray(list) ? list : []
+    const response = await additionalDutiesApi.getAll()
+    availableAdditionalDuties.value = response.data.data || []
   } catch (err) {
-    error.value = 'Gagal memuat data guru'
     console.error(err)
+    toast.error('Gagal', 'Gagal memuat daftar tugas tambahan')
   } finally {
-    loading.value = false
+    loadingAdditionalDuties.value = false
   }
-}
-
-const getTeacherSubject = (teacher) => {
-  if (teacher?.affiliation === 'non_induk') {
-    return teacher?.current_assignment?.subject || '-'
-  }
-  return teacher?.subject || '-'
 }
 
 const formatUserRole = (role) => {
@@ -1616,11 +1598,15 @@ const editTeacher = async (teacher) => {
       ? fullData.user_account.role
       : ''
     form.value.permission_keys = fullData.user_account?.permissions || ['correspondence']
+    form.value.additional_duty_ids = (fullData.additional_duties || []).map(d => d.id)
     if (fullData.birth_date) {
       form.value.birth_date = fullData.birth_date.split('T')[0]
     }
     if (fullData.join_date) {
       form.value.join_date = fullData.join_date.split('T')[0]
+    }
+    if (fullData.certification_date) {
+      form.value.certification_date = fullData.certification_date.split('T')[0]
     }
     
     // Set educations
@@ -1751,6 +1737,7 @@ const handleSubmit = async () => {
       delete payload.user_role
       delete payload.permission_keys
     }
+    // additional_duty_ids always sent for guru (backend merges with permissions)
 
     if (editingId.value) {
       response = await employeeApi.update(editingId.value, payload)
@@ -1820,8 +1807,14 @@ const closeModal = () => {
     status: 'Aktif',
     join_date: '',
     notes: '',
+    certification_status: '',
+    certification_date: '',
+    teacher_registration_number: '',
+    certification_number: '',
+    certification_issuing_authority: '',
     user_role: '',
     permission_keys: ['correspondence'],
+    additional_duty_ids: [],
     affiliation: null,
     current_assignment: null,
     assignment_subject: '',
@@ -2182,16 +2175,6 @@ const deleteDocument = async (documentId, index) => {
   }
 }
 
-const getStatusClass = (status) => {
-  const classes = {
-    'Aktif': 'status-active',
-    'Pensiun': 'status-success',
-    'Pindah': 'status-warning',
-    'Tidak Aktif': 'status-inactive'
-  }
-  return classes[status] || ''
-}
-
 // Export to Excel
 const exportToExcel = async () => {
   try {
@@ -2226,7 +2209,12 @@ const exportToExcel = async () => {
       'Mata Pelajaran': employee.subject || '',
       'Status': employee.status || '',
       'Tanggal Bergabung': employee.join_date ? new Date(employee.join_date).toLocaleDateString('id-ID') : '',
-      'Catatan': employee.notes || ''
+      'Catatan': employee.notes || '',
+      'Status Sertifikasi': employee.certification_status || '',
+      'Tanggal Sertifikasi': employee.certification_date ? new Date(employee.certification_date).toLocaleDateString('id-ID') : '',
+      'Nomor Registrasi Guru (NRG)': employee.teacher_registration_number || '',
+      'Nomor Sertifikat Pendidik': employee.certification_number || '',
+      'Lembaga Penerbit Sertifikat': employee.certification_issuing_authority || ''
     }))
     
     // Buat workbook
@@ -2238,7 +2226,8 @@ const exportToExcel = async () => {
       { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 },
       { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
       { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 15 }, { wch: 30 }
+      { wch: 15 }, { wch: 15 }, { wch: 30 },
+      { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 25 }, { wch: 25 }
     ]
     ws['!cols'] = colWidths
     
@@ -2281,7 +2270,12 @@ const downloadTemplate = () => {
         'Mata Pelajaran': 'Matematika',
         'Status': 'Aktif',
         'Tanggal Bergabung': '2020-01-01',
-        'Catatan': ''
+        'Catatan': '',
+        'Status Sertifikasi': 'Belum',
+        'Tanggal Sertifikasi': '',
+        'Nomor Registrasi Guru (NRG)': '',
+        'Nomor Sertifikat Pendidik': '',
+        'Lembaga Penerbit Sertifikat': ''
       }
     ]
     
@@ -2294,7 +2288,8 @@ const downloadTemplate = () => {
       { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 },
       { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
       { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 15 }, { wch: 30 }
+      { wch: 15 }, { wch: 15 }, { wch: 30 },
+      { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 25 }, { wch: 25 }
     ]
     ws['!cols'] = colWidths
     
@@ -2378,7 +2373,12 @@ const handleImportExcel = async (event) => {
         subject: mapField('Mata Pelajaran', 'subject'),
         status: mapField('Status', 'status') || 'Aktif',
         join_date: parseDate(mapField('Tanggal Bergabung', 'join_date')),
-        notes: mapField('Catatan', 'notes')
+        notes: mapField('Catatan', 'notes'),
+        certification_status: mapField('Status Sertifikasi', 'certification_status') && ['Sudah', 'Belum'].includes(String(mapField('Status Sertifikasi', 'certification_status')).trim()) ? String(mapField('Status Sertifikasi', 'certification_status')).trim() : null,
+        certification_date: parseDate(mapField('Tanggal Sertifikasi', 'certification_date')),
+        teacher_registration_number: mapField('Nomor Registrasi Guru (NRG)', 'teacher_registration_number'),
+        certification_number: mapField('Nomor Sertifikat Pendidik', 'certification_number'),
+        certification_issuing_authority: mapField('Lembaga Penerbit Sertifikat', 'certification_issuing_authority')
       }
     })
     
@@ -2426,14 +2426,15 @@ const handleImportExcel = async (event) => {
 }
 
 onMounted(() => {
-  loadTeachers()
   loadPermissions()
+  loadAdditionalDuties()
 })
 </script>
 
 <style scoped>
 .teacher-page {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-header {
@@ -2443,19 +2444,18 @@ onMounted(() => {
 .header-content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 24px;
 }
 
-.header-content h2 {
-  font-size: 28px;
+.header-content .page-title {
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 4px;
-  letter-spacing: -0.5px;
+  margin: 0 0 4px 0;
 }
 
-.header-content p {
+.header-content .page-subtitle {
   color: #64748b;
   font-size: 14px;
   margin: 0;
@@ -2683,6 +2683,344 @@ onMounted(() => {
   z-index: 1000;
 }
 
+/* Form modal (Tambah/Edit Guru) – same style as Student form */
+.form-modal-overlay {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 24px;
+}
+
+.form-modal-content {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 920px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  animation: formModalIn 0.25s ease-out;
+}
+
+@keyframes formModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.form-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border-radius: 20px 20px 0 0;
+  flex-shrink: 0;
+}
+
+.form-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.form-modal-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.form-modal-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.form-modal-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 4px 0 0 0;
+  font-weight: 400;
+}
+
+.btn-close-modal {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-close-modal:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.form-modal-body {
+  padding: 28px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.form-tabs-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+  padding-bottom: 0;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.form-tabs-nav::-webkit-scrollbar {
+  height: 4px;
+}
+
+.form-tab-btn {
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px 10px 0 0;
+}
+
+.form-tab-btn:hover {
+  color: #4f46e5;
+  background: #f5f3ff;
+}
+
+.form-tab-btn.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+  font-weight: 600;
+  background: #faf5ff;
+}
+
+.form-tab-btn svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.form-tab-content {
+  min-height: 280px;
+  animation: formTabFade 0.2s ease-out;
+}
+
+@keyframes formTabFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.form-subsection-title {
+  font-size: 14px;
+  color: #475569;
+  margin: 20px 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.form-modal-body .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-modal-body .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-modal-body .form-group label {
+  margin-bottom: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.form-modal-body .form-group label .required {
+  color: #dc2626;
+}
+
+.form-modal-body .form-group label::after {
+  display: none;
+}
+
+.form-modal-body .form-group input,
+.form-modal-body .form-group select,
+.form-modal-body .form-group textarea {
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 15px;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  color: #0f172a;
+  font-family: inherit;
+}
+
+.form-modal-body .form-group input:hover,
+.form-modal-body .form-group select:hover,
+.form-modal-body .form-group textarea:hover {
+  border-color: #cbd5e1;
+}
+
+.form-modal-body .form-group input:focus,
+.form-modal-body .form-group select:focus,
+.form-modal-body .form-group textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  transform: none;
+}
+
+.form-modal-body .form-group input::placeholder,
+.form-modal-body .form-group textarea::placeholder {
+  color: #94a3b8;
+}
+
+.form-modal-body .form-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 42px;
+}
+
+.form-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 28px;
+  border-top: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border-radius: 0 0 20px 20px;
+  flex-shrink: 0;
+}
+
+.form-modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-ghost {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-ghost:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-outline {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: #fff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.btn-outline:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+}
+
+.btn-submit {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: formSpinner 0.7s linear infinite;
+}
+
+@keyframes formSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .modal-content {
   background: white;
   border-radius: 20px;
@@ -2801,6 +3139,14 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.form-modal-body .fieldset-reset > .form-group {
+  margin-bottom: 18px;
+}
+
+.form-modal-body .fieldset-reset > .form-group:last-child {
+  margin-bottom: 0;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -2824,13 +3170,9 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+.form-modal-body .form-group textarea {
+  min-height: 88px;
+  resize: vertical;
 }
 
 .modal-footer {
@@ -2838,6 +3180,15 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 30px;
+}
+
+.btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: formSpinner 0.7s linear infinite;
 }
 
 .reset-password-modal .modal-body {
@@ -2909,11 +3260,15 @@ onMounted(() => {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
   background: #d0d0d0;
 }
+
 
 .error-message {
   padding: 16px;
@@ -2923,6 +3278,13 @@ onMounted(() => {
   margin-bottom: 24px;
   border: 1px solid #fecaca;
   font-size: 14px;
+}
+
+.form-modal-body .error-message {
+  margin: 0 28px 20px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
 }
 
 .loading-state {
@@ -2953,6 +3315,14 @@ onMounted(() => {
   border-bottom: 2px solid #e2e8f0;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+.form-modal-body .form-tabs-nav {
+  margin: 0 -4px 28px 0;
+  padding: 0 0 0 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: transparent;
+  gap: 6px;
 }
 
 .tabs-nav::-webkit-scrollbar {
@@ -3377,6 +3747,10 @@ onMounted(() => {
   margin-top: 20px;
 }
 
+.form-modal-body .education-section {
+  margin-top: 0;
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -3384,11 +3758,20 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
+.form-modal-body .section-header {
+  margin-bottom: 18px;
+}
+
 .section-header h4 {
   font-size: 18px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
+}
+
+.form-modal-body .section-header h4 {
+  font-size: 16px;
+  color: #334155;
 }
 
 .btn-add-education {
@@ -3459,6 +3842,10 @@ onMounted(() => {
   margin-top: 20px;
 }
 
+.form-modal-body .documents-section {
+  margin-top: 0;
+}
+
 .documents-info {
   display: flex;
   align-items: center;
@@ -3487,9 +3874,20 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
+.form-modal-body .upload-area {
+  border-radius: 12px;
+  padding: 28px;
+  background: #fafbfc;
+}
+
 .upload-area:hover {
   border-color: #667eea;
   background: #f0f4ff;
+}
+
+.form-modal-body .upload-area:hover {
+  border-color: #6366f1;
+  background: #f5f3ff;
 }
 
 .upload-label {
@@ -3529,13 +3927,35 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
+.form-modal-body .info-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-top: 16px;
+  margin-bottom: 0;
+  text-align: left;
+}
+
 .info-box p {
   margin: 0;
   font-size: 14px;
 }
 
+.form-modal-body .info-box p {
+  font-size: 13px;
+}
+
 .module-access {
   margin-top: 16px;
+}
+
+.form-modal-body .module-access {
+  margin-top: 20px;
+  padding: 18px 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 
 .module-access-grid {
@@ -3548,6 +3968,11 @@ onMounted(() => {
   color: #475569;
 }
 
+.form-modal-body .module-access-grid h5 {
+  font-size: 13px;
+  color: #64748b;
+}
+
 .module-access h4 {
   margin: 0 0 8px 0;
   font-size: 14px;
@@ -3555,10 +3980,20 @@ onMounted(() => {
   color: #1e293b;
 }
 
+.form-modal-body .module-access h4 {
+  font-size: 15px;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
 .module-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
+}
+
+.form-modal-body .module-grid {
+  gap: 8px;
 }
 
 .module-option {
@@ -3573,6 +4008,18 @@ onMounted(() => {
   color: #334155;
 }
 
+.form-modal-body .module-option {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+
+.form-modal-body .module-option:hover {
+  border-color: #cbd5e1;
+}
+
 .module-option input {
   accent-color: #6366f1;
 }
@@ -3581,6 +4028,13 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 12px;
   color: #64748b;
+}
+
+.form-modal-body .form-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
 }
 
 .documents-list {
@@ -3824,11 +4278,7 @@ onMounted(() => {
     margin-bottom: 16px;
   }
 
-  .header-content h2 {
-    font-size: 22px;
-  }
-
-  .header-content p {
+  .header-content .page-subtitle {
     font-size: 13px;
   }
 
@@ -3874,6 +4324,67 @@ onMounted(() => {
     max-height: 90vh;
   }
 
+  .form-modal-content {
+    width: 95%;
+    max-width: 95%;
+    max-height: 90vh;
+    border-radius: 20px;
+  }
+
+  .form-modal-header {
+    padding: 20px 20px;
+  }
+
+  .form-modal-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .form-modal-title {
+    font-size: 18px;
+  }
+
+  .form-modal-body .form-tabs-nav {
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 24px;
+    padding: 0;
+  }
+
+  .form-tab-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .form-tab-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .form-tab-content {
+    padding: 0;
+  }
+
+  .form-modal-body .form-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .form-modal-footer {
+    padding: 14px 20px 20px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-modal-footer-actions {
+    justify-content: flex-end;
+  }
+
+  .form-modal-body {
+    padding: 20px;
+  }
+
   .modal-body {
     padding: 20px;
   }
@@ -3884,9 +4395,6 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
-  .header-content h2 {
-    font-size: 20px;
-  }
 
   .action-buttons-group {
     flex-direction: column;
@@ -3914,6 +4422,42 @@ onMounted(() => {
     margin: 0;
     border-radius: 0;
     max-height: 100vh;
+  }
+
+  .form-modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .form-modal-header {
+    padding: 16px 16px;
+  }
+
+  .form-modal-title-wrap {
+    gap: 12px;
+  }
+
+  .form-modal-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .form-modal-title {
+    font-size: 17px;
+  }
+
+  .form-modal-subtitle {
+    font-size: 12px;
+  }
+
+  .form-modal-footer {
+    padding: 12px 16px 16px;
+  }
+
+  .form-modal-body {
+    padding: 16px;
   }
 
   .modal-body {

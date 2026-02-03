@@ -4,9 +4,11 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAchievementRequest;
+use App\Http\Requests\UpdateAchievementRequest;
 use App\Http\Resources\AchievementResource;
 use App\Models\Achievement;
 use App\Models\AchievementType;
+use App\Models\Institution;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -23,10 +25,28 @@ class AchievementController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
+            $academicYearId = $request->get('academic_year_id');
+            $semesterId = $request->get('semester_id');
+            $institution = Institution::find($institutionId);
+            if ($institution) {
+                if (!$academicYearId && $institution->active_academic_year_id) {
+                    $academicYearId = $institution->active_academic_year_id;
+                }
+                if (!$semesterId && $institution->active_semester_id) {
+                    $semesterId = $institution->active_semester_id;
+                }
+            }
+
             $query = Achievement::with(['student:id,name,nis,nisn', 'achievementType:id,name,point_value', 'giver:id,name', 'academicYear:id,name,code', 'semester:id,name'])
                 ->forInstitution($institutionId)
                 ->orderBy('achievement_date', 'desc');
 
+            if ($academicYearId) {
+                $query->where('academic_year_id', $academicYearId);
+            }
+            if ($semesterId) {
+                $query->where('semester_id', $semesterId);
+            }
             if ($request->filled('student_id')) {
                 $query->where('student_id', $request->student_id);
             }
@@ -92,6 +112,35 @@ class AchievementController extends Controller
         }
         $achievement->load(['student', 'achievementType', 'giver', 'academicYear:id,name,code', 'semester:id,name']);
         return new AchievementResource($achievement);
+    }
+
+    public function update(UpdateAchievementRequest $request, Achievement $achievement): AchievementResource|JsonResponse
+    {
+        try {
+            if ($request->user()->institution_id !== $achievement->institution_id && !$request->user()->isSuperAdmin()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $institutionId = $request->user()->institution_id;
+            $type = AchievementType::where('id', $request->achievement_type_id)->where('institution_id', $institutionId)->where('is_active', true)->firstOrFail();
+
+            $pointValue = $request->input('point_value', $type->point_value);
+
+            $achievement->update([
+                'achievement_type_id' => $type->id,
+                'achievement_date' => $request->achievement_date,
+                'point_value' => $pointValue,
+                'notes' => $request->notes,
+            ]);
+
+            $achievement->load(['student', 'achievementType', 'giver', 'academicYear:id,name,code', 'semester:id,name']);
+            return new AchievementResource($achievement);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Jenis prestasi tidak ditemukan.'], 404);
+        } catch (\Exception $e) {
+            Log::error('Achievement update failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal memperbarui prestasi.'], 500);
+        }
     }
 
     public function destroy(Request $request, Achievement $achievement): JsonResponse

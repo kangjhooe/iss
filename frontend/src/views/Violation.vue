@@ -32,7 +32,17 @@
         </div>
       </div>
 
-      <div class="main-tabs">
+      <!-- Section tabs: Pelanggaran | Prestasi & Aturan -->
+      <div class="section-tabs">
+        <button :class="['section-tab', { active: sectionTab === 'pelanggaran' }]" @click="setSection('pelanggaran')">
+          <span>Pelanggaran</span>
+        </button>
+        <button :class="['section-tab', { active: sectionTab === 'prestasi' }]" @click="setSection('prestasi')">
+          <span>Prestasi & Aturan</span>
+        </button>
+      </div>
+      <!-- Sub-tabs -->
+      <div v-show="sectionTab === 'pelanggaran'" class="main-tabs">
         <button :class="['main-tab', { active: activeTab === 'list' }]" @click="activeTab = 'list'; loadViolations()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -52,6 +62,8 @@
           </svg>
           <span>Poin Siswa</span>
         </button>
+      </div>
+      <div v-show="sectionTab === 'prestasi'" class="main-tabs">
         <button :class="['main-tab', { active: activeTab === 'prestasi' }]" @click="activeTab = 'prestasi'; loadAchievements()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -93,13 +105,20 @@
             <option value="">Semua Jenis</option>
             <option v-for="t in violationTypes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.category }})</option>
           </select>
+          <select v-model="filters.academic_year_id" @change="loadViolations" class="filter-select">
+            <option value="">Semua Tahun</option>
+            <option v-for="y in academicYears" :key="y.id" :value="y.id">{{ y.name }}</option>
+          </select>
+          <select v-model="filters.semester_id" @change="loadViolations" class="filter-select">
+            <option value="">Semua Semester</option>
+            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
           <input v-model="filters.date_from" type="date" class="filter-select" @change="loadViolations" />
           <input v-model="filters.date_to" type="date" class="filter-select" @change="loadViolations" />
         </div>
 
-        <div v-if="loading" class="loading-state">
-          <div class="loading-spinner"></div>
-          <p>Memuat data...</p>
+        <div v-if="loading" class="loading-wrap">
+          <LoadingSkeleton type="table" :rows="8" :columns="9" :cell-widths="['90px', '140px', '120px', '80px', '60px', '100px', '80px', '100px', '90px']" />
         </div>
 
         <div v-else-if="violations.length === 0" class="empty-state">
@@ -315,7 +334,10 @@
                 <td>{{ a.achievement_type?.name }}</td>
                 <td>+{{ a.point_value }}</td>
                 <td>{{ a.giver?.name }}</td>
-                <td><button @click="confirmDeleteAchievement(a)" class="btn-action btn-delete">Hapus</button></td>
+                <td>
+                <button @click="openEditPrestasiModal(a)" class="btn-action btn-edit">Edit</button>
+                <button @click="confirmDeleteAchievement(a)" class="btn-action btn-delete">Hapus</button>
+              </td>
               </tr>
             </tbody>
           </table>
@@ -513,17 +535,17 @@
         @cancel="deleteTypeTarget = null"
       />
 
-      <!-- Modal: Tambah Prestasi -->
+      <!-- Modal: Tambah/Edit Prestasi -->
       <div v-if="showPrestasiModal" class="modal-overlay" @click="showPrestasiModal = false">
         <div class="modal-content form-modal" @click.stop>
           <div class="modal-header">
-            <h3>Tambah Prestasi</h3>
+            <h3>{{ editingPrestasi ? 'Edit Prestasi' : 'Tambah Prestasi' }}</h3>
             <button @click="showPrestasiModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitPrestasi" class="modal-body">
             <div class="form-group">
               <label>Siswa *</label>
-              <select v-model="prestasiForm.student_id" required class="form-select">
+              <select v-model="prestasiForm.student_id" required :disabled="!!editingPrestasi" class="form-select">
                 <option value="">Pilih siswa</option>
                 <option v-for="s in students" :key="s.id" :value="s.id">{{ s.name }} ({{ s.nis || s.nisn || '-' }})</option>
               </select>
@@ -546,7 +568,7 @@
             <div v-if="prestasiFormError" class="error-message">{{ prestasiFormError }}</div>
             <div class="modal-footer">
               <button type="button" @click="showPrestasiModal = false" class="btn-secondary">Batal</button>
-              <button type="submit" :disabled="prestasiFormSubmitting" class="btn-primary">{{ prestasiFormSubmitting ? 'Menyimpan...' : 'Tambah' }}</button>
+              <button type="submit" :disabled="prestasiFormSubmitting" class="btn-primary">{{ prestasiFormSubmitting ? 'Menyimpan...' : (editingPrestasi ? 'Simpan' : 'Tambah') }}</button>
             </div>
           </form>
         </div>
@@ -661,13 +683,34 @@
 import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { violationApi, violationTypeApi, achievementApi, achievementTypeApi, pointThresholdApi, studentActionLogApi, studentPointApi } from '@/api/violation'
 import { studentApi } from '@/api/student'
+import { institutionApi } from '@/api/institution'
+import { academicYearApi } from '@/api/academicYear'
+import { semesterApi } from '@/api/semester'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 
 const activeTab = ref('list')
+
+const PELANGGARAN_TABS = ['list', 'types', 'points']
+const PRESTASI_TABS = ['prestasi', 'achievement_types', 'thresholds']
+
+const sectionTab = computed(() =>
+  PELANGGARAN_TABS.includes(activeTab.value) ? 'pelanggaran' : 'prestasi'
+)
+
+function setSection(section) {
+  if (section === 'pelanggaran') {
+    activeTab.value = 'list'
+    loadViolations()
+  } else {
+    activeTab.value = 'prestasi'
+    loadAchievements()
+  }
+}
 const loading = ref(true)
 const typesLoading = ref(false)
 const violations = ref([])
@@ -675,10 +718,15 @@ const violationTypes = ref([])
 const students = ref([])
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 
+const institution = ref(null)
+const academicYears = ref([])
+const semesters = ref([])
 const filters = ref({
   search: '',
   status: '',
   violation_type_id: '',
+  academic_year_id: '',
+  semester_id: '',
   date_from: '',
   date_to: '',
 })
@@ -734,6 +782,7 @@ const achievementsPagination = ref({ current_page: 1, last_page: 1 })
 const achievementTypes = ref([])
 const achievementTypesLoading = ref(false)
 const showPrestasiModal = ref(false)
+const editingPrestasi = ref(null)
 const prestasiForm = ref({ student_id: '', achievement_type_id: '', achievement_date: '', notes: '' })
 const prestasiFormError = ref('')
 const prestasiFormSubmitting = ref(false)
@@ -809,6 +858,8 @@ async function loadViolations() {
     }
     if (!params.status) delete params.status
     if (!params.violation_type_id) delete params.violation_type_id
+    if (!params.academic_year_id) delete params.academic_year_id
+    if (!params.semester_id) delete params.semester_id
     if (!params.date_from) delete params.date_from
     if (!params.date_to) delete params.date_to
     if (!params.search) delete params.search
@@ -1077,7 +1128,21 @@ async function loadThresholds() {
 }
 
 function openAddPrestasiModal() {
+  editingPrestasi.value = null
   prestasiForm.value = { student_id: '', achievement_type_id: '', achievement_date: new Date().toISOString().slice(0, 10), notes: '' }
+  prestasiFormError.value = ''
+  if (students.value.length === 0) loadStudents()
+  if (achievementTypes.value.length === 0) loadAchievementTypes()
+  showPrestasiModal.value = true
+}
+function openEditPrestasiModal(a) {
+  editingPrestasi.value = a
+  prestasiForm.value = {
+    student_id: String(a.student_id ?? a.student?.id ?? ''),
+    achievement_type_id: String(a.achievement_type_id ?? a.achievement_type?.id ?? ''),
+    achievement_date: a.achievement_date || '',
+    notes: a.notes || '',
+  }
   prestasiFormError.value = ''
   if (students.value.length === 0) loadStudents()
   if (achievementTypes.value.length === 0) loadAchievementTypes()
@@ -1087,8 +1152,17 @@ async function submitPrestasi() {
   prestasiFormSubmitting.value = true
   prestasiFormError.value = ''
   try {
-    await achievementApi.create(prestasiForm.value)
-    toast.success('Prestasi berhasil dicatat')
+    if (editingPrestasi.value) {
+      await achievementApi.update(editingPrestasi.value.id, {
+        achievement_type_id: prestasiForm.value.achievement_type_id,
+        achievement_date: prestasiForm.value.achievement_date,
+        notes: prestasiForm.value.notes,
+      })
+      toast.success('Prestasi diperbarui')
+    } else {
+      await achievementApi.create(prestasiForm.value)
+      toast.success('Prestasi berhasil dicatat')
+    }
     showPrestasiModal.value = false
     loadAchievements()
     if (activeTab.value === 'points') loadStudentPoints()
@@ -1235,7 +1309,31 @@ async function doDeleteAchievement() {
   }
 }
 
-onMounted(() => {
+async function loadInstitutionAndDefaults() {
+  try {
+    const [instRes, ayRes, semRes] = await Promise.all([
+      institutionApi.getMy(),
+      academicYearApi.getAll({ per_page: 50 }),
+      semesterApi.getAll({ per_page: 100 }),
+    ])
+    institution.value = instRes.data?.data ?? instRes.data ?? null
+    academicYears.value = ayRes.data?.data ?? ayRes.data ?? []
+    semesters.value = semRes.data?.data ?? semRes.data ?? []
+    if (institution.value?.active_academic_year_id) {
+      filters.value.academic_year_id = String(institution.value.active_academic_year_id)
+    }
+    if (institution.value?.active_semester_id) {
+      filters.value.semester_id = String(institution.value.active_semester_id)
+    }
+  } catch {
+    institution.value = null
+    academicYears.value = []
+    semesters.value = []
+  }
+}
+
+onMounted(async () => {
+  await loadInstitutionAndDefaults()
   loadViolations()
   loadTypes()
 })
@@ -1243,8 +1341,9 @@ onMounted(() => {
 
 <style scoped>
 .violation-page {
+  width: 100%;
+  max-width: 100%;
   padding: 1.5rem;
-  max-width: 1400px;
   margin: 0 auto;
 }
 .page-header {
@@ -1282,6 +1381,36 @@ onMounted(() => {
 .header-actions {
   margin-left: auto;
 }
+.section-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+}
+
+.section-tab {
+  padding: 0.6rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.section-tab:hover {
+  color: #1e293b;
+}
+
+.section-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
 .main-tabs {
   display: flex;
   flex-wrap: wrap;

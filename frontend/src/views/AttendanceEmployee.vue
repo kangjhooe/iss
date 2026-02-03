@@ -1,0 +1,474 @@
+<template>
+  <Layout>
+    <div class="attendance-employee-page">
+      <div class="page-header">
+        <div class="header-content">
+          <div class="header-icon-wrap">
+            <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="page-title">Absensi Guru & Staff</h1>
+            <p class="page-subtitle">Kehadiran pegawai per hari</p>
+          </div>
+          <div class="header-actions">
+            <button @click="openBulkModal" class="btn-primary btn-compact">Input Absensi per Tanggal</button>
+            <button @click="openAddModal" class="btn-secondary btn-compact">Tambah Satu</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters filters-inline">
+        <input v-model="filters.date_from" type="date" class="filter-select" @change="loadAttendances" />
+        <input v-model="filters.date_to" type="date" class="filter-select" @change="loadAttendances" />
+        <select v-model="filters.employee_id" @change="loadAttendances" class="filter-select">
+          <option value="">Semua Pegawai</option>
+          <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }} ({{ e.type }})</option>
+        </select>
+        <select v-model="filters.status" @change="loadAttendances" class="filter-select">
+          <option value="">Semua Status</option>
+          <option v-for="(label, val) in statusOptions" :key="val" :value="val">{{ label }}</option>
+        </select>
+      </div>
+
+      <div v-if="loading" class="loading-wrap">
+        <LoadingSkeleton type="table" :rows="8" :columns="7" />
+      </div>
+
+      <div v-else-if="attendances.length === 0" class="empty-state">
+        <h3 class="empty-title">Belum ada data absensi</h3>
+        <p class="empty-desc">Gunakan "Input Absensi per Tanggal" atau "Tambah Satu" untuk mencatat kehadiran pegawai.</p>
+      </div>
+
+      <div v-else class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Nama</th>
+              <th>Tipe</th>
+              <th>Status</th>
+              <th>Masuk</th>
+              <th>Keluar</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="a in attendances" :key="a.id">
+              <td>{{ formatDate(a.date) }}</td>
+              <td>{{ a.employee?.name }}</td>
+              <td>{{ a.employee?.type }}</td>
+              <td><span class="status-badge" :class="a.status">{{ statusOptions[a.status] || a.status }}</span></td>
+              <td>{{ a.check_in_time || '-' }}</td>
+              <td>{{ a.check_out_time || '-' }}</td>
+              <td>
+                <button @click="openEditModal(a)" class="btn-action btn-edit" title="Edit">✎</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="pagination.last_page > 1" class="pagination-bar">
+          <span class="pagination-info">
+            Menampilkan {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} dari {{ pagination.total }}
+          </span>
+          <div class="pagination-buttons">
+            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
+            <span class="page-num">Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
+            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="goToPage(pagination.current_page + 1)">Selanjutnya</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Tambah/Edit satu absensi -->
+      <div v-if="showFormModal" class="modal-overlay" @click="showFormModal = false">
+        <div class="modal-content form-modal" @click.stop>
+          <div class="modal-header">
+            <h3>{{ editingAttendance ? 'Edit Absensi' : 'Tambah Absensi Pegawai' }}</h3>
+            <button @click="showFormModal = false" class="btn-close">×</button>
+          </div>
+          <form @submit.prevent="submitForm" class="modal-body">
+            <div class="form-group">
+              <label>Pegawai *</label>
+              <select v-model="form.employee_id" required class="form-select" :disabled="!!editingAttendance">
+                <option value="">Pilih pegawai</option>
+                <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }} ({{ e.type }})</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tanggal *</label>
+              <input v-model="form.date" type="date" required class="form-input" :disabled="!!editingAttendance" />
+            </div>
+            <div class="form-group">
+              <label>Status *</label>
+              <select v-model="form.status" required class="form-select">
+                <option v-for="(label, val) in statusOptions" :key="val" :value="val">{{ label }}</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Jam Masuk</label>
+                <input v-model="form.check_in_time" type="time" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Jam Keluar</label>
+                <input v-model="form.check_out_time" type="time" class="form-input" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Keterangan</label>
+              <textarea v-model="form.notes" class="form-input" rows="2" placeholder="Opsional"></textarea>
+            </div>
+            <p v-if="formError" class="form-error">{{ formError }}</p>
+            <div class="modal-actions">
+              <button type="button" @click="showFormModal = false" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="formSaving" class="btn-primary">{{ formSaving ? 'Menyimpan...' : 'Simpan' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Bulk input per tanggal -->
+      <div v-if="showBulkModal" class="modal-overlay" @click="showBulkModal = false">
+        <div class="modal-content form-modal modal-wide" @click.stop>
+          <div class="modal-header">
+            <h3>Input Absensi per Tanggal</h3>
+            <button @click="showBulkModal = false" class="btn-close">×</button>
+          </div>
+          <form @submit.prevent="submitBulk" class="modal-body">
+            <div class="form-group">
+              <label>Tanggal *</label>
+              <input v-model="bulkDate" type="date" required class="form-input" />
+            </div>
+            <div class="bulk-actions-inline">
+              <button type="button" @click="fillStandardTimes" class="btn-outline btn-compact">Isi jam standar (07:00–15:00)</button>
+            </div>
+            <p class="form-hint">Pilih pegawai dan status kehadiran. Default hadir dengan jam 07:00–15:00. Kosongkan status jika tidak perlu diisi.</p>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Tipe</th>
+                    <th>Status</th>
+                    <th>Masuk</th>
+                    <th>Keluar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="e in employees" :key="e.id">
+                    <td>{{ e.name }}</td>
+                    <td>{{ e.type }}</td>
+                    <td>
+                      <select v-model="bulkRows[e.id].status" class="form-select status-select">
+                        <option value="">—</option>
+                        <option v-for="(label, val) in statusOptions" :key="val" :value="val">{{ label }}</option>
+                      </select>
+                    </td>
+                    <td><input v-model="bulkRows[e.id].check_in_time" type="time" class="form-input time-input" /></td>
+                    <td><input v-model="bulkRows[e.id].check_out_time" type="time" class="form-input time-input" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-if="bulkError" class="form-error">{{ bulkError }}</p>
+            <div class="modal-actions">
+              <button type="button" @click="showBulkModal = false" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="bulkSaving" class="btn-primary">{{ bulkSaving ? 'Menyimpan...' : 'Simpan Semua' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </Layout>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import { useToast } from '@/composables/useToast'
+import { employeeAttendanceApi } from '@/api/attendance'
+import { employeeApi } from '@/api/teacher'
+
+const toast = useToast()
+
+const statusOptions = ref({})
+const employees = ref([])
+const attendances = ref([])
+const loading = ref(false)
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
+
+const filters = ref({
+  date_from: '',
+  date_to: '',
+  employee_id: '',
+  status: '',
+})
+
+const showFormModal = ref(false)
+const showBulkModal = ref(false)
+const editingAttendance = ref(null)
+const form = reactive({
+  employee_id: '',
+  date: '',
+  status: 'hadir',
+  check_in_time: '',
+  check_out_time: '',
+  notes: '',
+})
+const formError = ref('')
+const formSaving = ref(false)
+
+const bulkDate = ref('')
+const bulkRows = ref({})
+const bulkError = ref('')
+const bulkSaving = ref(false)
+
+function formatDate(d) {
+  if (!d) return '-'
+  const date = typeof d === 'string' ? new Date(d) : d
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+async function loadStatusOptions() {
+  try {
+    const res = await employeeAttendanceApi.getStatusOptions()
+    statusOptions.value = res.data.data || {}
+  } catch {
+    statusOptions.value = { hadir: 'Hadir', alpha: 'Alpha', izin: 'Izin', sakit: 'Sakit', cuti: 'Cuti', dinas_luar: 'Dinas Luar', wfh: 'WFH' }
+  }
+}
+
+async function loadEmployees() {
+  try {
+    const res = await employeeApi.getAll({ per_page: 500 })
+    employees.value = res.data.data || []
+  } catch {
+    employees.value = []
+  }
+}
+
+async function loadAttendances() {
+  loading.value = true
+  try {
+    const params = {
+      page: pagination.value.current_page,
+      per_page: 15,
+      ...filters.value,
+    }
+    if (!params.date_from) delete params.date_from
+    if (!params.date_to) delete params.date_to
+    if (!params.employee_id) delete params.employee_id
+    if (!params.status) delete params.status
+    const res = await employeeAttendanceApi.getAll(params)
+    attendances.value = res.data.data || []
+    const meta = res.data.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? 15,
+      total: meta.total ?? 0,
+    }
+  } catch (e) {
+    toast.error(e.formattedMessage || 'Gagal memuat absensi')
+  } finally {
+    loading.value = false
+  }
+}
+
+function goToPage(page) {
+  pagination.value.current_page = page
+  loadAttendances()
+}
+
+function openAddModal() {
+  editingAttendance.value = null
+  form.employee_id = ''
+  form.date = new Date().toISOString().slice(0, 10)
+  form.status = 'hadir'
+  form.check_in_time = ''
+  form.check_out_time = ''
+  form.notes = ''
+  formError.value = ''
+  showFormModal.value = true
+}
+
+function openEditModal(a) {
+  editingAttendance.value = a
+  form.employee_id = a.employee_id
+  form.date = a.date
+  form.status = a.status || 'hadir'
+  form.check_in_time = a.check_in_time || ''
+  form.check_out_time = a.check_out_time || ''
+  form.notes = a.notes || ''
+  formError.value = ''
+  showFormModal.value = true
+}
+
+async function submitForm() {
+  formSaving.value = true
+  formError.value = ''
+  try {
+    const checkIn = form.check_in_time || null
+    const checkOut = form.check_out_time || null
+    if (checkIn && checkOut && checkOut < checkIn) {
+      formError.value = 'Jam keluar harus setelah atau sama dengan jam masuk.'
+      formSaving.value = false
+      return
+    }
+    const payload = {
+      employee_id: form.employee_id,
+      date: form.date,
+      status: form.status,
+      check_in_time: checkIn,
+      check_out_time: checkOut,
+      notes: form.notes || null,
+    }
+    if (editingAttendance.value) {
+      await employeeAttendanceApi.update(editingAttendance.value.id, payload)
+      toast.success('Absensi berhasil diperbarui')
+    } else {
+      await employeeAttendanceApi.create(payload)
+      toast.success('Absensi berhasil dicatat')
+    }
+    showFormModal.value = false
+    loadAttendances()
+  } catch (e) {
+    formError.value = e.response?.data?.message || e.formattedMessage || 'Gagal menyimpan'
+  } finally {
+    formSaving.value = false
+  }
+}
+
+const DEFAULT_CHECK_IN = '07:00'
+const DEFAULT_CHECK_OUT = '15:00'
+
+function openBulkModal() {
+  bulkDate.value = new Date().toISOString().slice(0, 10)
+  bulkError.value = ''
+  bulkRows.value = {}
+  employees.value.forEach((e) => {
+    bulkRows.value[e.id] = {
+      employee_id: e.id,
+      status: 'hadir',
+      check_in_time: DEFAULT_CHECK_IN,
+      check_out_time: DEFAULT_CHECK_OUT,
+      notes: '',
+    }
+  })
+  showBulkModal.value = true
+}
+
+function fillStandardTimes() {
+  Object.keys(bulkRows.value).forEach((id) => {
+    bulkRows.value[id].check_in_time = DEFAULT_CHECK_IN
+    bulkRows.value[id].check_out_time = DEFAULT_CHECK_OUT
+  })
+  toast.success('Jam standar 07:00–15:00 diisi untuk semua pegawai')
+}
+
+async function submitBulk() {
+  bulkSaving.value = true
+  bulkError.value = ''
+  try {
+    const attendancesList = Object.values(bulkRows.value)
+      .filter((r) => r.status)
+      .map((r) => ({
+        employee_id: r.employee_id,
+        status: r.status,
+        check_in_time: r.check_in_time || null,
+        check_out_time: r.check_out_time || null,
+        notes: r.notes || null,
+      }))
+    if (attendancesList.length === 0) {
+      bulkError.value = 'Pilih minimal satu pegawai dengan status kehadiran.'
+      bulkSaving.value = false
+      return
+    }
+    const invalidTime = attendancesList.find(
+      (r) => r.check_in_time && r.check_out_time && r.check_out_time < r.check_in_time
+    )
+    if (invalidTime) {
+      bulkError.value = 'Jam keluar harus setelah atau sama dengan jam masuk. Periksa data pegawai.'
+      bulkSaving.value = false
+      return
+    }
+    await employeeAttendanceApi.bulkStore(bulkDate.value, attendancesList)
+    toast.success('Absensi pegawai berhasil disimpan')
+    showBulkModal.value = false
+    loadAttendances()
+  } catch (e) {
+    bulkError.value = e.response?.data?.message || e.formattedMessage || 'Gagal menyimpan'
+  } finally {
+    bulkSaving.value = false
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([loadStatusOptions(), loadEmployees()])
+  loadAttendances()
+})
+</script>
+
+<style scoped>
+.attendance-employee-page { width: 100%; max-width: 100%; padding: 1.5rem; margin: 0 auto; }
+.page-header { margin-bottom: 1.5rem; }
+.header-content { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.header-icon-wrap {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.header-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+.page-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem 0; }
+.page-subtitle { color: #64748b; margin: 0; font-size: 0.9rem; }
+.filters-inline { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
+.filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; }
+.loading-wrap { margin: 1rem 0; }
+.empty-state { text-align: center; padding: 2rem; background: #f8fafc; border-radius: 12px; }
+.empty-title { font-size: 1.25rem; margin: 0 0 0.5rem 0; }
+.empty-desc { color: #64748b; margin: 0; }
+.table-container { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.data-table th { font-weight: 600; background: #f8fafc; }
+.status-badge { padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.85rem; }
+.status-badge.hadir { background: #dcfce7; color: #166534; }
+.status-badge.alpha { background: #fee2e2; color: #991b1b; }
+.status-badge.izin, .status-badge.sakit, .status-badge.cuti { background: #fef3c7; color: #92400e; }
+.btn-action { padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 0.85rem; }
+.btn-action.btn-edit:hover { background: #e0f2fe; border-color: #0ea5e9; }
+.btn-primary.btn-compact, .btn-secondary.btn-compact { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+.pagination-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
+.pagination-info { color: #64748b; font-size: 0.9rem; }
+.pagination-buttons { display: flex; align-items: center; gap: 0.5rem; }
+.btn-page { padding: 0.4rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; cursor: pointer; }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-content { background: #fff; border-radius: 12px; max-height: 90vh; display: flex; flex-direction: column; min-width: 320px; }
+.modal-wide { max-width: 800px; width: 100%; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; }
+.modal-header h3 { margin: 0; font-size: 1.1rem; }
+.btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b; }
+.modal-body { padding: 1.25rem; overflow-y: auto; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-weight: 500; margin-bottom: 0.35rem; font-size: 0.9rem; }
+.form-select, .form-input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+.form-row { display: flex; gap: 1rem; }
+.form-row .form-group { flex: 1; }
+.bulk-actions-inline { margin-bottom: 0.75rem; }
+.btn-outline { padding: 0.4rem 0.75rem; font-size: 0.85rem; border: 1px solid #0ea5e9; border-radius: 8px; background: #fff; color: #0ea5e9; cursor: pointer; }
+.btn-outline:hover { background: #e0f2fe; }
+.form-hint { color: #64748b; font-size: 0.85rem; margin-bottom: 0.75rem; }
+.table-scroll { max-height: 45vh; overflow-y: auto; margin-bottom: 1rem; }
+.status-select { min-width: 120px; }
+.time-input { max-width: 120px; }
+.form-error { color: #dc2626; font-size: 0.9rem; margin-bottom: 0.75rem; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
+.btn-secondary { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
+.btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #0ea5e9; color: #fff; cursor: pointer; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+</style>

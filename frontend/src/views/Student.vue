@@ -3,10 +3,8 @@
     <div class="student-page">
       <div class="page-header">
         <div class="header-content">
-          <div>
-            <h2>Data Siswa</h2>
-            <p>Kelola data siswa sekolah Anda</p>
-          </div>
+          <h1 class="page-title">Data Siswa</h1>
+          <p class="page-subtitle">Kelola data siswa sekolah Anda</p>
           <div class="action-buttons-group">
             <button @click="exportToExcel" class="btn-secondary btn-compact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -26,7 +24,7 @@
               </svg>
               <span>Template</span>
             </button>
-            <label for="import-excel" class="btn-secondary btn-compact" style="cursor: pointer;">
+            <label for="import-excel" class="btn-secondary btn-compact cursor-pointer">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -34,8 +32,8 @@
               </svg>
               <span>Import</span>
             </label>
-            <input type="file" id="import-excel" accept=".xlsx,.xls" style="display: none;" @change="handleImportExcel">
-            <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
+            <input type="file" id="import-excel" accept=".xlsx,.xls" class="input-hidden" @change="handleImportExcel">
+            <button @click="openAddModal" class="btn-secondary btn-compact btn-add">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -53,14 +51,9 @@
           placeholder="Cari nama, NIK, NIS, NISN..."
           class="search-input"
         />
-        <select v-model="filters.class" @change="loadStudents" class="filter-select">
+        <select v-model="filters.class_id" @change="loadStudents" class="filter-select">
           <option value="">Semua Kelas</option>
-          <option value="1">Kelas 1</option>
-          <option value="2">Kelas 2</option>
-          <option value="3">Kelas 3</option>
-          <option value="4">Kelas 4</option>
-          <option value="5">Kelas 5</option>
-          <option value="6">Kelas 6</option>
+          <option v-for="c in filterClassList" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
         <select v-model="filters.status" @change="loadStudents" class="filter-select">
           <option value="">Semua Status</option>
@@ -72,149 +65,75 @@
         </select>
       </div>
 
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-              <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-        <p>Memuat data...</p>
+      <!-- Error state (list load failed) -->
+      <div v-if="error && !loading" class="error-state">
+        <p class="error-text">{{ error }}</p>
+        <button @click="loadStudents()" class="btn-primary">Coba lagi</button>
       </div>
-      
+
+      <!-- Loading skeleton -->
+      <div v-else-if="loading" class="loading-wrap">
+        <StudentTableSkeleton />
+      </div>
+
+      <!-- Table / empty -->
       <div v-else class="content-wrapper">
-        <!-- Desktop: table (hidden when empty) -->
-        <div v-if="students.length > 0" class="table-container table-desktop">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>NIK</th>
-                <th>NIS</th>
-                <th>NISN</th>
-                <th>Nama</th>
-                <th>Jenis Kelamin</th>
-                <th>Kelas</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="student in students" :key="student.id">
-                <td>{{ student.nik || '-' }}</td>
-                <td>{{ student.nis || '-' }}</td>
-                <td>{{ student.nisn || '-' }}</td>
-                <td>{{ student.name }}</td>
-                <td>{{ student.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
-                <td>{{ student.class || '-' }}</td>
-                <td>
-                  <span :class="getStatusClass(student.status)">
-                    {{ student.status }}
-                  </span>
-                </td>
-                <td>
-                  <div class="action-buttons">
-                    <button @click="viewStudent(student)" class="btn-action btn-view" title="Lihat Biodata">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                    <button @click="editStudent(student)" class="btn-action btn-edit" title="Edit">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                    <button @click="deleteStudent(student.id)" class="btn-action btn-delete" title="Hapus">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Mobile: cards (hidden when empty) -->
-        <div v-if="students.length > 0" class="student-cards table-mobile">
-          <div
-            v-for="student in students"
-            :key="student.id"
-            class="student-card"
-          >
-            <div class="student-card-main">
-              <h3 class="student-card-name">{{ student.name }}</h3>
-              <div class="student-card-meta">
-                <span v-if="student.nis || student.nisn" class="student-card-id">
-                  {{ student.nis ? `NIS: ${student.nis}` : '' }}{{ student.nis && student.nisn ? ' · ' : '' }}{{ student.nisn ? `NISN: ${student.nisn}` : '' }}
-                </span>
-                <span v-else class="student-card-id">NIK: {{ student.nik || '-' }}</span>
-                <span class="student-card-class">{{ student.class || '-' }}</span>
-              </div>
-              <span :class="['student-card-status', getStatusClass(student.status)]">
-                {{ student.status }}
-              </span>
-            </div>
-            <div class="student-card-actions">
-              <button @click="viewStudent(student)" class="btn-action btn-view" title="Lihat">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button @click="editStudent(student)" class="btn-action btn-edit" title="Edit">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button @click="deleteStudent(student.id)" class="btn-action btn-delete" title="Hapus">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="students.length === 0" class="empty-state">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <h3>Tidak ada data siswa</h3>
-          <p>Mulai dengan menambahkan siswa baru</p>
-          <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <StudentTable
+          :students="students"
+          :get-status-class="getStatusClass"
+          @view="viewStudent"
+          @edit="editStudent"
+          @delete="deleteStudent"
+          @add="openAddModal"
+        >
+          <template #empty>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>Tambah Siswa</span>
-          </button>
-        </div>
+            <h3>Tidak ada data siswa</h3>
+            <p>Mulai dengan menambahkan siswa baru</p>
+            <button @click="openAddModal" class="btn-secondary btn-compact btn-add">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Siswa</span>
+            </button>
+          </template>
+        </StudentTable>
       </div>
 
       <!-- Add/Edit Modal -->
-      <div v-if="showAddModal || showEditModal" class="modal-overlay" @click="closeModal">
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3>{{ showEditModal ? 'Edit' : 'Tambah' }} Siswa</h3>
-            <button @click="closeModal" class="btn-close">×</button>
+      <div v-if="showAddModal || showEditModal" class="modal-overlay form-modal-overlay" @click="closeModal">
+        <div class="modal-content form-modal-content" @click.stop>
+          <div class="form-modal-header">
+            <div class="form-modal-title-wrap">
+              <div class="form-modal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="form-modal-title">{{ showEditModal ? 'Edit' : 'Tambah' }} Siswa</h3>
+                <p class="form-modal-subtitle">{{ showEditModal ? 'Perbarui data siswa' : 'Isi data siswa baru' }}</p>
+              </div>
+            </div>
+            <button @click="closeModal" class="btn-close-modal" type="button" aria-label="Tutup">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
           </div>
           
-          <form @submit.prevent="handleSubmit" class="modal-body">
+          <form @submit.prevent="handleSubmit" class="form-modal-body">
             <!-- Tabs Navigation -->
-            <div class="tabs-nav">
+            <div class="form-tabs-nav">
               <button 
                 type="button"
                 @click="activeTab = 1" 
-                :class="['tab-btn', { active: activeTab === 1 }]"
+                :class="['form-tab-btn', { active: activeTab === 1 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -225,7 +144,7 @@
               <button 
                 type="button"
                 @click="activeTab = 2" 
-                :class="['tab-btn', { active: activeTab === 2 }]"
+                :class="['form-tab-btn', { active: activeTab === 2 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -237,7 +156,7 @@
               <button 
                 type="button"
                 @click="activeTab = 3" 
-                :class="['tab-btn', { active: activeTab === 3 }]"
+                :class="['form-tab-btn', { active: activeTab === 3 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -250,7 +169,7 @@
               <button 
                 type="button"
                 @click="activeTab = 4" 
-                :class="['tab-btn', { active: activeTab === 4 }]"
+                :class="['form-tab-btn', { active: activeTab === 4 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -261,7 +180,7 @@
               <button 
                 type="button"
                 @click="activeTab = 5" 
-                :class="['tab-btn', { active: activeTab === 5 }]"
+                :class="['form-tab-btn', { active: activeTab === 5 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -274,7 +193,7 @@
               <button 
                 type="button"
                 @click="activeTab = 6" 
-                :class="['tab-btn', { active: activeTab === 6 }]"
+                :class="['form-tab-btn', { active: activeTab === 6 }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -285,58 +204,58 @@
             </div>
 
             <!-- Tab 1: Identitas -->
-            <div v-show="activeTab === 1" class="tab-content">
+            <div v-show="activeTab === 1" class="form-tab-content">
               <div class="form-row">
                 <div class="form-group">
-                  <label>NIK *</label>
-                  <input v-model="form.nik" required />
+                  <label>NIK <span class="required">*</span></label>
+                  <input v-model="form.nik" required placeholder="Nomor Induk Kependudukan" />
                 </div>
                 <div class="form-group">
                   <label>NISN</label>
-                  <input v-model="form.nisn" />
+                  <input v-model="form.nisn" placeholder="Nomor Induk Siswa Nasional" />
                 </div>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
                   <label>NIS</label>
-                  <input v-model="form.nis" />
+                  <input v-model="form.nis" placeholder="Nomor Induk Siswa" />
                 </div>
                 <div class="form-group">
-                  <label>Nama Lengkap *</label>
-                  <input v-model="form.name" required />
+                  <label>Nama Lengkap <span class="required">*</span></label>
+                  <input v-model="form.name" required placeholder="Nama lengkap siswa" />
                 </div>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Jenis Kelamin *</label>
+                  <label>Jenis Kelamin <span class="required">*</span></label>
                   <select v-model="form.gender" required>
-                    <option value="">Pilih</option>
+                    <option value="">Pilih jenis kelamin</option>
                     <option value="L">Laki-laki</option>
                     <option value="P">Perempuan</option>
                   </select>
                 </div>
                 <div class="form-group">
-                  <label>Tempat Lahir *</label>
-                  <input v-model="form.birth_place" required />
+                  <label>Tempat Lahir <span class="required">*</span></label>
+                  <input v-model="form.birth_place" required placeholder="Kota/kabupaten" />
                 </div>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Tanggal Lahir *</label>
+                  <label>Tanggal Lahir <span class="required">*</span></label>
                   <input type="date" v-model="form.birth_date" required />
                 </div>
               </div>
             </div>
 
             <!-- Tab 2: Tambahan -->
-            <div v-show="activeTab === 2" class="tab-content">
+            <div v-show="activeTab === 2" class="form-tab-content">
               <div class="form-row">
                 <div class="form-group">
                   <label>No KK</label>
-                  <input v-model="form.no_kk" />
+                  <input v-model="form.no_kk" placeholder="Nomor Kartu Keluarga" />
                 </div>
                 <div class="form-group">
                   <label>Cita-cita</label>
@@ -428,10 +347,38 @@
                   <input v-model="form.previous_school" />
                 </div>
               </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Kelas</label>
+                  <template v-if="formClassListLoading">
+                    <div class="form-field-skeleton" aria-hidden="true">
+                      <div class="skeleton-line-inline"></div>
+                    </div>
+                    <small class="text-muted">Memuat daftar kelas...</small>
+                  </template>
+                  <template v-else>
+                    <select
+                      v-model="form.class_id"
+                      @change="onFormClassChange"
+                    >
+                      <option :value="null">Pilih Kelas</option>
+                      <option
+                        v-for="c in formClassList"
+                        :key="c.id"
+                        :value="c.id"
+                      >
+                        {{ c.grade != null ? `Tingkat ${c.grade} - ${c.name}` : c.name }}
+                      </option>
+                    </select>
+                  </template>
+                  <small v-if="!formClassListLoading && ((showAddModal && !myInstitution?.active_semester_id) || (showEditModal && !form.semester_id))" class="text-muted">Semester belum ditetapkan; pilih tahun ajaran/semester aktif di pengaturan institusi.</small>
+                </div>
+              </div>
             </div>
 
             <!-- Tab 3: Data Ayah Kandung -->
-            <div v-show="activeTab === 3" class="tab-content">
+            <div v-show="activeTab === 3" class="form-tab-content">
               <div class="form-row">
                 <div class="form-group">
                   <label>Status</label>
@@ -507,7 +454,7 @@
             </div>
 
             <!-- Tab 4: Data Ibu Kandung -->
-            <div v-show="activeTab === 4" class="tab-content">
+            <div v-show="activeTab === 4" class="form-tab-content">
               <div class="form-row">
                 <div class="form-group">
                   <label>Status</label>
@@ -583,7 +530,7 @@
             </div>
 
             <!-- Tab 5: Data Wali -->
-            <div v-show="activeTab === 5" class="tab-content">
+            <div v-show="activeTab === 5" class="form-tab-content">
               <div class="form-row">
                 <div class="form-group">
                   <label>Wali</label>
@@ -680,7 +627,7 @@
             </div>
 
             <!-- Tab 6: Dokumen -->
-            <div v-show="activeTab === 6" class="tab-content">
+            <div v-show="activeTab === 6" class="form-tab-content">
               <div class="documents-section">
                 <div v-if="!editingId" class="no-documents">
                   <p>Simpan data siswa terlebih dahulu untuk mengupload dokumen</p>
@@ -754,13 +701,16 @@
 
             <div v-if="error" class="error-message">{{ error }}</div>
 
-            <div class="modal-footer">
-              <button type="button" @click="closeModal" class="btn-secondary">Batal</button>
-              <button v-if="activeTab > 1" type="button" @click="activeTab--" class="btn-secondary">Sebelumnya</button>
-              <button v-if="activeTab < 6" type="button" @click="activeTab++" class="btn-secondary">Selanjutnya</button>
-              <button v-if="activeTab !== 6" type="submit" :disabled="saving" class="btn-primary">
-                {{ saving ? 'Menyimpan...' : 'Simpan' }}
-              </button>
+            <div class="form-modal-footer">
+              <button type="button" @click="closeModal" class="btn-ghost">Batal</button>
+              <div class="form-modal-footer-actions">
+                <button v-if="activeTab > 1" type="button" @click="activeTab--" class="btn-outline">Sebelumnya</button>
+                <button v-if="activeTab < 6" type="button" @click="activeTab++" class="btn-outline">Selanjutnya</button>
+                <button v-if="activeTab !== 6" type="submit" :disabled="saving" class="btn-submit">
+                  <span v-if="saving" class="btn-spinner"></span>
+                  <span>{{ saving ? 'Menyimpan...' : 'Simpan' }}</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -772,14 +722,23 @@
           <div class="modal-header">
             <h3>Biodata Lengkap Siswa</h3>
             <div class="header-actions">
-              <button @click="printPDF" class="btn-print" title="Cetak PDF">
+              <button @click="downloadBukuIndukPdf" class="btn-print" title="Cetak Buku Induk (PDF)">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>Cetak PDF</span>
+                <span>Buku Induk (PDF)</span>
               </button>
+              <button @click="printPDF" class="btn-print btn-print-biodata" title="Cetak Biodata">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Cetak Biodata</span>
+              </button>
+              <router-link v-if="viewingStudent" :to="{ name: 'BukuInduk', params: { id: viewingStudent.id } }" class="btn-buku-induk-link" @click="closeViewModal">Lihat Buku Induk →</router-link>
               <button @click="closeViewModal" class="btn-close">×</button>
             </div>
           </div>
@@ -1050,6 +1009,51 @@
                 </div>
               </div>
             </div>
+
+            <!-- Riwayat Konseling (jika user punya akses modul konseling) -->
+            <div v-if="canAccessCounseling" class="biodata-section">
+              <h4 class="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Riwayat Konseling
+              </h4>
+              <div v-if="studentCounselingLoading" class="counseling-skeleton">
+                <LoadingSkeleton
+                  type="table"
+                  :rows="3"
+                  :columns="5"
+                  :cell-widths="['90px', '120px', '90px', '90px', '200px']"
+                />
+              </div>
+              <div v-else-if="!studentCounselingSessions.length" class="counseling-empty">
+                <p>Belum ada sesi konseling.</p>
+                <router-link v-if="viewingStudent" :to="{ path: '/counseling', query: { student_id: viewingStudent.id } }" class="link-counseling" @click="closeViewModal">Tambah Sesi Konseling →</router-link>
+              </div>
+              <div v-else class="counseling-table-wrap">
+                <table class="counseling-table">
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>Konselor</th>
+                      <th>Jenis</th>
+                      <th>Status</th>
+                      <th>Ringkasan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="s in studentCounselingSessions" :key="s.id">
+                      <td>{{ formatDate(s.session_date) }}</td>
+                      <td>{{ s.counselor?.name || '-' }}</td>
+                      <td>{{ s.counseling_type?.name || '-' }}</td>
+                      <td><span :class="['counseling-status', 'status-' + s.status]">{{ counselingStatusLabel(s.status) }}</span></td>
+                      <td class="summary-cell">{{ (s.summary || '-').slice(0, 60) }}{{ (s.summary && s.summary.length > 60) ? '…' : '' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <router-link v-if="viewingStudent" :to="{ path: '/counseling', query: { student_id: viewingStudent.id } }" class="link-counseling link-counseling-footer" @click="closeViewModal">Lihat semua & tambah sesi →</router-link>
+              </div>
+            </div>
           </div>
 
           <div class="modal-footer">
@@ -1073,11 +1077,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import StudentTable from '@/components/student/StudentTable.vue'
+import StudentTableSkeleton from '@/components/StudentTableSkeleton.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import { useStudentList } from '@/composables/useStudentList'
+import { useAuthStore } from '@/stores/auth'
 import { studentApi } from '@/api/student'
 import { institutionApi } from '@/api/institution'
+import { classApi } from '@/api/class'
+import { counselingApi } from '@/api/counseling'
+import { extracurricularApi } from '@/api/extracurricular'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { getInstitutionTypeLabel } from '@/utils/institution'
@@ -1086,24 +1098,37 @@ import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import * as XLSX from 'xlsx'
 
 const toast = useToast()
+const authStore = useAuthStore()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
-const students = ref([])
-const loading = ref(true)
+const { students, loading, error, filters, loadStudents, getStatusClass } = useStudentList()
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
 const viewingStudent = ref(null)
+const studentCounselingSessions = ref([])
+const studentCounselingLoading = ref(false)
+const myInstitution = ref(null)
+const formClassList = ref([])
+const formClassListLoading = ref(false)
+const filterClassList = ref([])
+
+const canAccessCounseling = computed(() => {
+  const role = authStore.user?.role
+  if (!role) return false
+  if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') return true
+  return (authStore.user?.permissions || []).includes('counseling')
+})
+
+const canAccessExtracurricular = computed(() => {
+  const role = authStore.user?.role
+  if (!role) return false
+  if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') return true
+  return (authStore.user?.permissions || []).includes('extracurricular')
+})
 const saving = ref(false)
 const deleteLoading = ref(false)
-const error = ref('')
 const activeTab = ref(1)
-
-const filters = ref({
-  search: '',
-  class: '',
-  status: ''
-})
 
 const form = ref({
   nik: '',
@@ -1126,7 +1151,10 @@ const form = ref({
   previous_school: '',
   residence_type: '',
   class: '',
+  class_id: null,
   academic_year: '',
+  academic_year_id: null,
+  semester_id: null,
   status: 'Aktif',
   father_name: '',
   father_status: '',
@@ -1168,21 +1196,85 @@ const fileInput = ref(null)
 
 let editingId = null
 
-const loadStudents = async () => {
-  loading.value = true
+/** Sorted class list helper (by grade then name). */
+function sortClasses(list) {
+  return [...(list || [])].sort((a, b) => {
+    const ga = a.grade ?? 0
+    const gb = b.grade ?? 0
+    if (ga !== gb) return ga - gb
+    return (a.name || '').localeCompare(b.name || '')
+  })
+}
+
+/** Load classes for form dropdown: by semester (add = active semester, edit = student semester). */
+async function loadFormClasses(semesterId) {
+  if (!semesterId) {
+    formClassList.value = []
+    return
+  }
+  formClassListLoading.value = true
+  formClassList.value = []
   try {
-    const params = {}
-    if (filters.value.search) params.search = filters.value.search
-    if (filters.value.class) params.class = filters.value.class
-    if (filters.value.status) params.status = filters.value.status
-    
-    const response = await studentApi.getAll(params)
-    students.value = response.data.data || []
-  } catch (err) {
-    error.value = 'Gagal memuat data siswa'
-    console.error(err)
+    const res = await classApi.getAll({ semester_id: semesterId, per_page: 200 })
+    const list = res.data?.data ?? res.data ?? []
+    formClassList.value = sortClasses(list)
+  } catch {
+    formClassList.value = []
   } finally {
-    loading.value = false
+    formClassListLoading.value = false
+  }
+}
+
+/** Load classes for filter dropdown (active semester). */
+async function loadFilterClasses() {
+  try {
+    const r = await institutionApi.getMy()
+    const inst = r.data?.data ?? r.data ?? {}
+    const sid = inst?.active_semester_id
+    if (!sid) {
+      filterClassList.value = []
+      return
+    }
+    const res = await classApi.getAll({ semester_id: sid, per_page: 200 })
+    const list = res.data?.data ?? res.data ?? []
+    filterClassList.value = sortClasses(list)
+  } catch {
+    filterClassList.value = []
+  }
+}
+
+/** Open add modal: load institution, then classes for active semester, then show modal. */
+async function openAddModal() {
+  formClassListLoading.value = true
+  formClassList.value = []
+  try {
+    const r = await institutionApi.getMy()
+    myInstitution.value = r.data?.data ?? r.data ?? {}
+    const sid = myInstitution.value?.active_semester_id
+    if (sid) await loadFormClasses(sid)
+    else formClassList.value = []
+  } catch {
+    formClassList.value = []
+  } finally {
+    formClassListLoading.value = false
+  }
+  showAddModal.value = true
+}
+
+/** When user selects a class, sync form.class, semester_id, academic_year_id from selected class. */
+function onFormClassChange() {
+  const id = form.value.class_id
+  if (!id) {
+    form.value.class = ''
+    form.value.semester_id = null
+    form.value.academic_year_id = null
+    return
+  }
+  const c = formClassList.value.find(x => x.id === id)
+  if (c) {
+    form.value.class = c.name || ''
+    form.value.semester_id = c.semester_id ?? form.value.semester_id
+    form.value.academic_year_id = c.academic_year_id ?? form.value.academic_year_id
   }
 }
 
@@ -1204,6 +1296,9 @@ const editStudent = async (student) => {
   }
   activeTab.value = 1
   showEditModal.value = true
+  // Load kelas dropdown: semester siswa (edit)
+  const semesterId = form.value.semester_id ?? (await institutionApi.getMy().then(r => (r.data?.data ?? r.data)?.active_semester_id))
+  await loadFormClasses(semesterId)
   // Load dokumen
   await loadStudentDocuments()
 }
@@ -1380,7 +1475,10 @@ const closeModal = () => {
     previous_school: '',
     residence_type: '',
     class: '',
+    class_id: null,
     academic_year: '',
+    academic_year_id: null,
+    semester_id: null,
     status: 'Aktif',
     father_name: '',
     father_status: '',
@@ -1420,25 +1518,36 @@ const closeModal = () => {
   error.value = ''
 }
 
-const getStatusClass = (status) => {
-  const classes = {
-    'Aktif': 'status-active',
-    'Lulus': 'status-success',
-    'Pindah': 'status-warning',
-    'Drop Out': 'status-danger',
-    'Tidak Aktif': 'status-inactive'
-  }
-  return classes[status] || ''
-}
-
 const viewStudent = (student) => {
   viewingStudent.value = { ...student }
   showViewModal.value = true
+  if (canAccessCounseling.value && student?.id) loadStudentCounseling(student.id)
+  if (canAccessExtracurricular.value && student?.id) loadStudentExtracurriculars(student.id)
 }
 
 const closeViewModal = () => {
   showViewModal.value = false
   viewingStudent.value = null
+  studentCounselingSessions.value = []
+  studentExtracurricularEnrollments.value = []
+}
+
+async function loadStudentCounseling(studentId) {
+  studentCounselingLoading.value = true
+  studentCounselingSessions.value = []
+  try {
+    const res = await counselingApi.getByStudent(studentId, { per_page: 20 })
+    studentCounselingSessions.value = res.data.data || []
+  } catch {
+    studentCounselingSessions.value = []
+  } finally {
+    studentCounselingLoading.value = false
+  }
+}
+
+const counselingStatusLabels = { jadwal: 'Jadwal', berlangsung: 'Berlangsung', selesai: 'Selesai', dibatalkan: 'Dibatalkan' }
+function counselingStatusLabel(status) {
+  return counselingStatusLabels[status] || status || '-'
 }
 
 const formatDate = (dateString) => {
@@ -1692,6 +1801,7 @@ const handleImportExcel = async (event) => {
     
     if (jsonData.length === 0) {
       toast.error('Gagal', 'File Excel kosong')
+      loading.value = false
       return
     }
     
@@ -1811,6 +1921,7 @@ const handleImportExcel = async (event) => {
     
     if (validData.length === 0) {
       toast.error('Gagal', 'Tidak ada data valid yang dapat diimpor. Pastikan kolom NIK dan Nama Lengkap terisi.')
+      loading.value = false
       return
     }
     
@@ -1827,6 +1938,24 @@ const handleImportExcel = async (event) => {
     toast.error('Gagal', err.formattedMessage || 'Gagal mengimpor data dari Excel')
   } finally {
     loading.value = false
+  }
+}
+
+const downloadBukuIndukPdf = async () => {
+  if (!viewingStudent.value?.id) return
+  try {
+    const res = await studentApi.downloadBukuIndukPdf(viewingStudent.value.id)
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Buku_Induk_${viewingStudent.value.name || viewingStudent.value.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Berhasil', 'Buku induk berhasil diunduh')
+  } catch (err) {
+    console.error(err)
+    toast.error('Gagal', err.response?.data?.message || 'Gagal mengunduh buku induk')
   }
 }
 
@@ -2307,13 +2436,15 @@ const downloadDocument = async (documentId) => {
 }
 
 onMounted(() => {
+  loadFilterClasses()
   loadStudents()
 })
 </script>
 
 <style scoped>
 .student-page {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-header {
@@ -2323,21 +2454,20 @@ onMounted(() => {
 .header-content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 24px;
 }
 
-.header-content h2 {
-  font-size: 24px;
+.header-content .page-title {
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 4px;
-  letter-spacing: -0.5px;
+  margin: 0 0 4px 0;
 }
 
-.header-content p {
+.header-content .page-subtitle {
   color: #64748b;
-  font-size: 13px;
+  font-size: 14px;
   margin: 0;
 }
 
@@ -2411,6 +2541,23 @@ onMounted(() => {
 
 .filter-select {
   min-width: 180px;
+}
+
+.error-state {
+  padding: 32px;
+  text-align: center;
+  background: #fef2f2;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+}
+
+.error-state .error-text {
+  color: #b91c1c;
+  margin: 0 0 16px 0;
+}
+
+.loading-wrap {
+  min-height: 200px;
 }
 
 .content-wrapper {
@@ -2654,6 +2801,358 @@ onMounted(() => {
   z-index: 1000;
 }
 
+/* Form modal: overlay dengan blur */
+.form-modal-overlay {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 24px;
+}
+
+.form-modal-content {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 920px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  animation: formModalIn 0.25s ease-out;
+}
+
+@keyframes formModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.form-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border-radius: 20px 20px 0 0;
+  flex-shrink: 0;
+}
+
+.form-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.form-modal-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.form-modal-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.form-modal-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 4px 0 0 0;
+  font-weight: 400;
+}
+
+.btn-close-modal {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-close-modal:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.form-modal-body {
+  padding: 28px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.form-tabs-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+  padding-bottom: 0;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.form-tabs-nav::-webkit-scrollbar {
+  height: 4px;
+}
+
+.form-tab-btn {
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px 10px 0 0;
+}
+
+.form-tab-btn:hover {
+  color: #4f46e5;
+  background: #f5f3ff;
+}
+
+.form-tab-btn.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+  font-weight: 600;
+  background: #faf5ff;
+}
+
+.form-tab-btn svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.form-tab-content {
+  min-height: 280px;
+  animation: formTabFade 0.2s ease-out;
+}
+
+@keyframes formTabFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Form fields inside form modal */
+.form-modal-body .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-modal-body .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-modal-body .form-group label {
+  margin-bottom: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.form-modal-body .form-group label .required {
+  color: #dc2626;
+}
+
+.form-modal-body .form-group label::after {
+  display: none;
+}
+
+.form-field-skeleton {
+  margin-bottom: 6px;
+}
+.form-field-skeleton .skeleton-line-inline {
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.form-modal-body .form-group input,
+.form-modal-body .form-group select,
+.form-modal-body .form-group textarea {
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 15px;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  color: #0f172a;
+  font-family: inherit;
+}
+
+.form-modal-body .form-group input:hover,
+.form-modal-body .form-group select:hover,
+.form-modal-body .form-group textarea:hover {
+  border-color: #cbd5e1;
+}
+
+.form-modal-body .form-group input:focus,
+.form-modal-body .form-group select:focus,
+.form-modal-body .form-group textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  transform: none;
+}
+
+.form-modal-body .form-group input::placeholder,
+.form-modal-body .form-group textarea::placeholder {
+  color: #94a3b8;
+}
+
+.form-modal-body .form-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 42px;
+}
+
+.form-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 28px;
+  border-top: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border-radius: 0 0 20px 20px;
+  flex-shrink: 0;
+}
+
+.form-modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-ghost {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-ghost:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-outline {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: #fff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.btn-outline:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+}
+
+.btn-submit {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: formSpinner 0.7s linear infinite;
+}
+
+@keyframes formSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.form-modal-body .guardian-form {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
 .modal-content {
   background: white;
   border-radius: 24px;
@@ -2791,6 +3290,81 @@ onMounted(() => {
   border-bottom: none;
 }
 
+/* Riwayat Konseling di view modal */
+.counseling-skeleton {
+  padding: 0.5rem 0;
+  min-height: 120px;
+}
+.counseling-loading {
+  padding: 1rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.counseling-empty {
+  padding: 1rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.counseling-empty .link-counseling {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: #0ea5e9;
+  font-weight: 500;
+  text-decoration: none;
+}
+.counseling-empty .link-counseling:hover {
+  text-decoration: underline;
+}
+.counseling-table-wrap {
+  overflow-x: auto;
+}
+.counseling-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.counseling-table th,
+.counseling-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+.counseling-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+}
+.counseling-table .summary-cell {
+  max-width: 180px;
+}
+.counseling-status {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.counseling-status.status-jadwal { background: #e0f2fe; color: #0369a1; }
+.counseling-status.status-berlangsung { background: #fef3c7; color: #b45309; }
+.counseling-status.status-selesai { background: #d1fae5; color: #047857; }
+.counseling-status.status-dibatalkan { background: #f1f5f9; color: #64748b; }
+.counseling-status.status-ekskul-aktif { background: #d1fae5; color: #047857; }
+.counseling-status.status-ekskul-keluar { background: #feebc8; color: #c05621; }
+.counseling-status.status-ekskul-lulus { background: #e9d8fd; color: #553c9a; }
+.link-counseling {
+  color: #0ea5e9;
+  font-weight: 500;
+  text-decoration: none;
+}
+.link-counseling:hover {
+  text-decoration: underline;
+}
+.link-counseling-footer {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
 @media print {
   .modal-overlay {
     position: static;
@@ -2814,6 +3388,17 @@ onMounted(() => {
   }
 }
 
+.btn-buku-induk-link {
+  color: var(--color-primary, #2563eb);
+  text-decoration: none;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.btn-buku-induk-link:hover {
+  text-decoration: underline;
+  background: #f1f5f9;
+}
 .btn-close {
   background: #f1f5f9;
   border: none;
@@ -3200,11 +3785,7 @@ onMounted(() => {
     gap: 12px;
   }
 
-  .header-content h2 {
-    font-size: 22px;
-  }
-
-  .header-content p {
+  .header-content .page-subtitle {
     font-size: 13px;
   }
 
@@ -3302,6 +3883,58 @@ onMounted(() => {
     max-height: 90vh;
   }
 
+  .form-modal-overlay {
+    padding: 12px;
+  }
+
+  .form-modal-content {
+    max-height: 95vh;
+  }
+
+  .form-modal-header {
+    padding: 18px 20px;
+  }
+
+  .form-modal-title-wrap {
+    gap: 12px;
+  }
+
+  .form-modal-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .form-modal-title {
+    font-size: 18px;
+  }
+
+  .form-modal-subtitle {
+    font-size: 12px;
+  }
+
+  .form-modal-body {
+    padding: 20px;
+  }
+
+  .form-tabs-nav {
+    margin-bottom: 20px;
+  }
+
+  .form-tab-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .form-modal-footer {
+    padding: 16px 20px;
+    flex-wrap: wrap;
+  }
+
+  .form-modal-footer-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .modal-header {
     padding: 20px 20px;
   }
@@ -3312,6 +3945,12 @@ onMounted(() => {
 
   .modal-body {
     padding: 20px;
+  }
+
+  .form-modal-body .form-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
   }
 
   .form-row {
@@ -3382,12 +4021,7 @@ onMounted(() => {
     padding: 8px 0;
   }
 
-  .header-content h2 {
-    font-size: 20px;
-    line-height: 1.25;
-  }
-
-  .header-content p {
+  .header-content .page-subtitle {
     font-size: 12px;
   }
 
@@ -3476,6 +4110,65 @@ onMounted(() => {
     max-height: 100vh;
   }
 
+  .form-modal-overlay {
+    padding: 0;
+  }
+
+  .form-modal-content {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .form-modal-header {
+    padding: 14px 16px;
+  }
+
+  .form-modal-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .form-modal-title {
+    font-size: 17px;
+  }
+
+  .form-modal-subtitle {
+    display: none;
+  }
+
+  .form-modal-body {
+    padding: 16px;
+  }
+
+  .form-tabs-nav {
+    margin-bottom: 16px;
+    gap: 4px;
+  }
+
+  .form-tab-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .form-modal-footer {
+    padding: 14px 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .form-modal-footer-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .btn-ghost,
+  .btn-outline,
+  .btn-submit {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
   .modal-header {
     padding: 16px 16px;
   }
@@ -3499,6 +4192,14 @@ onMounted(() => {
     min-width: 0;
     font-size: 11px;
     padding: 10px 10px;
+  }
+
+  .form-modal-body .form-group input,
+  .form-modal-body .form-group select,
+  .form-modal-body .form-group textarea {
+    padding: 12px 14px;
+    font-size: 16px;
+    min-height: 48px;
   }
 
   .form-group input,

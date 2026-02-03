@@ -132,6 +132,14 @@ input, textarea, select {
 }
 
 /* Utility classes */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.input-hidden {
+  display: none;
+}
+
 .text-center {
   text-align: center;
 }
@@ -286,6 +294,28 @@ input, textarea, select {
 
   .page-header h2 {
     font-size: 20px !important;
+  }
+}
+
+/* Layout sidebar: pastikan selalu tampil di desktop (bukan print) */
+@media screen {
+  .layout .sidebar {
+    left: 0 !important;
+    top: 0 !important;
+    position: fixed !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    z-index: 1000 !important;
+  }
+  @media (min-width: 481px) {
+    .layout .sidebar {
+      transform: none !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    .layout .main-content {
+      margin-left: 280px !important;
+    }
   }
 }
 

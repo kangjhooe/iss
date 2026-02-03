@@ -75,6 +75,14 @@ class LessonSchedule extends Model
         return $this->belongsTo(Room::class);
     }
 
+    /**
+     * Get the teaching journals for this lesson schedule.
+     */
+    public function teachingJournals()
+    {
+        return $this->hasMany(TeachingJournal::class, 'lesson_schedule_id');
+    }
+
     public function scopeForInstitution($query, int $institutionId)
     {
         return $query->where('institution_id', $institutionId);

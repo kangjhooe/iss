@@ -6,10 +6,10 @@
         <button @click="handleCancel" class="btn-close" :disabled="loading">×</button>
       </div>
       <div class="modal-body">
-        <p style="font-size: 16px; color: #1e293b; margin-bottom: 24px;">
+        <p class="modal-message">
           {{ message }}
         </p>
-        <p v-if="warning" style="font-size: 14px; color: #ef4444; margin-bottom: 24px;">
+        <p v-if="warning" class="modal-warning">
           {{ warning }}
         </p>
         <div class="modal-footer">
@@ -175,6 +175,18 @@ watch(() => props.show, (newVal) => {
 
 .modal-body {
   padding: 24px;
+}
+
+.modal-message {
+  font-size: 16px;
+  color: #1e293b;
+  margin-bottom: 24px;
+}
+
+.modal-warning {
+  font-size: 14px;
+  color: #ef4444;
+  margin-bottom: 24px;
 }
 
 .modal-footer {

@@ -66,7 +66,8 @@ class ClassRepository extends BaseRepository
 
         $perPage = min($perPage, 100);
 
-        return $query->with(['institution:id,name', 'room:id,name,code', 'teacher:id,name', 'academicYear:id,code,name'])
+        return $query->withCount('students')
+            ->with(['institution:id,name', 'room:id,name,code', 'teacher:id,name', 'academicYear:id,code,name'])
             ->orderBy('grade', 'asc')
             ->orderBy('name', 'asc')
             ->paginate($perPage);

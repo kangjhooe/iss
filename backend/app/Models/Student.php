@@ -44,6 +44,7 @@ class Student extends Model
         'academic_year_id',
         'semester_id',
         'status',
+        'graduation_year',
         'father_name',
         'father_status',
         'father_nik',
@@ -83,6 +84,7 @@ class Student extends Model
     {
         return [
             'birth_date' => 'date',
+            'graduation_year' => 'integer',
             'father_birth_date' => 'date',
             'mother_birth_date' => 'date',
             'guardian_birth_date' => 'date',
@@ -165,11 +167,101 @@ class Student extends Model
     }
 
     /**
+     * Get the counseling sessions for this student.
+     */
+    public function counselingSessions()
+    {
+        return $this->hasMany(CounselingSession::class);
+    }
+
+    /**
+     * Get the student attendances (per lesson session).
+     */
+    public function studentAttendances()
+    {
+        return $this->hasMany(StudentAttendance::class);
+    }
+
+    /**
+     * Get the grades (nilai) for this student.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class);
+    }
+
+    /**
+     * Get the document pickups (pengambilan ijazah) for this student (alumni).
+     */
+    public function documentPickups()
+    {
+        return $this->hasMany(DocumentPickup::class);
+    }
+
+    /**
+     * Get the alumni destinations (tracking lanjut kemana setelah lulus).
+     */
+    public function alumniDestinations()
+    {
+        return $this->hasMany(AlumniDestination::class);
+    }
+
+    /**
+     * Get the extracurricular enrollments (peserta ekskul) for this student.
+     */
+    public function extracurricularEnrollments()
+    {
+        return $this->hasMany(ExtracurricularStudent::class);
+    }
+
+    /**
+     * Get the extracurriculars (ekskul) this student participates in.
+     */
+    public function extracurriculars()
+    {
+        return $this->belongsToMany(Extracurricular::class, 'extracurricular_student')
+            ->withPivot('academic_year_id', 'semester_id', 'joined_at', 'left_at', 'status', 'notes')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the latest/current alumni destination (one record, most recent by year_entered or created_at).
+     */
+    public function currentAlumniDestination()
+    {
+        return $this->hasOne(AlumniDestination::class)->latest('year_entered')->latest('id');
+    }
+
+    /**
+     * Get library loans where this student is the borrower.
+     */
+    public function libraryLoans()
+    {
+        return $this->hasMany(LibraryLoan::class, 'borrower_id')->where('library_loans.borrower_type', 'Student');
+    }
+
+    /**
      * Scope a query to only include active students.
      */
     public function scopeActive($query)
     {
         return $query->where('status', 'Aktif');
+    }
+
+    /**
+     * Scope a query to only include alumni (lulus).
+     */
+    public function scopeAlumni($query)
+    {
+        return $query->where('status', 'Lulus');
+    }
+
+    /**
+     * Scope a query to filter by graduation year.
+     */
+    public function scopeByGraduationYear($query, int $year)
+    {
+        return $query->where('graduation_year', $year);
     }
 
     /**

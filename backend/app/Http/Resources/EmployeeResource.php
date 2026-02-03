@@ -43,6 +43,11 @@ class EmployeeResource extends JsonResource
             'status' => $this->status,
             'join_date' => $this->join_date?->format('Y-m-d'),
             'notes' => $this->notes,
+            'certification_status' => $this->certification_status,
+            'certification_date' => $this->certification_date?->format('Y-m-d'),
+            'teacher_registration_number' => $this->teacher_registration_number,
+            'certification_number' => $this->certification_number,
+            'certification_issuing_authority' => $this->certification_issuing_authority,
             'affiliation' => $this->getAffiliation($request),
             'current_assignment' => $this->getCurrentAssignment($request),
             'has_user_account' => $this->hasUserAccount(),
@@ -85,6 +90,13 @@ class EmployeeResource extends JsonResource
                         'created_at' => $document->created_at?->toISOString(),
                     ];
                 });
+            }),
+            'additional_duties' => $this->whenLoaded('additionalDuties', function () {
+                return $this->additionalDuties->map(fn ($d) => [
+                    'id' => $d->id,
+                    'key' => $d->key,
+                    'label' => $d->label,
+                ]);
             }),
             'assignments' => $this->whenLoaded('assignments', function () {
                 return EmployeeInstitutionAssignmentResource::collection($this->assignments);

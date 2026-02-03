@@ -156,13 +156,18 @@ class InstitutionController extends Controller
         try {
             $institution = Institution::findOrFail($id);
             $user = $request->user();
-            
+
             if (!$user) {
                 return response()->json([
                     'message' => 'Unauthorized',
                 ], 401);
             }
-            
+
+            // Hanya admin/super admin atau user dari institusi yang sama yang boleh mengubah
+            if (!$user->isAdminOrSuperAdmin() && (int) $user->institution_id !== (int) $institution->id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
             $validated = $request->validated();
             
             // Check if user is trying to change name or npsn without super admin permission
@@ -264,10 +269,20 @@ class InstitutionController extends Controller
     public function myInstitution(Request $request)
     {
         try {
-            $institution = $request->user()->institution;
+            $user = $request->user();
+            $institution = $user->institution;
+
+            // Jika relasi null tapi user punya institution_id, coba load langsung (mis. relasi belum diload)
+            if (!$institution && $user->institution_id) {
+                $institution = Institution::find($user->institution_id);
+            }
 
             if (!$institution) {
-                return response()->json(['message' => 'Institusi tidak ditemukan'], 404);
+                $message = 'Institusi tidak ditemukan.';
+                if ($user->role === 'institution_admin' && !$user->institution_id) {
+                    $message = 'Akun admin sekolah belum terhubung ke instansi. Silakan hubungi administrator.';
+                }
+                return response()->json(['message' => $message], 404);
             }
 
             // Load active academic year and semester

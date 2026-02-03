@@ -30,9 +30,9 @@ class ViolationResource extends JsonResource
                 'name' => $this->student->name,
                 'nis' => $this->student->nis,
                 'nisn' => $this->student->nisn,
-                'class' => $this->student->relationLoaded('class') && $this->student->class
-                    ? ['id' => $this->student->class->id, 'name' => $this->student->class->name]
-                    : null,
+                'class' => $this->student->relationLoaded('class') && $this->student->getRelation('class') instanceof \App\Models\SchoolClass
+                    ? ['id' => $this->student->getRelation('class')->id, 'name' => $this->student->getRelation('class')->name]
+                    : (($this->student->getRawOriginal('class') ?? null) ? ['name' => $this->student->getRawOriginal('class')] : null),
             ]),
             'violation_type' => $this->whenLoaded('violationType', fn () => [
                 'id' => $this->violationType->id,

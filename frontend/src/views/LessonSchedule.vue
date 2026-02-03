@@ -222,6 +222,7 @@ import Layout from '@/components/Layout.vue'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { subjectApi } from '@/api/subject'
 import { classApi } from '@/api/class'
+import { institutionApi } from '@/api/institution'
 import { semesterApi } from '@/api/semester'
 import { teacherApi } from '@/api/teacher'
 import { facilityApi } from '@/api/facility'
@@ -274,18 +275,24 @@ const slotForm = reactive({
 
 async function loadInitial() {
   try {
-    const [semRes, classRes, subRes, empRes, roomRes] = await Promise.all([
+    const [instRes, semRes, classRes, subRes, empRes, roomRes] = await Promise.all([
+      institutionApi.getMy().catch(() => ({ data: null })),
       semesterApi.getAll({ per_page: 100 }),
       classApi.getAll({ per_page: 200 }),
       subjectApi.getAll({ per_page: 'all', active_only: true }).catch(() => ({ data: [] })),
       teacherApi.getAll({ status: 'Aktif', per_page: 200 }),
       facilityApi.getRooms({ per_page: 200 }),
     ])
+    const institution = instRes.data?.data ?? instRes.data ?? null
     semesters.value = semRes.data?.data ?? semRes.data ?? []
     classes.value = classRes.data?.data ?? classRes.data ?? []
     subjects.value = Array.isArray(subRes.data) ? subRes.data : (subRes.data?.data ?? [])
     teachers.value = empRes.data?.data ?? empRes.data ?? []
     rooms.value = roomRes.data?.data ?? roomRes.data ?? []
+    if (institution?.active_semester_id) {
+      listFilters.semester_id = String(institution.active_semester_id)
+      filterSemesterId.value = String(institution.active_semester_id)
+    }
   } catch (e) {
     console.error(e)
   }
@@ -451,7 +458,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.schedule-page { padding: 1.5rem; }
+.schedule-page { width: 100%; max-width: 100%; padding: 1.5rem; }
 .page-header { margin-bottom: 1.5rem; }
 .header-content { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
 .header-actions { display: flex; gap: 0.5rem; }

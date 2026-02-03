@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getToken, removeToken, getRefreshToken } from '@/utils/tokenStorage'
+import { clearAuth } from '@/utils/tokenStorage'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -7,16 +7,12 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
-  withCredentials: true
+  withCredentials: true // Kirim httpOnly cookie (auth_token) ke backend
 })
 
-// Request interceptor untuk menambahkan token
+// Token dikirim via httpOnly cookie; tidak perlu set Authorization dari localStorage
 api.interceptors.request.use(
   (config) => {
-    const token = getToken()
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
     // Remove Content-Type header for FormData to let browser set it with boundary
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type']
@@ -53,27 +49,14 @@ api.interceptors.response.use(
       console.error('=== END INTERCEPTOR ERROR LOG ===')
     }
     if (error.response?.status === 401) {
-      // Try to refresh token
-      const refreshToken = getRefreshToken()
-      if (refreshToken) {
-        try {
-          const refreshResponse = await api.post('/v1/refresh-token', {
-            refresh_token: refreshToken
-          })
-          const newToken = refreshResponse.data.token
-          const { setToken } = await import('@/utils/tokenStorage')
-          setToken(newToken)
-          
-          // Retry original request
-          error.config.headers.Authorization = `Bearer ${newToken}`
-          return api.request(error.config)
-        } catch (refreshError) {
-          // Refresh failed, logout user
-          removeToken()
-          window.location.href = '/login'
-        }
-      } else {
-        removeToken()
+      // Coba refresh: refresh_token dikirim otomatis via httpOnly cookie
+      try {
+        const refreshResponse = await api.post('/v1/refresh-token')
+        // Backend set cookie auth_token baru; retry request (cookie ikut terkirim)
+        return api.request(error.config)
+      } catch (refreshError) {
+        // Refresh gagal (cookie kedaluwarsa / tidak ada) -> logout
+        clearAuth()
         window.location.href = '/login'
       }
     }

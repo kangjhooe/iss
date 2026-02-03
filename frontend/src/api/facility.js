@@ -173,5 +173,19 @@ export const facilityApi = {
     return api.get('/v1/facility/rooms', { 
       params: { ...params, building_id: buildingId } 
     })
+  },
+
+  /**
+   * Laporan khusus lab: ringkasan dan daftar lab dengan jumlah inventaris & jadwal.
+   */
+  getLabReport(params = {}) {
+    return api.get('/v1/facility/lab-report', { params })
+  },
+
+  /**
+   * Lab yang menjadi tanggung jawab user saat ini (Kepala Lab).
+   */
+  getMyLabs() {
+    return api.get('/v1/facility/my-labs')
   }
 }

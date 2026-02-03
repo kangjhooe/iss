@@ -8,6 +8,7 @@ use App\Models\StudentMutation;
 use App\Models\User;
 use App\Notifications\StudentMutationNotification;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -39,6 +40,71 @@ class StudentMutationService
     }
 
     /**
+     * Mutasi keluar ke sekolah yang belum terdaftar di aplikasi.
+     * NPSN dan nama sekolah dicatat manual. Status langsung approved, siswa di-mark Pindah.
+     */
+    public function createFromOriginExternal(
+        int $originInstitutionId,
+        string $targetNpsn,
+        string $targetSchoolName,
+        string $nisn,
+        int $requestedBy,
+        ?string $notes = null
+    ): StudentMutation {
+        $student = Student::where('nisn', $nisn)
+            ->where('institution_id', $originInstitutionId)
+            ->where('status', 'Aktif')
+            ->firstOrFail();
+
+        DB::beginTransaction();
+        try {
+            $student->load('class');
+            $grade = $student->class?->grade;
+            $gender = $student->gender;
+            if (is_string($gender)) {
+                $gender = preg_match('/^(L|l|Laki|Male)/i', $gender) ? 'L' : 'P';
+            } else {
+                $gender = 'P';
+            }
+
+            $mutation = StudentMutation::create([
+                'origin_institution_id' => $originInstitutionId,
+                'target_institution_id' => null,
+                'target_npsn' => $targetNpsn,
+                'target_school_name' => $targetSchoolName,
+                'student_id' => $student->id,
+                'student_grade' => $grade,
+                'student_gender' => $gender,
+                'initiated_by' => 'origin',
+                'requested_by' => $requestedBy,
+                'approved_by' => $requestedBy,
+                'status' => 'approved',
+                'approved_at' => now(),
+                'notes' => $notes,
+            ]);
+
+            $student->status = 'Pindah';
+            $student->class_id = null;
+            $student->nis = null;
+            $student->save();
+
+            DB::commit();
+
+            Log::info('Student mutation external (out of system) created', [
+                'mutation_id' => $mutation->id,
+                'student_id' => $student->id,
+                'target_npsn' => $targetNpsn,
+            ]);
+
+            return $mutation->load(['originInstitution', 'student', 'requester', 'approver']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Student mutation external create failed', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /**
      * Create mutation request from target school (admin tujuan: tarik siswa dari sekolah asal).
      * initiated_by = 'target'.
      */
@@ -62,6 +128,74 @@ class StudentMutationService
         $mutation->load(['originInstitution', 'targetInstitution', 'student', 'requester']);
         $this->notifyInstitutionAdmins($origin->id, $mutation, 'requested');
         return $mutation;
+    }
+
+    /**
+     * Mutasi masuk dari sekolah yang belum terdaftar di aplikasi.
+     * Buat data siswa baru di sekolah kita + catat mutasi (status approved).
+     */
+    public function createFromTargetExternal(
+        int $targetInstitutionId,
+        string $originNpsn,
+        string $originSchoolName,
+        string $studentName,
+        string $studentNisn,
+        string $studentGender,
+        ?string $studentGrade,
+        int $requestedBy,
+        ?string $notes = null
+    ): StudentMutation {
+        $target = Institution::with('activeAcademicYear')->findOrFail($targetInstitutionId);
+
+        if (Student::where('institution_id', $targetInstitutionId)->where('nisn', $studentNisn)->exists()) {
+            throw new \InvalidArgumentException('NISN tersebut sudah digunakan oleh siswa lain di sekolah Anda.');
+        }
+
+        $gender = preg_match('/^(L|l|Laki|Male)/i', $studentGender) ? 'L' : 'P';
+
+        DB::beginTransaction();
+        try {
+            $student = Student::create([
+                'institution_id' => $targetInstitutionId,
+                'nisn' => $studentNisn,
+                'name' => $studentName,
+                'gender' => $gender,
+                'status' => 'Aktif',
+                'academic_year_id' => $target->active_academic_year_id,
+                'academic_year' => $target->activeAcademicYear?->name,
+                'semester_id' => $target->active_semester_id,
+            ]);
+
+            $mutation = StudentMutation::create([
+                'origin_institution_id' => null,
+                'origin_npsn' => $originNpsn,
+                'origin_school_name' => $originSchoolName,
+                'target_institution_id' => $targetInstitutionId,
+                'student_id' => $student->id,
+                'student_grade' => $studentGrade,
+                'student_gender' => $gender,
+                'initiated_by' => 'target',
+                'requested_by' => $requestedBy,
+                'approved_by' => $requestedBy,
+                'status' => 'approved',
+                'approved_at' => now(),
+                'notes' => $notes,
+            ]);
+
+            DB::commit();
+
+            Log::info('Student mutation external origin (into system) created', [
+                'mutation_id' => $mutation->id,
+                'student_id' => $student->id,
+                'origin_npsn' => $originNpsn,
+            ]);
+
+            return $mutation->load(['targetInstitution', 'student', 'requester', 'approver']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Student mutation external origin create failed', ['error' => $e->getMessage()]);
+            throw $e;
+        }
     }
 
     /**
@@ -125,6 +259,16 @@ class StudentMutationService
                 }
             }
 
+            // Simpan grade dan gender siswa sebelum pindah (untuk laporan per kelas/L-P)
+            $student->load('class');
+            $grade = $student->class?->grade;
+            $gender = $student->gender;
+            if (is_string($gender)) {
+                $gender = preg_match('/^(L|l|Laki|Male)/i', $gender) ? 'L' : 'P';
+            } else {
+                $gender = 'P';
+            }
+
             $student->institution_id = $target->id;
             $student->class_id = null;
             $student->class = null;
@@ -135,6 +279,8 @@ class StudentMutationService
             $student->status = 'Aktif';
             $student->save();
 
+            $mutation->student_grade = $grade;
+            $mutation->student_gender = $gender;
             $mutation->status = 'approved';
             $mutation->approved_by = $approvedBy;
             $mutation->approved_at = now();
@@ -249,6 +395,41 @@ class StudentMutationService
             ],
             'data' => $data,
         ];
+    }
+
+    /**
+     * List approved mutations for export (Buku Mutasi). Same filters as report; no pagination.
+     *
+     * @return Collection<int, StudentMutation>
+     */
+    public function listForExport(int $institutionId, ?string $from, ?string $to, string $type = 'all', int $limit = 2000): Collection
+    {
+        $query = StudentMutation::with([
+            'originInstitution:id,name,npsn,level',
+            'targetInstitution:id,name,npsn,level',
+            'student:id,nisn,nis,name,gender,status',
+            'approver:id,name',
+        ])->where('status', 'approved')->orderBy('approved_at', 'asc');
+
+        if ($from) {
+            $query->whereDate('approved_at', '>=', $from);
+        }
+        if ($to) {
+            $query->whereDate('approved_at', '<=', $to);
+        }
+
+        if ($type === 'out') {
+            $query->where('origin_institution_id', $institutionId);
+        } elseif ($type === 'in') {
+            $query->where('target_institution_id', $institutionId);
+        } else {
+            $query->where(function ($q) use ($institutionId) {
+                $q->where('origin_institution_id', $institutionId)
+                    ->orWhere('target_institution_id', $institutionId);
+            });
+        }
+
+        return $query->limit($limit)->get();
     }
 
     /**

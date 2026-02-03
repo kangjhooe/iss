@@ -46,16 +46,8 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-              <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-        <p>Memuat data laporan...</p>
+      <div v-if="loading" class="loading-wrap">
+        <LoadingSkeleton type="card" :lines="6" :line-widths="['100%', '80%', '60%', '100%', '70%', '50%']" />
       </div>
 
       <!-- Report Content -->
@@ -156,7 +148,7 @@
         <!-- Students Statistics -->
         <div class="section">
           <h3 class="section-title">Data Siswa</h3>
-          <div class="chart-container">
+          <div class="chart-container" v-if="!studentsTableDetailEffective">
             <div class="chart-wrapper">
               <h4>Jumlah Siswa per Kelas</h4>
               <Bar v-if="studentsChartData" :data="studentsChartData" :options="chartOptions" />
@@ -168,7 +160,66 @@
               <div v-else class="chart-placeholder">Memuat data chart...</div>
             </div>
           </div>
-          <div class="data-table-container">
+          <!-- Tabel format laporan: Kls, Jumlah Rombel, Jumlah Awal, Siswa Keluar, Siswa Masuk, Jumlah Akhir -->
+          <div class="data-table-container" v-if="studentsTableDetailEffective">
+            <p class="table-period-hint" v-if="reportData.period?.month && reportData.period?.year">
+              Periode: {{ monthLabel(reportData.period.month) }} {{ reportData.period.year }}
+            </p>
+            <table class="data-table data-table-student-report">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="col-kls">Kls</th>
+                  <th rowspan="2" class="col-romb">Jumlah Rombel</th>
+                  <th colspan="3">Jumlah Awal</th>
+                  <th colspan="3">Siswa Keluar</th>
+                  <th colspan="3">Siswa Masuk</th>
+                  <th colspan="3">Jumlah Akhir</th>
+                </tr>
+                <tr>
+                  <th>L</th><th>P</th><th>Jml</th>
+                  <th>L</th><th>P</th><th>Jml</th>
+                  <th>L</th><th>P</th><th>Jml</th>
+                  <th>L</th><th>P</th><th>Jml</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in studentsTableDetailRows" :key="row.grade">
+                  <td><strong>{{ row.gradeLabel }}</strong></td>
+                  <td>{{ row.jml_romb }}</td>
+                  <td>{{ row.jumlah_awal.male }}</td>
+                  <td>{{ row.jumlah_awal.female }}</td>
+                  <td>{{ row.jumlah_awal.total }}</td>
+                  <td>{{ row.siswa_keluar.male || '' }}</td>
+                  <td>{{ row.siswa_keluar.female || '' }}</td>
+                  <td>{{ row.siswa_keluar.total || '' }}</td>
+                  <td>{{ row.siswa_masuk.male || '' }}</td>
+                  <td>{{ row.siswa_masuk.female || '' }}</td>
+                  <td>{{ row.siswa_masuk.total || '' }}</td>
+                  <td>{{ row.jumlah_akhir.male }}</td>
+                  <td>{{ row.jumlah_akhir.female }}</td>
+                  <td>{{ row.jumlah_akhir.total }}</td>
+                </tr>
+                <tr class="total-row" v-if="studentsTableDetailEffective?.totals">
+                  <td><strong>Jml</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.jml_romb }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.jumlah_awal.male }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.jumlah_awal.female }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.jumlah_awal.total }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.siswa_keluar.male }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.siswa_keluar.female }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.siswa_keluar.total }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.siswa_masuk.male }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.siswa_masuk.female }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.siswa_masuk.total }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.jumlah_akhir.male }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.jumlah_akhir.female }}</strong></td>
+                  <td><strong>{{ studentsTableDetailEffective.totals.jumlah_akhir.total }}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Tabel sederhana (fallback jika tidak ada data siswa) -->
+          <div class="data-table-container" v-else>
             <table class="data-table">
               <thead>
                 <tr>
@@ -441,6 +492,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
 import { reportApi } from '@/api/report'
@@ -455,7 +507,7 @@ const loading = ref(false)
 const reportData = ref(null)
 
 const filters = ref({
-  month: '',
+  month: (new Date().getMonth() + 1).toString(),
   year: new Date().getFullYear().toString(),
   compareWithPrevious: false
 })
@@ -543,6 +595,79 @@ const gradeRange = computed(() => {
   
   return gradeRanges[level] || [7, 8, 9]
 })
+
+const formatGradeLabel = (grade) => {
+  const g = Number(grade)
+  if (g === 10) return 'X'
+  if (g === 11) return 'XI'
+  if (g === 12) return 'XII'
+  return String(grade)
+}
+
+const studentsTableDetailEffective = computed(() => {
+  const detail = reportData.value?.students_table_detail
+  if (detail?.by_grade) return detail
+  const students = reportData.value?.students
+  const classesDetail = reportData.value?.classes_detail
+  if (!students || !reportData.value?.institution?.level) return null
+  const level = reportData.value.institution.level
+  const gradeRanges = { TK: [1], PAUD: [1], SD: [1,2,3,4,5,6], MI: [1,2,3,4,5,6], SMP: [7,8,9], MTs: [7,8,9], SMA: [10,11,12], MA: [10,11,12], SMK: [10,11,12], MAK: [10,11,12] }
+  const grades = gradeRanges[level] || [7, 8, 9]
+  const byGrade = {}
+  let totRomb = 0
+  const tot = { jml_romb: 0, jumlah_awal: { male: 0, female: 0, total: 0 }, siswa_keluar: { male: 0, female: 0, total: 0 }, siswa_masuk: { male: 0, female: 0, total: 0 }, jumlah_akhir: { male: 0, female: 0, total: 0 } }
+  for (const g of grades) {
+    const key = `grade_${g}`
+    const s = students[key] || { male: 0, female: 0, total: 0 }
+    const jmlRomb = (classesDetail?.by_grade && Array.isArray(classesDetail.by_grade[key])) ? classesDetail.by_grade[key].length : 0
+    byGrade[key] = {
+      grade: g,
+      jml_romb: jmlRomb,
+      jumlah_awal: { ...s },
+      siswa_keluar: { male: 0, female: 0, total: 0 },
+      siswa_masuk: { male: 0, female: 0, total: 0 },
+      jumlah_akhir: { ...s },
+    }
+    totRomb += jmlRomb
+    tot.jumlah_awal.male += s.male
+    tot.jumlah_awal.female += s.female
+    tot.jumlah_awal.total += s.total
+    tot.siswa_keluar.total += 0
+    tot.siswa_masuk.total += 0
+    tot.jumlah_akhir.male += s.male
+    tot.jumlah_akhir.female += s.female
+    tot.jumlah_akhir.total += s.total
+  }
+  tot.jml_romb = totRomb
+  return { grade_range: [grades[0], grades[grades.length - 1]], by_grade: byGrade, totals: tot }
+})
+
+const studentsTableDetailRows = computed(() => {
+  const detail = studentsTableDetailEffective.value
+  if (!detail?.by_grade) return []
+  const [minG, maxG] = detail.grade_range || [1, 12]
+  const rows = []
+  for (let g = minG; g <= maxG; g++) {
+    const key = `grade_${g}`
+    const r = detail.by_grade[key]
+    if (!r) continue
+    rows.push({
+      grade: g,
+      gradeLabel: formatGradeLabel(g),
+      jml_romb: r.jml_romb ?? 0,
+      jumlah_awal: r.jumlah_awal ?? { male: 0, female: 0, total: 0 },
+      siswa_keluar: r.siswa_keluar ?? { male: 0, female: 0, total: 0 },
+      siswa_masuk: r.siswa_masuk ?? { male: 0, female: 0, total: 0 },
+      jumlah_akhir: r.jumlah_akhir ?? { male: 0, female: 0, total: 0 },
+    })
+  }
+  return rows
+})
+
+const monthLabel = (month) => {
+  const names = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+  return names[Number(month)] || month
+}
 
 const studentsChartData = computed(() => {
   if (!reportData.value || !reportData.value.students) {
@@ -908,10 +1033,54 @@ const exportPDF = async () => {
     
     const fullAddress = formatAddress(institution)
     const principalLabel = getPrincipalLabel(institution)
-    
-    // Build students table HTML dynamically based on grade range
-    const grades = gradeRange.value
-    const studentsTableRows = grades.map(grade => `
+
+    const detail = studentsTableDetailEffective.value || reportData.value.students_table_detail
+    let studentsTableHtml
+    if (detail?.by_grade && detail?.totals) {
+      const [minG, maxG] = detail.grade_range || [1, 12]
+      const rowCells = (r) => [
+        r.jumlah_awal?.male ?? 0, r.jumlah_awal?.female ?? 0, r.jumlah_awal?.total ?? 0,
+        r.siswa_keluar?.male ?? '', r.siswa_keluar?.female ?? '', r.siswa_keluar?.total ?? '',
+        r.siswa_masuk?.male ?? '', r.siswa_masuk?.female ?? '', r.siswa_masuk?.total ?? '',
+        r.jumlah_akhir?.male ?? 0, r.jumlah_akhir?.female ?? 0, r.jumlah_akhir?.total ?? 0
+      ]
+      const dataRows = []
+      for (let g = minG; g <= maxG; g++) {
+        const r = detail.by_grade[`grade_${g}`]
+        if (!r) continue
+        const cells = rowCells(r)
+        dataRows.push(`<tr><td><strong>${formatGradeLabel(g)}</strong></td><td>${r.jml_romb ?? 0}</td>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`)
+      }
+      const t = detail.totals
+      const totalCells = [t.jumlah_awal?.male ?? 0, t.jumlah_awal?.female ?? 0, t.jumlah_awal?.total ?? 0, t.siswa_keluar?.male ?? 0, t.siswa_keluar?.female ?? 0, t.siswa_keluar?.total ?? 0, t.siswa_masuk?.male ?? 0, t.siswa_masuk?.female ?? 0, t.siswa_masuk?.total ?? 0, t.jumlah_akhir?.male ?? 0, t.jumlah_akhir?.female ?? 0, t.jumlah_akhir?.total ?? 0].map(v => `<td><strong>${v}</strong></td>`).join('')
+      studentsTableHtml = `
+        <p class="table-period-hint">Periode: ${monthLabel(reportData.value.period?.month ?? filters.value.month)} ${reportData.value.period?.year || filters.value.year || ''}</p>
+        <table class="data-table data-table-student-report">
+          <thead>
+            <tr>
+              <th rowspan="2" class="col-kls">Kls</th>
+              <th rowspan="2" class="col-romb">Jumlah Rombel</th>
+              <th colspan="3">Jumlah Awal</th>
+              <th colspan="3">Siswa Keluar</th>
+              <th colspan="3">Siswa Masuk</th>
+              <th colspan="3">Jumlah Akhir</th>
+            </tr>
+            <tr>
+              <th>L</th><th>P</th><th>Jml</th>
+              <th>L</th><th>P</th><th>Jml</th>
+              <th>L</th><th>P</th><th>Jml</th>
+              <th>L</th><th>P</th><th>Jml</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${dataRows.join('')}
+            <tr class="total-row"><td><strong>Jml</strong></td><td><strong>${t.jml_romb ?? 0}</strong></td>${totalCells}</tr>
+          </tbody>
+        </table>
+      `
+    } else {
+      const grades = gradeRange.value
+      const studentsTableRows = grades.map(grade => `
       <tr>
         <td><strong>Kelas ${grade}</strong></td>
         <td>${reportData.value.students?.[`grade_${grade}`]?.male || 0}</td>
@@ -926,6 +1095,22 @@ const exportPDF = async () => {
         <td><strong>${calculatedTotalStudents.value || reportData.value.summary?.total_students || 0}</strong></td>
       </tr>
     `
+      studentsTableHtml = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Kelas</th>
+              <th>Laki-laki</th>
+              <th>Perempuan</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${studentsTableRows}
+          </tbody>
+        </table>
+      `
+    }
     
     // Build rooms table HTML
     let roomsTableRows = ''
@@ -1057,6 +1242,15 @@ const exportPDF = async () => {
         .total-row {
           background: #f0f0f0;
           font-weight: bold;
+        }
+        .table-period-hint {
+          margin-bottom: 8px;
+          font-size: 12px;
+          color: #333;
+        }
+        .data-table-student-report th,
+        .data-table-student-report td {
+          text-align: center;
         }
         .summary-box {
           background: #f9f9f9;
@@ -1200,19 +1394,7 @@ const exportPDF = async () => {
         
         <div class="section">
           <h3 class="section-title">Data Siswa</h3>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Kelas</th>
-                <th>Laki-laki</th>
-                <th>Perempuan</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${studentsTableRows}
-            </tbody>
-          </table>
+          ${studentsTableHtml}
         </div>
         
         ${reportData.value.students_by_status ? `
@@ -1452,7 +1634,8 @@ onMounted(() => {
 
 <style scoped>
 .report-page {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-header {
@@ -1690,6 +1873,22 @@ onMounted(() => {
 .total-row {
   background: #f1f5f9;
   font-weight: 600;
+}
+
+.table-period-hint {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.data-table-student-report th,
+.data-table-student-report td {
+  text-align: center;
+}
+
+.data-table-student-report .col-kls,
+.data-table-student-report .col-romb {
+  min-width: 48px;
 }
 
 .facilities-grid {

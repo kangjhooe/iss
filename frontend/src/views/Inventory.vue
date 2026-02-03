@@ -22,6 +22,15 @@
           <button @click="activeTab = 'transactions'" :class="['tab-btn', { active: activeTab === 'transactions' }]">
             <span>Transaksi</span>
           </button>
+          <button @click="activeTab = 'maintenances'" :class="['tab-btn', { active: activeTab === 'maintenances' }]">
+            <span>Pemeliharaan</span>
+          </button>
+          <button @click="activeTab = 'loans'" :class="['tab-btn', { active: activeTab === 'loans' }]">
+            <span>Peminjaman</span>
+          </button>
+          <button @click="activeTab = 'reports'" :class="['tab-btn', { active: activeTab === 'reports' }]">
+            <span>Laporan</span>
+          </button>
         </div>
       </div>
 
@@ -339,6 +348,277 @@
         </div>
       </div>
 
+      <!-- MAINTENANCES TAB -->
+      <div v-show="activeTab === 'maintenances'" class="tab-content">
+        <div class="tab-header">
+          <div class="filters filters-inline">
+            <select v-model="maintenanceFilters.item_id" @change="loadMaintenances(1)" class="filter-select">
+              <option value="">Semua Barang</option>
+              <option v-for="it in itemOptions" :key="it.id" :value="it.id">{{ it.code }} - {{ it.name }}</option>
+            </select>
+            <select v-model="maintenanceFilters.maintenance_type" @change="loadMaintenances(1)" class="filter-select">
+              <option value="">Semua Jenis</option>
+              <option value="Perawatan">Perawatan</option>
+              <option value="Perbaikan">Perbaikan</option>
+              <option value="Kalibrasi">Kalibrasi</option>
+              <option value="Inspeksi">Inspeksi</option>
+            </select>
+            <select v-model="maintenanceFilters.status" @change="loadMaintenances(1)" class="filter-select">
+              <option value="">Semua Status</option>
+              <option value="Terjadwal">Terjadwal</option>
+              <option value="Dalam Proses">Dalam Proses</option>
+              <option value="Selesai">Selesai</option>
+              <option value="Dibatalkan">Dibatalkan</option>
+            </select>
+          </div>
+          <button @click="openMaintenanceModal()" class="btn-primary">
+            <span>Tambah Pemeliharaan</span>
+          </button>
+        </div>
+
+        <div v-if="maintenancesLoading" class="loading-state">
+          <p>Memuat data...</p>
+        </div>
+
+        <div v-else class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Barang</th>
+                <th>Jenis</th>
+                <th>Tanggal Jadwal</th>
+                <th>Tanggal Selesai</th>
+                <th>Status</th>
+                <th>Biaya</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in maintenances" :key="m.id">
+                <td>
+                  <div class="name-cell">
+                    <div class="name">{{ m.item?.name || '-' }}</div>
+                    <div class="muted small">{{ m.item?.code || '-' }}</div>
+                  </div>
+                </td>
+                <td>{{ m.maintenance_type }}</td>
+                <td>{{ formatDate(m.scheduled_date) }}</td>
+                <td>{{ formatDate(m.completed_date) || '-' }}</td>
+                <td><span :class="getMaintenanceStatusClass(m.status)">{{ m.status }}</span></td>
+                <td>{{ m.cost != null ? formatCurrency(m.cost) : '-' }}</td>
+                <td>
+                  <div class="action-buttons">
+                    <button @click="openMaintenanceModal(m)" class="btn-action btn-edit">Edit</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-if="maintenances.length === 0" class="empty-state">
+            <h3>Belum ada data pemeliharaan</h3>
+            <p>Catat jadwal perawatan, perbaikan, kalibrasi, atau inspeksi.</p>
+            <button @click="openMaintenanceModal()" class="btn-primary">Tambah Pemeliharaan</button>
+          </div>
+
+          <div v-if="maintenancesMeta.last_page > 1" class="pagination">
+            <button
+              @click="loadMaintenances(maintenancesMeta.current_page - 1)"
+              :disabled="maintenancesMeta.current_page === 1"
+              class="pagination-btn"
+            >
+              Sebelumnya
+            </button>
+            <span class="pagination-info">
+              Halaman {{ maintenancesMeta.current_page }} dari {{ maintenancesMeta.last_page }} (Total: {{ maintenancesMeta.total }})
+            </span>
+            <button
+              @click="loadMaintenances(maintenancesMeta.current_page + 1)"
+              :disabled="maintenancesMeta.current_page >= maintenancesMeta.last_page"
+              class="pagination-btn"
+            >
+              Selanjutnya
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOANS TAB -->
+      <div v-show="activeTab === 'loans'" class="tab-content">
+        <div class="tab-header">
+          <div class="filters filters-inline">
+            <select v-model="loanFilters.item_id" @change="loadLoans(1)" class="filter-select">
+              <option value="">Semua Barang</option>
+              <option v-for="it in itemOptions" :key="it.id" :value="it.id">{{ it.code }} - {{ it.name }}</option>
+            </select>
+            <select v-model="loanFilters.borrower_type" @change="loadLoans(1)" class="filter-select">
+              <option value="">Semua Peminjam</option>
+              <option value="Employee">Pegawai</option>
+              <option value="Student">Siswa</option>
+              <option value="External">Eksternal</option>
+            </select>
+            <select v-model="loanFilters.status" @change="loadLoans(1)" class="filter-select">
+              <option value="">Semua Status</option>
+              <option value="Dipinjam">Dipinjam</option>
+              <option value="Dikembalikan">Dikembalikan</option>
+            </select>
+          </div>
+          <button @click="openLoanModal()" class="btn-primary">
+            <span>Tambah Peminjaman</span>
+          </button>
+        </div>
+
+        <div v-if="loansLoading" class="loading-state">
+          <p>Memuat data...</p>
+        </div>
+
+        <div v-else class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Barang</th>
+                <th>Peminjam</th>
+                <th>Tgl Pinjam</th>
+                <th>Tgl Jatuh Tempo</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="ln in loans" :key="ln.id" :class="{ 'row-overdue': ln.is_overdue && ln.status === 'Dipinjam' }">
+                <td>
+                  <div class="name-cell">
+                    <div class="name">{{ ln.item?.name || '-' }}</div>
+                    <div class="muted small">{{ ln.item?.code || '-' }}</div>
+                  </div>
+                </td>
+                <td>{{ ln.borrower_name }} <span v-if="ln.borrower_phone" class="muted small">({{ ln.borrower_phone }})</span></td>
+                <td>{{ formatDate(ln.loan_date) }}</td>
+                <td>{{ formatDate(ln.expected_return_date) }}</td>
+                <td>{{ ln.quantity }}</td>
+                <td>
+                  <span :class="ln.status === 'Dikembalikan' ? 'badge-success' : (ln.is_overdue ? 'badge-danger' : 'badge-info')">
+                    {{ ln.status }}{{ ln.is_overdue && ln.status === 'Dipinjam' ? ' (Terlambat)' : '' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <button
+                      v-if="ln.status === 'Dipinjam'"
+                      @click="openReturnLoanModal(ln)"
+                      class="btn-action btn-secondary"
+                    >
+                      Kembalikan
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-if="loans.length === 0" class="empty-state">
+            <h3>Belum ada data peminjaman</h3>
+            <p>Catat peminjaman barang oleh pegawai, siswa, atau pihak eksternal.</p>
+            <button @click="openLoanModal()" class="btn-primary">Tambah Peminjaman</button>
+          </div>
+
+          <div v-if="loansMeta.last_page > 1" class="pagination">
+            <button
+              @click="loadLoans(loansMeta.current_page - 1)"
+              :disabled="loansMeta.current_page === 1"
+              class="pagination-btn"
+            >
+              Sebelumnya
+            </button>
+            <span class="pagination-info">
+              Halaman {{ loansMeta.current_page }} dari {{ loansMeta.last_page }} (Total: {{ loansMeta.total }})
+            </span>
+            <button
+              @click="loadLoans(loansMeta.current_page + 1)"
+              :disabled="loansMeta.current_page >= loansMeta.last_page"
+              class="pagination-btn"
+            >
+              Selanjutnya
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTS TAB -->
+      <div v-show="activeTab === 'reports'" class="tab-content">
+        <div class="reports-grid">
+          <section class="report-card">
+            <h3>Statistik Inventaris</h3>
+            <div v-if="reportStatsLoading" class="muted">Memuat...</div>
+            <div v-else-if="reportStats" class="report-stats">
+              <p><strong>Total Barang:</strong> {{ reportStats.total_items }} ({{ reportStats.total_quantity }} unit)</p>
+              <p><strong>Nilai Aset:</strong> {{ formatCurrency(reportStats.total_value || 0) }}</p>
+              <p><strong>Garansi habis dalam 3 bulan:</strong> {{ reportStats.warranty_expiring_soon || 0 }} barang</p>
+            </div>
+            <button @click="loadReportStats" class="btn-outline btn-compact">Muat Ulang</button>
+          </section>
+
+          <section class="report-card">
+            <h3>Barang Rusak / Hilang</h3>
+            <div v-if="reportDamagedLoading" class="muted">Memuat...</div>
+            <div v-else-if="reportDamaged.length" class="report-list">
+              <table class="data-table small">
+                <thead><tr><th>Barang</th><th>Kondisi</th><th>Keterangan</th></tr></thead>
+                <tbody>
+                  <tr v-for="(row, idx) in reportDamaged" :key="row.id + '-' + idx">
+                    <td>{{ row.name }} ({{ row.code }})</td>
+                    <td>{{ row.condition || '-' }}</td>
+                    <td>{{ row.statusLabel }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="muted">Tidak ada</p>
+            <button @click="loadReportDamaged" class="btn-outline btn-compact">Muat Ulang</button>
+          </section>
+
+          <section class="report-card">
+            <h3>Sedang Dipinjam</h3>
+            <div v-if="reportLoanedLoading" class="muted">Memuat...</div>
+            <div v-else-if="reportLoaned.length" class="report-list">
+              <table class="data-table small">
+                <thead><tr><th>Barang</th><th>Peminjam</th><th>Tgl Jatuh Tempo</th></tr></thead>
+                <tbody>
+                  <tr v-for="row in reportLoaned" :key="row.id">
+                    <td>{{ row.item_name || row.name }} ({{ row.item_code || row.code }})</td>
+                    <td>{{ row.borrower_name }}</td>
+                    <td>{{ formatDate(row.expected_return_date) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="muted">Tidak ada</p>
+            <button @click="loadReportLoaned" class="btn-outline btn-compact">Muat Ulang</button>
+          </section>
+
+          <section class="report-card full-width">
+            <h3>Nilai Aset per Kategori</h3>
+            <div v-if="reportAssetLoading" class="muted">Memuat...</div>
+            <div v-else-if="reportAsset.length" class="report-list">
+              <table class="data-table">
+                <thead><tr><th>Kategori</th><th>Jumlah Barang</th><th>Total Unit</th><th>Nilai (Rp)</th></tr></thead>
+                <tbody>
+                  <tr v-for="row in reportAsset" :key="row.category">
+                    <td>{{ row.category }}</td>
+                    <td>{{ row.item_count ?? row.count }}</td>
+                    <td>{{ row.total_quantity }}</td>
+                    <td>{{ formatCurrency(row.total_value || 0) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="muted">Tidak ada data</p>
+            <button @click="loadReportAsset" class="btn-outline btn-compact">Muat Ulang</button>
+          </section>
+        </div>
+      </div>
+
       <!-- ITEM MODAL -->
       <div v-if="showItemModal" class="modal-overlay" @click="closeItemModal">
         <div class="modal-content" @click.stop>
@@ -616,6 +896,201 @@
               <button type="button" @click="closeTransactionModal" class="btn-secondary">Batal</button>
               <button type="submit" :disabled="transactionSaving" class="btn-primary">
                 {{ transactionSaving ? 'Menyimpan...' : 'Simpan' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MAINTENANCE MODAL -->
+      <div v-if="showMaintenanceModal" class="modal-overlay" @click="closeMaintenanceModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>{{ editingMaintenance ? 'Edit Pemeliharaan' : 'Tambah Pemeliharaan' }}</h3>
+            <button @click="closeMaintenanceModal" class="btn-close">×</button>
+          </div>
+
+          <form @submit.prevent="saveMaintenance" class="modal-body">
+            <div class="form-group">
+              <label>Barang *</label>
+              <select v-model="maintenanceForm.item_id" required :disabled="!!editingMaintenance">
+                <option value="">Pilih Barang</option>
+                <option v-for="it in itemOptions" :key="it.id" :value="it.id">{{ it.code }} - {{ it.name }}</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Jenis Pemeliharaan *</label>
+                <select v-model="maintenanceForm.maintenance_type" required>
+                  <option value="Perawatan">Perawatan</option>
+                  <option value="Perbaikan">Perbaikan</option>
+                  <option value="Kalibrasi">Kalibrasi</option>
+                  <option value="Inspeksi">Inspeksi</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select v-model="maintenanceForm.status">
+                  <option value="Terjadwal">Terjadwal</option>
+                  <option value="Dalam Proses">Dalam Proses</option>
+                  <option value="Selesai">Selesai</option>
+                  <option value="Dibatalkan">Dibatalkan</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Tanggal Jadwal *</label>
+                <input type="date" v-model="maintenanceForm.scheduled_date" required />
+              </div>
+              <div class="form-group">
+                <label>Tanggal Selesai</label>
+                <input type="date" v-model="maintenanceForm.completed_date" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Biaya (Rp)</label>
+                <input type="number" v-model.number="maintenanceForm.cost" min="0" step="0.01" />
+              </div>
+              <div class="form-group">
+                <label>Vendor / Teknisi</label>
+                <input v-model="maintenanceForm.vendor" placeholder="Nama vendor atau teknisi" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Nama Teknisi</label>
+              <input v-model="maintenanceForm.technician_name" />
+            </div>
+
+            <div class="form-group">
+              <label>Deskripsi</label>
+              <textarea v-model="maintenanceForm.description" rows="2"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Catatan</label>
+              <textarea v-model="maintenanceForm.notes" rows="2"></textarea>
+            </div>
+
+            <div v-if="maintenanceError" class="error-message">{{ maintenanceError }}</div>
+
+            <div class="modal-footer">
+              <button type="button" @click="closeMaintenanceModal" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="maintenanceSaving" class="btn-primary">
+                {{ maintenanceSaving ? 'Menyimpan...' : 'Simpan' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- LOAN MODAL -->
+      <div v-if="showLoanModal" class="modal-overlay" @click="closeLoanModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Tambah Peminjaman</h3>
+            <button @click="closeLoanModal" class="btn-close">×</button>
+          </div>
+
+          <form @submit.prevent="saveLoan" class="modal-body">
+            <div class="form-group">
+              <label>Barang *</label>
+              <select v-model="loanForm.item_id" required @change="onLoanItemChange">
+                <option value="">Pilih Barang</option>
+                <option v-for="it in availableItemOptions" :key="it.id" :value="it.id">
+                  {{ it.code }} - {{ it.name }} (Tersedia: {{ it.quantity || 0 }})
+                </option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Jenis Peminjam *</label>
+                <select v-model="loanForm.borrower_type" required>
+                  <option value="Employee">Pegawai</option>
+                  <option value="Student">Siswa</option>
+                  <option value="External">Eksternal</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Jumlah *</label>
+                <input type="number" v-model.number="loanForm.quantity" min="1" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Nama Peminjam *</label>
+              <input v-model="loanForm.borrower_name" required placeholder="Nama lengkap" />
+            </div>
+
+            <div class="form-group">
+              <label>No. Telepon</label>
+              <input v-model="loanForm.borrower_phone" placeholder="08xxxxxxxxxx" />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Tanggal Pinjam *</label>
+                <input type="date" v-model="loanForm.loan_date" required />
+              </div>
+              <div class="form-group">
+                <label>Tanggal Jatuh Tempo *</label>
+                <input type="date" v-model="loanForm.expected_return_date" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Tujuan Peminjaman</label>
+              <input v-model="loanForm.purpose" placeholder="Opsional" />
+            </div>
+
+            <div class="form-group">
+              <label>Catatan</label>
+              <textarea v-model="loanForm.notes" rows="2"></textarea>
+            </div>
+
+            <div v-if="loanError" class="error-message">{{ loanError }}</div>
+
+            <div class="modal-footer">
+              <button type="button" @click="closeLoanModal" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="loanSaving" class="btn-primary">
+                {{ loanSaving ? 'Menyimpan...' : 'Simpan' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- RETURN LOAN MODAL -->
+      <div v-if="showReturnLoanModal" class="modal-overlay" @click="closeReturnLoanModal">
+        <div class="modal-content modal-content-sm" @click.stop>
+          <div class="modal-header">
+            <h3>Pengembalian Barang</h3>
+            <button @click="closeReturnLoanModal" class="btn-close">×</button>
+          </div>
+
+          <form @submit.prevent="submitReturnLoan" class="modal-body">
+            <p v-if="returningLoan" class="muted">
+              {{ returningLoan.item?.name }} — dipinjam oleh {{ returningLoan.borrower_name }}
+            </p>
+            <div class="form-group">
+              <label>Tanggal Dikembalikan *</label>
+              <input type="date" v-model="returnLoanForm.actual_return_date" required />
+            </div>
+            <div class="form-group">
+              <label>Catatan</label>
+              <textarea v-model="returnLoanForm.notes" rows="2"></textarea>
+            </div>
+            <div v-if="returnLoanError" class="error-message">{{ returnLoanError }}</div>
+            <div class="modal-footer">
+              <button type="button" @click="closeReturnLoanModal" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="returnLoanSaving" class="btn-primary">
+                {{ returnLoanSaving ? 'Menyimpan...' : 'Catat Pengembalian' }}
               </button>
             </div>
           </form>
@@ -1177,6 +1652,357 @@ const getTransactionTypeClass = (type) => {
   return map[type] || 'badge-gray'
 }
 
+const getMaintenanceStatusClass = (status) => {
+  const map = {
+    Terjadwal: 'badge-info',
+    'Dalam Proses': 'badge-warning',
+    Selesai: 'badge-success',
+    Dibatalkan: 'badge-gray'
+  }
+  return map[status] || 'badge-gray'
+}
+
+const formatCurrency = (num) => {
+  if (num == null || num === '') return '-'
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num)
+}
+
+// ==================== Maintenances state ====================
+const maintenances = ref([])
+const maintenancesLoading = ref(false)
+const maintenancesMeta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
+const maintenanceFilters = ref({ item_id: '', maintenance_type: '', status: '' })
+
+const loadMaintenances = async (page = 1) => {
+  maintenancesLoading.value = true
+  try {
+    const params = { page, per_page: 15 }
+    if (maintenanceFilters.value.item_id) params.item_id = maintenanceFilters.value.item_id
+    if (maintenanceFilters.value.maintenance_type) params.maintenance_type = maintenanceFilters.value.maintenance_type
+    if (maintenanceFilters.value.status) params.status = maintenanceFilters.value.status
+
+    const res = await inventoryApi.getMaintenances(params)
+    maintenances.value = safeArray(res)
+    maintenancesMeta.value = parsePagination(res, maintenancesMeta.value)
+  } catch (err) {
+    const msg = err.formattedMessage || err.response?.data?.message || 'Gagal memuat pemeliharaan'
+    toast.error('Gagal', msg)
+    maintenances.value = []
+  } finally {
+    maintenancesLoading.value = false
+  }
+}
+
+const showMaintenanceModal = ref(false)
+const editingMaintenance = ref(null)
+const maintenanceSaving = ref(false)
+const maintenanceError = ref('')
+const maintenanceForm = ref({
+  item_id: '',
+  maintenance_type: 'Perawatan',
+  scheduled_date: new Date().toISOString().split('T')[0],
+  completed_date: '',
+  cost: null,
+  vendor: '',
+  description: '',
+  status: 'Terjadwal',
+  technician_name: '',
+  notes: ''
+})
+
+const openMaintenanceModal = async (m = null) => {
+  if (itemOptions.value.length === 0) await loadItemOptions()
+  editingMaintenance.value = m
+  maintenanceError.value = ''
+  if (m) {
+    maintenanceForm.value = {
+      item_id: m.item_id || m.item?.id,
+      maintenance_type: m.maintenance_type || 'Perawatan',
+      scheduled_date: m.scheduled_date ? String(m.scheduled_date).split('T')[0] : '',
+      completed_date: m.completed_date ? String(m.completed_date).split('T')[0] : '',
+      cost: m.cost ?? null,
+      vendor: m.vendor || '',
+      description: m.description || '',
+      status: m.status || 'Terjadwal',
+      technician_name: m.technician_name || '',
+      notes: m.notes || ''
+    }
+  } else {
+    maintenanceForm.value = {
+      item_id: '',
+      maintenance_type: 'Perawatan',
+      scheduled_date: new Date().toISOString().split('T')[0],
+      completed_date: '',
+      cost: null,
+      vendor: '',
+      description: '',
+      status: 'Terjadwal',
+      technician_name: '',
+      notes: ''
+    }
+  }
+  showMaintenanceModal.value = true
+}
+
+const closeMaintenanceModal = () => {
+  showMaintenanceModal.value = false
+  editingMaintenance.value = null
+  maintenanceError.value = ''
+}
+
+const saveMaintenance = async () => {
+  maintenanceSaving.value = true
+  maintenanceError.value = ''
+  try {
+    const payload = {
+      item_id: maintenanceForm.value.item_id,
+      maintenance_type: maintenanceForm.value.maintenance_type,
+      scheduled_date: maintenanceForm.value.scheduled_date,
+      completed_date: maintenanceForm.value.completed_date || null,
+      cost: maintenanceForm.value.cost ?? null,
+      vendor: maintenanceForm.value.vendor?.trim() || null,
+      description: maintenanceForm.value.description?.trim() || null,
+      status: maintenanceForm.value.status,
+      technician_name: maintenanceForm.value.technician_name?.trim() || null,
+      notes: maintenanceForm.value.notes?.trim() || null
+    }
+    if (editingMaintenance.value) {
+      await inventoryApi.updateMaintenance(editingMaintenance.value.id, payload)
+      toast.success('Berhasil', 'Pemeliharaan berhasil diperbarui')
+    } else {
+      await inventoryApi.createMaintenance(payload)
+      toast.success('Berhasil', 'Pemeliharaan berhasil ditambahkan')
+    }
+    closeMaintenanceModal()
+    await loadMaintenances(maintenancesMeta.value.current_page || 1)
+  } catch (err) {
+    const msg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan pemeliharaan'
+    maintenanceError.value = msg
+    toast.error('Gagal', msg)
+  } finally {
+    maintenanceSaving.value = false
+  }
+}
+
+// ==================== Loans state ====================
+const loans = ref([])
+const loansLoading = ref(false)
+const loansMeta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
+const loanFilters = ref({ item_id: '', borrower_type: '', status: '' })
+
+const loadLoans = async (page = 1) => {
+  loansLoading.value = true
+  try {
+    const params = { page, per_page: 15 }
+    if (loanFilters.value.item_id) params.item_id = loanFilters.value.item_id
+    if (loanFilters.value.borrower_type) params.borrower_type = loanFilters.value.borrower_type
+    if (loanFilters.value.status) params.status = loanFilters.value.status
+
+    const res = await inventoryApi.getLoans(params)
+    loans.value = safeArray(res)
+    loansMeta.value = parsePagination(res, loansMeta.value)
+  } catch (err) {
+    const msg = err.formattedMessage || err.response?.data?.message || 'Gagal memuat peminjaman'
+    toast.error('Gagal', msg)
+    loans.value = []
+  } finally {
+    loansLoading.value = false
+  }
+}
+
+const showLoanModal = ref(false)
+const loanSaving = ref(false)
+const loanError = ref('')
+const loanForm = ref({
+  item_id: '',
+  borrower_type: 'Employee',
+  borrower_name: '',
+  borrower_phone: '',
+  loan_date: new Date().toISOString().split('T')[0],
+  expected_return_date: '',
+  quantity: 1,
+  purpose: '',
+  notes: ''
+})
+
+const availableItemOptions = ref([])
+const loadAvailableItemOptions = async () => {
+  try {
+    const res = await inventoryApi.getItems({ per_page: 200, status: 'Tersedia' })
+    const list = safeArray(res)
+    availableItemOptions.value = list.filter(it => (it.quantity || 0) > 0)
+  } catch {
+    availableItemOptions.value = []
+  }
+}
+
+const onLoanItemChange = () => {
+  const it = availableItemOptions.value.find(i => i.id === Number(loanForm.value.item_id))
+  if (it) loanForm.value.quantity = Math.min(loanForm.value.quantity || 1, it.quantity || 1)
+}
+
+const openLoanModal = async () => {
+  await loadAvailableItemOptions()
+  loanError.value = ''
+  const today = new Date().toISOString().split('T')[0]
+  const nextWeek = new Date()
+  nextWeek.setDate(nextWeek.getDate() + 7)
+  loanForm.value = {
+    item_id: '',
+    borrower_type: 'Employee',
+    borrower_name: '',
+    borrower_phone: '',
+    loan_date: today,
+    expected_return_date: nextWeek.toISOString().split('T')[0],
+    quantity: 1,
+    purpose: '',
+    notes: ''
+  }
+  showLoanModal.value = true
+}
+
+const closeLoanModal = () => {
+  showLoanModal.value = false
+  loanError.value = ''
+}
+
+const saveLoan = async () => {
+  loanSaving.value = true
+  loanError.value = ''
+  try {
+    const payload = {
+      item_id: loanForm.value.item_id,
+      borrower_type: loanForm.value.borrower_type,
+      borrower_name: loanForm.value.borrower_name?.trim() || '',
+      borrower_phone: loanForm.value.borrower_phone?.trim() || null,
+      loan_date: loanForm.value.loan_date,
+      expected_return_date: loanForm.value.expected_return_date,
+      quantity: loanForm.value.quantity,
+      purpose: loanForm.value.purpose?.trim() || null,
+      notes: loanForm.value.notes?.trim() || null
+    }
+    await inventoryApi.createLoan(payload)
+    toast.success('Berhasil', 'Peminjaman berhasil dicatat')
+    closeLoanModal()
+    await loadLoans(loansMeta.value.current_page || 1)
+    await loadItems(itemsMeta.value.current_page || 1)
+  } catch (err) {
+    const msg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan peminjaman'
+    loanError.value = msg
+    toast.error('Gagal', msg)
+  } finally {
+    loanSaving.value = false
+  }
+}
+
+// Return loan modal
+const showReturnLoanModal = ref(false)
+const returningLoan = ref(null)
+const returnLoanSaving = ref(false)
+const returnLoanError = ref('')
+const returnLoanForm = ref({ actual_return_date: new Date().toISOString().split('T')[0], notes: '' })
+
+const openReturnLoanModal = (loan) => {
+  returningLoan.value = loan
+  returnLoanError.value = ''
+  returnLoanForm.value = {
+    actual_return_date: new Date().toISOString().split('T')[0],
+    notes: ''
+  }
+  showReturnLoanModal.value = true
+}
+
+const closeReturnLoanModal = () => {
+  showReturnLoanModal.value = false
+  returningLoan.value = null
+  returnLoanError.value = ''
+}
+
+const submitReturnLoan = async () => {
+  if (!returningLoan.value) return
+  returnLoanSaving.value = true
+  returnLoanError.value = ''
+  try {
+    await inventoryApi.returnLoan(returningLoan.value.id, {
+      actual_return_date: returnLoanForm.value.actual_return_date,
+      notes: returnLoanForm.value.notes?.trim() || null
+    })
+    toast.success('Berhasil', 'Pengembalian berhasil dicatat')
+    closeReturnLoanModal()
+    await loadLoans(loansMeta.value.current_page || 1)
+    await loadItems(itemsMeta.value.current_page || 1)
+  } catch (err) {
+    const msg = err.formattedMessage || err.response?.data?.message || 'Gagal mencatat pengembalian'
+    returnLoanError.value = msg
+    toast.error('Gagal', msg)
+  } finally {
+    returnLoanSaving.value = false
+  }
+}
+
+// ==================== Reports state ====================
+const reportStats = ref(null)
+const reportStatsLoading = ref(false)
+const reportDamaged = ref([])
+const reportDamagedLoading = ref(false)
+const reportLoaned = ref([])
+const reportLoanedLoading = ref(false)
+const reportAsset = ref([])
+const reportAssetLoading = ref(false)
+
+const loadReportStats = async () => {
+  reportStatsLoading.value = true
+  try {
+    const res = await inventoryApi.getReportStatistics({})
+    reportStats.value = res.data?.data ?? res.data ?? null
+  } catch {
+    reportStats.value = null
+  } finally {
+    reportStatsLoading.value = false
+  }
+}
+
+const loadReportDamaged = async () => {
+  reportDamagedLoading.value = true
+  try {
+    const res = await inventoryApi.getReportDamagedMissing({})
+    const data = res.data?.data ?? res.data ?? {}
+    const damaged = (data.damaged || []).map(d => ({ ...d, statusLabel: d.condition || 'Rusak' }))
+    const missing = (data.missing || []).map(m => ({ ...m, condition: '-', statusLabel: 'Hilang' }))
+    reportDamaged.value = [...damaged, ...missing]
+  } catch {
+    reportDamaged.value = []
+  } finally {
+    reportDamagedLoading.value = false
+  }
+}
+
+const loadReportLoaned = async () => {
+  reportLoanedLoading.value = true
+  try {
+    const res = await inventoryApi.getReportLoaned({})
+    const data = res.data?.data ?? res.data ?? {}
+    reportLoaned.value = data.loans || []
+  } catch {
+    reportLoaned.value = []
+  } finally {
+    reportLoanedLoading.value = false
+  }
+}
+
+const loadReportAsset = async () => {
+  reportAssetLoading.value = true
+  try {
+    const res = await inventoryApi.getReportAssetValue({})
+    const data = res.data?.data ?? res.data ?? {}
+    reportAsset.value = data.by_category || []
+  } catch {
+    reportAsset.value = []
+  } finally {
+    reportAssetLoading.value = false
+  }
+}
+
 watch(activeTab, async (tab) => {
   if (tab === 'items') {
     if (categories.value.length === 0) await loadCategories(1)
@@ -1189,6 +2015,17 @@ watch(activeTab, async (tab) => {
     if (rooms.value.length === 0) await loadRooms()
     await loadItemOptions()
     await loadTransactions(1)
+  } else if (tab === 'maintenances') {
+    await loadItemOptions()
+    await loadMaintenances(1)
+  } else if (tab === 'loans') {
+    await loadItemOptions()
+    await loadLoans(1)
+  } else if (tab === 'reports') {
+    await loadReportStats()
+    await loadReportDamaged()
+    await loadReportLoaned()
+    await loadReportAsset()
   }
 })
 
@@ -1200,7 +2037,8 @@ onMounted(async () => {
 
 <style scoped>
 .inventory-page {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-header {
@@ -1374,6 +2212,16 @@ onMounted(async () => {
   background: #f8fafc;
 }
 
+.data-table.small th,
+.data-table.small td {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.row-overdue {
+  background: #fef2f2;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;
@@ -1498,6 +2346,71 @@ onMounted(async () => {
 .badge-gray {
   background: #f1f5f9;
   color: #475569;
+}
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.report-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.report-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.report-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.report-stats p,
+.report-list {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.report-list {
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.report-card .btn-outline {
+  margin-top: 8px;
+}
+
+.btn-outline {
+  padding: 8px 14px;
+  background: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-outline:hover {
+  background: #f8fafc;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.btn-compact {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.modal-content-sm {
+  max-width: 420px;
 }
 
 .muted {

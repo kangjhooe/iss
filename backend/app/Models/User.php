@@ -158,6 +158,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the counseling sessions where this user is the counselor.
+     */
+    public function counselingSessionsAsCounselor()
+    {
+        return $this->hasMany(CounselingSession::class, 'counselor_id');
+    }
+
+    /**
+     * Get the guest visits created by this user.
+     */
+    public function guestVisitsCreated()
+    {
+        return $this->hasMany(GuestVisit::class, 'created_by');
+    }
+
+    /**
+     * Get the digital archives created by this user.
+     */
+    public function digitalArchivesCreated()
+    {
+        return $this->hasMany(DigitalArchive::class, 'created_by');
+    }
+
+    /**
      * Get the student profile associated with this user (by email).
      */
     public function studentProfile()

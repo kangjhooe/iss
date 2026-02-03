@@ -31,9 +31,8 @@
         </select>
       </div>
 
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner"></div>
-        <p>Memuat data...</p>
+      <div v-if="loading" class="loading-wrap">
+        <LoadingSkeleton type="table" :rows="6" :columns="5" :cell-widths="['80px', '160px', '1fr', '80px', '120px']" />
       </div>
 
       <div v-else class="table-container">
@@ -122,6 +121,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { subjectApi } from '@/api/subject'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
@@ -241,7 +241,7 @@ onMounted(loadSubjects)
 </script>
 
 <style scoped>
-.subject-page { padding: 1.5rem; }
+.subject-page { width: 100%; max-width: 100%; padding: 1.5rem; }
 .page-header { margin-bottom: 1.5rem; }
 .header-content { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
 .action-buttons-group { display: flex; gap: 0.5rem; }

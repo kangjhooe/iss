@@ -25,13 +25,19 @@ class StoreStudentMutationPullRequest extends FormRequest
      */
     public function rules(): array
     {
+        $external = $this->boolean('external');
+
         return [
+            'external' => 'sometimes|boolean',
             'origin_npsn' => [
                 'required',
                 'string',
                 'size:8',
                 'regex:/^[0-9]{8}$/',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($external) {
+                    if ($external) {
+                        return;
+                    }
                     $targetInstitution = Institution::find($this->user()->institution_id);
                     if (!$targetInstitution) {
                         $fail('Sekolah Anda tidak ditemukan.');
@@ -51,11 +57,18 @@ class StoreStudentMutationPullRequest extends FormRequest
                     }
                 },
             ],
+            'origin_school_name' => 'required_if:external,true|nullable|string|max:255',
             'nisn' => [
                 'required',
                 'string',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($external) {
                     $targetInstitutionId = $this->user()->institution_id;
+                    if ($external) {
+                        if (Student::where('institution_id', $targetInstitutionId)->where('nisn', $value)->exists()) {
+                            $fail('NISN tersebut sudah digunakan oleh siswa lain di sekolah Anda.');
+                        }
+                        return;
+                    }
                     $originNpsn = $this->input('origin_npsn');
                     $origin = Institution::where('npsn', $originNpsn)->first();
                     if (!$origin) {
@@ -79,6 +92,9 @@ class StoreStudentMutationPullRequest extends FormRequest
                     }
                 },
             ],
+            'student_name' => 'required_if:external,true|nullable|string|max:255',
+            'student_gender' => 'required_if:external,true|nullable|string|in:L,P,Laki-laki,Perempuan,Laki,Perempuan',
+            'student_grade' => 'nullable|string|max:20',
             'notes' => 'nullable|string|max:500',
         ];
     }
@@ -89,7 +105,10 @@ class StoreStudentMutationPullRequest extends FormRequest
             'origin_npsn.required' => 'NPSN sekolah asal wajib diisi.',
             'origin_npsn.size' => 'NPSN harus 8 digit.',
             'origin_npsn.regex' => 'NPSN harus berupa 8 digit angka.',
+            'origin_school_name.required_if' => 'Nama sekolah asal wajib diisi untuk mutasi masuk dari sekolah luar sistem.',
             'nisn.required' => 'NISN siswa wajib diisi.',
+            'student_name.required_if' => 'Nama siswa wajib diisi untuk mutasi masuk dari sekolah luar.',
+            'student_gender.required_if' => 'Jenis kelamin siswa wajib diisi.',
         ];
     }
 }

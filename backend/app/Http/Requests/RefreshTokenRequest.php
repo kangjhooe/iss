@@ -22,7 +22,8 @@ class RefreshTokenRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'refresh_token' => 'required|string',
+            // refresh_token boleh dari body atau dari httpOnly cookie
+            'refresh_token' => 'nullable|string',
         ];
     }
 

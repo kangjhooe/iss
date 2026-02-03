@@ -29,9 +29,8 @@
         </button>
       </header>
 
-      <div v-if="loading" class="state-wrap state-loading">
-        <div class="spinner"></div>
-        <p>Memuat daftar guru dan modul...</p>
+      <div v-if="loading" class="state-wrap state-loading loading-wrap">
+        <LoadingSkeleton type="list" :items="6" />
       </div>
 
       <div v-else-if="error" class="state-wrap state-error">
@@ -154,6 +153,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { permissionApi } from '@/api/permissions'
 import { useToast } from '@/composables/useToast'
 
@@ -311,7 +311,8 @@ onMounted(() => {
 
 <style scoped>
 .module-access-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 100%;
   padding-bottom: 100px;
 }
 

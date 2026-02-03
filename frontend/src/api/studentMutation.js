@@ -30,5 +30,12 @@ export const studentMutationApi = {
   },
   getHistoryByNisn(nisn) {
     return api.get('/v1/student-mutations/history-by-nisn', { params: { nisn } })
+  },
+  /**
+   * Export Buku Mutasi (PDF atau CSV). Params: from, to, type ('all'|'in'|'out'), format ('pdf'|'csv').
+   * Returns blob; gunakan responseType: 'blob' dan trigger download di frontend.
+   */
+  exportBukuMutasi(params = {}) {
+    return api.get('/v1/student-mutations/export', { params, responseType: 'blob' })
   }
 }

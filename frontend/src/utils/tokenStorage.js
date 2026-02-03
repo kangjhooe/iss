@@ -1,6 +1,11 @@
 /**
- * Secure token storage utility
- * Provides encrypted storage for tokens to prevent XSS attacks
+ * Auth storage utility.
+ *
+ * Sejak perbaikan keamanan: token disimpan di httpOnly cookie oleh backend.
+ * Frontend tidak lagi menyimpan token di localStorage (aman dari XSS).
+ *
+ * clearAuth(): bersihkan sisa data lama di localStorage (dipanggil saat logout / refresh gagal).
+ * Fungsi lain (setToken, getToken, dll.) tetap ada untuk kompatibilitas; tidak dipakai untuk auth baru.
  */
 
 const ENCRYPTION_KEY = 'iss_token_key' // In production, use environment variable

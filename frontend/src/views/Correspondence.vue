@@ -172,16 +172,8 @@
         </select>
       </div>
 
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-              <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-        <p>Memuat data...</p>
+      <div v-if="loading" class="loading-wrap">
+        <LoadingSkeleton type="table" :rows="8" :columns="7" :cell-widths="['120px', '80px', '80px', '1fr', '140px', '100px', '90px']" />
       </div>
       
       <div v-else class="table-container">
@@ -860,6 +852,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import correspondenceApi from '@/api/correspondence'
 import api from '@/api'
 import { useToast } from '@/composables/useToast'
@@ -1837,8 +1830,9 @@ onMounted(async () => {
 
 <style scoped>
 .correspondence-page {
+  width: 100%;
+  max-width: 100%;
   padding: 24px;
-  max-width: 1400px;
   margin: 0 auto;
 }
 

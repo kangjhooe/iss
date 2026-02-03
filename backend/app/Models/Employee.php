@@ -39,6 +39,11 @@ class Employee extends Model
         'status',
         'join_date',
         'notes',
+        'certification_status',
+        'certification_date',
+        'teacher_registration_number',
+        'certification_number',
+        'certification_issuing_authority',
     ];
 
     /**
@@ -51,6 +56,7 @@ class Employee extends Model
         return [
             'birth_date' => 'date',
             'join_date' => 'date',
+            'certification_date' => 'date',
         ];
     }
 
@@ -156,6 +162,49 @@ class Employee extends Model
     public function documents()
     {
         return $this->hasMany(EmployeeDocument::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Get the employee attendances (per day).
+     */
+    public function employeeAttendances()
+    {
+        return $this->hasMany(EmployeeAttendance::class);
+    }
+
+    /**
+     * Get the teaching journals (jurnal mengajar) for this employee.
+     */
+    public function teachingJournals()
+    {
+        return $this->hasMany(TeachingJournal::class, 'employee_id');
+    }
+
+    /**
+     * Get the grades (nilai) given by this employee.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class, 'employee_id');
+    }
+
+    /**
+     * Get the extracurriculars (ekskul) where this employee is the supervisor (pembina).
+     */
+    public function supervisedExtracurriculars()
+    {
+        return $this->hasMany(Extracurricular::class, 'supervisor_employee_id');
+    }
+
+    /**
+     * Get the additional duties (tugas tambahan) for this employee.
+     * One employee can have multiple additional duties.
+     */
+    public function additionalDuties()
+    {
+        return $this->belongsToMany(AdditionalDuty::class, 'employee_additional_duties')
+            ->withPivot(['started_at', 'ended_at'])
+            ->withTimestamps();
     }
 
     /**

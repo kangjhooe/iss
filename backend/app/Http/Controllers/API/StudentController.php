@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PromoteStudentsRequest;
 use App\Http\Requests\StoreStudentRequest;
 use App\Http\Requests\UpdateStudentRequest;
 use App\Http\Resources\StudentResource;
@@ -24,6 +25,30 @@ class StudentController extends Controller
 
     /**
      * Display a listing of students.
+     *
+     * @OA\Get(
+     *     path="/api/v1/student",
+     *     summary="Daftar siswa",
+     *     tags={"Student"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="Cari nama/NIS/NISN"),
+     *     @OA\Parameter(name="class", in="query", required=false, @OA\Schema(type="string"), description="Filter kelas"),
+     *     @OA\Parameter(name="status", in="query", required=false, @OA\Schema(type="string"), description="Filter status (Aktif/Nonaktif/Lulus)"),
+     *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer"), description="Jumlah per halaman (max 100)"),
+     *     @OA\Response(response=200, description="Berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="nis", type="string"),
+     *                 @OA\Property(property="name", type="string"),
+     *                 @OA\Property(property="gender", type="string"),
+     *                 @OA\Property(property="class", type="string"),
+     *                 @OA\Property(property="status", type="string")
+     *             ))
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
      */
     public function index(Request $request)
     {
@@ -70,6 +95,33 @@ class StudentController extends Controller
 
     /**
      * Store a newly created student.
+     *
+     * @OA\Post(
+     *     path="/api/v1/student",
+     *     summary="Tambah siswa",
+     *     tags={"Student"},
+     *     security={{"sanctum":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"nis","nisn","name","gender","class","status"},
+     *             @OA\Property(property="institution_id", type="integer", description="ID institusi (untuk super admin)"),
+     *             @OA\Property(property="nis", type="string", example="12345"),
+     *             @OA\Property(property="nisn", type="string", example="1234567890"),
+     *             @OA\Property(property="name", type="string", example="Ahmad Budi"),
+     *             @OA\Property(property="gender", type="string", enum={"L","P"}, example="L"),
+     *             @OA\Property(property="class", type="string", example="7A"),
+     *             @OA\Property(property="status", type="string", example="Aktif")
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="Siswa berhasil ditambahkan",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Siswa berhasil ditambahkan"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Validasi gagal")
+     * )
      */
     public function store(StoreStudentRequest $request)
     {
@@ -122,6 +174,17 @@ class StudentController extends Controller
 
     /**
      * Display the specified student.
+     *
+     * @OA\Get(
+     *     path="/api/v1/student/{id}",
+     *     summary="Detail siswa",
+     *     tags={"Student"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Berhasil", @OA\JsonContent(@OA\Property(property="data", type="object"))),
+     *     @OA\Response(response=403, description="Forbidden"),
+     *     @OA\Response(response=404, description="Siswa tidak ditemukan")
+     * )
      */
     public function show(Request $request, $id)
     {
@@ -154,6 +217,21 @@ class StudentController extends Controller
 
     /**
      * Update the specified student.
+     *
+     * @OA\Put(
+     *     path="/api/v1/student/{id}",
+     *     summary="Perbarui siswa",
+     *     tags={"Student"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(@OA\JsonContent(
+     *         @OA\Property(property="name", type="string"),
+     *         @OA\Property(property="class", type="string"),
+     *         @OA\Property(property="status", type="string")
+     *     )),
+     *     @OA\Response(response=200, description="Siswa berhasil diperbarui"),
+     *     @OA\Response(response=404, description="Siswa tidak ditemukan")
+     * )
      */
     public function update(UpdateStudentRequest $request, $id)
     {
@@ -196,7 +274,69 @@ class StudentController extends Controller
     }
 
     /**
-     * Remove the specified student.
+     * Naik kelas: pindahkan siswa dari kelas/tahun ajaran sumber ke kelas/tahun ajaran tujuan (bulk).
+     */
+    public function promote(PromoteStudentsRequest $request)
+    {
+        try {
+            $institutionId = $request->user()->isAdminOrSuperAdmin()
+                ? (int) $request->input('institution_id')
+                : $request->user()->institution_id;
+
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 400);
+            }
+
+            $validated = $request->validated();
+            $studentIds = isset($validated['student_ids']) && is_array($validated['student_ids'])
+                ? array_values($validated['student_ids'])
+                : null;
+
+            $result = $this->studentService->promoteBulk(
+                $institutionId,
+                (int) $validated['source_class_id'],
+                (int) $validated['source_academic_year_id'],
+                (int) $validated['target_class_id'],
+                (int) $validated['target_academic_year_id'],
+                isset($validated['target_semester_id']) ? (int) $validated['target_semester_id'] : null,
+                $studentIds
+            );
+
+            $message = $result['success'] . ' siswa berhasil naik kelas.';
+            if (count($result['failed']) > 0) {
+                $message .= ' ' . count($result['failed']) . ' gagal.';
+            }
+
+            return response()->json([
+                'message' => $message,
+                'success' => $result['success'],
+                'failed' => $result['failed'],
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to promote students', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memproses naik kelas',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove the specified student (soft delete).
+     *
+     * @OA\Delete(
+     *     path="/api/v1/student/{id}",
+     *     summary="Hapus siswa",
+     *     tags={"Student"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Siswa berhasil dihapus"),
+     *     @OA\Response(response=403, description="Forbidden"),
+     *     @OA\Response(response=404, description="Siswa tidak ditemukan")
+     * )
      */
     public function destroy(Request $request, $id)
     {

@@ -52,9 +52,27 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
+      path: '/student/:id/buku-induk',
+      name: 'BukuInduk',
+      component: () => import('@/views/BukuInduk.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
       path: '/student-mutation',
       name: 'StudentMutation',
       component: () => import('@/views/StudentMutation.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
+      path: '/alumni',
+      name: 'Alumni',
+      component: () => import('@/views/Alumni.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
+      path: '/naik-kelas',
+      name: 'NaikKelas',
+      component: () => import('@/views/NaikKelas.vue'),
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
@@ -62,6 +80,18 @@ const router = createRouter({
       name: 'Violation',
       component: () => import('../views/Violation.vue'),
       meta: { requiresAuth: true, requiresModule: 'violation' }
+    },
+    {
+      path: '/counseling',
+      name: 'Counseling',
+      component: () => import('../views/Counseling.vue'),
+      meta: { requiresAuth: true, requiresModule: 'counseling' }
+    },
+    {
+      path: '/extracurricular',
+      name: 'Extracurricular',
+      component: () => import('../views/Extracurricular.vue'),
+      meta: { requiresAuth: true, requiresModule: 'extracurricular' }
     },
     {
       path: '/subject',
@@ -74,6 +104,36 @@ const router = createRouter({
       name: 'LessonSchedule',
       component: () => import('@/views/LessonSchedule.vue'),
       meta: { requiresAuth: true, requiresModule: 'schedule' }
+    },
+    {
+      path: '/teaching-journal',
+      name: 'TeachingJournal',
+      component: () => import('@/views/TeachingJournal.vue'),
+      meta: { requiresAuth: true, requiresModule: 'teaching_journal' }
+    },
+    {
+      path: '/attendance/student',
+      name: 'AttendanceStudent',
+      component: () => import('@/views/AttendanceStudent.vue'),
+      meta: { requiresAuth: true, requiresModule: 'teaching_journal' }
+    },
+    {
+      path: '/attendance/employee',
+      name: 'AttendanceEmployee',
+      component: () => import('@/views/AttendanceEmployee.vue'),
+      meta: { requiresAuth: true, requiresModule: 'attendance' }
+    },
+    {
+      path: '/grade-book',
+      name: 'GradeBook',
+      component: () => import('@/views/GradeBook.vue'),
+      meta: { requiresAuth: true, requiresModule: 'grade_book' }
+    },
+    {
+      path: '/raport',
+      name: 'Raport',
+      component: () => import('@/views/Raport.vue'),
+      meta: { requiresAuth: true, requiresModule: 'grade_book' }
     },
     {
       path: '/teacher',
@@ -91,6 +151,12 @@ const router = createRouter({
       path: '/facility',
       name: 'Facility',
       component: () => import('@/views/Facility.vue'),
+      meta: { requiresAuth: true, requiresModule: 'facility' }
+    },
+    {
+      path: '/lab',
+      name: 'Lab',
+      component: () => import('@/views/Lab.vue'),
       meta: { requiresAuth: true, requiresModule: 'facility' }
     },
     {
@@ -124,10 +190,34 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'correspondence' }
     },
     {
+      path: '/digital-archive',
+      name: 'DigitalArchive',
+      component: () => import('@/views/DigitalArchive.vue'),
+      meta: { requiresAuth: true, requiresModule: 'digital_archive' }
+    },
+    {
+      path: '/buku-tamu',
+      name: 'BukuTamu',
+      component: () => import('@/views/BukuTamu.vue'),
+      meta: { requiresAuth: true, requiresModule: 'guest_book' }
+    },
+    {
+      path: '/pengambilan-ijazah',
+      name: 'DocumentPickup',
+      component: () => import('@/views/DocumentPickup.vue'),
+      meta: { requiresAuth: true, requiresModule: 'document_pickup' }
+    },
+    {
       path: '/inventory',
       name: 'Inventory',
       component: () => import('@/views/Inventory.vue'),
       meta: { requiresAuth: true, requiresModule: 'inventory' }
+    },
+    {
+      path: '/library',
+      name: 'Library',
+      component: () => import('@/views/Library.vue'),
+      meta: { requiresAuth: true, requiresModule: 'library' }
     },
     {
       path: '/forgot-password',
@@ -152,6 +242,18 @@ const router = createRouter({
       name: 'Semester',
       component: () => import('@/views/Semester.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/notifications',
+      name: 'Notifications',
+      component: () => import('@/views/Notifications.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/audit-log',
+      name: 'AuditLog',
+      component: () => import('@/views/AuditLog.vue'),
+      meta: { requiresAuth: true, requiresAuditLog: true }
     }
   ]
 })
@@ -201,8 +303,19 @@ router.beforeEach(async (to, from, next) => {
   }
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
-  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    // Token via httpOnly cookie: coba /me dulu; kalau ada cookie, fetchUser berhasil
+    try {
+      await authStore.fetchUser()
+    } catch {
+      // ignore
+    }
+    if (!authStore.isAuthenticated) {
+      next('/login')
+      return
+    }
+  }
+
+  if (to.meta.requiresGuest && authStore.isAuthenticated) {
     // Redirect based on user role
     if (!authStore.user) {
       try {
@@ -302,6 +415,25 @@ router.beforeEach(async (to, from, next) => {
       } else {
         next()
       }
+    }
+  } else if (to.meta.requiresAuditLog) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next('/login')
+        return
+      }
+    }
+    const role = authStore.user?.role
+    const allowed = role === 'super_admin' || role === 'institution_admin' || role === 'admin'
+    if (!allowed) {
+      const defaultRoute = getDefaultRoute(role)
+      next(defaultRoute)
+    } else {
+      next()
     }
   } else if (to.meta.requiresModule) {
     if (!authStore.user) {

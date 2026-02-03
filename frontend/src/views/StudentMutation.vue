@@ -39,20 +39,50 @@
             <button @click="showFormModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitMutation" class="modal-body">
-            <p class="form-hint">Pilih sekolah tujuan (NPSN) dan masukkan NISN siswa yang akan dimutasikan. Mutasi hanya antar jenjang yang sama (SD-MI, SMP-MTs, SMA-MA-SMK-MAK, PAUD-TK).</p>
-            <div class="form-group">
-              <label>NPSN Sekolah Tujuan *</label>
-              <input
-                v-model="form.target_npsn"
-                type="text"
-                placeholder="Contoh: 20234567 (8 digit)"
-                maxlength="8"
-                required
-                @input="onNpsnInput"
-              />
-              <p v-if="targetInstitution" class="institution-preview">{{ targetInstitution.name }} ({{ targetInstitution.npsn }}) – {{ targetInstitution.level }}</p>
-              <p v-else-if="form.target_npsn.length === 8 && !targetInstitution && npsnSearchDone" class="text-muted">Sekolah tidak ditemukan atau jenjang berbeda</p>
+            <p class="form-hint">Pilih sekolah tujuan (NPSN) atau catat mutasi ke sekolah yang belum terdaftar di aplikasi. Mutasi antar jenjang sama: SD-MI, SMP-MTs, SMA-MA-SMK-MAK, PAUD-TK.</p>
+            <div class="form-group form-group-checkbox">
+              <label class="checkbox-label">
+                <input v-model="form.external" type="checkbox" />
+                <span>Sekolah tujuan belum terdaftar di aplikasi (input manual NPSN & nama)</span>
+              </label>
             </div>
+            <template v-if="form.external">
+              <div class="form-group">
+                <label>NPSN Sekolah Tujuan *</label>
+                <input
+                  v-model="form.target_npsn"
+                  type="text"
+                  placeholder="8 digit NPSN (contoh: 20234567)"
+                  maxlength="8"
+                  required
+                  @input="form.target_npsn = form.target_npsn.replace(/\D/g, '').slice(0, 8)"
+                />
+              </div>
+              <div class="form-group">
+                <label>Nama Sekolah Tujuan *</label>
+                <input
+                  v-model="form.target_school_name"
+                  type="text"
+                  placeholder="Nama lengkap sekolah tujuan"
+                  required
+                />
+              </div>
+            </template>
+            <template v-else>
+              <div class="form-group">
+                <label>NPSN Sekolah Tujuan *</label>
+                <input
+                  v-model="form.target_npsn"
+                  type="text"
+                  placeholder="Contoh: 20234567 (8 digit)"
+                  maxlength="8"
+                  required
+                  @input="onNpsnInput"
+                />
+                <p v-if="targetInstitution" class="institution-preview">{{ targetInstitution.name }} ({{ targetInstitution.npsn }}) – {{ targetInstitution.level }}</p>
+                <p v-else-if="form.target_npsn.length === 8 && !targetInstitution && npsnSearchDone" class="text-muted">Sekolah tidak ditemukan atau jenjang berbeda</p>
+              </div>
+            </template>
             <div class="form-group">
               <label>NISN Siswa *</label>
               <input
@@ -85,32 +115,82 @@
             <button @click="showPullModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitPull" class="modal-body">
-            <p class="form-hint">Masukkan NPSN sekolah asal dan NISN siswa yang ingin ditarik ke sekolah Anda. Sekolah asal nanti menyetujui permohonan. Mutasi hanya antar jenjang yang sama.</p>
-            <div class="form-group">
-              <label>NPSN Sekolah Asal *</label>
-              <input
-                v-model="pullForm.origin_npsn"
-                type="text"
-                placeholder="8 digit NPSN sekolah asal"
-                maxlength="8"
-                required
-                @input="onOriginNpsnInput"
-              />
-              <p v-if="originInstitution" class="institution-preview">{{ originInstitution.name }} ({{ originInstitution.npsn }}) – {{ originInstitution.level }}</p>
-              <p v-else-if="pullForm.origin_npsn.length === 8 && !originInstitution && originNpsnSearchDone" class="text-muted">Sekolah tidak ditemukan atau jenjang berbeda</p>
+            <p class="form-hint">Masukkan NPSN sekolah asal dan NISN siswa, atau catat mutasi masuk dari sekolah yang belum terdaftar (input manual + data siswa).</p>
+            <div class="form-group form-group-checkbox">
+              <label class="checkbox-label">
+                <input v-model="pullForm.external" type="checkbox" />
+                <span>Sekolah asal belum terdaftar di aplikasi (input manual + data siswa baru)</span>
+              </label>
             </div>
-            <div class="form-group">
-              <label>NISN Siswa *</label>
-              <input
-                v-model="pullForm.nisn"
-                type="text"
-                placeholder="NISN siswa di sekolah asal"
-                required
-              />
-            </div>
+            <template v-if="pullForm.external">
+              <div class="form-group">
+                <label>NPSN Sekolah Asal *</label>
+                <input
+                  v-model="pullForm.origin_npsn"
+                  type="text"
+                  placeholder="8 digit NPSN sekolah asal"
+                  maxlength="8"
+                  required
+                  @input="pullForm.origin_npsn = pullForm.origin_npsn.replace(/\D/g, '').slice(0, 8)"
+                />
+              </div>
+              <div class="form-group">
+                <label>Nama Sekolah Asal *</label>
+                <input
+                  v-model="pullForm.origin_school_name"
+                  type="text"
+                  placeholder="Nama lengkap sekolah asal"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label>Nama Siswa *</label>
+                <input v-model="pullForm.student_name" type="text" placeholder="Nama lengkap siswa" required />
+              </div>
+              <div class="form-group">
+                <label>NISN Siswa *</label>
+                <input v-model="pullForm.nisn" type="text" placeholder="NISN siswa (10 digit)" required />
+              </div>
+              <div class="form-group">
+                <label>Jenis Kelamin *</label>
+                <select v-model="pullForm.student_gender" required>
+                  <option value="">-- Pilih --</option>
+                  <option value="L">Laki-laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Kelas (opsional)</label>
+                <input v-model="pullForm.student_grade" type="text" placeholder="Contoh: 7, 8, IX" />
+              </div>
+            </template>
+            <template v-else>
+              <div class="form-group">
+                <label>NPSN Sekolah Asal *</label>
+                <input
+                  v-model="pullForm.origin_npsn"
+                  type="text"
+                  placeholder="8 digit NPSN sekolah asal"
+                  maxlength="8"
+                  required
+                  @input="onOriginNpsnInput"
+                />
+                <p v-if="originInstitution" class="institution-preview">{{ originInstitution.name }} ({{ originInstitution.npsn }}) – {{ originInstitution.level }}</p>
+                <p v-else-if="pullForm.origin_npsn.length === 8 && !originInstitution && originNpsnSearchDone" class="text-muted">Sekolah tidak ditemukan atau jenjang berbeda</p>
+              </div>
+              <div class="form-group">
+                <label>NISN Siswa *</label>
+                <input
+                  v-model="pullForm.nisn"
+                  type="text"
+                  placeholder="NISN siswa di sekolah asal"
+                  required
+                />
+              </div>
+            </template>
             <div class="form-group">
               <label>Catatan (opsional)</label>
-              <textarea v-model="pullForm.notes" rows="2" placeholder="Catatan untuk sekolah asal"></textarea>
+              <textarea v-model="pullForm.notes" rows="2" placeholder="Catatan"></textarea>
             </div>
             <div v-if="pullFormError" class="error-message">{{ pullFormError }}</div>
             <div class="modal-footer">
@@ -177,9 +257,8 @@
         </div>
       </div>
 
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner"></div>
-        <p>Memuat data...</p>
+      <div v-if="loading" class="loading-wrap">
+        <LoadingSkeleton type="table" :rows="6" :columns="5" :cell-widths="['100px', '1fr', '1fr', '100px', '120px']" />
       </div>
 
       <div v-else-if="mutations.length === 0" class="empty-state">
@@ -215,11 +294,13 @@
             <span class="initiated-label">{{ m.initiated_by === 'origin' ? 'Sekolah asal mengajukan' : 'Sekolah tujuan menarik' }}</span>
           </div>
           <div class="card-flow">
-            <span class="flow-origin">{{ m.origin_institution?.name }}</span>
+            <span class="flow-origin">{{ m.origin_institution?.name ?? m.origin_school_name ?? '–' }}</span>
             <svg class="flow-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="flow-target">{{ m.target_institution?.name }}</span>
+            <span class="flow-target">{{ m.target_institution?.name ?? m.target_school_name ?? '–' }}</span>
+            <span v-if="m.is_external_target" class="badge-external">Sekolah luar sistem</span>
+            <span v-if="m.is_external_origin" class="badge-external">Masuk dari luar sistem</span>
           </div>
           <div class="card-body">
             <div class="detail-row detail-highlight">
@@ -228,11 +309,11 @@
             </div>
             <div class="detail-row">
               <span class="label">Sekolah asal</span>
-              <span class="value">{{ m.origin_institution?.name }} <span class="value-muted">({{ m.origin_institution?.npsn }})</span></span>
+              <span class="value">{{ m.origin_institution?.name ?? m.origin_school_name ?? '–' }} <span class="value-muted">({{ m.origin_institution?.npsn ?? m.origin_npsn ?? '–' }})</span></span>
             </div>
             <div class="detail-row">
               <span class="label">Sekolah tujuan</span>
-              <span class="value">{{ m.target_institution?.name }} <span class="value-muted">({{ m.target_institution?.npsn }})</span></span>
+              <span class="value">{{ m.target_institution?.name ?? m.target_school_name ?? '–' }} <span class="value-muted">({{ m.target_institution?.npsn ?? m.target_npsn ?? '–' }})</span></span>
             </div>
             <div class="detail-row">
               <span class="label">Diajukan oleh</span>
@@ -313,6 +394,27 @@
                 </select>
               </div>
               <button type="submit" class="btn-primary" :disabled="reportLoading">Tampilkan</button>
+              <div class="report-export-actions">
+                <button type="button" @click="exportBukuMutasi('pdf')" :disabled="exportingBukuMutasi || reportLoading" class="btn-export-pdf" title="Cetak Buku Mutasi (PDF)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 9H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>{{ exportingBukuMutasi ? 'Mengunduh...' : 'Cetak Buku Mutasi (PDF)' }}</span>
+                </button>
+                <button type="button" @click="exportBukuMutasi('csv')" :disabled="exportingBukuMutasi || reportLoading" class="btn-export-csv" title="Export Buku Mutasi (CSV)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 13H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>Export CSV</span>
+                </button>
+              </div>
             </div>
           </form>
           <div v-if="reportSummary" class="report-summary-cards">
@@ -329,10 +431,16 @@
           <div v-else-if="reportData.length > 0" class="mutations-list">
             <div v-for="m in reportData" :key="m.id" class="mutation-card">
               <div class="card-header">
-                <span class="initiated-label">{{ m.origin_institution?.name }} → {{ m.target_institution?.name }}</span>
+                <span class="initiated-label">{{ m.origin_institution?.name ?? m.origin_school_name ?? '–' }} → {{ m.target_institution?.name ?? m.target_school_name ?? '–' }}</span>
+                <span v-if="m.is_external_target" class="badge-external">Luar sistem</span>
+                <span v-if="m.is_external_origin" class="badge-external">Masuk dari luar</span>
               </div>
               <div class="card-body">
                 <div class="detail-row"><span class="label">Siswa:</span> <span class="value">{{ m.student?.name }} ({{ m.student?.nisn }})</span></div>
+                <div class="detail-row" v-if="m.student_grade || m.student_gender">
+                  <span class="label">Kelas / JK:</span>
+                  <span class="value">{{ m.student_grade ?? '-' }} / {{ m.student_gender ?? m.student?.gender ?? '-' }}</span>
+                </div>
                 <div class="detail-row"><span class="label">Disetujui:</span> <span class="value">{{ formatDate(m.approved_at) }}</span></div>
               </div>
             </div>
@@ -366,10 +474,16 @@
             <div v-for="m in historyList" :key="m.id" class="mutation-card">
               <div class="card-header">
                 <span :class="['status-badge', `status-${m.status}`]">{{ getStatusLabel(m.status) }}</span>
-                <span class="initiated-label">{{ m.origin_institution?.name }} → {{ m.target_institution?.name }}</span>
+                <span class="initiated-label">{{ m.origin_institution?.name ?? m.origin_school_name ?? '–' }} → {{ m.target_institution?.name ?? m.target_school_name ?? '–' }}</span>
+                <span v-if="m.is_external_target" class="badge-external">Luar sistem</span>
+                <span v-if="m.is_external_origin" class="badge-external">Masuk dari luar</span>
               </div>
               <div class="card-body">
                 <div class="detail-row"><span class="label">Siswa:</span> <span class="value">{{ m.student?.name }} ({{ m.student?.nisn }})</span></div>
+                <div class="detail-row" v-if="m.student_grade || m.student_gender">
+                  <span class="label">Kelas / JK:</span>
+                  <span class="value">{{ m.student_grade ?? '-' }} / {{ m.student_gender ?? m.student?.gender ?? '-' }}</span>
+                </div>
                 <div class="detail-row"><span class="label">Tanggal:</span> <span class="value">{{ formatDate(m.created_at) }}</span></div>
                 <div v-if="m.approved_at" class="detail-row"><span class="label">Disetujui/Ditolak:</span> <span class="value">{{ formatDate(m.approved_at) }}</span></div>
               </div>
@@ -438,6 +552,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { studentMutationApi } from '@/api/studentMutation'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -450,7 +565,9 @@ const mutations = ref([])
 const filterStatus = ref('pending')
 const showFormModal = ref(false)
 const form = ref({
+  external: false,
   target_npsn: '',
+  target_school_name: '',
   nisn: '',
   notes: ''
 })
@@ -461,8 +578,13 @@ const formError = ref('')
 
 const showPullModal = ref(false)
 const pullForm = ref({
+  external: false,
   origin_npsn: '',
+  origin_school_name: '',
   nisn: '',
+  student_name: '',
+  student_gender: '',
+  student_grade: '',
   notes: ''
 })
 const originInstitution = ref(null)
@@ -493,6 +615,7 @@ const reportLoading = ref(false)
 const reportLoaded = ref(false)
 const reportSummary = ref(null)
 const reportData = ref([])
+const exportingBukuMutasi = ref(false)
 
 const historyNisn = ref('')
 const historyLoading = ref(false)
@@ -593,16 +716,38 @@ async function submitPull() {
     pullFormError.value = 'NISN siswa wajib diisi.'
     return
   }
+  if (pullForm.value.external) {
+    if (!pullForm.value.origin_school_name?.trim()) {
+      pullFormError.value = 'Nama sekolah asal wajib diisi untuk mutasi masuk dari sekolah luar.'
+      return
+    }
+    if (!pullForm.value.student_name?.trim()) {
+      pullFormError.value = 'Nama siswa wajib diisi.'
+      return
+    }
+    if (!pullForm.value.student_gender) {
+      pullFormError.value = 'Jenis kelamin siswa wajib diisi.'
+      return
+    }
+  }
   pullFormSubmitting.value = true
   try {
-    await studentMutationApi.createPull({
+    const payload = {
       origin_npsn: pullForm.value.origin_npsn,
       nisn: pullForm.value.nisn.trim(),
       notes: pullForm.value.notes?.trim() || undefined
-    })
-    toast.success('Berhasil', 'Permohonan tarik siswa telah dikirim. Menunggu persetujuan sekolah asal.')
+    }
+    if (pullForm.value.external) {
+      payload.external = true
+      payload.origin_school_name = pullForm.value.origin_school_name?.trim()
+      payload.student_name = pullForm.value.student_name?.trim()
+      payload.student_gender = pullForm.value.student_gender
+      payload.student_grade = pullForm.value.student_grade?.trim() || undefined
+    }
+    await studentMutationApi.createPull(payload)
+    toast.success('Berhasil', pullForm.value.external ? 'Mutasi masuk dari sekolah luar telah dicatat. Data siswa telah ditambahkan.' : 'Permohonan tarik siswa telah dikirim. Menunggu persetujuan sekolah asal.')
     showPullModal.value = false
-    pullForm.value = { origin_npsn: '', nisn: '', notes: '' }
+    pullForm.value = { external: false, origin_npsn: '', origin_school_name: '', nisn: '', student_name: '', student_gender: '', student_grade: '', notes: '' }
     originInstitution.value = null
     await loadMutations()
   } catch (err) {
@@ -664,6 +809,37 @@ async function loadReport() {
   }
 }
 
+async function exportBukuMutasi(format) {
+  exportingBukuMutasi.value = true
+  try {
+    const params = { format: format || 'pdf', type: reportType.value }
+    if (reportFrom.value) params.from = reportFrom.value
+    if (reportTo.value) params.to = reportTo.value
+    const res = await studentMutationApi.exportBukuMutasi(params)
+    const contentType = res.headers?.['content-type'] || ''
+    if (res.status !== 200 || contentType.includes('application/json')) {
+      const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
+      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
+      throw new Error(json.message || 'Gagal mengekspor Buku Mutasi.')
+    }
+    const blob = res.data instanceof Blob ? res.data : new Blob([res.data])
+    const mime = format === 'csv' ? 'text/csv;charset=utf-8' : 'application/pdf'
+    const url = URL.createObjectURL(new Blob([blob], { type: mime }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Buku_Mutasi_${reportFrom.value || ''}_${reportTo.value || ''}.${format === 'csv' ? 'csv' : 'pdf'}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success('Berhasil', format === 'csv' ? 'Buku Mutasi (CSV) diunduh.' : 'Buku Mutasi (PDF) diunduh.')
+  } catch (err) {
+    toast.error('Gagal', err.message || err.response?.data?.message || err.formattedMessage || 'Gagal mengekspor Buku Mutasi.')
+  } finally {
+    exportingBukuMutasi.value = false
+  }
+}
+
 async function loadHistoryByNisn() {
   if (!historyNisn.value?.trim()) return
   historyLoading.value = true
@@ -687,6 +863,10 @@ async function submitMutation() {
     formError.value = 'NPSN harus 8 digit.'
     return
   }
+  if (form.value.external && !form.value.target_school_name?.trim()) {
+    formError.value = 'Nama sekolah tujuan wajib diisi untuk mutasi ke sekolah luar sistem.'
+    return
+  }
   if (!form.value.nisn?.trim()) {
     formError.value = 'NISN siswa wajib diisi.'
     return
@@ -694,13 +874,15 @@ async function submitMutation() {
   formSubmitting.value = true
   try {
     await studentMutationApi.create({
+      external: form.value.external || undefined,
       target_npsn: form.value.target_npsn,
+      target_school_name: form.value.external ? form.value.target_school_name?.trim() : undefined,
       nisn: form.value.nisn.trim(),
       notes: form.value.notes?.trim() || undefined
     })
-    toast.success('Berhasil', 'Permohonan mutasi telah dikirim. Menunggu persetujuan sekolah tujuan.')
+    toast.success('Berhasil', form.value.external ? 'Mutasi keluar ke sekolah luar sistem telah dicatat. Status siswa: Pindah.' : 'Permohonan mutasi telah dikirim. Menunggu persetujuan sekolah tujuan.')
     showFormModal.value = false
-    form.value = { target_npsn: '', nisn: '', notes: '' }
+    form.value = { external: false, target_npsn: '', target_school_name: '', nisn: '', notes: '' }
     targetInstitution.value = null
     await loadMutations()
   } catch (err) {
@@ -790,7 +972,8 @@ onMounted(async () => {
 
 <style scoped>
 .mutation-page {
-  max-width: 1000px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -871,6 +1054,34 @@ onMounted(async () => {
   margin-top: 6px;
   font-size: 13px;
   color: #94a3b8;
+}
+
+.form-group-checkbox {
+  margin-bottom: 12px;
+}
+.form-group-checkbox .checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+}
+.form-group-checkbox .checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #667eea;
+}
+
+.badge-external {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+  background: #fef3c7;
+  border-radius: 6px;
 }
 
 .main-tabs {
@@ -1500,6 +1711,46 @@ onMounted(async () => {
 .report-form .report-filters .form-group input,
 .report-form .report-filters .form-group select {
   min-width: 140px;
+}
+.report-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.report-export-actions .btn-export-pdf,
+.report-export-actions .btn-export-csv {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-primary, #1e293b);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.report-export-actions .btn-export-pdf:hover:not(:disabled),
+.report-export-actions .btn-export-csv:hover:not(:disabled) {
+  background: var(--bg-hover, #f1f5f9);
+  border-color: var(--border-hover, #cbd5e1);
+}
+.report-export-actions .btn-export-pdf:disabled,
+.report-export-actions .btn-export-csv:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.report-export-actions .btn-export-pdf {
+  background: var(--primary-light, #eff6ff);
+  border-color: var(--primary, #3b82f6);
+  color: var(--primary, #3b82f6);
+}
+.report-export-actions .btn-export-pdf:hover:not(:disabled) {
+  background: var(--primary, #3b82f6);
+  color: #fff;
 }
 
 /* Responsive */

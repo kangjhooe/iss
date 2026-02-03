@@ -39,16 +39,13 @@
         </select>
       </div>
 
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-              <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-        <p>Memuat data...</p>
+      <div v-if="listError && !loading" class="error-state">
+        <p class="error-text">{{ listError }}</p>
+        <button @click="loadClasses(1)" class="btn-primary">Coba lagi</button>
+      </div>
+
+      <div v-else-if="loading" class="loading-wrap">
+        <LoadingSkeleton type="table" :rows="5" :columns="8" />
       </div>
       
       <div v-else class="table-container">
@@ -409,12 +406,14 @@ import { studentApi } from '@/api/student'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 
 const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const classes = ref([])
 const loading = ref(true)
+const listError = ref('')
 const pagination = ref(null)
 const filters = ref({
   search: '',
@@ -522,10 +521,12 @@ const loadClasses = async (page = 1) => {
       }
     })
 
+    listError.value = ''
     const response = await classApi.getAll(params)
     classes.value = response.data.data || []
     pagination.value = response.data.meta || null
   } catch (err) {
+    listError.value = 'Gagal memuat data kelas. Silakan coba lagi.'
     toast.error('Gagal', 'Gagal memuat data kelas')
     console.error('Failed to load classes:', err)
   } finally {
@@ -785,8 +786,8 @@ onMounted(async () => {
 
 <style scoped>
 .class-page {
-  max-width: 1400px;
   width: 100%;
+  max-width: 100%;
   padding: 0;
 }
 
@@ -852,6 +853,23 @@ onMounted(async () => {
 .filter-select:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.error-state {
+  padding: 32px;
+  text-align: center;
+  background: #fef2f2;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+}
+
+.error-state .error-text {
+  color: #b91c1c;
+  margin: 0 0 16px 0;
+}
+
+.loading-wrap {
+  min-height: 200px;
 }
 
 .loading-state {

@@ -120,8 +120,18 @@ class PermissionController extends Controller
 
             $permissionKeys = $request->input('permission_keys', []);
             $permissionIds = Permission::whereIn('key', $permissionKeys)->pluck('id')->all();
-            
+            $oldKeys = $targetUser->permissions()->pluck('key')->toArray();
             $targetUser->permissions()->sync($permissionIds);
+
+            \App\Models\AuditLog::logManual(
+                $request,
+                'module_access.updated',
+                \App\Models\User::class,
+                $targetUser->id,
+                ['permission_keys' => $oldKeys],
+                ['permission_keys' => $permissionKeys],
+                $targetUser->institution_id
+            );
 
             Log::info('User permissions updated', [
                 'user_id' => $targetUser->id,

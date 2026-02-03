@@ -76,6 +76,7 @@ class UpdateStudentRequest extends FormRequest
             'academic_year_id' => 'nullable|exists:academic_years,id',
             'semester_id' => 'nullable|exists:semesters,id',
             'status' => 'nullable|in:Aktif,Lulus,Pindah,Drop Out,Tidak Aktif',
+            'graduation_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 2),
             'father_name' => 'nullable|string|max:255',
             'father_status' => 'nullable|in:masih_hidup,meninggal_dunia,tidak_diketahui',
             'father_nik' => 'nullable|string|max:16',

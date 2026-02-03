@@ -24,11 +24,21 @@ class Room extends Model
         'name',
         'code',
         'type',
+        'lab_type',
         'floor',
         'area',
         'capacity',
         'condition',
         'description',
+        'responsible_employee_id',
+    ];
+
+    /** Jenis lab (untuk ruang tipe Laboratorium). */
+    public const LAB_TYPES = [
+        'IPA' => 'Lab IPA',
+        'Komputer' => 'Lab Komputer',
+        'Bahasa' => 'Lab Bahasa',
+        'Lainnya' => 'Lainnya',
     ];
 
     /**
@@ -75,5 +85,13 @@ class Room extends Model
     public function lessonSchedules()
     {
         return $this->hasMany(LessonSchedule::class);
+    }
+
+    /**
+     * Get the employee responsible for this room (e.g. Kepala Lab).
+     */
+    public function responsibleEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'responsible_employee_id');
     }
 }

@@ -15,10 +15,15 @@ use App\Http\Controllers\API\InstitutionController;
 use App\Http\Controllers\API\ReportController;
 use App\Http\Controllers\API\SemesterController;
 use App\Http\Controllers\API\StudentController;
+use App\Http\Controllers\API\BukuIndukController;
+use App\Http\Controllers\API\AlumniController;
+use App\Http\Controllers\API\AlumniDestinationController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\StudentMutationController;
 use App\Http\Controllers\API\ViolationController;
 use App\Http\Controllers\API\ViolationTypeController;
+use App\Http\Controllers\API\CounselingController;
+use App\Http\Controllers\API\CounselingTypeController;
 use App\Http\Controllers\API\AchievementController;
 use App\Http\Controllers\API\AchievementTypeController;
 use App\Http\Controllers\API\PointThresholdController;
@@ -34,8 +39,24 @@ use App\Http\Controllers\API\InventoryLoanController;
 use App\Http\Controllers\API\InventoryReportController;
 use App\Http\Controllers\API\TeacherDashboardController;
 use App\Http\Controllers\API\PermissionController;
+use App\Http\Controllers\API\AdditionalDutyController;
+use App\Http\Controllers\API\AuditLogController;
 use App\Http\Controllers\API\SubjectController;
 use App\Http\Controllers\API\LessonScheduleController;
+use App\Http\Controllers\API\TeachingJournalController;
+use App\Http\Controllers\API\GradeController;
+use App\Http\Controllers\API\DigitalArchiveController;
+use App\Http\Controllers\API\StudentAttendanceController;
+use App\Http\Controllers\API\EmployeeAttendanceController;
+use App\Http\Controllers\API\GuestVisitController;
+use App\Http\Controllers\API\DocumentPickupController;
+use App\Http\Controllers\API\ExtracurricularController;
+use App\Http\Controllers\API\LibraryBookCategoryController;
+use App\Http\Controllers\API\LibraryBookController;
+use App\Http\Controllers\API\LibraryBookCopyController;
+use App\Http\Controllers\API\LibraryLoanController;
+use App\Http\Controllers\API\LibraryFinePaymentController;
+use App\Http\Controllers\API\LibraryReportController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
@@ -107,6 +128,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/permissions', [PermissionController::class, 'index']);
     Route::get('/permissions/teachers', [PermissionController::class, 'getTeachers']);
     Route::put('/permissions/users/{userId}', [PermissionController::class, 'updateUserPermissions']);
+    Route::get('/additional-duties', [AdditionalDutyController::class, 'index']);
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('/audit-logs/filter-options', [AuditLogController::class, 'filterOptions'])->name('audit-logs.filter-options');
+    Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->name('audit-logs.export');
 
     // Institution routes
     Route::middleware('module:institution')->group(function () {
@@ -123,14 +148,28 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
             Route::get('/student', [StudentController::class, 'index']);
         });
         Route::get('/student/{id}', [StudentController::class, 'show']);
+        Route::get('/student/{id}/buku-induk', [BukuIndukController::class, 'show'])->name('student.buku-induk');
+        Route::get('/student/{id}/buku-induk/pdf', [BukuIndukController::class, 'print'])->name('student.buku-induk.pdf');
         Route::post('/student', [StudentController::class, 'store']);
         Route::put('/student/{id}', [StudentController::class, 'update']);
         Route::delete('/student/{id}', [StudentController::class, 'destroy']);
     Route::post('/student/{id}/restore', [StudentController::class, 'restore']);
+        Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
         Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
         Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
         Route::delete('/student/{id}/documents/{documentId}', [StudentController::class, 'deleteDocument'])->name('student.delete-document');
         Route::get('/student/{id}/documents/{documentId}/download', [StudentController::class, 'downloadDocument'])->name('student.download-document');
+        // Alumni (lulusan)
+        Route::get('/alumni', [AlumniController::class, 'index']);
+        Route::get('/alumni/graduation-years', [AlumniController::class, 'graduationYears']);
+        Route::post('/student/{id}/graduate', [AlumniController::class, 'graduate']);
+        Route::post('/student/graduate-bulk', [AlumniController::class, 'graduateBulk']);
+        // Tracking destinasi alumni (lanjut sekolah/kuliah/kerja/dll)
+        Route::get('/alumni/destination-types', [AlumniDestinationController::class, 'types'])->name('alumni.destination-types');
+        Route::get('/alumni/students/{studentId}/destinations', [AlumniDestinationController::class, 'indexByStudent'])->name('alumni.destinations.by-student');
+        Route::post('/alumni-destinations', [AlumniDestinationController::class, 'store'])->name('alumni-destinations.store');
+        Route::put('/alumni-destinations/{alumni_destination}', [AlumniDestinationController::class, 'update'])->name('alumni-destinations.update');
+        Route::delete('/alumni-destinations/{alumni_destination}', [AlumniDestinationController::class, 'destroy'])->name('alumni-destinations.destroy');
         // Student mutation (mutasi siswa)
         Route::get('/student-mutations/target-institutions', [StudentMutationController::class, 'searchTargetInstitutions'])->name('student-mutations.target-institutions');
         Route::get('/student-mutations/origin-institutions', [StudentMutationController::class, 'searchOriginInstitutions'])->name('student-mutations.origin-institutions');
@@ -138,6 +177,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/student-mutations/{student_mutation}/approve', [StudentMutationController::class, 'approve'])->name('student-mutations.approve');
         Route::get('/student-mutations', [StudentMutationController::class, 'index']);
         Route::get('/student-mutations/report', [StudentMutationController::class, 'report'])->name('student-mutations.report');
+        Route::get('/student-mutations/export', [StudentMutationController::class, 'export'])->name('student-mutations.export');
         Route::get('/student-mutations/by-student/{student_id}', [StudentMutationController::class, 'historyByStudent'])->name('student-mutations.by-student');
         Route::get('/student-mutations/history-by-nisn', [StudentMutationController::class, 'historyByNisn'])->name('student-mutations.history-by-nisn');
         Route::post('/student-mutations', [StudentMutationController::class, 'store']);
@@ -162,6 +202,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/achievements', [AchievementController::class, 'store']);
         Route::get('/achievements/by-student/{studentId}', [AchievementController::class, 'byStudent']);
         Route::get('/achievements/{achievement}', [AchievementController::class, 'show']);
+        Route::put('/achievements/{achievement}', [AchievementController::class, 'update']);
         Route::delete('/achievements/{achievement}', [AchievementController::class, 'destroy']);
         Route::get('/achievement-types', [AchievementTypeController::class, 'index']);
         Route::post('/achievement-types', [AchievementTypeController::class, 'store']);
@@ -181,6 +222,60 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         // Ringkasan poin siswa + tindakan yang harus dilakukan
         Route::get('/student-points', [StudentPointController::class, 'index']);
         Route::get('/student-points/{studentId}/summary', [StudentPointController::class, 'summary']);
+    });
+
+    // Counseling routes (Konseling)
+    Route::middleware('module:counseling')->group(function () {
+        Route::get('/counseling', [CounselingController::class, 'index']);
+        Route::get('/counseling/stats', [CounselingController::class, 'stats'])->name('counseling.stats');
+        Route::get('/counseling/upcoming', [CounselingController::class, 'upcoming'])->name('counseling.upcoming');
+        Route::get('/counseling/export', [CounselingController::class, 'export'])->name('counseling.export');
+        Route::get('/counseling/counselors', [CounselingController::class, 'counselors'])->name('counseling.counselors');
+        Route::post('/counseling', [CounselingController::class, 'store']);
+        Route::get('/counseling/by-student/{studentId}', [CounselingController::class, 'byStudent'])->name('counseling.by-student');
+        Route::get('/counseling/{counseling_session}', [CounselingController::class, 'show']);
+        Route::put('/counseling/{counseling_session}', [CounselingController::class, 'update']);
+        Route::delete('/counseling/{counseling_session}', [CounselingController::class, 'destroy']);
+        Route::get('/counseling-types', [CounselingTypeController::class, 'index']);
+        Route::post('/counseling-types', [CounselingTypeController::class, 'store']);
+        Route::get('/counseling-types/{counseling_type}', [CounselingTypeController::class, 'show']);
+        Route::put('/counseling-types/{counseling_type}', [CounselingTypeController::class, 'update']);
+        Route::delete('/counseling-types/{counseling_type}', [CounselingTypeController::class, 'destroy']);
+    });
+
+    // Jurnal Mengajar (Teaching Journal) + Absensi Siswa per jam
+    Route::middleware('module:teaching_journal')->group(function () {
+        Route::get('/teaching-journals', [TeachingJournalController::class, 'index'])->name('teaching-journals.index');
+        Route::post('/teaching-journals', [TeachingJournalController::class, 'store'])->name('teaching-journals.store');
+        Route::get('/teaching-journals/{teaching_journal}', [TeachingJournalController::class, 'show'])->name('teaching-journals.show');
+        Route::put('/teaching-journals/{teaching_journal}', [TeachingJournalController::class, 'update'])->name('teaching-journals.update');
+        Route::delete('/teaching-journals/{teaching_journal}', [TeachingJournalController::class, 'destroy'])->name('teaching-journals.destroy');
+        Route::get('/teaching-journals/{teachingJournalId}/attendances', [StudentAttendanceController::class, 'index'])->name('teaching-journals.attendances.index');
+        Route::post('/teaching-journals/attendances', [StudentAttendanceController::class, 'store'])->name('teaching-journals.attendances.store');
+        Route::put('/student-attendances/{student_attendance}', [StudentAttendanceController::class, 'update'])->name('student-attendances.update');
+    });
+
+    // Absensi (Guru & Staff per hari)
+    Route::middleware('module:attendance')->group(function () {
+        Route::get('/employee-attendances/status-options', [EmployeeAttendanceController::class, 'statusOptions'])->name('employee-attendances.status-options');
+        Route::post('/employee-attendances/bulk', [EmployeeAttendanceController::class, 'bulkStore'])->name('employee-attendances.bulk');
+        Route::get('/employee-attendances', [EmployeeAttendanceController::class, 'index'])->name('employee-attendances.index');
+        Route::post('/employee-attendances', [EmployeeAttendanceController::class, 'store'])->name('employee-attendances.store');
+        Route::put('/employee-attendances/{employee_attendance}', [EmployeeAttendanceController::class, 'update'])->name('employee-attendances.update');
+    });
+
+    // Buku Nilai (Grade Book)
+    Route::middleware('module:grade_book')->group(function () {
+        Route::get('/grades', [GradeController::class, 'index'])->name('grades.index');
+        Route::get('/grades/by-class-subject-semester', [GradeController::class, 'getByClassSubjectSemester'])->name('grades.by-class-subject-semester');
+        Route::get('/grades/by-student-semester', [GradeController::class, 'getByStudentSemester'])->name('grades.by-student-semester');
+        Route::get('/grades/export', [GradeController::class, 'export'])->name('grades.export');
+        Route::get('/grades/export-student-raport', [GradeController::class, 'exportStudentRaport'])->name('grades.export-student-raport');
+        Route::post('/grades/bulk', [GradeController::class, 'bulkUpsert'])->name('grades.bulk');
+        Route::post('/grades', [GradeController::class, 'store'])->name('grades.store');
+        Route::get('/grades/{grade}', [GradeController::class, 'show'])->name('grades.show');
+        Route::put('/grades/{grade}', [GradeController::class, 'update'])->name('grades.update');
+        Route::delete('/grades/{grade}', [GradeController::class, 'destroy'])->name('grades.destroy');
     });
 
     // Employee routes with caching
@@ -281,6 +376,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/rooms', [FacilityController::class, 'createRoom']);
         Route::put('/rooms/{id}', [FacilityController::class, 'updateRoom']);
         Route::delete('/rooms/{id}', [FacilityController::class, 'deleteRoom']);
+        Route::get('/lab-report', [FacilityController::class, 'getLabReport']);
+        Route::get('/my-labs', [FacilityController::class, 'getMyLabs']);
     });
 
     // Inventory routes (Inventaris)
@@ -369,5 +466,64 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Disposition routes (standalone)
     Route::middleware('module:correspondence')->group(function () {
         Route::get('/dispositions/pending', [DispositionController::class, 'pending'])->name('dispositions.pending');
+    });
+
+    // Digital Archive (Arsip Digital)
+    Route::middleware('module:digital_archive')->group(function () {
+        Route::get('digital-archives/categories', [DigitalArchiveController::class, 'categories'])->name('digital-archives.categories');
+        Route::post('digital-archives/categories', [DigitalArchiveController::class, 'storeCategory'])->name('digital-archives.categories.store');
+        Route::get('digital-archives/{digital_archive}/download', [DigitalArchiveController::class, 'download'])->name('digital-archives.download');
+        Route::apiResource('digital-archives', DigitalArchiveController::class);
+    });
+
+    // Buku Tamu (Guest Book)
+    Route::middleware('module:guest_book')->group(function () {
+        Route::get('guest-visits/export', [GuestVisitController::class, 'export'])->name('guest-visits.export');
+        Route::post('guest-visits/{guest_visit}/checkout', [GuestVisitController::class, 'checkout'])->name('guest-visits.checkout');
+        Route::post('guest-visits/{guest_visit}', [GuestVisitController::class, 'update'])->name('guest-visits.update.post'); // FormData update
+        Route::apiResource('guest-visits', GuestVisitController::class);
+    });
+
+    // Pengambilan Ijazah (Document Pickup)
+    Route::middleware('module:document_pickup')->group(function () {
+        Route::post('document-pickups/{document_pickup}', [DocumentPickupController::class, 'update'])->name('document-pickups.update.post'); // FormData update
+        Route::apiResource('document-pickups', DocumentPickupController::class);
+    });
+
+    // Perpustakaan (Library)
+    Route::prefix('library')->middleware('module:library')->group(function () {
+        Route::apiResource('categories', LibraryBookCategoryController::class);
+        Route::apiResource('books', LibraryBookController::class);
+        Route::apiResource('copies', LibraryBookCopyController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+        Route::get('loans', [LibraryLoanController::class, 'index'])->name('library.loans.index');
+        Route::post('loans', [LibraryLoanController::class, 'store'])->name('library.loans.store');
+        Route::get('loans/{loan}', [LibraryLoanController::class, 'show'])->name('library.loans.show');
+        Route::post('loans/{loan}/return', [LibraryLoanController::class, 'returnLoan'])->name('library.loans.return');
+        Route::post('loans/{loan}/renew', [LibraryLoanController::class, 'renewLoan'])->name('library.loans.renew');
+        Route::get('loans/{loan}/calculate-fine', [LibraryLoanController::class, 'calculateFine'])->name('library.loans.calculate-fine');
+        Route::get('fine-payments', [LibraryFinePaymentController::class, 'index'])->name('library.fine-payments.index');
+        Route::post('fine-payments', [LibraryFinePaymentController::class, 'store'])->name('library.fine-payments.store');
+        Route::prefix('reports')->group(function () {
+            Route::get('statistics', [LibraryReportController::class, 'statistics'])->name('library.reports.statistics');
+            Route::get('top-books', [LibraryReportController::class, 'topBooks'])->name('library.reports.top-books');
+            Route::get('loans-by-month', [LibraryReportController::class, 'loansByMonth'])->name('library.reports.loans-by-month');
+            Route::get('export/loans-pdf', [LibraryReportController::class, 'exportLoansPdf'])->name('library.reports.export.loans-pdf');
+        });
+    });
+
+    // Ekstrakurikuler
+    Route::middleware('module:extracurricular')->group(function () {
+        Route::get('extracurriculars/by-student/{studentId}', [ExtracurricularController::class, 'getByStudent'])->name('extracurriculars.by-student');
+        Route::get('extracurriculars', [ExtracurricularController::class, 'index'])->name('extracurriculars.index');
+        Route::post('extracurriculars', [ExtracurricularController::class, 'store'])->name('extracurriculars.store');
+        Route::get('extracurriculars/{extracurricular}', [ExtracurricularController::class, 'show'])->name('extracurriculars.show');
+        Route::put('extracurriculars/{extracurricular}', [ExtracurricularController::class, 'update'])->name('extracurriculars.update');
+        Route::delete('extracurriculars/{extracurricular}', [ExtracurricularController::class, 'destroy'])->name('extracurriculars.destroy');
+        Route::get('extracurriculars/{extracurricular}/students', [ExtracurricularController::class, 'getStudents'])->name('extracurriculars.students');
+        Route::get('extracurriculars/{extracurricular}/students/export', [ExtracurricularController::class, 'exportParticipants'])->name('extracurriculars.students.export');
+        Route::get('extracurriculars/{extracurricular}/available-students', [ExtracurricularController::class, 'getAvailableStudents'])->name('extracurriculars.available-students');
+        Route::post('extracurriculars/{extracurricular}/students', [ExtracurricularController::class, 'addStudents'])->name('extracurriculars.add-students');
+        Route::put('extracurriculars/{extracurricular}/enrollments/{enrollmentId}', [ExtracurricularController::class, 'updateEnrollment'])->name('extracurriculars.update-enrollment');
+        Route::delete('extracurriculars/{extracurricular}/students/{studentId}', [ExtracurricularController::class, 'removeStudent'])->name('extracurriculars.remove-student');
     });
 });

@@ -99,6 +99,30 @@ class Semester extends Model
     }
 
     /**
+     * Get the counseling sessions for this semester.
+     */
+    public function counselingSessions()
+    {
+        return $this->hasMany(CounselingSession::class, 'semester_id');
+    }
+
+    /**
+     * Get the grades (nilai) for this semester.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class, 'semester_id');
+    }
+
+    /**
+     * Get the teaching journals for this semester.
+     */
+    public function teachingJournals()
+    {
+        return $this->hasMany(TeachingJournal::class, 'semester_id');
+    }
+
+    /**
      * Scope a query to only include active semesters.
      */
     public function scopeActive($query)

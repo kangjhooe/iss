@@ -11,6 +11,9 @@ use App\Models\Land;
 use App\Models\Building;
 use App\Models\Room;
 use App\Models\AcademicYear;
+use App\Models\StudentCountSnapshot;
+use App\Models\StudentMutation;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -102,6 +105,20 @@ class ReportController extends Controller
             
             // Get students by status
             $studentsByStatus = $this->getStudentsByStatus($targetInstitutionId, $activeAcademicYearId);
+
+            // Data siswa format laporan (Jumlah Awal / Keluar / Masuk / Akhir) per bulan
+            $studentsTableDetail = null;
+            if ($month && $year) {
+                $this->ensureCurrentMonthSnapshot($targetInstitutionId, $institution->level, $activeAcademicYearId, (int) $year, (int) $month);
+                $studentsTableDetail = $this->getStudentsTableDetail(
+                    $targetInstitutionId,
+                    $institution->level,
+                    $activeAcademicYearId,
+                    $classesDetail,
+                    (int) $year,
+                    (int) $month
+                );
+            }
             
             // Get comparison data if requested
             $comparisonData = null;
@@ -158,6 +175,7 @@ class ReportController extends Controller
                     'classes_detail' => $classesDetail,
                     'facilities' => $facilitiesStats,
                     'comparison' => $comparisonData,
+                    'students_table_detail' => $studentsTableDetail,
                     'generated_at' => now()->format('Y-m-d H:i:s'),
                     'period' => [
                         'month' => $month,
@@ -517,6 +535,174 @@ class ReportController extends Controller
                 'by_type' => $roomsByType,
             ],
             'total' => $lands->count() + $buildings->count() + $rooms->count(),
+        ];
+    }
+
+    /**
+     * Ensure snapshot exists for current month (on-demand). For past months use stored snapshot only.
+     */
+    private function ensureCurrentMonthSnapshot(int $institutionId, string $institutionLevel, $academicYearId, int $year, int $month): void
+    {
+        $now = Carbon::now();
+        if ($year !== (int) $now->format('Y') || $month !== (int) $now->format('n')) {
+            return;
+        }
+        $byGrade = $this->getStudentsByGrade($institutionId, $institutionLevel, $academicYearId, null, null);
+        [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
+        for ($grade = $minGrade; $grade <= $maxGrade; $grade++) {
+            $g = $byGrade['grade_' . $grade] ?? ['male' => 0, 'female' => 0, 'total' => 0];
+            StudentCountSnapshot::updateOrCreate(
+                [
+                    'institution_id' => $institutionId,
+                    'year' => $year,
+                    'month' => $month,
+                    'grade' => $grade,
+                ],
+                [
+                    'academic_year_id' => $academicYearId,
+                    'male' => $g['male'],
+                    'female' => $g['female'],
+                    'total' => $g['total'],
+                ]
+            );
+        }
+    }
+
+    /**
+     * Get snapshot by month: grade_X => [male, female, total]. Returns all grades 1-12 for consistency.
+     */
+    private function getSnapshotByMonth(int $institutionId, int $year, int $month): array
+    {
+        $rows = StudentCountSnapshot::where('institution_id', $institutionId)
+            ->where('year', $year)
+            ->where('month', $month)
+            ->get();
+        $result = [];
+        foreach ($rows as $row) {
+            $result['grade_' . $row->grade] = [
+                'male' => (int) $row->male,
+                'female' => (int) $row->female,
+                'total' => (int) $row->total,
+            ];
+        }
+        for ($g = 1; $g <= 12; $g++) {
+            $key = 'grade_' . $g;
+            if (!isset($result[$key])) {
+                $result[$key] = ['male' => 0, 'female' => 0, 'total' => 0];
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Get mutation counts (keluar/masuk) for a month, by grade and gender. Uses student_grade, student_gender on mutation.
+     */
+    private function getMutationsByMonth(int $institutionId, int $year, int $month): array
+    {
+        $start = Carbon::createFromDate($year, $month, 1)->startOfDay();
+        $end = $start->copy()->endOfMonth();
+
+        $keluar = StudentMutation::where('origin_institution_id', $institutionId)
+            ->where('status', 'approved')
+            ->whereNotNull('approved_at')
+            ->whereBetween('approved_at', [$start, $end])
+            ->whereNotNull('student_grade')
+            ->get()
+            ->groupBy('student_grade')
+            ->map(function ($group) {
+                $male = $group->where('student_gender', 'L')->count();
+                $female = $group->where('student_gender', 'P')->count();
+                return ['male' => $male, 'female' => $female, 'total' => $male + $female];
+            })
+            ->all();
+
+        $masuk = StudentMutation::where('target_institution_id', $institutionId)
+            ->where('status', 'approved')
+            ->whereNotNull('approved_at')
+            ->whereBetween('approved_at', [$start, $end])
+            ->whereNotNull('student_grade')
+            ->get()
+            ->groupBy('student_grade')
+            ->map(function ($group) {
+                $male = $group->where('student_gender', 'L')->count();
+                $female = $group->where('student_gender', 'P')->count();
+                return ['male' => $male, 'female' => $female, 'total' => $male + $female];
+            })
+            ->all();
+
+        $normalize = function ($byGrade) {
+            $out = [];
+            for ($g = 1; $g <= 12; $g++) {
+                $out['grade_' . $g] = isset($byGrade[$g])
+                    ? ['male' => (int) $byGrade[$g]['male'], 'female' => (int) $byGrade[$g]['female'], 'total' => (int) $byGrade[$g]['total']]
+                    : ['male' => 0, 'female' => 0, 'total' => 0];
+            }
+            return $out;
+        };
+
+        return [
+            'keluar' => $normalize($keluar),
+            'masuk' => $normalize($masuk),
+        ];
+    }
+
+    /**
+     * Build students table detail for report: Kls, Jumlah Rombel, Jumlah Awal (L,P,Jml), Siswa Keluar, Siswa Masuk, Jumlah Akhir (L,P,Jml).
+     */
+    private function getStudentsTableDetail(
+        int $institutionId,
+        string $institutionLevel,
+        $academicYearId,
+        array $classesDetail,
+        int $year,
+        int $month
+    ): array {
+        [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
+        $prevMonth = $month === 1 ? 12 : $month - 1;
+        $prevYear = $month === 1 ? $year - 1 : $year;
+
+        $jumlahAwal = $this->getSnapshotByMonth($institutionId, $prevYear, $prevMonth);
+        $jumlahAkhir = $this->getSnapshotByMonth($institutionId, $year, $month);
+        $mutations = $this->getMutationsByMonth($institutionId, $year, $month);
+        $keluar = $mutations['keluar'];
+        $masuk = $mutations['masuk'];
+
+        $byGrade = $classesDetail['by_grade'] ?? [];
+        $rows = [];
+        $totals = ['jml_romb' => 0, 'jumlah_awal' => ['male' => 0, 'female' => 0, 'total' => 0], 'siswa_keluar' => ['male' => 0, 'female' => 0, 'total' => 0], 'siswa_masuk' => ['male' => 0, 'female' => 0, 'total' => 0], 'jumlah_akhir' => ['male' => 0, 'female' => 0, 'total' => 0]];
+        for ($grade = $minGrade; $grade <= $maxGrade; $grade++) {
+            $key = 'grade_' . $grade;
+            $jmlRomb = isset($byGrade[$key]) ? count($byGrade[$key]) : 0;
+            $awal = $jumlahAwal[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
+            $akhir = $jumlahAkhir[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
+            $k = $keluar[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
+            $m = $masuk[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
+            $rows[$key] = [
+                'grade' => $grade,
+                'jml_romb' => $jmlRomb,
+                'jumlah_awal' => $awal,
+                'siswa_keluar' => $k,
+                'siswa_masuk' => $m,
+                'jumlah_akhir' => $akhir,
+            ];
+            $totals['jml_romb'] += $jmlRomb;
+            $totals['jumlah_awal']['male'] += $awal['male'];
+            $totals['jumlah_awal']['female'] += $awal['female'];
+            $totals['jumlah_awal']['total'] += $awal['total'];
+            $totals['siswa_keluar']['male'] += $k['male'];
+            $totals['siswa_keluar']['female'] += $k['female'];
+            $totals['siswa_keluar']['total'] += $k['total'];
+            $totals['siswa_masuk']['male'] += $m['male'];
+            $totals['siswa_masuk']['female'] += $m['female'];
+            $totals['siswa_masuk']['total'] += $m['total'];
+            $totals['jumlah_akhir']['male'] += $akhir['male'];
+            $totals['jumlah_akhir']['female'] += $akhir['female'];
+            $totals['jumlah_akhir']['total'] += $akhir['total'];
+        }
+        return [
+            'grade_range' => [$minGrade, $maxGrade],
+            'by_grade' => $rows,
+            'totals' => $totals,
         ];
     }
 }

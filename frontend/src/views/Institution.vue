@@ -48,16 +48,8 @@
           </select>
         </div>
 
-        <div v-if="loading" class="loading-state">
-          <div class="loading-spinner">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-                <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-                <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-              </circle>
-            </svg>
-          </div>
-          <p>Memuat data...</p>
+        <div v-if="loading" class="loading-wrap">
+          <LoadingSkeleton type="table" :rows="6" :columns="7" :cell-widths="['100px', '1fr', '80px', '80px', '1fr', '120px', '120px']" />
         </div>
         
         <div v-else class="table-container">
@@ -141,16 +133,8 @@
           </div>
         </div>
 
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
-              <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
-              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </div>
-        <p>Memuat data...</p>
+      <div v-if="loading" class="loading-wrap">
+        <LoadingSkeleton type="card" :lines="5" :line-widths="['60%', '100%', '80%', '70%', '90%']" />
       </div>
       
       <div v-else-if="institution" class="institution-card">
@@ -755,6 +739,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { institutionApi } from '@/api/institution'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
 import { academicYearApi } from '@/api/academicYear'
@@ -1390,7 +1375,8 @@ onMounted(async () => {
 
 <style scoped>
 .institution-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-header {
@@ -1481,6 +1467,13 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
+}
+
+/* Layar besar: gunakan ruang lebih efisien, lebih banyak kolom */
+@media (min-width: 1400px) {
+  .institution-card .info-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
 }
 
 .info-item {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreViolationRequest;
 use App\Http\Requests\UpdateViolationRequest;
 use App\Http\Resources\ViolationResource;
+use App\Models\Institution;
 use App\Models\Violation;
 use App\Services\ViolationService;
 use Illuminate\Http\Request;
@@ -31,7 +32,16 @@ class ViolationController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $filters = $request->only(['student_id', 'violation_type_id', 'status', 'date_from', 'date_to', 'search']);
+            $filters = $request->only(['student_id', 'violation_type_id', 'status', 'date_from', 'date_to', 'search', 'academic_year_id', 'semester_id']);
+            $institution = Institution::find($institutionId);
+            if ($institution) {
+                if (!isset($filters['academic_year_id']) && $institution->active_academic_year_id) {
+                    $filters['academic_year_id'] = $institution->active_academic_year_id;
+                }
+                if (!isset($filters['semester_id']) && $institution->active_semester_id) {
+                    $filters['semester_id'] = $institution->active_semester_id;
+                }
+            }
             $perPage = min($request->get('per_page', 15), 100);
             $violations = $this->violationService->listForInstitution($institutionId, $filters, $perPage);
 

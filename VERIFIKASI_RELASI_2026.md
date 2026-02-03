@@ -102,6 +102,16 @@ Tidak ada relasi yang salah arah atau foreign key yang tidak sesuai.
 | `app/Http/Controllers/API/AchievementController.php` | Eager load academicYear, semester di index/show/store |
 | `app/Http/Resources/StudentResource.php` | Field `class` pakai getRawOriginal('class') |
 | `app/Http/Resources/AchievementResource.php` | Tambah academic_year_id, semester_id, whenLoaded academicYear, semester |
+| *(3 Feb 2026)* | |
+| `app/Models/SchoolClass.php` | Perbaikan `studentHistory()` FK → `class_id`; tambah `grades()`, `teachingJournals()` |
+| `app/Models/AcademicYear.php` | Tambah `grades()` |
+| `app/Models/Semester.php` | Tambah `grades()`, `teachingJournals()` |
+| `app/Models/Institution.php` | Tambah grades, teachingJournals, guestVisits, digitalArchiveCategories, digitalArchives, studentAttendances, employeeAttendances |
+| `app/Models/User.php` | Tambah `guestVisitsCreated()`, `digitalArchivesCreated()` |
+| `app/Models/Subject.php` | Tambah `grades()` |
+| `app/Models/Employee.php` | Tambah `teachingJournals()`, `grades()` |
+| `app/Models/LessonSchedule.php` | Tambah `teachingJournals()` |
+| `app/Models/Student.php` | Tambah `grades()` |
 
 ---
 
@@ -139,13 +149,49 @@ Tidak ada relasi yang salah arah atau foreign key yang tidak sesuai.
 
 - Eager load `academicYear` dan `semester` ditambahkan di index(), show(), dan store() agar response AchievementResource menampilkan tahun ajaran dan semester secara konsisten.
 
+### 4.6 Relasi Modul Bimbingan Konseling (2 Feb 2026)
+- **Institution:** `counselingTypes()`, `counselingSessions()`
+- **Student:** `counselingSessions()`
+- **User:** `counselingSessionsAsCounselor()` (counselor_id)
+- **Semester:** `counselingSessions()`
+- **AcademicYear:** `counselingSessions()`
+- **SchoolClass:** `counselingSessions()` (class_id)
+
+### 4.7 ClassRepository – students_count
+**File:** `backend/app/Repositories/ClassRepository.php`
+
+- `withCount('students')` ditambahkan pada list() agar response ClassResource menampilkan `students_count` tanpa N+1. Relasi `SchoolClass::students()` memakai FK `class_id` (bukan school_class_id).
+
 ---
 
-## 5. Rekomendasi Lanjutan
+## 5. Perbaikan Relasi (3 Februari 2026)
+
+### 5.1 SchoolClass::studentHistory() – FK eksplisit
+**File:** `backend/app/Models/SchoolClass.php`
+
+- **Bug:** `hasMany(ClassStudentHistory::class)` memakai konvensi FK `school_class_id`, sementara tabel `class_student_history` memakai kolom `class_id` (constrained ke `class`).
+- **Perbaikan:** `studentHistory()` diubah menjadi `hasMany(ClassStudentHistory::class, 'class_id')`.
+
+### 5.2 Relasi invers modul Nilai, Jurnal Mengajar, Buku Tamu, Arsip Digital, Kehadiran
+**File:** berbagai model
+
+- **AcademicYear:** tambah `grades()` → `hasMany(Grade::class, 'academic_year_id')`.
+- **Semester:** tambah `grades()` → `hasMany(Grade::class, 'semester_id')`; tambah `teachingJournals()` → `hasMany(TeachingJournal::class, 'semester_id')`.
+- **Institution:** tambah `grades()`, `teachingJournals()`, `guestVisits()`, `digitalArchiveCategories()`, `digitalArchives()`, `studentAttendances()`, `employeeAttendances()`.
+- **User:** tambah `guestVisitsCreated()` → `hasMany(GuestVisit::class, 'created_by')`; tambah `digitalArchivesCreated()` → `hasMany(DigitalArchive::class, 'created_by')`.
+- **Subject:** tambah `grades()` → `hasMany(Grade::class, 'subject_id')`.
+- **SchoolClass:** tambah `grades()` → `hasMany(Grade::class, 'class_id')`; tambah `teachingJournals()` → `hasMany(TeachingJournal::class, 'class_id')`.
+- **Employee:** tambah `teachingJournals()` → `hasMany(TeachingJournal::class, 'employee_id')`; tambah `grades()` → `hasMany(Grade::class, 'employee_id')`.
+- **LessonSchedule:** tambah `teachingJournals()` → `hasMany(TeachingJournal::class, 'lesson_schedule_id')`.
+- **Student:** tambah `grades()` → `hasMany(Grade::class)`.
+
+---
+
+## 6. Rekomendasi Lanjutan
 
 1. **Tes regresi:** Jalankan skenario API untuk Violation (list/show), Student (list/show), dan Achievement (list/show) untuk memastikan response `class` / `class_detail` / `academic_year` / `semester` konsisten.
 2. **Dokumentasi relasi:** RELASI_DAN_PENYEMPURNAAN.md dan VERIFIKASI_RELASI.md sudah menggambarkan relasi inti; dokumen ini melengkapi untuk modul pelanggaran dan prestasi.
 
 ---
 
-**Status:** Verifikasi relasi selesai; relasi invers dilengkapi; bug yang ditemukan sudah diperbaiki.
+**Status:** Verifikasi relasi selesai; relasi invers dilengkapi; bug yang ditemukan sudah diperbaiki; perbaikan FK ClassStudentHistory dan relasi modul Grade/TeachingJournal/GuestVisit/DigitalArchive/Attendance (3 Feb 2026).

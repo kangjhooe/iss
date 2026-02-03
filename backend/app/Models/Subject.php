@@ -38,6 +38,14 @@ class Subject extends Model
         return $this->hasMany(LessonSchedule::class);
     }
 
+    /**
+     * Get the grades (nilai) for this subject.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class, 'subject_id');
+    }
+
     public function scopeForInstitution($query, int $institutionId)
     {
         return $query->where('institution_id', $institutionId);

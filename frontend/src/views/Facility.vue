@@ -4,8 +4,8 @@
       <div class="page-header">
         <div class="header-content">
           <div>
-            <h2>Sarana Prasarana</h2>
-            <p>Kelola data tanah, gedung, dan ruangan sekolah Anda</p>
+            <h1 class="page-title">Sarana Prasarana</h1>
+            <p class="page-subtitle">Kelola data tanah, gedung, dan ruangan sekolah Anda</p>
           </div>
         </div>
       </div>
@@ -122,12 +122,14 @@
           </table>
 
           <div v-if="lands.length === 0" class="empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5304 5.21071 21.0391 5.58579 21.4142C5.96086 21.7893 6.46957 22 7 22H17C17.5304 22 18.0391 21.7893 18.4142 21.4142C18.7893 21.0391 19 20.5304 19 20V10M19 10L21 12M19 10L12 3L5 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <h3>Tidak ada data tanah</h3>
-            <p>Mulai dengan menambahkan data tanah baru</p>
-            <button @click="openLandModal()" class="btn-primary">
+            <div class="empty-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5304 5.21071 21.0391 5.58579 21.4142C5.96086 21.7893 6.46957 22 7 22H17C17.5304 22 18.0391 21.7893 18.4142 21.4142C18.7893 21.0391 19 20.5304 19 20V10M19 10L21 12M19 10L12 3L5 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="empty-title">Tidak ada data tanah</h3>
+            <p class="empty-desc">Mulai dengan menambahkan data tanah baru</p>
+            <button @click="openLandModal()" class="btn-primary btn-empty-cta">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -221,12 +223,14 @@
           </table>
 
           <div v-if="buildings.length === 0" class="empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 21H21M5 21V7L13 2V7M5 21H19M19 21V11M9 9V13M13 9V13M17 9V13M9 17V21M13 17V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <h3>Tidak ada data gedung</h3>
-            <p>Mulai dengan menambahkan data gedung baru</p>
-            <button @click="openBuildingModal()" class="btn-primary">
+            <div class="empty-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 21H21M5 21V7L13 2V7M5 21H19M19 21V11M9 9V13M13 9V13M17 9V13M9 17V21M13 17V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="empty-title">Tidak ada data gedung</h3>
+            <p class="empty-desc">Mulai dengan menambahkan data gedung baru</p>
+            <button @click="openBuildingModal()" class="btn-primary btn-empty-cta">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -302,6 +306,7 @@
                 <th>Lantai</th>
                 <th>Luas (m²)</th>
                 <th>Kapasitas</th>
+                <th>Penanggung Jawab</th>
                 <th>Kondisi</th>
                 <th>Aksi</th>
               </tr>
@@ -311,10 +316,12 @@
                 <td>{{ room.name }}</td>
                 <td>{{ room.code || '-' }}</td>
                 <td>{{ room.type }}</td>
+                <td>{{ room.type === 'Laboratorium' && room.lab_type ? labTypeLabel(room.lab_type) : '-' }}</td>
                 <td>{{ room.building?.name || '-' }}</td>
                 <td>{{ room.floor }}</td>
                 <td>{{ room.area ? formatNumber(room.area) : '-' }}</td>
                 <td>{{ room.capacity || '-' }}</td>
+                <td>{{ room.responsible_employee?.name || '-' }}</td>
                 <td><span :class="getConditionClass(room.condition)">{{ room.condition }}</span></td>
                 <td>
                   <div class="action-buttons">
@@ -337,13 +344,15 @@
           </table>
 
           <div v-if="rooms.length === 0" class="empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <h3>Tidak ada data ruangan</h3>
-            <p>Mulai dengan menambahkan data ruangan baru</p>
-            <button @click="openRoomModal()" class="btn-primary">
+            <div class="empty-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="empty-title">Tidak ada data ruangan</h3>
+            <p class="empty-desc">Mulai dengan menambahkan data ruangan baru</p>
+            <button @click="openRoomModal()" class="btn-primary btn-empty-cta">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -550,6 +559,19 @@
               </div>
             </div>
 
+            <div v-if="roomForm.type === 'Laboratorium'" class="form-row">
+              <div class="form-group">
+                <label>Jenis Lab</label>
+                <select v-model="roomForm.lab_type">
+                  <option value="">— Pilih jenis —</option>
+                  <option value="IPA">Lab IPA</option>
+                  <option value="Komputer">Lab Komputer</option>
+                  <option value="Bahasa">Lab Bahasa</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+              </div>
+            </div>
+
             <div class="form-row">
               <div class="form-group">
                 <label>Lantai *</label>
@@ -596,16 +618,16 @@
 
       <!-- Delete Confirmation Modal -->
       <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
-        <div class="modal-content" @click.stop style="max-width: 500px;">
+        <div class="modal-content modal-content--narrow" @click.stop>
           <div class="modal-header">
             <h3>Konfirmasi Hapus</h3>
             <button @click="cancelDelete" class="btn-close">×</button>
           </div>
           <div class="modal-body">
-            <p style="font-size: 16px; color: #1e293b; margin-bottom: 24px;">
+            <p class="modal-message">
               Apakah Anda yakin ingin menghapus <strong>{{ deleteName }}</strong>?
             </p>
-            <p style="font-size: 14px; color: #ef4444; margin-bottom: 24px;">
+            <p class="modal-warning">
               Tindakan ini tidak dapat dibatalkan.
             </p>
             <div class="modal-footer">
@@ -627,6 +649,7 @@
 import { ref, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { facilityApi } from '@/api/facility'
+import { employeeApi } from '@/api/teacher'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -707,12 +730,16 @@ const roomForm = ref({
   name: '',
   code: '',
   type: 'Kelas',
+  lab_type: '',
   floor: 1,
   area: '',
   capacity: '',
   condition: 'Baik',
-  description: ''
+  description: '',
+  responsible_employee_id: ''
 })
+
+const employees = ref([])
 
 // Load data functions
 const loadLands = async (resetFilters = false) => {
@@ -960,11 +987,20 @@ const deleteBuilding = (id) => {
 
 // Room CRUD
 const openRoomModal = async (room = null) => {
-  // Ensure buildings are loaded for dropdown
+  // Ensure buildings and employees are loaded for dropdowns
   if (buildings.value.length === 0) {
     await loadBuildings(true)
   }
-  
+  if (employees.value.length === 0) {
+    try {
+      const res = await employeeApi.getAll({ per_page: 500 })
+      const list = res?.data?.data ?? res?.data ?? []
+      employees.value = Array.isArray(list) ? list : (list?.data ?? [])
+    } catch {
+      employees.value = []
+    }
+  }
+
   editingRoom.value = room
   if (room) {
     roomForm.value = {
@@ -972,11 +1008,13 @@ const openRoomModal = async (room = null) => {
       name: room.name || '',
       code: room.code || '',
       type: room.type || 'Kelas',
+      lab_type: room.lab_type || '',
       floor: room.floor || 1,
       area: room.area || '',
       capacity: room.capacity || '',
       condition: room.condition || 'Baik',
-      description: room.description || ''
+      description: room.description || '',
+      responsible_employee_id: room.responsible_employee_id || ''
     }
   } else {
     roomForm.value = {
@@ -984,11 +1022,13 @@ const openRoomModal = async (room = null) => {
       name: '',
       code: '',
       type: 'Kelas',
+      lab_type: '',
       floor: 1,
       area: '',
       capacity: '',
       condition: 'Baik',
-      description: ''
+      description: '',
+      responsible_employee_id: ''
     }
   }
   roomError.value = ''
@@ -1085,6 +1125,11 @@ const getStatusClass = (status) => {
   return classes[status] || ''
 }
 
+const labTypeLabel = (key) => {
+  const labels = { IPA: 'Lab IPA', Komputer: 'Lab Komputer', Bahasa: 'Lab Bahasa', Lainnya: 'Lainnya' }
+  return labels[key] || key || '-'
+}
+
 const getConditionClass = (condition) => {
   const classes = {
     'Baik': 'status-success',
@@ -1126,7 +1171,8 @@ onMounted(() => {
 
 <style scoped>
 .facility-page {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-header {
@@ -1140,15 +1186,15 @@ onMounted(() => {
   gap: 24px;
 }
 
-.header-content h2 {
-  font-size: 28px;
+.header-content .page-title {
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 4px;
+  margin: 0 0 4px 0;
   letter-spacing: -0.5px;
 }
 
-.header-content p {
+.header-content .page-subtitle {
   color: #64748b;
   font-size: 14px;
   margin: 0;
@@ -1363,11 +1409,16 @@ onMounted(() => {
   gap: 16px;
 }
 
-.empty-state svg {
+.empty-icon {
   color: #cbd5e1;
   margin-bottom: 8px;
 }
 
+.empty-icon svg {
+  display: block;
+}
+
+.empty-title,
 .empty-state h3 {
   font-size: 20px;
   font-weight: 600;
@@ -1375,10 +1426,15 @@ onMounted(() => {
   margin: 0;
 }
 
+.empty-desc,
 .empty-state p {
   font-size: 14px;
   color: #64748b;
   margin: 0 0 24px 0;
+}
+
+.btn-empty-cta {
+  margin-top: 8px;
 }
 
 .loading-state {
@@ -1422,6 +1478,22 @@ onMounted(() => {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+}
+
+.modal-content--narrow {
+  max-width: 500px;
+}
+
+.modal-message {
+  font-size: 16px;
+  color: #1e293b;
+  margin-bottom: 24px;
+}
+
+.modal-warning {
+  font-size: 14px;
+  color: #ef4444;
+  margin-bottom: 24px;
 }
 
 .modal-header {

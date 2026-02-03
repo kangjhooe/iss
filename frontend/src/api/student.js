@@ -33,5 +33,16 @@ export const studentApi = {
     return api.get(`/v1/student/${id}/documents/${documentId}/download`, {
       responseType: 'blob'
     })
+  },
+  getBukuInduk(id) {
+    return api.get(`/v1/student/${id}/buku-induk`)
+  },
+  downloadBukuIndukPdf(id) {
+    return api.get(`/v1/student/${id}/buku-induk/pdf`, {
+      responseType: 'blob'
+    })
+  },
+  promote(data) {
+    return api.post('/v1/student/promote', data)
   }
 }

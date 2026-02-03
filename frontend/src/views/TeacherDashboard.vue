@@ -61,6 +61,37 @@
         </div>
       </div>
 
+      <div v-if="canAccessModule('teaching_journal') || canAccessModule('grade_book')" class="quick-actions-section">
+        <h2 class="section-title">Aksi Cepat</h2>
+        <div class="quick-actions-grid">
+          <router-link v-if="canAccessModule('teaching_journal')" to="/teaching-journal" class="quick-action-card">
+            <svg class="quick-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 6.25278V19.2528M12 6.25278C10.8321 5.47686 9.24649 5 7.5 5C5.75351 5 4.16789 5.47686 3 6.25278V19.2528C4.16789 18.4769 5.75351 18 7.5 18C9.24649 18 10.8321 18.4769 12 19.2528" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Jurnal Mengajar</span>
+            <span v-if="jurnalThisWeekCount !== undefined" class="quick-action-badge">{{ jurnalThisWeekCount }} minggu ini</span>
+          </router-link>
+          <router-link v-if="canAccessModule('grade_book')" to="/grade-book" class="quick-action-card">
+            <svg class="quick-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 12V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Buku Nilai</span>
+            <span v-if="gradesPending.length" class="quick-action-badge warning">{{ gradesPending.length }} belum diisi</span>
+          </router-link>
+        </div>
+        <div v-if="gradesPending.length > 0" class="grades-pending-list">
+          <h4 class="grades-pending-title">Nilai belum diisi (semester aktif)</h4>
+          <ul>
+            <li v-for="p in gradesPending" :key="p.class_id + '-' + p.subject_id">
+              <router-link :to="`/grade-book?semester_id=${p.semester_id}&class_id=${p.class_id}&subject_id=${p.subject_id}`">
+                {{ p.class_name }} – {{ p.subject_name }}
+              </router-link>
+            </li>
+          </ul>
+        </div>
+      </div>
+
       <div class="classes-section">
         <div class="section-header">
           <h2>Kelas yang Diampu</h2>
@@ -117,6 +148,13 @@ import { teacherApi } from '@/api/teacher'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+
+const canAccessModule = (moduleKey) => {
+  const role = authStore.user?.role
+  if (!role) return false
+  if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') return true
+  return (authStore.user?.permissions || []).includes(moduleKey)
+}
 const loading = ref(true)
 const dashboardData = ref({
   teacher: null,
@@ -129,6 +167,8 @@ const teacher = computed(() => dashboardData.value.teacher)
 const summary = computed(() => dashboardData.value.summary || {})
 const classes = computed(() => dashboardData.value.classes || [])
 const activeAcademicYear = computed(() => dashboardData.value.active_academic_year)
+const jurnalThisWeekCount = computed(() => dashboardData.value.jurnal_this_week_count ?? 0)
+const gradesPending = computed(() => dashboardData.value.grades_pending || [])
 
 const teacherName = computed(() => {
   return teacher.value?.name || authStore.user?.name || 'Guru'
@@ -153,8 +193,8 @@ onMounted(loadDashboard)
 
 <style scoped>
 .dashboard {
-  max-width: 1400px;
   width: 100%;
+  max-width: 100%;
   padding: 0;
 }
 
@@ -275,6 +315,98 @@ onMounted(loadDashboard)
   font-weight: 400;
   display: block;
   margin-top: 2px;
+}
+
+.quick-actions-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+}
+
+.quick-actions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.quick-action-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.quick-action-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.quick-action-icon {
+  flex-shrink: 0;
+  color: #16a34a;
+}
+
+.quick-action-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+.quick-action-badge.warning {
+  color: #dc2626;
+}
+
+.grades-pending-list {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.grades-pending-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0 0 8px 0;
+}
+
+.grades-pending-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grades-pending-list li {
+  margin-bottom: 6px;
+}
+
+.grades-pending-list a {
+  color: #0ea5e9;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.grades-pending-list a:hover {
+  text-decoration: underline;
 }
 
 .classes-section {

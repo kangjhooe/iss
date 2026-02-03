@@ -48,8 +48,8 @@ php artisan test --coverage
 ```
 
 **Next Steps:**
-- Tambahkan lebih banyak unit tests untuk Services lainnya
-- Tambahkan feature tests untuk Student dan Teacher endpoints
+- ~~Tambahkan feature tests untuk Student dan Teacher endpoints~~ (TeacherTest.php, StudentTest.php sudah ada)
+- ~~Tambahkan unit tests untuk TeacherService~~ (TeacherServiceTest.php sudah ada)
 - Setup test coverage reporting
 
 ---
@@ -84,9 +84,9 @@ php artisan l5-swagger:generate
 - JSON: `http://localhost:8000/docs/api-docs.json`
 
 **Next Steps:**
-- Tambahkan annotations di controllers untuk auto-generate docs
-- Document semua endpoints dengan proper examples
-- Setup authentication di Swagger UI
+- ~~Tambahkan annotations di controllers untuk auto-generate docs~~ (Auth, Student, Teacher/Employee sudah)
+- Document endpoint lainnya sesuai kebutuhan
+- Setup authentication di Swagger UI (Bearer token)
 
 **Contoh Annotation:**
 
@@ -197,9 +197,9 @@ Setelah implementasi, pastikan untuk test:
 - [x] Unit tests untuk AuthService
 - [x] Feature tests untuk Authentication endpoints
 - [x] Feature tests untuk Institution endpoints
-- [ ] Unit tests untuk Services lainnya
-- [ ] Feature tests untuk Student endpoints
-- [ ] Feature tests untuk Teacher endpoints
+- [x] Unit tests untuk TeacherService (TeacherServiceTest.php)
+- [x] Feature tests untuk Student endpoints (StudentTest.php)
+- [x] Feature tests untuk Teacher endpoints (TeacherTest.php - employee API)
 - [ ] Integration tests
 - [ ] Test coverage > 70%
 

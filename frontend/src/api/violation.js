@@ -50,6 +50,9 @@ export const achievementApi = {
   get(id) {
     return api.get(`/v1/achievements/${id}`)
   },
+  update(id, data) {
+    return api.put(`/v1/achievements/${id}`, data)
+  },
   delete(id) {
     return api.delete(`/v1/achievements/${id}`)
   },

@@ -21,7 +21,30 @@ use Illuminate\Support\Str;
 class EmployeeController extends Controller
 {
     /**
-     * Display a listing of employees.
+     * Display a listing of employees (guru/staff).
+     *
+     * @OA\Get(
+     *     path="/api/v1/employee",
+     *     summary="Daftar pegawai (guru/staff)",
+     *     tags={"Teacher"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="Cari nama/NIP/NUPTK"),
+     *     @OA\Parameter(name="status", in="query", required=false, @OA\Schema(type="string"), description="Filter status (Aktif/Pensiun/dll)"),
+     *     @OA\Parameter(name="type", in="query", required=false, @OA\Schema(type="string"), description="Filter tipe (Guru/Staff/dll)"),
+     *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer"), description="Jumlah per halaman (max 100)"),
+     *     @OA\Response(response=200, description="Berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="name", type="string"),
+     *                 @OA\Property(property="nip", type="string"),
+     *                 @OA\Property(property="type", type="string"),
+     *                 @OA\Property(property="status", type="string")
+     *             ))
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
      */
     public function index(Request $request)
     {
@@ -142,7 +165,35 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Store a newly created employee.
+     * Store a newly created employee (guru/staff).
+     *
+     * @OA\Post(
+     *     path="/api/v1/employee",
+     *     summary="Tambah pegawai (guru/staff)",
+     *     tags={"Teacher"},
+     *     security={{"sanctum":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"nik","type","name","gender"},
+     *             @OA\Property(property="institution_id", type="integer", description="ID institusi (untuk super admin)"),
+     *             @OA\Property(property="nik", type="string", example="1234567890123456", description="NIK 16 digit"),
+     *             @OA\Property(property="type", type="string", enum={"Guru","Staff","Tenaga Administrasi", "Tenaga Kebersihan","Tenaga Keamanan","Lainnya"}, example="Guru"),
+     *             @OA\Property(property="name", type="string", example="Budi Santoso"),
+     *             @OA\Property(property="gender", type="string", enum={"L","P"}, example="L"),
+     *             @OA\Property(property="nip", type="string"),
+     *             @OA\Property(property="nuptk", type="string"),
+     *             @OA\Property(property="status", type="string", example="Aktif")
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="Pegawai berhasil ditambahkan",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Pegawai berhasil ditambahkan"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Validasi gagal")
+     * )
      */
     public function store(StoreEmployeeRequest $request)
     {
@@ -161,6 +212,9 @@ class EmployeeController extends Controller
             // Extract educations if provided
             $educations = $validated['educations'] ?? [];
             unset($validated['educations']);
+
+            $additionalDutyIds = $validated['additional_duty_ids'] ?? [];
+            unset($validated['additional_duty_ids']);
 
             $permissionKeys = $validated['permission_keys'] ?? null;
             $userRole = $validated['user_role'] ?? null;
@@ -192,7 +246,11 @@ class EmployeeController extends Controller
                 }
             }
 
-            $accountResult = $this->ensureEmployeeUserAccount($employee, null, $permissionKeys, $userRole);
+            // Sync additional duties (tugas tambahan)
+            $employee->additionalDuties()->sync($additionalDutyIds);
+
+            $effectivePermissionKeys = $this->getEffectivePermissionKeys($employee, $permissionKeys);
+            $accountResult = $this->ensureEmployeeUserAccount($employee, null, $effectivePermissionKeys, $userRole);
 
             Log::info('Employee created', [
                 'employee_id' => $employee->id,
@@ -203,7 +261,7 @@ class EmployeeController extends Controller
 
             $response = [
                 'message' => 'Pegawai berhasil ditambahkan',
-                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions'])),
+                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties'])),
             ];
 
             if (!empty($accountResult['user_created'])) {
@@ -233,7 +291,17 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Display the specified employee.
+     * Display the specified employee (guru/staff).
+     *
+     * @OA\Get(
+     *     path="/api/v1/employee/{id}",
+     *     summary="Detail pegawai",
+     *     tags={"Teacher"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Berhasil", @OA\JsonContent(@OA\Property(property="data", type="object"))),
+     *     @OA\Response(response=404, description="Pegawai tidak ditemukan")
+     * )
      */
     public function show(Request $request, $id)
     {
@@ -255,7 +323,7 @@ class EmployeeController extends Controller
                 }
             }
 
-            $relations = ['institution', 'educations', 'documents', 'userAccount.permissions'];
+            $relations = ['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties'];
 
             if ($user->isAdminOrSuperAdmin() || $employee->institution_id == $currentInstitutionId) {
                 $relations[] = 'assignments.institution';
@@ -294,7 +362,23 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Update the specified employee.
+     * Update the specified employee (guru/staff).
+     *
+     * @OA\Put(
+     *     path="/api/v1/employee/{id}",
+     *     summary="Perbarui pegawai",
+     *     tags={"Teacher"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(@OA\JsonContent(
+     *         @OA\Property(property="name", type="string"),
+     *         @OA\Property(property="status", type="string"),
+     *         @OA\Property(property="nip", type="string"),
+     *         @OA\Property(property="nuptk", type="string")
+     *     )),
+     *     @OA\Response(response=200, description="Pegawai berhasil diperbarui"),
+     *     @OA\Response(response=404, description="Pegawai tidak ditemukan")
+     * )
      */
     public function update(UpdateEmployeeRequest $request, $id)
     {
@@ -312,6 +396,9 @@ class EmployeeController extends Controller
             // Extract educations if provided
             $educations = $validated['educations'] ?? null;
             unset($validated['educations']);
+
+            $additionalDutyIds = array_key_exists('additional_duty_ids', $validated) ? $validated['additional_duty_ids'] : null;
+            unset($validated['additional_duty_ids']);
 
             $permissionKeys = null;
             $userRole = null;
@@ -353,7 +440,20 @@ class EmployeeController extends Controller
                 }
             }
 
-            $accountResult = $this->ensureEmployeeUserAccount($employee, $previousEmail, $permissionKeys, $userRole);
+            // Sync additional duties (tugas tambahan) if provided
+            if ($additionalDutyIds !== null) {
+                $employee->additionalDuties()->sync($additionalDutyIds);
+            }
+
+            // When only additional_duty_ids sent, keep current user permissions as manual base
+            $manualKeys = $permissionKeys;
+            if ($manualKeys === null && $employee->userAccount) {
+                $manualKeys = $employee->userAccount->permissions()->pluck('key')->toArray();
+            }
+            $effectivePermissionKeys = ($additionalDutyIds !== null || $permissionKeys !== null)
+                ? $this->getEffectivePermissionKeys($employee, $manualKeys ?? [])
+                : null;
+            $accountResult = $this->ensureEmployeeUserAccount($employee, $previousEmail, $effectivePermissionKeys, $userRole);
 
             Log::info('Employee updated', [
                 'employee_id' => $employee->id,
@@ -362,7 +462,7 @@ class EmployeeController extends Controller
 
             $response = [
                 'message' => 'Pegawai berhasil diperbarui',
-                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions'])),
+                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties'])),
             ];
 
             if (!empty($accountResult['user_created'])) {
@@ -464,7 +564,17 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Remove the specified employee.
+     * Remove the specified employee (soft delete).
+     *
+     * @OA\Delete(
+     *     path="/api/v1/employee/{id}",
+     *     summary="Hapus pegawai",
+     *     tags={"Teacher"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Pegawai berhasil dihapus"),
+     *     @OA\Response(response=404, description="Pegawai tidak ditemukan")
+     * )
      */
     public function destroy(Request $request, $id)
     {
@@ -954,10 +1064,11 @@ class EmployeeController extends Controller
 
     /**
      * Default module access for new teacher accounts.
+     * Persuratan, Jurnal Mengajar, Nilai, dan Jadwal agar guru baru langsung bisa bekerja.
      */
     protected function getDefaultTeacherPermissions(): array
     {
-        return ['correspondence'];
+        return ['correspondence', 'teaching_journal', 'grade_book', 'schedule'];
     }
 
     /**
@@ -977,5 +1088,18 @@ class EmployeeController extends Controller
 
         $permissionIds = Permission::whereIn('key', $keys)->pluck('id')->all();
         $user->permissions()->sync($permissionIds);
+    }
+
+    /**
+     * Effective permission keys for employee: manual permission_keys merged with
+     * permissions granted by all assigned additional duties (tugas tambahan).
+     */
+    protected function getEffectivePermissionKeys(Employee $employee, ?array $manualKeys): array
+    {
+        $manual = $manualKeys ?? [];
+        $employee->load('additionalDuties.permissions');
+        $fromDuties = $employee->additionalDuties->flatMap(fn ($d) => $d->permissions->pluck('key'))->unique()->values()->all();
+
+        return array_values(array_unique(array_merge($manual, $fromDuties)));
     }
 }

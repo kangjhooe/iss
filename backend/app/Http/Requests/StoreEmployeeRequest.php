@@ -55,6 +55,11 @@ class StoreEmployeeRequest extends FormRequest
             'status' => 'nullable|in:Aktif,Pensiun,Pindah,Tidak Aktif',
             'join_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'certification_status' => 'nullable|in:Sudah,Belum',
+            'certification_date' => 'nullable|date',
+            'teacher_registration_number' => 'nullable|string|max:50',
+            'certification_number' => 'nullable|string|max:100',
+            'certification_issuing_authority' => 'nullable|string|max:255',
             'educations' => 'nullable|array',
             'educations.*.level' => 'nullable|in:SD,SMP,SMA,SMK,D1,D2,D3,D4,S1,S2,S3',
             'educations.*.school_name' => 'nullable|string|max:255',
@@ -65,6 +70,8 @@ class StoreEmployeeRequest extends FormRequest
             'educations.*.notes' => 'nullable|string',
             'permission_keys' => 'nullable|array',
             'permission_keys.*' => 'string|exists:permissions,key',
+            'additional_duty_ids' => 'nullable|array',
+            'additional_duty_ids.*' => 'integer|exists:additional_duties,id',
         ];
     }
 

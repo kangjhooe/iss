@@ -89,6 +89,22 @@ class AcademicYear extends Model
     }
 
     /**
+     * Get the counseling sessions for this academic year.
+     */
+    public function counselingSessions()
+    {
+        return $this->hasMany(CounselingSession::class, 'academic_year_id');
+    }
+
+    /**
+     * Get the grades (nilai) for this academic year.
+     */
+    public function grades()
+    {
+        return $this->hasMany(Grade::class, 'academic_year_id');
+    }
+
+    /**
      * Scope a query to only include active academic years.
      */
     public function scopeActive($query)

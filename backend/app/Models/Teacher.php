@@ -39,6 +39,11 @@ class Teacher extends Model
         'status',
         'join_date',
         'notes',
+        'certification_status',
+        'certification_date',
+        'teacher_registration_number',
+        'certification_number',
+        'certification_issuing_authority',
     ];
 
     /**
@@ -51,6 +56,7 @@ class Teacher extends Model
         return [
             'birth_date' => 'date',
             'join_date' => 'date',
+            'certification_date' => 'date',
         ];
     }
 

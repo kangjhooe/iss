@@ -68,8 +68,8 @@ class StudentService
 
         $perPage = min($perPage, 100); // Max 100 per page
 
-        // Optimize eager loading - only load necessary relationships
-        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'created_at'])
+        // Include graduation_year for list
+        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'graduation_year', 'created_at'])
             ->with([
                 'institution:id,name,npsn',
                 'class:id,name,grade,academic_year_id',
@@ -259,6 +259,216 @@ class StudentService
                 'academic_year_id' => $academicYearId,
             ]);
         }
+    }
+
+    /**
+     * List alumni (siswa dengan status Lulus) dengan filter.
+     */
+    public function listAlumni(array $filters, ?int $institutionId = null, int $perPage = 15): LengthAwarePaginator
+    {
+        $query = Student::query()->alumni();
+
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('nisn', 'like', '%' . $search . '%')
+                    ->orWhere('nis', 'like', '%' . $search . '%')
+                    ->orWhere('nik', 'like', '%' . $search . '%');
+            });
+        }
+
+        if (!empty($filters['graduation_year'])) {
+            $query->byGraduationYear((int) $filters['graduation_year']);
+        }
+
+        if (!empty($filters['class_id'])) {
+            $query->where('class_id', $filters['class_id']);
+        }
+
+        $perPage = min($perPage, 100);
+
+        return $query
+            ->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year', 'academic_year_id', 'graduation_year', 'status', 'created_at'])
+            ->with([
+                'institution:id,name,npsn',
+                'class:id,name,grade',
+                'academicYear:id,name,code',
+                'currentAlumniDestination',
+            ])
+            ->orderBy('graduation_year', 'desc')
+            ->orderBy('name')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Luluskan satu siswa (set status Lulus, tutup riwayat kelas, isi tahun lulus).
+     */
+    public function graduateSingle(Student $student, ?int $graduationYear = null): Student
+    {
+        if ($student->status === 'Lulus') {
+            throw new \InvalidArgumentException('Siswa sudah berstatus Lulus.');
+        }
+
+        if ($student->status !== 'Aktif') {
+            throw new \InvalidArgumentException('Hanya siswa aktif yang dapat diluluskan.');
+        }
+
+        $year = $graduationYear ?? $this->inferGraduationYearFromStudent($student);
+
+        $oldClassId = $student->class_id;
+        $oldAcademicYearId = $student->academic_year_id;
+
+        if ($oldClassId && $oldAcademicYearId) {
+            $this->endPreviousHistory($student->id, $oldClassId, $oldAcademicYearId);
+            $this->createClassHistory($student, $oldClassId, $oldAcademicYearId, $student->semester_id, 'lulus');
+        }
+
+        $student->update([
+            'status' => 'Lulus',
+            'graduation_year' => $year,
+        ]);
+
+        Log::info('Student graduated', [
+            'student_id' => $student->id,
+            'graduation_year' => $year,
+        ]);
+
+        return $student->fresh(['institution', 'class', 'academicYear', 'semester']);
+    }
+
+    /**
+     * Luluskan banyak siswa sekaligus.
+     *
+     * @param array<int> $studentIds
+     * @return array{success: int, failed: array<array{id: int, reason: string}>}
+     */
+    public function graduateBulk(array $studentIds, ?int $graduationYear = null): array
+    {
+        $year = $graduationYear ?? (int) date('Y');
+        $success = 0;
+        $failed = [];
+
+        foreach ($studentIds as $id) {
+            $student = Student::find($id);
+            if (!$student) {
+                $failed[] = ['id' => $id, 'reason' => 'Siswa tidak ditemukan.'];
+                continue;
+            }
+            try {
+                $this->graduateSingle($student, $year);
+                $success++;
+            } catch (\Throwable $e) {
+                $failed[] = ['id' => $id, 'reason' => $e->getMessage()];
+            }
+        }
+
+        return ['success' => $success, 'failed' => $failed];
+    }
+
+    /**
+     * Infer graduation year from student's academic year (e.g. "2024/2025" -> 2025).
+     */
+    protected function inferGraduationYearFromStudent(Student $student): int
+    {
+        if ($student->graduation_year) {
+            return (int) $student->graduation_year;
+        }
+        if ($student->academic_year_id) {
+            $ay = \App\Models\AcademicYear::find($student->academic_year_id);
+            if ($ay && preg_match('/^\d{4}/', $ay->name ?? '', $m)) {
+                return (int) $m[0] + 1; // e.g. 2024/2025 -> 2025
+            }
+        }
+        return (int) date('Y');
+    }
+
+    /**
+     * Daftar tahun lulus yang ada (untuk filter dropdown).
+     *
+     * @return array<int>
+     */
+    public function getGraduationYears(?int $institutionId = null): array
+    {
+        $query = Student::query()->alumni()->whereNotNull('graduation_year');
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
+        }
+        return $query->select('graduation_year')->distinct()->orderByDesc('graduation_year')->pluck('graduation_year')->map(fn ($y) => (int) $y)->values()->all();
+    }
+
+    /**
+     * Naik kelas: pindahkan siswa dari kelas/tahun ajaran sumber ke kelas/tahun ajaran tujuan.
+     * Hanya siswa dengan status Aktif. Riwayat kelas otomatis tercatat dengan status naik_kelas.
+     *
+     * @param array<int>|null $studentIds Jika null, semua siswa Aktif di kelas sumber akan dinaikkan.
+     * @return array{success: int, failed: array<array{id: int, reason: string}>}
+     */
+    public function promoteBulk(
+        int $institutionId,
+        int $sourceClassId,
+        int $sourceAcademicYearId,
+        int $targetClassId,
+        int $targetAcademicYearId,
+        ?int $targetSemesterId = null,
+        ?array $studentIds = null
+    ): array {
+        $targetClass = \App\Models\SchoolClass::where('id', $targetClassId)
+            ->where('institution_id', $institutionId)
+            ->where('academic_year_id', $targetAcademicYearId)
+            ->first();
+        if (!$targetClass) {
+            throw new \InvalidArgumentException('Kelas tujuan tidak ditemukan atau tidak sesuai tahun ajaran.');
+        }
+
+        $targetAcademicYear = \App\Models\AcademicYear::find($targetAcademicYearId);
+        if (!$targetAcademicYear) {
+            throw new \InvalidArgumentException('Tahun ajaran tujuan tidak ditemukan.');
+        }
+
+        $targetSemesterId = $targetSemesterId ?? \App\Models\Semester::where('academic_year_id', $targetAcademicYearId)->orderBy('id')->value('id');
+        if ($targetSemesterId && !\App\Models\Semester::where('id', $targetSemesterId)->where('academic_year_id', $targetAcademicYearId)->exists()) {
+            throw new \InvalidArgumentException('Semester tujuan tidak termasuk dalam tahun ajaran tujuan.');
+        }
+
+        $query = Student::query()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', $sourceClassId)
+            ->where('academic_year_id', $sourceAcademicYearId)
+            ->where('status', 'Aktif');
+
+        if ($studentIds !== null && count($studentIds) > 0) {
+            $query->whereIn('id', $studentIds);
+        }
+
+        $students = $query->get();
+        $success = 0;
+        $failed = [];
+
+        $updateData = [
+            'class_id' => $targetClassId,
+            'academic_year_id' => $targetAcademicYearId,
+            'class' => $targetClass->name,
+            'academic_year' => $targetAcademicYear->name,
+        ];
+        if ($targetSemesterId) {
+            $updateData['semester_id'] = $targetSemesterId;
+        }
+
+        foreach ($students as $student) {
+            try {
+                $this->update($student, $updateData);
+                $success++;
+            } catch (\Throwable $e) {
+                $failed[] = ['id' => $student->id, 'reason' => $e->getMessage()];
+            }
+        }
+
+        return ['success' => $success, 'failed' => $failed];
     }
 
     /**
