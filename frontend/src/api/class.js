@@ -27,5 +27,11 @@ export const classApi = {
   },
   removeStudent(classId, studentId) {
     return api.delete(`/v1/class/${classId}/students/${studentId}`)
+  },
+  exportPdf(params) {
+    return api.get('/v1/class/export/pdf', { 
+      params,
+      responseType: 'blob'
+    })
   }
 }

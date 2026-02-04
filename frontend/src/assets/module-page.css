@@ -4,6 +4,26 @@
  * - Filter + pencarian: 1 baris ke samping (horizontal)
  * - Responsif: tetap horizontal di mobile
  */
+
+/* Area loading skeleton full layar (lebar + tinggi konten) */
+.main-content .loading-wrap {
+  width: 100%;
+  min-height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+.main-content .loading-wrap .skeleton-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .main-content .page-header {
   margin-bottom: 24px;
 }

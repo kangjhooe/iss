@@ -3,7 +3,7 @@
     <!-- Table Skeleton -->
     <div v-if="type === 'table'" class="skeleton-table">
       <div class="skeleton-row" v-for="i in rows" :key="i">
-        <div class="skeleton-cell" v-for="j in columns" :key="j" :style="{ width: cellWidths[j - 1] || '100px' }"></div>
+        <div class="skeleton-cell" v-for="j in columns" :key="j" :style="getCellStyle(j)"></div>
       </div>
     </div>
 
@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   type: {
     type: String,
     default: 'default',
@@ -65,16 +65,30 @@ defineProps({
     default: 5
   }
 })
+
+function getCellStyle(j) {
+  const w = props.cellWidths[j - 1] || '100px'
+  if (w === '1fr') {
+    return { flex: '1 1 0%', minWidth: 0 }
+  }
+  return { width: w, flexShrink: 0 }
+}
 </script>
 
 <style scoped>
 .skeleton-container {
   width: 100%;
+  min-height: 100%;
 }
 
 /* Table Skeleton */
 .skeleton-table {
   width: 100%;
+  min-width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .skeleton-row {
@@ -82,6 +96,9 @@ defineProps({
   gap: 16px;
   padding: 12px 0;
   border-bottom: 1px solid #e2e8f0;
+  width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .skeleton-cell {

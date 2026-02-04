@@ -14,10 +14,10 @@ class StudentPointService
      */
     public function getViolationPoints(int $studentId, int $institutionId): int
     {
-        return (int) Violation::forInstitution($institutionId)
-            ->forStudent($studentId)
+        return (int) Violation::query()
+            ->where('violations.institution_id', $institutionId)
+            ->where('violations.student_id', $studentId)
             ->join('violation_types', 'violations.violation_type_id', '=', 'violation_types.id')
-            ->where('violation_types.institution_id', $institutionId)
             ->sum('violation_types.point_weight');
     }
 
@@ -62,9 +62,13 @@ class StudentPointService
      * Get the required action (threshold) for a given total point (skor pelanggaran).
      * Thresholds are checked by sort_order ascending; first match wins.
      * Convention: high total = bad; e.g. point_min=40, point_max=999 => "Panggilan orang tua".
+     * Skor 0 atau negatif = tidak ada tindakan wajib (hanya yang punya pelanggaran yang perlu tindakan).
      */
     public function getRequiredAction(int $institutionId, int $totalPoint): ?PointThreshold
     {
+        if ($totalPoint <= 0) {
+            return null;
+        }
         return PointThreshold::forInstitution($institutionId)
             ->active()
             ->orderBy('sort_order')

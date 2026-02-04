@@ -699,6 +699,7 @@ watch(showFormModal, (v) => {
 }
 
 .loading-wrap {
+  width: 100%;
   margin-top: 16px;
 }
 

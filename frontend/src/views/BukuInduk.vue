@@ -527,6 +527,7 @@ onMounted(() => load())
 }
 .loading-wrap,
 .error-wrap {
+  width: 100%;
   text-align: center;
   padding: 3rem 1rem;
 }

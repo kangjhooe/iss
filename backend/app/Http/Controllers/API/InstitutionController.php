@@ -277,6 +277,16 @@ class InstitutionController extends Controller
                 $institution = Institution::find($user->institution_id);
             }
 
+            // Fallback: admin sekolah yang mendaftar pertama kali — saat registrasi institution.email = user.email.
+            // Jika institution_id di user kosong (bug/data lama), cari instansi berdasarkan email lalu perbaiki user.
+            if (!$institution && $user->role === 'institution_admin' && $user->email) {
+                $institution = Institution::where('email', $user->email)->first();
+                if ($institution) {
+                    $user->institution_id = $institution->id;
+                    $user->save();
+                }
+            }
+
             if (!$institution) {
                 $message = 'Institusi tidak ditemukan.';
                 if ($user->role === 'institution_admin' && !$user->institution_id) {

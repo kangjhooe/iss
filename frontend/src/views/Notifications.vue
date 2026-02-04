@@ -290,6 +290,7 @@ loadNotifications(1)
 }
 
 .loading-wrap {
+  width: 100%;
   min-height: 200px;
 }
 

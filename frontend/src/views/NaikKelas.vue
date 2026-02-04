@@ -413,6 +413,7 @@ watch(targetAcademicYearId, () => {
 }
 
 .loading-wrap {
+  width: 100%;
   padding: 16px 0;
 }
 

@@ -81,9 +81,10 @@ class StudentAttendanceService
                         'notes' => $notes,
                     ]
                 );
+                $att->load('student:id,nis,nisn,name,gender');
                 $saved->push($att);
             }
-            return $saved->load('student:id,nis,nisn,name,gender');
+            return $saved;
         });
     }
 

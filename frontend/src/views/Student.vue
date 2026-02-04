@@ -1108,6 +1108,8 @@ const showViewModal = ref(false)
 const viewingStudent = ref(null)
 const studentCounselingSessions = ref([])
 const studentCounselingLoading = ref(false)
+const studentExtracurricularEnrollments = ref([])
+const studentExtracurricularLoading = ref(false)
 const myInstitution = ref(null)
 const formClassList = ref([])
 const formClassListLoading = ref(false)
@@ -1530,6 +1532,7 @@ const closeViewModal = () => {
   viewingStudent.value = null
   studentCounselingSessions.value = []
   studentExtracurricularEnrollments.value = []
+  studentExtracurricularLoading.value = false
 }
 
 async function loadStudentCounseling(studentId) {
@@ -1542,6 +1545,19 @@ async function loadStudentCounseling(studentId) {
     studentCounselingSessions.value = []
   } finally {
     studentCounselingLoading.value = false
+  }
+}
+
+async function loadStudentExtracurriculars(studentId) {
+  studentExtracurricularLoading.value = true
+  studentExtracurricularEnrollments.value = []
+  try {
+    const res = await extracurricularApi.getByStudent(studentId, { per_page: 100 })
+    studentExtracurricularEnrollments.value = res.data?.data ?? []
+  } catch {
+    studentExtracurricularEnrollments.value = []
+  } finally {
+    studentExtracurricularLoading.value = false
   }
 }
 
@@ -2557,6 +2573,7 @@ onMounted(() => {
 }
 
 .loading-wrap {
+  width: 100%;
   min-height: 200px;
 }
 

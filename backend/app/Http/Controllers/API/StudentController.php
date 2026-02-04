@@ -428,12 +428,23 @@ class StudentController extends Controller
                 ], 400);
             }
 
-            $institutionId = $request->user()->isAdmin() 
+            $institutionId = $request->user()->isAdminOrSuperAdmin()
                 ? $request->input('institution_id')
                 : $request->user()->institution_id;
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
+            }
+
+            // Ambil semester aktif institusi agar siswa impor muncul di list (list difilter by semester_id)
+            $institution = \App\Models\Institution::find($institutionId);
+            $defaults = ['institution_id' => $institutionId];
+            if ($institution && $institution->active_semester_id) {
+                $defaults['semester_id'] = $institution->active_semester_id;
+                $semester = \App\Models\Semester::find($institution->active_semester_id);
+                if ($semester && $semester->academic_year_id) {
+                    $defaults['academic_year_id'] = $semester->academic_year_id;
+                }
             }
 
             $successCount = 0;
@@ -449,6 +460,15 @@ class StudentController extends Controller
                         continue;
                     }
 
+                    // Siswa impor wajib punya semester_id agar muncul di daftar (isi dari semester aktif jika belum ada)
+                    $payload = array_merge($studentData, $defaults);
+                    if (empty($payload['semester_id']) && !empty($defaults['semester_id'])) {
+                        $payload['semester_id'] = $defaults['semester_id'];
+                    }
+                    if (empty($payload['academic_year_id']) && !empty($defaults['academic_year_id'])) {
+                        $payload['academic_year_id'] = $defaults['academic_year_id'];
+                    }
+
                     // Cek apakah siswa sudah ada berdasarkan NIK
                     $existingStudent = Student::where('institution_id', $institutionId)
                         ->where('nik', $studentData['nik'])
@@ -456,15 +476,11 @@ class StudentController extends Controller
 
                     if ($existingStudent) {
                         // Update jika sudah ada
-                        $existingStudent->update(array_merge($studentData, [
-                            'institution_id' => $institutionId
-                        ]));
+                        $existingStudent->update($payload);
                         $successCount++;
                     } else {
                         // Create jika belum ada
-                        Student::create(array_merge($studentData, [
-                            'institution_id' => $institutionId
-                        ]));
+                        Student::create($payload);
                         $successCount++;
                     }
                 } catch (\Exception $e) {

@@ -1133,6 +1133,7 @@ onMounted(async () => {
 }
 
 .loading-wrap {
+  width: 100%;
   text-align: center;
   padding: 32px;
 }

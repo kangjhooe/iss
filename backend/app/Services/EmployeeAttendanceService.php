@@ -85,9 +85,10 @@ class EmployeeAttendanceService
                         'notes' => $row['notes'] ?? null,
                     ]
                 );
+                $att->load('employee:id,institution_id,nip,name,type,gender');
                 $saved->push($att);
             }
-            return $saved->load('employee:id,institution_id,nip,name,type,gender');
+            return $saved;
         });
     }
 

@@ -16,21 +16,6 @@
 
           <!-- Statistics Cards -->
           <div class="stats-grid">
-            <div class="stat-card stat-card-primary">
-              <div class="stat-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              </div>
-              <div class="stat-body">
-                <h3 class="stat-title">Profil {{ institutionTypeLabel }}</h3>
-            <p v-if="institution" class="stat-value">{{ institution.name }}</p>
-            <p v-else-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value text-muted">—</p>
-                <span class="stat-label">{{ institutionTypeLabel }} Terdaftar</span>
-              </div>
-            </div>
-        
             <div class="stat-card stat-card-success">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -108,6 +93,21 @@
             <span class="stat-label">Catatan Pelanggaran</span>
             </div>
           </div>
+
+            <div class="stat-card stat-card-danger">
+          <div class="stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8C3 5 4.5 3 8 3H16C19.5 3 21 5 21 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 13V17M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <h3 class="stat-title">Pelanggaran Bulan Ini</h3>
+            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
+            <p v-else class="stat-value">{{ formatNumber(violationCountThisMonth) }}</p>
+            <span class="stat-label">Bulan berjalan</span>
+          </div>
+          </div>
         
             <div class="stat-card stat-card-counseling">
           <div class="stat-icon">
@@ -120,6 +120,20 @@
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
             <p v-else class="stat-value">{{ formatNumber(counselingCount) }}</p>
             <span class="stat-label">Sesi Konseling</span>
+          </div>
+            </div>
+
+            <div class="stat-card stat-card-counseling">
+          <div class="stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <h3 class="stat-title">Konseling Pending</h3>
+            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
+            <p v-else class="stat-value">{{ formatNumber(counselingPendingCount) }}</p>
+            <span class="stat-label">Menunggu / Jadwal</span>
           </div>
             </div>
           </div>
@@ -267,6 +281,42 @@
               </svg>
             </div>
           </router-link>
+
+          <router-link to="/correspondence" class="action-card action-card-neutral">
+            <div class="action-icon action-icon-neutral">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="action-content">
+              <h4>Surat</h4>
+            </div>
+            <div class="action-arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </router-link>
+
+          <router-link to="/buku-tamu" class="action-card action-card-neutral">
+            <div class="action-icon action-icon-neutral">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="action-content">
+              <h4>Buku Tamu</h4>
+            </div>
+            <div class="action-arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </router-link>
         </div>
       </div>
 
@@ -302,6 +352,7 @@ import { teacherApi } from '@/api/teacher'
 import { classApi } from '@/api/class'
 import { subjectApi } from '@/api/subject'
 import { violationApi } from '@/api/violation'
+import { counselingApi } from '@/api/counseling'
 import { auditLogApi } from '@/api/auditLog'
 import { getInstitutionTypeLabel } from '@/utils/institution'
 
@@ -313,7 +364,9 @@ const teacherCount = ref(0)
 const classCount = ref(0)
 const subjectCount = ref(0)
 const violationCount = ref(0)
+const violationCountThisMonth = ref(0)
 const counselingCount = ref(0)
+const counselingPendingCount = ref(0)
 const loading = ref(true)
 const auditLogs = ref([])
 const auditLogsLoading = ref(false)
@@ -359,7 +412,10 @@ onMounted(async () => {
   loading.value = true
   try {
     institutionError.value = ''
-    const [instRes, studentRes, teacherRes, classRes, subjectRes, violationRes, counselingRes] = await Promise.all([
+    const now = new Date()
+    const dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
+    const dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
+    const [instRes, studentRes, teacherRes, classRes, subjectRes, violationRes, violationMonthRes, counselingRes, counselingPendingRes] = await Promise.all([
       institutionApi.getMy().catch((err) => {
         console.error('Dashboard institution:', err)
         institutionError.value = err.response?.data?.message || 'Gagal memuat data instansi.'
@@ -370,7 +426,9 @@ onMounted(async () => {
       classApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
       subjectApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
       violationApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
-      counselingApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } }))
+      violationApi.getAll({ per_page: 1, date_from: dateFrom, date_to: dateTo }).catch(() => ({ data: { meta: { total: 0 } } })),
+      counselingApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
+      counselingApi.getAll({ per_page: 1, status: 'jadwal' }).catch(() => ({ data: { meta: { total: 0 } } }))
     ])
 
     let instData = instRes.data?.data ?? instRes.data ?? null
@@ -387,7 +445,9 @@ onMounted(async () => {
     classCount.value = classRes.data?.meta?.total ?? classRes.data?.data?.length ?? 0
     subjectCount.value = subjectRes.data?.meta?.total ?? subjectRes.data?.data?.length ?? 0
     violationCount.value = violationRes.data?.meta?.total ?? violationRes.data?.data?.length ?? 0
+    violationCountThisMonth.value = violationMonthRes.data?.meta?.total ?? violationMonthRes.data?.data?.length ?? 0
     counselingCount.value = counselingRes.data?.meta?.total ?? counselingRes.data?.data?.length ?? 0
+    counselingPendingCount.value = counselingPendingRes.data?.meta?.total ?? counselingPendingRes.data?.data?.length ?? 0
   } catch (error) {
     console.error('Error loading dashboard:', error)
     studentCount.value = 0
@@ -395,7 +455,9 @@ onMounted(async () => {
     classCount.value = 0
     subjectCount.value = 0
     violationCount.value = 0
+    violationCountThisMonth.value = 0
     counselingCount.value = 0
+    counselingPendingCount.value = 0
   } finally {
     loading.value = false
   }

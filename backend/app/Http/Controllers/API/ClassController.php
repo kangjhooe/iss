@@ -11,7 +11,9 @@ use App\Models\Institution;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Services\ClassService;
+use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ClassController extends Controller
 {
@@ -139,9 +141,11 @@ class ClassController extends Controller
 
         $class = $this->classService->update($class, $validated);
 
+        $class->load(['institution', 'room', 'teacher', 'academicYear']);
+        $class->loadCount('students');
         return response()->json([
             'message' => 'Kelas berhasil diperbarui',
-            'data' => new ClassResource($class->load(['institution', 'room', 'teacher', 'academicYear'])),
+            'data' => new ClassResource($class),
         ]);
     }
 
@@ -233,11 +237,13 @@ class ClassController extends Controller
             $message .= ". " . implode(', ', $errors);
         }
 
+        $class = $class->fresh(['institution', 'room', 'teacher', 'academicYear']);
+        $class->loadCount('students');
         return response()->json([
             'message' => $message,
             'added_count' => $addedCount,
             'errors' => $errors,
-            'data' => new ClassResource($class->fresh(['institution', 'room', 'teacher', 'academicYear'])),
+            'data' => new ClassResource($class),
         ]);
     }
 
@@ -335,5 +341,73 @@ class ClassController extends Controller
             ->paginate($perPage);
 
         return StudentResource::collection($students);
+    }
+
+    /**
+     * Export classes to PDF report.
+     */
+    public function exportPdf(Request $request)
+    {
+        try {
+            $filters = $request->only(['search', 'grade', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'room_id', 'teacher_id']);
+            
+            $institutionId = null;
+            $institution = null;
+            
+            if (!$request->user()->isAdminOrSuperAdmin()) {
+                $institutionId = $request->user()->institution_id;
+                $institution = Institution::find($institutionId);
+            } elseif ($request->has('institution_id')) {
+                $institutionId = $request->institution_id;
+                $institution = Institution::find($institutionId);
+            }
+
+            // Jika tidak ada filter academic_year_id, gunakan active_academic_year_id dari institusi
+            if (!isset($filters['academic_year_id']) && $institutionId) {
+                if (!$institution) {
+                    $institution = Institution::find($institutionId);
+                }
+                if ($institution && $institution->active_academic_year_id) {
+                    $filters['academic_year_id'] = $institution->active_academic_year_id;
+                }
+            }
+
+            // Jika tidak ada filter semester_id, gunakan active_semester_id dari institusi
+            if (!isset($filters['semester_id']) && $institutionId) {
+                if (!$institution) {
+                    $institution = Institution::find($institutionId);
+                }
+                if ($institution && $institution->active_semester_id) {
+                    $filters['semester_id'] = $institution->active_semester_id;
+                }
+            }
+
+            // Get all classes matching filters (no pagination for PDF)
+            $classes = $this->classService->list($filters, $institutionId, 10000);
+            
+            // Load relationships and count for PDF
+            $classes->load(['institution:id,name,npsn', 'room:id,name,code', 'teacher:id,name', 'academicYear:id,code,name', 'semester:id,name']);
+            $classes->loadCount('students');
+            
+            $pdf = DomPDF::loadView('class.report', [
+                'classes' => $classes->items(),
+                'filters' => $filters,
+                'institution' => $institution,
+                'generated_at' => now(),
+            ])->setPaper('a4', 'landscape');
+
+            $filename = 'Laporan_Data_Kelas_' . date('Y-m-d_His') . '.pdf';
+            return $pdf->download($filename);
+        } catch (\Exception $e) {
+            Log::error('Failed to export classes to PDF', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengekspor PDF',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }

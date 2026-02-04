@@ -142,11 +142,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::apiResource('institution', InstitutionController::class);
     });
 
-    // Student routes with caching
+    // Student routes (list tanpa cache agar tambah/edit/import langsung muncul)
     Route::middleware('module:student')->group(function () {
-        Route::middleware('cache:300')->group(function () {
-            Route::get('/student', [StudentController::class, 'index']);
-        });
+        Route::get('/student', [StudentController::class, 'index']);
         Route::get('/student/{id}', [StudentController::class, 'show']);
         Route::get('/student/{id}/buku-induk', [BukuIndukController::class, 'show'])->name('student.buku-induk');
         Route::get('/student/{id}/buku-induk/pdf', [BukuIndukController::class, 'print'])->name('student.buku-induk.pdf');
@@ -315,6 +313,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('/class/{id}/students', [ClassController::class, 'getStudents'])->name('class.students');
         Route::post('/class/{id}/students', [ClassController::class, 'addStudents'])->name('class.add-students');
         Route::delete('/class/{id}/students/{studentId}', [ClassController::class, 'removeStudent'])->name('class.remove-student');
+        Route::get('/class/export/pdf', [ClassController::class, 'exportPdf'])->name('class.export.pdf');
     });
 
     // Jadwal Pelajaran (Schedule) routes

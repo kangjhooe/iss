@@ -1,7 +1,7 @@
 <template>
   <Layout>
     <div class="violation-page">
-      <div class="page-header">
+      <header class="page-header">
         <div class="header-content">
           <div class="header-icon-wrap">
             <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -13,77 +13,53 @@
             <p class="page-subtitle">Catatan pelanggaran siswa dan master jenis pelanggaran</p>
           </div>
           <div class="header-actions">
-            <button v-if="activeTab === 'list'" @click="openAddModal" class="btn-primary btn-compact">
+            <button v-if="primaryActionLabel" @click="primaryActionClick" class="btn-primary btn-compact">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span>Tambah Pelanggaran</span>
+              <span>{{ primaryActionLabel }}</span>
             </button>
-            <button v-if="activeTab === 'types'" @click="openAddTypeModal" class="btn-primary btn-compact">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Jenis Pelanggaran</span>
-            </button>
-            <button v-if="activeTab === 'prestasi'" @click="openAddPrestasiModal" class="btn-primary btn-compact">Tambah Prestasi</button>
-            <button v-if="activeTab === 'achievement_types'" @click="openAddAchievementTypeModal" class="btn-primary btn-compact">Tambah Jenis Prestasi</button>
-            <button v-if="activeTab === 'thresholds'" @click="openAddThresholdModal" class="btn-primary btn-compact">Tambah Aturan Tindakan</button>
           </div>
         </div>
       </div>
 
-      <!-- Section tabs: Pelanggaran | Prestasi & Aturan -->
-      <div class="section-tabs">
-        <button :class="['section-tab', { active: sectionTab === 'pelanggaran' }]" @click="setSection('pelanggaran')">
-          <span>Pelanggaran</span>
-        </button>
-        <button :class="['section-tab', { active: sectionTab === 'prestasi' }]" @click="setSection('prestasi')">
-          <span>Prestasi & Aturan</span>
-        </button>
-      </div>
-      <!-- Sub-tabs -->
-      <div v-show="sectionTab === 'pelanggaran'" class="main-tabs">
-        <button :class="['main-tab', { active: activeTab === 'list' }]" @click="activeTab = 'list'; loadViolations()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Daftar Pelanggaran</span>
-        </button>
-        <button :class="['main-tab', { active: activeTab === 'types' }]" @click="activeTab = 'types'; loadTypes()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Jenis Pelanggaran</span>
-        </button>
-        <button :class="['main-tab', { active: activeTab === 'points' }]" @click="activeTab = 'points'; loadStudentPoints()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 19C9 20.1046 7.65685 21 6 21C4.34315 21 3 20.1046 3 19C3 17.8954 4.34315 17 6 17C7.65685 17 9 17.8954 9 19ZM9 19C9 17.8954 10.3431 17 12 17C13.6569 17 15 17.8954 15 19M9 5C9 6.10457 7.65685 7 6 7C4.34315 7 3 6.10457 3 5C3 3.89543 4.34315 3 6 3C7.65685 3 9 3.89543 9 5ZM9 5C9 6.10457 10.3431 7 12 7C13.6569 7 15 6.10457 15 5M15 19C15 20.1046 13.6569 21 12 21C10.3431 21 9 20.1046 9 19M15 5C15 3.89543 13.6569 3 12 3C10.3431 3 9 3.89543 9 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Poin Siswa</span>
-        </button>
-      </div>
-      <div v-show="sectionTab === 'prestasi'" class="main-tabs">
-        <button :class="['main-tab', { active: activeTab === 'prestasi' }]" @click="activeTab = 'prestasi'; loadAchievements()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Prestasi</span>
-        </button>
-        <button :class="['main-tab', { active: activeTab === 'achievement_types' }]" @click="activeTab = 'achievement_types'; loadAchievementTypes()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L14.4 7.2L20 8L16 12L17.2 17.6L12 15L6.8 17.6L8 12L4 8L9.6 7.2L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Jenis Prestasi</span>
-        </button>
-        <button :class="['main-tab', { active: activeTab === 'thresholds' }]" @click="activeTab = 'thresholds'; loadThresholds()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 15V3M12 15L8 11M12 15L16 11M2 21H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Aturan Tindakan</span>
-        </button>
+      <!-- Single-level tabs: semua dalam satu baris dengan pengelompokan visual -->
+      <div class="nav-tabs-wrap">
+        <nav class="nav-tabs" aria-label="Navigasi modul Pelanggaran">
+          <div class="nav-tab-group">
+            <button :class="['nav-tab', { active: activeTab === 'list' }]" @click="switchTab('list')">
+              <span class="nav-tab-label">Daftar Pelanggaran</span>
+              <span class="nav-tab-hint">Catat pelanggaran</span>
+            </button>
+            <button :class="['nav-tab', { active: activeTab === 'types' }]" @click="switchTab('types')">
+              <span class="nav-tab-label">Jenis Pelanggaran</span>
+              <span class="nav-tab-hint">Master jenis & bobot</span>
+            </button>
+            <button :class="['nav-tab', { active: activeTab === 'points' }]" @click="switchTab('points')">
+              <span class="nav-tab-label">Poin Siswa</span>
+              <span class="nav-tab-hint">Yang perlu tindakan</span>
+            </button>
+          </div>
+          <span class="nav-tab-divider" aria-hidden="true"></span>
+          <div class="nav-tab-group">
+            <button :class="['nav-tab', { active: activeTab === 'prestasi' }]" @click="switchTab('prestasi')">
+              <span class="nav-tab-label">Prestasi</span>
+              <span class="nav-tab-hint">Poin pengurang</span>
+            </button>
+            <button :class="['nav-tab', { active: activeTab === 'achievement_types' }]" @click="switchTab('achievement_types')">
+              <span class="nav-tab-label">Jenis Prestasi</span>
+              <span class="nav-tab-hint">Master jenis</span>
+            </button>
+            <button :class="['nav-tab', { active: activeTab === 'thresholds' }]" @click="switchTab('thresholds')">
+              <span class="nav-tab-label">Aturan Tindakan</span>
+              <span class="nav-tab-hint">Skor → tindakan</span>
+            </button>
+          </div>
+        </nav>
+        <p v-if="tabDescription" class="tab-description">{{ tabDescription }}</p>
       </div>
 
+      <main class="page-main">
       <!-- Tab: Daftar Pelanggaran -->
       <template v-if="activeTab === 'list'">
         <div class="filters filters-inline">
@@ -105,6 +81,12 @@
             <option value="">Semua Jenis</option>
             <option v-for="t in violationTypes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.category }})</option>
           </select>
+          <button type="button" class="filter-toggle" @click="showAdvancedFilters = !showAdvancedFilters" :aria-expanded="showAdvancedFilters">
+            {{ showAdvancedFilters ? 'Sembunyikan filter' : 'Filter lanjutan' }}
+            <span class="filter-toggle-icon">{{ showAdvancedFilters ? '▼' : '▶' }}</span>
+          </button>
+        </div>
+        <div v-show="showAdvancedFilters" class="filters filters-advanced">
           <select v-model="filters.academic_year_id" @change="loadViolations" class="filter-select">
             <option value="">Semua Tahun</option>
             <option v-for="y in academicYears" :key="y.id" :value="y.id">{{ y.name }}</option>
@@ -113,8 +95,8 @@
             <option value="">Semua Semester</option>
             <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
           </select>
-          <input v-model="filters.date_from" type="date" class="filter-select" @change="loadViolations" />
-          <input v-model="filters.date_to" type="date" class="filter-select" @change="loadViolations" />
+          <label class="filter-date-label"><span>Tgl mulai</span><input v-model="filters.date_from" type="date" class="filter-select" @change="loadViolations" /></label>
+          <label class="filter-date-label"><span>Tgl akhir</span><input v-model="filters.date_to" type="date" class="filter-select" @change="loadViolations" /></label>
         </div>
 
         <div v-if="loading" class="loading-wrap">
@@ -223,42 +205,24 @@
           </div>
         </div>
         <div class="points-summary-cards">
-          <div class="summary-card card-total">
-            <div class="summary-icon summary-icon-total">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 11C11.2091 11 13 9.20914 13 7C13 4.79086 11.2091 3 9 3C6.79086 3 5 4.79086 5 7C5 9.20914 6.79086 11 9 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <span class="summary-value">{{ pointsPagination.total ?? studentPoints.length }}</span>
-            <span class="summary-label">Total Siswa</span>
-          </div>
           <div class="summary-card card-warning">
             <div class="summary-icon summary-icon-warning">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 9V13M12 17H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0378 2.66667 10.268 4L3.33978 16C2.56998 17.3333 3.53223 19 5.07183 19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
-            <span class="summary-value">{{ studentPoints.filter(r => r.required_action).length }}</span>
-            <span class="summary-label">Perlu Tindakan</span>
-          </div>
-          <div class="summary-card card-good">
-            <div class="summary-icon summary-icon-good">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <span class="summary-value">{{ studentPoints.filter(r => r.total_points <= 0 && (r.achievement_bank ?? r.achievement_points) > 0).length }}</span>
-            <span class="summary-label">Siswa Berprestasi</span>
+            <span class="summary-value">{{ pointsPagination.total ?? studentPoints.length }}</span>
+            <span class="summary-label">Siswa Perlu Tindakan</span>
           </div>
         </div>
+        <p class="points-filter-hint">Hanya menampilkan siswa yang punya pelanggaran dan perlu tindakan (skor &gt; 0).</p>
         <div class="filters">
           <input v-model="pointSearch" type="text" placeholder="Cari nama, NIS, NISN..." class="search-input" @input="debounceLoadStudentPoints" />
         </div>
         <div v-if="pointsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat poin siswa...</p></div>
         <div v-else-if="studentPoints.length === 0" class="empty-state">
-          <h3 class="empty-title">Tidak ada data</h3>
-          <p class="empty-desc">Ubah filter atau pastikan ada siswa di institusi.</p>
+          <h3 class="empty-title">Tidak ada siswa yang perlu tindakan</h3>
+          <p class="empty-desc">Saat ini tidak ada siswa dengan skor pelanggaran &gt; 0. Data akan muncul setelah ada pelanggaran yang dicatat.</p>
         </div>
         <div v-else class="table-container table-points">
           <table class="data-table">
@@ -408,6 +372,7 @@
           </table>
         </div>
       </template>
+      </main>
 
       <!-- Modal: Tambah/Edit Pelanggaran -->
       <div v-if="showFormModal" class="modal-overlay" @click="showFormModal = false">
@@ -695,21 +660,46 @@ const toast = useToast()
 
 const activeTab = ref('list')
 
-const PELANGGARAN_TABS = ['list', 'types', 'points']
-const PRESTASI_TABS = ['prestasi', 'achievement_types', 'thresholds']
-
-const sectionTab = computed(() =>
-  PELANGGARAN_TABS.includes(activeTab.value) ? 'pelanggaran' : 'prestasi'
-)
-
-function setSection(section) {
-  if (section === 'pelanggaran') {
-    activeTab.value = 'list'
-    loadViolations()
-  } else {
-    activeTab.value = 'prestasi'
-    loadAchievements()
+const primaryActionLabel = computed(() => {
+  const labels = {
+    list: 'Tambah Pelanggaran',
+    types: 'Tambah Jenis Pelanggaran',
+    points: null,
+    prestasi: 'Tambah Prestasi',
+    achievement_types: 'Tambah Jenis Prestasi',
+    thresholds: 'Tambah Aturan Tindakan',
   }
+  return labels[activeTab.value] || null
+})
+
+function primaryActionClick() {
+  if (activeTab.value === 'list') openAddModal()
+  else if (activeTab.value === 'types') openAddTypeModal()
+  else if (activeTab.value === 'prestasi') openAddPrestasiModal()
+  else if (activeTab.value === 'achievement_types') openAddAchievementTypeModal()
+  else if (activeTab.value === 'thresholds') openAddThresholdModal()
+}
+
+const tabDescription = computed(() => {
+  const desc = {
+    list: 'Catat setiap pelanggaran siswa di sini. Data dipakai untuk menghitung poin di tab Poin Siswa.',
+    types: 'Atur jenis pelanggaran (mis. Terlambat, Tidak pakai atribut) beserta kategori dan bobot poin.',
+    points: 'Hanya menampilkan siswa yang punya pelanggaran dan perlu tindakan (skor > 0). Alur: catat pelanggaran di Daftar → skor muncul di sini → gunakan "Catat Tindakan" per siswa.',
+    prestasi: 'Prestasi mengurangi skor pelanggaran. Catat prestasi siswa di sini.',
+    achievement_types: 'Atur jenis prestasi dan nilai poin pengurang.',
+    thresholds: 'Atur rentang skor pelanggaran dan tindakan wajib (mis. skor 40–999 = Panggilan orang tua).',
+  }
+  return desc[activeTab.value] || ''
+})
+
+function switchTab(tab) {
+  activeTab.value = tab
+  if (tab === 'list') loadViolations()
+  else if (tab === 'types') loadTypes()
+  else if (tab === 'points') loadStudentPoints()
+  else if (tab === 'prestasi') loadAchievements()
+  else if (tab === 'achievement_types') loadAchievementTypes()
+  else if (tab === 'thresholds') loadThresholds()
 }
 const loading = ref(true)
 const typesLoading = ref(false)
@@ -718,6 +708,7 @@ const violationTypes = ref([])
 const students = ref([])
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 
+const showAdvancedFilters = ref(false)
 const institution = ref(null)
 const academicYears = ref([])
 const semesters = ref([])
@@ -1070,10 +1061,19 @@ async function doDeleteType() {
 async function loadStudentPoints() {
   pointsLoading.value = true
   try {
-    const res = await studentPointApi.getList({ page: pointsPagination.value.current_page, per_page: 15, search: pointSearch.value })
+    const res = await studentPointApi.getList({
+      page: pointsPagination.value.current_page,
+      per_page: 15,
+      search: pointSearch.value,
+      needs_action: 1,
+    })
     studentPoints.value = res.data.data || []
     const meta = res.data.meta || {}
-    pointsPagination.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
+    pointsPagination.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      total: meta.total ?? 0,
+    }
   } catch (e) {
     toast.error(e.formattedMessage || 'Gagal memuat poin siswa')
   } finally {
@@ -1343,156 +1343,241 @@ onMounted(async () => {
 .violation-page {
   width: 100%;
   max-width: 100%;
+  min-height: 100%;
   padding: 1.5rem;
   margin: 0 auto;
+  background: #f1f5f9;
 }
 .page-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border: 1px solid #e2e8f0;
 }
 .header-content {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
 }
 .header-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
 }
 .header-icon {
   flex-shrink: 0;
 }
 .page-title {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.3rem 0;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 .page-subtitle {
   color: #64748b;
   margin: 0;
   font-size: 0.9rem;
+  line-height: 1.4;
 }
 .header-actions {
   margin-left: auto;
 }
-.section-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 0;
+.page-main {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border: 1px solid #e2e8f0;
+  padding: 1.25rem 1.5rem;
 }
-
-.section-tab {
-  padding: 0.6rem 1.25rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #64748b;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+.nav-tabs-wrap {
+  margin-bottom: 1.5rem;
 }
-
-.section-tab:hover {
-  color: #1e293b;
-}
-
-.section-tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
-}
-
-.main-tabs {
+.nav-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
   align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid #e2e8f0;
 }
-.main-tab {
+.nav-tab-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.nav-tab-divider {
+  width: 1px;
+  height: 28px;
+  background: #cbd5e1;
+  margin: 0 0.25rem;
+  flex-shrink: 0;
+}
+.nav-tab {
   display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.65rem 1.1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.55rem 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-.main-tab:hover {
   background: #f8fafc;
-  border-color: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  text-align: left;
+  color: #475569;
 }
-.main-tab.active {
+.nav-tab:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.nav-tab.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
+.nav-tab .nav-tab-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.nav-tab .nav-tab-hint {
+  font-size: 0.7rem;
+  opacity: 0.85;
+  margin-top: 0.15rem;
+  color: #64748b;
+}
+.nav-tab.active .nav-tab-hint {
+  opacity: 0.92;
+  color: rgba(255,255,255,0.95);
+}
+.tab-description {
+  margin: 0.85rem 0 0;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #475569;
+  background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+  line-height: 1.5;
+}
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.filter-toggle:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+.filter-toggle-icon {
+  font-size: 0.7rem;
+}
+.filters-advanced {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e2e8f0;
+}
+.filter-date-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.filter-date-label span { margin-right: 0.25rem; }
+.filter-date-label .filter-select { min-width: 130px; }
 .filters {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
 }
 .search-input {
   flex: 1;
   min-width: 200px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.85rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
+  background: #fff;
+}
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 .filter-select {
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.85rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   min-width: 140px;
+  background: #fff;
 }
 .loading-state {
   text-align: center;
-  padding: 2rem;
+  padding: 2.5rem 2rem;
   color: #64748b;
+  background: #fafbfc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 .loading-spinner {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 3px solid #e2e8f0;
   border-top-color: #667eea;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin: 0 auto 0.75rem;
+  margin: 0 auto 0.85rem;
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 .empty-state {
   text-align: center;
-  padding: 2.5rem;
-  background: #f8fafc;
-  border-radius: 12px;
+  padding: 3rem 2rem;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 14px;
+  border: 1px dashed #cbd5e1;
 }
-.empty-icon { margin-bottom: 1rem; color: #94a3b8; }
-.empty-title { font-size: 1.1rem; margin: 0 0 0.5rem; }
-.empty-desc { color: #64748b; margin: 0 0 1rem; font-size: 0.9rem; }
-.btn-empty-cta { margin-top: 0.5rem; }
+.empty-icon { margin-bottom: 1.25rem; color: #94a3b8; }
+.empty-title { font-size: 1.2rem; font-weight: 600; margin: 0 0 0.5rem; color: #334155; }
+.empty-desc { color: #64748b; margin: 0 0 1.25rem; font-size: 0.9rem; line-height: 1.5; max-width: 360px; margin-left: auto; margin-right: auto; }
+.btn-empty-cta {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  font-weight: 600;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+.btn-empty-cta:hover { box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
 .table-container {
   overflow-x: auto;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .data-table {
   width: 100%;
@@ -1500,21 +1585,35 @@ onMounted(async () => {
 }
 .data-table th,
 .data-table td {
-  padding: 0.85rem 1.1rem;
+  padding: 0.9rem 1.15rem;
   text-align: left;
   border-bottom: 1px solid #f1f5f9;
 }
 .data-table tbody tr {
-  transition: background 0.12s ease;
+  transition: background 0.15s ease;
+}
+.data-table tbody tr:nth-child(even) {
+  background: #fafbfc;
 }
 .data-table tbody tr:hover {
-  background: #f8fafc;
+  background: #f0f9ff !important;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: none;
 }
 .data-table th {
-  background: #f8fafc;
+  background: #f1f5f9;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .student-name { display: block; font-weight: 500; }
 .student-meta { font-size: 0.8rem; color: #64748b; }
@@ -1546,7 +1645,7 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  padding: 1rem 1.25rem;
+  padding: 1.1rem 1.35rem;
   background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
   border: 1px solid #c7d2fe;
   border-radius: 12px;
@@ -1554,50 +1653,53 @@ onMounted(async () => {
   color: #3730a3;
   margin-bottom: 1.5rem;
   line-height: 1.55;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.08);
 }
 .points-info-icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(99, 102, 241, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #4f46e5;
 }
 .points-info-text { flex: 1; min-width: 0; }
+.points-filter-hint { font-size: 0.85rem; color: #64748b; margin: 0.5rem 0 1rem; }
 .points-summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1.25rem;
   margin-bottom: 1.5rem;
 }
 .summary-card {
-  padding: 1.25rem 1.25rem;
+  padding: 1.35rem 1.35rem;
   border-radius: 14px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(0,0,0,0.04);
 }
 .summary-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 .summary-icon {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 0.75rem;
+  margin: 0 auto 0.85rem;
 }
 .summary-icon-total { background: rgba(71, 85, 105, 0.12); color: #475569; }
-.summary-icon-warning { background: rgba(146, 64, 14, 0.15); color: #b45309; }
-.summary-icon-good { background: rgba(5, 150, 105, 0.15); color: #059669; }
-.summary-card .summary-value { display: block; font-size: 1.85rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; }
-.summary-card .summary-label { font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; display: block; font-weight: 500; }
+.summary-icon-warning { background: rgba(146, 64, 14, 0.18); color: #b45309; }
+.summary-icon-good { background: rgba(5, 150, 105, 0.18); color: #059669; }
+.summary-card .summary-value { display: block; font-size: 2rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; }
+.summary-card .summary-label { font-size: 0.82rem; color: #64748b; margin-top: 0.3rem; display: block; font-weight: 500; }
 .card-total { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
 .card-warning { background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 100%); color: #92400e; border: 1px solid #fde68a; }
 .card-good { background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%); color: #065f46; border: 1px solid #a7f3d0; }
@@ -1639,40 +1741,55 @@ onMounted(async () => {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
 }
 .pagination-info { font-size: 0.85rem; color: #64748b; }
 .pagination-buttons { display: flex; align-items: center; gap: 0.5rem; }
 .btn-page {
-  padding: 0.4rem 0.75rem;
+  padding: 0.45rem 0.9rem;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
   cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
+.btn-page:hover:not(:disabled) { background: #f1f5f9; border-color: #cbd5e1; }
 .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
 .page-num { font-size: 0.85rem; color: #64748b; }
 .types-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
 }
 .type-card {
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 1rem;
+  border-radius: 12px;
+  padding: 1.25rem;
   background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.type-card:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  border-color: #cbd5e1;
 }
 .type-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
 }
-.type-name { font-weight: 600; }
-.type-body { margin-bottom: 0.75rem; }
-.type-sanction, .type-point { margin: 0.25rem 0; font-size: 0.9rem; color: #64748b; }
+.type-name { font-weight: 600; font-size: 1.05rem; color: #0f172a; }
+.type-body { margin-bottom: 0.85rem; }
+.type-sanction, .type-point { margin: 0.3rem 0; font-size: 0.9rem; color: #64748b; }
 .type-actions { display: flex; gap: 0.5rem; }
 .modal-overlay {
   position: fixed;
@@ -1734,19 +1851,22 @@ onMounted(async () => {
   border-top: 1px solid #e2e8f0;
 }
 .btn-primary, .btn-secondary {
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-weight: 500;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  font-weight: 600;
   cursor: pointer;
+  font-size: 0.9rem;
 }
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
   border: none;
-  transition: opacity 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.35);
+  transition: opacity 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
 }
 .btn-primary:hover:not(:disabled) {
   opacity: 0.95;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
   transform: translateY(-1px);
 }
 .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }

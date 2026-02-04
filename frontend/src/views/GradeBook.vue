@@ -387,6 +387,7 @@ onMounted(async () => {
   min-width: 160px;
 }
 .loading-wrap {
+  width: 100%;
   margin: 1rem 0;
 }
 .empty-state {

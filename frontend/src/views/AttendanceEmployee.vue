@@ -427,7 +427,7 @@ onMounted(async () => {
 .page-subtitle { color: #64748b; margin: 0; font-size: 0.9rem; }
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
 .filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; }
-.loading-wrap { margin: 1rem 0; }
+.loading-wrap { width: 100%; margin: 1rem 0; }
 .empty-state { text-align: center; padding: 2rem; background: #f8fafc; border-radius: 12px; }
 .empty-title { font-size: 1.25rem; margin: 0 0 0.5rem 0; }
 .empty-desc { color: #64748b; margin: 0; }

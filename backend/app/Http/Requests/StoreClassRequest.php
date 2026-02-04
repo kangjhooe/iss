@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreClassRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ class StoreClassRequest extends FormRequest
         return [
             'institution_id' => 'sometimes|exists:institution,id',
             'room_id' => 'nullable|exists:room,id',
-            'teacher_id' => 'nullable|exists:teacher,id',
+            'teacher_id' => ['nullable', Rule::exists('employee', 'id')->where('type', 'Guru')],
             'code' => 'nullable|string|max:50',
             'name' => 'required|string|max:255',
             'grade' => 'nullable|integer|min:1|max:12',

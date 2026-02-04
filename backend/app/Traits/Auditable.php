@@ -29,9 +29,12 @@ trait Auditable
             static::writeAuditLog($action, $model);
         });
 
-        static::restored(function (Model $model) {
-            static::writeAuditLog('restored', $model);
-        });
+        // Only register 'restored' when model uses SoftDeletes (has static::restored() and restore())
+        if (method_exists(static::class, 'restore')) {
+            static::restored(function (Model $model) {
+                static::writeAuditLog('restored', $model);
+            });
+        }
     }
 
     protected static function writeAuditLog(string $action, Model $model): void

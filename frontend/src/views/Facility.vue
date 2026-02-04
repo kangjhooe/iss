@@ -302,6 +302,7 @@
                 <th>Nama</th>
                 <th>Kode</th>
                 <th>Tipe</th>
+                <th>Subtipe</th>
                 <th>Gedung</th>
                 <th>Lantai</th>
                 <th>Luas (m²)</th>
@@ -595,6 +596,16 @@
                   <option value="Rusak Ringan">Rusak Ringan</option>
                   <option value="Rusak Sedang">Rusak Sedang</option>
                   <option value="Rusak Berat">Rusak Berat</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Penanggung Jawab</label>
+                <select v-model="roomForm.responsible_employee_id">
+                  <option value="">— Tidak ada —</option>
+                  <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{ emp.name }}</option>
                 </select>
               </div>
             </div>

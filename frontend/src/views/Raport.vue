@@ -219,6 +219,7 @@ onMounted(async () => {
   margin: 0 0 0.5rem 0;
 }
 .loading-wrap {
+  width: 100%;
   padding: 2rem;
   text-align: center;
 }

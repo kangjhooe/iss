@@ -124,15 +124,15 @@
             <div class="help-card">
               <span class="help-card-icon help-card-icon--emerald">👤</span>
               <div class="help-card-body">
-                <div class="help-card-title">Data Siswa</div>
-                <p class="help-card-desc">NIS, nama, kelas, gender. Filter, pencarian, impor/ekspor.</p>
+                <div class="help-card-title">Data Siswa & Buku Induk</div>
+                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Buku Induk per siswa bisa diakses dari detail siswa.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--green">👨‍🏫</span>
               <div class="help-card-body">
                 <div class="help-card-title">Data Guru</div>
-                <p class="help-card-desc">NIP, nama, mapel, status kepegawaian.</p>
+                <p class="help-card-desc">NIP, nama, mapel, status kepegawaian, tugas tambahan.</p>
               </div>
             </div>
             <div class="help-card">
@@ -140,6 +140,46 @@
               <div class="help-card-body">
                 <div class="help-card-title">Jadwal Pelajaran</div>
                 <p class="help-card-desc">Hari, jam, mata pelajaran, guru pengampu per kelas.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">📖</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Jurnal Mengajar</div>
+                <p class="help-card-desc">Catatan mengajar per pertemuan, materi, kehadiran siswa.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--green">📋</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Buku Nilai & Raport</div>
+                <p class="help-card-desc">Input nilai per mapel, cetak raport siswa.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Absensi -->
+        <section class="help-section help-section--attendance">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--sky">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Absensi
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">📋</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Absensi Siswa</div>
+                <p class="help-card-desc">Presensi siswa per kelas/hari. Terkait modul Jurnal Mengajar.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--cyan">👥</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Absensi Guru & Staff</div>
+                <p class="help-card-desc">Kehadiran pegawai: check-in/out, rekap per periode.</p>
               </div>
             </div>
           </div>
@@ -158,7 +198,14 @@
               <span class="help-card-icon help-card-icon--amber">↔️</span>
               <div class="help-card-body">
                 <div class="help-card-title">Mutasi Siswa</div>
-                <p class="help-card-desc">Pindah masuk/keluar & notifikasi. Akses dari ikon lonceng di header.</p>
+                <p class="help-card-desc">Pindah masuk/keluar. Notifikasi mutasi bisa dilihat di ikon lonceng (header).</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--lime">⬆️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Naik Kelas</div>
+                <p class="help-card-desc">Proses kenaikan kelas siswa per tahun ajaran.</p>
               </div>
             </div>
             <div class="help-card">
@@ -172,14 +219,14 @@
               <span class="help-card-icon help-card-icon--orange">📄</span>
               <div class="help-card-body">
                 <div class="help-card-title">Pengambilan Ijazah</div>
-                <p class="help-card-desc">Catatan pengambilan dokumen (ijazah, raport, SKHUN) oleh alumni, tanggal, foto, nomor ijazah/kode blangko.</p>
+                <p class="help-card-desc">Catatan pengambilan dokumen (ijazah, raport, SKHUN) oleh alumni, tanggal, nomor ijazah/kode blangko.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--red">⚠️</span>
               <div class="help-card-body">
                 <div class="help-card-title">Pelanggaran</div>
-                <p class="help-card-desc">Jenis, sanksi, riwayat. Untuk pembinaan siswa.</p>
+                <p class="help-card-desc">Jenis pelanggaran, sanksi, riwayat per siswa. Untuk pembinaan.</p>
               </div>
             </div>
             <div class="help-card">
@@ -187,6 +234,13 @@
               <div class="help-card-body">
                 <div class="help-card-title">Konseling</div>
                 <p class="help-card-desc">Sesi konseling siswa, jenis konseling, ringkasan & tindak lanjut.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--teal">⚽</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Ekstrakurikuler</div>
+                <p class="help-card-desc">Daftar ekskul, pembina, dan pendaftaran siswa.</p>
               </div>
             </div>
           </div>
@@ -209,10 +263,31 @@
               </div>
             </div>
             <div class="help-card">
+              <span class="help-card-icon help-card-icon--indigo">📁</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Arsip Digital</div>
+                <p class="help-card-desc">Dokumen & arsip digital per kategori, pencarian, unduh.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--blue">📚</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Perpustakaan</div>
+                <p class="help-card-desc">Katalog buku, kategori, peminjaman, pengembalian, denda.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--cyan">📖</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Buku Tamu</div>
+                <p class="help-card-desc">Daftar tamu yang berkunjung ke instansi.</p>
+              </div>
+            </div>
+            <div class="help-card">
               <span class="help-card-icon help-card-icon--fuchsia">📊</span>
               <div class="help-card-body">
                 <div class="help-card-title">Laporan</div>
-                <p class="help-card-desc">Statistik siswa, guru, pelanggaran. Ekspor untuk dinas.</p>
+                <p class="help-card-desc">Statistik siswa, guru, pelanggaran, dan lainnya. Ekspor untuk dinas.</p>
               </div>
             </div>
           </div>
@@ -224,13 +299,36 @@
             <span class="help-section-icon help-section-icon--slate">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009.19 18a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Pengaturan
+            Pengaturan & Lainnya
           </h3>
-          <div class="help-card help-card--single">
-            <span class="help-card-icon help-card-icon--slate">🔐</span>
-            <div class="help-card-body">
-              <div class="help-card-title">Kelola Akses Modul</div>
-              <p class="help-card-desc">Aktif/nonaktif modul per instansi. Hanya admin instansi.</p>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--slate">🔐</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Kelola Akses Modul</div>
+                <p class="help-card-desc">Aktif/nonaktif modul per instansi. Hanya admin instansi.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--slate">🔔</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Notifikasi</div>
+                <p class="help-card-desc">Notifikasi mutasi & info lain. Akses dari ikon lonceng di header.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--slate">📅</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Semester</div>
+                <p class="help-card-desc">Atur semester aktif. Super Admin: Tahun Ajaran & Request Perubahan Instansi di menu Sistem.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--slate">📜</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Audit Log</div>
+                <p class="help-card-desc">Riwayat aktivitas sistem. Untuk admin & super admin.</p>
+              </div>
             </div>
           </div>
         </section>
@@ -246,11 +344,15 @@
           <div class="help-tips">
             <div class="help-tip">
               <span class="help-tip-bulb">💡</span>
-              <span>Gunakan <strong>filter</strong> dan <strong>pencarian</strong> di tiap halaman.</span>
+              <span>Gunakan <strong>filter</strong> dan <strong>pencarian</strong> di tiap halaman untuk data banyak.</span>
             </div>
             <div class="help-tip">
               <span class="help-tip-bulb">💾</span>
-              <span>Backup rutin & perbarui tahun ajaran saat ganti periode.</span>
+              <span>Backup rutin & perbarui <strong>Semester</strong> / <strong>Tahun Ajaran</strong> saat ganti periode.</span>
+            </div>
+            <div class="help-tip">
+              <span class="help-tip-bulb">📤</span>
+              <span>Banyak modul punya <strong>ekspor</strong> (Excel/PDF)—cek atas tabel atau menu aksi.</span>
             </div>
           </div>
         </section>
@@ -266,11 +368,15 @@
           <div class="help-faq-list">
             <div class="help-faq-item">
               <p class="help-faq-q">Lupa password?</p>
-              <p class="help-faq-a">Gunakan "Lupa Password" di login atau minta reset ke administrator.</p>
+              <p class="help-faq-a">Gunakan "Lupa Password" di halaman login atau minta reset ke administrator instansi.</p>
+            </div>
+            <div class="help-faq-item">
+              <p class="help-faq-q">Di mana melihat notifikasi mutasi?</p>
+              <p class="help-faq-a">Klik ikon lonceng di header, atau buka menu Notifikasi. Badge angka menandakan notifikasi belum dibaca.</p>
             </div>
             <div class="help-faq-item">
               <p class="help-faq-q">Ekspor data?</p>
-              <p class="help-faq-a">Banyak modul punya tombol ekspor (Excel/PDF). Cek atas tabel atau menu aksi.</p>
+              <p class="help-faq-a">Banyak modul punya tombol ekspor (Excel/PDF). Cek di atas tabel atau di menu aksi per baris.</p>
             </div>
           </div>
           <div class="help-cta">

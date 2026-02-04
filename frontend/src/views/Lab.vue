@@ -4,24 +4,45 @@
       <div class="page-header">
         <div class="header-content">
           <div>
-            <h2>Manajemen Lab</h2>
-            <p>Daftar ruang laboratorium dan penanggung jawab (Kepala Lab)</p>
+            <h1 class="page-title">Manajemen Lab</h1>
+            <p class="page-subtitle">Daftar ruang laboratorium dan penanggung jawab (Kepala Lab)</p>
           </div>
-          <router-link to="/facility" class="btn-secondary btn-compact">
-            Kelola Sarana Prasarana
-          </router-link>
+          <div class="header-actions">
+            <button type="button" class="btn-primary btn-compact" @click="openLabModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Lab</span>
+            </button>
+            <router-link to="/facility" class="btn-secondary btn-compact">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Kelola Sarana Prasarana</span>
+            </router-link>
+          </div>
         </div>
       </div>
 
       <div class="tabs-nav-lab">
         <button type="button" :class="['tab-btn-lab', { active: labTab === 'list' }]" @click="labTab = 'list'">
-          Daftar Lab
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Daftar Lab</span>
         </button>
         <button type="button" :class="['tab-btn-lab', { active: labTab === 'report' }]" @click="switchToReport">
-          Laporan Lab
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 17V7M13 17V7M17 17V7M5 17V7M3 21H21M3 3H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Laporan Lab</span>
         </button>
         <button type="button" :class="['tab-btn-lab', { active: labTab === 'mylabs' }]" @click="switchToMyLabs">
-          Dashboard Saya
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Dashboard Saya</span>
         </button>
       </div>
 
@@ -64,7 +85,7 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 36px;"></th>
+              <th style="width: 160px;" class="th-expand" title="Klik untuk melihat inventaris barang dan jadwal penggunaan lab">Inventaris & Jadwal</th>
               <th>Nama Ruang</th>
               <th>Kode</th>
               <th>Jenis Lab</th>
@@ -72,16 +93,18 @@
               <th>Lantai</th>
               <th>Penanggung Jawab (Kepala Lab)</th>
               <th>Kondisi</th>
+              <th style="width: 120px;">Aksi</th>
             </tr>
           </thead>
           <tbody>
             <template v-for="room in labs" :key="room.id">
               <tr>
-                <td>
-                  <button type="button" class="btn-expand" :aria-expanded="expandedRoomId === room.id" @click="toggleInventory(room)" title="Lihat inventaris lab">
+                <td class="td-expand">
+                  <button type="button" class="btn-expand" :aria-expanded="expandedRoomId === room.id" @click="toggleInventory(room)" :title="expandedRoomId === room.id ? 'Tutup detail' : 'Lihat inventaris barang & jadwal lab ' + room.name">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" :class="{ expanded: expandedRoomId === room.id }">
                       <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
+                    <span class="btn-expand-label">{{ expandedRoomId === room.id ? 'Tutup detail' : 'Lihat detail' }}</span>
                   </button>
                 </td>
                 <td>{{ room.name }}</td>
@@ -104,74 +127,156 @@
                 <span v-if="savingId === room.id" class="saving-label">Menyimpan...</span>
               </td>
               <td><span :class="getConditionClass(room.condition)">{{ room.condition }}</span></td>
+              <td class="actions-cell">
+                <button type="button" class="btn-action btn-edit" @click="openLabModal(room)" title="Edit lab">Edit</button>
+                <button type="button" class="btn-action btn-delete" @click="confirmDeleteLab(room)" title="Hapus lab">Hapus</button>
+              </td>
               </tr>
               <tr v-if="expandedRoomId === room.id" class="inventory-detail-row">
-                <td colspan="8" class="inventory-detail-cell">
-                  <div class="inventory-detail-header">Barang di lab ini</div>
-                  <div v-if="getRoomInventory(room.id).loading" class="inventory-loading">Memuat...</div>
-                  <div v-else-if="getRoomInventory(room.id).items.length === 0" class="inventory-empty">Tidak ada barang inventaris di ruang ini.</div>
-                  <table v-else class="inventory-subtable">
-                    <thead>
-                      <tr>
-                        <th>Kode</th>
-                        <th>Nama</th>
-                        <th>Kategori</th>
-                        <th>Qty</th>
-                        <th>Kondisi</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in getRoomInventory(room.id).items" :key="item.id">
-                        <td>{{ item.code || '-' }}</td>
-                        <td>{{ item.name }}</td>
-                        <td>{{ item.category?.name || '-' }}</td>
-                        <td>{{ item.quantity }} {{ item.unit || '' }}</td>
-                        <td>{{ item.condition || '-' }}</td>
-                        <td>{{ item.status || '-' }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <div class="inventory-detail-header" style="margin-top: 1rem;">Jadwal penggunaan lab</div>
-                  <div v-if="getRoomSchedule(room.id).loading" class="inventory-loading">Memuat jadwal...</div>
-                  <div v-else-if="!activeSemesterId" class="inventory-empty">Pilih semester aktif di profil instansi untuk menampilkan jadwal.</div>
-                  <div v-else-if="getRoomSchedule(room.id).items.length === 0" class="inventory-empty">Tidak ada jadwal pelajaran di ruang ini.</div>
-                  <table v-else class="inventory-subtable">
-                    <thead>
-                      <tr>
-                        <th>Hari</th>
-                        <th>Jam ke</th>
-                        <th>Waktu</th>
-                        <th>Mapel</th>
-                        <th>Kelas</th>
-                        <th>Guru</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="s in getRoomSchedule(room.id).items" :key="s.id">
-                        <td>{{ s.day_name || '-' }}</td>
-                        <td>{{ s.period }}</td>
-                        <td>{{ s.start_time || '-' }}-{{ s.end_time || '-' }}</td>
-                        <td>{{ s.subject?.name || '-' }}</td>
-                        <td>{{ s.school_class?.name || '-' }}</td>
-                        <td>{{ s.employee?.name || '-' }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <td colspan="9" class="inventory-detail-cell">
+                  <div class="expanded-detail-card">
+                    <div class="expanded-detail-card-header">
+                      <h4 class="expanded-detail-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Detail Lab: {{ room.name }}
+                        <span v-if="room.code" class="expanded-detail-code">({{ room.code }})</span>
+                      </h4>
+                      <button type="button" class="btn-expand-inline" @click="toggleInventory(room)" title="Tutup panel ini">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Tutup
+                      </button>
+                    </div>
+                    <p class="expanded-detail-desc">Kelola inventaris barang dan jadwal penggunaan lab ini di bawah.</p>
+
+                    <div class="detail-section detail-panel">
+                      <div class="inventory-detail-header">
+                        <span class="detail-panel-title">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                          Inventaris Lab
+                        </span>
+                        <button type="button" class="btn-sm btn-primary" @click="openItemModal(room)">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                          Tambah Barang
+                        </button>
+                      </div>
+                      <div v-if="getRoomInventory(room.id).loading" class="inventory-loading">Memuat inventaris...</div>
+                      <div v-else-if="getRoomInventory(room.id).items.length === 0" class="inventory-empty">Tidak ada barang di lab ini. Klik <strong>Tambah Barang</strong> untuk menambah inventaris.</div>
+                      <table v-else class="inventory-subtable">
+                        <thead>
+                          <tr>
+                            <th>Kode</th>
+                            <th>Nama</th>
+                            <th>Kategori</th>
+                            <th>Qty</th>
+                            <th>Kondisi</th>
+                            <th>Status</th>
+                            <th style="width: 100px;">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="item in getRoomInventory(room.id).items" :key="item.id">
+                            <td>{{ item.code || '-' }}</td>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.category?.name || '-' }}</td>
+                            <td>{{ item.quantity }} {{ item.unit || '' }}</td>
+                            <td>{{ item.condition || '-' }}</td>
+                            <td>{{ item.status || '-' }}</td>
+                            <td>
+                              <button type="button" class="btn-action btn-edit btn-xs" @click="openItemModal(room, item)">Edit</button>
+                              <button type="button" class="btn-action btn-delete btn-xs" @click="confirmDeleteItem(room, item)">Hapus</button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="detail-section detail-panel">
+                      <div class="inventory-detail-header">
+                        <span class="detail-panel-title">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 7V3M16 7V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                          Jadwal Penggunaan Lab
+                        </span>
+                        <button type="button" class="btn-sm btn-primary" @click="openScheduleModal(room)" :disabled="!activeSemesterId">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                          Tambah Jadwal
+                        </button>
+                      </div>
+                      <div v-if="getRoomSchedule(room.id).loading" class="inventory-loading">Memuat jadwal...</div>
+                      <div v-else-if="!activeSemesterId" class="inventory-empty">Pilih semester aktif di profil instansi untuk menampilkan dan mengelola jadwal.</div>
+                      <div v-else-if="getRoomSchedule(room.id).items.length === 0" class="inventory-empty">Belum ada jadwal di lab ini. Klik <strong>Tambah Jadwal</strong> untuk menambah slot.</div>
+                      <table v-else class="inventory-subtable">
+                        <thead>
+                          <tr>
+                            <th>Hari</th>
+                            <th>Jam ke</th>
+                            <th>Waktu</th>
+                            <th>Mapel</th>
+                            <th>Kelas</th>
+                            <th>Guru</th>
+                            <th style="width: 100px;">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="s in getRoomSchedule(room.id).items" :key="s.id">
+                            <td>{{ s.day_name || '-' }}</td>
+                            <td>{{ s.period }}</td>
+                            <td>{{ s.start_time || '-' }}-{{ s.end_time || '-' }}</td>
+                            <td>{{ s.subject?.name || '-' }}</td>
+                            <td>{{ s.school_class?.name || '-' }}</td>
+                            <td>{{ s.employee?.name || '-' }}</td>
+                            <td>
+                              <button type="button" class="btn-action btn-edit btn-xs" @click="openScheduleModal(room, s)">Edit</button>
+                              <button type="button" class="btn-action btn-delete btn-xs" @click="confirmDeleteSchedule(room, s)">Hapus</button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </td>
               </tr>
             </template>
           </tbody>
         </table>
         <div v-if="labs.length === 0" class="empty-state">
-          <p>Belum ada ruang laboratorium. Tambah ruangan dengan tipe <strong>Laboratorium</strong> di menu Sarana Prasarana.</p>
-          <router-link to="/facility" class="btn-primary">Ke Sarana Prasarana</router-link>
+          <svg class="empty-state-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p>Belum ada ruang laboratorium. Klik <strong>Tambah Lab</strong> atau kelola via Sarana Prasarana.</p>
+          <div class="empty-state-actions">
+            <button type="button" class="btn-primary" @click="openLabModal()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Tambah Lab</span>
+            </button>
+            <router-link to="/facility" class="btn-secondary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Ke Sarana Prasarana</span>
+            </router-link>
+          </div>
         </div>
       </div>
       </div>
 
       <div v-show="labTab === 'report'" class="tab-panel">
         <div v-if="labReportLoading" class="loading-state">
+          <div class="loading-spinner">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
+                <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
+                <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+          </div>
           <p>Memuat laporan lab...</p>
         </div>
         <div v-else-if="labReportData" class="report-lab">
@@ -216,6 +321,9 @@
             </tbody>
           </table>
           <div v-if="!labReportData.labs?.length" class="empty-state">
+            <svg class="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 17V7M13 17V7M17 17V7M5 17V7M3 21H21M3 3H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
             <p>Belum ada data lab.</p>
           </div>
         </div>
@@ -223,7 +331,15 @@
 
       <div v-show="labTab === 'mylabs'" class="tab-panel">
         <div v-if="myLabsLoading" class="loading-state">
-          <p>Memuat...</p>
+          <div class="loading-spinner">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="32" stroke-dashoffset="32">
+                <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/>
+                <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+          </div>
+          <p>Memuat dashboard lab...</p>
         </div>
         <div v-else-if="myLabsData" class="report-lab">
           <div class="report-summary-cards">
@@ -237,8 +353,17 @@
             </div>
           </div>
           <div v-if="!myLabsData.labs?.length" class="empty-state">
+            <svg class="empty-state-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
             <p>Anda belum ditetapkan sebagai penanggung jawab (Kepala Lab) untuk ruang lab manapun. Tetapkan di tab Daftar Lab atau melalui Sarana Prasarana.</p>
-            <router-link to="/facility" class="btn-primary">Ke Sarana Prasarana</router-link>
+            <router-link to="/facility" class="btn-primary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Ke Sarana Prasarana</span>
+            </router-link>
           </div>
           <table v-else class="data-table report-table">
             <thead>
@@ -264,21 +389,285 @@
           </table>
         </div>
       </div>
+
+      <!-- Modal: Tambah/Edit Lab -->
+      <div v-if="showLabModal" class="modal-overlay" @click.self="closeLabModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>{{ editingLab ? 'Edit Lab' : 'Tambah Lab' }}</h3>
+            <button type="button" class="btn-close" @click="closeLabModal" aria-label="Tutup">×</button>
+          </div>
+          <form @submit.prevent="saveLab" class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nama Ruang <span class="required">*</span></label>
+                <input v-model="labForm.name" required class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Kode</label>
+                <input v-model="labForm.code" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Gedung</label>
+                <select v-model="labForm.building_id" class="form-input">
+                  <option value="">Pilih Gedung</option>
+                  <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Jenis Lab</label>
+                <select v-model="labForm.lab_type" class="form-input">
+                  <option value="">— Pilih —</option>
+                  <option value="IPA">Lab IPA</option>
+                  <option value="Komputer">Lab Komputer</option>
+                  <option value="Bahasa">Lab Bahasa</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Lantai <span class="required">*</span></label>
+                <input type="number" v-model.number="labForm.floor" min="1" required class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Luas (m²)</label>
+                <input type="number" v-model.number="labForm.area" step="0.01" min="0" class="form-input" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Kapasitas</label>
+                <input type="number" v-model.number="labForm.capacity" min="0" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Kondisi <span class="required">*</span></label>
+                <select v-model="labForm.condition" required class="form-input">
+                  <option value="Baik">Baik</option>
+                  <option value="Rusak Ringan">Rusak Ringan</option>
+                  <option value="Rusak Sedang">Rusak Sedang</option>
+                  <option value="Rusak Berat">Rusak Berat</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Penanggung Jawab (Kepala Lab)</label>
+              <select v-model="labForm.responsible_employee_id" class="form-input">
+                <option value="">— Tidak ada —</option>
+                <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{ emp.name }}{{ emp.nip ? ' (' + emp.nip + ')' : '' }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Deskripsi</label>
+              <textarea v-model="labForm.description" rows="2" class="form-input"></textarea>
+            </div>
+            <p v-if="labFormError" class="form-error">{{ labFormError }}</p>
+            <div class="modal-footer">
+              <button type="button" @click="closeLabModal" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="labSaving" class="btn-primary">{{ labSaving ? 'Menyimpan...' : 'Simpan' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Konfirmasi Hapus Lab -->
+      <div v-if="showDeleteLabModal" class="modal-overlay" @click.self="cancelDeleteLab">
+        <div class="modal-content modal-narrow" @click.stop>
+          <div class="modal-header">
+            <h3>Hapus Lab</h3>
+            <button type="button" class="btn-close" @click="cancelDeleteLab">×</button>
+          </div>
+          <div class="modal-body">
+            <p>Yakin ingin menghapus lab <strong>{{ deleteLabName }}</strong>? Ruangan akan dihapus dari data sarana prasarana.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" @click="cancelDeleteLab" class="btn-secondary">Batal</button>
+            <button type="button" @click="doDeleteLab" :disabled="deleteLabLoading" class="btn-danger">{{ deleteLabLoading ? 'Menghapus...' : 'Hapus' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Tambah/Edit Barang Inventaris -->
+      <div v-if="showItemModal" class="modal-overlay" @click.self="closeItemModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>{{ editingItem ? 'Edit Barang' : 'Tambah Barang ke Lab' }}</h3>
+            <button type="button" class="btn-close" @click="closeItemModal">×</button>
+          </div>
+          <form @submit.prevent="saveItem" class="modal-body">
+            <div class="form-group">
+              <label>Nama Barang <span class="required">*</span></label>
+              <input v-model="itemForm.name" required class="form-input" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Kode</label>
+                <input v-model="itemForm.code" class="form-input" placeholder="Opsional" />
+              </div>
+              <div class="form-group">
+                <label>Kategori</label>
+                <select v-model="itemForm.category_id" class="form-input">
+                  <option value="">— Pilih —</option>
+                  <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Jumlah <span class="required">*</span></label>
+                <input type="number" v-model.number="itemForm.quantity" min="1" required class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Satuan</label>
+                <input v-model="itemForm.unit" class="form-input" placeholder="Unit, pcs, dll" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Kondisi</label>
+                <select v-model="itemForm.condition" class="form-input">
+                  <option value="Baik">Baik</option>
+                  <option value="Rusak Ringan">Rusak Ringan</option>
+                  <option value="Rusak Sedang">Rusak Sedang</option>
+                  <option value="Rusak Berat">Rusak Berat</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select v-model="itemForm.status" class="form-input">
+                  <option value="">—</option>
+                  <option value="Tersedia">Tersedia</option>
+                  <option value="Dipinjam">Dipinjam</option>
+                  <option value="Rusak">Rusak</option>
+                  <option value="Dalam Perbaikan">Dalam Perbaikan</option>
+                </select>
+              </div>
+            </div>
+            <p v-if="itemFormError" class="form-error">{{ itemFormError }}</p>
+            <div class="modal-footer">
+              <button type="button" @click="closeItemModal" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="itemSaving" class="btn-primary">{{ itemSaving ? 'Menyimpan...' : 'Simpan' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Tambah/Edit Jadwal Lab -->
+      <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>{{ editingSchedule ? 'Edit Jadwal' : 'Tambah Jadwal di Lab' }}</h3>
+            <button type="button" class="btn-close" @click="closeScheduleModal">×</button>
+          </div>
+          <form @submit.prevent="saveSchedule" class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Semester <span class="required">*</span></label>
+                <select v-model="scheduleForm.semester_id" required class="form-input">
+                  <option value="">Pilih</option>
+                  <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Kelas <span class="required">*</span></label>
+                <select v-model="scheduleForm.class_id" required class="form-input">
+                  <option value="">Pilih</option>
+                  <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Hari <span class="required">*</span></label>
+                <select v-model.number="scheduleForm.day_of_week" required class="form-input">
+                  <option v-for="(label, key) in dayNamesMap" :key="key" :value="Number(key)">{{ label }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Jam ke <span class="required">*</span></label>
+                <select v-model.number="scheduleForm.period" required class="form-input">
+                  <option v-for="p in 10" :key="p" :value="p">{{ p }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Mata Pelajaran <span class="required">*</span></label>
+              <select v-model="scheduleForm.subject_id" required class="form-input">
+                <option value="">Pilih</option>
+                <option v-for="sub in subjects" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Guru <span class="required">*</span></label>
+              <select v-model="scheduleForm.employee_id" required class="form-input">
+                <option value="">Pilih</option>
+                <option v-for="emp in teachers" :key="emp.id" :value="emp.id">{{ emp.name }}</option>
+              </select>
+            </div>
+            <p v-if="scheduleFormError" class="form-error">{{ scheduleFormError }}</p>
+            <div class="modal-footer">
+              <button type="button" @click="closeScheduleModal" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="scheduleSaving" class="btn-primary">{{ scheduleSaving ? 'Menyimpan...' : 'Simpan' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Konfirmasi Hapus Barang -->
+      <div v-if="showDeleteItemModal" class="modal-overlay" @click.self="cancelDeleteItem">
+        <div class="modal-content modal-narrow" @click.stop>
+          <div class="modal-header">
+            <h3>Hapus Barang</h3>
+            <button type="button" class="btn-close" @click="cancelDeleteItem">×</button>
+          </div>
+          <div class="modal-body">
+            <p>Yakin ingin menghapus barang <strong>{{ deleteItemName }}</strong> dari inventaris?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" @click="cancelDeleteItem" class="btn-secondary">Batal</button>
+            <button type="button" @click="doDeleteItem" :disabled="deleteItemLoading" class="btn-danger">{{ deleteItemLoading ? 'Menghapus...' : 'Hapus' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Konfirmasi Hapus Jadwal -->
+      <div v-if="showDeleteScheduleModal" class="modal-overlay" @click.self="cancelDeleteSchedule">
+        <div class="modal-content modal-narrow" @click.stop>
+          <div class="modal-header">
+            <h3>Hapus Jadwal</h3>
+            <button type="button" class="btn-close" @click="cancelDeleteSchedule">×</button>
+          </div>
+          <div class="modal-body">
+            <p>Yakin ingin menghapus slot jadwal ini dari lab?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" @click="cancelDeleteSchedule" class="btn-secondary">Batal</button>
+            <button type="button" @click="doDeleteSchedule" :disabled="deleteScheduleLoading" class="btn-danger">{{ deleteScheduleLoading ? 'Menghapus...' : 'Hapus' }}</button>
+          </div>
+        </div>
+      </div>
     </div>
   </Layout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'
 import { inventoryApi } from '@/api/inventory'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { institutionApi } from '@/api/institution'
+import { semesterApi } from '@/api/semester'
+import { classApi } from '@/api/class'
+import { subjectApi } from '@/api/subject'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
+
+const dayNamesMap = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat' }
 
 const labs = ref([])
 const buildings = ref([])
@@ -298,10 +687,388 @@ const labReportLoading = ref(false)
 const myLabsData = ref(null)
 const myLabsLoading = ref(false)
 
+const semesters = ref([])
+const classes = ref([])
+const subjects = ref([])
+const teachers = ref([])
+const categories = ref([])
+
+const showLabModal = ref(false)
+const editingLab = ref(null)
+const labForm = reactive({
+  name: '',
+  code: '',
+  building_id: '',
+  lab_type: '',
+  floor: 1,
+  area: '',
+  capacity: '',
+  condition: 'Baik',
+  description: '',
+  responsible_employee_id: ''
+})
+const labFormError = ref('')
+const labSaving = ref(false)
+
+const showDeleteLabModal = ref(false)
+const deleteLabId = ref(null)
+const deleteLabName = ref('')
+const deleteLabLoading = ref(false)
+
+const showItemModal = ref(false)
+const itemModalRoom = ref(null)
+const editingItem = ref(null)
+const itemForm = reactive({
+  name: '',
+  code: '',
+  category_id: '',
+  quantity: 1,
+  unit: '',
+  condition: 'Baik',
+  status: 'Tersedia'
+})
+const itemFormError = ref('')
+const itemSaving = ref(false)
+
+const showDeleteItemModal = ref(false)
+const deleteItemRoom = ref(null)
+const deleteItemId = ref(null)
+const deleteItemName = ref('')
+const deleteItemLoading = ref(false)
+
+const showScheduleModal = ref(false)
+const scheduleModalRoom = ref(null)
+const editingSchedule = ref(null)
+const scheduleForm = reactive({
+  semester_id: '',
+  class_id: '',
+  day_of_week: 1,
+  period: 1,
+  subject_id: '',
+  employee_id: ''
+})
+const scheduleFormError = ref('')
+const scheduleSaving = ref(false)
+
+const showDeleteScheduleModal = ref(false)
+const deleteScheduleRoom = ref(null)
+const deleteScheduleId = ref(null)
+const deleteScheduleLoading = ref(false)
+
 let debounceTimer = null
 function debounceLoad() {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => loadLabs(), 300)
+}
+
+async function openLabModal(room = null) {
+  editingLab.value = room
+  if (room) {
+    labForm.name = room.name || ''
+    labForm.code = room.code || ''
+    labForm.building_id = room.building_id || ''
+    labForm.lab_type = room.lab_type || ''
+    labForm.floor = room.floor ?? 1
+    labForm.area = room.area ?? ''
+    labForm.capacity = room.capacity ?? ''
+    labForm.condition = room.condition || 'Baik'
+    labForm.description = room.description || ''
+    labForm.responsible_employee_id = room.responsible_employee_id || ''
+  } else {
+    labForm.name = ''
+    labForm.code = ''
+    labForm.building_id = ''
+    labForm.lab_type = ''
+    labForm.floor = 1
+    labForm.area = ''
+    labForm.capacity = ''
+    labForm.condition = 'Baik'
+    labForm.description = ''
+    labForm.responsible_employee_id = ''
+  }
+  labFormError.value = ''
+  showLabModal.value = true
+}
+
+function closeLabModal() {
+  showLabModal.value = false
+  editingLab.value = null
+  labFormError.value = ''
+}
+
+async function saveLab() {
+  labFormError.value = ''
+  labSaving.value = true
+  try {
+    const payload = {
+      name: labForm.name,
+      code: labForm.code || null,
+      building_id: labForm.building_id || null,
+      type: 'Laboratorium',
+      lab_type: labForm.lab_type || null,
+      floor: labForm.floor,
+      area: labForm.area !== '' ? labForm.area : null,
+      capacity: labForm.capacity !== '' ? labForm.capacity : null,
+      condition: labForm.condition,
+      description: labForm.description || null,
+      responsible_employee_id: labForm.responsible_employee_id ? Number(labForm.responsible_employee_id) : null
+    }
+    if (editingLab.value) {
+      await facilityApi.updateRoom(editingLab.value.id, payload)
+      toast.success('Berhasil', 'Data lab berhasil diperbarui')
+    } else {
+      await facilityApi.createRoom(payload)
+      toast.success('Berhasil', 'Data lab berhasil ditambahkan')
+    }
+    closeLabModal()
+    await loadLabs()
+    if (labReportData.value) {
+      const res = await facilityApi.getLabReport()
+      labReportData.value = res?.data?.data ?? res?.data ?? null
+    }
+    if (myLabsData.value) {
+      const res = await facilityApi.getMyLabs()
+      myLabsData.value = res?.data?.data ?? res?.data ?? null
+    }
+  } catch (e) {
+    labFormError.value = e.response?.data?.message || e.message || 'Gagal menyimpan'
+    toast.error('Gagal', labFormError.value)
+  } finally {
+    labSaving.value = false
+  }
+}
+
+function confirmDeleteLab(room) {
+  deleteLabId.value = room.id
+  deleteLabName.value = room.name || 'Lab'
+  showDeleteLabModal.value = true
+}
+
+function cancelDeleteLab() {
+  showDeleteLabModal.value = false
+  deleteLabId.value = null
+  deleteLabName.value = ''
+}
+
+async function doDeleteLab() {
+  if (!deleteLabId.value) return
+  deleteLabLoading.value = true
+  try {
+    await facilityApi.deleteRoom(deleteLabId.value)
+    toast.success('Berhasil', 'Lab berhasil dihapus')
+    cancelDeleteLab()
+    if (expandedRoomId.value === deleteLabId.value) expandedRoomId.value = null
+    await loadLabs()
+    if (labReportData.value) {
+      const res = await facilityApi.getLabReport()
+      labReportData.value = res?.data?.data ?? res?.data ?? null
+    }
+    if (myLabsData.value) {
+      const res = await facilityApi.getMyLabs()
+      myLabsData.value = res?.data?.data ?? res?.data ?? null
+    }
+  } catch (e) {
+    toast.error('Gagal', e.response?.data?.message || e.message || 'Gagal menghapus lab')
+  } finally {
+    deleteLabLoading.value = false
+  }
+}
+
+function openItemModal(room, item = null) {
+  itemModalRoom.value = room
+  editingItem.value = item
+  if (item) {
+    itemForm.name = item.name || ''
+    itemForm.code = item.code || ''
+    itemForm.category_id = item.category_id || item.category?.id || ''
+    itemForm.quantity = item.quantity ?? 1
+    itemForm.unit = item.unit || ''
+    itemForm.condition = item.condition || 'Baik'
+    itemForm.status = item.status || 'Tersedia'
+  } else {
+    itemForm.name = ''
+    itemForm.code = ''
+    itemForm.category_id = ''
+    itemForm.quantity = 1
+    itemForm.unit = ''
+    itemForm.condition = 'Baik'
+    itemForm.status = 'Tersedia'
+  }
+  itemFormError.value = ''
+  showItemModal.value = true
+}
+
+function closeItemModal() {
+  showItemModal.value = false
+  itemModalRoom.value = null
+  editingItem.value = null
+  itemFormError.value = ''
+}
+
+async function saveItem() {
+  if (!itemModalRoom.value) return
+  itemFormError.value = ''
+  itemSaving.value = true
+  const roomId = itemModalRoom.value.id
+  try {
+    const payload = {
+      name: itemForm.name,
+      code: itemForm.code || null,
+      category_id: itemForm.category_id ? Number(itemForm.category_id) : null,
+      quantity: itemForm.quantity,
+      unit: itemForm.unit || null,
+      condition: itemForm.condition,
+      status: itemForm.status || null,
+      room_id: roomId
+    }
+    if (editingItem.value) {
+      await inventoryApi.updateItem(editingItem.value.id, payload)
+      toast.success('Berhasil', 'Barang berhasil diperbarui')
+    } else {
+      await inventoryApi.createItem(payload)
+      toast.success('Berhasil', 'Barang berhasil ditambahkan ke lab')
+    }
+    closeItemModal()
+    const res = await inventoryApi.getItems({ room_id: roomId, per_page: 100 })
+    const data = res?.data
+    const items = data?.data ?? (Array.isArray(data) ? data : [])
+    roomInventoryMap.value = { ...roomInventoryMap.value, [roomId]: { items, loading: false, loaded: true } }
+  } catch (e) {
+    itemFormError.value = e.response?.data?.message || e.message || 'Gagal menyimpan'
+    toast.error('Gagal', itemFormError.value)
+  } finally {
+    itemSaving.value = false
+  }
+}
+
+function confirmDeleteItem(room, item) {
+  deleteItemRoom.value = room
+  deleteItemId.value = item.id
+  deleteItemName.value = item.name || 'Barang'
+  showDeleteItemModal.value = true
+}
+
+function cancelDeleteItem() {
+  showDeleteItemModal.value = false
+  deleteItemRoom.value = null
+  deleteItemId.value = null
+  deleteItemName.value = ''
+}
+
+async function doDeleteItem() {
+  if (!deleteItemId.value || !deleteItemRoom.value) return
+  deleteItemLoading.value = true
+  const roomId = deleteItemRoom.value.id
+  try {
+    await inventoryApi.deleteItem(deleteItemId.value)
+    toast.success('Berhasil', 'Barang dihapus dari inventaris')
+    cancelDeleteItem()
+    const res = await inventoryApi.getItems({ room_id: roomId, per_page: 100 })
+    const data = res?.data
+    const items = data?.data ?? (Array.isArray(data) ? data : [])
+    roomInventoryMap.value = { ...roomInventoryMap.value, [roomId]: { items, loading: false, loaded: true } }
+  } catch (e) {
+    toast.error('Gagal', e.response?.data?.message || e.message || 'Gagal menghapus')
+  } finally {
+    deleteItemLoading.value = false
+  }
+}
+
+function openScheduleModal(room, schedule = null) {
+  scheduleModalRoom.value = room
+  editingSchedule.value = schedule
+  if (schedule) {
+    scheduleForm.semester_id = schedule.semester_id || activeSemesterId.value || ''
+    scheduleForm.class_id = schedule.class_id || schedule.school_class?.id || ''
+    scheduleForm.day_of_week = schedule.day_of_week ?? 1
+    scheduleForm.period = schedule.period ?? 1
+    scheduleForm.subject_id = schedule.subject_id || schedule.subject?.id || ''
+    scheduleForm.employee_id = schedule.employee_id || schedule.employee?.id || ''
+  } else {
+    scheduleForm.semester_id = activeSemesterId.value || ''
+    scheduleForm.class_id = ''
+    scheduleForm.day_of_week = 1
+    scheduleForm.period = 1
+    scheduleForm.subject_id = ''
+    scheduleForm.employee_id = ''
+  }
+  scheduleFormError.value = ''
+  showScheduleModal.value = true
+}
+
+function closeScheduleModal() {
+  showScheduleModal.value = false
+  scheduleModalRoom.value = null
+  editingSchedule.value = null
+  scheduleFormError.value = ''
+}
+
+async function saveSchedule() {
+  if (!scheduleModalRoom.value) return
+  scheduleFormError.value = ''
+  scheduleSaving.value = true
+  const roomId = scheduleModalRoom.value.id
+  try {
+    const payload = {
+      semester_id: Number(scheduleForm.semester_id),
+      class_id: Number(scheduleForm.class_id),
+      day_of_week: Number(scheduleForm.day_of_week),
+      period: Number(scheduleForm.period),
+      subject_id: Number(scheduleForm.subject_id),
+      employee_id: Number(scheduleForm.employee_id),
+      room_id: roomId
+    }
+    if (editingSchedule.value) {
+      await lessonScheduleApi.update(editingSchedule.value.id, payload)
+      toast.success('Berhasil', 'Jadwal berhasil diperbarui')
+    } else {
+      await lessonScheduleApi.create(payload)
+      toast.success('Berhasil', 'Jadwal berhasil ditambahkan')
+    }
+    closeScheduleModal()
+    if (activeSemesterId.value) {
+      const res = await lessonScheduleApi.getByRoom(roomId, { semester_id: activeSemesterId.value })
+      const items = res?.data?.data ?? (Array.isArray(res?.data) ? res.data : [])
+      roomScheduleMap.value = { ...roomScheduleMap.value, [roomId]: { items, loading: false, loaded: true } }
+    }
+  } catch (e) {
+    scheduleFormError.value = e.response?.data?.message || e.message || 'Gagal menyimpan'
+    toast.error('Gagal', scheduleFormError.value)
+  } finally {
+    scheduleSaving.value = false
+  }
+}
+
+function confirmDeleteSchedule(room, schedule) {
+  deleteScheduleRoom.value = room
+  deleteScheduleId.value = schedule.id
+  showDeleteScheduleModal.value = true
+}
+
+function cancelDeleteSchedule() {
+  showDeleteScheduleModal.value = false
+  deleteScheduleRoom.value = null
+  deleteScheduleId.value = null
+}
+
+async function doDeleteSchedule() {
+  if (!deleteScheduleId.value || !deleteScheduleRoom.value) return
+  deleteScheduleLoading.value = true
+  const roomId = deleteScheduleRoom.value.id
+  try {
+    await lessonScheduleApi.delete(deleteScheduleId.value)
+    toast.success('Berhasil', 'Jadwal dihapus')
+    cancelDeleteSchedule()
+    if (activeSemesterId.value) {
+      const res = await lessonScheduleApi.getByRoom(roomId, { semester_id: activeSemesterId.value })
+      const items = res?.data?.data ?? (Array.isArray(res?.data) ? res.data : [])
+      roomScheduleMap.value = { ...roomScheduleMap.value, [roomId]: { items, loading: false, loaded: true } }
+    }
+  } catch (e) {
+    toast.error('Gagal', e.response?.data?.message || e.message || 'Gagal menghapus')
+  } finally {
+    deleteScheduleLoading.value = false
+  }
 }
 
 async function loadLabs() {
@@ -466,9 +1233,46 @@ onMounted(async () => {
     const inst = instRes?.data?.data ?? instRes?.data
     if (inst?.active_semester_id) activeSemesterId.value = inst.active_semester_id
   } catch {}
-  await Promise.all([loadBuildings(), loadEmployees()])
+  await Promise.all([loadBuildings(), loadEmployees(), loadSemesters(), loadClasses(), loadSubjects(), loadCategories()])
   await loadLabs()
 })
+
+async function loadSemesters() {
+  try {
+    const res = await semesterApi.getAll({ per_page: 100 })
+    semesters.value = res?.data?.data ?? res?.data ?? []
+  } catch {
+    semesters.value = []
+  }
+}
+
+async function loadClasses() {
+  try {
+    const res = await classApi.getAll({ per_page: 200 })
+    classes.value = res?.data?.data ?? res?.data ?? []
+  } catch {
+    classes.value = []
+  }
+}
+
+async function loadSubjects() {
+  try {
+    const res = await subjectApi.getAll({ per_page: 200 })
+    const raw = res?.data?.data ?? res?.data ?? []
+    subjects.value = Array.isArray(raw) ? raw : (raw?.data ?? [])
+  } catch {
+    subjects.value = []
+  }
+}
+
+async function loadCategories() {
+  try {
+    const res = await inventoryApi.getCategories({ per_page: 200 })
+    categories.value = res?.data?.data ?? res?.data ?? []
+  } catch {
+    categories.value = []
+  }
+}
 </script>
 
 <style scoped>
@@ -485,13 +1289,15 @@ onMounted(async () => {
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
-.header-content h2 {
+.header-content .page-title {
   margin: 0 0 0.25rem 0;
   font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text, #1e293b);
 }
-.header-content p {
+.header-content .page-subtitle {
   margin: 0;
-  color: var(--text-muted, #666);
+  color: var(--text-muted, #64748b);
   font-size: 0.9rem;
 }
 .tab-header {
@@ -547,9 +1353,10 @@ onMounted(async () => {
 }
 .table-container {
   overflow-x: auto;
-  border: 1px solid var(--border-color, #ddd);
+  border: 1px solid var(--border-color, #e2e8f0);
   border-radius: 8px;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .data-table {
   width: 100%;
@@ -584,8 +1391,72 @@ onMounted(async () => {
 .btn-expand:hover { color: var(--primary, #2563eb); }
 .btn-expand svg { display: block; transition: transform 0.2s; }
 .btn-expand svg.expanded { transform: rotate(90deg); }
-.inventory-detail-row { background: var(--row-expanded-bg, #f8fafc); }
-.inventory-detail-cell { padding: 1rem 1rem 1rem 3rem; vertical-align: top; border-bottom: 1px solid var(--border-color, #e2e8f0); }
+.inventory-detail-row { background: var(--row-expanded-bg, #f1f5f9); }
+.inventory-detail-cell { padding: 0; vertical-align: top; border-bottom: 1px solid var(--border-color, #e2e8f0); }
+.expanded-detail-card {
+  margin: 0.75rem 1rem 1rem 2.5rem;
+  padding: 1.25rem;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-left: 4px solid var(--primary, #2563eb);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+.expanded-detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.expanded-detail-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text, #1e293b);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.expanded-detail-title svg { color: var(--primary, #2563eb); flex-shrink: 0; }
+.expanded-detail-code { font-weight: 500; color: var(--text-muted, #64748b); font-size: 0.95rem; }
+.expanded-detail-desc {
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+  color: var(--text-muted, #64748b);
+}
+.btn-expand-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted, #64748b);
+  background: var(--secondary-bg, #f1f5f9);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-expand-inline:hover { background: #e2e8f0; color: var(--text, #374151); }
+.detail-panel {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--row-expanded-bg, #f8fafc);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+.detail-panel:last-child { margin-bottom: 0; }
+.detail-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text, #374151);
+}
+.detail-panel-title svg { color: var(--primary, #2563eb); }
 .inventory-detail-header { font-weight: 600; margin-bottom: 0.75rem; font-size: 0.9rem; }
 .inventory-loading, .inventory-empty { color: var(--text-muted, #64748b); font-size: 0.9rem; padding: 0.5rem 0; }
 .inventory-subtable { width: 100%; font-size: 0.85rem; border-collapse: collapse; }
@@ -596,8 +1467,20 @@ onMounted(async () => {
   padding: 2rem;
   color: var(--text-muted, #666);
 }
+.empty-state-icon {
+  display: block;
+  margin: 0 auto 1rem;
+  opacity: 0.5;
+  color: var(--text-muted, #64748b);
+}
 .empty-state p {
   margin-bottom: 1rem;
+}
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
 }
 .tabs-nav-lab {
   display: flex;
@@ -611,6 +1494,9 @@ onMounted(async () => {
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 .tab-btn-lab.active {
   background: var(--primary, #2563eb);
@@ -632,6 +1518,7 @@ onMounted(async () => {
   border-radius: 8px;
   background: #fff;
   text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .report-card-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary, #2563eb); }
 .report-card-label { font-size: 0.85rem; color: var(--text-muted, #64748b); }
@@ -659,5 +1546,164 @@ onMounted(async () => {
 }
 .btn-secondary:hover {
   background: var(--secondary-hover, #d1d5db);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.actions-cell {
+  white-space: nowrap;
+}
+.btn-action {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  margin-right: 0.25rem;
+}
+.btn-action.btn-edit {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.btn-action.btn-edit:hover {
+  background: #bae6fd;
+}
+.btn-action.btn-delete {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.btn-action.btn-delete:hover {
+  background: #fecaca;
+}
+.btn-xs { padding: 0.2rem 0.4rem; font-size: 0.75rem; }
+.btn-sm {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  font-weight: 500;
+}
+.btn-sm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.detail-section { margin-bottom: 0.5rem; }
+.inventory-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+.modal-content.modal-narrow { max-width: 400px; }
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+.modal-header h3 { margin: 0; font-size: 1.1rem; }
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0 0.25rem;
+}
+.btn-close:hover { color: #1e293b; }
+.modal-body {
+  padding: 1.25rem;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.form-group {
+  margin-bottom: 0.75rem;
+}
+.form-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: #374151;
+}
+.form-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+.required { color: #dc2626; }
+.form-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  margin: 0 -1.25rem -1.25rem;
+  padding: 1rem 1.25rem;
+}
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+.btn-danger:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 </style>

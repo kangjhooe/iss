@@ -898,7 +898,7 @@ onMounted(() => {
 
 .btn-reset:hover { background: var(--color-bg-subtle, #f1f3f4); }
 
-.loading-wrap { padding: 2rem; }
+.loading-wrap { width: 100%; padding: 2rem; }
 
 .empty-state {
   padding: 3rem 1.5rem;

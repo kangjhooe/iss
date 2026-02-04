@@ -8,6 +8,14 @@
             <p>Kelola data kelas sekolah Anda</p>
           </div>
           <div class="action-buttons-group">
+            <button @click="exportPdf" :disabled="exportingPdf" class="btn-secondary btn-compact">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>{{ exportingPdf ? 'Mengekspor...' : 'Export PDF' }}</span>
+            </button>
             <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -435,6 +443,7 @@ const selectedStudentIds = ref([])
 const loadingStudents = ref(false)
 const loadingClassStudents = ref(false)
 const studentSearch = ref('')
+const exportingPdf = ref(false)
 
 const institution = ref(null)
 const institutionLevel = computed(() => institution.value?.level)
@@ -579,7 +588,7 @@ const removeStudentFromClass = async (studentId) => {
     await classApi.removeStudent(selectedClass.value.id, studentId)
     toast.success('Berhasil', 'Siswa berhasil dihapus dari kelas')
     await loadClassStudents()
-    loadClasses() // Refresh class list to update count
+    await loadClasses()
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus siswa dari kelas'
     toast.error('Gagal', message)
@@ -623,10 +632,19 @@ const addStudentsToClass = async () => {
   error.value = ''
 
   try {
-    await classApi.addStudents(selectedClass.value.id, selectedStudentIds.value)
+    const res = await classApi.addStudents(selectedClass.value.id, selectedStudentIds.value)
     toast.success('Berhasil', 'Siswa berhasil ditambahkan ke kelas')
     closeAddStudentModal()
-    loadClasses()
+    const updatedClass = res?.data?.data
+    if (updatedClass && typeof updatedClass.students_count === 'number') {
+      const idx = classes.value.findIndex(c => c.id === updatedClass.id)
+      if (idx !== -1) {
+        const next = [...classes.value]
+        next[idx] = { ...next[idx], ...updatedClass }
+        classes.value = next
+      }
+    }
+    await loadClasses()
   } catch (err) {
     error.value = err.response?.data?.message || 'Terjadi kesalahan saat menambahkan siswa'
     if (err.response?.data?.errors) {
@@ -711,21 +729,47 @@ const saveClass = async () => {
     })
 
     if (editingClass.value) {
+      const classId = editingClass.value.id
       // Saat edit, academic_year_id tidak bisa diubah
       delete data.academic_year_id
-      await classApi.update(editingClass.value.id, data)
+      const res = await classApi.update(classId, data)
       toast.success('Berhasil', 'Kelas berhasil diperbarui')
+      closeModal()
+      // Update baris di tabel dari response agar wali kelas dll langsung tampil
+      const updated = res?.data?.data
+      if (updated) {
+        const idx = classes.value.findIndex(c => c.id === classId)
+        if (idx !== -1) {
+          const next = [...classes.value]
+          next[idx] = { ...next[idx], ...updated }
+          if (typeof updated.students_count === 'number') next[idx].students_count = updated.students_count
+          classes.value = next
+        } else {
+          await loadClasses(pagination.value?.current_page || 1)
+        }
+      } else {
+        await loadClasses(pagination.value?.current_page || 1)
+      }
     } else {
       // Saat create, pastikan academic_year_id sudah di-set dari active_academic_year_id
       if (!data.academic_year_id && institution.value?.active_academic_year_id) {
         data.academic_year_id = institution.value.active_academic_year_id
       }
-      await classApi.create(data)
+      const res = await classApi.create(data)
       toast.success('Berhasil', 'Kelas berhasil ditambahkan')
+      closeModal()
+      // Selalu tampilkan kelas baru: sisipkan dari response ke awal daftar (supaya tidak hilang di halaman 2)
+      const created = res?.data?.data
+      if (created) {
+        if (created.students_count === undefined) created.students_count = 0
+        classes.value = [created, ...classes.value]
+        if (pagination.value && typeof pagination.value.total === 'number') {
+          pagination.value = { ...pagination.value, total: pagination.value.total + 1 }
+        }
+      } else {
+        await loadClasses(1)
+      }
     }
-
-    closeModal()
-    loadClasses()
   } catch (err) {
     error.value = err.response?.data?.message || 'Terjadi kesalahan saat menyimpan data'
     if (err.response?.data?.errors) {
@@ -758,6 +802,42 @@ const closeModal = () => {
 
 const getStatusClass = (status) => {
   return status === 'Aktif' ? 'status-badge status-active' : 'status-badge status-inactive'
+}
+
+const exportPdf = async () => {
+  exportingPdf.value = true
+  try {
+    const params = {
+      ...filters.value
+    }
+    
+    // Remove empty filters
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null) {
+        delete params[key]
+      }
+    })
+
+    const response = await classApi.exportPdf(params)
+    
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Laporan_Data_Kelas_${new Date().toISOString().split('T')[0]}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    toast.success('Berhasil', 'Laporan PDF berhasil diekspor')
+  } catch (err) {
+    console.error('Failed to export PDF:', err)
+    toast.error('Gagal', 'Gagal mengekspor laporan PDF')
+  } finally {
+    exportingPdf.value = false
+  }
 }
 
 // Debounce search
@@ -869,7 +949,7 @@ onMounted(async () => {
 }
 
 .loading-wrap {
-  min-height: 200px;
+  width: 100%;
 }
 
 .loading-state {
