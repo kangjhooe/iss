@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('academic_calendar_events')) {
+            return;
+        }
+
         Schema::create('academic_calendar_events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('institution_id')->constrained('institution')->onDelete('cascade');
