@@ -90,6 +90,9 @@
             <button @click="showFormModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitForm" class="modal-body">
+            <div v-if="offlineIndicator" class="offline-indicator">
+              <span>📴 Mode Offline</span>
+            </div>
             <div class="form-group">
               <label>Pegawai *</label>
               <select v-model="form.employee_id" required class="form-select" :disabled="!!editingAttendance">
@@ -138,6 +141,9 @@
             <button @click="showBulkModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitBulk" class="modal-body">
+            <div v-if="offlineIndicator" class="offline-indicator">
+              <span>📴 Mode Offline</span>
+            </div>
             <div class="form-group">
               <label>Tanggal *</label>
               <input v-model="bulkDate" type="date" required class="form-input" />
@@ -192,8 +198,21 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { useToast } from '@/composables/useToast'
 import { employeeAttendanceApi } from '@/api/attendance'
 import { employeeApi } from '@/api/teacher'
+import { employeeAttendanceStorage, isOnline, onNetworkStatusChange } from '@/utils/offlineStorage'
+import { useOfflineSync } from '@/composables/useOfflineSync'
 
 const toast = useToast()
+const { syncPendingItems } = useOfflineSync()
+
+const isOffline = ref(!isOnline())
+const offlineIndicator = ref(false)
+
+onNetworkStatusChange((online) => {
+  isOffline.value = !online
+  if (online) {
+    syncPendingItems()
+  }
+})
 
 const statusOptions = ref({})
 const employees = ref([])
@@ -327,15 +346,32 @@ async function submitForm() {
       check_out_time: checkOut,
       notes: form.notes || null,
     }
-    if (editingAttendance.value) {
-      await employeeAttendanceApi.update(editingAttendance.value.id, payload)
-      toast.success('Absensi berhasil diperbarui')
+
+    if (isOffline.value) {
+      // Save to offline storage (as bulk for single employee)
+      await employeeAttendanceStorage.save(form.date, [payload])
+      toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
+      showFormModal.value = false
+      loadAttendances()
     } else {
-      await employeeAttendanceApi.create(payload)
-      toast.success('Absensi berhasil dicatat')
+      try {
+        if (editingAttendance.value) {
+          await employeeAttendanceApi.update(editingAttendance.value.id, payload)
+          toast.success('Absensi berhasil diperbarui')
+        } else {
+          await employeeAttendanceApi.create(payload)
+          toast.success('Absensi berhasil dicatat')
+        }
+        showFormModal.value = false
+        loadAttendances()
+      } catch (e) {
+        // If online save fails, save offline
+        await employeeAttendanceStorage.save(form.date, [payload])
+        toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
+        showFormModal.value = false
+        loadAttendances()
+      }
     }
-    showFormModal.value = false
-    loadAttendances()
   } catch (e) {
     formError.value = e.response?.data?.message || e.formattedMessage || 'Gagal menyimpan'
   } finally {
@@ -396,10 +432,27 @@ async function submitBulk() {
       bulkSaving.value = false
       return
     }
-    await employeeAttendanceApi.bulkStore(bulkDate.value, attendancesList)
-    toast.success('Absensi pegawai berhasil disimpan')
-    showBulkModal.value = false
-    loadAttendances()
+
+    if (isOffline.value) {
+      // Save to offline storage
+      await employeeAttendanceStorage.save(bulkDate.value, attendancesList)
+      toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
+      showBulkModal.value = false
+      loadAttendances()
+    } else {
+      try {
+        await employeeAttendanceApi.bulkStore(bulkDate.value, attendancesList)
+        toast.success('Absensi pegawai berhasil disimpan')
+        showBulkModal.value = false
+        loadAttendances()
+      } catch (e) {
+        // If online save fails, save offline
+        await employeeAttendanceStorage.save(bulkDate.value, attendancesList)
+        toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
+        showBulkModal.value = false
+        loadAttendances()
+      }
+    }
   } catch (e) {
     bulkError.value = e.response?.data?.message || e.formattedMessage || 'Gagal menyimpan'
   } finally {
@@ -471,4 +524,13 @@ onMounted(async () => {
 .btn-secondary { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
 .btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #0ea5e9; color: #fff; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.offline-indicator {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  text-align: center;
+}
 </style>

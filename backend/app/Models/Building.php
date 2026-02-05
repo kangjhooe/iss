@@ -67,4 +67,12 @@ class Building extends Model
     {
         return $this->hasMany(Room::class);
     }
+
+    /**
+     * Get the inventory items located in this building.
+     */
+    public function inventoryItems()
+    {
+        return $this->hasMany(InventoryItem::class, 'building_id');
+    }
 }

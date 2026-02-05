@@ -4,12 +4,16 @@
       <router-view />
     </ErrorBoundary>
     <Toast />
+    <PWAInstallPrompt />
+    <OfflineStatus />
   </div>
 </template>
 
 <script setup>
 import Toast from '@/components/Toast.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
+import OfflineStatus from '@/components/OfflineStatus.vue'
 </script>
 
 <style>

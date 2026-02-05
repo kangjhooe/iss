@@ -38,3 +38,18 @@ export const employeeAttendanceApi = {
     return api.get('/v1/employee-attendances/status-options')
   },
 }
+
+/**
+ * QR Code Attendance
+ */
+export const qrAttendanceApi = {
+  generateStudentQr(studentId) {
+    return api.get(`/v1/qr-attendance/student/${studentId}/generate`)
+  },
+  generateEmployeeQr(employeeId) {
+    return api.get(`/v1/qr-attendance/employee/${employeeId}/generate`)
+  },
+  scanQr(data) {
+    return api.post('/v1/qr-attendance/scan', data)
+  },
+}

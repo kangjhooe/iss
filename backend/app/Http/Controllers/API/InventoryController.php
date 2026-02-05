@@ -30,10 +30,18 @@ class InventoryController extends Controller
             $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
 
             $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
+            if ($request->user()->isSuperAdmin()) {
+                $institutionId = $request->get('institution_id');
+            } elseif ($request->user()->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
+            } else {
                 $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
+            }
+            if ($institutionId === null) {
+                $perPage = min($request->get('per_page', 15), 100);
+                return InventoryItemResource::collection(
+                    new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage)
+                );
             }
 
             $perPage = min($request->get('per_page', 15), 100);
@@ -93,9 +101,12 @@ class InventoryController extends Controller
     /**
      * Display the specified inventory item.
      */
-    public function show(InventoryItem $item)
+    public function show(Request $request, InventoryItem $item)
     {
         try {
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $item->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
             $item->load(['category', 'room', 'building', 'institution', 'transactions', 'maintenances', 'loans', 'creator', 'updater']);
             return new InventoryItemResource($item);
         } catch (\Exception $e) {
@@ -116,6 +127,9 @@ class InventoryController extends Controller
     public function update(UpdateInventoryRequest $request, InventoryItem $item)
     {
         try {
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $item->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
             $data = $request->validated();
             $file = $request->hasFile('image') ? $request->file('image') : null;
 
@@ -141,10 +155,13 @@ class InventoryController extends Controller
     /**
      * Remove the specified inventory item.
      */
-    public function destroy(InventoryItem $item)
+    public function destroy(Request $request, InventoryItem $item)
     {
         try {
-            $this->service->delete($item, request()->user()->id);
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $item->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+            $this->service->delete($item, $request->user()->id);
 
             return response()->json([
                 'message' => 'Barang inventaris berhasil dihapus',

@@ -1,5 +1,12 @@
 # Panduan Setup Indonesia Smart School (ISS)
 
+## Deployment (Production)
+
+- **URL:** https://sicerdik.kangjhooe.com
+- **Path server:** `public_html/sicerdik`
+
+Pastikan backend dan frontend dikonfigurasi untuk domain ini (lihat bagian konfigurasi production di bawah).
+
 ## Persyaratan
 
 - PHP >= 8.2
@@ -67,6 +74,50 @@ npm run dev
 
 Frontend akan berjalan di: http://localhost:5173
 
+## Konfigurasi Production (sicerdik.kangjhooe.com)
+
+### Backend (Laravel)
+
+Di server, path: `public_html/sicerdik/backend`
+
+1. **Atur `.env` untuk production**
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://sicerdik.kangjhooe.com
+
+# Sesuaikan dengan kredensial database production
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=...
+DB_USERNAME=...
+DB_PASSWORD=...
+```
+
+2. **Document root untuk Laravel**  
+   Arahkan domain/subdomain ke folder `public_html/sicerdik/backend/public` (atau gunakan subdomain/alias terpisah untuk API, misalnya `api.sicerdik.kangjhooe.com` → `backend/public`).
+
+### Frontend (Vue)
+
+Di server, path: `public_html/sicerdik/frontend`
+
+1. **Build production**
+```bash
+cd frontend
+npm run build
+```
+
+2. **URL API di production**  
+   Set `VITE_API_BASE_URL` sebelum build. Untuk sicerdik.kangjhooe.com, buat/ubah `.env.production`:
+```env
+VITE_API_BASE_URL=https://sicerdik.kangjhooe.com/api
+```
+   (Jika API di subdomain terpisah, gunakan URL tersebut, misalnya `https://api.sicerdik.kangjhooe.com/api`.)
+
+3. **Document root untuk frontend**  
+   Arahkan `sicerdik.kangjhooe.com` ke folder hasil build, misalnya `public_html/sicerdik/frontend/dist` (atau salin isi `dist` ke `public_html/sicerdik` jika itu document root).
+
 ## Struktur Database
 
 ### Tabel `institution`
@@ -88,47 +139,32 @@ Frontend akan berjalan di: http://localhost:5173
 
 ## API Endpoints
 
-### Authentication
-- `POST /api/register` - Registrasi sekolah baru
-- `POST /api/login` - Login
-- `POST /api/logout` - Logout
-- `GET /api/me` - Get user yang sedang login
+Semua endpoint memakai prefix **`/api/v1`**. Daftar lengkap ada di **[API.md](API.md)**.
 
-### Institution
-- `GET /api/institution` - List semua institusi (admin)
-- `GET /api/institution/my` - Get institusi sendiri
-- `GET /api/institution/{id}` - Get detail institusi
-- `POST /api/institution` - Create institusi (admin)
-- `PUT /api/institution/{id}` - Update institusi
-- `DELETE /api/institution/{id}` - Delete institusi (admin)
+### Contoh (ringkas)
+- **Auth:** `POST /api/v1/register`, `POST /api/v1/login`, `POST /api/v1/logout`, `GET /api/v1/me`
+- **Institution:** `GET /api/v1/institution/my`, `GET|POST|PUT|DELETE /api/v1/institution`, ...
+- **Student:** `GET|POST|PUT|DELETE /api/v1/student`, ...
+- **Employee:** `GET|POST|PUT|DELETE /api/v1/employee`, ...
 
-### Student
-- `GET /api/student` - List siswa
-- `GET /api/student/{id}` - Get detail siswa
-- `POST /api/student` - Create siswa
-- `PUT /api/student/{id}` - Update siswa
-- `DELETE /api/student/{id}` - Delete siswa
-
-### Teacher
-- `GET /api/teacher` - List guru
-- `GET /api/teacher/{id}` - Get detail guru
-- `POST /api/teacher` - Create guru
-- `PUT /api/teacher/{id}` - Update guru
-- `DELETE /api/teacher/{id}` - Delete guru
+Protected route membutuhkan header: `Authorization: Bearer <token>`.
 
 ## Fitur yang Tersedia
 
-✅ Registrasi sekolah baru
-✅ Login/Logout
-✅ Manajemen profil instansi
-✅ CRUD data siswa
-✅ CRUD data guru
+✅ Registrasi sekolah baru & Login/Logout  
+✅ Manajemen profil instansi  
+✅ CRUD data siswa & guru/pegawai  
+✅ Kelas, tahun ajaran, semester, jadwal, nilai, raport  
+✅ Absensi pegawai & siswa (termasuk **QR absensi**)  
+✅ **Kalender akademik** & pengingat  
+✅ Persuratan, inventaris, perpustakaan, arsip digital  
+✅ **PWA** (install ke perangkat, offline-aware)  
 ✅ Multi-tenant (setiap sekolah data terisolasi)
-✅ Filter dan pencarian
 
 ## Catatan
 
-- Pastikan backend berjalan sebelum frontend
+- **Production:** Aplikasi live di https://sicerdik.kangjhooe.com (path: `public_html/sicerdik`)
+- Pastikan backend berjalan sebelum frontend (development)
 - Token authentication menggunakan Laravel Sanctum
 - Setiap sekolah hanya bisa mengakses data sekolahnya sendiri
 - Admin bisa mengakses semua data

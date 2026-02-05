@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\InventoryItem;
 use App\Models\InventoryTransaction;
 use App\Models\InventoryCategory;
+use App\Models\Room;
 use App\Repositories\InventoryRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -32,6 +33,8 @@ class InventoryService
         return DB::transaction(function () use ($data, $userId, $file) {
             $data['created_by'] = $userId;
             $data['status'] = $data['status'] ?? 'Tersedia';
+
+            $this->syncBuildingFromRoom($data);
 
             // Generate code if not provided
             if (empty($data['code'])) {
@@ -97,6 +100,8 @@ class InventoryService
     {
         return DB::transaction(function () use ($item, $data, $userId, $file) {
             $data['updated_by'] = $userId;
+
+            $this->syncBuildingFromRoom($data);
 
             // Handle image upload
             if ($file) {
@@ -166,9 +171,14 @@ class InventoryService
                 }
                 $item->decrement('quantity', $data['quantity']);
             } elseif ($data['transaction_type'] === 'Mutasi') {
-                // Update location
+                // Update location and keep building_id in sync
                 if (isset($data['to_location_id'])) {
-                    $item->update(['room_id' => $data['to_location_id']]);
+                    $room = Room::find($data['to_location_id']);
+                    $update = ['room_id' => $data['to_location_id']];
+                    if ($room) {
+                        $update['building_id'] = $room->building_id;
+                    }
+                    $item->update($update);
                 }
             } elseif ($data['transaction_type'] === 'Penyesuaian') {
                 // Direct quantity update
@@ -183,6 +193,24 @@ class InventoryService
 
             return $transaction->load(['item', 'creator']);
         });
+    }
+
+    /**
+     * Sync building_id from room_id: when an item is assigned to a room,
+     * set building_id from that room so location data stays consistent.
+     */
+    private function syncBuildingFromRoom(array &$data): void
+    {
+        if (array_key_exists('room_id', $data)) {
+            if (!empty($data['room_id'])) {
+                $room = Room::find($data['room_id']);
+                if ($room) {
+                    $data['building_id'] = $room->building_id;
+                }
+            } else {
+                $data['building_id'] = null;
+            }
+        }
     }
 
     /**

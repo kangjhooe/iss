@@ -48,6 +48,7 @@ use App\Http\Controllers\API\GradeController;
 use App\Http\Controllers\API\DigitalArchiveController;
 use App\Http\Controllers\API\StudentAttendanceController;
 use App\Http\Controllers\API\EmployeeAttendanceController;
+use App\Http\Controllers\API\QrAttendanceController;
 use App\Http\Controllers\API\GuestVisitController;
 use App\Http\Controllers\API\DocumentPickupController;
 use App\Http\Controllers\API\ExtracurricularController;
@@ -57,6 +58,7 @@ use App\Http\Controllers\API\LibraryBookCopyController;
 use App\Http\Controllers\API\LibraryLoanController;
 use App\Http\Controllers\API\LibraryFinePaymentController;
 use App\Http\Controllers\API\LibraryReportController;
+use App\Http\Controllers\API\AcademicCalendarController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
@@ -151,7 +153,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/student', [StudentController::class, 'store']);
         Route::put('/student/{id}', [StudentController::class, 'update']);
         Route::delete('/student/{id}', [StudentController::class, 'destroy']);
-    Route::post('/student/{id}/restore', [StudentController::class, 'restore']);
+        Route::post('/student/{id}/restore', [StudentController::class, 'restore']);
         Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
         Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
         Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
@@ -262,6 +264,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::put('/employee-attendances/{employee_attendance}', [EmployeeAttendanceController::class, 'update'])->name('employee-attendances.update');
     });
 
+    // QR Code Attendance
+    Route::middleware('module:attendance')->group(function () {
+        Route::get('/qr-attendance/student/{student}/generate', [QrAttendanceController::class, 'generateStudentQr'])->name('qr-attendance.student.generate');
+        Route::get('/qr-attendance/employee/{employee}/generate', [QrAttendanceController::class, 'generateEmployeeQr'])->name('qr-attendance.employee.generate');
+        Route::post('/qr-attendance/scan', [QrAttendanceController::class, 'scanQrAttendance'])->name('qr-attendance.scan');
+    });
+
     // Buku Nilai (Grade Book)
     Route::middleware('module:grade_book')->group(function () {
         Route::get('/grades', [GradeController::class, 'index'])->name('grades.index');
@@ -286,7 +295,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/employee', [EmployeeController::class, 'store']);
         Route::put('/employee/{id}', [EmployeeController::class, 'update']);
         Route::delete('/employee/{id}', [EmployeeController::class, 'destroy']);
-    Route::post('/employee/{id}/restore', [EmployeeController::class, 'restore']);
+        Route::post('/employee/{id}/restore', [EmployeeController::class, 'restore']);
         Route::post('/employee/{id}/reset-password', [EmployeeController::class, 'resetPasswordByAdmin'])->name('employee.reset-password');
         Route::post('/employee/import', [EmployeeController::class, 'import'])->name('employee.import');
         Route::post('/employee/{id}/documents', [EmployeeController::class, 'uploadDocument'])->name('employee.upload-document');
@@ -350,6 +359,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::post('/semesters/academic-year/{academicYearId}/auto-generate', [SemesterController::class, 'autoGenerate'])->name('semesters.auto-generate');
     Route::post('/semesters/{id}/activate', [SemesterController::class, 'activate'])->name('semesters.activate');
     Route::apiResource('semesters', SemesterController::class);
+
+    // Academic Calendar routes (Kalender Akademik)
+    Route::middleware('module:academic_calendar')->group(function () {
+        Route::get('/academic-calendar/calendar', [AcademicCalendarController::class, 'calendar'])->name('academic-calendar.calendar');
+        Route::get('/academic-calendar/upcoming', [AcademicCalendarController::class, 'upcoming'])->name('academic-calendar.upcoming');
+        Route::apiResource('academic-calendar', AcademicCalendarController::class);
+    });
 
     // Institution change request routes
     Route::get('/institution-change-requests/pending-count', [InstitutionChangeRequestController::class, 'pendingCount'])->name('institution-change-requests.pending-count');

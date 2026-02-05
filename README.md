@@ -51,6 +51,8 @@ iss/
 - ✅ **Mata Pelajaran & Jadwal** – mapel, jadwal per kelas/guru/ruang, copy per semester
 - ✅ **Jurnal Mengajar** – catatan mengajar, absensi siswa per jam
 - ✅ **Absensi Pegawai** – absensi harian guru/staff, bulk input
+- ✅ **Absensi QR** – generate & scan QR untuk absensi siswa/pegawai
+- ✅ **Kalender Akademik** – event, pengingat, integrasi notifikasi
 - ✅ **Buku Nilai & Raport** – nilai per kelas/mapel/semester, export raport
 - ✅ **Pelanggaran & Poin** – jenis pelanggaran/prestasi, poin siswa, threshold tindakan, catatan tindakan
 - ✅ **Konseling** – sesi konseling, jenis konseling, statistik, export
@@ -71,6 +73,7 @@ iss/
 - ✅ **Multi-tenant** – setiap sekolah terisolasi
 - ✅ **Rate limiting** – auth 5 req/menit, protected 60 req/menit
 - ✅ **Responsive UI**
+- ✅ **PWA** – install ke perangkat, dukungan offline
 
 ## Role & Akses
 

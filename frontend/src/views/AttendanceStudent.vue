@@ -85,6 +85,9 @@
           </div>
           <div class="modal-body">
             <div v-if="attendanceLoading" class="loading-inline">Memuat daftar siswa...</div>
+            <div v-if="offlineIndicator" class="offline-indicator">
+              <span>📴 Mode Offline - Data dari penyimpanan lokal</span>
+            </div>
             <form v-else @submit.prevent="submitAttendance" class="attendance-form">
               <div class="table-scroll">
                 <table class="data-table">
@@ -134,8 +137,21 @@ import { teachingJournalApi } from '@/api/teachingJournal'
 import { studentAttendanceApi } from '@/api/attendance'
 import { semesterApi } from '@/api/semester'
 import { classApi } from '@/api/class'
+import { studentAttendanceStorage, isOnline, onNetworkStatusChange } from '@/utils/offlineStorage'
+import { useOfflineSync } from '@/composables/useOfflineSync'
 
 const toast = useToast()
+const { syncPendingItems } = useOfflineSync()
+
+const isOffline = ref(!isOnline())
+const offlineIndicator = ref(false)
+
+onNetworkStatusChange((online) => {
+  isOffline.value = !online
+  if (online) {
+    syncPendingItems()
+  }
+})
 
 const studentStatusOptions = {
   hadir: 'Hadir',
@@ -210,6 +226,27 @@ async function openAttendanceModal(j) {
   showAttendanceModal.value = true
   attendanceLoading.value = true
   try {
+    // Try to load from offline storage first if offline
+    if (isOffline.value) {
+      const offlineData = await studentAttendanceStorage.get(j.id)
+      if (offlineData && offlineData.attendances) {
+        // Load students from journal data
+        const students = j.school_class?.students || []
+        attendanceRows.value = students.map((student) => {
+          const saved = offlineData.attendances.find(a => a.student_id === student.id)
+          return {
+            student_id: student.id,
+            status: saved?.status || 'hadir',
+            notes: saved?.notes || '',
+            student: student,
+          }
+        })
+        attendanceLoading.value = false
+        offlineIndicator.value = true
+        return
+      }
+    }
+
     const res = await studentAttendanceApi.getByTeachingJournal(j.id)
     attendanceRows.value = (res.data.data || []).map((row) => ({
       student_id: row.student_id,
@@ -217,7 +254,27 @@ async function openAttendanceModal(j) {
       notes: row.notes || '',
       student: row.student,
     }))
+    offlineIndicator.value = false
   } catch (e) {
+    // If offline and API fails, try to load from storage
+    if (isOffline.value) {
+      const offlineData = await studentAttendanceStorage.get(j.id)
+      if (offlineData && offlineData.attendances) {
+        const students = j.school_class?.students || []
+        attendanceRows.value = students.map((student) => {
+          const saved = offlineData.attendances.find(a => a.student_id === student.id)
+          return {
+            student_id: student.id,
+            status: saved?.status || 'hadir',
+            notes: saved?.notes || '',
+            student: student,
+          }
+        })
+        offlineIndicator.value = true
+        attendanceLoading.value = false
+        return
+      }
+    }
     toast.error(e.formattedMessage || 'Gagal memuat daftar absensi')
     showAttendanceModal.value = false
   } finally {
@@ -235,9 +292,28 @@ async function submitAttendance() {
       status: row.status,
       notes: row.notes || null,
     }))
-    await studentAttendanceApi.saveForTeachingJournal(selectedJournal.value.id, attendances)
-    toast.success('Absensi siswa berhasil disimpan')
-    showAttendanceModal.value = false
+    
+    // Extract students data for offline storage
+    const students = attendanceRows.value.map(row => row.student).filter(Boolean)
+
+    if (isOffline.value || !navigator.onLine) {
+      // Save to offline storage with students data
+      await studentAttendanceStorage.save(selectedJournal.value.id, attendances, students)
+      toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
+      showAttendanceModal.value = false
+    } else {
+      // Try to save online
+      try {
+        await studentAttendanceApi.saveForTeachingJournal(selectedJournal.value.id, attendances)
+        toast.success('Absensi siswa berhasil disimpan')
+        showAttendanceModal.value = false
+      } catch (e) {
+        // If online save fails, save offline
+        await studentAttendanceStorage.save(selectedJournal.value.id, attendances, students)
+        toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
+        showAttendanceModal.value = false
+      }
+    }
   } catch (e) {
     attendanceFormError.value = e.response?.data?.message || e.formattedMessage || 'Gagal menyimpan absensi'
   } finally {
@@ -313,4 +389,13 @@ onMounted(async () => {
 .btn-secondary { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
 .btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #0ea5e9; color: #fff; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.offline-indicator {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  text-align: center;
+}
 </style>

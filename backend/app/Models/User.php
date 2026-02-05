@@ -182,6 +182,78 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the correspondence created by this user.
+     */
+    public function correspondencesCreated()
+    {
+        return $this->hasMany(Correspondence::class, 'created_by');
+    }
+
+    /**
+     * Get the correspondence approved by this user.
+     */
+    public function correspondencesApproved()
+    {
+        return $this->hasMany(Correspondence::class, 'approved_by');
+    }
+
+    /**
+     * Get the document pickups created by this user.
+     */
+    public function documentPickupsCreated()
+    {
+        return $this->hasMany(DocumentPickup::class, 'created_by');
+    }
+
+    /**
+     * Get the academic calendar events created by this user.
+     */
+    public function academicCalendarEventsCreated()
+    {
+        return $this->hasMany(AcademicCalendarEvent::class, 'created_by');
+    }
+
+    /**
+     * Get the library loans created by this user.
+     */
+    public function libraryLoansCreated()
+    {
+        return $this->hasMany(LibraryLoan::class, 'created_by');
+    }
+
+    /**
+     * Get the correspondence dispositions given by this user.
+     */
+    public function dispositionsGiven()
+    {
+        return $this->hasMany(CorrespondenceDisposition::class, 'from_user_id');
+    }
+
+    /**
+     * Get the correspondence dispositions received by this user.
+     */
+    public function dispositionsReceived()
+    {
+        return $this->hasMany(CorrespondenceDisposition::class, 'to_user_id');
+    }
+
+    /**
+     * Get the correspondence history records by this user.
+     */
+    public function correspondenceHistories()
+    {
+        return $this->hasMany(CorrespondenceHistory::class);
+    }
+
+    /**
+     * Get the audit logs by this user.
+     */
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class);
+    }
+
+    /**
      * Get the student profile associated with this user (by email).
      */
     public function studentProfile()

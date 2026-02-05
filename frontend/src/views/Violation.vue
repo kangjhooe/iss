@@ -21,7 +21,7 @@
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
       <!-- Single-level tabs: semua dalam satu baris dengan pengelompokan visual -->
       <div class="nav-tabs-wrap">

@@ -208,6 +208,18 @@ Rate limit: auth 5 req/menit, protected 60 req/menit.
 - `GET /api/v1/institution-change-requests/pending-count`
 - `POST /api/v1/institution-change-requests/{id}/approve`
 
+## QR Absensi
+
+- `GET /api/v1/qr-attendance/student/{student}/generate` – Generate QR siswa
+- `GET /api/v1/qr-attendance/employee/{employee}/generate` – Generate QR pegawai
+- `POST /api/v1/qr-attendance/scan` – Scan QR untuk absensi
+
+## Kalender Akademik
+
+- `GET|POST|PUT|DELETE /api/v1/academic-calendar` – CRUD event
+- `GET /api/v1/academic-calendar/calendar` – Data kalender
+- `GET /api/v1/academic-calendar/upcoming` – Event mendatang
+
 ## Report
 
 - `GET /api/v1/report/institution/{institutionId?}` – Statistik laporan

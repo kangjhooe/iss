@@ -12,69 +12,23 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async login(credentials) {
       try {
-        console.log('=== LOGIN REQUEST START ===')
-        console.log('Credentials:', { ...credentials, password: '***' })
-        
         const response = await authApi.login(credentials)
-        
-        // Log full response for debugging
-        console.log('=== LOGIN RESPONSE DEBUG ===')
-        console.log('Full response object:', response)
-        console.log('Response type:', typeof response)
-        console.log('Response.data:', response?.data)
-        console.log('Response.data type:', typeof response?.data)
-        console.log('Response.status:', response?.status)
-        console.log('Response keys:', Object.keys(response || {}))
-        if (response?.data) {
-          console.log('Response.data keys:', Object.keys(response.data))
-          console.log('Response.data.token:', response.data.token)
-          console.log('Response.data.user:', response.data.user)
-        }
-        console.log('=== END RESPONSE DEBUG ===')
-        
-        // Validate response structure
         if (!response) {
-          console.error('No response received')
           throw new Error('Tidak ada response dari server')
         }
-        
-        // Check if response has error status
         if (response.status && response.status >= 400) {
           const errorMessage = response.data?.message || response.data?.error || 'Terjadi kesalahan saat login'
           throw new Error(errorMessage)
         }
-        
-        // Validate response data - check if data exists
         const responseData = response.data || response
-        if (!responseData) {
-          console.error('Invalid response structure - no data:', response)
-          throw new Error('Invalid response from server')
-        }
-        
-        if (!responseData.user) {
-          console.error('User data not found in response. Response data:', responseData)
+        if (!responseData || !responseData.user) {
           throw new Error('Data user tidak ditemukan dalam response')
         }
-
         // Auth token & refresh token disimpan di httpOnly cookie oleh backend; tidak disimpan di localStorage
         this.user = responseData.user
         this.isAuthenticated = true
         return responseData
       } catch (error) {
-        console.error('=== LOGIN ERROR DEBUG ===')
-        console.error('Error object:', error)
-        console.error('Error type:', typeof error)
-        console.error('Error.response:', error.response)
-        console.error('Error.response?.status:', error.response?.status)
-        console.error('Error.response?.statusText:', error.response?.statusText)
-        console.error('Error.response?.data:', error.response?.data)
-        console.error('Error.response?.headers:', error.response?.headers)
-        console.error('Error.message:', error.message)
-        console.error('Error.code:', error.code)
-        console.error('Error.config:', error.config)
-        console.error('Error.stack:', error.stack)
-        console.error('=== END ERROR DEBUG ===')
-        
         // Re-throw with better error message
         if (error.response) {
           // Server responded with error
@@ -119,8 +73,8 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       try {
         await authApi.logout()
-      } catch (error) {
-        console.error('Logout error:', error)
+      } catch {
+        // Tetap bersihkan state dan redirect meski API gagal
       } finally {
         this.user = null
         this.isAuthenticated = false

@@ -105,6 +105,14 @@ class AcademicYear extends Model
     }
 
     /**
+     * Get the academic calendar events for this academic year.
+     */
+    public function academicCalendarEvents()
+    {
+        return $this->hasMany(AcademicCalendarEvent::class);
+    }
+
+    /**
      * Scope a query to only include active academic years.
      */
     public function scopeActive($query)

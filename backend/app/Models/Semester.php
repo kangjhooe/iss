@@ -123,6 +123,14 @@ class Semester extends Model
     }
 
     /**
+     * Get the academic calendar events for this semester.
+     */
+    public function academicCalendarEvents()
+    {
+        return $this->hasMany(AcademicCalendarEvent::class);
+    }
+
+    /**
      * Scope a query to only include active semesters.
      */
     public function scopeActive($query)

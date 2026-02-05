@@ -26,28 +26,8 @@ api.interceptors.request.use(
 
 // Response interceptor untuk handle error
 api.interceptors.response.use(
-  (response) => {
-    // Log successful responses for debugging
-    if (response.config?.url?.includes('/login')) {
-      console.log('=== API INTERCEPTOR: LOGIN SUCCESS ===')
-      console.log('Response:', response)
-      console.log('Response.data:', response.data)
-      console.log('Response.status:', response.status)
-      console.log('=== END INTERCEPTOR LOG ===')
-    }
-    return response
-  },
+  (response) => response,
   async (error) => {
-    // Log errors for debugging
-    if (error.config?.url?.includes('/login')) {
-      console.error('=== API INTERCEPTOR: LOGIN ERROR ===')
-      console.error('Error:', error)
-      console.error('Error.response:', error.response)
-      console.error('Error.response?.data:', error.response?.data)
-      console.error('Error.response?.status:', error.response?.status)
-      console.error('Error.message:', error.message)
-      console.error('=== END INTERCEPTOR ERROR LOG ===')
-    }
     if (error.response?.status === 401) {
       // Coba refresh: refresh_token dikirim otomatis via httpOnly cookie
       try {

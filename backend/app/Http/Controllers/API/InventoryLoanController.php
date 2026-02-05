@@ -18,16 +18,20 @@ class InventoryLoanController extends Controller
     {
         try {
             $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
+            if ($request->user()->isSuperAdmin()) {
+                $institutionId = $request->get('institution_id');
+            } elseif ($request->user()->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
+            } else {
                 $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
             }
 
             $query = InventoryLoan::with(['item.category', 'borrowerEmployee', 'borrowerStudent', 'creator']);
 
             if ($institutionId) {
                 $query->where('institution_id', $institutionId);
+            } else {
+                $query->whereRaw('1 = 0');
             }
 
             if ($request->has('item_id')) {
@@ -76,7 +80,11 @@ class InventoryLoanController extends Controller
 
         try {
             $item = \App\Models\InventoryItem::findOrFail($request->item_id);
-            
+
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $item->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
             // Check availability
             if (!$item->isAvailable() || $item->getAvailableQuantity() < $request->quantity) {
                 return response()->json([
@@ -116,6 +124,9 @@ class InventoryLoanController extends Controller
      */
     public function return(Request $request, InventoryLoan $loan)
     {
+        if (!$request->user()->isAdminOrSuperAdmin() && (int) $loan->institution_id !== (int) $request->user()->institution_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
         $validator = Validator::make($request->all(), [
             'actual_return_date' => 'required|date',
             'notes' => 'nullable|string',
@@ -154,9 +165,12 @@ class InventoryLoanController extends Controller
     /**
      * Display the specified loan.
      */
-    public function show(InventoryLoan $loan)
+    public function show(Request $request, InventoryLoan $loan)
     {
         try {
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $loan->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
             $loan->load(['item.category', 'borrowerEmployee', 'borrowerStudent', 'creator', 'updater']);
             return new InventoryLoanResource($loan);
         } catch (\Exception $e) {

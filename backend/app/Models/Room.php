@@ -94,4 +94,20 @@ class Room extends Model
     {
         return $this->belongsTo(Employee::class, 'responsible_employee_id');
     }
+
+    /**
+     * Get the inventory items located in this room.
+     */
+    public function inventoryItems()
+    {
+        return $this->hasMany(InventoryItem::class, 'room_id');
+    }
+
+    /**
+     * Get the extracurriculars that use this room.
+     */
+    public function extracurriculars()
+    {
+        return $this->hasMany(Extracurricular::class, 'room_id');
+    }
 }

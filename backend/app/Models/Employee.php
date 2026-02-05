@@ -208,6 +208,15 @@ class Employee extends Model
     }
 
     /**
+     * Get the library loans where this employee is the borrower.
+     */
+    public function libraryLoans()
+    {
+        return $this->hasMany(LibraryLoan::class, 'borrower_id')
+            ->where('library_loans.borrower_type', 'Employee');
+    }
+
+    /**
      * Check if employee has user account.
      */
     public function hasUserAccount(): bool

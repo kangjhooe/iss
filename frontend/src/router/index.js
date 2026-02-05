@@ -124,6 +124,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'attendance' }
     },
     {
+      path: '/qr-attendance/scan',
+      name: 'QrAttendanceScan',
+      component: () => import('@/views/QrAttendanceScan.vue'),
+      meta: { requiresAuth: true, requiresModule: 'attendance' }
+    },
+    {
+      path: '/qr-attendance/generate',
+      name: 'QrCodeGenerate',
+      component: () => import('@/views/QrCodeGenerate.vue'),
+      meta: { requiresAuth: true, requiresModule: 'attendance' }
+    },
+    {
       path: '/grade-book',
       name: 'GradeBook',
       component: () => import('@/views/GradeBook.vue'),

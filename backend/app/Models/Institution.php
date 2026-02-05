@@ -40,6 +40,9 @@ class Institution extends Model
         'is_active',
         'active_academic_year_id',
         'active_semester_id',
+        'latitude',
+        'longitude',
+        'location_radius',
     ];
 
     /**
@@ -51,6 +54,9 @@ class Institution extends Model
     {
         return [
             'is_active' => 'boolean',
+            'latitude' => 'decimal:8',
+            'longitude' => 'decimal:8',
+            'location_radius' => 'integer',
         ];
     }
 
@@ -349,6 +355,22 @@ class Institution extends Model
     public function employeeAttendances()
     {
         return $this->hasMany(EmployeeAttendance::class);
+    }
+
+    /**
+     * Academic calendar events for this institution.
+     */
+    public function academicCalendarEvents()
+    {
+        return $this->hasMany(AcademicCalendarEvent::class);
+    }
+
+    /**
+     * Audit logs for this institution.
+     */
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class);
     }
 
     /**

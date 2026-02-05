@@ -130,8 +130,8 @@ class ClassController extends Controller
     {
         $class = SchoolClass::findOrFail($id);
 
-        // Jika bukan admin, hanya bisa update kelas dari institusi sendiri
-        if (!$request->user()->isAdmin() && $request->user()->institution_id != $class->institution_id) {
+        // Jika bukan admin/super admin, hanya bisa update kelas dari institusi sendiri
+        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -156,8 +156,8 @@ class ClassController extends Controller
     {
         $class = SchoolClass::findOrFail($id);
 
-        // Jika bukan admin, hanya bisa hapus kelas dari institusi sendiri
-        if (!$request->user()->isAdmin() && $request->user()->institution_id != $class->institution_id) {
+        // Jika bukan admin/super admin, hanya bisa hapus kelas dari institusi sendiri
+        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -385,12 +385,11 @@ class ClassController extends Controller
             // Get all classes matching filters (no pagination for PDF)
             $classes = $this->classService->list($filters, $institutionId, 10000);
             
-            // Load relationships and count for PDF
-            $classes->load(['institution:id,name,npsn', 'room:id,name,code', 'teacher:id,name', 'academicYear:id,code,name', 'semester:id,name']);
-            $classes->loadCount('students');
+            // Get class items with relationships already loaded from repository
+            $classItems = $classes->items();
             
             $pdf = DomPDF::loadView('class.report', [
-                'classes' => $classes->items(),
+                'classes' => $classItems,
                 'filters' => $filters,
                 'institution' => $institution,
                 'generated_at' => now(),

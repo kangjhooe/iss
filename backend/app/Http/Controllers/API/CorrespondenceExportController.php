@@ -54,21 +54,24 @@ class CorrespondenceExportController extends Controller
 
     /**
      * Download Excel file.
+     * Mencegah path traversal: hanya path di bawah exports/ yang diizinkan.
      */
     public function downloadExcel(Request $request, string $filePath)
     {
         try {
+            $filePath = $this->resolveSafeExportPath($filePath);
+            if ($filePath === null) {
+                return response()->json(['message' => 'File tidak ditemukan'], 404);
+            }
             if (!Storage::disk('public')->exists($filePath)) {
                 return response()->json(['message' => 'File tidak ditemukan'], 404);
             }
-
             return Storage::disk('public')->download($filePath);
         } catch (\Exception $e) {
             Log::error('Failed to download Excel file', [
                 'error' => $e->getMessage(),
                 'file_path' => $filePath,
             ]);
-
             return response()->json([
                 'message' => 'Terjadi kesalahan saat mengunduh file',
             ], 500);
@@ -118,24 +121,47 @@ class CorrespondenceExportController extends Controller
 
     /**
      * Download PDF file.
+     * Mencegah path traversal: hanya path di bawah exports/ yang diizinkan.
      */
     public function downloadPdf(Request $request, string $filePath)
     {
         try {
+            $filePath = $this->resolveSafeExportPath($filePath);
+            if ($filePath === null) {
+                return response()->json(['message' => 'File tidak ditemukan'], 404);
+            }
             if (!Storage::disk('public')->exists($filePath)) {
                 return response()->json(['message' => 'File tidak ditemukan'], 404);
             }
-
             return Storage::disk('public')->download($filePath);
         } catch (\Exception $e) {
             Log::error('Failed to download PDF file', [
                 'error' => $e->getMessage(),
                 'file_path' => $filePath,
             ]);
-
             return response()->json([
                 'message' => 'Terjadi kesalahan saat mengunduh file',
             ], 500);
         }
+    }
+
+    /**
+     * Resolve and validate export file path to prevent path traversal.
+     * Only paths under exports/ are allowed. Returns null if invalid.
+     */
+    private function resolveSafeExportPath(string $filePath): ?string
+    {
+        $filePath = trim($filePath);
+        if ($filePath === '' || str_contains($filePath, '..')) {
+            return null;
+        }
+        $filePath = str_replace('\\', '/', $filePath);
+        if (str_starts_with($filePath, '/')) {
+            $filePath = ltrim($filePath, '/');
+        }
+        if (!str_starts_with($filePath, 'exports/')) {
+            return null;
+        }
+        return $filePath;
     }
 }

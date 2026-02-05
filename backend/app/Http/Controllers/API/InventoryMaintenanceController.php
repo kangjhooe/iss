@@ -18,16 +18,20 @@ class InventoryMaintenanceController extends Controller
     {
         try {
             $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
+            if ($request->user()->isSuperAdmin()) {
+                $institutionId = $request->get('institution_id');
+            } elseif ($request->user()->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
+            } else {
                 $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
             }
 
             $query = InventoryMaintenance::with(['item.category', 'creator', 'updater']);
 
             if ($institutionId) {
                 $query->where('institution_id', $institutionId);
+            } else {
+                $query->whereRaw('1 = 0');
             }
 
             if ($request->has('item_id')) {
@@ -76,6 +80,9 @@ class InventoryMaintenanceController extends Controller
 
         try {
             $item = \App\Models\InventoryItem::findOrFail($request->item_id);
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $item->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
             $institutionId = $request->user()->isAdminOrSuperAdmin() 
                 ? ($request->institution_id ?? $item->institution_id)
                 : $request->user()->institution_id;
@@ -103,6 +110,9 @@ class InventoryMaintenanceController extends Controller
      */
     public function update(Request $request, InventoryMaintenance $maintenance)
     {
+        if (!$request->user()->isAdminOrSuperAdmin() && (int) $maintenance->institution_id !== (int) $request->user()->institution_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
         $validator = Validator::make($request->all(), [
             'maintenance_type' => 'sometimes|in:Perawatan,Perbaikan,Kalibrasi,Inspeksi',
             'scheduled_date' => 'sometimes|date',
@@ -139,9 +149,12 @@ class InventoryMaintenanceController extends Controller
     /**
      * Display the specified maintenance.
      */
-    public function show(InventoryMaintenance $maintenance)
+    public function show(Request $request, InventoryMaintenance $maintenance)
     {
         try {
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $maintenance->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
             $maintenance->load(['item.category', 'creator', 'updater']);
             return new InventoryMaintenanceResource($maintenance);
         } catch (\Exception $e) {

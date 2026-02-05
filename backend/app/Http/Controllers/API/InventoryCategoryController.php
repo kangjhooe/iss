@@ -24,11 +24,18 @@ class InventoryCategoryController extends Controller
         try {
             $filters = $request->only(['is_active', 'search']);
             $institutionId = null;
-            
-            if (!$request->user()->isAdminOrSuperAdmin()) {
+            if ($request->user()->isSuperAdmin()) {
+                $institutionId = $request->get('institution_id');
+            } elseif ($request->user()->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
+            } else {
                 $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
+            }
+            if ($institutionId === null) {
+                $perPage = min($request->get('per_page', 15), 100);
+                return InventoryCategoryResource::collection(
+                    new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage)
+                );
             }
 
             $perPage = min($request->get('per_page', 15), 100);
@@ -95,9 +102,12 @@ class InventoryCategoryController extends Controller
     /**
      * Display the specified category.
      */
-    public function show(InventoryCategory $category)
+    public function show(Request $request, InventoryCategory $category)
     {
         try {
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
             $category->load(['institution', 'items']);
             return new InventoryCategoryResource($category);
         } catch (\Exception $e) {
@@ -110,6 +120,9 @@ class InventoryCategoryController extends Controller
      */
     public function update(Request $request, InventoryCategory $category)
     {
+        if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
         $validator = Validator::make($request->all(), [
             'code' => 'sometimes|string|max:10',
             'name' => 'sometimes|string|max:100',
@@ -152,9 +165,12 @@ class InventoryCategoryController extends Controller
     /**
      * Remove the specified category.
      */
-    public function destroy(InventoryCategory $category)
+    public function destroy(Request $request, InventoryCategory $category)
     {
         try {
+            if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
             // Check if category has items
             if ($category->items()->count() > 0) {
                 return response()->json([

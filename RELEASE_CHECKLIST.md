@@ -8,6 +8,9 @@
 - [x] Manajemen Data Pegawai/Guru
 - [x] Manajemen Kelas
 - [x] Manajemen Tahun Ajaran & Semester
+- [x] Absensi QR (siswa & pegawai)
+- [x] Kalender Akademik
+- [x] PWA (install & offline)
 - [x] Sarana & Prasarana (Facility)
 - [x] Persuratan (Correspondence)
 - [x] Inventaris (Inventory)
@@ -113,7 +116,7 @@
 3. ✅ **Authorization** - Checks di semua endpoint
 4. ✅ **Database transactions** - Untuk operasi kompleks
 5. ✅ **Validation** - Backend dan frontend
-6. ✅ **Bug fixes** - Semua bug kritis sudah diperbaiki (lihat BUGS_FIXED_2026.md)
+6. ✅ **Bug fixes** - Bug kritis yang ditemukan sudah diperbaiki
 
 ### 📋 Pre-Deployment Checklist
 
@@ -164,4 +167,4 @@ Sebelum deploy ke production, pastikan:
 
 ---
 
-**Terakhir diperbarui:** 25 Januari 2026
+**Terakhir diperbarui:** 5 Februari 2026

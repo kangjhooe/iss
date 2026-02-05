@@ -23,24 +23,24 @@ class FacilityController extends Controller
             $query = Land::query();
 
             $user = $request->user();
-            
-            // Super admin can see all, admin can see all or filter by institution_id
-            if ($user->isSuperAdmin() || $user->isAdmin()) {
-                if ($request->has('institution_id')) {
-                    $query->where('institution_id', $request->institution_id);
+            $institutionId = null;
+            if ($user->isSuperAdmin()) {
+                $institutionId = $request->get('institution_id');
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
                 }
-                // If no institution_id filter, show all (for super admin/admin)
+            } elseif ($user->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $user->institution_id;
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
+                }
             } else {
-                // Regular users only see their institution's data
-                if ($user->institution_id) {
-                    $query->where('institution_id', $user->institution_id);
-                } else {
-                    // User has no institution, return empty
-                    return response()->json([
-                        'data' => []
-                    ]);
+                $institutionId = $user->institution_id;
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
                 }
             }
+            $query->where('institution_id', $institutionId);
 
             if ($request->has('search')) {
                 $search = $request->search;
@@ -215,24 +215,24 @@ class FacilityController extends Controller
             $query = Building::query();
 
             $user = $request->user();
-            
-            // Super admin can see all, admin can see all or filter by institution_id
-            if ($user->isSuperAdmin() || $user->isAdmin()) {
-                if ($request->has('institution_id')) {
-                    $query->where('institution_id', $request->institution_id);
+            $institutionId = null;
+            if ($user->isSuperAdmin()) {
+                $institutionId = $request->get('institution_id');
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
                 }
-                // If no institution_id filter, show all (for super admin/admin)
+            } elseif ($user->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $user->institution_id;
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
+                }
             } else {
-                // Regular users only see their institution's data
-                if ($user->institution_id) {
-                    $query->where('institution_id', $user->institution_id);
-                } else {
-                    // User has no institution, return empty
-                    return response()->json([
-                        'data' => []
-                    ]);
+                $institutionId = $user->institution_id;
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
                 }
             }
+            $query->where('institution_id', $institutionId);
 
             if ($request->has('search')) {
                 $search = $request->search;
@@ -401,24 +401,24 @@ class FacilityController extends Controller
             $query = Room::query();
 
             $user = $request->user();
-            
-            // Super admin can see all, admin can see all or filter by institution_id
-            if ($user->isSuperAdmin() || $user->isAdmin()) {
-                if ($request->has('institution_id')) {
-                    $query->where('institution_id', $request->institution_id);
+            $institutionId = null;
+            if ($user->isSuperAdmin()) {
+                $institutionId = $request->get('institution_id');
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
                 }
-                // If no institution_id filter, show all (for super admin/admin)
+            } elseif ($user->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $user->institution_id;
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
+                }
             } else {
-                // Regular users only see their institution's data
-                if ($user->institution_id) {
-                    $query->where('institution_id', $user->institution_id);
-                } else {
-                    // User has no institution, return empty
-                    return response()->json([
-                        'data' => []
-                    ]);
+                $institutionId = $user->institution_id;
+                if (!$institutionId) {
+                    return response()->json(['data' => []]);
                 }
             }
+            $query->where('institution_id', $institutionId);
 
             if ($request->has('search')) {
                 $search = $request->search;

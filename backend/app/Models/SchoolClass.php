@@ -137,6 +137,14 @@ class SchoolClass extends Model
     }
 
     /**
+     * Get the violations (pelanggaran) recorded for this class.
+     */
+    public function violations()
+    {
+        return $this->hasMany(Violation::class, 'class_id');
+    }
+
+    /**
      * Scope a query to only include active classes.
      */
     public function scopeActive($query)

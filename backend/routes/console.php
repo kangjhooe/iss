@@ -22,3 +22,9 @@ Artisan::command('swagger:generate', function () {
     
     return 0;
 })->purpose('Generate Swagger API documentation');
+
+// Schedule academic calendar reminders (run daily at 8 AM)
+Schedule::command('academic-calendar:send-reminders')
+    ->dailyAt('08:00')
+    ->timezone('Asia/Jakarta')
+    ->withoutOverlapping();
