@@ -28,7 +28,7 @@ return new class extends Migration
             $table->string('color', 7)->nullable()->comment('Hex color code for calendar display');
             $table->enum('status', ['Aktif', 'Dibatalkan', 'Draft'])->default('Aktif');
             $table->timestamp('reminder_sent_at')->nullable();
-            $table->foreignId('created_by')->constrained('users')->onDelete('restrict');
+            $table->foreignId('created_by')->constrained('user')->onDelete('restrict');
             $table->timestamps();
             $table->softDeletes();
             
