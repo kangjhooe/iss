@@ -46,6 +46,14 @@ class Subject extends Model
         return $this->hasMany(Grade::class, 'subject_id');
     }
 
+    /**
+     * Get the teaching journals for this subject.
+     */
+    public function teachingJournals()
+    {
+        return $this->hasMany(TeachingJournal::class, 'subject_id');
+    }
+
     public function scopeForInstitution($query, int $institutionId)
     {
         return $query->where('institution_id', $institutionId);

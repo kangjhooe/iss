@@ -140,6 +140,13 @@ class LessonScheduleController extends Controller
     {
         $user = $request->user();
         $institutionId = $user->institution_id;
+        if ($user->isStudent()) {
+            $profile = $user->studentProfile;
+            if (!$profile || (int) $profile->class_id !== (int) $classId) {
+                return response()->json(['message' => 'Anda hanya dapat melihat jadwal kelas sendiri.'], 403);
+            }
+            $institutionId = $profile->institution_id;
+        }
         $semesterId = $request->get('semester_id');
         if (!$institutionId || !$semesterId) {
             return response()->json(['message' => 'Institusi atau semester tidak ditemukan.'], 403);

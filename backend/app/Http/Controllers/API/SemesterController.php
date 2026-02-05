@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSemesterRequest;
 use App\Http\Requests\UpdateSemesterRequest;
 use App\Http\Resources\SemesterResource;
+use App\Models\Institution;
 use App\Models\Semester;
 use App\Services\SemesterService;
 use Illuminate\Http\Request;
@@ -18,12 +19,24 @@ class SemesterController extends Controller
 
     /**
      * Display a listing of semesters.
+     * For non-super_admin users (incl. students), results are scoped to their institution's active academic year.
      */
     public function index(Request $request)
     {
         $filters = $request->only(['academic_year_id', 'name', 'status']);
         $perPage = min($request->get('per_page', 15), 100);
-        
+
+        $user = $request->user();
+        if ($user && !$user->isSuperAdmin()) {
+            $institutionId = $user->institution_id ?? $user->studentProfile?->institution_id ?? null;
+            if ($institutionId) {
+                $institution = Institution::find($institutionId);
+                if ($institution && $institution->active_academic_year_id) {
+                    $filters['academic_year_id'] = $institution->active_academic_year_id;
+                }
+            }
+        }
+
         $semesters = $this->semesterService->list($filters, $perPage);
 
         return SemesterResource::collection($semesters);

@@ -34,10 +34,70 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTeacher: true }
     },
     {
+      path: '/teacher/profile',
+      name: 'TeacherProfile',
+      component: () => import('@/views/TeacherProfile.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true }
+    },
+    {
       path: '/super-admin/dashboard',
       name: 'SuperAdminDashboard',
       component: () => import('@/views/SuperAdminDashboard.vue'),
       meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/student/dashboard',
+      name: 'StudentDashboard',
+      component: () => import('@/views/StudentDashboard.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/jadwal',
+      name: 'StudentSchedule',
+      component: () => import('@/views/StudentSchedule.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/nilai',
+      name: 'StudentGrades',
+      component: () => import('@/views/StudentGrades.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/pelanggaran-prestasi',
+      name: 'StudentViolations',
+      component: () => import('@/views/StudentViolations.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/konseling',
+      name: 'StudentCounseling',
+      component: () => import('@/views/StudentCounseling.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/ekstrakurikuler',
+      name: 'StudentExtracurricular',
+      component: () => import('@/views/StudentExtracurricular.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/poin',
+      name: 'StudentPoints',
+      component: () => import('@/views/StudentPoints.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/profil',
+      name: 'StudentProfile',
+      component: () => import('@/views/StudentProfile.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/permintaan-perubahan',
+      name: 'StudentChangeRequests',
+      component: () => import('@/views/StudentChangeRequests.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
     },
     {
       path: '/institution',
@@ -196,6 +256,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
+      path: '/student-change-requests',
+      name: 'StudentChangeRequestsAdmin',
+      component: () => import('@/views/StudentChangeRequestsAdmin.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
+      path: '/teacher-change-requests',
+      name: 'TeacherChangeRequestsAdmin',
+      component: () => import('@/views/TeacherChangeRequestsAdmin.vue'),
+      meta: { requiresAuth: true, requiresModule: 'teacher' }
+    },
+    {
       path: '/correspondence',
       name: 'Correspondence',
       component: () => import('@/views/Correspondence.vue'),
@@ -276,6 +348,9 @@ const getDefaultRoute = (role) => {
   }
   if (role === 'teacher' || role === 'staff') {
     return '/teacher/dashboard'
+  }
+  if (role === 'student') {
+    return '/student/dashboard'
   }
   return '/dashboard'
 }
@@ -384,6 +459,28 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (authStore.user?.role !== 'teacher' && authStore.user?.role !== 'staff') {
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
+    } else {
+      next()
+    }
+  } else if (to.meta.requiresStudent) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next('/login')
+        return
+      }
+    }
+
+    if (authStore.user?.role !== 'student') {
       const defaultRoute = getDefaultRoute(authStore.user?.role)
       if (to.path !== defaultRoute) {
         next(defaultRoute)

@@ -225,6 +225,14 @@ class Student extends Model
     }
 
     /**
+     * Get the change requests (perubahan data) for this student.
+     */
+    public function studentChangeRequests()
+    {
+        return $this->hasMany(StudentChangeRequest::class);
+    }
+
+    /**
      * Get the latest/current alumni destination (one record, most recent by year_entered or created_at).
      */
     public function currentAlumniDestination()

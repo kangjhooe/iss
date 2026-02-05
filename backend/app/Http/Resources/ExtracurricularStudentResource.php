@@ -26,6 +26,10 @@ class ExtracurricularStudentResource extends JsonResource
                 ];
             }),
             'academic_year_id' => $this->academic_year_id,
+            'extracurricular' => $this->whenLoaded('extracurricular', fn () => $this->extracurricular ? [
+                'id' => $this->extracurricular->id,
+                'name' => $this->extracurricular->name,
+            ] : null),
             'semester' => $this->whenLoaded('semester', fn () => $this->semester ? ['id' => $this->semester->id, 'name' => $this->semester->name] : null),
             'semester_id' => $this->semester_id,
             'joined_at' => $this->joined_at?->format('Y-m-d'),

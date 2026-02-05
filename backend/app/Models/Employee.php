@@ -73,7 +73,15 @@ class Employee extends Model
      */
     public function assignments()
     {
-        return $this->hasMany(EmployeeInstitutionAssignment::class);
+        return $this->hasMany(EmployeeInstitutionAssignment::class, 'employee_id');
+    }
+
+    /**
+     * Get the change requests (perubahan data) for this employee.
+     */
+    public function teacherChangeRequests()
+    {
+        return $this->hasMany(TeacherChangeRequest::class, 'employee_id');
     }
 
     /**

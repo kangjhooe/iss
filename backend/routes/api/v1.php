@@ -11,6 +11,8 @@ use App\Http\Controllers\API\CorrespondenceImportController;
 use App\Http\Controllers\API\DispositionController;
 use App\Http\Controllers\API\FacilityController;
 use App\Http\Controllers\API\InstitutionChangeRequestController;
+use App\Http\Controllers\API\StudentChangeRequestController;
+use App\Http\Controllers\API\TeacherChangeRequestController;
 use App\Http\Controllers\API\InstitutionController;
 use App\Http\Controllers\API\ReportController;
 use App\Http\Controllers\API\SemesterController;
@@ -371,6 +373,18 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/institution-change-requests/pending-count', [InstitutionChangeRequestController::class, 'pendingCount'])->name('institution-change-requests.pending-count');
     Route::post('/institution-change-requests/{id}/approve', [InstitutionChangeRequestController::class, 'approve'])->name('institution-change-requests.approve');
     Route::apiResource('institution-change-requests', InstitutionChangeRequestController::class)->except(['update', 'destroy']);
+
+    // Student change requests (siswa lengkapi data, admin setujui)
+    Route::get('/student-change-requests/allowed-fields', [StudentChangeRequestController::class, 'allowedFields'])->name('student-change-requests.allowed-fields');
+    Route::get('/student-change-requests/pending-count', [StudentChangeRequestController::class, 'pendingCount'])->name('student-change-requests.pending-count');
+    Route::post('/student-change-requests/{id}/approve', [StudentChangeRequestController::class, 'approve'])->name('student-change-requests.approve');
+    Route::apiResource('student-change-requests', StudentChangeRequestController::class)->only(['index', 'store', 'show']);
+
+    // Teacher change requests (guru lengkapi/ubah data, admin setujui)
+    Route::get('/teacher-change-requests/allowed-fields', [TeacherChangeRequestController::class, 'allowedFields'])->name('teacher-change-requests.allowed-fields');
+    Route::get('/teacher-change-requests/pending-count', [TeacherChangeRequestController::class, 'pendingCount'])->name('teacher-change-requests.pending-count');
+    Route::post('/teacher-change-requests/{id}/approve', [TeacherChangeRequestController::class, 'approve'])->name('teacher-change-requests.approve');
+    Route::apiResource('teacher-change-requests', TeacherChangeRequestController::class)->only(['index', 'store', 'show']);
 
     // Facility routes (Sarana Prasarana)
     Route::prefix('facility')->middleware('module:facility')->group(function () {

@@ -34,16 +34,26 @@ class UserResource extends JsonResource
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'is_locked' => $this->isLocked(),
             'failed_login_attempts' => $this->failed_login_attempts ?? 0,
-            'institution' => $this->whenLoaded('institution', function () {
-                return new InstitutionResource($this->institution);
-            }),
+            'institution' => $this->when(
+                $this->relationLoaded('institution') && $this->institution
+                || ($this->relationLoaded('studentProfile') && $this->studentProfile?->relationLoaded('institution') && $this->studentProfile?->institution),
+                function () {
+                    $inst = $this->institution ?? $this->studentProfile?->institution;
+                    return $inst ? new InstitutionResource($inst) : null;
+                }
+            ),
             'student_profile' => $this->whenLoaded('studentProfile', function () {
+                $sp = $this->studentProfile;
                 return [
-                    'id' => $this->studentProfile->id,
-                    'nis' => $this->studentProfile->nis,
-                    'nisn' => $this->studentProfile->nisn,
-                    'class' => $this->studentProfile->class,
-                    'status' => $this->studentProfile->status,
+                    'id' => $sp->id,
+                    'nis' => $sp->nis,
+                    'nisn' => $sp->nisn,
+                    'class' => $sp->class,
+                    'class_id' => $sp->class_id,
+                    'class_name' => $sp->relationLoaded('schoolClass') && $sp->schoolClass
+                        ? $sp->schoolClass->name
+                        : null,
+                    'status' => $sp->status,
                 ];
             }),
             'teacher_profile' => $this->whenLoaded('teacherProfile', function () {

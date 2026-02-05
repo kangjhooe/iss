@@ -76,7 +76,7 @@ class Room extends Model
      */
     public function classes()
     {
-        return $this->hasMany(SchoolClass::class);
+        return $this->hasMany(SchoolClass::class, 'room_id');
     }
 
     /**
@@ -84,7 +84,7 @@ class Room extends Model
      */
     public function lessonSchedules()
     {
-        return $this->hasMany(LessonSchedule::class);
+        return $this->hasMany(LessonSchedule::class, 'room_id');
     }
 
     /**

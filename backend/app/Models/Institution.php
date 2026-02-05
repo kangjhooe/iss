@@ -94,6 +94,14 @@ class Institution extends Model
     }
 
     /**
+     * Get the employee institution assignments (non-induk) for this institution.
+     */
+    public function employeeInstitutionAssignments()
+    {
+        return $this->hasMany(EmployeeInstitutionAssignment::class, 'institution_id');
+    }
+
+    /**
      * Get the change requests for the institution.
      */
     public function changeRequests()

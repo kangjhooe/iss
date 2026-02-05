@@ -134,6 +134,38 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the student change requests requested by this user.
+     */
+    public function studentChangeRequestsRequested()
+    {
+        return $this->hasMany(StudentChangeRequest::class, 'requested_by');
+    }
+
+    /**
+     * Get the student change requests approved/rejected by this user.
+     */
+    public function studentChangeRequestsApproved()
+    {
+        return $this->hasMany(StudentChangeRequest::class, 'approved_by');
+    }
+
+    /**
+     * Get the teacher change requests requested by this user.
+     */
+    public function teacherChangeRequestsRequested()
+    {
+        return $this->hasMany(TeacherChangeRequest::class, 'requested_by');
+    }
+
+    /**
+     * Get the teacher change requests approved/rejected by this user.
+     */
+    public function teacherChangeRequestsApproved()
+    {
+        return $this->hasMany(TeacherChangeRequest::class, 'approved_by');
+    }
+
+    /**
      * Get the violations reported by this user.
      */
     public function violationsReported()

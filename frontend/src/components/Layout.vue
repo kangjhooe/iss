@@ -105,7 +105,7 @@
           <h1>{{ pageTitle }}</h1>
           <div class="topbar-actions">
             <router-link
-              v-if="authStore.user?.role !== 'super_admin' && authStore.user?.institution_id"
+              v-if="showNotificationBell"
               to="/notifications"
               class="notification-bell"
               title="Notifikasi"
@@ -270,6 +270,7 @@ function getDashboardTo() {
   const role = authStore.user?.role
   if (role === 'super_admin') return '/super-admin/dashboard'
   if (role === 'teacher' || role === 'staff') return '/teacher/dashboard'
+  if (role === 'student') return '/student/dashboard'
   return '/dashboard'
 }
 
@@ -289,8 +290,22 @@ const menuEntries = computed(() => {
       ]})
     ]
   }
+  if (role === 'student') {
+    return [
+      { type: 'link', key: 'dashboard', to: '/student/dashboard', label: 'Dashboard', icon: IconDashboard },
+      { type: 'link', key: 'student-schedule', to: '/student/jadwal', label: 'Jadwal Saya', icon: IconAcademic },
+      { type: 'link', key: 'student-grades', to: '/student/nilai', label: 'Nilai Saya', icon: IconAttendance },
+      { type: 'link', key: 'student-violations', to: '/student/pelanggaran-prestasi', label: 'Pelanggaran & Prestasi', icon: IconStudents },
+      { type: 'link', key: 'student-counseling', to: '/student/konseling', label: 'Konseling', icon: IconAttendance },
+      { type: 'link', key: 'student-extracurricular', to: '/student/ekstrakurikuler', label: 'Ekstrakurikuler', icon: IconStudents },
+      { type: 'link', key: 'student-points', to: '/student/poin', label: 'Poin Saya', icon: IconDashboard },
+      { type: 'link', key: 'student-change-requests', to: '/student/permintaan-perubahan', label: 'Permintaan Perubahan', icon: IconAdmin },
+      { type: 'link', key: 'student-profile', to: '/student/profil', label: 'Profil Saya', icon: IconSettings }
+    ]
+  }
   const entries = [
     { type: 'link', key: 'dashboard', to: getDashboardTo(), label: 'Dashboard', icon: IconDashboard },
+    ...(role === 'teacher' || role === 'staff' ? [{ type: 'link', key: 'teacher-profile', to: '/teacher/profile', label: 'Profil Saya', icon: IconSettings }] : []),
     addVisible({ type: 'group', key: 'master', label: 'Master Data', icon: IconDatabase, children: [
       { to: '/institution', label: 'Profil Instansi', visible: canAccessModule('institution') },
       { to: '/facility', label: 'Sarana Prasarana', visible: canAccessModule('facility') },
@@ -314,6 +329,8 @@ const menuEntries = computed(() => {
       { to: '/student-mutation', label: 'Mutasi Siswa', visible: canAccessModule('student') },
       { to: '/naik-kelas', label: 'Naik Kelas', visible: canAccessModule('student') },
       { to: '/alumni', label: 'Alumni', visible: canAccessModule('student') },
+      { to: '/student-change-requests', label: 'Permintaan Perubahan Siswa', visible: canAccessModule('student') },
+      { to: '/teacher-change-requests', label: 'Permintaan Perubahan Guru', visible: canAccessModule('teacher') },
       { to: '/pengambilan-ijazah', label: 'Pengambilan Ijazah', visible: canAccessModule('document_pickup') },
       { to: '/violation', label: 'Pelanggaran', visible: canAccessModule('violation') },
       { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
@@ -378,9 +395,18 @@ const bottomNavItems = computed(() => {
       { to: '/institution-change-requests', label: 'Request', icon: 'request' }
     ]
   }
+  if (role === 'student') {
+    return [
+      { to: '/student/dashboard', label: 'Beranda', icon: 'home' },
+      { to: '/student/jadwal', label: 'Jadwal', icon: 'class' },
+      { to: '/student/nilai', label: 'Nilai', icon: 'report' },
+      { to: '/student/poin', label: 'Poin', icon: 'violation' }
+    ]
+  }
   if (role === 'teacher' || role === 'staff') {
     const items = [
       { to: '/teacher/dashboard', label: 'Beranda', icon: 'home' },
+      { to: '/teacher/profile', label: 'Profil', icon: 'settings' },
       { to: '/class', label: 'Kelas', icon: 'class' }
     ]
     if (canAccessModule('student')) items.push({ to: '/student', label: 'Siswa', icon: 'student' })
@@ -417,6 +443,8 @@ const isBottomNavActive = (path) => {
   if (path === '/dashboard') return route.path === '/dashboard'
   if (path === '/super-admin/dashboard') return route.path === '/super-admin/dashboard'
   if (path === '/teacher/dashboard') return route.path === '/teacher/dashboard'
+  if (path === '/student/dashboard') return route.path === '/student/dashboard'
+  if (path === '/student/poin') return route.path === '/student/poin'
   return route.path.startsWith(path)
 }
 
@@ -424,6 +452,15 @@ const pageTitle = computed(() => {
   const titles = {
     Dashboard: 'Dashboard',
     TeacherDashboard: 'Dashboard Guru',
+    StudentDashboard: 'Dashboard Siswa',
+    StudentSchedule: 'Jadwal Saya',
+    StudentGrades: 'Nilai Saya',
+    StudentViolations: 'Pelanggaran & Prestasi',
+    StudentCounseling: 'Konseling',
+    StudentExtracurricular: 'Ekstrakurikuler',
+    StudentPoints: 'Poin Saya',
+    StudentChangeRequests: 'Permintaan Perubahan',
+    StudentProfile: 'Profil Saya',
     SuperAdminDashboard: 'Dashboard Super Admin',
     Institution: authStore.user?.role === 'super_admin' ? 'Kelola Institusi' : 'Profil Instansi',
     Student: 'Data Siswa',
@@ -435,6 +472,7 @@ const pageTitle = computed(() => {
     Report: 'Laporan & Statistik',
     AcademicYear: 'Tahun Ajaran',
     InstitutionChangeRequests: 'Request Perubahan',
+    StudentChangeRequestsAdmin: 'Permintaan Perubahan Siswa',
     ModuleAccess: 'Kelola Akses Modul',
     StudentMutation: 'Mutasi Siswa',
     Notifications: 'Notifikasi',
@@ -459,9 +497,17 @@ const pageTitle = computed(() => {
   return titles[route.name] || 'Dashboard'
 })
 
+const showNotificationBell = computed(() => {
+  const role = authStore.user?.role
+  if (role === 'super_admin') return false
+  if (role === 'student') return !!authStore.user?.student_profile
+  return !!authStore.user?.institution_id
+})
+
 const unreadNotificationCount = ref(0)
 async function fetchUnreadNotificationCount() {
-  if (!authStore.user?.institution_id || authStore.user?.role === 'super_admin') return
+  if (authStore.user?.role === 'super_admin') return
+  if (!authStore.user) return
   try {
     const res = await import('@/api/notifications').then(m => m.notificationsApi.getUnreadCount())
     unreadNotificationCount.value = res.data?.count ?? 0

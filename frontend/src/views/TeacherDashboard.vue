@@ -6,6 +6,7 @@
           <h1>Selamat Datang, {{ teacherName }}!</h1>
           <p v-if="teacher?.institution?.name">{{ teacher.institution.name }}</p>
           <p v-else class="loading">Memuat data...</p>
+          <router-link to="/teacher/profile" class="profile-link">Profil / Lengkapi data</router-link>
         </div>
         <div v-if="activeAcademicYear" class="welcome-meta">
           Tahun Ajaran Aktif: {{ activeAcademicYear.code || activeAcademicYear.name }}
@@ -227,6 +228,22 @@ onMounted(loadDashboard)
 .welcome-content p.loading {
   opacity: 0.7;
   font-style: italic;
+}
+
+.welcome-content .profile-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  text-decoration: none;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.welcome-content .profile-link:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .welcome-meta {

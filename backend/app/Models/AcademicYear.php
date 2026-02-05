@@ -45,7 +45,7 @@ class AcademicYear extends Model
      */
     public function semesters()
     {
-        return $this->hasMany(Semester::class);
+        return $this->hasMany(Semester::class, 'academic_year_id');
     }
 
     /**
@@ -109,7 +109,7 @@ class AcademicYear extends Model
      */
     public function academicCalendarEvents()
     {
-        return $this->hasMany(AcademicCalendarEvent::class);
+        return $this->hasMany(AcademicCalendarEvent::class, 'academic_year_id');
     }
 
     /**

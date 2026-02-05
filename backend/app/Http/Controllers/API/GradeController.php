@@ -323,15 +323,24 @@ class GradeController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
-            if (!$institutionId) {
-                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
-
             $studentId = (int) $request->get('student_id');
             $semesterId = (int) $request->get('semester_id');
             if (!$studentId || !$semesterId) {
                 return response()->json(['message' => 'student_id dan semester_id wajib diisi.'], 422);
+            }
+
+            if ($user->isStudent()) {
+                $profile = $user->studentProfile;
+                if (!$profile || (int) $profile->id !== $studentId) {
+                    return response()->json(['message' => 'Anda hanya dapat melihat nilai sendiri.'], 403);
+                }
+                $institutionId = $profile->institution_id;
+            } else {
+                $institutionId = $user->institution_id;
+            }
+
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $rows = $this->gradeService->getByStudentSemester($institutionId, $studentId, $semesterId);
@@ -352,15 +361,24 @@ class GradeController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
-            if (!$institutionId) {
-                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
-
             $studentId = (int) $request->get('student_id');
             $semesterId = (int) $request->get('semester_id');
             if (!$studentId || !$semesterId) {
                 return response()->json(['message' => 'student_id dan semester_id wajib diisi.'], 422);
+            }
+
+            if ($user->isStudent()) {
+                $profile = $user->studentProfile;
+                if (!$profile || (int) $profile->id !== $studentId) {
+                    return response()->json(['message' => 'Anda hanya dapat mengunduh raport sendiri.'], 403);
+                }
+                $institutionId = $profile->institution_id;
+            } else {
+                $institutionId = $user->institution_id;
+            }
+
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $student = \App\Models\Student::where('id', $studentId)->where('institution_id', $institutionId)->first();

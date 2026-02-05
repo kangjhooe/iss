@@ -127,7 +127,7 @@ class Semester extends Model
      */
     public function academicCalendarEvents()
     {
-        return $this->hasMany(AcademicCalendarEvent::class);
+        return $this->hasMany(AcademicCalendarEvent::class, 'semester_id');
     }
 
     /**

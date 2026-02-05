@@ -353,6 +353,13 @@ class ExtracurricularController extends Controller
         try {
             $user = $request->user();
             $institutionId = $user->institution_id;
+            if ($user->isStudent()) {
+                $profile = $user->studentProfile;
+                if (!$profile || (int) $profile->id !== $studentId) {
+                    return response()->json(['message' => 'Anda hanya dapat melihat data sendiri.'], 403);
+                }
+                $institutionId = $profile->institution_id;
+            }
             if (!$institutionId && !$user->isSuperAdmin()) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }

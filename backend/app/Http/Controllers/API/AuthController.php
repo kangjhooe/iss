@@ -349,8 +349,17 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         try {
+            $user = $request->user();
+            $loads = ['institution', 'permissions'];
+            if ($user->role === 'student') {
+                $loads[] = 'studentProfile.schoolClass';
+                $loads[] = 'studentProfile.institution';
+            }
+            if ($user->role === 'teacher' || $user->role === 'staff') {
+                $loads[] = 'teacherProfile';
+            }
             return response()->json([
-                'user' => new UserResource($request->user()->load(['institution', 'permissions'])),
+                'user' => new UserResource($user->load($loads)),
             ]);
         } catch (\Exception $e) {
             Log::error('Get user failed', [

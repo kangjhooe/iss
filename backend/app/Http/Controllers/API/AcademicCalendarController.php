@@ -150,9 +150,16 @@ class AcademicCalendarController extends Controller
     public function upcoming(Request $request)
     {
         $user = $request->user();
+        $institutionId = $user->institution_id;
+        if ($user->isStudent() && $user->studentProfile) {
+            $institutionId = $user->studentProfile->institution_id;
+        }
+        if (!$institutionId) {
+            return AcademicCalendarEventResource::collection(collect());
+        }
         $days = min($request->get('days', 30), 90);
 
-        $events = $this->academicCalendarService->getUpcoming($user->institution_id, $days);
+        $events = $this->academicCalendarService->getUpcoming($institutionId, $days);
 
         return AcademicCalendarEventResource::collection($events);
     }

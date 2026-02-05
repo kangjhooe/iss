@@ -1,0 +1,308 @@
+<template>
+  <Layout>
+    <div class="page">
+      <div class="page-header">
+        <h1>Nilai Saya</h1>
+        <div v-if="semesters.length" class="semester-select-wrap">
+          <label for="semester-select">Semester:</label>
+          <select id="semester-select" v-model="selectedSemesterId" class="semester-select">
+            <option value="">Pilih semester</option>
+            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div v-if="loading" class="loading-state">
+        <p>Memuat nilai...</p>
+      </div>
+
+      <div v-else-if="!selectedSemesterId" class="empty-state">
+        <p>Pilih semester untuk melihat nilai.</p>
+        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
+      </div>
+
+      <div v-else-if="!grades.length" class="empty-state">
+        <p>Belum ada nilai untuk semester ini.</p>
+        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
+      </div>
+
+      <div v-else class="grades-wrap">
+        <div class="grades-actions">
+          <button
+            type="button"
+            class="btn-download"
+            :disabled="downloadingRaport"
+            @click="downloadRaport"
+          >
+            {{ downloadingRaport ? 'Mengunduh...' : 'Download Raport (CSV)' }}
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table class="grades-table">
+            <thead>
+              <tr>
+                <th>Mata Pelajaran</th>
+                <th>UH</th>
+                <th>UTS</th>
+                <th>UAS</th>
+                <th>Tugas</th>
+                <th>Nilai Akhir</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="g in grades" :key="g.subject_id">
+                <td class="subject-name">{{ g.subject?.name || '-' }}</td>
+                <td>{{ g.uh ?? '-' }}</td>
+                <td>{{ g.uts ?? '-' }}</td>
+                <td>{{ g.uas ?? '-' }}</td>
+                <td>{{ g.tugas ?? '-' }}</td>
+                <td class="nilai-akhir">{{ g.nilai_akhir ?? '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
+      </div>
+    </div>
+  </Layout>
+</template>
+
+<script setup>
+import { computed, onMounted, ref, watch } from 'vue'
+import Layout from '@/components/Layout.vue'
+import { useAuthStore } from '@/stores/auth'
+import { gradeBookApi } from '@/api/gradeBook'
+import { semesterApi } from '@/api/semester'
+
+const authStore = useAuthStore()
+
+const studentId = computed(() => authStore.user?.student_profile?.id)
+
+const loading = ref(false)
+const downloadingRaport = ref(false)
+const semesters = ref([])
+const selectedSemesterId = ref('')
+const grades = ref([])
+
+onMounted(async () => {
+  let active = null
+  try {
+    const res = await semesterApi.getActive()
+    const data = res.data?.data ?? res.data
+    active = Array.isArray(data) ? data[0] : data
+  } catch {
+    // ignore
+  }
+  try {
+    const listRes = await semesterApi.getAll({ per_page: 50 })
+    const list = listRes.data?.data ?? listRes.data ?? []
+    const arr = Array.isArray(list) ? list : (list?.data ?? [])
+    semesters.value = arr.length ? arr : (active ? [active] : [])
+    selectedSemesterId.value = active?.id || (arr[0]?.id ?? '')
+  } catch {
+    semesters.value = active ? [active] : []
+    selectedSemesterId.value = active?.id ?? ''
+  }
+})
+
+async function loadGrades() {
+  if (!studentId.value || !selectedSemesterId.value) {
+    grades.value = []
+    return
+  }
+  loading.value = true
+  try {
+    const res = await gradeBookApi.getByStudentSemester({
+      student_id: studentId.value,
+      semester_id: selectedSemesterId.value
+    })
+    const list = res.data?.data ?? res.data ?? []
+    grades.value = Array.isArray(list) ? list : (list?.data ?? [])
+  } catch {
+    grades.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(selectedSemesterId, () => loadGrades(), { immediate: true })
+
+async function downloadRaport() {
+  if (!studentId.value || !selectedSemesterId.value) return
+  downloadingRaport.value = true
+  try {
+    const res = await gradeBookApi.exportStudentRaport({
+      student_id: studentId.value,
+      semester_id: selectedSemesterId.value
+    })
+    const blob = res.data
+    const disposition = res.headers?.['content-disposition']
+    let filename = 'raport.csv'
+    if (disposition && /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.test(disposition)) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (match && match[1]) filename = match[1].replace(/['"]/g, '').trim()
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    const msg = err?.formattedMessage || err?.response?.data?.message || 'Gagal mengunduh raport.'
+    alert(msg)
+  } finally {
+    downloadingRaport.value = false
+  }
+}
+</script>
+
+<style scoped>
+.page {
+  max-width: 100%;
+  padding: 0;
+}
+
+.page-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.page-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.semester-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.semester-select-wrap label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.semester-select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  min-width: 180px;
+}
+
+.loading-state,
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #64748b;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 16px;
+  color: #0ea5e9;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.grades-wrap {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.grades-actions {
+  margin-bottom: 16px;
+}
+
+.btn-download {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #0ea5e9;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-download:hover:not(:disabled) {
+  background: #0284c7;
+}
+
+.btn-download:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.grades-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.grades-table th,
+.grades-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.grades-table th {
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.grades-table td {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.subject-name {
+  font-weight: 600;
+}
+
+.nilai-akhir {
+  font-weight: 700;
+  color: #0ea5e9;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .grades-table th,
+  .grades-table td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+}
+</style>
