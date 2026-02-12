@@ -969,4 +969,18 @@ onMounted(() => {
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
 .btn-secondary { padding: 0.5rem 1rem; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+
+@media (max-width: 768px) {
+  .library-page { padding: 0 0.75rem 1.5rem; }
+  .search-input, .filter-select { min-width: 0; width: 100%; }
+  .form-row { grid-template-columns: 1fr; }
+  .modal-card, .modal-wide { max-width: 100%; margin: 0.5rem; }
+}
+
+@media (max-width: 480px) {
+  .library-page { padding: 0 0.5rem 1rem; }
+  .page-header h2 { font-size: 1.25rem; }
+  .tab-btn { padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+  .data-table th, .data-table td { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+}
 </style>

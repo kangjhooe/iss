@@ -1301,4 +1301,324 @@ onMounted(() => {
 }
 
 .modal-footer .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .buku-tamu-page {
+    padding: 0 0 1rem;
+  }
+
+  .page-header {
+    margin-bottom: 1rem;
+  }
+
+  .header-content {
+    gap: 0.75rem;
+  }
+
+  .header-icon-wrap {
+    width: 38px;
+    height: 38px;
+  }
+
+  .header-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .page-title {
+    font-size: 1.125rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .btn-header {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-header svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .toolbar-left {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .stat-badge {
+    padding-right: 0;
+    border-right: none;
+    font-size: 0.75rem;
+  }
+
+  .search-wrap {
+    width: 100%;
+  }
+
+  .search-input {
+    padding: 0.4rem 0.5rem 0.4rem 1.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .search-icon {
+    left: 8px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .filter-dates {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filter-date {
+    flex: 1;
+    min-width: 0;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .toolbar-right {
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .btn-export-pdf,
+  .btn-reset {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-export-pdf svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .empty-state {
+    padding: 1.5rem 1rem;
+  }
+
+  .empty-icon {
+    margin-bottom: 0.75rem;
+  }
+
+  .empty-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .empty-title {
+    font-size: 1rem;
+  }
+
+  .empty-desc {
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+  }
+
+  .btn-empty-cta {
+    padding: 0.4rem 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .card.table-card {
+    border-radius: 8px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.5rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .data-table th {
+    font-size: 0.6875rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .th-photo,
+  .td-photo {
+    width: 44px;
+  }
+
+  .guest-photo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .td-guest .guest-name,
+  .guest-org {
+    font-size: 0.75rem;
+  }
+
+  .td-purpose,
+  .td-met,
+  .td-time {
+    font-size: 0.6875rem;
+  }
+
+  .th-guest { min-width: 100px; }
+  .th-purpose { min-width: 80px; }
+  .th-met { min-width: 72px; }
+  .th-time { min-width: 72px; }
+  .col-actions { width: 72px; }
+
+  .btn-checkout {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.6875rem;
+  }
+
+  .btn-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .btn-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .pagination-buttons {
+    justify-content: center;
+  }
+
+  .btn-page {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-height: 85vh;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .modal-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .modal-title {
+    font-size: 1rem;
+  }
+
+  .modal-close {
+    width: 28px;
+    height: 28px;
+    font-size: 1.25rem;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .form-section-title {
+    font-size: 0.6875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .field label {
+    font-size: 0.75rem;
+  }
+
+  .field input,
+  .field textarea,
+  .field select {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8125rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .btn-camera {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .btn-camera.btn-small {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .photo-preview-box {
+    width: 80px;
+    height: 80px;
+  }
+
+  .camera-video {
+    max-width: 100%;
+  }
+
+  .modal-footer {
+    padding: 0.75rem 1rem;
+  }
+
+  .modal-footer .btn-primary,
+  .modal-footer .btn-ghost {
+    padding: 0.4rem 1rem;
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.4rem 0.35rem;
+    font-size: 0.6875rem;
+  }
+
+  .data-table th {
+    font-size: 0.625rem;
+  }
+
+  .th-photo,
+  .td-photo {
+    width: 36px;
+  }
+
+  .guest-photo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .col-actions {
+    width: 64px;
+  }
+
+  .btn-icon {
+    width: 26px;
+    height: 26px;
+  }
+}
 </style>

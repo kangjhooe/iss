@@ -1,14 +1,19 @@
 /**
  * Auth storage utility.
  *
- * Sejak perbaikan keamanan: token disimpan di httpOnly cookie oleh backend.
- * Frontend tidak lagi menyimpan token di localStorage (aman dari XSS).
+ * **Auth saat ini:** Token disimpan di httpOnly cookie oleh backend. Frontend tidak menyimpan
+ * token di localStorage (aman dari XSS). Untuk cek login/guard route gunakan auth store
+ * (authStore.isAuthenticated), bukan isAuthenticated() di sini.
  *
- * clearAuth(): bersihkan sisa data lama di localStorage (dipanggil saat logout / refresh gagal).
- * Fungsi lain (setToken, getToken, dll.) tetap ada untuk kompatibilitas; tidak dipakai untuk auth baru.
+ * **Yang dipakai di aplikasi:**
+ * - clearAuth(): bersihkan sisa data lama di localStorage (dipanggil saat logout / refresh gagal).
+ *
+ * **Legacy (jangan dipakai untuk auth baru):** setToken, getToken, setRefreshToken, getRefreshToken,
+ * isAuthenticated() — tetap ada untuk kompatibilitas; jangan dipakai untuk keputusan auth/guard.
  */
 
-const ENCRYPTION_KEY = 'iss_token_key' // In production, use environment variable
+// Hanya dipakai oleh fungsi legacy setToken/getToken; auth baru pakai cookie
+const ENCRYPTION_KEY = 'iss_token_key'
 
 /**
  * Simple encryption (for demo purposes)
@@ -146,14 +151,16 @@ export function getRefreshToken() {
 }
 
 /**
- * Check if user is authenticated
+ * Cek apakah ada token di localStorage. LEGACY: jangan dipakai untuk guard/route.
+ * Gunakan auth store (useAuthStore().isAuthenticated) yang mengandalkan cookie + /me.
  */
 export function isAuthenticated() {
   return !!getToken()
 }
 
 /**
- * Clear all auth data
+ * Bersihkan semua data auth dari localStorage (token, refresh_token, user).
+ * Dipanggil saat logout dan saat refresh token gagal (401) di API interceptor.
  */
 export function clearAuth() {
   removeToken()

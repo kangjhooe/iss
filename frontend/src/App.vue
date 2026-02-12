@@ -46,6 +46,11 @@ import OfflineStatus from '@/components/OfflineStatus.vue'
   --radius-xl: 20px;
 }
 
+html {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: #f8fafc;
@@ -53,6 +58,8 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 #app {
@@ -178,11 +185,16 @@ input, textarea, select {
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Responsive Table Styles */
-.table-container {
+/* Responsive Table Styles - semua wrapper tabel bisa scroll horizontal di mobile */
+.table-container,
+.table-wrap,
+.table-scroll,
+.data-table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
+
 
 @media (max-width: 768px) {
   .table-container {
@@ -301,8 +313,8 @@ input, textarea, select {
   }
 }
 
-/* Layout sidebar: pastikan selalu tampil di desktop (bukan print) */
-@media screen {
+/* Layout sidebar: tampil di desktop (≥1025px), sembunyi di tablet/mobile (sesuai Layout.vue) */
+@media screen and (min-width: 1025px) {
   .layout .sidebar {
     left: 0 !important;
     top: 0 !important;
@@ -310,16 +322,12 @@ input, textarea, select {
     width: 280px !important;
     min-width: 280px !important;
     z-index: 1000 !important;
+    transform: none !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
-  @media (min-width: 481px) {
-    .layout .sidebar {
-      transform: none !important;
-      visibility: visible !important;
-      opacity: 1 !important;
-    }
-    .layout .main-content {
-      margin-left: 280px !important;
-    }
+  .layout .main-content {
+    margin-left: 280px !important;
   }
 }
 

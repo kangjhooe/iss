@@ -48,16 +48,7 @@ class AcademicYearService
             ]);
         }
 
-        // If setting as active, deactivate other active academic years
-        if (isset($data['status']) && $data['status'] === 'Aktif') {
-            if ($this->academicYearRepository->hasActiveAcademicYear()) {
-                // Optionally deactivate others, or throw error
-                throw ValidationException::withMessages([
-                    'status' => 'Sudah ada tahun ajaran aktif. Nonaktifkan tahun ajaran aktif terlebih dahulu.'
-                ]);
-            }
-        }
-
+        // Status is optional; "active" is determined per institution via institution.active_academic_year_id
         $academicYear = $this->academicYearRepository->create($data);
 
         Log::info('Academic year created', [
@@ -109,15 +100,7 @@ class AcademicYearService
             }
         }
 
-        // If setting as active, deactivate other active academic years
-        if (isset($data['status']) && $data['status'] === 'Aktif') {
-            if ($this->academicYearRepository->hasActiveAcademicYear($academicYear->id)) {
-                throw ValidationException::withMessages([
-                    'status' => 'Sudah ada tahun ajaran aktif. Nonaktifkan tahun ajaran aktif terlebih dahulu.'
-                ]);
-            }
-        }
-
+        // No global "only one active" constraint; active is per institution
         $this->academicYearRepository->update($academicYear, $data);
 
         Log::info('Academic year updated', [
@@ -166,19 +149,14 @@ class AcademicYearService
     }
 
     /**
-     * Activate an academic year (deactivate others).
+     * Set an academic year status to Aktif (for backward compatibility).
+     * "Active" for operations is determined per institution via institution.active_academic_year_id.
      */
     public function activate(AcademicYear $academicYear): AcademicYear
     {
-        // Deactivate all other academic years
-        $this->academicYearRepository->query()
-            ->where('id', '!=', $academicYear->id)
-            ->where('status', 'Aktif')
-            ->update(['status' => 'Arsip']);
-
         $academicYear->update(['status' => 'Aktif']);
 
-        Log::info('Academic year activated', [
+        Log::info('Academic year status set to Aktif', [
             'academic_year_id' => $academicYear->id,
         ]);
 

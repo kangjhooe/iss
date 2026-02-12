@@ -74,6 +74,7 @@
           <div class="notification-body">
             <p class="notification-message">{{ n.message || 'Notifikasi' }}</p>
             <span class="notification-time">{{ formatDate(n.created_at) }}</span>
+            <router-link v-if="n.type === 'ppdb_registration'" to="/ppdb" class="notification-link">Buka PPDB →</router-link>
           </div>
           <button
             v-if="!n.read_at"
@@ -340,6 +341,18 @@ loadNotifications(1)
 .notification-card.unread {
   background: #f0f9ff;
   border-color: #bae6fd;
+}
+
+.notification-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4f46e5;
+  text-decoration: none;
+}
+.notification-link:hover {
+  text-decoration: underline;
 }
 
 .notification-body {

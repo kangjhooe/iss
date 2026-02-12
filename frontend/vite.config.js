@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Indonesia Smart School',
-        short_name: 'ISS',
-        description: 'Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia',
+        name: 'servr',
+        short_name: 'servr',
+        description: 'One Platform for Smarter Education - Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia',
         theme_color: '#0ea5e9',
         background_color: '#ffffff',
         display: 'standalone',

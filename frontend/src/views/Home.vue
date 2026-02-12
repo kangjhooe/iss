@@ -11,11 +11,14 @@
               <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <span class="navbar-title">Indonesia Smart School</span>
+          <span class="navbar-title">servr</span>
         </router-link>
         <div class="navbar-links">
           <a href="#fitur" class="nav-link">Fitur</a>
           <a href="#mengapa" class="nav-link">Mengapa Kami</a>
+          <router-link to="/daftar-ppdb" class="nav-link">Pendaftaran PPDB</router-link>
+          <router-link to="/lengkapi-berkas-ppdb" class="nav-link">Lengkapi Berkas</router-link>
+          <router-link to="/cek-hasil-ppdb" class="nav-link">Cek Hasil PPDB</router-link>
         </div>
         <div class="navbar-actions">
           <router-link to="/login" class="btn btn-ghost">Masuk</router-link>
@@ -28,8 +31,8 @@
     <section class="hero">
       <div class="hero-bg"></div>
       <div class="hero-content">
-        <h1>Indonesia Smart School</h1>
-        <p class="hero-subtitle">Sistem Manajemen Sekolah Terintegrasi untuk seluruh sekolah dan madrasah di Indonesia</p>
+        <h1>servr</h1>
+        <p class="hero-subtitle">One Platform for Smarter Education</p>
         <p class="hero-desc">
           Kelola profil institusi, data siswa, guru, fasilitas, kelas, laporan, dan surat-menyurat dalam satu platform. Mulai digitalisasi sekolah Anda sekarang.
         </p>
@@ -169,15 +172,15 @@
               <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <span>Indonesia Smart School</span>
-          <p class="footer-tagline">Sistem Manajemen Sekolah Terintegrasi</p>
+          <span>servr</span>
+          <p class="footer-tagline">One Platform for Smarter Education</p>
         </div>
         <div class="footer-links">
           <router-link to="/login">Masuk</router-link>
           <router-link to="/register">Daftar</router-link>
         </div>
         <div class="footer-bottom">
-          <p>&copy; {{ currentYear }} Indonesia Smart School. All rights reserved.</p>
+          <p>&copy; {{ currentYear }} servr. All rights reserved.</p>
         </div>
       </div>
     </footer>

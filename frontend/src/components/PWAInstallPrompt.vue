@@ -3,7 +3,7 @@
     <div class="prompt-content">
       <div class="prompt-icon">📱</div>
       <div class="prompt-text">
-        <h3>Install Indonesia Smart School</h3>
+        <h3>Install servr</h3>
         <p>Install aplikasi untuk akses lebih cepat dan fitur offline</p>
       </div>
       <div class="prompt-actions">

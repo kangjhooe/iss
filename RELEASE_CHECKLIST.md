@@ -1,4 +1,4 @@
-# Checklist Rilis - Indonesia Smart School (ISS)
+# Checklist Rilis - servr
 
 ## Status: ✅ SIAP RILIS (dengan catatan)
 
@@ -68,7 +68,7 @@
 #### 1. Environment Configuration
 - [ ] Pastikan `APP_DEBUG=false` di production
 - [ ] Pastikan `APP_ENV=production` di production
-- [ ] Setup `.env` production dengan benar`
+- [ ] Setup `.env` production dengan benar (termasuk `COOKIE_DOMAIN`, `FRONTEND_URL`, `SANCTUM_STATEFUL_DOMAINS`)
 - [ ] Generate `APP_KEY` baru untuk production
 
 #### 2. Database
@@ -140,6 +140,7 @@ Sebelum deploy ke production, pastikan:
 3. **Environment Variables:**
    - `APP_ENV=production`
    - `APP_DEBUG=false`
+   - `COOKIE_DOMAIN` dan `FRONTEND_URL` sesuai domain production
    - `DB_*` settings
    - `MAIL_*` settings
    - `SANCTUM_STATEFUL_DOMAINS` untuk production domain
@@ -167,4 +168,4 @@ Sebelum deploy ke production, pastikan:
 
 ---
 
-**Terakhir diperbarui:** 5 Februari 2026
+**Terakhir diperbarui:** 10 Februari 2026

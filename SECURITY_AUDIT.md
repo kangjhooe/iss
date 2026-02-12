@@ -1,4 +1,4 @@
-# Laporan Audit Keamanan — Indonesia Smart School (ISS)
+# Laporan Audit Keamanan — servr
 
 **Tanggal:** 5 Februari 2026  
 **Lingkup:** Backend (Laravel), Frontend (Vue), API, autentikasi, autorisasi, upload/download file.
@@ -36,6 +36,13 @@ Audit menemukan **1 celah kritis** (path traversal) yang telah diperbaiki, serta
 - **Masalah:** `console.log`/`console.error` menampilkan response login, struktur data, dan error detail yang bisa membantu penyerang dan membocorkan struktur API.
 - **Perbaikan:** Log debug yang berisi response/error detail di interceptor API dan auth store dihapus.
 - **File:** `frontend/src/api/index.js`, `frontend/src/stores/auth.js`
+
+### 1.4 Log Debug di View (Sedang) — **DIPERBAIKI**
+
+- **Lokasi:** `frontend/src/views/Report.vue`, `frontend/src/views/Correspondence.vue`
+- **Masalah:** `console.log`/`console.error` di catch dan saat load data menampilkan response/error detail ke console.
+- **Perbaikan:** Semua log yang memuat response/error detail dibungkus dengan `if (import.meta.env.DEV)` sehingga tidak keluar di production.
+- **File:** `frontend/src/views/Report.vue`, `frontend/src/views/Correspondence.vue`
 
 ---
 
@@ -103,9 +110,10 @@ Audit menemukan **1 celah kritis** (path traversal) yang telah diperbaiki, serta
 - [x] Path traversal download export diperbaiki
 - [x] Validasi `start_date`/`end_date` kalender akademik
 - [x] Penghapusan log debug sensitif di API interceptor dan auth store
-- [ ] Set `APP_DEBUG=false` dan env production
-- [ ] Pastikan migration cache & permissions terjalankan
-- [ ] Jalankan `composer audit` dan `npm audit`
+- [x] Log debug di Report.vue dan Correspondence.vue dibungkus `import.meta.env.DEV`
+- [ ] **Sebelum go-live:** Set `APP_DEBUG=false`, `APP_ENV=production`, `COOKIE_DOMAIN`, `FRONTEND_URL`
+- [ ] **Sebelum go-live:** Pastikan migration cache & permissions terjalankan di environment target
+- [ ] **Berkala:** Jalankan `composer audit` (backend) dan `npm audit` (frontend)
 - [ ] (Opsional) Tinjau ulang penggunaan localStorage di `tokenStorage.js` untuk konsistensi dengan auth cookie-only
 
 ---

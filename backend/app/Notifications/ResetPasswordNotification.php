@@ -39,7 +39,7 @@ class ResetPasswordNotification extends Notification
         $url = $frontendUrl . '/reset-password?token=' . $this->token . '&email=' . urlencode($notifiable->email);
 
         return (new MailMessage)
-            ->subject('Reset Password - Indonesia Smart School')
+            ->subject('Reset Password - servr')
             ->greeting('Halo ' . $notifiable->name . '!')
             ->line('Anda menerima email ini karena kami menerima permintaan reset password untuk akun Anda.')
             ->action('Reset Password', $url)

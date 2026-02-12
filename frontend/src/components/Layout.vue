@@ -31,8 +31,8 @@
           </svg>
         </div>
         <div class="logo-text">
-          <h2>ISS</h2>
-          <p>Smart School</p>
+          <h2>servr</h2>
+          <p>One Platform for Smarter Education</p>
         </div>
       </div>
       
@@ -168,6 +168,10 @@
           <svg v-else-if="item.icon === 'report'" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M14 3V8H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg v-else-if="item.icon === 'correspondence'" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <svg v-else-if="item.icon === 'institution'" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -334,7 +338,8 @@ const menuEntries = computed(() => {
       { to: '/pengambilan-ijazah', label: 'Pengambilan Ijazah', visible: canAccessModule('document_pickup') },
       { to: '/violation', label: 'Pelanggaran', visible: canAccessModule('violation') },
       { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
-      { to: '/extracurricular', label: 'Ekstrakurikuler', visible: canAccessModule('extracurricular') }
+      { to: '/extracurricular', label: 'Ekstrakurikuler', visible: canAccessModule('extracurricular') },
+      { to: '/ppdb', label: 'PPDB', visible: canAccessModule('ppdb') }
     ]}),
     addVisible({ type: 'group', key: 'administrasi', label: 'Administrasi', icon: IconAdmin, children: [
       { to: '/correspondence', label: 'Persuratan', visible: canAccessModule('correspondence') },
@@ -411,6 +416,7 @@ const bottomNavItems = computed(() => {
     ]
     if (canAccessModule('student')) items.push({ to: '/student', label: 'Siswa', icon: 'student' })
     if (canAccessModule('violation')) items.push({ to: '/violation', label: 'Pelanggaran', icon: 'violation' })
+    if (canAccessModule('ppdb')) items.push({ to: '/ppdb', label: 'PPDB', icon: 'student' })
     if (canAccessModule('counseling')) items.push({ to: '/counseling', label: 'Konseling', icon: 'counseling' })
     if (canAccessModule('extracurricular')) items.push({ to: '/extracurricular', label: 'Ekskul', icon: 'extracurricular' })
     if (canAccessModule('report')) items.push({ to: '/report', label: 'Laporan', icon: 'report' })
@@ -418,24 +424,16 @@ const bottomNavItems = computed(() => {
     if (canAccessModule('teaching_journal')) items.push({ to: '/teaching-journal', label: 'Jurnal', icon: 'journal' })
     if (canAccessModule('attendance')) items.push({ to: '/attendance/employee', label: 'Absensi', icon: 'attendance' })
     if (canAccessModule('grade_book')) items.push({ to: '/grade-book', label: 'Nilai', icon: 'grade' })
-    return items
+    if (canAccessModule('correspondence')) items.push({ to: '/correspondence', label: 'Surat', icon: 'correspondence' })
+    return items.slice(0, 5)
   }
+  // Admin sekolah: 5 item tetap (Beranda, Pelanggaran, Laporan, Surat, Buku Tamu)
   const items = []
   items.push({ to: '/dashboard', label: 'Beranda', icon: 'home' })
-  if (canAccessModule('student')) {
-    items.push({ to: '/student', label: 'Siswa', icon: 'student' })
-    items.push({ to: '/student-mutation', label: 'Mutasi', icon: 'mutation' })
-  }
   if (canAccessModule('violation')) items.push({ to: '/violation', label: 'Pelanggaran', icon: 'violation' })
-  if (canAccessModule('counseling')) items.push({ to: '/counseling', label: 'Konseling', icon: 'counseling' })
-  if (canAccessModule('extracurricular')) items.push({ to: '/extracurricular', label: 'Ekskul', icon: 'extracurricular' })
   if (canAccessModule('report')) items.push({ to: '/report', label: 'Laporan', icon: 'report' })
-  if (canAccessModule('digital_archive')) items.push({ to: '/digital-archive', label: 'Arsip', icon: 'archive' })
-  if (canAccessModule('library')) items.push({ to: '/library', label: 'Perpustakaan', icon: 'library' })
+  if (canAccessModule('correspondence')) items.push({ to: '/correspondence', label: 'Surat', icon: 'correspondence' })
   if (canAccessModule('guest_book')) items.push({ to: '/buku-tamu', label: 'Buku Tamu', icon: 'guest' })
-  if (canAccessModule('teaching_journal')) items.push({ to: '/teaching-journal', label: 'Jurnal', icon: 'journal' })
-  if (canAccessModule('attendance')) items.push({ to: '/attendance/employee', label: 'Absensi', icon: 'attendance' })
-  if (canAccessModule('grade_book')) items.push({ to: '/grade-book', label: 'Nilai', icon: 'grade' })
   return items
 })
 
@@ -1154,6 +1152,8 @@ const handleLogout = async () => {
 
   .content {
     padding: 16px 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
   }
 
   .logo {
@@ -1186,6 +1186,8 @@ const handleLogout = async () => {
 
   .content {
     padding: 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
   }
 
   .logo-text h2 {

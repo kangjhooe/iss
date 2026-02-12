@@ -1,4 +1,6 @@
-# Indonesia Smart School (ISS)
+# servr
+
+**One Platform for Smarter Education**
 
 Aplikasi manajemen sekolah terintegrasi untuk seluruh sekolah di Indonesia, dari berbagai jenjang dan jenis sekolah.
 

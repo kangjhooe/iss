@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 // Root API route - redirect to latest version
 Route::get('/', function () {
     return response()->json([
-        'message' => 'Indonesia Smart School API',
+        'message' => 'servr API',
         'current_version' => 'v1',
         'versions' => [
             'v1' => '/api/v1',

@@ -525,14 +525,36 @@ const handleResendVerification = async () => {
 @media (max-width: 640px) {
   .verify-email-container {
     padding: 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
   }
-  
+
   .verify-email-card {
     padding: 32px 24px;
   }
-  
+
   .card-header h1 {
     font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .verify-email-container {
+    padding: 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .verify-email-card {
+    padding: 24px 16px;
+  }
+
+  .card-header h1 {
+    font-size: 20px;
+  }
+
+  .btn-primary {
+    min-height: 44px;
   }
 }
 </style>

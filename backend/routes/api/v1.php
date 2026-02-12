@@ -61,12 +61,17 @@ use App\Http\Controllers\API\LibraryLoanController;
 use App\Http\Controllers\API\LibraryFinePaymentController;
 use App\Http\Controllers\API\LibraryReportController;
 use App\Http\Controllers\API\AcademicCalendarController;
+use App\Http\Controllers\API\PpdbPeriodController;
+use App\Http\Controllers\API\PpdbChannelController;
+use App\Http\Controllers\API\PpdbApplicantController;
+use App\Http\Controllers\API\PublicPpdbController;
+use App\Http\Controllers\API\PublicSchoolController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
 Route::get('/', function () {
     return response()->json([
-        'message' => 'Indonesia Smart School API',
+        'message' => 'servr API',
         'version' => '1.0.0',
         'endpoints' => [
             'public' => [
@@ -119,6 +124,19 @@ Route::middleware('throttle:5,1')->group(function () {
     Route::post('/resend-verification', [AuthController::class, 'resendVerificationEmail']);
     Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
 });
+
+// Public PPDB (tanpa auth): list periode & jalur, submit pendaftaran
+Route::get('/public/ppdb/periods', [PublicPpdbController::class, 'openPeriods'])->name('public.ppdb.periods');
+Route::get('/public/ppdb/channels', [PublicPpdbController::class, 'openChannels'])->name('public.ppdb.channels');
+Route::middleware('throttle:15,1')->get('/public/ppdb/prefill', [PublicPpdbController::class, 'prefill'])->name('public.ppdb.prefill');
+Route::get('/public/ppdb/check-result', [PublicPpdbController::class, 'checkResult'])->name('public.ppdb.check-result');
+Route::middleware('throttle:10,1')->post('/public/ppdb/confirm-re-registration', [PublicPpdbController::class, 'confirmReRegistration'])->name('public.ppdb.confirm-re-registration');
+Route::middleware('throttle:15,1')->post('/public/ppdb/documents', [PublicPpdbController::class, 'uploadDocument'])->name('public.ppdb.upload-document');
+Route::middleware('throttle:10,1')->post('/public/ppdb/register', [PublicPpdbController::class, 'register'])->name('public.ppdb.register');
+
+// Public school landing: institusi by NPSN, buku tamu submit
+Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])->name('public.school.show');
+Route::middleware('throttle:5,1')->post('/public/guest-visit', [PublicSchoolController::class, 'storeGuestVisit'])->name('public.guest-visit.store');
 
 // Protected routes with rate limiting
 Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
@@ -554,5 +572,26 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('extracurriculars/{extracurricular}/students', [ExtracurricularController::class, 'addStudents'])->name('extracurriculars.add-students');
         Route::put('extracurriculars/{extracurricular}/enrollments/{enrollmentId}', [ExtracurricularController::class, 'updateEnrollment'])->name('extracurriculars.update-enrollment');
         Route::delete('extracurriculars/{extracurricular}/students/{studentId}', [ExtracurricularController::class, 'removeStudent'])->name('extracurriculars.remove-student');
+    });
+
+    // PPDB (Penerimaan Peserta Didik Baru)
+    Route::middleware('module:ppdb')->group(function () {
+        Route::get('ppdb-periods/{ppdb_period}/statistics', [PpdbPeriodController::class, 'statistics'])->name('ppdb-periods.statistics');
+        Route::apiResource('ppdb-periods', PpdbPeriodController::class);
+        Route::apiResource('ppdb-channels', PpdbChannelController::class);
+        Route::get('ppdb-applicants', [PpdbApplicantController::class, 'index'])->name('ppdb-applicants.index');
+        Route::get('ppdb-applicants/export', [PpdbApplicantController::class, 'export'])->name('ppdb-applicants.export');
+        Route::post('ppdb-applicants', [PpdbApplicantController::class, 'store'])->name('ppdb-applicants.store');
+        Route::get('ppdb-applicants/{ppdb_applicant}', [PpdbApplicantController::class, 'show'])->name('ppdb-applicants.show');
+        Route::put('ppdb-applicants/{ppdb_applicant}', [PpdbApplicantController::class, 'update'])->name('ppdb-applicants.update');
+        Route::delete('ppdb-applicants/{ppdb_applicant}', [PpdbApplicantController::class, 'destroy'])->name('ppdb-applicants.destroy');
+        Route::post('ppdb-applicants/{ppdb_applicant}/verification', [PpdbApplicantController::class, 'setVerification'])->name('ppdb-applicants.verification');
+        Route::post('ppdb-applicants/{ppdb_applicant}/submit', [PpdbApplicantController::class, 'submit'])->name('ppdb-applicants.submit');
+        Route::post('ppdb-applicants/{ppdb_applicant}/result', [PpdbApplicantController::class, 'setResult'])->name('ppdb-applicants.result');
+        Route::post('ppdb-applicants/{ppdb_applicant}/confirm-re-registration', [PpdbApplicantController::class, 'confirmReRegistration'])->name('ppdb-applicants.confirm-re-registration');
+        Route::post('ppdb-applicants/{ppdb_applicant}/convert-to-student', [PpdbApplicantController::class, 'convertToStudent'])->name('ppdb-applicants.convert-to-student');
+        Route::post('ppdb-applicants/{ppdb_applicant}/documents', [PpdbApplicantController::class, 'uploadDocument'])->name('ppdb-applicants.upload-document');
+        Route::delete('ppdb-applicants/{ppdb_applicant}/documents/{documentId}', [PpdbApplicantController::class, 'deleteDocument'])->name('ppdb-applicants.delete-document');
+        Route::get('ppdb-applicants/{ppdb_applicant}/documents/{documentId}/download', [PpdbApplicantController::class, 'downloadDocument'])->name('ppdb-applicants.download-document');
     });
 });

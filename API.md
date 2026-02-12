@@ -1,4 +1,4 @@
-# API Documentation – Indonesia Smart School
+# API Documentation – servr
 
 Semua endpoint memakai prefix **`/api/v1`**. Route protected membutuhkan header: **`Authorization: Bearer <token>`**.  
 Rate limit: auth 5 req/menit, protected 60 req/menit.
@@ -20,6 +20,16 @@ Rate limit: auth 5 req/menit, protected 60 req/menit.
 | POST | `/api/v1/refresh-token` | Refresh token |
 | POST | `/api/v1/logout` | Logout (Protected) |
 | GET | `/api/v1/me` | User saat ini (Protected) |
+
+## Public (tanpa auth)
+
+- `GET /api/v1/public/ppdb/periods` – Daftar periode PPDB yang buka (query: `npsn` atau `institution_id`)
+- `GET /api/v1/public/ppdb/channels` – Daftar jalur PPDB (query: `npsn`, `institution_id`, `ppdb_period_id`)
+- `GET /api/v1/public/ppdb/prefill` – Data prefill pendaftaran (query: `npsn`, `nik`, dll.; throttle 15/1 menit)
+- `GET /api/v1/public/ppdb/check-result` – Cek hasil seleksi (query: `npsn`, `registration_number`, `birth_date`)
+- `POST /api/v1/public/ppdb/register` – Daftar PPDB (throttle 10/1 menit)
+- `GET /api/v1/public/school` – Info sekolah publik (query: `npsn` atau `slug`)
+- `POST /api/v1/public/guest-visit` – Buku tamu (throttle 5/1 menit)
 
 ## Umum (Protected)
 
@@ -223,3 +233,20 @@ Rate limit: auth 5 req/menit, protected 60 req/menit.
 ## Report
 
 - `GET /api/v1/report/institution/{institutionId?}` – Statistik laporan
+
+## PPDB (Protected, modul PPDB)
+
+- `GET|POST|PUT|DELETE /api/v1/ppdb-periods` – CRUD periode PPDB
+- `GET /api/v1/ppdb-periods/{id}/statistics` – Statistik periode
+- `GET|POST|PUT|DELETE /api/v1/ppdb-channels` – CRUD jalur PPDB
+- `GET /api/v1/ppdb-applicants` – Daftar pendaftar (filter)
+- `GET /api/v1/ppdb-applicants/export` – Export pendaftar
+- `GET|POST|PUT|DELETE /api/v1/ppdb-applicants/{id}` – CRUD pendaftar
+- `POST /api/v1/ppdb-applicants/{id}/verification` – Set verifikasi
+- `POST /api/v1/ppdb-applicants/{id}/submit` – Submit pendaftaran
+- `POST /api/v1/ppdb-applicants/{id}/result` – Set hasil seleksi
+- `POST /api/v1/ppdb-applicants/{id}/confirm-re-registration` – Konfirmasi daftar ulang
+- `POST /api/v1/ppdb-applicants/{id}/convert-to-student` – Konversi ke data siswa
+- `POST /api/v1/ppdb-applicants/{id}/documents` – Upload dokumen
+- `DELETE /api/v1/ppdb-applicants/{id}/documents/{documentId}` – Hapus dokumen
+- `GET /api/v1/ppdb-applicants/{id}/documents/{documentId}/download` – Download dokumen

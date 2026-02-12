@@ -36,9 +36,9 @@ class VerifyEmailNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Verifikasi Email - Indonesia Smart School')
+            ->subject('Verifikasi Email - servr')
             ->greeting('Halo ' . $notifiable->name . '!')
-            ->line('Terima kasih telah mendaftar di Indonesia Smart School.')
+            ->line('Terima kasih telah mendaftar di servr.')
             ->line('Silakan klik tombol di bawah ini untuk memverifikasi alamat email Anda:')
             ->action('Verifikasi Email', $this->verificationUrl)
             ->line('Jika Anda tidak membuat akun ini, abaikan email ini.')

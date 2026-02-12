@@ -26,16 +26,10 @@
           placeholder="Cari tahun ajaran..."
           class="search-input"
         />
-        <select v-model="filters.status" @change="loadAcademicYears" class="filter-select">
-          <option value="">Semua Status</option>
-          <option value="Aktif">Aktif</option>
-          <option value="Arsip">Arsip</option>
-          <option value="Draft">Draft</option>
-        </select>
       </div>
 
       <div v-if="loading" class="loading-wrap">
-        <LoadingSkeleton type="table" :rows="6" :columns="7" :cell-widths="['90px', '140px', '70px', '120px', '120px', '80px', '100px']" />
+        <LoadingSkeleton type="table" :rows="6" :columns="5" :cell-widths="['90px', '140px', '120px', '120px', '100px']" />
       </div>
       
       <div v-else class="table-container">
@@ -46,8 +40,6 @@
               <th>Nama</th>
               <th>Tanggal Mulai</th>
               <th>Tanggal Akhir</th>
-              <th>Status</th>
-              <th>Semester</th>
               <th>Aksi</th>
             </tr>
           </thead>
@@ -58,32 +50,11 @@
               <td>{{ formatDate(year.start_date) }}</td>
               <td>{{ formatDate(year.end_date) }}</td>
               <td>
-                <span :class="getStatusClass(year.status)">
-                  {{ year.status }}
-                </span>
-              </td>
-              <td>
-                <span v-if="year.semesters && year.semesters.length > 0">
-                  {{ year.semesters.map(s => s.name).join(', ') }}
-                </span>
-                <span v-else class="text-muted">-</span>
-              </td>
-              <td>
                 <div class="action-buttons">
                   <button @click="editAcademicYear(year)" class="btn-action btn-edit" title="Edit">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button 
-                    v-if="year.status !== 'Aktif'" 
-                    @click="activateAcademicYear(year.id)" 
-                    class="btn-action btn-activate" 
-                    title="Aktifkan"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </button>
                   <button @click="deleteAcademicYear(year.id)" class="btn-action btn-delete" title="Hapus">
@@ -184,15 +155,6 @@
             </div>
 
             <div class="form-group">
-              <label>Status</label>
-              <select v-model="form.status" class="form-input">
-                <option value="Draft">Draft</option>
-                <option value="Aktif">Aktif</option>
-                <option value="Arsip">Arsip</option>
-              </select>
-            </div>
-
-            <div class="form-group">
               <label>Deskripsi</label>
               <textarea 
                 v-model="form.description" 
@@ -243,8 +205,7 @@ const academicYears = ref([])
 const loading = ref(true)
 const pagination = ref(null)
 const filters = ref({
-  search: '',
-  status: ''
+  search: ''
 })
 
 const showAddModal = ref(false)
@@ -258,7 +219,6 @@ const form = ref({
   name: '',
   start_date: '',
   end_date: '',
-  status: 'Draft',
   description: ''
 })
 
@@ -295,29 +255,9 @@ const editAcademicYear = (year) => {
     name: year.name || '',
     start_date: year.start_date || '',
     end_date: year.end_date || '',
-    status: year.status || 'Draft',
     description: year.description || ''
   }
   showEditModal.value = true
-}
-
-const activateAcademicYear = async (id) => {
-  const confirmed = await showConfirm({
-    title: 'Konfirmasi Aktifkan',
-    message: 'Apakah Anda yakin ingin mengaktifkan tahun ajaran ini?',
-    warning: 'Tahun ajaran aktif lainnya akan dinonaktifkan.'
-  })
-  
-  if (!confirmed) return
-
-  try {
-    await academicYearApi.activate(id)
-    toast.success('Berhasil', 'Tahun ajaran berhasil diaktifkan')
-    loadAcademicYears()
-  } catch (err) {
-    const message = err.response?.data?.message || 'Gagal mengaktifkan tahun ajaran'
-    toast.error('Gagal', message)
-  }
 }
 
 const deleteAcademicYear = async (id) => {
@@ -387,7 +327,6 @@ const closeModal = () => {
     name: '',
     start_date: '',
     end_date: '',
-    status: 'Draft',
     description: ''
   }
 }
@@ -400,15 +339,6 @@ const formatDate = (dateString) => {
     month: 'long',
     day: 'numeric'
   })
-}
-
-const getStatusClass = (status) => {
-  const classes = {
-    'Aktif': 'status-badge status-active',
-    'Arsip': 'status-badge status-archive',
-    'Draft': 'status-badge status-draft'
-  }
-  return classes[status] || 'status-badge'
 }
 
 onMounted(() => {
@@ -558,42 +488,12 @@ onMounted(() => {
   background: #f0fff4;
 }
 
-.btn-activate {
-  color: #f59e0b;
-}
-
-.btn-activate:hover {
-  background: #fef3c7;
-}
-
 .btn-delete {
   color: #f56565;
 }
 
 .btn-delete:hover {
   background: #fff5f5;
-}
-
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-active {
-  background: #c6f6d5;
-  color: #22543d;
-}
-
-.status-archive {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-.status-draft {
-  background: #fef3c7;
-  color: #92400e;
 }
 
 .text-muted {
@@ -772,5 +672,36 @@ onMounted(() => {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .filters {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .search-input,
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  .modal-content {
+    max-width: 95%;
+    margin: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .action-buttons {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 </style>

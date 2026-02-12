@@ -341,3 +341,10 @@
     font-size: 10px;
   }
 }
+
+/* Form grid: satu kolom di mobile (semua halaman modul) */
+@media (max-width: 768px) {
+  .main-content .form-row {
+    grid-template-columns: 1fr !important;
+  }
+}

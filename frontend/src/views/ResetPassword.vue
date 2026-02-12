@@ -495,14 +495,40 @@ const handleResetPassword = async () => {
 @media (max-width: 640px) {
   .reset-password-container {
     padding: 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
   }
-  
+
   .reset-password-card {
     padding: 32px 24px;
   }
-  
+
   .card-header h1 {
     font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .reset-password-container {
+    padding: 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .reset-password-card {
+    padding: 24px 16px;
+  }
+
+  .card-header h1 {
+    font-size: 20px;
+  }
+
+  .form-group input {
+    font-size: 16px;
+  }
+
+  .btn-primary {
+    min-height: 44px;
   }
 }
 </style>

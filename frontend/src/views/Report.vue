@@ -976,13 +976,14 @@ const loadReport = async () => {
       throw new Error('Format data tidak valid')
     }
   } catch (err) {
-    console.error('Failed to load report:', err)
-    console.error('Error details:', {
-      response: err.response?.data,
-      status: err.response?.status,
-      message: err.message
-    })
-    
+    if (import.meta.env.DEV) {
+      console.error('Failed to load report:', err)
+      console.error('Error details:', {
+        response: err.response?.data,
+        status: err.response?.status,
+        message: err.message
+      })
+    }
     let errorMsg = 'Gagal memuat data laporan'
     if (err.response?.data?.message) {
       errorMsg = err.response.data.message
@@ -1622,7 +1623,7 @@ const exportPDF = async () => {
       printWindow.document.title = filename
     }, 250)
   } catch (err) {
-    console.error('Error exporting PDF:', err)
+    if (import.meta.env.DEV) console.error('Error exporting PDF:', err)
     toast.error('Gagal', 'Gagal mengekspor PDF')
   }
 }
@@ -2094,22 +2095,235 @@ onMounted(() => {
 @media (max-width: 768px) {
   .header-content {
     flex-direction: column;
+    gap: 16px;
   }
-  
+
+  .header-content h2 {
+    font-size: 20px;
+  }
+
+  .header-content p {
+    font-size: 13px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .btn-primary {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .btn-primary svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .filters {
+    padding: 12px;
+    margin-bottom: 16px;
+    flex-direction: column;
+  }
+
+  .filter-select {
+    min-width: 0;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .filter-group label {
+    font-size: 11px;
+  }
+
   .dashboard-mini {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
   }
-  
-  .chart-container {
-    grid-template-columns: 1fr;
+
+  .stat-card {
+    padding: 12px 14px;
+    gap: 10px;
   }
-  
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .stat-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .section {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 15px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+  }
+
   .info-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
-  
-  .filters {
-    flex-direction: column;
+
+  .info-label {
+    font-size: 11px;
+  }
+
+  .info-value {
+    font-size: 13px;
+  }
+
+  .chart-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-wrapper {
+    padding: 12px;
+  }
+
+  .chart-wrapper h4 {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+
+  .chart-wrapper canvas {
+    max-height: 220px !important;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  .table-period-hint {
+    font-size: 12px;
+  }
+
+  .facilities-grid {
+    gap: 12px;
+  }
+
+  .facility-card {
+    padding: 14px;
+  }
+
+  .facility-card h4 {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .facility-value {
+    font-size: 18px;
+  }
+
+  .facility-stats {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .ratios-grid {
+    gap: 12px;
+  }
+
+  .ratio-card {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .ratio-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ratio-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .ratio-value {
+    font-size: 22px;
+  }
+
+  .ratio-label {
+    font-size: 12px;
+  }
+
+  .comparison-chart {
+    padding: 12px;
+  }
+
+  .comparison-chart h4 {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content h2 {
+    font-size: 18px;
+  }
+
+  .btn-primary {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .dashboard-mini {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 10px 12px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .section {
+    padding: 12px;
+  }
+
+  .section-title {
+    font-size: 14px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+
+  .facility-value {
+    font-size: 16px;
+  }
+
+  .ratio-value {
+    font-size: 20px;
   }
 }
 </style>

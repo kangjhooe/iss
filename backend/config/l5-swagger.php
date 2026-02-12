@@ -7,7 +7,7 @@ return [
         | Edit to set the api's title
         |--------------------------------------------------------------------------
         */
-        'title' => 'Indonesia Smart School API',
+        'title' => 'servr API',
     ],
 
     'routes' => [

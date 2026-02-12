@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 /**
  * @OA\Info(
- *     title="Indonesia Smart School API",
+ *     title="servr API",
  *     version="1.0.0",
  *     description="API untuk sistem manajemen sekolah terintegrasi",
  *     @OA\Contact(

@@ -1000,10 +1000,11 @@ const loadCorrespondence = async (page = 1) => {
       }
     }
   } catch (error) {
-    console.error('Error loading correspondence:', error)
-    console.error('Error response:', error.response)
-    console.error('Error data:', error.response?.data)
-    
+    if (import.meta.env.DEV) {
+      console.error('Error loading correspondence:', error)
+      console.error('Error response:', error.response)
+      console.error('Error data:', error.response?.data)
+    }
     const errorMessage = error.response?.data?.message || error.message || 'Gagal memuat data surat'
     toast.error('Gagal', errorMessage)
     
@@ -1026,7 +1027,7 @@ const loadCategories = async () => {
     const response = await correspondenceApi.getCategories()
     categories.value = response.data.data || response.data
   } catch (error) {
-    console.error('Failed to load categories:', error)
+    if (import.meta.env.DEV) console.error('Failed to load categories:', error)
   }
 }
 
@@ -1065,8 +1066,10 @@ const loadLetterTypes = async () => {
       console.log('Loaded letter types:', letterTypes.value)
     }
   } catch (error) {
-    console.error('Failed to load letter types:', error)
-    console.error('Error response:', error.response)
+    if (import.meta.env.DEV) {
+      console.error('Failed to load letter types:', error)
+      console.error('Error response:', error.response)
+    }
     toast.error('Gagal', 'Gagal memuat jenis surat')
   }
 }
@@ -1132,7 +1135,7 @@ const viewCorrespondence = async (item) => {
     loadAttachments(item.id)
   } catch (error) {
     toast.error('Gagal', 'Gagal memuat detail surat')
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   }
 }
 
@@ -1142,7 +1145,7 @@ const loadDispositions = async (correspondenceId) => {
     const response = await correspondenceApi.getDispositions(correspondenceId)
     dispositions.value = response.data.data || response.data || []
   } catch (error) {
-    console.error('Failed to load dispositions:', error)
+    if (import.meta.env.DEV) console.error('Failed to load dispositions:', error)
     dispositions.value = []
   } finally {
     loadingDispositions.value = false
@@ -1154,7 +1157,7 @@ const loadUsers = async () => {
     const response = await correspondenceApi.getUsers()
     users.value = response.data.data || response.data || []
   } catch (error) {
-    console.error('Failed to load users:', error)
+    if (import.meta.env.DEV) console.error('Failed to load users:', error)
     toast.error('Gagal', 'Gagal memuat daftar user')
   }
 }
@@ -1212,7 +1215,7 @@ const saveDisposition = async () => {
     const errorData = error.response?.data
     const message = errorData?.message || 'Gagal menyimpan disposisi'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   } finally {
     savingDisposition.value = false
   }
@@ -1234,7 +1237,7 @@ const completeDisposition = async (id) => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal menyelesaikan disposisi'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   }
 }
 
@@ -1255,7 +1258,7 @@ const deleteDisposition = async (id) => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal menghapus disposisi'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   } finally {
     setDeleteLoading(false)
   }
@@ -1267,7 +1270,7 @@ const loadAttachments = async (correspondenceId) => {
     const response = await correspondenceApi.getAttachments(correspondenceId)
     attachments.value = response.data.data || response.data || []
   } catch (error) {
-    console.error('Failed to load attachments:', error)
+    if (import.meta.env.DEV) console.error('Failed to load attachments:', error)
     attachments.value = []
   } finally {
     loadingAttachments.value = false
@@ -1327,7 +1330,7 @@ const uploadAttachments = async () => {
     const errorData = error.response?.data
     const message = errorData?.message || 'Gagal mengunggah lampiran'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   } finally {
     uploadingAttachments.value = false
   }
@@ -1350,7 +1353,7 @@ const deleteAttachment = async (id) => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal menghapus lampiran'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   } finally {
     setDeleteLoading(false)
   }
@@ -1372,7 +1375,7 @@ const loadStatistics = async () => {
     const response = await correspondenceApi.getStatistics()
     statistics.value = response.data.data || response.data
   } catch (error) {
-    console.error('Failed to load statistics:', error)
+    if (import.meta.env.DEV) console.error('Failed to load statistics:', error)
   }
 }
 
@@ -1444,7 +1447,7 @@ const exportData = async (format, type = null) => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal mengekspor data'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   } finally {
     exporting.value = false
   }
@@ -1479,7 +1482,7 @@ const importData = async () => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal mengimpor data'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   } finally {
     importing.value = false
   }
@@ -1500,7 +1503,7 @@ const downloadImportTemplate = async () => {
     toast.success('Berhasil', 'Template berhasil diunduh')
   } catch (error) {
     toast.error('Gagal', 'Gagal mengunduh template')
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   }
 }
 
@@ -1609,11 +1612,11 @@ const saveCorrespondence = async () => {
   } catch (error) {
     const errorData = error.response?.data
     let message = 'Gagal menyimpan surat'
-    
-    console.error('Error saving correspondence:', error)
-    console.error('Error response:', error.response)
-    console.error('Error data:', errorData)
-    
+    if (import.meta.env.DEV) {
+      console.error('Error saving correspondence:', error)
+      console.error('Error response:', error.response)
+      console.error('Error data:', errorData)
+    }
     if (errorData) {
       if (errorData.message) {
         message = errorData.message
@@ -1651,7 +1654,7 @@ const deleteCorrespondence = async (id) => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal menghapus surat'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   } finally {
     setDeleteLoading(false)
   }
@@ -1678,7 +1681,7 @@ const approveCorrespondence = async (id) => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal menyetujui surat'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   }
 }
 
@@ -1703,7 +1706,7 @@ const sendCorrespondence = async (id) => {
   } catch (error) {
     const message = error.response?.data?.message || 'Gagal mengirim surat'
     toast.error('Gagal', message)
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   }
 }
 
@@ -1720,7 +1723,7 @@ const printCorrespondence = async (id) => {
     toast.success('Berhasil', 'PDF berhasil diunduh')
   } catch (error) {
     toast.error('Gagal', 'Gagal mencetak surat')
-    console.error(error)
+    if (import.meta.env.DEV) console.error(error)
   }
 }
 
@@ -1813,7 +1816,7 @@ onMounted(async () => {
     const response = await api.get('/v1/me')
     currentUserId.value = response.data.data?.id || response.data.id
   } catch (error) {
-    console.error('Failed to get current user:', error)
+    if (import.meta.env.DEV) console.error('Failed to get current user:', error)
     // Try to get from auth store if available
     try {
       const { useAuthStore } = await import('@/stores/auth')
@@ -1822,7 +1825,7 @@ onMounted(async () => {
         currentUserId.value = authStore.user.id
       }
     } catch (e) {
-      console.error('Failed to get user from auth store:', e)
+      if (import.meta.env.DEV) console.error('Failed to get user from auth store:', e)
     }
   }
 })

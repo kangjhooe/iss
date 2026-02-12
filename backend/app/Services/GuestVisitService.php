@@ -11,6 +11,20 @@ use Illuminate\Support\Facades\Storage;
 
 class GuestVisitService
 {
+    /**
+     * Create guest visit from public form (no auth, optional photo).
+     */
+    public function createPublic(array $data, int $institutionId, ?\Illuminate\Http\UploadedFile $file = null): GuestVisit
+    {
+        return DB::transaction(function () use ($data, $institutionId, $file) {
+            $data['institution_id'] = $institutionId;
+            $data['created_by'] = null;
+            $data['waktu_masuk'] = $data['waktu_masuk'] ?? now();
+            $data['foto_path'] = $file ? $this->storePhoto($file, $institutionId) : null;
+
+            return GuestVisit::create($data);
+        });
+    }
     public function list(array $filters, ?int $institutionId, int $perPage = 15): LengthAwarePaginator
     {
         $query = GuestVisit::query()

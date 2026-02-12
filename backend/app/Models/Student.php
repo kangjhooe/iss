@@ -38,6 +38,8 @@ class Student extends Model
         'height',
         'weight',
         'previous_school',
+        'previous_school_npsn',
+        'previous_school_address',
         'residence_type',
         'class',
         'academic_year',

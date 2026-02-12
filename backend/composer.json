@@ -1,7 +1,7 @@
 {
-    "name": "iss/backend",
+    "name": "servr/backend",
     "type": "project",
-    "description": "Indonesia Smart School - Backend API",
+    "description": "servr - One Platform for Smarter Education - Backend API",
     "keywords": ["laravel", "framework", "school", "management"],
     "license": "MIT",
     "require": {

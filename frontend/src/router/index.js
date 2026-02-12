@@ -22,6 +22,26 @@ const router = createRouter({
       meta: { requiresGuest: true }
     },
     {
+      path: '/daftar-ppdb',
+      name: 'PpdbPublicRegister',
+      component: () => import('@/views/PpdbPublicRegister.vue')
+    },
+    {
+      path: '/:npsn/daftar-ppdb',
+      name: 'PpdbPublicRegisterByNpsn',
+      component: () => import('@/views/PpdbPublicRegister.vue')
+    },
+    {
+      path: '/cek-hasil-ppdb',
+      name: 'PpdbCheckResult',
+      component: () => import('@/views/PpdbCheckResult.vue')
+    },
+    {
+      path: '/lengkapi-berkas-ppdb',
+      name: 'PpdbLengkapiBerkas',
+      component: () => import('@/views/PpdbLengkapiBerkas.vue')
+    },
+    {
       path: '/dashboard',
       name: 'Dashboard',
       component: () => import('@/views/Dashboard.vue'),
@@ -338,6 +358,17 @@ const router = createRouter({
       name: 'AuditLog',
       component: () => import('@/views/AuditLog.vue'),
       meta: { requiresAuth: true, requiresAuditLog: true }
+    },
+    {
+      path: '/ppdb',
+      name: 'Ppdb',
+      component: () => import('@/views/Ppdb.vue'),
+      meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/:npsn',
+      name: 'SchoolPublic',
+      component: () => import('@/views/SchoolPublic.vue')
     }
   ]
 })
