@@ -16,6 +16,7 @@ class FileUploadRules
     public const TYPE_PDF_ONLY = 'pdf_only';     // PDF only
     public const TYPE_IMAGE_ONLY = 'image_only'; // JPG, JPEG, PNG only
     public const TYPE_IMAGE_LOGO = 'image_logo'; // JPG, JPEG, PNG, GIF (untuk logo institusi)
+    public const TYPE_FAVICON = 'favicon';       // ICO, PNG, SVG (untuk favicon aplikasi)
 
     /**
      * Size constants (in KB)
@@ -125,6 +126,7 @@ class FileUploadRules
             self::TYPE_PDF_ONLY => ['pdf'],
             self::TYPE_IMAGE_ONLY => ['jpg', 'jpeg', 'png'],
             self::TYPE_IMAGE_LOGO => ['jpg', 'jpeg', 'png', 'gif'],
+            self::TYPE_FAVICON => ['ico', 'png', 'svg'],
             default => ['pdf', 'doc', 'docx'],
         };
     }
@@ -144,6 +146,7 @@ class FileUploadRules
             self::TYPE_PDF_ONLY => 'PDF',
             self::TYPE_IMAGE_ONLY => 'JPG, JPEG, atau PNG',
             self::TYPE_IMAGE_LOGO => 'JPG, JPEG, PNG, atau GIF',
+            self::TYPE_FAVICON => 'ICO, PNG, atau SVG',
             default => 'PDF, DOC, atau DOCX',
         };
     }
@@ -207,5 +210,21 @@ class FileUploadRules
     public static function institutionLogo(): array
     {
         return self::rules(self::TYPE_IMAGE_LOGO, self::SIZE_SMALL, true, 'logo');
+    }
+
+    /**
+     * Get validation rules for app logo upload (super admin).
+     */
+    public static function appLogo(): array
+    {
+        return self::rules(self::TYPE_IMAGE_LOGO, self::SIZE_SMALL, true, 'logo');
+    }
+
+    /**
+     * Get validation rules for favicon upload (super admin).
+     */
+    public static function appFavicon(): array
+    {
+        return self::rules(self::TYPE_FAVICON, 512, true, 'favicon'); // 512 KB
     }
 }

@@ -1252,7 +1252,7 @@ import { useTeacherList } from '@/composables/useTeacherList'
 import { employeeApi } from '@/api/teacher'
 import { institutionApi } from '@/api/institution'
 import { permissionApi } from '@/api/permissions'
-import { additionalDutiesApi } from '@/api/additionalDuties'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { getInstitutionTypeLabel } from '@/utils/institution'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
@@ -1264,12 +1264,13 @@ import * as XLSX from 'xlsx'
 
 const toast = useToast()
 const authStore = useAuthStore()
+const referenceStore = useReferenceDataStore()
+const availableAdditionalDuties = computed(() => referenceStore.additionalDuties)
+const loadingAdditionalDuties = computed(() => referenceStore.additionalDutiesLoading)
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const availableModules = ref([])
 const loadingPermissions = ref(false)
-const availableAdditionalDuties = ref([])
-const loadingAdditionalDuties = ref(false)
 
 const { teachers, loading, error: listError, filters, loadTeachers, getTeacherSubject, getStatusClass } = useTeacherList()
 const showAddModal = ref(false)
@@ -1369,19 +1370,6 @@ const loadPermissions = async () => {
     toast.error('Gagal', 'Gagal memuat daftar modul')
   } finally {
     loadingPermissions.value = false
-  }
-}
-
-const loadAdditionalDuties = async () => {
-  loadingAdditionalDuties.value = true
-  try {
-    const response = await additionalDutiesApi.getAll()
-    availableAdditionalDuties.value = response.data.data || []
-  } catch (err) {
-    console.error(err)
-    toast.error('Gagal', 'Gagal memuat daftar tugas tambahan')
-  } finally {
-    loadingAdditionalDuties.value = false
   }
 }
 
@@ -2427,7 +2415,7 @@ const handleImportExcel = async (event) => {
 
 onMounted(() => {
   loadPermissions()
-  loadAdditionalDuties()
+  referenceStore.getAdditionalDuties()
 })
 </script>
 

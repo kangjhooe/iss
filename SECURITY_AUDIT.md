@@ -1,4 +1,4 @@
-# Laporan Audit Keamanan — servr
+# Laporan Audit Keamanan — servr.in
 
 **Tanggal:** 5 Februari 2026  
 **Lingkup:** Backend (Laravel), Frontend (Vue), API, autentikasi, autorisasi, upload/download file.
@@ -83,8 +83,7 @@ Audit menemukan **1 celah kritis** (path traversal) yang telah diperbaiki, serta
 ### 3.2 Frontend
 
 1. **Token storage**
-   - `tokenStorage.js` masih berisi `setToken`/`getToken` (localStorage). Karena auth sudah pakai httpOnly cookie, pastikan tidak ada kode yang lagi menyimpan token ke localStorage (auth store sudah tidak memanggil setToken — baik).
-   - Untuk production, pertimbangkan menghapus atau menonaktifkan fallback penyimpanan token di localStorage agar tidak ada sisa token di client.
+   - **DONE:** `tokenStorage.js` tidak lagi menulis atau membaca token dari localStorage. `setToken`/`setRefreshToken` no-op, `getToken`/`getRefreshToken` selalu mengembalikan null, `isAuthenticated()` selalu false. Hanya `clearAuth()` dipakai (saat logout/refresh gagal) untuk membersihkan data lama di localStorage.
 
 2. **XSS**
    - Tetap hindari `v-html` untuk konten user; pakai binding biasa. Sanitasi jika terpaksa menampilkan HTML dari backend.
@@ -114,7 +113,7 @@ Audit menemukan **1 celah kritis** (path traversal) yang telah diperbaiki, serta
 - [ ] **Sebelum go-live:** Set `APP_DEBUG=false`, `APP_ENV=production`, `COOKIE_DOMAIN`, `FRONTEND_URL`
 - [ ] **Sebelum go-live:** Pastikan migration cache & permissions terjalankan di environment target
 - [ ] **Berkala:** Jalankan `composer audit` (backend) dan `npm audit` (frontend)
-- [ ] (Opsional) Tinjau ulang penggunaan localStorage di `tokenStorage.js` untuk konsistensi dengan auth cookie-only
+- [x] Token tidak lagi disimpan/dibaca dari localStorage di `tokenStorage.js` (setToken/getToken no-op; hanya clearAuth untuk bersihkan data lama)
 
 ---
 

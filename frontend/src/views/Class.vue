@@ -409,7 +409,7 @@ import { classApi } from '@/api/class'
 import { institutionApi } from '@/api/institution'
 import { facilityApi } from '@/api/facility'
 import { teacherApi } from '@/api/teacher'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { studentApi } from '@/api/student'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
@@ -445,11 +445,13 @@ const loadingClassStudents = ref(false)
 const studentSearch = ref('')
 const exportingPdf = ref(false)
 
+const referenceStore = useReferenceDataStore()
+const academicYearsList = computed(() => referenceStore.academicYears)
+
 const institution = ref(null)
 const institutionLevel = computed(() => institution.value?.level)
 const rooms = ref([])
 const teachers = ref([])
-const academicYearsList = ref([])
 const currentAcademicYear = ref(null)
 
 const form = ref({
@@ -477,15 +479,6 @@ const availableGrades = computed(() => {
   }
   return []
 })
-
-const loadAcademicYears = async () => {
-  try {
-    const response = await academicYearApi.getAll({ per_page: 100 })
-    academicYearsList.value = response.data.data || []
-  } catch (err) {
-    console.error('Failed to load academic years:', err)
-  }
-}
 
 const loadInstitution = async () => {
   try {
@@ -853,7 +846,7 @@ watch(studentSearch, () => {
 
 onMounted(async () => {
   await loadInstitution()
-  await loadAcademicYears()
+  await referenceStore.getAcademicYears()
   
   // Set academic_year_id otomatis dari active_academic_year_id institusi
   if (institution.value?.active_academic_year_id) {

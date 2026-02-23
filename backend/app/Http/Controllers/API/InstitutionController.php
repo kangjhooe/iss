@@ -57,7 +57,8 @@ class InstitutionController extends Controller
                 $with = array_intersect($with, $allowedRelations);
             }
             
-            $institutions = $query->select(['id', 'name', 'npsn', 'level', 'type', 'is_active', 'created_at'])
+            // Select all columns needed for list + detail so data filled by admin sekolah tampil di super admin
+            $institutions = $query
                 ->when(!empty($with), function ($q) use ($with) {
                     return $q->with($with);
                 })

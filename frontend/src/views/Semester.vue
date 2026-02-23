@@ -240,11 +240,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { semesterApi } from '@/api/semester'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -252,8 +252,10 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
+const referenceStore = useReferenceDataStore()
+const academicYears = computed(() => referenceStore.academicYears)
+
 const semesters = ref([])
-const academicYears = ref([])
 const loading = ref(true)
 const pagination = ref(null)
 const filters = ref({
@@ -277,15 +279,6 @@ const form = ref({
   status: 'Draft',
   description: ''
 })
-
-const loadAcademicYears = async () => {
-  try {
-    const response = await academicYearApi.getAll({ per_page: 100 })
-    academicYears.value = response.data.data || []
-  } catch (err) {
-    console.error('Failed to load academic years:', err)
-  }
-}
 
 const loadSemesters = async (page = 1) => {
   loading.value = true
@@ -432,7 +425,7 @@ const getStatusClass = (status) => {
 }
 
 onMounted(() => {
-  loadAcademicYears()
+  referenceStore.getAcademicYears()
   loadSemesters()
 })
 </script>

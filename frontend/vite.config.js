@@ -1,18 +1,22 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const appName = env.VITE_APP_NAME || 'servr.in'
+
+  return {
   plugins: [
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'servr',
-        short_name: 'servr',
-        description: 'One Platform for Smarter Education - Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia',
+        name: appName,
+        short_name: appName,
+        description: `${appName} - One Platform for Smarter Education. Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia`,
         theme_color: '#0ea5e9',
         background_color: '#ffffff',
         display: 'standalone',
@@ -40,18 +44,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
-          {
-            urlPattern: /\/api\/v1\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              },
-              networkTimeoutSeconds: 10
-            }
-          },
+          // Jangan cache request API (termasuk login/register/logout) agar setelah logout
+          // request login selalu ke server dan tidak dapat response cache lama (mis. 422)
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
             handler: 'CacheFirst',
@@ -80,7 +74,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
       }

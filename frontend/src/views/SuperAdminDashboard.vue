@@ -4,8 +4,8 @@
       <!-- Welcome Section -->
       <div class="welcome-section">
         <div class="welcome-content">
-          <h1>Selamat Datang, Super Admin!</h1>
-          <p>Kelola seluruh sistem servr dari sini</p>
+          <h1>Selamat Datang, {{ userName }}!</h1>
+          <p>Kelola seluruh sistem {{ appName }} dari sini</p>
         </div>
         <div class="welcome-icon">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -137,6 +137,25 @@
               </svg>
             </div>
           </router-link>
+
+          <router-link to="/super-admin/app-branding" class="action-card action-card-secondary">
+            <div class="action-icon action-icon-secondary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="action-content">
+              <h4>Branding Aplikasi</h4>
+              <p>Logo & favicon untuk halaman awal, login, register</p>
+            </div>
+            <div class="action-arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </router-link>
         </div>
       </div>
     </div>
@@ -144,12 +163,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import { useAuthStore } from '@/stores/auth'
+import { appName } from '@/config/app'
 import { institutionApi } from '@/api/institution'
 import { studentApi } from '@/api/student'
 import { teacherApi } from '@/api/teacher'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
+
+const authStore = useAuthStore()
+const userName = computed(() => authStore.user?.name || authStore.user?.email || 'Super Admin')
 
 const institutionCount = ref(0)
 const studentCount = ref(0)
@@ -395,6 +419,11 @@ onMounted(async () => {
   color: #3b82f6;
 }
 
+.action-icon-secondary {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
 .action-content {
   flex: 1;
   min-width: 0;
@@ -439,6 +468,10 @@ onMounted(async () => {
 
 .action-card-info:hover .action-arrow {
   color: #3b82f6;
+}
+
+.action-card-secondary:hover .action-arrow {
+  color: #64748b;
 }
 
 /* Responsive Design */

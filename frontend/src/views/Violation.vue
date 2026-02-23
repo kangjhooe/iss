@@ -652,7 +652,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { violationApi, violationTypeApi, achievementApi, achievementTypeApi, pointThresholdApi, studentActionLogApi, studentPointApi } from '@/api/violation'
 import { studentApi } from '@/api/student'
 import { institutionApi } from '@/api/institution'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
 import { useToast } from '@/composables/useToast'
 
@@ -708,9 +708,11 @@ const violationTypes = ref([])
 const students = ref([])
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 
+const referenceStore = useReferenceDataStore()
+const academicYears = computed(() => referenceStore.academicYears)
+
 const showAdvancedFilters = ref(false)
 const institution = ref(null)
-const academicYears = ref([])
 const semesters = ref([])
 const filters = ref({
   search: '',
@@ -1311,14 +1313,13 @@ async function doDeleteAchievement() {
 
 async function loadInstitutionAndDefaults() {
   try {
-    const [instRes, ayRes, semRes] = await Promise.all([
+    const [instRes, semRes] = await Promise.all([
       institutionApi.getMy(),
-      academicYearApi.getAll({ per_page: 50 }),
       semesterApi.getAll({ per_page: 100 }),
     ])
     institution.value = instRes.data?.data ?? instRes.data ?? null
-    academicYears.value = ayRes.data?.data ?? ayRes.data ?? []
     semesters.value = semRes.data?.data ?? semRes.data ?? []
+    await referenceStore.getAcademicYears()
     if (institution.value?.active_academic_year_id) {
       filters.value.academic_year_id = String(institution.value.active_academic_year_id)
     }
@@ -1327,7 +1328,6 @@ async function loadInstitutionAndDefaults() {
     }
   } catch {
     institution.value = null
-    academicYears.value = []
     semesters.value = []
   }
 }

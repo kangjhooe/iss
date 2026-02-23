@@ -5,21 +5,10 @@
       <div class="navbar-inner">
         <router-link to="/" class="navbar-brand">
           <div class="navbar-logo">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#667eea"/>
-              <path d="M2 17L12 22L22 17" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <AppLogo :size="36" />
           </div>
-          <span class="navbar-title">servr</span>
+          <span class="navbar-title">{{ appName }}</span>
         </router-link>
-        <div class="navbar-links">
-          <a href="#fitur" class="nav-link">Fitur</a>
-          <a href="#mengapa" class="nav-link">Mengapa Kami</a>
-          <router-link to="/daftar-ppdb" class="nav-link">Pendaftaran PPDB</router-link>
-          <router-link to="/lengkapi-berkas-ppdb" class="nav-link">Lengkapi Berkas</router-link>
-          <router-link to="/cek-hasil-ppdb" class="nav-link">Cek Hasil PPDB</router-link>
-        </div>
         <div class="navbar-actions">
           <router-link to="/login" class="btn btn-ghost">Masuk</router-link>
           <router-link to="/register" class="btn btn-primary">Daftar</router-link>
@@ -28,23 +17,10 @@
     </nav>
 
     <!-- Hero -->
-    <section class="hero">
-      <div class="hero-bg"></div>
-      <div class="hero-content">
-        <h1>servr</h1>
-        <p class="hero-subtitle">One Platform for Smarter Education</p>
-        <p class="hero-desc">
-          Kelola profil institusi, data siswa, guru, fasilitas, kelas, laporan, dan surat-menyurat dalam satu platform. Mulai digitalisasi sekolah Anda sekarang.
-        </p>
-        <div class="hero-actions">
-          <router-link to="/register" class="btn btn-primary btn-lg">Daftar Sekolah Anda</router-link>
-          <router-link to="/login" class="btn btn-secondary btn-lg">Masuk</router-link>
-        </div>
-      </div>
-    </section>
+    <HeroSection />
 
     <!-- Fitur -->
-    <section id="fitur" class="section features-section">
+    <section id="fitur" ref="featuresRef" class="section features-section" :class="{ 'section--in-view': featuresVisible }">
       <div class="section-inner">
         <h2 class="section-title">Fitur Lengkap</h2>
         <p class="section-subtitle">Semua yang Anda butuhkan untuk mengelola sekolah dan madrasah dalam satu tempat</p>
@@ -52,7 +28,9 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 21V12H15V21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V8" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Profil Sekolah/Madrasah</h3>
@@ -115,33 +93,133 @@
             <h3>Surat-menyurat</h3>
             <p>Kelola surat masuk dan keluar dengan rapi</p>
           </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15 2H9C8.46957 2 7.96086 2.21071 7.58579 2.58579C7.21071 2.96086 7 3.46957 7 4V16C7 16.5304 7.21071 17.0391 7.58579 17.4142C7.96086 17.7893 8.46957 18 9 18H15C15.5304 18 16.0391 17.7893 16.4142 17.4142C16.7893 17.0391 17 16.5304 17 16V4C17 3.46957 16.7893 2.96086 16.4142 2.58579C16.0391 2.21071 15.5304 2 15 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 7V11" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9H14" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>PPDB Online</h3>
+            <p>Pendaftaran Peserta Didik Baru secara online, lengkapi berkas, dan cek hasil</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 2V6" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 2V6" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 10H21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 14H8.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 14H12.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 14H16.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 18H8.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 18H12.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 18H16.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Absensi & QR</h3>
+            <p>Absensi siswa dan pegawai, dukung presensi dengan scan QR code</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 15H14" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Buku Nilai & Raport</h3>
+            <p>Input nilai, kelola buku nilai, dan cetak raport siswa</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 6V12L16 14" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 12H4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 12H21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 20V21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Jadwal Pelajaran</h3>
+            <p>Kelola jadwal mengajar, jadwal kelas, dan jurnal mengajar</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 8V12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 16H12.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Pelanggaran & Konseling</h3>
+            <p>Catat pelanggaran, prestasi, poin siswa, dan layanan konseling</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 15H12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Perpustakaan & Arsip</h3>
+            <p>Kelola perpustakaan, arsip digital, dan pengambilan ijazah</p>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Mengapa memilih kami -->
-    <section id="mengapa" class="section why-section">
+    <section id="mengapa" ref="whyRef" class="section why-section" :class="{ 'section--in-view': whyVisible }">
       <div class="section-inner">
         <h2 class="section-title">Mengapa Memilih Kami</h2>
         <p class="section-subtitle">Platform yang dirancang untuk kebutuhan sekolah dan madrasah di Indonesia</p>
         <div class="why-grid">
           <div class="why-card">
-            <div class="why-icon">🔒</div>
+            <div class="why-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <h3>Data Aman</h3>
             <p>Data institusi dan siswa dikelola dengan keamanan yang terjamin</p>
           </div>
           <div class="why-card">
-            <div class="why-icon">⚡</div>
+            <div class="why-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <h3>Terintegrasi</h3>
             <p>Semua modul terhubung dalam satu sistem, mengurangi duplikasi data</p>
           </div>
           <div class="why-card">
-            <div class="why-icon">📱</div>
+            <div class="why-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="12" y1="18" x2="12.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <h3>Responsif</h3>
             <p>Akses dari desktop, tablet, atau ponsel kapan saja</p>
           </div>
           <div class="why-card">
-            <div class="why-icon">🏫</div>
+            <div class="why-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <h3>Multi-institusi</h3>
             <p>Mendukung berbagai jenjang dan jenis lembaga pendidikan</p>
           </div>
@@ -149,8 +227,125 @@
       </div>
     </section>
 
+    <!-- Statistik: total besar + per jenjang, count-up, hirarki jelas, kartu aktif/redup -->
+    <section class="section stats-section" :aria-busy="statsLoading" aria-labelledby="stats-heading">
+      <div class="stats-bg" aria-hidden="true"></div>
+      <div class="section-inner stats-inner">
+        <h2 id="stats-heading" class="stats-heading">Dipercaya oleh institusi pendidikan</h2>
+        <p class="stats-subheading">Bergabung bersama sekolah dan madrasah di seluruh Indonesia</p>
+        <div class="stats-row">
+          <div class="stats-total-block">
+            <div class="stats-main">
+              <div v-if="statsLoading" class="stats-number-wrap">
+                <span class="stats-number stats-number--skeleton" aria-hidden="true">0</span>
+              </div>
+              <div v-else class="stats-number-wrap">
+                <span class="stats-number" :aria-label="(institutionsCount ?? 0).toLocaleString('id-ID')">{{ displayTotal.toLocaleString('id-ID') }}</span>
+              </div>
+              <p class="stats-caption">Sekolah & madrasah sudah bergabung</p>
+              <p v-if="!statsLoading && (institutionsCount ?? 0) === 0" class="stats-zero-cta">Jadilah yang pertama bergabung.</p>
+            </div>
+            <div class="stats-decoration" aria-hidden="true">
+              <svg class="stats-decoration-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 21V12H15V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+          <div v-if="!statsLoading" class="stats-tiers" role="list">
+            <div
+              v-for="(tier, idx) in statsByTier"
+              :key="tier.key"
+              class="stats-tier-item"
+              :class="{ 'stats-tier-item--active': (tier.count ?? 0) > 0, 'stats-tier-item--muted': (tier.count ?? 0) === 0 }"
+              role="listitem"
+              :title="tier.key === 'lainnya' ? 'Belum mengisi jenjang' : undefined"
+            >
+              <span class="stats-tier-label">{{ tier.label }}</span>
+              <span class="stats-tier-value">{{ (animatedTierCounts[idx] ?? 0).toLocaleString('id-ID') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sekolah yang baru bergabung (slider) -->
+    <section ref="recentRef" class="section recent-schools-section" :class="{ 'section--in-view': recentVisible }" aria-labelledby="recent-schools-title">
+      <div class="section-inner">
+        <h2 id="recent-schools-title" class="section-title">Sekolah yang Baru Bergabung</h2>
+        <p class="section-subtitle">Selamat bergabung! Kunjungi profil sekolah berikut</p>
+
+        <!-- Loading skeleton -->
+        <div v-if="recentLoading" class="slider-wrap" aria-hidden="true">
+          <div class="slider-track">
+            <div v-for="i in 4" :key="i" class="recent-school-card recent-school-card--skeleton">
+              <div class="recent-school-card-logo recent-school-card-logo--skeleton"></div>
+              <div class="recent-school-card-name recent-school-card-name--skeleton"></div>
+              <div class="recent-school-card-meta recent-school-card-meta--skeleton"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slider with data -->
+        <div v-else-if="recentInstitutions.length > 0" class="slider-wrap">
+          <button
+            type="button"
+            class="slider-btn slider-btn-prev"
+            aria-label="Kartu sebelumnya"
+            :disabled="!canScrollPrev"
+            :aria-disabled="!canScrollPrev"
+            @click="slidePrev"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div
+            ref="sliderTrackRef"
+            class="slider-track"
+            role="list"
+            tabindex="0"
+            @scroll="updateSliderButtons"
+          >
+            <router-link
+              v-for="inst in recentInstitutions"
+              :key="inst.id"
+              :to="`/${inst.npsn}`"
+              class="recent-school-card"
+              role="listitem"
+            >
+              <div class="recent-school-card-logo">
+                <img
+                  v-if="inst.logo_url && !logoFailedIds.has(inst.id)"
+                  :src="inst.logo_url"
+                  :alt="''"
+                  @error="onLogoError(inst.id)"
+                />
+                <div v-else class="recent-school-card-placeholder">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21H21V9L12 3L3 9V21Z"/><path d="M9 21V12H15V21"/></svg>
+                </div>
+              </div>
+              <h3 class="recent-school-card-name">{{ inst.name }}</h3>
+              <p class="recent-school-card-meta">{{ [inst.level, inst.type].filter(Boolean).join(' · ') || inst.npsn }}</p>
+              <span class="recent-school-card-cta">Kunjungi</span>
+            </router-link>
+          </div>
+          <button
+            type="button"
+            class="slider-btn slider-btn-next"
+            aria-label="Kartu berikutnya"
+            :disabled="!canScrollNext"
+            :aria-disabled="!canScrollNext"
+            @click="slideNext"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+
+        <p v-else class="recent-schools-empty">Belum ada data sekolah.</p>
+      </div>
+    </section>
+
     <!-- CTA akhir -->
-    <section class="section cta-section">
+    <section ref="ctaRef" class="section cta-section" :class="{ 'section--in-view': ctaVisible }">
       <div class="section-inner cta-inner">
         <h2 class="cta-title">Siap Memulai?</h2>
         <p class="cta-desc">Daftarkan sekolah atau madrasah Anda dan kelola segala kebutuhan administrasi dengan lebih mudah.</p>
@@ -163,24 +358,20 @@
 
     <!-- Footer -->
     <footer class="footer">
+      <div class="footer-accent"></div>
       <div class="footer-inner">
-        <div class="footer-brand">
-          <div class="footer-logo">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#667eea"/>
-              <path d="M2 17L12 22L22 17" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+        <div class="footer-main">
+          <div class="footer-brand">
+            <div class="footer-logo">
+              <AppLogo :size="40" />
+            </div>
+            <span class="footer-name">{{ appName }}</span>
+            <p class="footer-tagline">{{ appTagline }}</p>
           </div>
-          <span>servr</span>
-          <p class="footer-tagline">One Platform for Smarter Education</p>
-        </div>
-        <div class="footer-links">
-          <router-link to="/login">Masuk</router-link>
-          <router-link to="/register">Daftar</router-link>
         </div>
         <div class="footer-bottom">
-          <p>&copy; {{ currentYear }} servr. All rights reserved.</p>
+          <p>&copy; {{ currentYear }} {{ appName }}. All rights reserved.</p>
+          <p class="footer-version">Versi {{ appVersion }}</p>
         </div>
       </div>
     </footer>
@@ -188,9 +379,186 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, nextTick, watch } from 'vue'
+import { appName, appTagline, appVersion } from '@/config/app'
+import AppLogo from '@/components/AppLogo.vue'
+import HeroSection from '@/components/HeroSection.vue'
+import { schoolPublicApi } from '@/api/schoolPublic'
+
+const COUNT_UP_DURATION = 1200
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
+const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+function useCountUp(targetRef, duration = COUNT_UP_DURATION) {
+  const display = ref(0)
+  watch(
+    targetRef,
+    (target) => {
+      if (target == null) return
+      const end = Number(target) || 0
+      if (prefersReducedMotion()) {
+        display.value = end
+        return
+      }
+      const start = display.value
+      if (end === start) return
+      const startTime = performance.now()
+      const tick = (now) => {
+        const elapsed = now - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = easeOutCubic(progress)
+        display.value = Math.round(start + (end - start) * eased)
+        if (progress < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    },
+    { immediate: true }
+  )
+  return display
+}
 
 const currentYear = computed(() => new Date().getFullYear())
+
+const institutionsCount = ref(null)
+const statsByLevel = ref({})
+const statsByType = ref({})
+const recentInstitutions = ref([])
+const statsLoading = ref(true)
+const recentLoading = ref(true)
+const sliderTrackRef = ref(null)
+const canScrollPrev = ref(false)
+const canScrollNext = ref(false)
+const logoFailedIds = ref(new Set())
+
+const featuresRef = ref(null)
+const whyRef = ref(null)
+const recentRef = ref(null)
+const ctaRef = ref(null)
+const featuresVisible = ref(false)
+const whyVisible = ref(false)
+const recentVisible = ref(false)
+const ctaVisible = ref(false)
+
+const SLIDER_CARD_WIDTH = 280
+const SLIDER_GAP = 16
+
+/** Kelompok jenjang: SD/MI, SMP/MTs, SMA/MA, SMK/MAK */
+const STATS_TIERS = [
+  { key: 'sd_mi', label: 'SD/MI', keys: ['SD', 'MI'] },
+  { key: 'smp_mts', label: 'SMP/MTs', keys: ['SMP', 'MTs'] },
+  { key: 'sma_ma', label: 'SMA/MA', keys: ['SMA', 'MA'] },
+  { key: 'smk_mak', label: 'SMK/MAK', keys: ['SMK', 'MAK'] },
+  { key: 'lainnya', label: 'Lainnya', keys: ['Lainnya'] },
+]
+
+const statsByTier = computed(() => {
+  const byLevel = statsByLevel.value || {}
+  return STATS_TIERS.map(({ key, label, keys }) => ({
+    key,
+    label,
+    count: keys.reduce((sum, k) => sum + (byLevel[k] ?? 0), 0),
+  }))
+})
+
+const displayTotal = useCountUp(institutionsCount)
+const animatedTierCounts = ref([0, 0, 0, 0, 0])
+
+function animateTierCounts() {
+  const tiers = statsByTier.value
+  if (!tiers.length) return
+  const targets = tiers.map((t) => t.count ?? 0)
+  if (prefersReducedMotion()) {
+    animatedTierCounts.value = targets.slice()
+    return
+  }
+  const start = animatedTierCounts.value.slice()
+  const startTime = performance.now()
+  const tick = (now) => {
+    const elapsed = now - startTime
+    const progress = Math.min(elapsed / COUNT_UP_DURATION, 1)
+    const eased = easeOutCubic(progress)
+    animatedTierCounts.value = start.map((s, i) =>
+      Math.round(s + (targets[i] - s) * eased)
+    )
+    if (progress < 1) requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}
+
+watch(
+  () => statsByTier.value.map((t) => t.count),
+  () => {
+    if (statsLoading.value || !statsByTier.value.length) return
+    animateTierCounts()
+  },
+  { immediate: true }
+)
+
+function updateSliderButtons() {
+  const el = sliderTrackRef.value
+  if (!el) return
+  const { scrollLeft, scrollWidth, clientWidth } = el
+  canScrollPrev.value = scrollLeft > 2
+  canScrollNext.value = scrollLeft < scrollWidth - clientWidth - 2
+}
+
+function slidePrev() {
+  const el = sliderTrackRef.value
+  if (!el || !canScrollPrev.value) return
+  el.scrollBy({ left: -(SLIDER_CARD_WIDTH + SLIDER_GAP), behavior: 'smooth' })
+}
+
+function slideNext() {
+  const el = sliderTrackRef.value
+  if (!el || !canScrollNext.value) return
+  el.scrollBy({ left: SLIDER_CARD_WIDTH + SLIDER_GAP, behavior: 'smooth' })
+}
+
+function onLogoError(id) {
+  logoFailedIds.value = new Set(logoFailedIds.value).add(id)
+}
+
+onMounted(async () => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        const el = entry.target
+        if (el === featuresRef.value) featuresVisible.value = true
+        else if (el === whyRef.value) whyVisible.value = true
+        else if (el === recentRef.value) recentVisible.value = true
+        else if (el === ctaRef.value) ctaVisible.value = true
+      })
+    },
+    { rootMargin: '0px 0px -8% 0px', threshold: 0 }
+  )
+  await nextTick()
+  ;[featuresRef, whyRef, recentRef, ctaRef].forEach((ref) => {
+    if (ref.value) observer.observe(ref.value)
+  })
+
+  try {
+    const [statsRes, recentRes] = await Promise.all([
+      schoolPublicApi.getStats(),
+      schoolPublicApi.getRecentInstitutions(12),
+    ])
+    const data = statsRes.data?.data ?? {}
+    institutionsCount.value = data.institutions_count ?? 0
+    statsByLevel.value = data.by_level ?? {}
+    statsByType.value = data.by_type ?? {}
+    recentInstitutions.value = recentRes.data?.data ?? []
+  } catch (_) {
+    institutionsCount.value = 0
+    statsByLevel.value = {}
+    statsByType.value = {}
+    recentInstitutions.value = []
+  } finally {
+    statsLoading.value = false
+    recentLoading.value = false
+  }
+  await nextTick()
+  updateSliderButtons()
+})
 </script>
 
 <style scoped>
@@ -270,10 +638,132 @@ const currentYear = computed(() => new Date().getFullYear())
   color: #667eea;
 }
 
+.nav-link:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .navbar-actions {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+/* Hamburger: only on mobile */
+.navbar-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  color: #1e293b;
+}
+.navbar-toggle:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+.navbar-toggle-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.navbar-toggle-bar.open:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.navbar-toggle-bar.open:nth-child(2) {
+  opacity: 0;
+}
+.navbar-toggle-bar.open:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile menu backdrop & drawer */
+.mobile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 199;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-menu-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(280px, 85vw);
+  background: #ffffff;
+  z-index: 200;
+  padding: 80px 24px 24px;
+  padding-top: max(80px, calc(env(safe-area-inset-top) + 60px));
+  padding-right: max(24px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+}
+.mobile-menu-link {
+  padding: 14px 16px;
+  border-radius: 8px;
+  color: #1e293b;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 500;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.mobile-menu-link:hover {
+  background: #f1f5f9;
+  color: #667eea;
+}
+.mobile-menu-link:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+.menu-enter-active,
+.menu-leave-active {
+  transition: opacity 0.2s ease;
+}
+.menu-enter-from,
+.menu-leave-to {
+  opacity: 0;
+}
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: transform 0.25s ease;
+}
+.drawer-enter-from,
+.drawer-leave-to {
+  transform: translateX(100%);
+}
+
+/* Why section SVG icons */
+.why-icon {
+  font-size: 32px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #667eea;
+}
+.why-icon svg {
+  flex-shrink: 0;
 }
 
 /* Buttons - min touch target 44px (accessibility) */
@@ -333,58 +823,17 @@ const currentYear = computed(() => new Date().getFullYear())
   font-size: 16px;
 }
 
-/* Hero */
-.hero {
-  position: relative;
-  padding: 72px 24px 80px;
-  padding-left: max(24px, env(safe-area-inset-left));
-  padding-right: max(24px, env(safe-area-inset-right));
-  text-align: center;
-  overflow: hidden;
+.btn:focus-visible,
+a.btn:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
 }
 
-.hero-bg {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
-  z-index: 0;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.hero h1 {
-  font-size: 42px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 16px;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.hero-subtitle {
-  font-size: 20px;
-  color: #64748b;
-  margin-bottom: 16px;
-  font-weight: 500;
-}
-
-.hero-desc {
-  font-size: 17px;
-  color: #475569;
-  line-height: 1.7;
-  margin-bottom: 32px;
-}
-
-.hero-actions {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
+@keyframes fade-slide-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Sections */
@@ -417,10 +866,459 @@ const currentYear = computed(() => new Date().getFullYear())
   margin-right: auto;
 }
 
+/* Stats section – padat, hirarki jelas, angka utama menonjol */
+.stats-section {
+  position: relative;
+  padding: 40px 24px 48px;
+  overflow: hidden;
+}
+
+.stats-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, #f0f4ff 0%, #e8eeff 35%, #f8fafc 70%);
+  z-index: 0;
+}
+
+.stats-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120%;
+  max-width: 800px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.2), transparent);
+  z-index: 1;
+}
+
+.stats-inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.stats-heading {
+  font-size: 20px;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 4px;
+  letter-spacing: 0.02em;
+}
+
+.stats-subheading {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 24px;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 20px;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.stats-total-block {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 32px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 24px rgba(30, 41, 59, 0.06), 0 0 0 1px rgba(102, 126, 234, 0.08);
+  flex-shrink: 0;
+}
+
+.stats-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.stats-number-wrap {
+  margin-bottom: 4px;
+}
+
+.stats-number {
+  display: inline-block;
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stats-number--skeleton {
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(90deg, #e2e8f0 30%, #f1f5f9 50%, #e2e8f0 70%);
+  background-size: 200% 100%;
+  background-clip: border-box;
+  -webkit-background-clip: border-box;
+  animation: stats-shine 1.5s ease-in-out infinite;
+  border-radius: 8px;
+  min-width: 100px;
+  display: inline-block;
+}
+
+.stats-caption {
+  font-size: 15px;
+  font-weight: 500;
+  color: #475569;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.stats-zero-cta {
+  font-size: 13px;
+  color: #667eea;
+  margin: 8px 0 0;
+  font-weight: 500;
+}
+
+.stats-decoration {
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.14) 0%, rgba(118, 75, 162, 0.14) 100%);
+  color: #667eea;
+}
+
+.stats-decoration-icon {
+  opacity: 0.9;
+}
+
+/* Tiers: kartu aktif (warna) vs redup (0) */
+.stats-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.stats-tier-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 84px;
+  padding: 14px 18px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(30, 41, 59, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+}
+
+.stats-tier-item--active {
+  border-color: rgba(102, 126, 234, 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(102, 126, 234, 0.04) 100%);
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
+}
+
+.stats-tier-item--active:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
+}
+
+.stats-tier-item--muted {
+  opacity: 0.6;
+  border-color: #e2e8f0;
+}
+
+.stats-tier-item--muted .stats-tier-value {
+  color: #94a3b8;
+}
+
+.stats-tier-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 2px;
+  text-align: center;
+}
+
+.stats-tier-item--active .stats-tier-label {
+  color: #475569;
+}
+
+.stats-tier-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+@keyframes stats-shine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-number--skeleton {
+    animation: none;
+    background: #e2e8f0;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* Recent schools slider */
+.recent-schools-section {
+  background: #f8fafc;
+}
+
+.recent-schools-section.section--in-view .section-title {
+  opacity: 0;
+  animation: fade-slide-up 0.45s ease-out forwards;
+}
+
+.recent-schools-section.section--in-view .section-subtitle {
+  opacity: 0;
+  animation: fade-slide-up 0.45s ease-out 0.08s forwards;
+}
+
+.recent-schools-section .section-subtitle {
+  margin-bottom: 28px;
+}
+
+.slider-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  border-radius: 12px;
+  color: #64748b;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.slider-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+  background: #f8fafc;
+}
+
+.slider-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.slider-btn:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.slider-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+.slider-btn:disabled:hover {
+  background: #fff;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+.slider-track {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 8px 0 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.slider-track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.slider-track::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.slider-track::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 3px;
+}
+
+.recent-school-card {
+  flex: 0 0 280px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px 20px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.recent-school-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.12);
+  transform: translateY(-2px);
+}
+
+.recent-school-card-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  background: #f1f5f9;
+}
+
+.recent-school-card-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-school-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.recent-school-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.recent-school-card-meta {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.recent-school-card-cta {
+  font-size: 14px;
+  font-weight: 600;
+  color: #667eea;
+  margin-top: auto;
+}
+
+.recent-schools-empty {
+  text-align: center;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Slider loading skeleton */
+.recent-school-card--skeleton {
+  pointer-events: none;
+  cursor: default;
+}
+
+.recent-school-card-logo--skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.2s ease-in-out infinite;
+}
+
+.recent-school-card-name--skeleton,
+.recent-school-card-meta--skeleton {
+  width: 80%;
+  height: 14px;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.2s ease-in-out infinite;
+}
+
+.recent-school-card-name--skeleton {
+  height: 18px;
+  margin-bottom: 8px;
+}
+
+.recent-school-card-meta--skeleton {
+  width: 60%;
+}
+
+@keyframes skeleton-shine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recent-school-card-logo--skeleton,
+  .recent-school-card-name--skeleton,
+  .recent-school-card-meta--skeleton {
+    animation: none;
+  }
+}
+
 /* Features */
 .features-section {
   background: #f8fafc;
 }
+
+.features-section.section--in-view .feature-card {
+  opacity: 0;
+  animation: fade-slide-up 0.5s ease-out forwards;
+}
+
+.features-section.section--in-view .feature-card:nth-child(1) { animation-delay: 0ms; }
+.features-section.section--in-view .feature-card:nth-child(2) { animation-delay: 50ms; }
+.features-section.section--in-view .feature-card:nth-child(3) { animation-delay: 100ms; }
+.features-section.section--in-view .feature-card:nth-child(4) { animation-delay: 150ms; }
+.features-section.section--in-view .feature-card:nth-child(5) { animation-delay: 200ms; }
+.features-section.section--in-view .feature-card:nth-child(6) { animation-delay: 250ms; }
+.features-section.section--in-view .feature-card:nth-child(7) { animation-delay: 300ms; }
+.features-section.section--in-view .feature-card:nth-child(8) { animation-delay: 350ms; }
+.features-section.section--in-view .feature-card:nth-child(9) { animation-delay: 400ms; }
+.features-section.section--in-view .feature-card:nth-child(10) { animation-delay: 450ms; }
+.features-section.section--in-view .feature-card:nth-child(11) { animation-delay: 500ms; }
+.features-section.section--in-view .feature-card:nth-child(12) { animation-delay: 550ms; }
 
 .features-grid {
   display: grid;
@@ -433,15 +1331,21 @@ const currentYear = computed(() => new Date().getFullYear())
   background: #ffffff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .feature-card:hover {
   border-color: #cbd5e1;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.feature-card:hover .feature-icon {
+  transform: scale(1.08);
 }
 
 .feature-icon {
+  transition: transform 0.25s ease;
   display: flex;
   justify-content: center;
   margin-bottom: 20px;
@@ -470,6 +1374,24 @@ const currentYear = computed(() => new Date().getFullYear())
   background: #ffffff;
 }
 
+.why-section.section--in-view .why-card {
+  opacity: 0;
+  animation: fade-slide-up 0.5s ease-out forwards;
+}
+
+.why-section.section--in-view .why-card:nth-child(1) { animation-delay: 0ms; }
+.why-section.section--in-view .why-card:nth-child(2) { animation-delay: 80ms; }
+.why-section.section--in-view .why-card:nth-child(3) { animation-delay: 160ms; }
+.why-section.section--in-view .why-card:nth-child(4) { animation-delay: 240ms; }
+
+.why-card:hover .why-icon {
+  transform: scale(1.06);
+}
+
+.why-icon {
+  transition: transform 0.25s ease;
+}
+
 .why-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -482,18 +1404,15 @@ const currentYear = computed(() => new Date().getFullYear())
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   text-align: center;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .why-card:hover {
   border-color: #cbd5e1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
 }
 
-.why-icon {
-  font-size: 32px;
-  margin-bottom: 16px;
-}
 
 .why-card h3 {
   font-size: 17px;
@@ -513,6 +1432,11 @@ const currentYear = computed(() => new Date().getFullYear())
 .cta-section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 64px 24px;
+}
+
+.cta-section.section--in-view .cta-inner {
+  opacity: 0;
+  animation: fade-slide-up 0.55s ease-out forwards;
 }
 
 .cta-inner {
@@ -564,14 +1488,41 @@ const currentYear = computed(() => new Date().getFullYear())
   color: #ffffff;
 }
 
+/* Reduced motion: tampilkan konten tanpa animasi */
+@media (prefers-reduced-motion: reduce) {
+  .features-section.section--in-view .feature-card,
+  .why-section.section--in-view .why-card {
+    opacity: 1;
+    transform: translateY(0);
+    animation: none;
+  }
+  .recent-schools-section.section--in-view .section-title,
+  .recent-schools-section.section--in-view .section-subtitle {
+    opacity: 1;
+    animation: none;
+  }
+  .cta-section.section--in-view .cta-inner {
+    opacity: 1;
+    animation: none;
+  }
+}
+
 /* Footer */
 .footer {
-  background: #1e293b;
+  position: relative;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #172033 100%);
   color: #94a3b8;
-  padding: 48px 24px 24px;
+  padding: 0 24px 24px;
   padding-bottom: max(24px, env(safe-area-inset-bottom));
   padding-left: max(24px, env(safe-area-inset-left));
   padding-right: max(24px, env(safe-area-inset-right));
+}
+
+.footer-accent {
+  height: 4px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+  background-size: 200% 100%;
+  margin-bottom: 40px;
 }
 
 .footer-inner {
@@ -579,57 +1530,60 @@ const currentYear = computed(() => new Date().getFullYear())
   margin: 0 auto;
 }
 
+.footer-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
 .footer-brand {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  margin-bottom: 32px;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .footer-logo {
   margin-bottom: 12px;
+  filter: drop-shadow(0 2px 8px rgba(102, 126, 234, 0.2));
 }
 
-.footer-brand span {
-  font-size: 18px;
-  font-weight: 600;
+.footer-name {
+  font-size: 20px;
+  font-weight: 700;
   color: #f1f5f9;
+  letter-spacing: -0.02em;
+  margin: 0;
 }
 
 .footer-tagline {
   font-size: 14px;
   color: #94a3b8;
-  margin: 4px 0 0;
-}
-
-.footer-links {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-.footer-links a {
-  color: #94a3b8;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.footer-links a:hover {
-  color: #ffffff;
+  margin: 6px 0 0;
+  max-width: 280px;
+  line-height: 1.5;
 }
 
 .footer-bottom {
   text-align: center;
   padding-top: 24px;
-  border-top: 1px solid #334155;
+  border-top: 1px solid rgba(51, 65, 85, 0.8);
 }
 
 .footer-bottom p {
   font-size: 13px;
   color: #64748b;
   margin: 0;
+}
+
+.footer-version {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 8px;
+  opacity: 0.9;
 }
 
 /* ========== Responsive: Tablet (768px - 1024px) ========== */
@@ -663,6 +1617,10 @@ const currentYear = computed(() => new Date().getFullYear())
 @media (max-width: 768px) {
   .navbar-links {
     display: none;
+  }
+
+  .navbar-toggle {
+    display: flex;
   }
 
   .navbar-inner {
@@ -717,13 +1675,13 @@ const currentYear = computed(() => new Date().getFullYear())
   }
 
   .features-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .why-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .feature-card,
@@ -758,7 +1716,15 @@ const currentYear = computed(() => new Date().getFullYear())
   }
 
   .footer {
-    padding: 40px 20px 24px;
+    padding: 0 20px 24px;
+  }
+
+  .footer-accent {
+    margin-bottom: 32px;
+  }
+
+  .recent-school-card {
+    flex: 0 0 260px;
   }
 }
 
@@ -829,9 +1795,145 @@ const currentYear = computed(() => new Date().getFullYear())
     margin-bottom: 28px;
   }
 
+  .stats-section {
+    padding: 48px 16px 56px;
+  }
+
+  .stats-heading {
+    font-size: 18px;
+  }
+
+  .stats-subheading {
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .stats-block {
+    flex-direction: column;
+    padding: 32px 24px;
+    gap: 24px;
+  }
+
+  .stats-number {
+    font-size: 44px;
+  }
+
+  .stats-caption {
+    font-size: 15px;
+  }
+
+  .stats-decoration {
+    width: 64px;
+    height: 64px;
+  }
+
+  .stats-decoration-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .stats-section {
+    padding: 32px 16px 40px;
+  }
+
+  .stats-heading {
+    font-size: 18px;
+  }
+
+  .stats-subheading {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .stats-row {
+    gap: 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stats-total-block {
+    flex-direction: column;
+    padding: 20px 20px;
+    text-align: center;
+  }
+
+  .stats-main {
+    text-align: center;
+  }
+
+  .stats-number {
+    font-size: 56px;
+  }
+
+  .stats-caption {
+    font-size: 14px;
+  }
+
+  .stats-decoration {
+    width: 56px;
+    height: 56px;
+  }
+
+  .stats-tiers {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  .stats-tier-item {
+    min-width: 0;
+    padding: 12px 14px;
+  }
+
+  .stats-tier-label {
+    font-size: 11px;
+  }
+
+  .stats-tier-value {
+    font-size: 20px;
+  }
+
+  .stats-zero-cta {
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  .slider-wrap {
+    gap: 8px;
+  }
+
+  .slider-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .recent-school-card {
+    flex: 0 0 240px;
+    padding: 20px 16px;
+  }
+
+  .recent-school-card-name {
+    font-size: 15px;
+  }
+
   .feature-card,
   .why-card {
     padding: 20px 16px;
+  }
+
+  .feature-card {
+    padding: 16px 12px;
+  }
+
+  .feature-icon {
+    margin-bottom: 12px;
+  }
+
+  .why-icon {
+    margin-bottom: 12px;
   }
 
   .feature-card h3,
@@ -839,9 +1941,31 @@ const currentYear = computed(() => new Date().getFullYear())
     font-size: 16px;
   }
 
+  .feature-card h3 {
+    font-size: 14px;
+  }
+
+  .why-card h3 {
+    font-size: 14px;
+  }
+
   .feature-card p,
   .why-card p {
     font-size: 14px;
+  }
+
+  .feature-card p {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .why-card {
+    padding: 16px 12px;
+  }
+
+  .why-card p {
+    font-size: 12px;
+    line-height: 1.5;
   }
 
   .cta-section {
@@ -865,20 +1989,25 @@ const currentYear = computed(() => new Date().getFullYear())
     padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
 
-  .footer-brand span {
-    font-size: 16px;
+  .footer-main {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer-brand {
+    align-items: center;
+    text-align: center;
   }
 
   .footer-tagline {
+    max-width: none;
+    text-align: center;
     font-size: 13px;
   }
 
-  .footer-links a {
-    padding: 8px 0;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    -webkit-tap-highlight-color: transparent;
+  .footer-name {
+    font-size: 18px;
   }
 }
 

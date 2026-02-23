@@ -372,7 +372,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { extracurricularApi } from '@/api/extracurricular'
 import { teacherApi } from '@/api/teacher'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
 import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'
@@ -398,8 +398,10 @@ const editingItem = ref(null)
 const selectedEkskul = ref(null)
 const saving = ref(false)
 const formError = ref('')
+const referenceStore = useReferenceDataStore()
+const academicYears = computed(() => referenceStore.academicYears)
+
 const teachers = ref([])
-const academicYears = ref([])
 const semesters = ref([])
 const rooms = ref([])
 
@@ -760,15 +762,6 @@ async function loadTeachers() {
   }
 }
 
-async function loadAcademicYears() {
-  try {
-    const res = await academicYearApi.getAll({ per_page: 100 })
-    academicYears.value = res.data.data || []
-  } catch (_) {
-    academicYears.value = []
-  }
-}
-
 async function loadSemesters() {
   try {
     const res = await semesterApi.getAll({ per_page: 100 })
@@ -788,7 +781,7 @@ async function loadRooms() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadTeachers(), loadAcademicYears(), loadSemesters(), loadRooms(), loadList()])
+  await Promise.all([loadTeachers(), referenceStore.getAcademicYears(), loadSemesters(), loadRooms(), loadList()])
 })
 </script>
 

@@ -1,4 +1,4 @@
-# Checklist Rilis - servr
+# Checklist Rilis - servr.in
 
 ## Status: ✅ SIAP RILIS (dengan catatan)
 
@@ -117,6 +117,14 @@
 4. ✅ **Database transactions** - Untuk operasi kompleks
 5. ✅ **Validation** - Backend dan frontend
 6. ✅ **Bug fixes** - Bug kritis yang ditemukan sudah diperbaiki
+7. ✅ **API cache (reference data)** - Store `referenceData` untuk tahun ajaran & tugas tambahan (TTL 5 menit); dropdown di banyak halaman pakai cache, request duplikat berkurang
+8. ✅ **npm audit fix** - Dijalankan; vulnerability yang bisa diperbaiki otomatis sudah diperbaiki
+
+### ⚠️ Dependency audit – tindakan lanjutan (opsional)
+
+- **Backend:** `composer audit` melaporkan 23 advisory (utama: `phpoffice/phpexcel` via `maatwebsite/excel` v1.x). Untuk menghapus risiko: pertimbangkan upgrade ke `maatwebsite/excel` 3.x (migrasi ke PhpSpreadsheet). PHPUnit/PsySH/Symfony ada advisory; update ke patch version bila tersedia.
+- **Frontend:** Setelah `npm audit fix`, masih tersisa: **xlsx** (no fix, pertimbangkan ganti library jika import/export file sensitif) dan **vite/esbuild** (perbaikan tersedia via `npm audit fix --force` tetapi breaking; bisa ditunda).
+- **Berkala:** Jalankan `composer audit` dan `npm audit` secara terjadwal.
 
 ### 📋 Pre-Deployment Checklist
 

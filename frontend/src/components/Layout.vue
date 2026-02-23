@@ -24,15 +24,11 @@
     <nav class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="logo">
         <div class="logo-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <AppLogo :size="32" />
         </div>
         <div class="logo-text">
-          <h2>servr</h2>
-          <p>One Platform for Smarter Education</p>
+          <h2>{{ appName }}</h2>
+          <p>{{ appTagline }}</p>
         </div>
       </div>
       
@@ -219,7 +215,9 @@
 import { computed, ref, onMounted, onUnmounted, watch, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { appName, appTagline } from '@/config/app'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import AppLogo from '@/components/AppLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -290,6 +288,7 @@ const menuEntries = computed(() => {
       addVisible({ type: 'group', key: 'sistem', label: 'Sistem', icon: IconSettings, children: [
         { to: '/institution', label: 'Kelola Institusi', visible: true },
         { to: '/academic-year', label: 'Tahun Ajaran', visible: true },
+        { to: '/super-admin/app-branding', label: 'Branding Aplikasi', visible: true },
         { to: '/institution-change-requests', label: 'Request Perubahan', visible: true }
       ]})
     ]
@@ -460,6 +459,7 @@ const pageTitle = computed(() => {
     StudentChangeRequests: 'Permintaan Perubahan',
     StudentProfile: 'Profil Saya',
     SuperAdminDashboard: 'Dashboard Super Admin',
+    AppBranding: 'Branding Aplikasi',
     Institution: authStore.user?.role === 'super_admin' ? 'Kelola Institusi' : 'Profil Instansi',
     Student: 'Data Siswa',
     Teacher: 'Data Guru',

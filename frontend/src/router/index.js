@@ -66,6 +66,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
+      path: '/super-admin/app-branding',
+      name: 'AppBranding',
+      component: () => import('@/views/AppBranding.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
       path: '/student/dashboard',
       name: 'StudentDashboard',
       component: () => import('@/views/StudentDashboard.vue'),

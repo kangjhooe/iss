@@ -92,4 +92,65 @@ class PublicSchoolController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Statistik publik untuk halaman awal (tanpa auth).
+     * Total + breakdown per jenjang (level) dan per type (Negeri/Swasta).
+     */
+    public function stats(): JsonResponse
+    {
+        $base = Institution::where('is_active', true);
+
+        $institutionsCount = (clone $base)->count();
+
+        $byLevel = (clone $base)
+            ->selectRaw('level, count(*) as count')
+            ->groupBy('level')
+            ->pluck('count', 'level')
+            ->mapWithKeys(fn ($count, $level) => [$level ?? 'Lainnya' => (int) $count])
+            ->toArray();
+
+        $byType = (clone $base)
+            ->selectRaw('type, count(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type')
+            ->mapWithKeys(fn ($count, $type) => [$type ?? 'Lainnya' => (int) $count])
+            ->toArray();
+
+        return response()->json([
+            'data' => [
+                'institutions_count' => $institutionsCount,
+                'by_level' => $byLevel,
+                'by_type' => $byType,
+            ],
+        ]);
+    }
+
+    /**
+     * Daftar instansi yang baru bergabung (untuk slider di halaman awal).
+     * Hanya field aman untuk public, urut created_at desc.
+     */
+    public function recentInstitutions(Request $request): JsonResponse
+    {
+        $limit = min((int) $request->get('limit', 10), 20);
+
+        $institutions = Institution::where('is_active', true)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get(['id', 'name', 'npsn', 'level', 'type', 'logo', 'created_at']);
+
+        $data = $institutions->map(function (Institution $institution) {
+            return [
+                'id' => $institution->id,
+                'name' => $institution->name,
+                'npsn' => $institution->npsn,
+                'level' => $institution->level,
+                'type' => $institution->type,
+                'logo_url' => $institution->logo ? asset('storage/' . $institution->logo) : null,
+                'created_at' => $institution->created_at?->toIso8601String(),
+            ];
+        });
+
+        return response()->json(['data' => $data->values()->all()]);
+    }
 }

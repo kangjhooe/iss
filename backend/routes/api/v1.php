@@ -66,12 +66,13 @@ use App\Http\Controllers\API\PpdbChannelController;
 use App\Http\Controllers\API\PpdbApplicantController;
 use App\Http\Controllers\API\PublicPpdbController;
 use App\Http\Controllers\API\PublicSchoolController;
+use App\Http\Controllers\API\AppBrandingController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
 Route::get('/', function () {
     return response()->json([
-        'message' => 'servr API',
+        'message' => 'servr.in API',
         'version' => '1.0.0',
         'endpoints' => [
             'public' => [
@@ -137,6 +138,13 @@ Route::middleware('throttle:10,1')->post('/public/ppdb/register', [PublicPpdbCon
 // Public school landing: institusi by NPSN, buku tamu submit
 Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])->name('public.school.show');
 Route::middleware('throttle:5,1')->post('/public/guest-visit', [PublicSchoolController::class, 'storeGuestVisit'])->name('public.guest-visit.store');
+
+// Public landing stats & recent institutions (untuk halaman awal)
+Route::middleware('throttle:30,1')->get('/public/stats', [PublicSchoolController::class, 'stats'])->name('public.stats');
+Route::middleware('throttle:30,1')->get('/public/institutions/recent', [PublicSchoolController::class, 'recentInstitutions'])->name('public.institutions.recent');
+
+// App branding (logo & favicon) - public, no auth. Tidak mengubah logo institusi.
+Route::get('/app-branding', [AppBrandingController::class, 'show'])->name('app-branding.show');
 
 // Protected routes with rate limiting
 Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
@@ -370,6 +378,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/academic-years', [AcademicYearController::class, 'store'])->name('academic-years.store');
         Route::put('/academic-years/{id}', [AcademicYearController::class, 'update'])->name('academic-years.update');
         Route::delete('/academic-years/{id}', [AcademicYearController::class, 'destroy'])->name('academic-years.destroy');
+        // App branding (logo aplikasi & favicon)
+        Route::post('/app-branding/logo', [AppBrandingController::class, 'uploadLogo'])->name('app-branding.upload-logo');
+        Route::post('/app-branding/favicon', [AppBrandingController::class, 'uploadFavicon'])->name('app-branding.upload-favicon');
     });
 
     // Semester routes

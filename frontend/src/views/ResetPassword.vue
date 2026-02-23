@@ -3,11 +3,7 @@
     <div class="reset-password-card">
       <div class="card-header">
         <div class="logo">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#667eea"/>
-            <path d="M2 17L12 22L22 17" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <AppLogo :size="48" />
         </div>
         <h1>Reset Password</h1>
         <p>Masukkan password baru Anda</p>
@@ -155,6 +151,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { authApi } from '@/api/auth'
 import { validateForm, validators } from '@/utils/validation'
 import { useToast } from '@/composables/useToast'
+import AppLogo from '@/components/AppLogo.vue'
 
 const toast = useToast()
 const router = useRouter()

@@ -41,8 +41,12 @@ api.interceptors.response.use(
       }
     }
     
-    // Format error message untuk ditampilkan ke user
-    if (error.response?.data?.message) {
+    // Format error message untuk ditampilkan ke user (untuk 422 utamakan errors agar user lihat alasan spesifik)
+    if (error.response?.status === 422 && error.response?.data?.errors) {
+      const errors = error.response.data.errors
+      const firstError = Object.values(errors)[0]
+      error.formattedMessage = Array.isArray(firstError) ? firstError[0] : firstError
+    } else if (error.response?.data?.message) {
       error.formattedMessage = error.response.data.message
     } else if (error.response?.data?.error) {
       // Handle error field from backend

@@ -1,7 +1,7 @@
 {
-    "name": "servr/backend",
+    "name": "servr-in/backend",
     "type": "project",
-    "description": "servr - One Platform for Smarter Education - Backend API",
+    "description": "servr.in - One Platform for Smarter Education - Backend API",
     "keywords": ["laravel", "framework", "school", "management"],
     "license": "MIT",
     "require": {

@@ -402,7 +402,7 @@ import { counselingApi, counselingTypeApi } from '@/api/counseling'
 import { studentApi } from '@/api/student'
 import { classApi } from '@/api/class'
 import { institutionApi } from '@/api/institution'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
 import { useToast } from '@/composables/useToast'
 
@@ -444,9 +444,11 @@ const filters = ref({
   date_from: '',
   date_to: '',
 })
+const referenceStore = useReferenceDataStore()
+const academicYears = computed(() => referenceStore.academicYears)
+
 const institution = ref(null)
 const classes = ref([])
-const academicYears = ref([])
 const semesters = ref([])
 const exporting = ref(false)
 
@@ -584,15 +586,6 @@ async function loadClasses() {
     classes.value = res.data.data || []
   } catch {
     classes.value = []
-  }
-}
-
-async function loadAcademicYears() {
-  try {
-    const res = await academicYearApi.getAll({ per_page: 50 })
-    academicYears.value = res.data.data || []
-  } catch {
-    academicYears.value = []
   }
 }
 
@@ -907,7 +900,7 @@ onMounted(async () => {
   }
   await Promise.all([
     loadInstitutionAndSetFilterDefaults(),
-    loadAcademicYears(),
+    referenceStore.getAcademicYears(),
     loadSemesters(),
   ])
   loadSessions()

@@ -142,11 +142,13 @@ import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { studentApi } from '@/api/student'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { classApi } from '@/api/class'
 import { semesterApi } from '@/api/semester'
 
-const academicYears = ref([])
+const referenceStore = useReferenceDataStore()
+const academicYears = computed(() => referenceStore.academicYears)
+
 const sourceClasses = ref([])
 const targetClasses = ref([])
 const targetSemesters = ref([])
@@ -167,15 +169,6 @@ const failedList = ref([])
 const selectedAll = computed(() => {
   return sourceStudents.value.length > 0 && selectedIds.value.length === sourceStudents.value.length
 })
-
-async function loadAcademicYears() {
-  try {
-    const res = await academicYearApi.getAll({ per_page: 50 })
-    academicYears.value = res.data?.data ?? []
-  } catch {
-    academicYears.value = []
-  }
-}
 
 async function loadSourceClasses() {
   if (!sourceAcademicYearId.value) {
@@ -304,7 +297,7 @@ async function doPromote() {
 }
 
 onMounted(() => {
-  loadAcademicYears()
+  referenceStore.getAcademicYears()
 })
 
 watch(sourceAcademicYearId, () => {

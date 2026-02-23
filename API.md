@@ -1,4 +1,4 @@
-# API Documentation – servr
+# API Documentation – servr.in
 
 Semua endpoint memakai prefix **`/api/v1`**. Route protected membutuhkan header: **`Authorization: Bearer <token>`**.  
 Rate limit: auth 5 req/menit, protected 60 req/menit.

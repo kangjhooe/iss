@@ -1728,8 +1728,11 @@ const printCorrespondence = async (id) => {
 }
 
 const getFileUrl = (item) => {
+  if (item.file_url) return item.file_url
   if (item.file_path) {
-    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/storage/${item.file_path}`
+    const base = import.meta.env.VITE_API_BASE_URL
+    const origin = base && !base.startsWith('/') ? new URL(base).origin : window.location.origin
+    return `${origin}/storage/${item.file_path}`
   }
   return '#'
 }

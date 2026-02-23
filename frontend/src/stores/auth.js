@@ -79,7 +79,8 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.isAuthenticated = false
         clearAuth()
-        router.push('/login')
+        // Full reload ke /login agar cookie/state bersih dan request login berikutnya tidak terpengaruh cache atau state lama
+        window.location.href = '/login'
       }
     },
 

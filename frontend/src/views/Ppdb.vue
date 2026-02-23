@@ -606,18 +606,20 @@ import Layout from '@/components/Layout.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { ppdbPeriodApi, ppdbChannelApi, ppdbApplicantApi } from '@/api/ppdb'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { classApi } from '@/api/class'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 const activeTab = ref('periods')
 
+const referenceStore = useReferenceDataStore()
+const academicYears = computed(() => referenceStore.academicYears)
+
 const periods = ref([])
 const periodsLoading = ref(false)
 const channels = ref([])
 const channelsLoading = ref(false)
-const academicYears = ref([])
 const applicants = ref([])
 const applicantsLoading = ref(false)
 const applicantsPagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
@@ -719,15 +721,6 @@ async function loadStatistics() {
     toast.error(e.formattedMessage || 'Gagal memuat statistik')
   } finally {
     statsLoading.value = false
-  }
-}
-
-async function loadAcademicYears() {
-  try {
-    const res = await academicYearApi.getAll({ per_page: 100 })
-    academicYears.value = res.data.data || []
-  } catch {
-    academicYears.value = []
   }
 }
 
@@ -1159,7 +1152,7 @@ async function doDeleteApplicant() {
 }
 
 onMounted(() => {
-  loadAcademicYears()
+  referenceStore.getAcademicYears()
   loadPeriods()
   loadChannels()
   if (activeTab.value === 'applicants') loadApplicants()

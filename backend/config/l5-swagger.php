@@ -7,7 +7,7 @@ return [
         | Edit to set the api's title
         |--------------------------------------------------------------------------
         */
-        'title' => 'servr API',
+        'title' => 'servr.in API',
     ],
 
     'routes' => [

@@ -742,7 +742,7 @@ import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { institutionApi } from '@/api/institution'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
-import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
@@ -756,6 +756,8 @@ import { useRouter } from 'vue-router'
 const toast = useToast()
 const router = useRouter()
 const authStore = useAuthStore()
+const referenceStore = useReferenceDataStore()
+const academicYears = computed(() => referenceStore.academicYears)
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const institution = ref(null)
@@ -770,7 +772,6 @@ const requesting = ref(false)
 const requestError = ref('')
 const pendingRequests = ref({ name: null, npsn: null })
 const showAcademicYearModal = ref(false)
-const academicYears = ref([])
 const updatingAcademicYear = ref(false)
 const academicYearError = ref('')
 const logoInput = ref(null)
@@ -1076,26 +1077,6 @@ const handleUpdate = async () => {
   }
 }
 
-const loadAcademicYears = async () => {
-  try {
-    const response = await academicYearApi.getAll({ per_page: 100 })
-    // Handle both paginated and non-paginated responses
-    if (response.data.data) {
-      academicYears.value = Array.isArray(response.data.data) ? response.data.data : []
-    } else if (Array.isArray(response.data)) {
-      academicYears.value = response.data
-    } else {
-      academicYears.value = []
-    }
-  } catch (err) {
-    console.error('Failed to load academic years:', err)
-    const errorMsg = err.response?.data?.message || err.formattedMessage || 'Gagal memuat data tahun ajaran'
-    toast.error('Gagal', errorMsg)
-    academicYears.value = []
-  }
-}
-
-
 const handleAcademicYearChange = () => {
   // Reset semester selection when academic year changes
   academicYearForm.value.semester_name = ''
@@ -1114,7 +1095,7 @@ const openAcademicYearModal = async () => {
   }
   academicYearError.value = ''
   showAcademicYearModal.value = true
-  await loadAcademicYears()
+  await referenceStore.getAcademicYears()
 }
 
 const handleUpdateAcademicYear = async () => {

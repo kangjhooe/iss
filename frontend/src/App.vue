@@ -10,10 +10,22 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { appName, appTagline } from '@/config/app'
 import Toast from '@/components/Toast.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
 import OfflineStatus from '@/components/OfflineStatus.vue'
+import { useAppBrandingStore } from '@/stores/appBranding'
+
+onMounted(() => {
+  document.title = `${appName} - ${appTagline}`
+  const desc = document.querySelector('meta[name="description"]')
+  if (desc) desc.setAttribute('content', `${appName} - ${appTagline}. Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia. Kelola profil institusi, data siswa, guru, fasilitas, kelas, laporan, dan surat-menyurat dalam satu platform.`)
+  const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]')
+  if (appleTitle) appleTitle.setAttribute('content', appName)
+  useAppBrandingStore().fetchBranding()
+})
 </script>
 
 <style>

@@ -1,4 +1,4 @@
-# servr
+# servr.in
 
 **One Platform for Smarter Education**
 

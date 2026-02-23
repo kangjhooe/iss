@@ -3,11 +3,7 @@
     <div class="register-card">
       <div class="card-header">
         <div class="logo">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#667eea"/>
-            <path d="M2 17L12 22L22 17" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <AppLogo :size="48" />
         </div>
         <h1>Daftar Sekolah Baru</h1>
         <p>Buat akun untuk sekolah Anda</p>
@@ -107,13 +103,13 @@
         
         <div class="form-group">
           <label>Password *</label>
-          <div class="input-wrapper">
+          <div class="input-wrapper input-wrapper-password">
             <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <input 
-              type="password" 
+              :type="showPassword ? 'text' : 'password'" 
               v-model="form.password" 
               :class="{ 'input-error': fieldErrors.password }"
               placeholder="Minimal 8 karakter"
@@ -125,24 +121,54 @@
                 }
               }"
             />
+            <button
+              type="button"
+              class="password-toggle"
+              :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
+              @click="showPassword = !showPassword"
+            >
+              <svg v-if="!showPassword" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
           </div>
           <span v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</span>
         </div>
         
         <div class="form-group">
           <label>Konfirmasi Password *</label>
-          <div class="input-wrapper">
+          <div class="input-wrapper input-wrapper-password">
             <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <input 
-              type="password" 
+              :type="showPasswordConfirm ? 'text' : 'password'" 
               v-model="form.password_confirmation" 
               :class="{ 'input-error': fieldErrors.password_confirmation }"
               placeholder="Ulangi password"
               @blur="() => validateField('password_confirmation')"
             />
+            <button
+              type="button"
+              class="password-toggle"
+              :aria-label="showPasswordConfirm ? 'Sembunyikan password' : 'Tampilkan password'"
+              @click="showPasswordConfirm = !showPasswordConfirm"
+            >
+              <svg v-if="!showPasswordConfirm" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
           </div>
           <span v-if="fieldErrors.password_confirmation" class="error-text">{{ fieldErrors.password_confirmation }}</span>
         </div>
@@ -194,6 +220,7 @@ import { useAuthStore } from '@/stores/auth'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
+import AppLogo from '@/components/AppLogo.vue'
 
 const toast = useToast()
 
@@ -213,6 +240,8 @@ const form = ref({ ...initialForm })
 
 const loading = ref(false)
 const error = ref('')
+const showPassword = ref(false)
+const showPasswordConfirm = ref(false)
 const validationRules = {
   npsn: [
     (value) => validators.required(value, 'NPSN wajib diisi'),
@@ -306,35 +335,121 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
+/* Background dengan gradient animasi & ornamen */
 .register-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
   padding: 24px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 25%, #f8fafc 50%, #eef2ff 75%, #f0f4ff 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
 }
 
+.register-container::before,
+.register-container::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: float 20s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.register-container::before {
+  width: 400px;
+  height: 400px;
+  background: rgba(102, 126, 234, 0.15);
+  top: -100px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.register-container::after {
+  width: 300px;
+  height: 300px;
+  background: rgba(118, 75, 162, 0.12);
+  bottom: -80px;
+  left: -80px;
+  animation-delay: -8s;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+/* Card masuk dengan animasi */
 .register-card {
   width: 100%;
   max-width: 480px;
-  background: white;
-  border-radius: 16px;
-  padding: 48px 40px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
   max-height: 90vh;
   overflow-y: auto;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 48px 40px;
+  box-shadow: 0 4px 24px rgba(102, 126, 234, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  position: relative;
+  z-index: 1;
+  animation: cardEnter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .card-header {
   text-align: center;
   margin-bottom: 32px;
+  animation: fadeInDown 0.5s ease 0.15s both;
 }
 
 .logo {
   display: flex;
   justify-content: center;
   margin-bottom: 24px;
+  animation: logoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes logoPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .card-header h1 {
@@ -357,6 +472,28 @@ const handleRegister = async () => {
 
 .form-group {
   margin-bottom: 18px;
+  animation: formGroupIn 0.35s ease both;
+}
+
+.form-group:nth-child(1) { animation-delay: 0.2s; }
+.form-group:nth-child(2) { animation-delay: 0.28s; }
+.form-group:nth-child(3) { animation-delay: 0.36s; }
+.form-group:nth-child(4) { animation-delay: 0.44s; }
+.form-group:nth-child(5) { animation-delay: 0.52s; }
+.form-group:nth-child(6) { animation-delay: 0.6s; }
+.form-group:nth-child(7) { animation-delay: 0.68s; }
+.form-group:nth-child(8) { animation-delay: 0.76s; }
+.form-group:nth-child(9) { animation-delay: 0.84s; }
+
+@keyframes formGroupIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .form-group label {
@@ -379,23 +516,67 @@ const handleRegister = async () => {
   color: #94a3b8;
   pointer-events: none;
   z-index: 1;
+  transition: color 0.25s ease, transform 0.25s ease;
 }
 
 .form-group input {
   width: 100%;
   padding: 12px 14px 12px 44px;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
-  transition: all 0.15s ease;
+  transition: all 0.25s ease;
   background: white;
   color: #0f172a;
+}
+
+.input-wrapper-password input {
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.password-toggle:focus {
+  outline: none;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.12);
+}
+
+.form-group input:hover {
+  border-color: #cbd5e1;
 }
 
 .form-group input:focus {
   outline: none;
   border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
+  transform: translateY(-1px);
+}
+
+.form-group:focus-within .input-icon {
+  color: #667eea;
+  transform: scale(1.08);
 }
 
 .form-group input::placeholder {
@@ -405,6 +586,15 @@ const handleRegister = async () => {
 .form-group input.input-error {
   border-color: #dc2626;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
 
 .error-text {
@@ -412,6 +602,12 @@ const handleRegister = async () => {
   margin-top: 4px;
   color: #dc2626;
   font-size: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .form-hint {
@@ -424,32 +620,38 @@ const handleRegister = async () => {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   margin-top: 8px;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+  animation: formGroupIn 0.35s ease 0.9s both;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+  background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
 }
 
 .btn-primary:active:not(:disabled) {
-  background: #4c5bc4;
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
 }
 
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .loading-spinner {
@@ -472,12 +674,13 @@ const handleRegister = async () => {
   padding: 12px 14px;
   background: #fef2f2;
   color: #dc2626;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 13px;
   display: flex;
   align-items: center;
   gap: 10px;
   border: 1px solid #fecaca;
+  animation: fadeIn 0.3s ease, shake 0.4s ease;
 }
 
 .error-message svg {
@@ -489,6 +692,7 @@ const handleRegister = async () => {
   text-align: center;
   padding-top: 24px;
   border-top: 1px solid #e2e8f0;
+  animation: fadeIn 0.5s ease 0.95s both;
 }
 
 .card-footer p {
@@ -509,27 +713,51 @@ const handleRegister = async () => {
   color: #64748b;
   text-decoration: none;
   font-size: 14px;
-  transition: color 0.15s ease;
+  transition: all 0.25s ease;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .back-link:hover {
   color: #475569;
+  background: rgba(0, 0, 0, 0.04);
+  transform: translateX(-2px);
 }
 
 .back-link svg {
   flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.back-link:hover svg {
+  transform: translateX(-2px);
 }
 
 .link {
   color: #667eea;
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.15s ease;
+  transition: all 0.25s ease;
 }
 
 .link:hover {
   color: #5568d3;
   text-decoration: underline;
+}
+
+/* Kurangi motion untuk aksesibilitas */
+@media (prefers-reduced-motion: reduce) {
+  .register-container,
+  .register-container::before,
+  .register-container::after,
+  .register-card,
+  .card-header,
+  .logo,
+  .form-group,
+  .btn-primary,
+  .card-footer {
+    animation: none !important;
+  }
 }
 
 @media (max-width: 640px) {

@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 /**
  * @OA\Info(
- *     title="servr API",
+ *     title="servr.in API",
  *     version="1.0.0",
  *     description="API untuk sistem manajemen sekolah terintegrasi",
  *     @OA\Contact(

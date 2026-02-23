@@ -17,8 +17,8 @@ class UpdateInstitutionRequest extends FormRequest
             ? \App\Models\Institution::find($institutionId)
             : $institutionId;
         
-        // Admin can update any, institution admin can only update their own
-        if ($this->user()?->isAdmin()) {
+        // Super admin dan admin dapat mengubah instansi mana pun; admin sekolah hanya instansi sendiri
+        if ($this->user()?->isAdminOrSuperAdmin()) {
             return true;
         }
         

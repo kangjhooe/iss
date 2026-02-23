@@ -194,11 +194,13 @@ import { ref, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { academicYearApi } from '@/api/academicYear'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const toast = useToast()
+const referenceDataStore = useReferenceDataStore()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const academicYears = ref([])
@@ -273,6 +275,7 @@ const deleteAcademicYear = async (id) => {
   try {
     await academicYearApi.delete(id)
     toast.success('Berhasil', 'Tahun ajaran berhasil dihapus')
+    referenceDataStore.invalidateAcademicYears()
     loadAcademicYears()
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus tahun ajaran'
@@ -303,6 +306,7 @@ const saveAcademicYear = async () => {
       toast.success('Berhasil', 'Tahun ajaran berhasil ditambahkan')
     }
 
+    referenceDataStore.invalidateAcademicYears()
     closeModal()
     loadAcademicYears()
   } catch (err) {
