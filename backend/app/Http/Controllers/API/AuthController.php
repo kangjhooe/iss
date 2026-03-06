@@ -9,6 +9,8 @@ use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RefreshTokenRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
+use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
@@ -368,6 +370,96 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat mengambil data user',
+            ], 500);
+        }
+    }
+
+    /**
+     * Update authenticated user profile (name, email).
+     */
+    public function updateProfile(UpdateProfileRequest $request)
+    {
+        try {
+            $user = $request->user();
+            $validated = $request->validated();
+
+            $updateData = [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+            ];
+
+            // Jika email berubah, reset verifikasi email agar pemilik email baru dapat memverifikasi
+            if (strtolower($user->email) !== strtolower($validated['email'])) {
+                $updateData['email_verified_at'] = null;
+            }
+
+            $user->update($updateData);
+
+            $loads = ['institution', 'permissions'];
+            if ($user->role === 'student') {
+                $loads[] = 'studentProfile.schoolClass';
+                $loads[] = 'studentProfile.institution';
+            }
+            if ($user->role === 'teacher' || $user->role === 'staff') {
+                $loads[] = 'teacherProfile';
+            }
+
+            Log::info('User profile updated', ['user_id' => $user->id]);
+
+            return response()->json([
+                'message' => 'Profil berhasil diperbarui',
+                'user' => new UserResource($user->load($loads)),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Update profile failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memperbarui profil',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+            ], 500);
+        }
+    }
+
+    /**
+     * Change authenticated user password.
+     */
+    public function changePassword(ChangePasswordRequest $request)
+    {
+        try {
+            $user = $request->user();
+            $validated = $request->validated();
+
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                throw ValidationException::withMessages([
+                    'current_password' => ['Sandi saat ini salah.'],
+                ]);
+            }
+
+            $user->update([
+                'password' => Hash::make($validated['password']),
+            ]);
+
+            $user->resetFailedLoginAttempts();
+
+            Log::info('User password changed', ['user_id' => $user->id]);
+
+            return response()->json([
+                'message' => 'Sandi berhasil diubah. Silakan gunakan sandi baru untuk login berikutnya.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Change password failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengubah sandi',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }

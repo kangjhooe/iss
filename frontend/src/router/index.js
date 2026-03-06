@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import QuestionBank from '@/views/OnlineExam/QuestionBank.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -123,6 +124,12 @@ const router = createRouter({
       path: '/student/permintaan-perubahan',
       name: 'StudentChangeRequests',
       component: () => import('@/views/StudentChangeRequests.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/absensi',
+      name: 'StudentAttendance',
+      component: () => import('@/views/StudentAttendance.vue'),
       meta: { requiresAuth: true, requiresStudent: true }
     },
     {
@@ -360,6 +367,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/pengaturan-akun',
+      name: 'AccountSettings',
+      component: () => import('@/views/AccountSettings.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/audit-log',
       name: 'AuditLog',
       component: () => import('@/views/AuditLog.vue'),
@@ -370,6 +383,74 @@ const router = createRouter({
       name: 'Ppdb',
       component: () => import('@/views/Ppdb.vue'),
       meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/ujian-online',
+      name: 'OnlineExam',
+      redirect: { name: 'OnlineExamList' }
+    },
+    {
+      path: '/ujian-online/exams',
+      name: 'OnlineExamList',
+      component: () => import('@/views/OnlineExam/ExamList.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/exams/buat',
+      name: 'OnlineExamCreate',
+      component: () => import('@/views/OnlineExam/ExamForm.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/exams/:code',
+      name: 'OnlineExamDetail',
+      component: () => import('@/views/OnlineExam/ExamDetail.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/exams/:code/edit',
+      name: 'OnlineExamEdit',
+      component: () => import('@/views/OnlineExam/ExamForm.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/sesi',
+      name: 'OnlineExamSessions',
+      component: () => import('@/views/OnlineExam/SessionList.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/sesi/:id',
+      name: 'OnlineExamSessionDetail',
+      component: () => import('@/views/OnlineExam/SessionDetail.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/bank-soal',
+      name: 'OnlineExamBank',
+      component: () => import('@/views/OnlineExam/BankSoalList.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/bank-soal/:bankId/soal',
+      name: 'OnlineExamBankSoal',
+      component: QuestionBank,
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/bank-soal/:bankId/stimulus',
+      name: 'OnlineExamBankStimulus',
+      component: () => import('@/views/OnlineExam/StimulusList.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/stimulus',
+      redirect: '/ujian-online/bank-soal'
+    },
+    {
+      path: '/ujian-ikuti',
+      name: 'ExamTake',
+      component: () => import('@/views/OnlineExam/ExamTake.vue')
     },
     {
       path: '/:npsn',

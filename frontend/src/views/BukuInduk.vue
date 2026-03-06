@@ -1,30 +1,21 @@
 <template>
   <Layout>
     <div class="buku-induk-page">
-      <div class="page-header">
-        <div class="header-content">
-          <router-link to="/student" class="back-link">← Kembali ke Daftar Siswa</router-link>
-          <div class="header-row">
-            <div>
-              <h1 class="page-title">Buku Induk Siswa</h1>
-              <p v-if="data?.student" class="page-subtitle">{{ data.student.name }} ({{ data.student.nis || data.student.nisn || '-' }})</p>
-            </div>
-            <div class="header-actions">
-              <button
-                v-if="data"
-                @click="downloadPdf"
-                class="btn-primary btn-compact"
-                :disabled="downloadingPdf"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>{{ downloadingPdf ? 'Mengunduh...' : 'Cetak PDF' }}</span>
-              </button>
-            </div>
-          </div>
+      <div class="tab-header">
+        <router-link to="/student" class="back-link">← Kembali ke Daftar Siswa</router-link>
+        <div v-if="data" class="header-actions">
+          <button
+            @click="downloadPdf"
+            class="btn-primary btn-compact"
+            :disabled="downloadingPdf"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ downloadingPdf ? 'Mengunduh...' : 'Cetak PDF' }}</span>
+          </button>
         </div>
       </div>
 
@@ -495,16 +486,29 @@ onMounted(() => load())
 <style scoped>
 .buku-induk-page {
   padding: 0 0 2rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
 }
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+
 .back-link {
   display: inline-block;
-  margin-bottom: 12px;
-  color: var(--color-primary, #2563eb);
+  color: #059669;
   text-decoration: none;
   font-size: 0.95rem;
+  font-weight: 500;
 }
 .back-link:hover {
   text-decoration: underline;
+  color: #047857;
 }
 .header-row {
   display: flex;
@@ -525,6 +529,28 @@ onMounted(() => load())
 .header-actions {
   flex-shrink: 0;
 }
+
+.btn-primary.btn-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.btn-primary.btn-compact:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+}
+.btn-primary.btn-compact:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .loading-wrap,
 .error-wrap {
   width: 100%;

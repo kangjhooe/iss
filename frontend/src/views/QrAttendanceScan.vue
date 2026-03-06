@@ -291,7 +291,7 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -339,7 +339,7 @@ onMounted(async () => {
 
 .btn-link {
   margin-top: 0.5rem;
-  color: #0ea5e9;
+  color: #059669;
   background: none;
   border: none;
   cursor: pointer;
@@ -403,7 +403,7 @@ onMounted(async () => {
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 8px;
-  background: #0ea5e9;
+  background: #059669;
   color: #fff;
   cursor: pointer;
 }

@@ -27,6 +27,8 @@ class InstitutionResource extends JsonResource
             'sub_district' => $this->sub_district,
             'district' => $this->district,
             'province' => $this->province,
+            'province_code' => $this->province_code,
+            'district_code' => $this->district_code,
             'postal_code' => $this->postal_code,
             'phone' => $this->phone,
             'email' => $this->email,
@@ -34,8 +36,14 @@ class InstitutionResource extends JsonResource
             'principal_name' => $this->principal_name,
             'principal_nip' => $this->principal_nip,
             'description' => $this->description,
+            'vision' => $this->vision,
+            'mission' => $this->mission,
             'logo' => $this->logo ? url('/api/v1/institution/' . $this->id . '/logo') : null,
+            'cover_image' => $this->cover_image ? asset('storage/' . $this->cover_image) : null,
             'is_active' => $this->is_active,
+            'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
+            'longitude' => $this->longitude !== null ? (float) $this->longitude : null,
+            'location_radius' => $this->location_radius !== null ? (int) $this->location_radius : null,
             'users_count' => $this->whenLoaded('users', function () {
                 return $this->users->count();
             }),

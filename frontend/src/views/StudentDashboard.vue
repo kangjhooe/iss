@@ -1,13 +1,15 @@
 <template>
-  <Layout>
-    <div class="dashboard">
+  <div class="dashboard-page">
+    <div class="dashboard-main">
+      <Layout>
+        <div class="dashboard">
       <div v-if="!studentId && authStore.user?.role === 'student'" class="alert alert-warning">
         <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah. Silakan hubungi operator sekolah atau admin.
       </div>
 
       <div class="welcome-section">
         <div class="welcome-content">
-          <h1>Selamat Datang, {{ studentName }}!</h1>
+          <h1>{{ greeting }}, {{ studentName }}!</h1>
           <p v-if="institutionName">{{ institutionName }}</p>
           <p v-else class="loading">Memuat data...</p>
           <div v-if="classInfo" class="welcome-meta">
@@ -76,6 +78,12 @@
               <path d="M21 12V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span>Nilai Saya</span>
+          </router-link>
+          <router-link to="/ujian-ikuti" class="quick-action-card">
+            <svg class="quick-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Ikuti Ujian</span>
           </router-link>
           <router-link to="/student/pelanggaran-prestasi" class="quick-action-card">
             <svg class="quick-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -228,12 +236,16 @@
         </div>
       </section>
     </div>
-  </Layout>
+      </Layout>
+    </div>
+    <HelpSidebar />
+  </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import HelpSidebar from '@/components/HelpSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { gradeBookApi } from '@/api/gradeBook'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
@@ -247,6 +259,13 @@ const authStore = useAuthStore()
 
 const studentId = computed(() => authStore.user?.student_profile?.id)
 const studentName = computed(() => authStore.user?.name || 'Siswa')
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 11) return 'Selamat pagi'
+  if (hour >= 11 && hour < 15) return 'Selamat siang'
+  if (hour >= 15 && hour < 18) return 'Selamat sore'
+  return 'Selamat malam'
+})
 const institutionName = computed(() => authStore.user?.institution?.name || null)
 const classInfo = computed(() => {
   const sp = authStore.user?.student_profile
@@ -443,6 +462,20 @@ async function loadUpcomingEvents() {
 </script>
 
 <style scoped>
+.dashboard-page {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 24%, #f1f5f9 100%);
+}
+
+.dashboard-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .dashboard {
   width: 100%;
   max-width: 100%;
@@ -450,7 +483,7 @@ async function loadUpcomingEvents() {
 }
 
 .welcome-section {
-  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-radius: 12px;
   padding: 24px 32px;
   margin-bottom: 24px;
@@ -512,8 +545,8 @@ async function loadUpcomingEvents() {
 }
 
 .stat-card-link:hover {
-  border-color: #0ea5e9;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
+  border-color: #059669;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.15);
 }
 
 .stat-icon {
@@ -527,8 +560,8 @@ async function loadUpcomingEvents() {
 }
 
 .stat-card-primary .stat-icon {
-  background: rgba(14, 165, 233, 0.12);
-  color: #0ea5e9;
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
 }
 
 .stat-card-warning .stat-icon {
@@ -622,7 +655,7 @@ async function loadUpcomingEvents() {
 
 .quick-action-icon {
   flex-shrink: 0;
-  color: #0ea5e9;
+  color: #059669;
 }
 
 .content-section {
@@ -657,16 +690,16 @@ async function loadUpcomingEvents() {
 .section-link {
   font-size: 13px;
   font-weight: 600;
-  color: #0ea5e9;
+  color: #059669;
   text-decoration: none;
   padding: 6px 12px;
   border-radius: 8px;
-  background: rgba(14, 165, 233, 0.1);
+  background: rgba(5, 150, 105, 0.1);
   transition: background 0.2s;
 }
 
 .section-link:hover {
-  background: rgba(14, 165, 233, 0.2);
+  background: rgba(5, 150, 105, 0.2);
 }
 
 .alert {

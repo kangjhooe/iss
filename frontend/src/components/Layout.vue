@@ -28,7 +28,6 @@
         </div>
         <div class="logo-text">
           <h2>{{ appName }}</h2>
-          <p>{{ appTagline }}</p>
         </div>
       </div>
       
@@ -61,7 +60,7 @@
                   :key="child.to"
                   :to="child.to"
                   class="nav-subitem"
-                  active-class="nav-subitem--active"
+                  :class="{ 'nav-subitem--active': child.active }"
                 >
                   {{ child.label }}
                 </router-link>
@@ -71,8 +70,15 @@
         </template>
       </ul>
       
-      <div class="user-section">
-        <div class="user-info">
+      <div class="user-section" ref="userMenuRef">
+        <button
+          type="button"
+          class="user-menu-trigger"
+          @click.stop="userMenuOpen = !userMenuOpen"
+          :aria-expanded="userMenuOpen"
+          aria-haspopup="true"
+          aria-label="Menu akun"
+        >
           <div class="user-avatar">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -83,15 +89,35 @@
             <p class="user-name">{{ authStore.user?.name || 'User' }}</p>
             <p class="user-email">{{ authStore.user?.email || 'email@example.com' }}</p>
           </div>
-        </div>
-        <button @click="handleLogout" class="btn-logout">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg class="user-menu-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" :class="{ 'user-menu-chevron--open': userMenuOpen }">
+            <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span>Keluar</span>
         </button>
+        <Transition name="user-menu">
+          <div v-show="userMenuOpen" class="user-menu-dropdown" role="menu">
+            <router-link
+              to="/pengaturan-akun"
+              class="user-menu-item"
+              :class="{ 'user-menu-item--active': $route.path === '/pengaturan-akun' }"
+              role="menuitem"
+              @click="userMenuOpen = false"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3v2M12 19v2M3 12h2M19 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>Pengaturan akun</span>
+            </router-link>
+            <button type="button" class="user-menu-item user-menu-item--logout" role="menuitem" @click="handleLogout">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Keluar</span>
+            </button>
+          </div>
+        </Transition>
       </div>
     </nav>
     
@@ -204,6 +230,10 @@
             <path d="M4 4.5C4 3.67157 4.67157 3 5.5 3H18.5C19.3284 3 20 3.67157 20 4.5C20 5.32843 19.3284 6 18.5 6H5.5C4.67157 6 4 5.32843 4 4.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M4 12C4 11.1716 4.67157 10.5 5.5 10.5H18.5C19.3284 10.5 20 11.1716 20 12C20 12.8284 19.3284 13.5 18.5 13.5H5.5C4.67157 13.5 4 12.8284 4 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
+          <svg v-else-if="item.icon === 'settings'" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 3v2M12 19v2M3 12h2M19 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </span>
         <span class="bottom-nav-label">{{ item.label }}</span>
       </router-link>
@@ -215,7 +245,7 @@
 import { computed, ref, onMounted, onUnmounted, watch, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { appName, appTagline } from '@/config/app'
+import { appName } from '@/config/app'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import AppLogo from '@/components/AppLogo.vue'
 
@@ -223,8 +253,10 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const MOBILE_BREAKPOINT = 1024
+const MOBILE_BREAKPOINT = 768
 const sidebarOpen = ref(false)
+const userMenuOpen = ref(false)
+const userMenuRef = ref(null)
 const expandedGroups = ref(new Set())
 
 // Top-level menu icons (only these use icons per spec)
@@ -233,17 +265,17 @@ const IconDashboard = () => h('svg', { class: 'nav-icon', width: 20, height: 20,
   h('path', { d: 'M9 22V12H15V22', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 const IconDatabase = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
-  h('path', { d: 'M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-  h('path', { d: 'M9 7H15M9 12H15M9 17H13', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+  h('path', { d: 'M4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M4 7c0 2.21 3.58 4 8 4s8-1.79 8-4-3.58-4-8-4-8 1.79-8 4z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M4 7c0-2.21 3.58-4 8-4s8 1.79 8 4', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 const IconAcademic = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
-  h('path', { d: 'M4 19.5C4 18.6716 4.67157 18 5.5 18H18.5C19.3284 18 20 18.6716 20 19.5C20 20.3284 19.3284 21 18.5 21H5.5C4.67157 21 4 20.3284 4 19.5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-  h('path', { d: 'M4 4.5C4 3.67157 4.67157 3 5.5 3H18.5C19.3284 3 20 3.67157 20 4.5C20 5.32843 19.3284 6 18.5 6H5.5C4.67157 6 4 5.32843 4 4.5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-  h('path', { d: 'M4 12C4 11.1716 4.67157 10.5 5.5 10.5H18.5C19.3284 10.5 20 11.1716 20 12C20 12.8284 19.3284 13.5 18.5 13.5H5.5C4.67157 13.5 4 12.8284 4 12Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+  h('path', { d: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 const IconStudents = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
-  h('path', { d: 'M17 8L21 12L17 16', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-  h('path', { d: 'M3 12H21', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+  h('path', { d: 'M12 3L2 9l10 6 10-6L12 3z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M2 9v10l10 5 10-5V9', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 const IconAdmin = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
@@ -257,6 +289,32 @@ const IconAttendance = () => h('svg', { class: 'nav-icon', width: 20, height: 20
   h('path', { d: 'M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 12L11 14L15 10', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconGrade = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M9 19V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M3 19V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M15 19V15a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconCounseling = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconPoints = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconModuleAccess = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconAuditLog = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M14 2v6h6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M16 13H8', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M16 17H8', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M10 9H8', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconExam = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M9 12h6M9 16h6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 
 const canAccessModule = (moduleKey) => {
@@ -278,8 +336,23 @@ function getDashboardTo() {
 
 const menuEntries = computed(() => {
   const role = authStore.user?.role
+  const path = route.path
   const addVisible = (group) => {
-    const visible = (group.children || []).filter(c => c.visible)
+    const visible = (group.children || []).filter(c => c.visible).map(c => {
+      const toPath = c.to?.split('?')[0] ?? c.to
+      let active = !!toPath && (path === toPath || path.startsWith(toPath + '/'))
+      if (active && c.to?.includes('?')) {
+        const qs = c.to.split('?')[1] || ''
+        const params = new URLSearchParams(qs)
+        for (const [k, v] of params) {
+          if (route.query[k] !== v) {
+            active = false
+            break
+          }
+        }
+      }
+      return { ...c, active }
+    })
     return { ...group, visibleChildren: visible }
   }
   if (role === 'super_admin') {
@@ -297,11 +370,13 @@ const menuEntries = computed(() => {
     return [
       { type: 'link', key: 'dashboard', to: '/student/dashboard', label: 'Dashboard', icon: IconDashboard },
       { type: 'link', key: 'student-schedule', to: '/student/jadwal', label: 'Jadwal Saya', icon: IconAcademic },
-      { type: 'link', key: 'student-grades', to: '/student/nilai', label: 'Nilai Saya', icon: IconAttendance },
+      { type: 'link', key: 'student-attendance', to: '/student/absensi', label: 'Absensi Saya', icon: IconAttendance },
+      { type: 'link', key: 'student-grades', to: '/student/nilai', label: 'Nilai Saya', icon: IconGrade },
+      { type: 'link', key: 'student-exam', to: '/ujian-ikuti', label: 'Ikuti Ujian', icon: IconAcademic },
       { type: 'link', key: 'student-violations', to: '/student/pelanggaran-prestasi', label: 'Pelanggaran & Prestasi', icon: IconStudents },
-      { type: 'link', key: 'student-counseling', to: '/student/konseling', label: 'Konseling', icon: IconAttendance },
+      { type: 'link', key: 'student-counseling', to: '/student/konseling', label: 'Konseling', icon: IconCounseling },
       { type: 'link', key: 'student-extracurricular', to: '/student/ekstrakurikuler', label: 'Ekstrakurikuler', icon: IconStudents },
-      { type: 'link', key: 'student-points', to: '/student/poin', label: 'Poin Saya', icon: IconDashboard },
+      { type: 'link', key: 'student-points', to: '/student/poin', label: 'Poin Saya', icon: IconPoints },
       { type: 'link', key: 'student-change-requests', to: '/student/permintaan-perubahan', label: 'Permintaan Perubahan', icon: IconAdmin },
       { type: 'link', key: 'student-profile', to: '/student/profil', label: 'Profil Saya', icon: IconSettings }
     ]
@@ -312,7 +387,6 @@ const menuEntries = computed(() => {
     addVisible({ type: 'group', key: 'master', label: 'Master Data', icon: IconDatabase, children: [
       { to: '/institution', label: 'Profil Instansi', visible: canAccessModule('institution') },
       { to: '/facility', label: 'Sarana Prasarana', visible: canAccessModule('facility') },
-      { to: '/lab', label: 'Manajemen Lab', visible: canAccessModule('facility') },
       { to: '/inventory', label: 'Inventaris', visible: canAccessModule('inventory') },
       { to: '/class', label: 'Kelas', visible: canAccessModule('class') }
     ]}),
@@ -323,6 +397,12 @@ const menuEntries = computed(() => {
       { to: '/teaching-journal', label: 'Jurnal Mengajar', visible: canAccessModule('teaching_journal') },
       { to: '/grade-book', label: 'Buku Nilai', visible: canAccessModule('grade_book') },
       { to: '/raport', label: 'Raport Siswa', visible: canAccessModule('grade_book') }
+    ]}),
+    addVisible({ type: 'group', key: 'ujian-online', label: 'Ujian Online', icon: IconExam, children: [
+      { to: '/ujian-online/exams', label: 'Daftar Ujian', visible: canAccessModule('online_exam') },
+      { to: '/ujian-online/sesi?fokus=peserta', label: 'Peserta Ujian', visible: canAccessModule('online_exam') },
+      { to: '/ujian-online/sesi?fokus=kontrol', label: 'Kontrol Ujian', visible: canAccessModule('online_exam') },
+      { to: '/ujian-online/bank-soal', label: 'Bank Soal', visible: canAccessModule('online_exam') }
     ]}),
     addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, children: [
       { to: '/attendance/student', label: 'Absensi Siswa', visible: canAccessModule('teaching_journal') },
@@ -344,23 +424,28 @@ const menuEntries = computed(() => {
       { to: '/correspondence', label: 'Persuratan', visible: canAccessModule('correspondence') },
       { to: '/digital-archive', label: 'Arsip Digital', visible: canAccessModule('digital_archive') },
       { to: '/library', label: 'Perpustakaan', visible: canAccessModule('library') },
+      { to: '/lab', label: 'Manajemen Lab', visible: canAccessModule('facility') },
       { to: '/buku-tamu', label: 'Buku Tamu', visible: canAccessModule('guest_book') },
       { to: '/report', label: 'Laporan', visible: canAccessModule('report') }
     ]})
   ]
   if (role === 'institution_admin' || role === 'admin') {
-    entries.push({ type: 'link', key: 'pengaturan', to: '/module-access', label: 'Kelola Akses Modul', icon: IconSettings })
-    entries.push({ type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconSettings })
+    entries.push({ type: 'link', key: 'pengaturan', to: '/module-access', label: 'Akses Modul', icon: IconModuleAccess })
+    entries.push({ type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog })
   }
   if (role === 'super_admin') {
-    entries.push({ type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconSettings })
+    entries.push({ type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog })
   }
   return entries.filter(e => e.type === 'link' || (e.type === 'group' && e.visibleChildren?.length > 0))
 })
 const hasActiveChild = (entry) => {
   if (entry.type !== 'group' || !entry.children) return false
   const path = route.path
-  return entry.children.some(c => c.visible && (path === c.to || path.startsWith(c.to + '/')))
+  return entry.children.some(c => {
+    if (!c.visible) return false
+    const toPath = c.to?.split('?')[0] ?? c.to
+    return path === c.to || path.startsWith(c.to + '/') || (toPath && (path === toPath || path.startsWith(toPath + '/')))
+  })
 }
 const isGroupExpanded = (key) => expandedGroups.value.has(key)
 function toggleGroup(key) {
@@ -378,7 +463,11 @@ function ensureGroupExpandedForKey(key) {
 watch(() => route.path, (path) => {
   for (const entry of menuEntries.value) {
     if (entry.type === 'group' && entry.children) {
-      const hasActive = entry.children.some(c => c.visible && (path === c.to || path.startsWith(c.to + '/')))
+      const hasActive = entry.children.some(c => {
+        if (!c.visible) return false
+        const toPath = c.to?.split('?')[0] ?? c.to
+        return path === c.to || path.startsWith(c.to + '/') || (toPath && (path === toPath || path.startsWith(toPath + '/')))
+      })
       if (hasActive) ensureGroupExpandedForKey(entry.key)
     }
   }
@@ -404,7 +493,8 @@ const bottomNavItems = computed(() => {
       { to: '/student/dashboard', label: 'Beranda', icon: 'home' },
       { to: '/student/jadwal', label: 'Jadwal', icon: 'class' },
       { to: '/student/nilai', label: 'Nilai', icon: 'report' },
-      { to: '/student/poin', label: 'Poin', icon: 'violation' }
+      { to: '/student/poin', label: 'Poin', icon: 'violation' },
+      { to: '/student/profil', label: 'Profil', icon: 'settings' }
     ]
   }
   if (role === 'teacher' || role === 'staff') {
@@ -423,6 +513,7 @@ const bottomNavItems = computed(() => {
     if (canAccessModule('teaching_journal')) items.push({ to: '/teaching-journal', label: 'Jurnal', icon: 'journal' })
     if (canAccessModule('attendance')) items.push({ to: '/attendance/employee', label: 'Absensi', icon: 'attendance' })
     if (canAccessModule('grade_book')) items.push({ to: '/grade-book', label: 'Nilai', icon: 'grade' })
+    if (canAccessModule('online_exam')) items.push({ to: '/ujian-online/exams', label: 'Ujian', icon: 'grade' })
     if (canAccessModule('correspondence')) items.push({ to: '/correspondence', label: 'Surat', icon: 'correspondence' })
     return items.slice(0, 5)
   }
@@ -442,6 +533,7 @@ const isBottomNavActive = (path) => {
   if (path === '/teacher/dashboard') return route.path === '/teacher/dashboard'
   if (path === '/student/dashboard') return route.path === '/student/dashboard'
   if (path === '/student/poin') return route.path === '/student/poin'
+  if (path === '/student/profil') return route.path === '/student/profil'
   return route.path.startsWith(path)
 }
 
@@ -471,14 +563,16 @@ const pageTitle = computed(() => {
     AcademicYear: 'Tahun Ajaran',
     InstitutionChangeRequests: 'Request Perubahan',
     StudentChangeRequestsAdmin: 'Permintaan Perubahan Siswa',
-    ModuleAccess: 'Kelola Akses Modul',
+    ModuleAccess: 'Akses Modul',
     StudentMutation: 'Mutasi Siswa',
     Notifications: 'Notifikasi',
+    AccountSettings: 'Pengaturan Akun',
     AuditLog: 'Audit Log',
     Alumni: 'Alumni',
     NaikKelas: 'Naik Kelas',
     Violation: 'Pelanggaran',
     Counseling: 'Konseling',
+    StudentAttendance: 'Absensi Saya',
     Extracurricular: 'Ekstrakurikuler',
     LessonSchedule: 'Jadwal Pelajaran',
     TeachingJournal: 'Jurnal Mengajar',
@@ -486,6 +580,15 @@ const pageTitle = computed(() => {
     AttendanceEmployee: 'Absensi Guru & Staff',
     GradeBook: 'Buku Nilai',
     Raport: 'Raport Siswa',
+    OnlineExamList: 'Ujian Online',
+    OnlineExamCreate: 'Buat Ujian',
+    OnlineExamDetail: 'Detail Ujian',
+    OnlineExamEdit: 'Edit Ujian',
+    OnlineExamSessions: 'Sesi Ujian',
+    OnlineExamSessionDetail: 'Detail Sesi Ujian',
+    OnlineExamBank: 'Bank Soal',
+    OnlineExamBankStimulus: 'Stimulus Soal',
+    ExamTake: 'Ikuti Ujian',
     Correspondence: 'Persuratan',
     DigitalArchive: 'Arsip Digital',
     BukuTamu: 'Buku Tamu',
@@ -528,6 +631,13 @@ const handleRouteChange = () => {
   if (window.innerWidth <= MOBILE_BREAKPOINT) {
     closeSidebar()
   }
+  userMenuOpen.value = false
+}
+
+function closeUserMenuOnClickOutside(e) {
+  if (userMenuOpen.value && userMenuRef.value && !userMenuRef.value.contains(e.target)) {
+    userMenuOpen.value = false
+  }
 }
 
 // Handle window resize: tutup sidebar saat ke desktop, pastikan tertutup saat ke mobile
@@ -547,12 +657,14 @@ onMounted(() => {
   }
   router.afterEach(handleRouteChange)
   window.addEventListener('resize', handleResize)
+  document.addEventListener('click', closeUserMenuOnClickOutside)
   fetchUnreadNotificationCount()
   notificationPollInterval = setInterval(fetchUnreadNotificationCount, 60000)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  document.removeEventListener('click', closeUserMenuOnClickOutside)
   document.body.style.overflow = ''
   if (notificationPollInterval) clearInterval(notificationPollInterval)
 })
@@ -564,6 +676,7 @@ watch(sidebarOpen, (open) => {
 })
 
 const handleLogout = async () => {
+  userMenuOpen.value = false
   await authStore.logout()
 }
 </script>
@@ -606,7 +719,7 @@ const handleLogout = async () => {
 .logo-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -665,7 +778,19 @@ const handleLogout = async () => {
 
 .nav-icon {
   flex-shrink: 0;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  display: block;
+  stroke: currentColor;
   stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-item .nav-icon,
+.nav-group-head .nav-icon {
+  flex-shrink: 0;
 }
 
 .nav-item:hover {
@@ -675,9 +800,9 @@ const handleLogout = async () => {
 }
 
 .nav-item.router-link-active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .nav-item.router-link-active::before {
@@ -716,12 +841,8 @@ const handleLogout = async () => {
 }
 
 .nav-group-head--active {
-  color: #a5b4fc;
-  background: rgba(102, 126, 234, 0.12);
-}
-
-.nav-group-head .nav-icon {
-  flex-shrink: 0;
+  color: #86efac;
+  background: rgba(5, 150, 105, 0.2);
 }
 
 .nav-group-chevron {
@@ -762,11 +883,11 @@ const handleLogout = async () => {
 
 .nav-subitem--active {
   color: #ffffff;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.35) 0%, rgba(118, 75, 162, 0.35) 100%);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.35) 0%, rgba(4, 120, 87, 0.35) 100%);
 }
 
 .nav-subitem--active:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.45) 0%, rgba(118, 75, 162, 0.45) 100%);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.45) 0%, rgba(4, 120, 87, 0.45) 100%);
 }
 
 /* Accordion expand/collapse transition */
@@ -785,22 +906,38 @@ const handleLogout = async () => {
   padding: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.2);
+  position: relative;
 }
 
-.user-info {
+.user-menu-trigger {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.user-menu-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.user-menu-trigger:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
 }
 
 .user-avatar {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -833,28 +970,78 @@ const handleLogout = async () => {
   text-overflow: ellipsis;
 }
 
-.btn-logout {
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+.user-menu-chevron {
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
 }
 
-.btn-logout:hover {
-  background: rgba(239, 68, 68, 0.25);
-  color: #ffffff;
-  border-color: rgba(239, 68, 68, 0.3);
-  transform: translateY(-1px);
+.user-menu-chevron--open {
+  transform: rotate(180deg);
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 100%;
+  margin-bottom: 8px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.user-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: left;
+}
+
+.user-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.user-menu-item--active {
+  background: rgba(5, 150, 105, 0.2);
+  color: #6ee7b7;
+}
+
+.user-menu-item--logout {
+  color: #fca5a5;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.user-menu-item--logout:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fecaca;
+}
+
+/* Dropdown transition */
+.user-menu-enter-active,
+.user-menu-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.user-menu-enter-from,
+.user-menu-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 .main-content {
@@ -903,7 +1090,7 @@ const handleLogout = async () => {
   transition: color 0.2s;
 }
 .notification-bell:hover {
-  color: #667eea;
+  color: #059669;
 }
 .notification-badge {
   position: absolute;
@@ -943,7 +1130,7 @@ const handleLogout = async () => {
   padding: 32px;
   max-width: 1600px;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
   background: #f8fafc;
   min-height: 0;
 }
@@ -1040,13 +1227,13 @@ const handleLogout = async () => {
   }
 
   .bottom-nav-item:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.06);
+    color: #059669;
+    background: rgba(5, 150, 105, 0.08);
   }
 
   .bottom-nav-item-active {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
+    color: #059669;
+    background: rgba(5, 150, 105, 0.12);
   }
 
   .bottom-nav-item-active .bottom-nav-label {
@@ -1077,8 +1264,8 @@ const handleLogout = async () => {
   }
 }
 
-/* Responsive: sembunyikan sidebar di layar kecil & tablet (≤1024px), tampilkan tombol menu */
-@media (max-width: 1024px) {
+/* Responsive: sembunyikan sidebar hanya di mobile (≤768px), tampilkan tombol menu */
+@media (max-width: 768px) {
   .layout {
     overflow-x: hidden;
   }

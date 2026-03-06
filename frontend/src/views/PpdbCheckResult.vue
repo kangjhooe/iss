@@ -362,8 +362,8 @@ function printFormulir() {
 }
 .form-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 .form-input::placeholder { color: #94a3b8; }
 .error-banner {
@@ -378,7 +378,7 @@ function printFormulir() {
 .btn-submit {
   width: 100%;
   padding: 0.85rem 1.5rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #059669 0%, #059669 100%);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -444,7 +444,7 @@ function printFormulir() {
 .status-reserve { background: #fef3c7; color: #92400e; }
 .status-failed, .status-rejected, .status-cancelled { background: #fee2e2; color: #991b1b; }
 .status-converted { background: #d1fae5; color: #047857; }
-.status-submitted, .status-verification, .status-verified, .status-re_registration { background: #e0e7ff; color: #3730a3; }
+.status-submitted, .status-verification, .status-verified, .status-re_registration { background: #ecfdf5; color: #047857; }
 .status-draft { background: #f1f5f9; color: #475569; }
 .result-actions {
   margin-top: 1.5rem;
@@ -475,7 +475,7 @@ function printFormulir() {
   width: 100%;
   padding: 0.75rem 1.25rem;
   background: #f8fafc;
-  color: #4f46e5;
+  color: #059669;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   font-size: 0.9375rem;
@@ -488,9 +488,9 @@ function printFormulir() {
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 .btn-print:hover {
-  background: #4f46e5;
+  background: #059669;
   color: #fff;
-  border-color: #4f46e5;
+  border-color: #059669;
 }
 .btn-print svg { flex-shrink: 0; }
 .formulir-print-wrap { display: none; }
@@ -515,7 +515,7 @@ function printFormulir() {
 .bg-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(79, 70, 229, 0.06) 0%, transparent 40%);
+  background: linear-gradient(180deg, rgba(5, 150, 105, 0.06) 0%, transparent 40%);
   pointer-events: none;
 }
 .public-header {
@@ -525,7 +525,7 @@ function printFormulir() {
 .header-content { max-width: 36ch; }
 .header-badge {
   display: inline-block;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #059669 0%, #059669 100%);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
@@ -559,7 +559,7 @@ function printFormulir() {
   margin-bottom: 1.25rem;
   transition: color 0.2s;
 }
-.back-link:hover { color: #4f46e5; }
+.back-link:hover { color: #059669; }
 .back-icon { flex-shrink: 0; }
 .card {
   background: #fff;
@@ -642,7 +642,7 @@ function printFormulir() {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #059669 0%, #059669 100%);
   color: #fff;
   font-size: 1.25rem;
   font-weight: 700;

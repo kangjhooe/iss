@@ -54,6 +54,38 @@ class Subject extends Model
         return $this->hasMany(TeachingJournal::class, 'subject_id');
     }
 
+    /**
+     * Get the question bank items (soal) for this subject.
+     */
+    public function questionBanks()
+    {
+        return $this->hasMany(QuestionBank::class, 'subject_id');
+    }
+
+    /**
+     * Get the exams (ujian) for this subject.
+     */
+    public function exams()
+    {
+        return $this->hasMany(Exam::class, 'subject_id');
+    }
+
+    /**
+     * Get the bank soal for this subject.
+     */
+    public function bankSoal()
+    {
+        return $this->hasMany(BankSoal::class, 'subject_id');
+    }
+
+    /**
+     * Get the question stimuli for this subject.
+     */
+    public function questionStimuli()
+    {
+        return $this->hasMany(QuestionStimulus::class, 'subject_id');
+    }
+
     public function scopeForInstitution($query, int $institutionId)
     {
         return $query->where('institution_id', $institutionId);

@@ -465,7 +465,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #667eea;
+  background: #059669;
   color: white;
   border: none;
   border-radius: 8px;
@@ -475,7 +475,7 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: #047857;
 }
 
 .filters {
@@ -498,7 +498,7 @@ onMounted(() => {
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
 }
 
 .loading-state {
@@ -746,8 +746,8 @@ onMounted(() => {
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .form-hint {

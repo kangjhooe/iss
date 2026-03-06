@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\NpsnReferensiRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class PublicPpdbRegisterRequest extends FormRequest
 {
@@ -27,7 +29,16 @@ class PublicPpdbRegisterRequest extends FormRequest
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',
             'previous_school' => 'nullable|string|max:255',
-            'previous_school_npsn' => 'nullable|string|max:20',
+            'previous_school_npsn' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::when($this->filled('previous_school_npsn'), [
+                    'size:8',
+                    'regex:/^[0-9]{8}$/',
+                    new NpsnReferensiRule(),
+                ]),
+            ],
             'previous_school_address' => 'nullable|string',
             'father_name' => 'nullable|string|max:255',
             'father_phone' => 'nullable|string|max:50',
@@ -49,6 +60,8 @@ class PublicPpdbRegisterRequest extends FormRequest
             'ppdb_channel_id.required' => 'Jalur pendaftaran wajib dipilih.',
             'name.required' => 'Nama lengkap wajib diisi.',
             'gender.required' => 'Jenis kelamin wajib dipilih.',
+            'previous_school_npsn.size' => 'NPSN sekolah asal harus 8 digit.',
+            'previous_school_npsn.regex' => 'NPSN sekolah asal harus berupa 8 digit angka.',
         ];
     }
 }

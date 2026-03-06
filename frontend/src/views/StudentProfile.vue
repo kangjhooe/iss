@@ -81,6 +81,6 @@ const profile = computed(() => authStore.user?.student_profile)
   color: #92400e;
 }
 
-.back-link { display: inline-block; margin-top: 20px; color: #0ea5e9; text-decoration: none; font-weight: 600; font-size: 14px; }
-.back-link:hover { text-decoration: underline; }
+.back-link { display: inline-block; margin-top: 20px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link:hover { color: #047857; text-decoration: underline; }
 </style>

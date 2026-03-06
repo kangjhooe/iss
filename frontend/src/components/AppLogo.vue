@@ -52,7 +52,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #667eea;
+  color: #059669;
 }
 
 .app-logo--img .app-logo-img {

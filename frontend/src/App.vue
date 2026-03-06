@@ -11,6 +11,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { appName, appTagline } from '@/config/app'
 import Toast from '@/components/Toast.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
@@ -18,10 +19,14 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
 import OfflineStatus from '@/components/OfflineStatus.vue'
 import { useAppBrandingStore } from '@/stores/appBranding'
 
+const router = useRouter()
+
 onMounted(() => {
-  document.title = `${appName} - ${appTagline}`
-  const desc = document.querySelector('meta[name="description"]')
-  if (desc) desc.setAttribute('content', `${appName} - ${appTagline}. Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia. Kelola profil institusi, data siswa, guru, fasilitas, kelas, laporan, dan surat-menyurat dalam satu platform.`)
+  if (router.currentRoute.value.name !== 'SchoolPublic') {
+    document.title = `${appName} - ${appTagline}`
+    const desc = document.querySelector('meta[name="description"]')
+    if (desc) desc.setAttribute('content', `${appName} - ${appTagline}. Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia. Kelola profil institusi, data siswa, guru, fasilitas, kelas, laporan, dan surat-menyurat dalam satu platform.`)
+  }
   const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]')
   if (appleTitle) appleTitle.setAttribute('content', appName)
   useAppBrandingStore().fetchBranding()
@@ -36,9 +41,9 @@ onMounted(() => {
 }
 
 :root {
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --primary-color: #667eea;
-  --primary-hover: #5568d3;
+  --primary-gradient: linear-gradient(135deg, #059669 0%, #047857 100%);
+  --primary-color: #059669;
+  --primary-hover: #047857;
   --success-color: #10b981;
   --warning-color: #f59e0b;
   --danger-color: #ef4444;
@@ -99,7 +104,7 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(102, 126, 234, 0.2);
+  background: rgba(5, 150, 105, 0.2);
   color: var(--text-primary);
 }
 
@@ -152,6 +157,37 @@ button:disabled {
 input, textarea, select {
   font-family: inherit;
   font-size: inherit;
+}
+
+/* Tema hijau: tombol primary & back-link (override komponen) */
+#app .btn-primary {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+#app .btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);
+}
+#app .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+#app .back-link {
+  display: inline-block;
+  color: #059669;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+#app .back-link:hover {
+  color: #047857;
+  text-decoration: underline;
 }
 
 /* Utility classes */
@@ -325,8 +361,8 @@ input, textarea, select {
   }
 }
 
-/* Layout sidebar: tampil di desktop (≥1025px), sembunyi di tablet/mobile (sesuai Layout.vue) */
-@media screen and (min-width: 1025px) {
+/* Layout sidebar: tampil di desktop & tablet (≥769px), sembunyi hanya di mobile (≤768px) */
+@media screen and (min-width: 769px) {
   .layout .sidebar {
     left: 0 !important;
     top: 0 !important;

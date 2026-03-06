@@ -88,15 +88,15 @@
 }
 
 .main-content .btn-add {
-  border-color: #667eea;
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.08);
+  border-color: #059669;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.08);
 }
 
 .main-content .btn-add:hover {
-  background: rgba(102, 126, 234, 0.15);
-  border-color: #667eea;
-  color: #5a67d8;
+  background: rgba(5, 150, 105, 0.15);
+  border-color: #059669;
+  color: #047857;
 }
 
 /* Filter + pencarian: 1 baris ke samping (horizontal) */

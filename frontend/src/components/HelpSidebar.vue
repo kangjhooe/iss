@@ -67,7 +67,7 @@
             </div>
             <div class="help-step">
               <span class="help-step-num">3</span>
-              <span>Untuk admin: aktifkan modul yang dipakai di <strong>Kelola Akses Modul</strong>.</span>
+              <span>Untuk admin: aktifkan modul yang dipakai di <strong>Akses Modul</strong>.</span>
             </div>
           </div>
         </section>
@@ -305,7 +305,7 @@
             <div class="help-card">
               <span class="help-card-icon help-card-icon--slate">🔐</span>
               <div class="help-card-body">
-                <div class="help-card-title">Kelola Akses Modul</div>
+                <div class="help-card-title">Akses Modul</div>
                 <p class="help-card-desc">Aktif/nonaktif modul per instansi. Hanya admin instansi.</p>
               </div>
             </div>
@@ -476,7 +476,7 @@ onUnmounted(() => {
 }
 
 .help-toggle:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #059669;
   outline-offset: -2px;
 }
 
@@ -538,7 +538,7 @@ onUnmounted(() => {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: linear-gradient(145deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(145deg, #059669 0%, #047857 100%);
   color: #fff;
   display: flex;
   align-items: center;
@@ -637,11 +637,11 @@ onUnmounted(() => {
 }
 
 .help-section-icon--amber { background: #fef3c7; color: #d97706; }
-.help-section-icon--blue { background: #dbeafe; color: #2563eb; }
+.help-section-icon--blue { background: #ecfdf5; color: #059669; }
 .help-section-icon--emerald { background: #d1fae5; color: #059669; }
-.help-section-icon--violet { background: #ede9fe; color: #7c3aed; }
+.help-section-icon--violet { background: #ecfdf5; color: #047857; }
 .help-section-icon--slate { background: #f1f5f9; color: #475569; }
-.help-section-icon--sky { background: #e0f2fe; color: #0284c7; }
+.help-section-icon--sky { background: #ecfdf5; color: #047857; }
 .help-section-icon--rose { background: #ffe4e6; color: #e11d48; }
 
 /* Steps (Memulai) */
@@ -709,7 +709,7 @@ onUnmounted(() => {
 
 .help-card:hover {
   border-color: #c7d2fe;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.08);
   transform: translateX(2px);
 }
 
@@ -731,8 +731,8 @@ onUnmounted(() => {
 
 .help-card-icon--blue { background: #dbeafe; }
 .help-card-icon--teal { background: #ccfbf1; }
-.help-card-icon--violet { background: #ede9fe; }
-.help-card-icon--indigo { background: #e0e7ff; }
+.help-card-icon--violet { background: #ecfdf5; }
+.help-card-icon--indigo { background: #ecfdf5; }
 .help-card-icon--emerald { background: #d1fae5; }
 .help-card-icon--green { background: #dcfce7; }
 .help-card-icon--lime { background: #ecfccb; }

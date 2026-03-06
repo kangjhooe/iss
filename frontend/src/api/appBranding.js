@@ -28,5 +28,23 @@ export const appBrandingApi = {
     return api.post('/v1/app-branding/favicon', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+  },
+
+  /**
+   * Update teks hero halaman awal. Hanya super admin.
+   */
+  updateHero(payload) {
+    return api.put('/v1/app-branding/hero', payload)
+  },
+
+  /**
+   * Upload gambar hero halaman awal. Hanya super admin.
+   */
+  uploadHeroImage(file) {
+    const formData = new FormData()
+    formData.append('hero_image', file)
+    return api.post('/v1/app-branding/hero-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
   }
 }

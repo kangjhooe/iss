@@ -1,27 +1,6 @@
 <template>
   <Layout>
     <div class="buku-tamu-page">
-      <header class="page-header">
-        <div class="header-content">
-          <div class="header-icon-wrap">
-            <svg class="header-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="header-text">
-            <h1 class="page-title">Buku Tamu</h1>
-            <p class="page-subtitle">Catatan kunjungan tamu dengan foto identifikasi</p>
-          </div>
-          <button type="button" @click="openAddModal" class="btn-primary btn-header">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Catat Tamu
-          </button>
-        </div>
-      </header>
-
       <div class="toolbar">
         <div class="toolbar-left">
           <span class="stat-badge">{{ pagination.total }} kunjungan</span>
@@ -45,6 +24,12 @@
           </div>
         </div>
         <div class="toolbar-right">
+          <button type="button" @click="openAddModal" class="btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Catat Tamu
+          </button>
           <button type="button" @click="exportPdf" :disabled="exportingPdf" class="btn-export-pdf">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -738,6 +723,8 @@ onMounted(() => {
 <style scoped>
 .buku-tamu-page {
   padding: 0 0 2rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
 }
 
 .page-header { margin-bottom: 1.25rem; }
@@ -756,8 +743,8 @@ onMounted(() => {
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: var(--color-primary-light, #e8f0fe);
-  color: var(--color-primary, #1a73e8);
+  background: var(--color-primary-light, #ecfdf5);
+  color: var(--color-primary, #059669);
 }
 
 .header-text { flex: 1; min-width: 0; }
@@ -775,7 +762,8 @@ onMounted(() => {
   margin: 0;
 }
 
-.btn-header {
+.btn-header,
+.btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -784,9 +772,13 @@ onMounted(() => {
   font-weight: 500;
   border-radius: 8px;
   border: none;
-  background: var(--color-primary, #1a73e8);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
 }
 
 .toolbar {
@@ -878,17 +870,17 @@ onMounted(() => {
   padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--color-primary, #1a73e8);
-  background: var(--color-primary-light, #e8f0fe);
+  color: var(--color-primary, #059669);
+  background: var(--color-primary-light, #ecfdf5);
   border: 1px solid rgba(26, 115, 232, 0.3);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .btn-export-pdf:hover:not(:disabled) {
-  background: var(--color-primary, #1a73e8);
+  background: var(--color-primary, #059669);
   color: #fff;
-  border-color: var(--color-primary, #1a73e8);
+  border-color: var(--color-primary, #059669);
 }
 
 .btn-export-pdf:disabled {
@@ -1011,15 +1003,15 @@ onMounted(() => {
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 500;
-  background: var(--color-primary-light, #e8f0fe);
-  color: var(--color-primary, #1a73e8);
+  background: var(--color-primary-light, #ecfdf5);
+  color: var(--color-primary, #059669);
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
 
 .btn-checkout:hover {
-  background: var(--color-primary, #1a73e8);
+  background: var(--color-primary, #059669);
   color: #fff;
 }
 
@@ -1043,7 +1035,7 @@ onMounted(() => {
   color: var(--color-text, #1a1a1a);
 }
 
-.btn-edit:hover { background: #e8f0fe; color: #1a73e8; }
+.btn-edit:hover { background: rgba(5, 150, 105, 0.15); color: #059669; }
 .btn-delete:hover { background: #fce8e6; color: #c5221f; }
 
 .pagination {
@@ -1188,17 +1180,17 @@ onMounted(() => {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--color-primary, #1a73e8);
-  background: var(--color-primary-light, #e8f0fe);
+  color: var(--color-primary, #059669);
+  background: var(--color-primary-light, #ecfdf5);
   border: 1px solid rgba(26, 115, 232, 0.3);
   border-radius: 8px;
   cursor: pointer;
 }
 
 .btn-camera:hover {
-  background: var(--color-primary, #1a73e8);
+  background: var(--color-primary, #059669);
   color: #fff;
-  border-color: var(--color-primary, #1a73e8);
+  border-color: var(--color-primary, #059669);
 }
 
 .btn-camera.btn-small { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
@@ -1206,7 +1198,7 @@ onMounted(() => {
 .btn-link {
   padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
-  color: var(--color-primary, #1a73e8);
+  color: var(--color-primary, #059669);
   background: none;
   border: none;
   cursor: pointer;
@@ -1236,7 +1228,7 @@ onMounted(() => {
   font-size: 0.875rem;
   font-weight: 500;
   color: #fff;
-  background: var(--color-primary, #1a73e8);
+  background: var(--color-primary, #059669);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -1295,7 +1287,7 @@ onMounted(() => {
   font-weight: 500;
   border-radius: 8px;
   border: none;
-  background: var(--color-primary, #1a73e8);
+  background: var(--color-primary, #059669);
   color: #fff;
   cursor: pointer;
 }

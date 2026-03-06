@@ -1,11 +1,6 @@
 <template>
   <Layout>
     <div class="page">
-      <div class="page-header">
-        <h1>Profil Saya</h1>
-        <p class="page-subtitle">Data diri guru – Anda dapat mengajukan perubahan data yang akan disetujui admin</p>
-      </div>
-
       <div v-if="profileError" class="alert alert-warning">
         {{ profileError }}
       </div>
@@ -262,7 +257,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 720px; padding: 0; }
+.page { max-width: 720px; padding: 0; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
 .page-header { margin-bottom: 24px; }
 .page-header h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
 .page-subtitle { font-size: 14px; color: #64748b; margin: 0; }
@@ -303,12 +298,16 @@ onMounted(async () => {
 .error-msg { color: #dc2626; font-size: 14px; margin-bottom: 12px; }
 .btn-primary {
   padding: 10px 20px;
-  background: #16a34a;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   border: none;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
 }
 .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
@@ -332,6 +331,6 @@ onMounted(async () => {
 .request-details .label { color: #64748b; margin-right: 8px; }
 .request-details .rejection { color: #dc2626; }
 
-.back-link { display: inline-block; margin-top: 8px; color: #0ea5e9; text-decoration: none; font-weight: 600; font-size: 14px; }
-.back-link:hover { text-decoration: underline; }
+.back-link { display: inline-block; margin-top: 8px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link:hover { text-decoration: underline; color: #047857; }
 </style>

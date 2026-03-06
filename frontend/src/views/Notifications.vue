@@ -218,7 +218,7 @@ loadNotifications(1)
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #059669 0%, #059669 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -272,7 +272,7 @@ loadNotifications(1)
 }
 
 .filter-tab.active {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #059669 0%, #059669 100%);
   border-color: transparent;
   color: #fff;
 }
@@ -348,7 +348,7 @@ loadNotifications(1)
   margin-top: 6px;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #4f46e5;
+  color: #059669;
   text-decoration: none;
 }
 .notification-link:hover {
@@ -376,7 +376,7 @@ loadNotifications(1)
   flex-shrink: 0;
   padding: 6px 12px;
   font-size: 13px;
-  color: #4f46e5;
+  color: #059669;
   background: transparent;
   border: 1px solid #818cf8;
   border-radius: 8px;
@@ -385,7 +385,7 @@ loadNotifications(1)
 }
 
 .btn-mark-read:hover:not(:disabled) {
-  background: #eef2ff;
+  background: #ecfdf5;
 }
 
 .btn-mark-read:disabled {

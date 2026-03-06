@@ -1,21 +1,6 @@
 <template>
   <Layout>
     <div class="grade-book-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div class="header-icon-wrap">
-            <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M21 12V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="page-title">Buku Nilai</h1>
-            <p class="page-subtitle">Input nilai per kelas, mapel, dan semester (UH, UTS, UAS, Tugas, Nilai Akhir)</p>
-          </div>
-        </div>
-      </div>
-
       <div class="filters filters-inline">
         <select v-model="filters.semester_id" @change="onFilterChange" class="filter-select">
           <option value="">Pilih Semester</option>
@@ -49,7 +34,7 @@
       </div>
 
       <div v-else-if="rows.length === 0" class="empty-state">
-        <h3 class="empty-title">Tidak ada siswa</h3>
+        <h3 class="empty-title">Belum ada data siswa</h3>
         <p class="empty-desc">Kelas ini belum memiliki siswa atau filter belum sesuai.</p>
       </div>
 
@@ -89,8 +74,8 @@
             <tbody>
               <tr v-for="(row, idx) in rows" :key="row.student_id">
                 <td class="col-no">{{ idx + 1 }}</td>
-                <td class="col-name">{{ row.student?.name }}</td>
-                <td class="col-nis">{{ row.student?.nis || row.student?.nisn || '-' }}</td>
+                <td class="col-name">{{ displayValue(row.student?.name) }}</td>
+                <td class="col-nis">{{ displayValue(row.student?.nis || row.student?.nisn) }}</td>
                 <td class="col-grade">
                   <input
                     v-model.number="row.uh"
@@ -195,6 +180,11 @@ const WEIGHT_UH = 0.20
 const WEIGHT_UTS = 0.30
 const WEIGHT_UAS = 0.30
 const WEIGHT_TUGAS = 0.20
+
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
 
 function computeNilaiAkhirForRow(row) {
   const uh = toNum(row.uh)
@@ -337,9 +327,12 @@ onMounted(async () => {
 .grade-book-page {
   width: 100%;
   max-width: 100%;
+  min-height: 100%;
   padding: 1.5rem;
   margin: 0 auto;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
+
 .page-header {
   margin-bottom: 1.5rem;
 }
@@ -353,7 +346,7 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -381,10 +374,16 @@ onMounted(async () => {
 }
 .filter-select {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.9rem;
   min-width: 160px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.filter-select:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 .loading-wrap {
   width: 100%;
@@ -427,7 +426,8 @@ onMounted(async () => {
 }
 .data-table.grade-table th {
   font-weight: 600;
-  background: #f8fafc;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #065f46;
 }
 .col-no {
   width: 40px;
@@ -458,8 +458,8 @@ onMounted(async () => {
 }
 .grade-input:focus {
   outline: none;
-  border-color: #0ea5e9;
-  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 .btn-primary {
   padding: 0.5rem 1rem;
@@ -468,7 +468,7 @@ onMounted(async () => {
   font-weight: 500;
   cursor: pointer;
   border: none;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
 }
 .btn-primary:disabled {

@@ -48,6 +48,79 @@ class StudentAttendanceService
     }
 
     /**
+     * History of attendances for a single student (for portal siswa).
+     *
+     * Returns simple rows per sesi jurnal mengajar dengan informasi tanggal,
+     * kelas, mapel, guru, jam ke, status, dan catatan.
+     */
+    public function historyForStudent(
+        int $studentId,
+        int $institutionId,
+        ?int $semesterId = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null
+    ): Collection {
+        $query = StudentAttendance::query()
+            ->forInstitution($institutionId)
+            ->forStudent($studentId)
+            ->with([
+                'teachingJournal' => function ($q) use ($semesterId, $dateFrom, $dateTo) {
+                    $q->with([
+                        'schoolClass:id,name',
+                        'subject:id,name',
+                        'employee:id,name',
+                        'semester:id,name',
+                    ]);
+
+                    if ($semesterId) {
+                        $q->forSemester($semesterId);
+                    }
+                    if ($dateFrom) {
+                        $q->dateFrom($dateFrom);
+                    }
+                    if ($dateTo) {
+                        $q->dateTo($dateTo);
+                    }
+                },
+            ]);
+
+        // Pastikan hanya sesi yang memiliki jurnal mengajar yang valid
+        $query->whereHas('teachingJournal', function ($q) use ($semesterId, $dateFrom, $dateTo) {
+            if ($semesterId) {
+                $q->forSemester($semesterId);
+            }
+            if ($dateFrom) {
+                $q->dateFrom($dateFrom);
+            }
+            if ($dateTo) {
+                $q->dateTo($dateTo);
+            }
+        });
+
+        $items = $query
+            ->orderByDesc('created_at')
+            ->limit(500)
+            ->get();
+
+        return $items->map(function (StudentAttendance $attendance) {
+            $journal = $attendance->teachingJournal;
+
+            return [
+                'id' => $attendance->id,
+                'date' => optional($journal?->journal_date)->format('Y-m-d'),
+                'status' => $attendance->status,
+                'status_label' => StudentAttendance::STATUSES[$attendance->status] ?? $attendance->status,
+                'notes' => $attendance->notes,
+                'class_name' => $journal?->schoolClass?->name,
+                'subject_name' => $journal?->subject?->name,
+                'teacher_name' => $journal?->employee?->name,
+                'period' => $journal?->period,
+                'semester_name' => $journal?->semester?->name,
+            ];
+        });
+    }
+
+    /**
      * Upsert attendances for a teaching journal (bulk).
      * Validates that each student belongs to the journal's class.
      */

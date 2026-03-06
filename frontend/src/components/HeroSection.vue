@@ -30,7 +30,10 @@
         </div>
       </div>
       <div class="hero-section__visual">
-        <div class="hero-section__mockup" aria-hidden="true">
+        <div v-if="heroImageUrl" class="hero-section__image-wrap" aria-hidden="true">
+          <img :src="heroImageUrl" alt="" class="hero-section__hero-image" />
+        </div>
+        <div v-else class="hero-section__mockup" aria-hidden="true">
           <div class="hero-section__mockup-bar">
             <span class="hero-section__mockup-dot"></span>
             <span class="hero-section__mockup-dot"></span>
@@ -52,9 +55,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
-defineProps({
+const props = defineProps({
   headline: {
     type: String,
     default: 'Satu Platform untuk Mengelola Sekolah & Madrasah',
@@ -62,6 +65,10 @@ defineProps({
   subheadline: {
     type: String,
     default: 'Profil institusi, data siswa & guru, PPDB, rapor—semua dalam satu tempat. Tanpa ribet.',
+  },
+  heroImageUrl: {
+    type: String,
+    default: '',
   },
   primaryCtaText: {
     type: String,
@@ -83,6 +90,7 @@ defineProps({
 
 const heroRef = ref(null)
 const heroVisible = ref(true)
+const heroImageUrl = computed(() => props.heroImageUrl || '')
 </script>
 
 <style scoped>
@@ -97,7 +105,7 @@ const heroVisible = ref(true)
 .hero-section__bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #ecfdf5 50%, #f8fafc 100%);
   z-index: 0;
   transition: opacity 0.6s ease;
 }
@@ -197,39 +205,56 @@ const heroVisible = ref(true)
 }
 
 .hero-section__btn--primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
 }
 
 .hero-section__btn--primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.45);
 }
 
 .hero-section__btn--secondary {
   background: #fff;
-  color: #667eea;
-  border-color: #667eea;
+  color: #059669;
+  border-color: #059669;
 }
 
 .hero-section__btn--secondary:hover {
   background: #f8fafc;
-  border-color: #5568d3;
-  color: #5568d3;
+  border-color: #047857;
+  color: #047857;
   transform: translateY(-1px);
 }
 
 .hero-section__btn:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #059669;
   outline-offset: 2px;
 }
 
-/* Visual: mockup placeholder */
+/* Visual: gambar hero atau mockup placeholder */
 .hero-section__visual {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.hero-section__image-wrap {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(30, 41, 59, 0.12), 0 8px 24px rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.hero-section__hero-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
 }
 
 .hero-section__mockup {
@@ -237,12 +262,13 @@ const heroVisible = ref(true)
   max-width: 420px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(30, 41, 59, 0.12), 0 8px 24px rgba(102, 126, 234, 0.08);
+  box-shadow: 0 20px 50px rgba(30, 41, 59, 0.12), 0 8px 24px rgba(5, 150, 105, 0.08);
   border: 1px solid rgba(226, 232, 240, 0.8);
   overflow: hidden;
 }
 
-.hero-section--animate .hero-section__mockup {
+.hero-section--animate .hero-section__mockup,
+.hero-section--animate .hero-section__image-wrap {
   opacity: 0;
   transform: translateY(14px);
   animation: hero-fade-up 0.6s ease-out 0.2s forwards;
@@ -325,7 +351,8 @@ const heroVisible = ref(true)
     order: -1;
   }
 
-  .hero-section__mockup {
+  .hero-section__mockup,
+  .hero-section__image-wrap {
     max-width: 100%;
   }
 }
@@ -337,7 +364,8 @@ const heroVisible = ref(true)
   .hero-section__headline,
   .hero-section__subheadline,
   .hero-section__actions,
-  .hero-section__mockup {
+  .hero-section__mockup,
+  .hero-section__image-wrap {
     opacity: 1;
     transform: none;
     animation: none;

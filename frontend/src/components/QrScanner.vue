@@ -147,7 +147,7 @@ defineExpose({
 .scan-frame {
   width: 70%;
   aspect-ratio: 1;
-  border: 3px solid #0ea5e9;
+  border: 3px solid #059669;
   border-radius: 12px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
 }
@@ -176,7 +176,7 @@ defineExpose({
 }
 
 .btn-primary {
-  background: #0ea5e9;
+  background: #059669;
   color: #fff;
 }
 

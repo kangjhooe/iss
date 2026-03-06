@@ -18,25 +18,33 @@
       <tbody>
         <tr v-for="teacher in teachers" :key="teacher.id">
           <td>{{ teacher.type || 'Guru' }}</td>
-          <td>{{ teacher.nik || '-' }}</td>
-          <td>{{ teacher.nip || '-' }}</td>
-          <td>{{ teacher.nuptk || '-' }}</td>
+          <td>{{ displayValue(teacher.nik) }}</td>
+          <td>{{ displayValue(teacher.nip) }}</td>
+          <td>{{ displayValue(teacher.nuptk) }}</td>
           <td>
             <div class="name-cell">
-              <span>{{ teacher.name }}</span>
+              <span>{{ displayValue(teacher.name) }}</span>
               <span v-if="teacher.affiliation === 'non_induk'" class="badge-non-induk">Non-Induk</span>
             </div>
           </td>
-          <td>{{ teacher.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
-          <td>{{ teacher.employment_status || '-' }}</td>
-          <td>{{ getTeacherSubject(teacher) }}</td>
+          <td>{{ teacher.gender === 'L' ? 'Laki-laki' : teacher.gender === 'P' ? 'Perempuan' : 'Belum ada data' }}</td>
+          <td>{{ displayValue(teacher.employment_status) }}</td>
+          <td>{{ getTeacherSubject(teacher) || 'Belum ada data' }}</td>
           <td>
             <span :class="getStatusClass(teacher.status)">
-              {{ teacher.status }}
+              {{ teacher.status || 'Belum ada data' }}
             </span>
           </td>
           <td>
             <div class="action-buttons">
+              <template v-if="trashMode">
+                <button @click="$emit('restore', teacher)" class="btn-action btn-restore" title="Pulihkan">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 10H21M7 15H17M12 4V20M4 10L12 4L20 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </template>
+              <template v-else>
               <button @click="$emit('view', teacher)" class="btn-action btn-view" title="Lihat Biodata">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -55,6 +63,7 @@
                   <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
+              </template>
             </div>
           </td>
         </tr>
@@ -69,7 +78,7 @@
           <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <h3>Tidak ada data guru</h3>
+        <h3>Belum ada data guru</h3>
         <p>Mulai dengan menambahkan guru baru</p>
         <button type="button" @click="$emit('add')" class="btn-primary">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -83,10 +92,19 @@
 </template>
 
 <script setup>
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
+
 defineProps({
   teachers: {
     type: Array,
     default: () => []
+  },
+  trashMode: {
+    type: Boolean,
+    default: false
   },
   getTeacherSubject: {
     type: Function,
@@ -98,7 +116,7 @@ defineProps({
   }
 })
 
-defineEmits(['view', 'edit', 'delete', 'add'])
+defineEmits(['view', 'edit', 'delete', 'add', 'restore'])
 </script>
 
 <style scoped>
@@ -118,7 +136,7 @@ defineEmits(['view', 'edit', 'delete', 'add'])
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
 }
 
@@ -223,14 +241,14 @@ defineEmits(['view', 'edit', 'delete', 'add'])
 }
 
 .btn-edit {
-  background: #3b82f6;
+  background: #059669;
   color: white;
 }
 
 .btn-edit:hover {
-  background: #2563eb;
+  background: #047857;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .btn-delete {
@@ -242,6 +260,17 @@ defineEmits(['view', 'edit', 'delete', 'add'])
   background: #dc2626;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-restore {
+  background: #059669;
+  color: white;
+}
+
+.btn-restore:hover {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 /* Status badges (classes passed from parent) */
@@ -295,7 +324,7 @@ defineEmits(['view', 'edit', 'delete', 'add'])
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -307,7 +336,7 @@ defineEmits(['view', 'edit', 'delete', 'add'])
 
 .empty-state .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
 }
 
 @media (max-width: 768px) {

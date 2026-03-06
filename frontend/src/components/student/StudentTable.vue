@@ -17,19 +17,27 @@
         </thead>
         <tbody>
           <tr v-for="student in students" :key="student.id">
-            <td>{{ student.nik || '-' }}</td>
-            <td>{{ student.nis || '-' }}</td>
-            <td>{{ student.nisn || '-' }}</td>
-            <td>{{ student.name }}</td>
-            <td>{{ student.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
-            <td>{{ student.class || '-' }}</td>
+            <td>{{ displayValue(student.nik) }}</td>
+            <td>{{ displayValue(student.nis) }}</td>
+            <td>{{ displayValue(student.nisn) }}</td>
+            <td>{{ displayValue(student.name) }}</td>
+            <td>{{ student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : 'Belum ada data' }}</td>
+            <td>{{ displayValue(student.class) }}</td>
             <td>
               <span :class="getStatusClass(student.status)">
-                {{ student.status }}
+                {{ student.status || 'Belum ada data' }}
               </span>
             </td>
             <td>
               <div class="action-buttons">
+                <template v-if="trashMode">
+                  <button @click="$emit('restore', student)" class="btn-action btn-restore" title="Pulihkan">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 10H21M7 15H17M12 4V20M4 10L12 4L20 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </template>
+                <template v-else>
                 <button @click="$emit('view', student)" class="btn-action btn-view" title="Lihat Biodata">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -48,6 +56,7 @@
                     <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </button>
+                </template>
               </div>
             </td>
           </tr>
@@ -64,14 +73,22 @@
             <span v-if="student.nis || student.nisn" class="student-card-id">
               {{ student.nis ? `NIS: ${student.nis}` : '' }}{{ student.nis && student.nisn ? ' · ' : '' }}{{ student.nisn ? `NISN: ${student.nisn}` : '' }}
             </span>
-            <span v-else class="student-card-id">NIK: {{ student.nik || '-' }}</span>
-            <span class="student-card-class">{{ student.class || '-' }}</span>
+            <span v-else class="student-card-id">NIK: {{ displayValue(student.nik) }}</span>
+            <span class="student-card-class">{{ displayValue(student.class) }}</span>
           </div>
           <span :class="['student-card-status', getStatusClass(student.status)]">
-            {{ student.status }}
+            {{ student.status || 'Belum ada data' }}
           </span>
         </div>
         <div class="student-card-actions">
+          <template v-if="trashMode">
+            <button @click="$emit('restore', student)" class="btn-action btn-restore" title="Pulihkan">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 10H21M7 15H17M12 4V20M4 10L12 4L20 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </template>
+          <template v-else>
           <button @click="$emit('view', student)" class="btn-action btn-view" title="Lihat">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -90,6 +107,7 @@
               <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
+          </template>
         </div>
       </div>
     </div>
@@ -101,9 +119,9 @@
           <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <h3>Tidak ada data siswa</h3>
+        <h3>Belum ada data siswa</h3>
         <p>Mulai dengan menambahkan siswa baru</p>
-        <button type="button" @click="$emit('add')" class="btn-secondary btn-compact btn-add">
+        <button type="button" @click="$emit('add')" class="btn-primary btn-compact">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -116,10 +134,19 @@
 </template>
 
 <script setup>
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
+
 defineProps({
   students: {
     type: Array,
     default: () => []
+  },
+  trashMode: {
+    type: Boolean,
+    default: false
   },
   getStatusClass: {
     type: Function,
@@ -127,7 +154,7 @@ defineProps({
   }
 })
 
-defineEmits(['view', 'edit', 'delete', 'add'])
+defineEmits(['view', 'edit', 'delete', 'add', 'restore'])
 </script>
 
 <style scoped>
@@ -155,8 +182,8 @@ defineEmits(['view', 'edit', 'delete', 'add'])
 
 .data-table th {
   font-weight: 600;
-  color: #64748b;
-  background: #f8fafc;
+  color: #065f46;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
 }
 
 .data-table tbody tr:hover {
@@ -190,12 +217,15 @@ defineEmits(['view', 'edit', 'delete', 'add'])
   background: transparent;
 }
 
-.btn-view { color: #10b981; }
-.btn-view:hover { background: rgba(16, 185, 129, 0.1); }
-.btn-edit { color: #3b82f6; }
-.btn-edit:hover { background: rgba(59, 130, 246, 0.1); }
+.btn-view { color: #059669; }
+.btn-view:hover { background: rgba(5, 150, 105, 0.1); }
+.btn-edit { color: #059669; }
+.btn-edit:hover { background: rgba(5, 150, 105, 0.1); }
 .btn-delete { color: #ef4444; }
 .btn-delete:hover { background: rgba(239, 68, 68, 0.1); }
+
+.btn-restore { color: #059669; }
+.btn-restore:hover { background: rgba(5, 150, 105, 0.15); }
 
 /* Mobile cards */
 .student-cards { display: none; }

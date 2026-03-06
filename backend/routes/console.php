@@ -28,3 +28,8 @@ Schedule::command('academic-calendar:send-reminders')
     ->dailyAt('08:00')
     ->timezone('Asia/Jakarta')
     ->withoutOverlapping();
+
+// Rotate exam entry PIN every 20 minutes for started sessions
+Schedule::command('exam:rotate-entry-pins')
+    ->cron('*/20 * * * *')
+    ->withoutOverlapping();

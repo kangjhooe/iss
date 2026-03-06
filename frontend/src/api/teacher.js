@@ -22,6 +22,9 @@ export const employeeApi = {
   delete(id) {
     return api.delete(`/v1/employee/${id}`)
   },
+  restore(id) {
+    return api.post(`/v1/employee/${id}/restore`)
+  },
   import(data) {
     return api.post('/v1/employee/import', { employees: data })
   },

@@ -13,7 +13,8 @@ export function useTeacherList() {
     search: '',
     status: '',
     type: '',
-    employment_status: ''
+    employment_status: '',
+    only_trashed: false
   })
 
   const loadTeachers = async () => {
@@ -25,6 +26,7 @@ export function useTeacherList() {
       if (filters.value.status) params.status = filters.value.status
       if (filters.value.type) params.type = filters.value.type
       if (filters.value.employment_status) params.employment_status = filters.value.employment_status
+      if (filters.value.only_trashed) params.only_trashed = true
 
       const response = await employeeApi.getAll(params)
       const list = response.data?.data ?? response.data ?? []

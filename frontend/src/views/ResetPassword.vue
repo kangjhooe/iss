@@ -332,8 +332,8 @@ const handleResetPassword = async () => {
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .form-group input::placeholder {
@@ -355,7 +355,7 @@ const handleResetPassword = async () => {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: #667eea;
+  background: #059669;
   color: white;
   border: none;
   border-radius: 8px;
@@ -371,11 +371,11 @@ const handleResetPassword = async () => {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5568d3;
+  background: #047857;
 }
 
 .btn-primary:active:not(:disabled) {
-  background: #4c5bc4;
+  background: #065f46;
 }
 
 .btn-primary:disabled {
@@ -478,14 +478,14 @@ const handleResetPassword = async () => {
 }
 
 .link {
-  color: #667eea;
+  color: #059669;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.15s ease;
 }
 
 .link:hover {
-  color: #5568d3;
+  color: #047857;
   text-decoration: underline;
 }
 

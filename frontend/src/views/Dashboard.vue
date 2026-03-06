@@ -3,20 +3,29 @@
     <div class="dashboard-main">
       <Layout>
         <div class="dashboard">
-          <!-- Welcome Section -->
+          <!-- Welcome Section (ringkas, satu baris) -->
           <div class="welcome-section">
             <div class="welcome-content">
               <h1>{{ greeting }}{{ userName ? `, ${userName}` : '' }}!</h1>
-              <p v-if="institution">{{ institution.name }}</p>
-              <p v-else-if="loading" class="loading">Memuat data...</p>
-              <p v-else class="loading">{{ institutionError || 'Instansi tidak ditemukan' }}</p>
+              <template v-if="institution">
+                <span class="welcome-sep">·</span>
+                <p class="welcome-inst">{{ institution.name }}</p>
+              </template>
+              <template v-else-if="loading">
+                <span class="welcome-sep">·</span>
+                <p class="loading">Memuat data...</p>
+              </template>
+              <template v-else>
+                <span class="welcome-sep">·</span>
+                <p class="loading">{{ institutionError || 'Instansi tidak ditemukan' }}</p>
+              </template>
               <div v-if="academicPeriodText" class="academic-period">{{ academicPeriodText }}</div>
             </div>
           </div>
 
           <!-- Statistics Cards -->
           <div class="stats-grid">
-            <div class="stat-card stat-card-success">
+            <div class="stat-card stat-card-success" :class="{ 'stat-empty-state': studentCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -26,12 +35,13 @@
           <div class="stat-body">
             <h3 class="stat-title">Total Siswa</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(studentCount) }}</p>
-            <span class="stat-label">Siswa Aktif</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': studentCount === 0 }">{{ formatStatValue(studentCount) }}</p>
+            <span class="stat-label">{{ studentCount === 0 && !loading ? 'Mulai dengan menambah data siswa' : 'Siswa Aktif' }}</span>
+            <router-link v-if="!loading" to="/student" class="stat-action">Tambah Siswa →</router-link>
             </div>
           </div>
         
-            <div class="stat-card stat-card-warning">
+            <div class="stat-card stat-card-warning" :class="{ 'stat-empty-state': teacherCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -43,12 +53,13 @@
           <div class="stat-body">
             <h3 class="stat-title">Total Guru</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(teacherCount) }}</p>
-            <span class="stat-label">Guru Aktif</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': teacherCount === 0 }">{{ formatStatValue(teacherCount) }}</p>
+            <span class="stat-label">{{ teacherCount === 0 && !loading ? 'Mulai dengan menambah data guru' : 'Guru Aktif' }}</span>
+            <router-link v-if="!loading" to="/teacher" class="stat-action">Tambah Guru →</router-link>
             </div>
           </div>
         
-            <div class="stat-card stat-card-info">
+            <div class="stat-card stat-card-info" :class="{ 'stat-empty-state': classCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -59,12 +70,12 @@
           <div class="stat-body">
             <h3 class="stat-title">Kelas</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(classCount) }}</p>
-            <span class="stat-label">Kelas Terdaftar</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': classCount === 0 }">{{ formatStatValue(classCount) }}</p>
+            <span class="stat-label">{{ classCount === 0 && !loading ? 'Belum ada kelas terdaftar' : 'Kelas Terdaftar' }}</span>
             </div>
           </div>
         
-            <div class="stat-card stat-card-neutral">
+            <div class="stat-card stat-card-neutral" :class="{ 'stat-empty-state': subjectCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -75,12 +86,12 @@
           <div class="stat-body">
             <h3 class="stat-title">Mata Pelajaran</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(subjectCount) }}</p>
-            <span class="stat-label">Mapel Terdaftar</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': subjectCount === 0 }">{{ formatStatValue(subjectCount) }}</p>
+            <span class="stat-label">{{ subjectCount === 0 && !loading ? 'Belum ada mapel terdaftar' : 'Mapel Terdaftar' }}</span>
             </div>
           </div>
         
-            <div class="stat-card stat-card-danger">
+            <div class="stat-card stat-card-danger" :class="{ 'stat-empty-state': violationCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18C1.64 18.3 1.55 18.64 1.55 19C1.55 19.36 1.64 19.7 1.82 20C2 20.3 2.26 20.56 2.58 20.73C2.9 20.9 3.26 20.97 3.63 20.97H20.37C20.74 20.97 21.1 20.9 21.42 20.73C21.74 20.56 22 20.3 22.18 20C22.36 19.7 22.45 19.36 22.45 19C22.45 18.64 22.36 18.3 22.18 18L13.71 3.86C13.53 3.57 13.27 3.31 12.95 3.14C12.63 2.97 12.27 2.9 11.9 2.9C11.53 2.9 11.17 2.97 10.85 3.14C10.53 3.31 10.27 3.57 10.29 3.86Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -89,12 +100,12 @@
           <div class="stat-body">
             <h3 class="stat-title">Pelanggaran</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(violationCount) }}</p>
-            <span class="stat-label">Catatan Pelanggaran</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': violationCount === 0 }">{{ formatStatValue(violationCount) }}</p>
+            <span class="stat-label">{{ violationCount === 0 && !loading ? 'Belum ada catatan' : 'Catatan Pelanggaran' }}</span>
             </div>
           </div>
 
-            <div class="stat-card stat-card-danger">
+            <div class="stat-card stat-card-danger" :class="{ 'stat-empty-state': violationCountThisMonth === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8C3 5 4.5 3 8 3H16C19.5 3 21 5 21 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -104,12 +115,12 @@
           <div class="stat-body">
             <h3 class="stat-title">Pelanggaran Bulan Ini</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(violationCountThisMonth) }}</p>
-            <span class="stat-label">Bulan berjalan</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': violationCountThisMonth === 0 }">{{ formatStatValue(violationCountThisMonth) }}</p>
+            <span class="stat-label">{{ violationCountThisMonth === 0 && !loading ? 'Tidak ada di bulan ini' : 'Bulan berjalan' }}</span>
           </div>
           </div>
         
-            <div class="stat-card stat-card-counseling">
+            <div class="stat-card stat-card-counseling" :class="{ 'stat-empty-state': counselingCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -118,12 +129,12 @@
           <div class="stat-body">
             <h3 class="stat-title">Konseling</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(counselingCount) }}</p>
-            <span class="stat-label">Sesi Konseling</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': counselingCount === 0 }">{{ formatStatValue(counselingCount) }}</p>
+            <span class="stat-label">{{ counselingCount === 0 && !loading ? 'Belum ada sesi' : 'Sesi Konseling' }}</span>
           </div>
             </div>
 
-            <div class="stat-card stat-card-counseling">
+            <div class="stat-card stat-card-counseling" :class="{ 'stat-empty-state': counselingPendingCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -132,8 +143,8 @@
           <div class="stat-body">
             <h3 class="stat-title">Konseling Pending</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value">{{ formatNumber(counselingPendingCount) }}</p>
-            <span class="stat-label">Menunggu / Jadwal</span>
+            <p v-else class="stat-value" :class="{ 'stat-empty': counselingPendingCount === 0 }">{{ formatStatValue(counselingPendingCount) }}</p>
+            <span class="stat-label">{{ counselingPendingCount === 0 && !loading ? 'Tidak ada antrean' : 'Menunggu / Jadwal' }}</span>
           </div>
             </div>
           </div>
@@ -326,7 +337,7 @@
           <h2>Aktivitas Terbaru</h2>
         </div>
         <div v-if="auditLogsLoading" class="audit-loading">Memuat...</div>
-        <div v-else-if="auditLogs.length === 0" class="audit-empty">Belum ada aktivitas tercatat.</div>
+        <div v-else-if="auditLogs.length === 0" class="audit-empty">Belum ada aktivitas. Aktivitas akan tercatat saat Anda mengubah data.</div>
         <ul v-else class="audit-list">
           <li v-for="log in auditLogs" :key="log.id" class="audit-item">
             <span class="audit-desc">{{ log.description }}</span>
@@ -373,6 +384,11 @@ const auditLogsLoading = ref(false)
 
 const formatNumber = (num) => {
   return new Intl.NumberFormat('id-ID').format(num)
+}
+
+const formatStatValue = (num) => {
+  if (num === 0) return 'Belum ada data'
+  return formatNumber(num)
 }
 
 const institutionTypeLabel = computed(() => {
@@ -469,7 +485,7 @@ onMounted(async () => {
   display: flex;
   width: 100%;
   min-height: 100vh;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 24%, #f1f5f9 100%);
 }
 
 .dashboard-main {
@@ -485,106 +501,136 @@ onMounted(async () => {
   padding: 0;
 }
 
-/* Welcome Section */
+/* Welcome - bar ringkas dan ramah */
 .welcome-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 24px 32px;
-  margin-bottom: 24px;
+  background: linear-gradient(120deg, #0d9488 0%, #059669 50%, #047857 100%);
+  border-radius: 14px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
   color: white;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.welcome-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
 }
 
 .welcome-content h1 {
-  font-size: 24px;
+  font-size: 17px;
   font-weight: 700;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.5px;
+  margin: 0;
+  letter-spacing: -0.2px;
 }
 
-.welcome-content p {
-  font-size: 15px;
-  opacity: 0.9;
+.welcome-sep {
+  opacity: 0.7;
+  font-weight: 300;
+}
+
+.welcome-content p,
+.welcome-content .welcome-inst {
+  font-size: 13px;
+  opacity: 0.95;
   margin: 0;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .welcome-content p.loading {
-  opacity: 0.7;
+  opacity: 0.85;
   font-style: italic;
 }
 
 .academic-period {
-  margin-top: 10px;
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.9;
   font-weight: 500;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255,255,255,0.4);
 }
 
-/* Statistics Grid */
+/* Statistics Grid - card lebih hidup */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
   margin-bottom: 24px;
 }
 
 .stat-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s ease;
+  border: 1px solid #e5e7eb;
   display: flex;
   align-items: flex-start;
   gap: 16px;
 }
 
-.stat-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: #cbd5e1;
+.stat-card.stat-empty-state {
+  background: linear-gradient(145deg, #fafafa 0%, #f8fafc 100%);
 }
 
+.stat-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.stat-card.stat-card-success { border-left: 4px solid #10b981; }
+.stat-card.stat-card-warning { border-left: 4px solid #f59e0b; }
+.stat-card.stat-card-info { border-left: 4px solid #059669; }
+.stat-card.stat-card-neutral { border-left: 4px solid #64748b; }
+.stat-card.stat-card-danger { border-left: 4px solid #ef4444; }
+.stat-card.stat-card-counseling { border-left: 4px solid #059669; }
+
 .stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
 }
 
 .stat-card-success .stat-icon {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
 }
 
 .stat-card-warning .stat-icon {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
 }
 
 .stat-card-info .stat-icon {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  color: #059669;
 }
 
 .stat-card-neutral .stat-icon {
-  background: rgba(100, 116, 139, 0.1);
-  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
 }
 
 .stat-card-danger .stat-icon {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
 }
 
 .stat-card-counseling .stat-icon {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0ea5e9;
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
 }
 
 .stat-body {
@@ -594,21 +640,27 @@ onMounted(async () => {
 
 .stat-title {
   color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
+  font-size: 11px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
 }
 
 .stat-value {
   color: #0f172a;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   margin: 0 0 4px 0;
   letter-spacing: -0.5px;
   line-height: 1.2;
   word-break: break-word;
+}
+
+.stat-value.stat-empty {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .loading-text {
@@ -624,15 +676,34 @@ onMounted(async () => {
   font-weight: 400;
   display: block;
   margin-top: 2px;
+  line-height: 1.4;
 }
 
-/* Aktivitas terbaru (audit log) */
+.stat-action {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #059669;
+  text-decoration: none;
+  padding: 6px 0;
+}
+
+.stat-action:hover {
+  text-decoration: underline;
+}
+
+.stat-card-success .stat-action { color: #059669; }
+.stat-card-warning .stat-action { color: #d97706; }
+
+/* Aktivitas terbaru */
 .audit-section {
   background: white;
-  border-radius: 12px;
-  padding: 20px 24px;
+  border-radius: 16px;
+  padding: 22px 26px;
   margin-bottom: 24px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .audit-section .section-header {
@@ -682,13 +753,13 @@ onMounted(async () => {
   color: #64748b;
 }
 
-/* Quick Actions */
+/* Quick Actions - lebih ramah */
 .quick-actions {
   background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
 }
 
 .section-header {
@@ -696,42 +767,42 @@ onMounted(async () => {
 }
 
 .section-header h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
 }
 
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
 }
 
 .action-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 16px 18px;
   background: #f8fafc;
-  border-radius: 10px;
+  border-radius: 14px;
   text-decoration: none;
   color: #1e293b;
-  transition: all 0.2s ease;
-  border: 1px solid #e2e8f0;
+  transition: all 0.25s ease;
+  border: 1px solid #e5e7eb;
 }
 
 .action-card:hover {
-  background: white;
+  background: #fff;
   border-color: #cbd5e1;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .action-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -739,8 +810,8 @@ onMounted(async () => {
 }
 
 .action-icon-primary {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
 }
 
 .action-icon-success {
@@ -755,7 +826,7 @@ onMounted(async () => {
 
 .action-icon-info {
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: #059669;
 }
 
 .action-icon-danger {
@@ -764,8 +835,8 @@ onMounted(async () => {
 }
 
 .action-icon-counseling {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0ea5e9;
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
 }
 
 .action-icon-neutral {
@@ -802,7 +873,7 @@ onMounted(async () => {
 }
 
 .action-card-primary:hover .action-arrow {
-  color: #667eea;
+  color: #059669;
 }
 
 .action-card-success:hover .action-arrow {
@@ -814,7 +885,7 @@ onMounted(async () => {
 }
 
 .action-card-info:hover .action-arrow {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .action-card-danger:hover .action-arrow {
@@ -822,7 +893,7 @@ onMounted(async () => {
 }
 
 .action-card-counseling:hover .action-arrow {
-  color: #0ea5e9;
+  color: #059669;
 }
 
 .action-card-neutral:hover .action-arrow {
@@ -832,16 +903,17 @@ onMounted(async () => {
 /* Responsive Design - Tablet */
 @media (max-width: 768px) {
   .welcome-section {
-    padding: 20px 24px;
-    border-radius: 16px;
+    padding: 12px 18px;
+    margin-bottom: 18px;
+    border-radius: 10px;
   }
   
   .welcome-content h1 {
-    font-size: 20px;
+    font-size: 16px;
   }
   
   .welcome-content p {
-    font-size: 14px;
+    font-size: 12px;
   }
   
   .stats-grid {
@@ -878,20 +950,20 @@ onMounted(async () => {
   }
 
   .welcome-section {
-    padding: 20px 20px;
-    margin-bottom: 20px;
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.15);
   }
 
   .welcome-content h1 {
-    font-size: 22px;
-    font-weight: 800;
-    margin-bottom: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 2px;
   }
 
   .welcome-content p {
-    font-size: 14px;
+    font-size: 12px;
     opacity: 0.95;
   }
 

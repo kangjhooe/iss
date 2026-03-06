@@ -188,10 +188,12 @@ class InstitutionController extends Controller
                 }
             }
             
-            // Remove name and npsn from update if user is not super admin
+            // Remove name, npsn, and is_active from update if user is not super admin
+            // Hanya super admin yang boleh mengubah status aktif/nonaktif (ban instansi)
             if (!$isSuperAdmin) {
                 unset($validated['name']);
                 unset($validated['npsn']);
+                unset($validated['is_active']);
             }
 
             $institution->update($validated);
@@ -232,8 +234,8 @@ class InstitutionController extends Controller
         try {
             $institution = Institution::findOrFail($id);
 
-            // Hanya admin/super admin yang bisa menghapus
-            if (!$request->user()->isAdminOrSuperAdmin()) {
+            // Hanya super admin yang boleh menghapus instansi (untuk penindakan pelanggaran)
+            if (!$request->user()->isSuperAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -482,12 +484,82 @@ class InstitutionController extends Controller
     }
 
     /**
+     * Upload cover/hero image for institution (halaman publik sekolah).
+     */
+    public function uploadCoverImage(Request $request, $id)
+    {
+        try {
+            $institution = Institution::findOrFail($id);
+            $user = $request->user();
+
+            if (!$user) {
+                return \App\Helpers\ApiResponse::unauthorized();
+            }
+
+            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $institution->id) {
+                return \App\Helpers\ApiResponse::forbidden();
+            }
+
+            $request->validate(
+                \App\Helpers\FileUploadRules::institutionCoverImage(),
+                \App\Helpers\FileUploadRules::messages(
+                    \App\Helpers\FileUploadRules::TYPE_IMAGE_LOGO,
+                    \App\Helpers\FileUploadRules::SIZE_MEDIUM,
+                    'cover_image',
+                    false
+                )
+            );
+
+            $file = $request->file('cover_image');
+
+            if ($institution->cover_image && Storage::disk('public')->exists($institution->cover_image)) {
+                Storage::disk('public')->delete($institution->cover_image);
+            }
+
+            $fileName = \App\Helpers\FileUploadHelper::safeStorageName($file, 'institution_cover_' . $institution->id);
+            $filePath = $file->storeAs('institution_covers', $fileName, 'public');
+
+            $institution->update(['cover_image' => $filePath]);
+
+            Log::info('Institution cover image uploaded', [
+                'institution_id' => $institution->id,
+                'user_id' => $user->id,
+                'cover_path' => $filePath,
+            ]);
+
+            return response()->json([
+                'message' => 'Gambar cover berhasil diupload',
+                'data' => new InstitutionResource($institution),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return \App\Helpers\ApiResponse::notFound('Institusi tidak ditemukan');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return \App\Helpers\ApiResponse::validationFailed($e->errors());
+        } catch (\Exception $e) {
+            Log::error('Failed to upload cover image', [
+                'institution_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return \App\Helpers\ApiResponse::serverError('Terjadi kesalahan saat mengupload gambar cover', $e->getMessage());
+        }
+    }
+
+    /**
      * Get logo for institution.
      */
     public function getLogo(Request $request, $id)
     {
         try {
             $institution = Institution::findOrFail($id);
+
+            // Hanya admin/super admin atau user dari institusi yang sama yang boleh mengunduh logo
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
+            if (!$user->isAdminOrSuperAdmin() && (int) $user->institution_id !== (int) $institution->id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
 
             if (!$institution->logo) {
                 return response()->json([

@@ -996,10 +996,10 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-radius: 14px;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);
 }
 
 .header-icon {
@@ -1040,7 +1040,7 @@ onMounted(async () => {
   padding: 12px 14px;
   background: #f8fafc;
   border-radius: 10px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid #059669;
   line-height: 1.5;
 }
 
@@ -1070,7 +1070,7 @@ onMounted(async () => {
 .form-group-checkbox .checkbox-label input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #667eea;
+  accent-color: #059669;
 }
 
 .badge-external {
@@ -1113,8 +1113,8 @@ onMounted(async () => {
 }
 .main-tab.active {
   color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
 }
 
 .report-section, .history-section {
@@ -1232,8 +1232,8 @@ onMounted(async () => {
 }
 
 .tab.active {
-  background: #667eea;
-  border-color: #667eea;
+  background: #059669;
+  border-color: #059669;
   color: #fff;
 }
 
@@ -1279,8 +1279,8 @@ onMounted(async () => {
 }
 
 .btn-page:hover:not(:disabled) {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #059669;
+  color: #059669;
   background: #f8fafc;
 }
 
@@ -1313,7 +1313,7 @@ onMounted(async () => {
   width: 44px;
   height: 44px;
   border: 3px solid #e2e8f0;
-  border-top-color: #667eea;
+  border-top-color: #059669;
   border-radius: 50%;
   margin: 0 auto 20px;
   animation: spin 0.7s linear infinite;
@@ -1416,7 +1416,7 @@ onMounted(async () => {
 }
 .flow-arrow {
   flex-shrink: 0;
-  color: #667eea;
+  color: #059669;
 }
 .detail-highlight .value { font-weight: 600; color: #0f172a; }
 .value-muted { font-weight: 400; color: #64748b; }
@@ -1628,8 +1628,8 @@ onMounted(async () => {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
 .form-group textarea {
@@ -1668,14 +1668,14 @@ onMounted(async () => {
   padding: 10px 18px;
   border-radius: 8px;
   border: none;
-  background: #667eea;
+  background: #059669;
   color: #fff;
   font-weight: 500;
   cursor: pointer;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5a67d8;
+  background: #047857;
 }
 
 .btn-primary:disabled {
@@ -1694,9 +1694,9 @@ onMounted(async () => {
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 .btn-secondary:hover:not(:disabled) {
-  border-color: #667eea;
+  border-color: #059669;
   background: #f8fafc;
-  color: #667eea;
+  color: #059669;
 }
 
 .btn-compact {
@@ -1745,11 +1745,11 @@ onMounted(async () => {
 }
 .report-export-actions .btn-export-pdf {
   background: var(--primary-light, #eff6ff);
-  border-color: var(--primary, #3b82f6);
-  color: var(--primary, #3b82f6);
+  border-color: var(--primary, #059669);
+  color: var(--primary, #059669);
 }
 .report-export-actions .btn-export-pdf:hover:not(:disabled) {
-  background: var(--primary, #3b82f6);
+  background: var(--primary, #059669);
   color: #fff;
 }
 

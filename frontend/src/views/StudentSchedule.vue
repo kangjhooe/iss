@@ -146,7 +146,7 @@ onMounted(async () => {
 .back-link {
   display: inline-block;
   margin-top: 16px;
-  color: #0ea5e9;
+  color: #059669;
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
@@ -154,6 +154,7 @@ onMounted(async () => {
 
 .back-link:hover {
   text-decoration: underline;
+  color: #047857;
 }
 
 .schedule-wrap {

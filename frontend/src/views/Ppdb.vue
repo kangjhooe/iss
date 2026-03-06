@@ -4,20 +4,6 @@
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
-          <div class="header-left">
-            <div class="header-icon-wrap">
-              <svg class="header-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div>
-              <h1 class="page-title">PPDB</h1>
-              <p class="page-subtitle">Penerimaan Peserta Didik Baru — kelola periode, jalur, dan calon</p>
-            </div>
-          </div>
           <div class="header-actions">
             <button v-if="activeTab === 'periods'" @click="openPeriodModal()" class="btn-header-primary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -1160,7 +1146,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.ppdb-page { padding: 0 1.25rem 2.5rem; max-width: 1400px; margin: 0 auto; }
+.ppdb-page { padding: 0 1.25rem 2.5rem; max-width: 1400px; margin: 0 auto; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
 .page-header {
   position: relative;
   margin: -1.25rem -1.25rem 0;
@@ -1172,7 +1158,7 @@ onMounted(() => {
 .header-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%);
   opacity: 0.97;
 }
 .header-content {
@@ -1204,7 +1190,7 @@ onMounted(() => {
   gap: 0.5rem;
   padding: 0.6rem 1.1rem;
   background: #fff;
-  color: #4f46e5;
+  color: #059669;
   border: none;
   border-radius: 10px;
   font-weight: 600;
@@ -1212,7 +1198,7 @@ onMounted(() => {
   cursor: pointer;
   transition: transform 0.05s, box-shadow 0.2s;
 }
-.btn-header-primary:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.15); transform: translateY(-1px); }
+.btn-header-primary:hover { box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35); transform: translateY(-1px); }
 
 .nav-tabs-wrap { margin-bottom: 1.25rem; }
 .nav-tabs {
@@ -1236,13 +1222,13 @@ onMounted(() => {
 .nav-tab:hover { background: rgba(255,255,255,0.8); }
 .nav-tab.active {
   background: #fff;
-  color: #4f46e5;
+  color: #059669;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 .nav-tab-label { display: block; font-size: 0.95rem; }
 .nav-tab-hint { font-size: 0.72rem; color: #64748b; margin-top: 0.15rem; }
-.nav-tab.active .nav-tab-hint { color: #6366f1; }
+.nav-tab.active .nav-tab-hint { color: #047857; }
 
 .page-main { display: flex; flex-direction: column; gap: 1rem; }
 .content-card {
@@ -1266,7 +1252,7 @@ onMounted(() => {
   border-radius: 10px;
   font-size: 0.9rem;
 }
-.search-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+.search-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15); }
 .filter-label { font-size: 0.9rem; font-weight: 500; color: #475569; }
 .filter-select {
   padding: 0.6rem 1rem;
@@ -1284,7 +1270,7 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
 }
-.btn-export:hover:not(:disabled) { background: #f8fafc; border-color: #6366f1; color: #4f46e5; }
+.btn-export:hover:not(:disabled) { background: #f8fafc; border-color: #059669; color: #059669; }
 .btn-export:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .table-wrap { overflow-x: auto; padding: 0; }
@@ -1332,7 +1318,7 @@ onMounted(() => {
 .btn-delete { color: #b91c1c; border-color: #fecaca; }
 .btn-delete:hover { background: #fef2f2; }
 .btn-primary-sm {
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   border: none;
   padding: 0.35rem 0.65rem;
@@ -1355,7 +1341,7 @@ onMounted(() => {
 .empty-state-sm { padding: 2rem; }
 .empty-state .btn-primary {
   padding: 0.7rem 1.5rem;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -1382,21 +1368,21 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
 }
-.pagination-btn:hover:not(:disabled) { background: #f8fafc; border-color: #6366f1; color: #4f46e5; }
+.pagination-btn:hover:not(:disabled) { background: #f8fafc; border-color: #059669; color: #059669; }
 .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .loading-wrap { padding: 2rem; }
 .stats-dashboard { padding: 1.75rem; }
 .stats-cards { display: flex; gap: 1rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
 .stats-card {
-  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   border-radius: 14px;
   padding: 1.25rem 1.5rem;
   min-width: 160px;
   border: 1px solid #e9d5ff;
 }
-.stats-total .stats-value { font-size: 2rem; font-weight: 800; display: block; color: #5b21b6; }
-.stats-label { font-size: 0.9rem; color: #6d28d9; font-weight: 500; }
+.stats-total .stats-value { font-size: 2rem; font-weight: 800; display: block; color: #047857; }
+.stats-label { font-size: 0.9rem; color: #059669; font-weight: 500; }
 .stats-section { margin-bottom: 1.5rem; }
 .stats-section h4 { margin: 0 0 0.75rem; font-size: 0.95rem; color: #334155; font-weight: 600; }
 .stats-grid { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
@@ -1460,8 +1446,8 @@ onMounted(() => {
 }
 .form-group input:focus, .form-select:focus, .form-group textarea:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+  border-color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.12);
 }
 .form-row { display: flex; gap: 1rem; flex-wrap: wrap; }
 .form-row .form-group { flex: 1; min-width: 140px; }
@@ -1481,13 +1467,13 @@ onMounted(() => {
   cursor: pointer;
   font-size: 0.95rem;
 }
-.btn-primary { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; border: none; }
-.btn-primary:hover:not(:disabled) { opacity: 0.95; }
+.btn-primary { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; border: none; }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35); }
 .btn-secondary { background: #fff; border: 1px solid #e2e8f0; color: #475569; }
 .btn-secondary:hover { background: #f8fafc; }
 .error-message { color: #b91c1c; font-size: 0.9rem; margin-bottom: 0.5rem; }
 .doc-list { margin: 0.75rem 0; }
 .doc-list ul { margin: 0.35rem 0 0 1.25rem; }
-.link-download { margin-left: 0.5rem; color: #4f46e5; font-weight: 500; cursor: pointer; }
+.link-download { margin-left: 0.5rem; color: #059669; font-weight: 500; cursor: pointer; }
 .link-download:hover { text-decoration: underline; }
 </style>

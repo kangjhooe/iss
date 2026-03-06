@@ -12,7 +12,8 @@ export function useStudentList() {
   const filters = ref({
     search: '',
     class_id: '',
-    status: ''
+    status: '',
+    only_trashed: false
   })
 
   const loadStudents = async () => {
@@ -23,6 +24,7 @@ export function useStudentList() {
       if (filters.value.search) params.search = filters.value.search
       if (filters.value.class_id) params.class_id = filters.value.class_id
       if (filters.value.status) params.status = filters.value.status
+      if (filters.value.only_trashed) params.only_trashed = true
 
       const response = await studentApi.getAll(params)
       students.value = response.data?.data ?? []

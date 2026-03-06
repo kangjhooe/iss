@@ -1,34 +1,21 @@
 <template>
   <Layout>
     <div class="audit-log-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div class="header-icon-wrap">
-            <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M14 3V8H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="page-title">Audit Log</h1>
-            <p class="page-subtitle">Riwayat aktivitas sistem (user, modul, aksi)</p>
-          </div>
-          <div class="header-actions">
-            <button
-              type="button"
-              class="btn-primary btn-compact"
-              :disabled="exporting"
-              @click="handleExport"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>{{ exporting ? 'Mengekspor...' : 'Export CSV' }}</span>
-            </button>
-          </div>
-        </div>
+      <div class="tab-header">
+        <div class="filters filters-inline"></div>
+        <button
+          type="button"
+          class="btn-primary btn-compact"
+          :disabled="exporting"
+          @click="handleExport"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>{{ exporting ? 'Mengekspor...' : 'Export CSV' }}</span>
+        </button>
       </div>
 
       <!-- Filters -->
@@ -75,7 +62,7 @@
             <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h3 class="empty-title">Tidak ada data audit log</h3>
+        <h3 class="empty-title">Belum ada data audit log</h3>
         <p class="empty-desc">Belum ada aktivitas tercatat atau tidak ada hasil untuk filter yang dipilih.</p>
         <button type="button" class="btn-primary btn-empty-cta" @click="resetFilters">Tampilkan Semua</button>
       </div>
@@ -246,6 +233,22 @@ onMounted(async () => {
 <style scoped>
 .audit-log-page {
   padding: 0 0 2rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+
+.tab-header .filters-inline {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .page-header {
@@ -264,7 +267,7 @@ onMounted(async () => {
 }
 
 .header-icon {
-  color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #059669);
 }
 
 .page-title {
@@ -325,8 +328,12 @@ onMounted(async () => {
 }
 
 .btn-primary {
-  background: var(--color-primary, #2563eb);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
 }
 
 .btn-primary:disabled {
@@ -440,8 +447,8 @@ onMounted(async () => {
 }
 
 .module-badge {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .action-badge {

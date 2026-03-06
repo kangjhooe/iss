@@ -16,8 +16,16 @@
       </div>
     </nav>
 
-    <!-- Hero -->
-    <HeroSection />
+    <!-- Hero (teks & gambar dari Branding Aplikasi) -->
+    <HeroSection
+      :headline="appBranding.heroHeadline ?? undefined"
+      :subheadline="appBranding.heroSubheadline ?? undefined"
+      :hero-image-url="appBranding.heroImageUrl ?? undefined"
+      :primary-cta-text="appBranding.heroPrimaryCtaText ?? undefined"
+      :primary-cta-to="appBranding.heroPrimaryCtaTo ?? undefined"
+      :secondary-cta-text="appBranding.heroSecondaryCtaText ?? undefined"
+      :secondary-cta-to="appBranding.heroSecondaryCtaTo ?? undefined"
+    />
 
     <!-- Fitur -->
     <section id="fitur" ref="featuresRef" class="section features-section" :class="{ 'section--in-view': featuresVisible }">
@@ -28,9 +36,9 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 21V12H15V21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 3V8" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 21V12H15V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Profil Sekolah/Madrasah</h3>
@@ -39,8 +47,8 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="7" r="4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="7" r="4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Data Siswa</h3>
@@ -49,10 +57,10 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="9" cy="7" r="4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Data Guru</h3>
@@ -61,8 +69,8 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 22V12H15V22" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 22V12H15V22" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Fasilitas & Inventori</h3>
@@ -71,10 +79,10 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 7H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 11H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Kelas & Laporan</h3>
@@ -83,11 +91,11 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H8" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 13H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 17H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Surat-menyurat</h3>
@@ -96,10 +104,10 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M15 2H9C8.46957 2 7.96086 2.21071 7.58579 2.58579C7.21071 2.96086 7 3.46957 7 4V16C7 16.5304 7.21071 17.0391 7.58579 17.4142C7.96086 17.7893 8.46957 18 9 18H15C15.5304 18 16.0391 17.7893 16.4142 17.4142C16.7893 17.0391 17 16.5304 17 16V4C17 3.46957 16.7893 2.96086 16.4142 2.58579C16.0391 2.21071 15.5304 2 15 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 7V11" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H14" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15 2H9C8.46957 2 7.96086 2.21071 7.58579 2.58579C7.21071 2.96086 7 3.46957 7 4V16C7 16.5304 7.21071 17.0391 7.58579 17.4142C7.96086 17.7893 8.46957 18 9 18H15C15.5304 18 16.0391 17.7893 16.4142 17.4142C16.7893 17.0391 17 16.5304 17 16V4C17 3.46957 16.7893 2.96086 16.4142 2.58579C16.0391 2.21071 15.5304 2 15 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 7V11" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9H14" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>PPDB Online</h3>
@@ -108,16 +116,16 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 2V6" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 2V6" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 10H21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 14H8.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 14H12.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 14H16.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 18H8.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 18H12.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 18H16.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 2V6" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 2V6" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 10H21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 14H8.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 14H12.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 14H16.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 18H8.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 18H12.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 18H16.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Absensi & QR</h3>
@@ -126,11 +134,11 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 7H12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 11H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 15H14" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H12" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 15H14" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Buku Nilai & Raport</h3>
@@ -139,12 +147,12 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 6V12L16 14" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 12H4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 3V4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M20 12H21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 20V21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="10" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 6V12L16 14" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 12H4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 12H21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 20V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Jadwal Pelajaran</h3>
@@ -153,9 +161,9 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 8V12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 16H12.01" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 8V12" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 16H12.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Pelanggaran & Konseling</h3>
@@ -164,11 +172,11 @@
           <div class="feature-card">
             <div class="feature-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 7H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 11H16" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 15H12" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 15H12" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Perpustakaan & Arsip</h3>
@@ -360,18 +368,17 @@
     <footer class="footer">
       <div class="footer-accent"></div>
       <div class="footer-inner">
-        <div class="footer-main">
-          <div class="footer-brand">
-            <div class="footer-logo">
-              <AppLogo :size="40" />
-            </div>
+        <div class="footer-brand">
+          <AppLogo class="footer-logo" :size="28" />
+          <div class="footer-text">
             <span class="footer-name">{{ appName }}</span>
             <p class="footer-tagline">{{ appTagline }}</p>
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; {{ currentYear }} {{ appName }}. All rights reserved.</p>
-          <p class="footer-version">Versi {{ appVersion }}</p>
+          <span>&copy; {{ currentYear }} {{ appName }}</span>
+          <span class="footer-sep">·</span>
+          <span class="footer-version">v{{ appVersion }}</span>
         </div>
       </div>
     </footer>
@@ -383,7 +390,10 @@ import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { appName, appTagline, appVersion } from '@/config/app'
 import AppLogo from '@/components/AppLogo.vue'
 import HeroSection from '@/components/HeroSection.vue'
+import { useAppBrandingStore } from '@/stores/appBranding'
 import { schoolPublicApi } from '@/api/schoolPublic'
+
+const appBranding = useAppBrandingStore()
 
 const COUNT_UP_DURATION = 1200
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
@@ -604,7 +614,7 @@ onMounted(async () => {
 }
 
 .navbar-brand:hover {
-  color: #667eea;
+  color: #059669;
 }
 
 .navbar-logo svg {
@@ -635,11 +645,11 @@ onMounted(async () => {
 }
 
 .nav-link:hover {
-  color: #667eea;
+  color: #059669;
 }
 
 .nav-link:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #059669;
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -669,7 +679,7 @@ onMounted(async () => {
   color: #1e293b;
 }
 .navbar-toggle:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #059669;
   outline-offset: 2px;
 }
 .navbar-toggle-bar {
@@ -730,10 +740,10 @@ onMounted(async () => {
 }
 .mobile-menu-link:hover {
   background: #f1f5f9;
-  color: #667eea;
+  color: #059669;
 }
 .mobile-menu-link:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #059669;
   outline-offset: 2px;
 }
 .menu-enter-active,
@@ -760,7 +770,7 @@ onMounted(async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #667eea;
+  color: #059669;
 }
 .why-icon svg {
   flex-shrink: 0;
@@ -791,30 +801,30 @@ onMounted(async () => {
 }
 
 .btn-ghost:hover {
-  color: #667eea;
+  color: #059669;
 }
 
 .btn-primary {
-  background: #667eea;
+  background: #059669;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #5568d3;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+  background: #047857;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);
   transform: translateY(-1px);
 }
 
 .btn-secondary {
   background: white;
-  color: #667eea;
-  border: 1.5px solid #667eea;
+  color: #059669;
+  border: 1.5px solid #059669;
 }
 
 .btn-secondary:hover {
   background: #f8fafc;
-  border-color: #5568d3;
-  color: #5568d3;
+  border-color: #047857;
+  color: #047857;
   transform: translateY(-1px);
 }
 
@@ -825,7 +835,7 @@ onMounted(async () => {
 
 .btn:focus-visible,
 a.btn:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #059669;
   outline-offset: 2px;
 }
 
@@ -889,7 +899,7 @@ a.btn:focus-visible {
   width: 120%;
   max-width: 800px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(5, 150, 105, 0.2), transparent);
   z-index: 1;
 }
 
@@ -934,7 +944,7 @@ a.btn:focus-visible {
   background: #ffffff;
   border-radius: 20px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 24px rgba(30, 41, 59, 0.06), 0 0 0 1px rgba(102, 126, 234, 0.08);
+  box-shadow: 0 4px 24px rgba(30, 41, 59, 0.06), 0 0 0 1px rgba(5, 150, 105, 0.08);
   flex-shrink: 0;
 }
 
@@ -954,7 +964,7 @@ a.btn:focus-visible {
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.04em;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -982,7 +992,7 @@ a.btn:focus-visible {
 
 .stats-zero-cta {
   font-size: 13px;
-  color: #667eea;
+  color: #059669;
   margin: 8px 0 0;
   font-weight: 500;
 }
@@ -995,8 +1005,8 @@ a.btn:focus-visible {
   align-items: center;
   justify-content: center;
   border-radius: 18px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.14) 0%, rgba(118, 75, 162, 0.14) 100%);
-  color: #667eea;
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.14) 0%, rgba(4, 120, 87, 0.14) 100%);
+  color: #059669;
 }
 
 .stats-decoration-icon {
@@ -1029,14 +1039,14 @@ a.btn:focus-visible {
 }
 
 .stats-tier-item--active {
-  border-color: rgba(102, 126, 234, 0.35);
-  background: linear-gradient(180deg, #ffffff 0%, rgba(102, 126, 234, 0.04) 100%);
-  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
+  border-color: rgba(5, 150, 105, 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(5, 150, 105, 0.04) 100%);
+  box-shadow: 0 2px 12px rgba(5, 150, 105, 0.1);
 }
 
 .stats-tier-item--active:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
+  border-color: #059669;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.15);
 }
 
 .stats-tier-item--muted {
@@ -1063,7 +1073,7 @@ a.btn:focus-visible {
 .stats-tier-value {
   font-size: 24px;
   font-weight: 700;
-  color: #667eea;
+  color: #059669;
 }
 
 @keyframes stats-shine {
@@ -1121,8 +1131,8 @@ a.btn:focus-visible {
 }
 
 .slider-btn:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #059669;
+  color: #059669;
   background: #f8fafc;
 }
 
@@ -1131,7 +1141,7 @@ a.btn:focus-visible {
 }
 
 .slider-btn:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #059669;
   outline-offset: 2px;
 }
 
@@ -1190,8 +1200,8 @@ a.btn:focus-visible {
 }
 
 .recent-school-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.12);
+  border-color: #059669;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.12);
   transform: translateY(-2px);
 }
 
@@ -1241,7 +1251,7 @@ a.btn:focus-visible {
 .recent-school-card-cta {
   font-size: 14px;
   font-weight: 600;
-  color: #667eea;
+  color: #059669;
   margin-top: auto;
 }
 
@@ -1352,7 +1362,7 @@ a.btn:focus-visible {
 }
 
 .feature-icon svg {
-  color: #667eea;
+  color: #059669;
 }
 
 .feature-card h3 {
@@ -1430,7 +1440,7 @@ a.btn:focus-visible {
 
 /* CTA section */
 .cta-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   padding: 64px 24px;
 }
 
@@ -1468,12 +1478,12 @@ a.btn:focus-visible {
 
 .cta-section .btn-primary {
   background: #ffffff;
-  color: #667eea;
+  color: #059669;
 }
 
 .cta-section .btn-primary:hover {
   background: #f1f5f9;
-  color: #5568d3;
+  color: #047857;
 }
 
 .cta-section .btn-secondary {
@@ -1512,17 +1522,17 @@ a.btn:focus-visible {
   position: relative;
   background: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #172033 100%);
   color: #94a3b8;
-  padding: 0 24px 24px;
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding: 12px 24px 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   padding-left: max(24px, env(safe-area-inset-left));
   padding-right: max(24px, env(safe-area-inset-right));
 }
 
 .footer-accent {
-  height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+  height: 2px;
+  background: linear-gradient(90deg, #059669 0%, #047857 50%, #059669 100%);
   background-size: 200% 100%;
-  margin-bottom: 40px;
+  margin-bottom: 12px;
 }
 
 .footer-inner {
@@ -1530,59 +1540,59 @@ a.btn:focus-visible {
   margin: 0 auto;
 }
 
-.footer-main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-  margin-bottom: 32px;
-}
-
 .footer-brand {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .footer-logo {
-  margin-bottom: 12px;
-  filter: drop-shadow(0 2px 8px rgba(102, 126, 234, 0.2));
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 4px rgba(5, 150, 105, 0.2));
+}
+
+.footer-text {
+  min-width: 0;
+  text-align: center;
 }
 
 .footer-name {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: #f1f5f9;
   letter-spacing: -0.02em;
-  margin: 0;
+  display: block;
+  line-height: 1.3;
 }
 
 .footer-tagline {
-  font-size: 14px;
+  font-size: 12px;
   color: #94a3b8;
-  margin: 6px 0 0;
-  max-width: 280px;
-  line-height: 1.5;
+  margin: 2px 0 0;
+  line-height: 1.4;
 }
 
 .footer-bottom {
-  text-align: center;
-  padding-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding-top: 10px;
   border-top: 1px solid rgba(51, 65, 85, 0.8);
+  font-size: 12px;
+  color: #64748b;
 }
 
-.footer-bottom p {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
+.footer-sep {
+  color: #475569;
+  user-select: none;
 }
 
 .footer-version {
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 8px;
   opacity: 0.9;
 }
 
@@ -1716,11 +1726,11 @@ a.btn:focus-visible {
   }
 
   .footer {
-    padding: 0 20px 24px;
+    padding: 0 20px 14px;
   }
 
   .footer-accent {
-    margin-bottom: 32px;
+    margin-bottom: 10px;
   }
 
   .recent-school-card {
@@ -1983,31 +1993,34 @@ a.btn:focus-visible {
   }
 
   .footer {
-    padding: 32px 16px 24px;
+    padding: 10px 16px 14px;
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
-    padding-bottom: max(24px, env(safe-area-inset-bottom));
-  }
-
-  .footer-main {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
   }
 
   .footer-brand {
-    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .footer-text {
     text-align: center;
   }
 
   .footer-tagline {
-    max-width: none;
     text-align: center;
-    font-size: 13px;
+    font-size: 11px;
   }
 
   .footer-name {
-    font-size: 18px;
+    font-size: 14px;
+  }
+
+  .footer-bottom {
+    font-size: 11px;
+    padding-top: 8px;
   }
 }
 

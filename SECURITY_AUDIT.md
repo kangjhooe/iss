@@ -1,126 +1,107 @@
-# Laporan Audit Keamanan — servr.in
+# Laporan Bug dan Celah Keamanan
 
-**Tanggal:** 5 Februari 2026  
-**Lingkup:** Backend (Laravel), Frontend (Vue), API, autentikasi, autorisasi, upload/download file.
-
----
-
-## Ringkasan Eksekutif
-
-Audit menemukan **1 celah kritis** (path traversal) yang telah diperbaiki, serta sejumlah rekomendasi untuk menguatkan keamanan. Autentikasi dan CORS secara umum sudah dikonfigurasi dengan baik (httpOnly cookie, rate limit, lock login).
+Dokumen ini merangkum temuan audit keamanan dan bug pada codebase ISS (backend Laravel + frontend Vue).
 
 ---
 
-## 1. Celah yang Diperbaiki
+## 1. Celah keamanan yang diperbaiki
 
-### 1.1 Path Traversal pada Download Export (Kritis) — **DIPERBAIKI**
+### 1.1 IDOR pada endpoint logo institusi (FIXED)
 
-- **Lokasi:** `CorrespondenceExportController::downloadExcel()`, `downloadPdf()`
-- **Masalah:** Parameter `filePath` dari URL (`/export/download/{filePath}` dan `/export/pdf/{filePath}`) tidak divalidasi. Pemakai jahat bisa meminta path seperti `../../.env` atau `../storage/...` dan mengakses file di luar folder export.
-- **Perbaikan:** Ditambah helper `resolveSafeExportPath()` yang:
-  - Menolak path yang mengandung `..`
-  - Hanya mengizinkan path yang diawali `exports/`
-  - Menormalkan pemisah path
-- **File:** `backend/app/Http/Controllers/API/CorrespondenceExportController.php`
+**Lokasi:** `backend/app/Http/Controllers/API/InstitutionController.php` → `getLogo()`
 
-### 1.2 Validasi Parameter Tanggal (Rendah) — **DIPERBAIKI**
+**Masalah:** Endpoint `GET /api/v1/institution/{id}/logo` tidak memeriksa otorisasi. Pengguna yang sudah login dengan akses modul `institution` (termasuk guru/staff institusi A) bisa mengakses logo institusi lain dengan mengganti `{id}` (contoh: `/institution/2/logo`).
 
-- **Lokasi:** `AcademicCalendarController::calendar()`
-- **Masalah:** `start_date` dan `end_date` dari request dipakai tanpa validasi format, berisiko error atau perilaku tak terduga.
-- **Perbaikan:** Validasi request: `start_date` dan `end_date` nullable, format `Y-m-d`, dan `end_date` after_or_equal `start_date`.
-- **File:** `backend/app/Http/Controllers/API/AcademicCalendarController.php`
+**Dampak:** Insecure Direct Object Reference (IDOR) — informasi logo institusi lain bisa diambil tanpa hak.
 
-### 1.3 Kebocoran Informasi di Log Frontend (Sedang) — **DIPERBAIKI**
-
-- **Lokasi:** `frontend/src/api/index.js`, `frontend/src/stores/auth.js`
-- **Masalah:** `console.log`/`console.error` menampilkan response login, struktur data, dan error detail yang bisa membantu penyerang dan membocorkan struktur API.
-- **Perbaikan:** Log debug yang berisi response/error detail di interceptor API dan auth store dihapus.
-- **File:** `frontend/src/api/index.js`, `frontend/src/stores/auth.js`
-
-### 1.4 Log Debug di View (Sedang) — **DIPERBAIKI**
-
-- **Lokasi:** `frontend/src/views/Report.vue`, `frontend/src/views/Correspondence.vue`
-- **Masalah:** `console.log`/`console.error` di catch dan saat load data menampilkan response/error detail ke console.
-- **Perbaikan:** Semua log yang memuat response/error detail dibungkus dengan `if (import.meta.env.DEV)` sehingga tidak keluar di production.
-- **File:** `frontend/src/views/Report.vue`, `frontend/src/views/Correspondence.vue`
+**Perbaikan:** Ditambah pengecekan: hanya admin/super admin atau user yang `institution_id`-nya sama dengan institusi yang diminta yang boleh mengunduh logo. Response 401/403 untuk akses tidak sah.
 
 ---
 
-## 2. Praktik Baik yang Sudah Diterapkan
+## 2. Rekomendasi keamanan (belum diubah)
 
-- **Autentikasi:** Login pakai httpOnly cookie untuk token (mengurangi risiko XSS mencuri token), rate limit (5/1 menit untuk login/register), lock akun setelah gagal login berulang, password di-hash (bcrypt).
-- **CORS:** `allowed_origins` dari env (`CORS_ALLOWED_ORIGINS`, `FRONTEND_URL`), default development localhost; `supports_credentials: true` konsisten dengan cookie.
-- **Autorisasi:** Route dilindungi `auth:sanctum`; akses per modul dengan middleware `module:*`; Report `institutionId` dibatasi (hanya super admin/admin yang bisa akses institusi lain); controller (mis. QR attendance, academic calendar) memeriksa `institution_id` user vs resource.
-- **Validasi input:** Form Request dipakai untuk create/update; `ScanQrAttendanceRequest` memvalidasi `qr_data`, `attendance_type`, `teaching_journal_id`, `date`, koordinat.
-- **Upload file:** Helper `FileUploadRules` (mime, ukuran, tipe); nama file disanitasi (path traversal); batas 20 dokumen per siswa; akses dokumen siswa/pegawai dicek institusi.
-- **Respons error:** Detail exception hanya dikembalikan jika `config('app.debug')` true, mengurangi kebocoran informasi di production.
+### 2.1 Informasi sensitif saat `APP_DEBUG=true`
 
----
+**Lokasi:** Banyak controller (mis. `AuthController`, `StudentController`, `InstitutionController`, dll.)
 
-## 3. Rekomendasi Tambahan
+**Masalah:** Di banyak `catch` exception, response JSON menyertakan `'error' => config('app.debug') ? $e->getMessage() : null`. Jika `APP_DEBUG=true` di production, stack trace dan detail error bisa bocor ke client.
 
-### 3.1 Backend
-
-1. **Environment production**
-   - Pastikan `APP_DEBUG=false` dan `APP_ENV=production`.
-   - Set `COOKIE_DOMAIN` dan `FRONTEND_URL` sesuai domain production.
-   - Jangan set `SKIP_EMAIL_VERIFICATION=true` di production.
-
-2. **Rate limiting**
-   - Route publik: throttle 5/1 menit sudah baik.
-   - Pertimbangkan throttle per-user yang lebih ketat untuk endpoint berat (export, import, laporan).
-
-3. **Token & session**
-   - Pastikan cookie `auth_token` dan `refresh_token` di-set dengan `Secure` di production (HTTPS).
-   - Sudah benar: `$secure = request()->secure()` di `AuthController`.
-
-4. **Database**
-   - Pastikan migration `cache` dan `permissions` / `user_permissions` sudah dijalankan di environment yang dipakai (log sempat mencatat tabel tidak ditemukan).
-
-5. **Tabel user**
-   - Model `User` memakai tabel `user`; validasi `exists:user,email` di AuthController sudah konsisten.
-
-### 3.2 Frontend
-
-1. **Token storage**
-   - **DONE:** `tokenStorage.js` tidak lagi menulis atau membaca token dari localStorage. `setToken`/`setRefreshToken` no-op, `getToken`/`getRefreshToken` selalu mengembalikan null, `isAuthenticated()` selalu false. Hanya `clearAuth()` dipakai (saat logout/refresh gagal) untuk membersihkan data lama di localStorage.
-
-2. **XSS**
-   - Tetap hindari `v-html` untuk konten user; pakai binding biasa. Sanitasi jika terpaksa menampilkan HTML dari backend.
-
-3. **Content Security Policy (CSP)**
-   - Backend sudah memakai `SecurityHeaders` middleware; pastikan header CSP (jika ada) tidak memblok fitur legit (mis. inline script Vite di dev).
-
-### 3.3 Operasional
-
-1. **Dependency**
-   - Jalankan `composer audit` (backend) dan `npm audit` (frontend) secara berkala; perbaiki vulnerability yang disarankan.
-
-2. **Backup & recovery**
-   - Backup database dan file (storage) secara terjadwal; uji restore.
-
-3. **Log & monitoring**
-   - Jangan log password atau token. Log akses sensitif (login, reset password, export data) sudah ada; pertimbangkan alert untuk pola mencurigakan (banyak 401/403, banyak export).
+**Rekomendasi:**
+- Pastikan `APP_DEBUG=false` di production.
+- Pertimbangkan tidak pernah mengembalikan `$e->getMessage()` ke client; cukup log di server dan kirim pesan umum.
 
 ---
 
-## 4. Checklist Pasca-Audit
+### 2.2 Enumerasi email via verifikasi / resend verifikasi
 
-- [x] Path traversal download export diperbaiki
-- [x] Validasi `start_date`/`end_date` kalender akademik
-- [x] Penghapusan log debug sensitif di API interceptor dan auth store
-- [x] Log debug di Report.vue dan Correspondence.vue dibungkus `import.meta.env.DEV`
-- [ ] **Sebelum go-live:** Set `APP_DEBUG=false`, `APP_ENV=production`, `COOKIE_DOMAIN`, `FRONTEND_URL`
-- [ ] **Sebelum go-live:** Pastikan migration cache & permissions terjalankan di environment target
-- [ ] **Berkala:** Jalankan `composer audit` (backend) dan `npm audit` (frontend)
-- [x] Token tidak lagi disimpan/dibaca dari localStorage di `tokenStorage.js` (setToken/getToken no-op; hanya clearAuth untuk bersihkan data lama)
+**Lokasi:** `AuthController::verifyEmail()`, `AuthController::resendVerificationEmail()`
+
+**Masalah:**
+- `verifyEmail`: validasi `exists:user,email` — response bisa membocorkan apakah email terdaftar.
+- `resendVerificationEmail`: response berbeda untuk "email sudah diverifikasi" vs "email tidak terdaftar", sehingga email terdaftar bisa terdeteksi.
+
+**Rekomendasi:** Gunakan pesan respons yang sama untuk semua kasus (mis. "Jika email terdaftar dan belum diverifikasi, link telah dikirim."). Tetap rate limit (sudah ada throttle:5,1).
 
 ---
 
-## 5. Referensi Singkat
+### 2.3 Rate limit endpoint ujian (exam attempt) publik
 
-- OWASP Top 10: https://owasp.org/www-project-top-ten/
-- Laravel Security: https://laravel.com/docs/security
-- CORS: `backend/config/cors.php`
-- Auth & cookie: `backend/app/Http/Controllers/API/AuthController.php`
-- File upload rules: `backend/app/Helpers/FileUploadRules.php`
+**Lokasi:** `routes/api/v1.php` — prefix `exam/attempt` dengan `throttle:60,1`
+
+**Status:** Sudah ada rate limit 60 request/menit per IP. Token ujian `login_token` dihasilkan dengan `Str::random(32)` (cukup untuk mencegah brute force).
+
+**Rekomendasi:** Pertimbangkan throttle lebih ketat per `login_token` (mis. batasi percobaan salah token per IP) jika ada risiko brute force token.
+
+---
+
+### 2.4 Pembuatan institusi (Store institution)
+
+**Lokasi:** `StoreInstitutionRequest::authorize()` → `$this->user()?->isAdmin() ?? false`
+
+**Status:** Hanya role `admin` (bukan `institution_admin`) yang boleh membuat institusi via API. Di codebase, registrasi publik membuat `institution_admin`. Jadi pembuatan institusi lewat API hanya untuk role `admin` jika ada.
+
+**Rekomendasi:** Pastikan role `admin` vs `institution_admin` konsisten dengan kebijakan bisnis; jika hanya super_admin yang boleh membuat institusi, ubah authorize menjadi `isSuperAdmin()`.
+
+---
+
+## 3. Bug / perilaku yang perlu diperhatikan
+
+### 3.1 Validasi jawaban ujian: option ID vs soal
+
+**Lokasi:** `SaveExamAnswerRequest` + `ExamAttemptController::saveAnswer()`
+
+**Perilaku:** Request memvalidasi `question_option_id` dan `selected_option_ids.*` dengan `exists:question_options,id`. Controller memastikan `question_bank_id` ada di `question_order` peserta, tetapi tidak memvalidasi bahwa `question_option_id` / `selected_option_ids` memang milik soal tersebut.
+
+**Dampak:** Di `ExamService::computeAutoScoreForParticipant()` skor PG/PG kompleks hanya diberi jika opsi benar **dan** opsi tersebut milik soal yang sama (`$q->options()->where(...)`). Jadi tidak ada pemberian skor salah. Hanya integritas data: jawaban bisa menyimpan option_id dari soal lain (tidak disarankan).
+
+**Rekomendasi:** Validasi tambahan: pastikan option_id milik question_bank_id yang dikirim (query ke `question_options` where `question_bank_id` = …). Ini memperketat integritas data.
+
+---
+
+### 3.2 Path traversal export correspondence
+
+**Lokasi:** `CorrespondenceExportController::downloadExcel()`, `downloadPdf()`
+
+**Status:** Sudah ada `resolveSafeExportPath()` yang menolak `..`, backslash, dan path di luar `exports/`. Aman terhadap path traversal.
+
+---
+
+### 3.3 Raw SQL / DB::raw
+
+**Status:** Penggunaan `selectRaw`, `DB::raw`, dll. yang ditemukan hanya untuk agregasi (count, sum, MONTH, dll.) dengan literal/kolom, bukan input user. Tidak ada indikasi SQL injection.
+
+---
+
+## 4. Ringkasan
+
+| Kategori              | Jumlah | Tindakan                    |
+|-----------------------|--------|-----------------------------|
+| IDOR / auth bypass    | 1      | Sudah diperbaiki (getLogo)  |
+| Info disclosure       | 2      | Rekomendasi (debug, enum)   |
+| Rate limit / token    | 0      | Sudah memadai               |
+| Otorisasi bisnis      | 1      | Rekomendasi (store institution) |
+| Integritas data       | 1      | Opsional (validasi option-soal) |
+
+---
+
+*Dibuat dari hasil audit statis pada codebase. Disarankan untuk pengetesan penetrasi dan review konfigurasi production (APP_DEBUG, CORS, HTTPS, cookie domain) secara terpisah.*

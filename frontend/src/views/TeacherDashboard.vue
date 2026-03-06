@@ -286,8 +286,8 @@ onMounted(loadDashboard)
 }
 
 .stat-card-success .stat-icon {
-  background: rgba(14, 165, 233, 0.12);
-  color: #0ea5e9;
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
 }
 
 .stat-card-warning .stat-icon {
@@ -417,7 +417,7 @@ onMounted(loadDashboard)
 }
 
 .grades-pending-list a {
-  color: #0ea5e9;
+  color: #059669;
   text-decoration: none;
   font-size: 14px;
 }

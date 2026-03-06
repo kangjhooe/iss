@@ -43,6 +43,7 @@ iss/
 ## Fitur Core
 
 - ✅ **Profil Instansi/Sekolah** – CRUD, logo, tahun ajaran aktif
+- ✅ **Validasi NPSN** – NPSN dicek ke data referensi Kemendikbud saat registrasi sekolah, tambah/ubah institusi, dan PPDB (sekolah asal); mencegah NPSN palsu
 - ✅ **Data Siswa** – CRUD, import, dokumen, restore, naik kelas (promote)
 - ✅ **Buku Induk** – view & export PDF per siswa
 - ✅ **Alumni** – kelulusan, tahun lulus, tracking destinasi (lanjut sekolah/kuliah/kerja)
@@ -56,6 +57,7 @@ iss/
 - ✅ **Absensi QR** – generate & scan QR untuk absensi siswa/pegawai
 - ✅ **Kalender Akademik** – event, pengingat, integrasi notifikasi
 - ✅ **Buku Nilai & Raport** – nilai per kelas/mapel/semester, export raport
+- ✅ **Ujian Online** – bank soal (PG, isian, uraian), stimulus, ujian multi-sesi, peserta pilihan, kartu login, kendali mulai/akhir/reset, koreksi uraian, rilis nilai
 - ✅ **Pelanggaran & Poin** – jenis pelanggaran/prestasi, poin siswa, threshold tindakan, catatan tindakan
 - ✅ **Konseling** – sesi konseling, jenis konseling, statistik, export
 - ✅ **Ekstrakurikuler** – data ekskul, peserta, export
@@ -76,6 +78,20 @@ iss/
 - ✅ **Rate limiting** – auth 5 req/menit, protected 60 req/menit
 - ✅ **Responsive UI**
 - ✅ **PWA** – install ke perangkat, dukungan offline
+
+## Kompatibilitas Smartphone & Tablet
+
+Aplikasi didesain responsif untuk **smartphone** dan **tablet**:
+
+- **Viewport & meta**: `width=device-width`, `viewport-fit=cover`, dan meta Apple mobile web app di `index.html`.
+- **Breakpoint**: Tablet 769px–1024px; mobile ≤768px (sidebar drawer + bottom nav); smartphone kecil ≤480px.
+- **Touch**: Tombol/aksi utama minimal 44×44px dan `touch-action: manipulation`.
+- **Safe area**: Padding memakai `env(safe-area-inset-*)` untuk layar notch/home indicator.
+- **Form**: Input `font-size: 16px` di mobile untuk mencegah zoom otomatis di iOS.
+- **Tabel**: Scroll horizontal di wrapper; beberapa halaman pakai kartu di mobile.
+- **Modal**: Lebar 95% di mobile, max-height 90vh.
+
+Halaman **Ikuti Ujian** (ExamTake) dan **Ujian Online** (ExamList, SessionDetail) telah disesuaikan untuk ponsel/tablet.
 
 ## Role & Akses
 

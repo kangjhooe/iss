@@ -46,6 +46,11 @@
             <option value="Negeri">Negeri</option>
             <option value="Swasta">Swasta</option>
           </select>
+          <select v-model="filters.is_active" @change="loadInstitutions" class="filter-select">
+            <option value="">Semua Status Aktif</option>
+            <option value="1">Aktif</option>
+            <option value="0">Nonaktif (diban)</option>
+          </select>
         </div>
 
         <div v-if="loading" class="loading-wrap">
@@ -60,6 +65,7 @@
                 <th>Nama Sekolah/Madrasah</th>
                 <th>Jenjang</th>
                 <th>Status</th>
+                <th>Aktif</th>
                 <th>Alamat</th>
                 <th>Tanggal Daftar</th>
                 <th>Aksi</th>
@@ -67,11 +73,12 @@
             </thead>
             <tbody>
               <tr v-for="inst in institutions" :key="inst.id">
-                <td>{{ inst.npsn || '-' }}</td>
+                <td>{{ displayValue(inst.npsn) }}</td>
                 <td>{{ inst.name }}</td>
-                <td>{{ inst.level || '-' }}</td>
+                <td>{{ displayValue(inst.level) }}</td>
                 <td>{{ inst.type }}</td>
-                <td>{{ inst.address || '-' }}</td>
+                <td><span :class="inst.is_active !== false ? 'status-active' : 'status-inactive'">{{ inst.is_active !== false ? 'Ya' : 'Tidak' }}</span></td>
+                <td>{{ displayValue(inst.address) }}</td>
                 <td>{{ formatDate(inst.created_at) }}</td>
                 <td>
                   <div class="action-buttons">
@@ -117,22 +124,6 @@
 
       <!-- Regular Admin View: Institution Profile -->
       <template v-else>
-        <div class="page-header">
-          <div class="header-content">
-            <div>
-              <h2>Profil {{ institutionTypeLabel }}</h2>
-              <p>Kelola informasi {{ institutionTypeLabel.toLowerCase() }} Anda</p>
-            </div>
-            <button @click="openEditModal" class="btn-primary">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Edit Profil</span>
-            </button>
-          </div>
-        </div>
-
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="card" :lines="5" :line-widths="['60%', '100%', '80%', '70%', '90%']" />
       </div>
@@ -144,7 +135,7 @@
             <div class="info-item">
               <label>Nama {{ institutionTypeLabel }}</label>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <p>{{ institution.name || '-' }}</p>
+                <p :class="{ 'text-empty': !institution.name || !String(institution.name).trim() }">{{ displayValue(institution.name) }}</p>
                 <button 
                   v-if="!isSuperAdmin && pendingRequests.name" 
                   @click="showRequestModal('name')" 
@@ -169,7 +160,7 @@
             <div class="info-item">
               <label>NPSN</label>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <p>{{ institution.npsn || '-' }}</p>
+                <p :class="{ 'text-empty': !institution.npsn || !String(institution.npsn).trim() }">{{ displayValue(institution.npsn) }}</p>
                 <button 
                   v-if="!isSuperAdmin && pendingRequests.npsn" 
                   @click="showRequestModal('npsn')" 
@@ -193,15 +184,19 @@
             </div>
             <div class="info-item">
               <label>Nomor Statistik</label>
-              <p>{{ institution.nss || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.nss || !String(institution.nss).trim() }">{{ displayValue(institution.nss) }}</p>
             </div>
             <div class="info-item">
               <label>Jenjang</label>
-              <p>{{ institution.level || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.level || !String(institution.level).trim() }">{{ displayValue(institution.level) }}</p>
             </div>
             <div class="info-item">
               <label>Status</label>
               <p>{{ institution.type }}</p>
+            </div>
+            <div class="info-item">
+              <label>Status Aktif</label>
+              <p><span :class="institution.is_active !== false ? 'status-active' : 'status-inactive'">{{ institution.is_active !== false ? 'Aktif' : 'Nonaktif' }}</span></p>
             </div>
           </div>
         </div>
@@ -211,27 +206,53 @@
           <div class="info-grid">
             <div class="info-item full-width">
               <label>Alamat Lengkap</label>
-              <p>{{ institution.address || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.address || !String(institution.address).trim() }">{{ displayValue(institution.address) }}</p>
             </div>
             <div class="info-item">
               <label>Desa/Kelurahan</label>
-              <p>{{ institution.village || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.village || !String(institution.village).trim() }">{{ displayValue(institution.village) }}</p>
             </div>
             <div class="info-item">
               <label>Kecamatan</label>
-              <p>{{ institution.sub_district || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.sub_district || !String(institution.sub_district).trim() }">{{ displayValue(institution.sub_district) }}</p>
             </div>
             <div class="info-item">
               <label>Kabupaten/Kota</label>
-              <p>{{ institution.district || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.district || !String(institution.district).trim() }">{{ displayValue(institution.district) }}</p>
             </div>
             <div class="info-item">
               <label>Provinsi</label>
-              <p>{{ institution.province || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.province || !String(institution.province).trim() }">{{ displayValue(institution.province) }}</p>
+            </div>
+            <div class="info-item">
+              <label>Kode Kabupaten/Kota (nomor peserta)</label>
+              <p :class="{ 'text-empty': !institution.district_code }">{{ displayValue(institution.district_code) || '–' }}</p>
+            </div>
+            <div class="info-item">
+              <label>Kode Provinsi (nomor peserta)</label>
+              <p :class="{ 'text-empty': !institution.province_code }">{{ displayValue(institution.province_code) || '–' }}</p>
             </div>
             <div class="info-item">
               <label>Kode Pos</label>
-              <p>{{ institution.postal_code || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.postal_code || !String(institution.postal_code).trim() }">{{ displayValue(institution.postal_code) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>Lokasi (untuk absensi)</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Latitude</label>
+              <p :class="{ 'text-empty': institution.latitude == null || institution.latitude === '' }">{{ institution.latitude != null ? institution.latitude : 'Belum ada data' }}</p>
+            </div>
+            <div class="info-item">
+              <label>Longitude</label>
+              <p :class="{ 'text-empty': institution.longitude == null || institution.longitude === '' }">{{ institution.longitude != null ? institution.longitude : 'Belum ada data' }}</p>
+            </div>
+            <div class="info-item">
+              <label>Radius (meter)</label>
+              <p :class="{ 'text-empty': institution.location_radius == null || institution.location_radius === '' }">{{ institution.location_radius != null ? institution.location_radius : 'Belum ada data' }}</p>
             </div>
           </div>
         </div>
@@ -241,15 +262,15 @@
           <div class="info-grid">
             <div class="info-item">
               <label>Telepon</label>
-              <p>{{ institution.phone || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.phone || !String(institution.phone).trim() }">{{ displayValue(institution.phone) }}</p>
             </div>
             <div class="info-item">
               <label>Email</label>
-              <p>{{ institution.email || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.email || !String(institution.email).trim() }">{{ displayValue(institution.email) }}</p>
             </div>
             <div class="info-item">
               <label>Website</label>
-              <p>{{ institution.website || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.website || !String(institution.website).trim() }">{{ displayValue(institution.website) }}</p>
             </div>
           </div>
         </div>
@@ -259,11 +280,11 @@
           <div class="info-grid">
             <div class="info-item">
               <label>Nama</label>
-              <p>{{ institution.principal_name || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.principal_name || !String(institution.principal_name).trim() }">{{ displayValue(institution.principal_name) }}</p>
             </div>
             <div class="info-item">
               <label>NIP</label>
-              <p>{{ institution.principal_nip || '-' }}</p>
+              <p :class="{ 'text-empty': !institution.principal_nip || !String(institution.principal_nip).trim() }">{{ displayValue(institution.principal_nip) }}</p>
             </div>
           </div>
         </div>
@@ -274,10 +295,24 @@
         </div>
 
         <div class="info-section">
-          <h3>Logo Sekolah</h3>
+          <h3>Visi & Misi (Halaman Publik)</h3>
+          <div class="info-grid">
+            <div class="info-item info-item-full">
+              <label>Visi</label>
+              <p :class="{ 'text-empty': !institution.vision }">{{ institution.vision || 'Belum diisi' }}</p>
+            </div>
+            <div class="info-item info-item-full">
+              <label>Misi</label>
+              <p :class="{ 'text-empty': !institution.mission }">{{ institution.mission || 'Belum diisi' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>Logo {{ institutionTypeLabel }}</h3>
           <div class="logo-section">
             <div v-if="institution.logo" class="logo-preview">
-              <img :src="institution.logo" alt="Logo Sekolah" />
+              <img :src="institution.logo" :alt="`Logo ${institutionTypeLabel}`" />
             </div>
             <div v-else class="logo-placeholder">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -296,6 +331,35 @@
               type="file" 
               accept="image/*" 
               @change="handleLogoUpload" 
+              style="display: none"
+            />
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>Gambar Cover / Hero (Halaman Publik)</h3>
+          <p class="form-hint" style="margin-bottom: 12px;">Ditampilkan di bagian atas halaman profil {{ institutionTypeLabel.toLowerCase() }} publik.</p>
+          <div class="logo-section">
+            <div v-if="institution.cover_image" class="logo-preview">
+              <img :src="institution.cover_image" alt="Cover Hero" style="object-fit: cover;" />
+            </div>
+            <div v-else class="logo-placeholder">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L22 16M2 20H22M3 4H21C21.5523 4 22 4.44772 22 5V15C22 15.5523 21.5523 16 21 16H3C2.44772 16 2 15.5523 2 15V5C2 4.44772 2.44772 4 3 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p>Belum ada gambar cover</p>
+            </div>
+            <button @click="triggerCoverUpload" :disabled="uploadingCover" class="btn-primary" style="margin-top: 16px;">
+              <svg v-if="!uploadingCover" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>{{ uploadingCover ? 'Mengunggah...' : (institution.cover_image ? 'Ganti Cover' : 'Unggah Gambar Cover') }}</span>
+            </button>
+            <input 
+              ref="coverInput" 
+              type="file" 
+              accept="image/*" 
+              @change="handleCoverUpload" 
               style="display: none"
             />
           </div>
@@ -324,6 +388,16 @@
               <span>Pilih Tahun Ajaran & Semester</span>
             </button>
           </div>
+        </div>
+
+        <div class="institution-card-footer">
+          <button @click="openEditModal" class="btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Edit Profil</span>
+          </button>
         </div>
       </div>
       </template>
@@ -392,6 +466,14 @@
                   <option value="Negeri">Negeri</option>
                 </select>
               </div>
+              <div v-if="isSuperAdmin" class="form-group">
+                <label>Status Aktif</label>
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="form.is_active" />
+                  <span>Instansi aktif</span>
+                </label>
+                <small class="form-hint">Nonaktifkan untuk memban: user instansi tidak dapat login.</small>
+              </div>
             </div>
 
             <div class="form-group">
@@ -420,6 +502,19 @@
                 <input v-model="form.province" />
               </div>
             </div>
+            <div class="form-section-label">Kode untuk nomor peserta ujian (format YY-PP-KK-J-SSSS-NNN)</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Kode Kabupaten/Kota (KK, 2 digit)</label>
+                <input v-model="form.district_code" type="text" maxlength="2" placeholder="Contoh: 01" />
+                <small class="form-hint">2 digit untuk nomor peserta ujian</small>
+              </div>
+              <div class="form-group">
+                <label>Kode Provinsi (PP, 2 digit)</label>
+                <input v-model="form.province_code" type="text" maxlength="2" placeholder="Contoh: 32" />
+                <small class="form-hint">2 digit untuk nomor peserta ujian</small>
+              </div>
+            </div>
 
             <div class="form-row">
               <div class="form-group">
@@ -445,11 +540,11 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>Nama Kepala Sekolah/Madrasah</label>
+                <label>Nama Kepala {{ institutionTypeLabel }}</label>
                 <input v-model="form.principal_name" />
               </div>
               <div class="form-group">
-                <label>NIP Kepala Sekolah/Madrasah</label>
+                <label>NIP Kepala {{ institutionTypeLabel }}</label>
                 <input v-model="form.principal_nip" />
               </div>
             </div>
@@ -460,10 +555,40 @@
             </div>
 
             <div class="form-group">
-              <label>Logo Sekolah</label>
+              <label>Visi (halaman publik)</label>
+              <textarea v-model="form.vision" rows="3" placeholder="Contoh: Menjadi sekolah unggul..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Misi (halaman publik)</label>
+              <textarea v-model="form.mission" rows="4" placeholder="Satu atau beberapa poin misi sekolah"></textarea>
+            </div>
+
+            <div class="form-section-label">Lokasi (untuk absensi)</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Latitude</label>
+                <input v-model.number="form.latitude" type="number" step="any" placeholder="-6.xxxx" />
+                <small class="form-hint">Contoh: -6.2088</small>
+              </div>
+              <div class="form-group">
+                <label>Longitude</label>
+                <input v-model.number="form.longitude" type="number" step="any" placeholder="106.xxxx" />
+                <small class="form-hint">Contoh: 106.8456</small>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Radius (meter)</label>
+                <input v-model.number="form.location_radius" type="number" min="10" max="5000" placeholder="100" />
+                <small class="form-hint">Radius validasi lokasi absensi (10–5000 m)</small>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Logo {{ institutionTypeLabel }}</label>
               <div class="logo-upload-section">
                 <div v-if="institution?.logo" class="logo-preview-small">
-                  <img :src="institution.logo" alt="Logo Sekolah" />
+                  <img :src="institution.logo" :alt="`Logo ${institutionTypeLabel}`" />
                 </div>
                 <div v-else class="logo-placeholder-small">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -482,6 +607,25 @@
                 />
               </div>
               <small class="form-hint">Format: JPG, PNG, GIF, SVG (Maks. 2MB)</small>
+            </div>
+
+            <div class="form-group">
+              <label>Gambar Cover / Hero (halaman publik)</label>
+              <div class="logo-upload-section">
+                <div v-if="institution?.cover_image" class="logo-preview-small">
+                  <img :src="institution.cover_image" alt="Cover" style="object-fit: cover;" />
+                </div>
+                <div v-else class="logo-placeholder-small">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M2 20H22M3 4H21C21.5523 4 22 4.44772 22 5V15C22 15.5523 21.5523 16 21 16H3C2.44772 16 2 15.5523 2 15V5C2 4.44772 2.44772 4 3 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <button type="button" @click="triggerCoverUpload" :disabled="uploadingCover" class="btn-secondary" style="margin-top: 8px;">
+                  {{ uploadingCover ? 'Mengunggah...' : (institution?.cover_image ? 'Ganti Cover' : 'Unggah Cover') }}
+                </button>
+                <input ref="coverInput" type="file" accept="image/*" @change="handleCoverUpload" style="display: none" />
+              </div>
+              <small class="form-hint">Ditampilkan di hero halaman publik. Maks. 5MB.</small>
             </div>
 
             <div v-if="error" class="error-message">{{ error }}</div>
@@ -507,7 +651,7 @@
           <form @submit.prevent="handleRequestChange" class="modal-body">
             <div class="form-group">
               <label>Nilai Saat Ini</label>
-              <input :value="institution[requestField] || '-'" disabled />
+              <input :value="institution[requestField] ? institution[requestField] : 'Belum ada data'" disabled />
             </div>
             
             <div class="form-group">
@@ -586,6 +730,14 @@
                   <option value="Negeri">Negeri</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Status Aktif</label>
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="form.is_active" />
+                  <span>Instansi aktif</span>
+                </label>
+                <small class="form-hint">Nonaktifkan untuk memban: user instansi tidak dapat login.</small>
+              </div>
             </div>
 
             <div class="form-group">
@@ -614,6 +766,19 @@
                 <input v-model="form.province" />
               </div>
             </div>
+            <div class="form-section-label">Kode untuk nomor peserta ujian (format YY-PP-KK-J-SSSS-NNN)</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Kode Kabupaten/Kota (KK, 2 digit)</label>
+                <input v-model="form.district_code" type="text" maxlength="2" placeholder="Contoh: 01" />
+                <small class="form-hint">2 digit untuk nomor peserta ujian</small>
+              </div>
+              <div class="form-group">
+                <label>Kode Provinsi (PP, 2 digit)</label>
+                <input v-model="form.province_code" type="text" maxlength="2" placeholder="Contoh: 32" />
+                <small class="form-hint">2 digit untuk nomor peserta ujian</small>
+              </div>
+            </div>
 
             <div class="form-row">
               <div class="form-group">
@@ -639,11 +804,11 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>Nama Kepala Sekolah/Madrasah</label>
+                <label>Nama Kepala {{ institutionTypeLabel }}</label>
                 <input v-model="form.principal_name" />
               </div>
               <div class="form-group">
-                <label>NIP Kepala Sekolah/Madrasah</label>
+                <label>NIP Kepala {{ institutionTypeLabel }}</label>
                 <input v-model="form.principal_nip" />
               </div>
             </div>
@@ -651,6 +816,36 @@
             <div class="form-group">
               <label>Deskripsi</label>
               <textarea v-model="form.description" rows="4"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Visi (halaman publik)</label>
+              <textarea v-model="form.vision" rows="3" placeholder="Contoh: Menjadi sekolah unggul..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Misi (halaman publik)</label>
+              <textarea v-model="form.mission" rows="4" placeholder="Satu atau beberapa poin misi sekolah"></textarea>
+            </div>
+
+            <div class="form-section-label">Lokasi (untuk absensi)</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Latitude</label>
+                <input v-model.number="form.latitude" type="number" step="any" placeholder="-6.xxxx" />
+                <small class="form-hint">Contoh: -6.2088</small>
+              </div>
+              <div class="form-group">
+                <label>Longitude</label>
+                <input v-model.number="form.longitude" type="number" step="any" placeholder="106.xxxx" />
+                <small class="form-hint">Contoh: 106.8456</small>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Radius (meter)</label>
+                <input v-model.number="form.location_radius" type="number" min="10" max="5000" placeholder="100" />
+                <small class="form-hint">Radius validasi lokasi absensi (10–5000 m)</small>
+              </div>
             </div>
 
             <div v-if="error" class="error-message">{{ error }}</div>
@@ -775,7 +970,9 @@ const showAcademicYearModal = ref(false)
 const updatingAcademicYear = ref(false)
 const academicYearError = ref('')
 const logoInput = ref(null)
+const coverInput = ref(null)
 const uploadingLogo = ref(false)
+const uploadingCover = ref(false)
 
 const isSuperAdmin = computed(() => authStore.user?.role === 'super_admin')
 
@@ -785,12 +982,15 @@ const institutionTypeLabel = computed(() => {
   return getInstitutionTypeLabel(institution.value?.level)
 })
 
+const displayValue = (val) => (val && String(val).trim() !== '') ? val : 'Belum ada data'
+
 // Super Admin state
 const institutions = ref([])
 const filters = ref({
   search: '',
   level: '',
-  type: ''
+  type: '',
+  is_active: ''
 })
 const showAddModal = ref(false)
 const showEditModalSuperAdmin = ref(false)
@@ -816,13 +1016,21 @@ const form = ref({
   sub_district: '',
   district: '',
   province: '',
+  province_code: '',
+  district_code: '',
   postal_code: '',
   phone: '',
   email: '',
   website: '',
   principal_name: '',
   principal_nip: '',
-  description: ''
+  description: '',
+  vision: '',
+  mission: '',
+  is_active: true,
+  latitude: null,
+  longitude: null,
+  location_radius: null
 })
 
 const loadInstitution = async () => {
@@ -1021,42 +1229,51 @@ const handleUpdate = async () => {
   updating.value = true
   
   try {
-    // Prepare data to send - exclude name and npsn if not super admin
-    const dataToSend = { ...form.value }
+    // Prepare data to send - only send allowed fields; always include vision, mission, description (undefined would be omitted by JSON)
+    const allowedKeys = [
+      'name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
+      'province_code', 'district_code',
+      'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
+      'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
+      'active_academic_year_id', 'active_semester_id'
+    ]
+    const dataToSend = {}
+    for (const key of allowedKeys) {
+      if (Object.prototype.hasOwnProperty.call(form.value, key)) {
+        const v = form.value[key]
+        if (key === 'description' || key === 'vision' || key === 'mission') {
+          dataToSend[key] = v != null ? String(v) : ''
+        } else {
+          dataToSend[key] = v
+        }
+      }
+    }
     if (!isSuperAdmin.value) {
-      // Keep original name and npsn
       dataToSend.name = institution.value.name
       dataToSend.npsn = institution.value.npsn
+      dataToSend.is_active = institution.value.is_active
     }
-    
+
     const response = await institutionApi.update(institution.value.id, dataToSend)
     
     // Update institution data
     const updatedData = response.data?.data || response.data
     if (updatedData) {
-      // Ensure all address fields are properly updated
+      // Ensure all address fields and text fields are properly updated
       institution.value = { ...institution.value, ...updatedData }
       Object.assign(form.value, updatedData)
-      
-      // Force reactivity update for address fields
-      if (updatedData.address !== undefined) {
-        institution.value.address = updatedData.address
-      }
-      if (updatedData.village !== undefined) {
-        institution.value.village = updatedData.village
-      }
-      if (updatedData.sub_district !== undefined) {
-        institution.value.sub_district = updatedData.sub_district
-      }
-      if (updatedData.district !== undefined) {
-        institution.value.district = updatedData.district
-      }
-      if (updatedData.province !== undefined) {
-        institution.value.province = updatedData.province
-      }
-      if (updatedData.postal_code !== undefined) {
-        institution.value.postal_code = updatedData.postal_code
-      }
+
+      if (updatedData.description !== undefined) institution.value.description = updatedData.description
+      if (updatedData.vision !== undefined) institution.value.vision = updatedData.vision
+      if (updatedData.mission !== undefined) institution.value.mission = updatedData.mission
+      if (updatedData.address !== undefined) institution.value.address = updatedData.address
+      if (updatedData.village !== undefined) institution.value.village = updatedData.village
+      if (updatedData.sub_district !== undefined) institution.value.sub_district = updatedData.sub_district
+      if (updatedData.district !== undefined) institution.value.district = updatedData.district
+      if (updatedData.province !== undefined) institution.value.province = updatedData.province
+      if (updatedData.province_code !== undefined) institution.value.province_code = updatedData.province_code
+      if (updatedData.district_code !== undefined) institution.value.district_code = updatedData.district_code
+      if (updatedData.postal_code !== undefined) institution.value.postal_code = updatedData.postal_code
     }
     
     showEditModal.value = false
@@ -1144,6 +1361,9 @@ const loadInstitutions = async () => {
     if (filters.value.type) {
       params.type = filters.value.type
     }
+    if (filters.value.is_active !== '' && filters.value.is_active !== null) {
+      params.is_active = filters.value.is_active === '1'
+    }
     
     const response = await institutionApi.getAll(params)
     institutions.value = response.data.data || []
@@ -1172,9 +1392,9 @@ const editInstitution = (inst) => {
 
 const deleteInstitution = async (id) => {
   const confirmed = await showConfirm({
-    title: 'Konfirmasi Hapus',
-    message: 'Apakah Anda yakin ingin menghapus institusi ini?',
-    warning: 'Data institusi akan dihapus secara permanen dan tidak dapat dikembalikan.'
+    title: 'Konfirmasi Hapus Instansi',
+    message: 'Apakah Anda yakin ingin menghapus instansi ini? Instansi akan dikeluarkan dari daftar dan seluruh user instansi tersebut tidak dapat login.',
+    warning: 'Tindakan ini untuk penindakan pelanggaran. Gunakan "Nonaktif" jika hanya ingin menunda sementara.'
   })
   
   if (!confirmed) return
@@ -1267,20 +1487,28 @@ const resetForm = () => {
     sub_district: '',
     district: '',
     province: '',
+    province_code: '',
+    district_code: '',
     postal_code: '',
     phone: '',
     email: '',
     website: '',
     principal_name: '',
     principal_nip: '',
-    description: ''
+    description: '',
+    vision: '',
+    mission: '',
+    is_active: true,
+    latitude: null,
+    longitude: null,
+    location_radius: null
   }
   selectedInstitution.value = null
   error.value = ''
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return '-'
+  if (!dateString) return 'Belum ada data'
   const date = new Date(dateString)
   return date.toLocaleDateString('id-ID', {
     year: 'numeric',
@@ -1344,6 +1572,48 @@ const handleLogoUpload = async (event) => {
   }
 }
 
+const triggerCoverUpload = () => {
+  coverInput.value?.click()
+}
+
+const handleCoverUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('Gagal', 'Ukuran file maksimal 5MB')
+    return
+  }
+
+  const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml']
+  if (!validTypes.includes(file.type)) {
+    toast.error('Gagal', 'Format file tidak didukung. Gunakan JPG, PNG, GIF, atau SVG')
+    return
+  }
+
+  uploadingCover.value = true
+  try {
+    const institutionId = institution.value?.id
+    if (!institutionId) {
+      toast.error('Gagal', 'Institusi tidak ditemukan')
+      return
+    }
+    const response = await institutionApi.uploadCoverImage(institutionId, file)
+    const updatedData = response.data?.data || response.data
+    if (updatedData) {
+      institution.value = updatedData
+      if (form.value) Object.assign(form.value, updatedData)
+    }
+    toast.success('Berhasil', 'Gambar cover berhasil diupload')
+    if (coverInput.value) coverInput.value.value = ''
+  } catch (err) {
+    const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal mengupload gambar cover'
+    toast.error('Gagal', errorMsg)
+  } finally {
+    uploadingCover.value = false
+  }
+}
+
 onMounted(async () => {
   await authStore.fetchUser()
   if (isSuperAdmin.value) {
@@ -1358,10 +1628,12 @@ onMounted(async () => {
 .institution-page {
   width: 100%;
   max-width: 100%;
+  min-height: 100%;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 
 .page-header {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .header-content {
@@ -1372,11 +1644,11 @@ onMounted(async () => {
 }
 
 .header-content h2 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: #0f172a;
   margin-bottom: 4px;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
 .header-content p {
@@ -1386,38 +1658,50 @@ onMounted(async () => {
 }
 
 .btn-primary {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 12px 22px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
   font-size: 14px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
 }
 
 .institution-card {
   background: white;
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
+}
+
+.institution-card-footer {
+  margin-top: 8px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.institution-card-footer .btn-primary {
+  margin: 0;
 }
 
 .info-section {
-  margin-bottom: 32px;
-  padding-bottom: 32px;
-  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 28px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .info-section:last-child {
@@ -1427,9 +1711,9 @@ onMounted(async () => {
 }
 
 .info-section h3 {
-  color: #1e293b;
-  margin-bottom: 24px;
-  font-size: 20px;
+  color: #0f172a;
+  margin-bottom: 20px;
+  font-size: 18px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1439,8 +1723,8 @@ onMounted(async () => {
 .info-section h3::before {
   content: '';
   width: 4px;
-  height: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: 22px;
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
   border-radius: 2px;
 }
 
@@ -1466,6 +1750,10 @@ onMounted(async () => {
   grid-column: 1 / -1;
 }
 
+.info-item-full {
+  grid-column: 1 / -1;
+}
+
 .info-item label {
   color: #64748b;
   font-size: 12px;
@@ -1476,11 +1764,17 @@ onMounted(async () => {
 }
 
 .info-item p {
-  color: #1e293b;
+  color: #0f172a;
   font-size: 15px;
   font-weight: 500;
   margin: 0;
   word-break: break-word;
+}
+
+.info-item p.text-empty {
+  color: #64748b;
+  font-weight: 400;
+  font-style: italic;
 }
 
 .status-active {
@@ -1579,9 +1873,9 @@ onMounted(async () => {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .modal-footer {
@@ -1632,7 +1926,7 @@ onMounted(async () => {
 }
 
 .loading-spinner {
-  color: #667eea;
+  color: #059669;
 }
 
 .loading-state p {
@@ -1642,20 +1936,20 @@ onMounted(async () => {
 }
 
 .btn-request-change {
-  padding: 6px 12px;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  padding: 8px 14px;
+  background: #f0fdf4;
+  color: #059669;
+  border: 1px solid #86efac;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .btn-request-change:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
+  background: #dcfce7;
+  border-color: #4ade80;
 }
 
 .btn-request-badge {
@@ -1680,6 +1974,32 @@ onMounted(async () => {
   color: #64748b;
   font-size: 12px;
   font-style: italic;
+}
+
+.form-section-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin: 24px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #334155;
+  margin-top: 8px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #059669;
+  cursor: pointer;
 }
 
 .form-group input:disabled {
@@ -1725,9 +2045,9 @@ onMounted(async () => {
 
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .filter-select {
@@ -1743,9 +2063,9 @@ onMounted(async () => {
 
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .table-container {
@@ -1762,7 +2082,7 @@ onMounted(async () => {
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
 }
 
@@ -1814,7 +2134,7 @@ onMounted(async () => {
 }
 
 .btn-view {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .btn-view:hover {

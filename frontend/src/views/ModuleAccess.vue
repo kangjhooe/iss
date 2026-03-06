@@ -10,7 +10,7 @@
             </svg>
           </div>
           <div>
-            <h1>Kelola Akses Modul</h1>
+            <h1>Akses Modul</h1>
             <p class="header-desc">Atur modul yang dapat diakses setiap guru</p>
           </div>
         </div>
@@ -193,8 +193,8 @@ function teacherInitial(name) {
 }
 
 const AVATAR_COLORS = [
-  'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-  'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)',
+  'linear-gradient(135deg, #059669 0%, #047857 100%)',
+  'linear-gradient(135deg, #059669 0%, #047857 100%)',
   'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
   'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
   'linear-gradient(135deg, #ef4444 0%, #f87171 100%)',
@@ -336,7 +336,7 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   display: flex;
   align-items: center;
@@ -363,7 +363,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 18px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -375,7 +375,7 @@ onMounted(() => {
 
 .btn-save-header:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
 }
 
 .btn-save-header:disabled {
@@ -415,7 +415,7 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border: 3px solid #e2e8f0;
-  border-top-color: #6366f1;
+  border-top-color: #059669;
   border-radius: 50%;
   margin-bottom: 16px;
   animation: spin 0.8s linear infinite;
@@ -491,7 +491,7 @@ onMounted(() => {
 }
 
 .summary-pill svg {
-  color: #6366f1;
+  color: #059669;
   flex-shrink: 0;
 }
 
@@ -527,8 +527,8 @@ onMounted(() => {
 
 .search-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
 /* ----- Cards ----- */
@@ -551,8 +551,8 @@ onMounted(() => {
 }
 
 .card--dirty {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+  border-color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15);
 }
 
 .card-head {
@@ -593,7 +593,7 @@ onMounted(() => {
 
 .card-email {
   font-size: 13px;
-  color: #6366f1;
+  color: #059669;
   text-decoration: none;
   display: block;
   margin-bottom: 8px;
@@ -668,7 +668,7 @@ onMounted(() => {
 }
 
 .module-chip--on {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-color: transparent;
   color: white;
 }
@@ -734,7 +734,7 @@ onMounted(() => {
   justify-content: center;
   gap: 8px;
   padding: 10px 20px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -746,7 +746,7 @@ onMounted(() => {
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
 }
 
 .btn-primary:disabled {

@@ -123,7 +123,7 @@ onMounted(() => {
 
 .btn-primary {
   padding: 12px 24px;
-  background: #667eea;
+  background: #059669;
   color: white;
   border: none;
   border-radius: 8px;
@@ -134,14 +134,14 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: #047857;
 }
 
 .btn-secondary {
   padding: 12px 24px;
   background: white;
-  color: #667eea;
-  border: 1px solid #667eea;
+  color: #059669;
+  border: 1px solid #059669;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -160,7 +160,7 @@ onMounted(() => {
 
 .error-details summary {
   cursor: pointer;
-  color: #667eea;
+  color: #059669;
   font-size: 14px;
   margin-bottom: 12px;
 }

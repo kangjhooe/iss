@@ -1871,7 +1871,7 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: #3b82f6;
+  background: #059669;
   color: white;
   border: none;
   border-radius: 8px;
@@ -1882,7 +1882,7 @@ onMounted(async () => {
 }
 
 .btn-primary:hover {
-  background: #2563eb;
+  background: #059669;
 }
 
 .btn-primary:disabled {
@@ -1909,7 +1909,7 @@ onMounted(async () => {
 
 .search-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -1925,7 +1925,7 @@ onMounted(async () => {
 
 .filter-select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -1940,7 +1940,7 @@ onMounted(async () => {
 }
 
 .loading-spinner {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .table-container {
@@ -2061,7 +2061,7 @@ onMounted(async () => {
 }
 
 .btn-view {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .btn-view:hover {
@@ -2085,7 +2085,7 @@ onMounted(async () => {
 }
 
 .btn-print {
-  color: #8b5cf6;
+  color: #059669;
 }
 
 .btn-print:hover {
@@ -2101,11 +2101,11 @@ onMounted(async () => {
 }
 
 .btn-send {
-  color: #06b6d4;
+  color: #059669;
 }
 
 .btn-send:hover {
-  background: rgba(6, 182, 212, 0.1);
+  background: rgba(5, 150, 105, 0.1);
 }
 
 .badge {
@@ -2306,7 +2306,7 @@ onMounted(async () => {
 
 .form-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -2386,14 +2386,14 @@ textarea.form-input {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #3b82f6;
+  color: #059669;
   text-decoration: none;
   font-size: 14px;
   transition: color 0.2s;
 }
 
 .file-link:hover {
-  color: #2563eb;
+  color: #059669;
   text-decoration: underline;
 }
 
@@ -2789,8 +2789,8 @@ textarea.form-input {
 }
 
 .stat-icon.stat-total {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
 }
 
 .stat-icon.stat-masuk {
@@ -2800,7 +2800,7 @@ textarea.form-input {
 
 .stat-icon.stat-keluar {
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: #059669;
 }
 
 .stat-icon.stat-internal {

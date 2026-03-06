@@ -9,6 +9,13 @@ export const schoolPublicApi = {
   getInstitution(npsn) {
     return api.get('/v1/public/school', { params: { npsn } })
   },
+  /**
+   * Lookup NPSN ke data referensi Kemendikbud (untuk sekolah asal PPDB).
+   * Mengembalikan { valid, name, address, in_system, institution? }.
+   */
+  lookupNpsnReferensi(npsn) {
+    return api.get('/v1/public/npsn-lookup', { params: { npsn } })
+  },
   submitGuestVisit(formData) {
     return api.post('/v1/public/guest-visit', formData)
   },

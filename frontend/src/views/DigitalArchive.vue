@@ -832,7 +832,7 @@ watch(showFormModal, (v) => {
 }
 
 .btn-download:hover { background: #ecfdf5; color: #0f766e; }
-.btn-edit:hover { background: #eff6ff; color: #2563eb; }
+.btn-edit:hover { background: #eff6ff; color: #059669; }
 .btn-delete:hover { background: #fef2f2; color: #dc2626; }
 
 .pagination-bar {

@@ -1,24 +1,17 @@
 <template>
   <Layout>
     <div class="report-page">
-      <!-- Page Header -->
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Laporan & Statistik</h2>
-            <p>Laporan lengkap data lembaga Anda</p>
-          </div>
-          <div class="header-actions">
-            <button @click="exportPDF" class="btn-primary btn-compact" :disabled="loading">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Export PDF</span>
-            </button>
-          </div>
-        </div>
+      <!-- Toolbar -->
+      <div class="tab-header">
+        <div class="filters filters-inline"></div>
+        <button @click="exportPDF" class="btn-primary btn-compact" :disabled="loading">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Export PDF</span>
+        </button>
       </div>
 
       <!-- Filters -->
@@ -55,7 +48,7 @@
         <!-- Dashboard Mini -->
         <div class="dashboard-mini">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -433,7 +426,7 @@
           <h3 class="section-title">Rasio dan Indikator</h3>
           <div class="ratios-grid">
             <div class="ratio-card">
-              <div class="ratio-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <div class="ratio-icon" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -691,7 +684,7 @@ const studentsChartData = computed(() => {
     datasets: [
       {
         label: 'Laki-laki',
-        backgroundColor: '#667eea',
+        backgroundColor: '#059669',
         data: maleData
       },
       {
@@ -708,7 +701,7 @@ const studentsPieChartData = computed(() => {
   
   const grades = gradeRange.value
   const labels = grades.map(g => `Kelas ${g}`)
-  const colors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#38f9d7', '#f5576c', '#764ba2', '#667eea', '#f093fb', '#4facfe', '#43e97b', '#38f9d7']
+  const colors = ['#059669', '#f093fb', '#4facfe', '#43e97b', '#38f9d7', '#f5576c', '#047857', '#059669', '#f093fb', '#4facfe', '#43e97b', '#38f9d7']
   
   return {
     labels: labels,
@@ -730,7 +723,7 @@ const teachersChartData = computed(() => {
     datasets: [
       {
         label: 'Laki-laki',
-        backgroundColor: '#667eea',
+        backgroundColor: '#059669',
         data: [teachersMale]
       },
       {
@@ -751,7 +744,7 @@ const employeesChartData = computed(() => {
   return {
     labels: ['Guru', 'Tenaga Administrasi/Staff'],
     datasets: [{
-      backgroundColor: ['#667eea', '#f093fb'],
+      backgroundColor: ['#059669', '#f093fb'],
       data: [teachers, staff]
     }]
   }
@@ -768,7 +761,7 @@ const employeesGenderChartData = computed(() => {
     datasets: [
       {
         label: 'Laki-laki',
-        backgroundColor: '#667eea',
+        backgroundColor: '#059669',
         data: [male]
       },
       {
@@ -786,7 +779,7 @@ const studentsStatusChartData = computed(() => {
   const statusData = reportData.value.students_by_status
   const labels = []
   const data = []
-  const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8']
+  const colors = ['#10b981', '#059669', '#f59e0b', '#ef4444', '#94a3b8']
   let colorIndex = 0
   
   for (const [status, count] of Object.entries(statusData)) {
@@ -819,7 +812,7 @@ const comparisonChartData = computed(() => {
     datasets: [
       {
         label: reportData.value.academic_year?.name || 'Tahun Ajaran Aktif',
-        backgroundColor: '#667eea',
+        backgroundColor: '#059669',
         data: grades.map(grade => current[`grade_${grade}`]?.total || 0)
       },
       {
@@ -1270,7 +1263,7 @@ const exportPDF = async () => {
         .summary-value {
           font-size: 24px;
           font-weight: bold;
-          color: #667eea;
+          color: #059669;
         }
         .summary-label {
           font-size: 12px;
@@ -1305,7 +1298,7 @@ const exportPDF = async () => {
       <body>
         <div class="kop">
           <div class="kop-header">
-            ${institution.logo ? `<img src="${institution.logo}" alt="Logo Sekolah" class="kop-logo" />` : ''}
+            ${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}
             <div style="flex: 1;">
               <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
               <div class="kop-address">${fullAddress}</div>
@@ -1637,6 +1630,22 @@ onMounted(() => {
 .report-page {
   width: 100%;
   max-width: 100%;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+
+.tab-header .filters-inline {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .page-header {
@@ -1717,7 +1726,7 @@ onMounted(() => {
 
 .loading-spinner {
   margin-bottom: 16px;
-  color: #667eea;
+  color: #059669;
 }
 
 .dashboard-mini {
@@ -1934,7 +1943,7 @@ onMounted(() => {
   display: block;
   font-size: 24px;
   font-weight: 700;
-  color: #667eea;
+  color: #059669;
 }
 
 .rooms-by-type {
@@ -1988,7 +1997,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -1996,12 +2005,12 @@ onMounted(() => {
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
 }
 
 .btn-primary:disabled {

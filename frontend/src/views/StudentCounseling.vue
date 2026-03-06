@@ -1,6 +1,11 @@
 <template>
   <Layout>
     <div class="page">
+      <div v-if="!studentId && authStore.user?.role === 'student'" class="alert alert-warning">
+        <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah. Silakan hubungi operator sekolah atau admin.
+        <router-link to="/student/dashboard" class="alert-link">← Kembali ke Dashboard</router-link>
+      </div>
+
       <div class="page-header">
         <h1>Konseling</h1>
         <p class="page-subtitle">Riwayat dan jadwal konseling Anda</p>
@@ -11,7 +16,8 @@
       </div>
 
       <div v-else-if="!sessions.length" class="empty-state">
-        <p>Belum ada jadwal atau riwayat konseling.</p>
+        <p v-if="loadError">Gagal memuat data. Silakan coba lagi atau kembali ke dashboard.</p>
+        <p v-else>Belum ada jadwal atau riwayat konseling.</p>
         <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
       </div>
 
@@ -43,6 +49,7 @@ const authStore = useAuthStore()
 const studentId = computed(() => authStore.user?.student_profile?.id)
 
 const loading = ref(true)
+const loadError = ref(false)
 const sessions = ref([])
 
 function formatDate(val) {
@@ -65,10 +72,12 @@ onMounted(async () => {
     return
   }
   try {
+    loadError.value = false
     const res = await counselingApi.getByStudent(studentId.value, { per_page: 50 })
     const list = res.data?.data ?? res.data ?? []
     sessions.value = Array.isArray(list) ? list : (list?.data ?? [])
   } catch {
+    loadError.value = true
     sessions.value = []
   } finally {
     loading.value = false
@@ -101,6 +110,12 @@ onMounted(async () => {
 .card-date { font-size: 13px; color: #64748b; margin-bottom: 4px; }
 .card-meta { font-size: 13px; color: #475569; }
 .card-summary { font-size: 13px; color: #334155; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; }
-.back-link { display: inline-block; margin-top: 16px; color: #0ea5e9; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link { display: inline-block; margin-top: 16px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link:hover { color: #047857; text-decoration: underline; }
 .back-link:hover { text-decoration: underline; }
+
+.alert { padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
+.alert-warning { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
+.alert-link { display: inline-block; margin-top: 10px; color: #b45309; font-weight: 600; text-decoration: none; }
+.alert-link:hover { text-decoration: underline; }
 </style>

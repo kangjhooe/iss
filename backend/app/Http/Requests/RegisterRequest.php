@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\NpsnReferensiRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
@@ -23,7 +24,14 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'npsn' => 'required|string|size:8|regex:/^[0-9]{8}$/|unique:institution,npsn',
+            'npsn' => [
+                'required',
+                'string',
+                'size:8',
+                'regex:/^[0-9]{8}$/',
+                'unique:institution,npsn',
+                new NpsnReferensiRule(),
+            ],
             'institution_name' => 'required|string|max:255',
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:user,email',

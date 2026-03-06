@@ -220,7 +220,7 @@ onMounted(async () => {
 
 /* Welcome Section */
 .welcome-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-radius: 16px;
   padding: 32px 40px;
   margin-bottom: 32px;
@@ -228,7 +228,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.25);
 }
 
 .welcome-content h1 {
@@ -284,8 +284,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
 }
 
 .stat-card-success .stat-icon {
@@ -300,7 +300,7 @@ onMounted(async () => {
 
 .stat-card-info .stat-icon {
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: #059669;
 }
 
 .stat-body {
@@ -405,8 +405,8 @@ onMounted(async () => {
 }
 
 .action-icon-primary {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
 }
 
 .action-icon-success {
@@ -416,7 +416,7 @@ onMounted(async () => {
 
 .action-icon-info {
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: #059669;
 }
 
 .action-icon-secondary {
@@ -459,7 +459,7 @@ onMounted(async () => {
 }
 
 .action-card-primary:hover .action-arrow {
-  color: #667eea;
+  color: #059669;
 }
 
 .action-card-success:hover .action-arrow {
@@ -467,7 +467,7 @@ onMounted(async () => {
 }
 
 .action-card-info:hover .action-arrow {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .action-card-secondary:hover .action-arrow {

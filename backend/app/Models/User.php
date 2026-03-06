@@ -286,6 +286,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Exams created by this user.
+     */
+    public function createdExams()
+    {
+        return $this->hasMany(Exam::class, 'created_by');
+    }
+
+    /**
+     * Bank soal created by this user.
+     */
+    public function createdBankSoal()
+    {
+        return $this->hasMany(BankSoal::class, 'created_by_user_id');
+    }
+
+    /**
      * Get the student profile associated with this user (by email).
      */
     public function studentProfile()

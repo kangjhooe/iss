@@ -1,23 +1,16 @@
 <template>
   <Layout>
     <div class="schedule-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Jadwal Pelajaran</h2>
-            <p>Kelola jadwal pelajaran per semester dan kelas</p>
-          </div>
-          <div class="header-actions">
-            <router-link to="/subject" class="btn-secondary btn-compact">Mata Pelajaran</router-link>
-            <button v-if="activeTab === 'list'" @click="openAddSlotModal" class="btn-primary btn-compact">Tambah Slot</button>
-          </div>
+      <div class="toolbar">
+        <div class="tabs">
+          <button :class="['tab', { active: activeTab === 'byClass' }]" @click="activeTab = 'byClass'; loadByClassIfNeeded()">Jadwal per Kelas</button>
+          <button :class="['tab', { active: activeTab === 'list' }]" @click="activeTab = 'list'; loadSchedules()">Daftar Slot</button>
+          <button :class="['tab', { active: activeTab === 'copy' }]" @click="activeTab = 'copy'">Copy Jadwal</button>
         </div>
-      </div>
-
-      <div class="tabs">
-        <button :class="['tab', { active: activeTab === 'byClass' }]" @click="activeTab = 'byClass'; loadByClassIfNeeded()">Jadwal per Kelas</button>
-        <button :class="['tab', { active: activeTab === 'list' }]" @click="activeTab = 'list'; loadSchedules()">Daftar Slot</button>
-        <button :class="['tab', { active: activeTab === 'copy' }]" @click="activeTab = 'copy'">Copy Jadwal</button>
+        <div class="toolbar-actions">
+          <router-link to="/subject" class="btn-secondary btn-compact">Mata Pelajaran</router-link>
+          <button v-if="activeTab === 'list'" @click="openAddSlotModal" class="btn-primary btn-compact">Tambah Slot</button>
+        </div>
       </div>
 
       <!-- Tab: Jadwal per Kelas -->
@@ -96,12 +89,12 @@
             </thead>
             <tbody>
               <tr v-for="row in scheduleList" :key="row.id">
-                <td>{{ row.school_class?.name }}</td>
-                <td>{{ row.day_name }}</td>
-                <td>{{ row.period }}</td>
-                <td>{{ row.subject?.name }}</td>
-                <td>{{ row.employee?.name }}</td>
-                <td>{{ row.room?.name || '-' }}</td>
+                <td>{{ displayValue(row.school_class?.name) }}</td>
+                <td>{{ row.day_name || 'Belum ada data' }}</td>
+                <td>{{ row.period ?? 'Belum ada data' }}</td>
+                <td>{{ displayValue(row.subject?.name) }}</td>
+                <td>{{ displayValue(row.employee?.name) }}</td>
+                <td>{{ displayValue(row.room?.name) }}</td>
                 <td>
                   <button type="button" class="btn-action btn-edit" @click="editSlot(row)">Edit</button>
                   <button type="button" class="btn-action btn-delete" @click="deleteSlot(row.id)">Hapus</button>
@@ -109,7 +102,7 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="scheduleList.length === 0" class="empty-state"><p>Tidak ada jadwal.</p></div>
+          <div v-if="scheduleList.length === 0" class="empty-state"><p>Belum ada jadwal.</p></div>
         </div>
       </template>
 
@@ -250,6 +243,11 @@ const dayNamesMap = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat'
 const dayKeys = [1, 2, 3, 4, 5]
 const dayNames = computed(() => dayKeys.map(k => ({ key: k, label: dayNamesMap[k] })))
 const maxPeriods = 10
+
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
 
 const listFilters = reactive({
   semester_id: '',
@@ -458,37 +456,66 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.schedule-page { width: 100%; max-width: 100%; padding: 1.5rem; }
+.schedule-page {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.toolbar .tabs {
+  margin-bottom: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .page-header { margin-bottom: 1.5rem; }
 .header-content { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
 .header-actions { display: flex; gap: 0.5rem; }
 .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .tab { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; cursor: pointer; }
-.tab.active { background: #3182ce; color: #fff; border-color: #3182ce; }
+.tab.active { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; border-color: #059669; }
 .filters-inline { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; min-width: 160px; }
-.loading-state, .empty-state { padding: 1.5rem; text-align: center; color: #718096; }
+.filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 6px; min-width: 160px; transition: border-color 0.2s, box-shadow 0.2s; }
+.filter-select:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
+.loading-state, .empty-state { padding: 1.5rem; text-align: center; color: #64748b; }
 .schedule-matrix-wrap { overflow-x: auto; }
 .schedule-matrix { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .schedule-matrix th, .schedule-matrix td { border: 1px solid #e2e8f0; padding: 0.5rem; vertical-align: top; }
-.schedule-matrix th { background: #f7fafc; font-weight: 600; }
+.schedule-matrix th { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); font-weight: 600; color: #065f46; }
 .period-cell { min-width: 60px; }
 .slot-cell { min-width: 120px; position: relative; }
 .slot-subject { font-weight: 500; }
 .slot-teacher { font-size: 0.75rem; color: #718096; }
 .slot-room { font-size: 0.75rem; color: #a0aec0; }
 .slot-add-btn, .slot-edit-btn { margin-top: 4px; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; border: 1px solid #e2e8f0; background: #f7fafc; }
-.slot-add-btn:hover, .slot-edit-btn:hover { background: #edf2f7; }
+.slot-add-btn:hover, .slot-edit-btn:hover { background: #ecfdf5; border-color: #059669; color: #059669; }
 .copy-form { max-width: 400px; padding: 1.5rem; }
 .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
 .form-group { margin-bottom: 1rem; }
 .form-row { display: flex; gap: 1rem; }
 .form-row .form-group { flex: 1; }
 .form-input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; }
-.copy-result { margin-top: 1rem; color: #276749; }
+.form-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
+.copy-result { margin-top: 1rem; color: #047857; }
 .table-container { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; }
+.data-table thead tr { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
 .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.data-table th { font-weight: 600; color: #065f46; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { background: white; border-radius: 8px; max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; }
 .modal-wide { max-width: 520px; }
@@ -497,9 +524,10 @@ onMounted(() => {
 .modal-body { padding: 1.25rem; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
 .error-message { color: #c53030; margin-bottom: 0.75rem; font-size: 0.875rem; }
-.btn-primary { background: #3182ce; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; }
+.btn-primary { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); }
 .btn-secondary { background: #e2e8f0; color: #2d3748; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
 .btn-action { padding: 0.35rem 0.6rem; font-size: 0.875rem; border-radius: 4px; cursor: pointer; border: none; }
-.btn-edit { background: #ebf8ff; color: #2b6cb0; }
+.btn-edit { background: rgba(5, 150, 105, 0.12); color: #059669; }
 .btn-delete { background: #fed7d7; color: #c53030; }
 </style>

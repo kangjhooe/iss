@@ -181,7 +181,7 @@
         <div class="form-card card">
           <section class="form-section">
             <h3 class="section-title">Sekolah Asal</h3>
-            <p class="section-hint">Masukkan NPSN sekolah asal. Jika sekolah terdaftar di sistem, nama dan alamat akan terisi otomatis.</p>
+            <p class="section-hint">Masukkan NPSN sekolah asal (8 digit). Sistem akan mengecek ke data Kemendikbud dan sekolah terdaftar; nama dan alamat terisi otomatis jika ditemukan.</p>
             <div class="form-group">
               <label>NPSN Sekolah Asal</label>
               <div class="input-with-action">
@@ -189,9 +189,10 @@
                   v-model="form.previous_school_npsn"
                   type="text"
                   class="form-input"
-                  placeholder="10 digit NPSN"
+                  placeholder="8 digit NPSN"
                   maxlength="20"
-                  @blur="lookupSchoolByNpsn"
+                  @input="form.previous_school_npsn = (form.previous_school_npsn || '').replace(/\D/g, '').slice(0, 8)"
+                  @blur="onBlurPreviousSchoolNpsn()"
                 />
                 <button type="button" class="btn-lookup" :disabled="schoolLookupLoading || !form.previous_school_npsn?.trim()" @click="lookupSchoolByNpsn">
                   {{ schoolLookupLoading ? '...' : 'Cari' }}
@@ -456,6 +457,15 @@ async function loadData() {
 
 watch([institutionId, npsn], loadData, { immediate: true })
 
+function onBlurPreviousSchoolNpsn() {
+  const digits = (form.value.previous_school_npsn || '').replace(/\D/g, '')
+  if (digits.length === 8) {
+    lookupSchoolByNpsn()
+  } else {
+    schoolLookupError.value = ''
+  }
+}
+
 async function lookupSchoolByNpsn() {
   const npsnVal = form.value.previous_school_npsn?.trim()
   if (!npsnVal || npsnVal.length < 8) {
@@ -465,22 +475,44 @@ async function lookupSchoolByNpsn() {
   schoolLookupError.value = ''
   schoolLookupLoading.value = true
   try {
-    const res = await schoolPublicApi.getInstitution(npsnVal)
+    // 1) Cek dulu apakah sekolah terdaftar di sistem (data lokal)
+    try {
+      const resLocal = await schoolPublicApi.getInstitution(npsnVal)
+      const dataLocal = resLocal.data?.data
+      if (dataLocal) {
+        form.value.previous_school = dataLocal.name ?? ''
+        form.value.previous_school_address = dataLocal.address ?? ''
+        schoolLookupLoading.value = false
+        return
+      }
+    } catch (_) {
+      // Tidak ada di sistem, lanjut ke referensi Kemendikbud
+    }
+    // 2) Validasi ke data referensi Kemendikbud (NPSN resmi)
+    const res = await schoolPublicApi.lookupNpsnReferensi(npsnVal)
     const data = res.data?.data
-    if (data) {
-      form.value.previous_school = data.name ?? ''
-      form.value.previous_school_address = data.address ?? ''
+    if (data?.valid && (data.name || data.address || data.institution)) {
+      if (data.institution) {
+        form.value.previous_school = data.institution.name ?? data.name ?? ''
+        form.value.previous_school_address = data.institution.address ?? data.address ?? ''
+      } else {
+        form.value.previous_school = data.name ?? ''
+        form.value.previous_school_address = data.address ?? ''
+      }
     } else {
       form.value.previous_school = ''
       form.value.previous_school_address = ''
+      schoolLookupError.value = 'NPSN tidak ditemukan di data Kemendikbud. Anda dapat mengisi nama dan alamat sekolah asal secara manual di bawah.'
     }
   } catch (e) {
-    if (e.response?.status === 404) {
+    if (e.response?.status === 422) {
       form.value.previous_school = ''
       form.value.previous_school_address = ''
-      schoolLookupError.value = 'Sekolah tidak ditemukan.'
+      schoolLookupError.value = 'NPSN harus 8 digit.'
     } else {
-      schoolLookupError.value = e.response?.data?.message || 'Gagal memuat data sekolah.'
+      form.value.previous_school = ''
+      form.value.previous_school_address = ''
+      schoolLookupError.value = e.response?.data?.message || 'Gagal memeriksa NPSN. Anda dapat mengisi nama dan alamat secara manual.'
     }
   } finally {
     schoolLookupLoading.value = false
@@ -624,7 +656,7 @@ function printFormulir() {
 .page-bg {
   position: fixed;
   inset: 0;
-  background: linear-gradient(165deg, #eef2ff 0%, #e0e7ff 25%, #f5f3ff 60%, #faf5ff 100%);
+  background: linear-gradient(165deg, #ecfdf5 0%, #d1fae5 25%, #ecfdf5 60%, #f0fdf4 100%);
   z-index: -1;
 }
 .blob {
@@ -635,7 +667,7 @@ function printFormulir() {
   pointer-events: none;
 }
 .blob-1 { width: 320px; height: 320px; background: #818cf8; top: -80px; right: -80px; }
-.blob-2 { width: 280px; height: 280px; background: #a78bfa; bottom: 20%; left: -60px; }
+.blob-2 { width: 280px; height: 280px; background: #059669; bottom: 20%; left: -60px; }
 .blob-3 { width: 200px; height: 200px; background: #c4b5fd; bottom: -40px; right: 20%; }
 
 .top-bar {
@@ -646,7 +678,7 @@ function printFormulir() {
   margin-bottom: 0.5rem;
 }
 .top-bar-link {
-  color: #5b21b6;
+  color: #047857;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
@@ -655,7 +687,7 @@ function printFormulir() {
 .top-bar-brand {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #6d28d9;
+  color: #047857;
   letter-spacing: 0.08em;
 }
 
@@ -675,7 +707,7 @@ function printFormulir() {
 .hero-subtitle {
   margin: 0.35rem 0 0;
   font-size: 1rem;
-  color: #6d28d9;
+  color: #047857;
   font-weight: 600;
 }
 .hero-school {
@@ -694,7 +726,7 @@ function printFormulir() {
   background: #fff;
   border-radius: 20px;
   padding: 2rem 1.75rem;
-  box-shadow: 0 10px 40px -12px rgba(79, 70, 229, 0.12), 0 4px 12px -4px rgba(0,0,0,0.06);
+  box-shadow: 0 10px 40px -12px rgba(5, 150, 105, 0.12), 0 4px 12px -4px rgba(0,0,0,0.06);
   border: 1px solid rgba(255,255,255,0.8);
 }
 .state-wrap { text-align: center; padding: 3rem 2rem; }
@@ -704,7 +736,7 @@ function printFormulir() {
   height: 44px;
   margin: 0 auto 1.25rem;
   border: 3px solid #e9d5ff;
-  border-top-color: #7c3aed;
+  border-top-color: #047857;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -739,7 +771,7 @@ function printFormulir() {
   width: 72px;
   height: 72px;
   margin: 0 auto 1.25rem;
-  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  background: linear-gradient(135deg, #059669, #047857);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -761,7 +793,7 @@ function printFormulir() {
   line-height: 1.5;
 }
 .registration-block {
-  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   border: 2px solid #c4b5fd;
   border-radius: 16px;
   padding: 1.25rem 1.5rem;
@@ -771,7 +803,7 @@ function printFormulir() {
 .registration-block .registration-label {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #6d28d9;
+  color: #047857;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 0.5rem;
@@ -787,7 +819,7 @@ function printFormulir() {
 .registration-value {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #5b21b6;
+  color: #047857;
   letter-spacing: 0.04em;
   font-family: ui-monospace, monospace;
   word-break: break-all;
@@ -800,20 +832,20 @@ function printFormulir() {
   background: #fff;
   border: 1px solid #c4b5fd;
   border-radius: 10px;
-  color: #6d28d9;
+  color: #047857;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
-.btn-copy:hover { background: #ede9fe; border-color: #8b5cf6; }
-.btn-copy:focus { outline: none; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.35); }
+.btn-copy:hover { background: #ecfdf5; border-color: #059669; }
+.btn-copy:focus { outline: none; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.35); }
 .btn-copy svg { flex-shrink: 0; }
 .btn-copy-done { background: #d1fae5 !important; border-color: #10b981 !important; color: #047857 !important; }
 .btn-copy-done:hover { background: #a7f3d0 !important; }
 .registration-meta {
   font-size: 0.875rem;
-  color: #7c3aed;
+  color: #047857;
   margin: 0.75rem 0 0;
   font-weight: 500;
 }
@@ -862,7 +894,7 @@ function printFormulir() {
   min-width: 140px;
 }
 .btn-success-primary {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #047857 0%, #047857 100%);
   color: #fff;
   border: none;
   cursor: pointer;
@@ -871,10 +903,10 @@ function printFormulir() {
 .btn-success-primary:hover { opacity: 0.95; box-shadow: 0 6px 20px -2px rgba(124, 58, 237, 0.45); }
 .btn-success-secondary {
   background: #fff;
-  color: #6d28d9;
+  color: #047857;
   border: 2px solid #c4b5fd;
 }
-.btn-success-secondary:hover { background: #f5f3ff; border-color: #8b5cf6; }
+.btn-success-secondary:hover { background: #ecfdf5; border-color: #059669; }
 .success-actions .btn-print {
   background: #fff;
   border: 2px solid #e2e8f0;
@@ -892,15 +924,15 @@ function printFormulir() {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   background: transparent;
-  color: #6d28d9;
+  color: #047857;
   font-weight: 600;
   text-decoration: none;
   border-radius: 12px;
   font-size: 0.95rem;
-  border: 2px solid #8b5cf6;
+  border: 2px solid #059669;
   transition: background 0.2s, color 0.2s;
 }
-.btn-outline:hover { background: #f5f3ff; color: #5b21b6; }
+.btn-outline:hover { background: #ecfdf5; color: #047857; }
 .formulir-print-wrap {
   display: none;
   position: absolute;
@@ -943,8 +975,8 @@ function printFormulir() {
   line-height: 28px;
   font-weight: 700;
 }
-.step.active { color: #6d28d9; }
-.step.active em { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; }
+.step.active { color: #059669; }
+.step.active em { background: linear-gradient(135deg, #059669, #047857); color: #fff; }
 .section-title {
   margin: 0 0 0.5rem;
   font-size: 1.05rem;
@@ -965,7 +997,7 @@ function printFormulir() {
 .input-with-action .form-input { flex: 1; min-width: 0; }
 .btn-lookup {
   padding: 0.7rem 1rem;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, #059669, #047857);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -1043,7 +1075,7 @@ function printFormulir() {
 select.form-input { cursor: pointer; appearance: auto; }
 .form-input:focus {
   outline: none;
-  border-color: #8b5cf6;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 .form-input::placeholder { color: #94a3b8; }
@@ -1066,7 +1098,7 @@ textarea.form-input {
 .btn-submit {
   width: 100%;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #047857 0%, #047857 100%);
   color: #fff;
   border: none;
   border-radius: 14px;

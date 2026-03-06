@@ -8,9 +8,19 @@ class AppBranding extends Model
 {
     protected $table = 'app_branding';
 
-    protected $fillable = ['app_logo', 'favicon'];
+    protected $fillable = [
+        'app_logo',
+        'favicon',
+        'hero_headline',
+        'hero_subheadline',
+        'hero_image',
+        'hero_primary_cta_text',
+        'hero_primary_cta_to',
+        'hero_secondary_cta_text',
+        'hero_secondary_cta_to',
+    ];
 
-protected $appends = ['app_logo_url', 'favicon_url'];
+    protected $appends = ['app_logo_url', 'favicon_url', 'hero_image_url'];
 
     /**
      * URL lengkap untuk logo aplikasi (untuk frontend).
@@ -26,5 +36,13 @@ protected $appends = ['app_logo_url', 'favicon_url'];
     public function getFaviconUrlAttribute(): ?string
     {
         return $this->favicon ? asset('storage/' . $this->favicon) : null;
+    }
+
+    /**
+     * URL lengkap untuk gambar hero (untuk frontend).
+     */
+    public function getHeroImageUrlAttribute(): ?string
+    {
+        return $this->hero_image ? asset('storage/' . $this->hero_image) : null;
     }
 }

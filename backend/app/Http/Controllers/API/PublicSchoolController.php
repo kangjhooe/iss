@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PublicGuestVisitRequest;
 use App\Models\Institution;
 use App\Services\GuestVisitService;
+use App\Services\NpsnValidationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,6 +15,58 @@ class PublicSchoolController extends Controller
     public function __construct(
         protected GuestVisitService $guestVisitService
     ) {}
+
+    /**
+     * Lookup NPSN ke data referensi Kemendikbud (untuk PPDB sekolah asal, dll).
+     * Mengembalikan valid/tidak, nama, alamat. Jika NPSN juga terdaftar di sistem, sertakan data institusi.
+     */
+    public function lookupNpsnReferensi(Request $request): JsonResponse
+    {
+        $npsn = $request->get('npsn');
+        if (!$npsn || strlen(preg_replace('/\D/', '', $npsn)) !== 8) {
+            return response()->json([
+                'message' => 'NPSN harus 8 digit.',
+                'data' => ['valid' => false, 'name' => null, 'address' => null, 'in_system' => false],
+            ], 422);
+        }
+
+        $service = NpsnValidationService::fromConfig();
+        $normalized = $service->normalizeNpsn($npsn);
+        if ($normalized === null) {
+            return response()->json([
+                'data' => ['valid' => false, 'name' => null, 'address' => null, 'in_system' => false],
+            ]);
+        }
+
+        $result = $service->validate($normalized);
+        $institution = Institution::where('npsn', $normalized)->where('is_active', true)->first();
+
+        $data = [
+            'valid' => $result['valid'],
+            'name' => $result['name'],
+            'address' => $result['address'],
+            'in_system' => $institution !== null,
+        ];
+
+        if ($institution) {
+            $data['institution'] = [
+                'id' => $institution->id,
+                'name' => $institution->name,
+                'npsn' => $institution->npsn,
+                'level' => $institution->level,
+                'type' => $institution->type,
+                'address' => trim(implode(', ', array_filter([
+                    $institution->address,
+                    $institution->village,
+                    $institution->sub_district,
+                    $institution->district,
+                    $institution->province,
+                ]))),
+            ];
+        }
+
+        return response()->json(['data' => $data]);
+    }
 
     /**
      * Data institusi publik by NPSN (untuk landing page sekolah).
@@ -45,16 +98,27 @@ class PublicSchoolController extends Controller
                 'id' => $institution->id,
                 'name' => $institution->name,
                 'npsn' => $institution->npsn,
+                'nss' => $institution->nss,
                 'level' => $institution->level,
                 'type' => $institution->type,
                 'address' => $fullAddress ?: $institution->address,
+                'address_line' => $institution->address,
+                'village' => $institution->village,
+                'sub_district' => $institution->sub_district,
+                'district' => $institution->district,
+                'province' => $institution->province,
+                'postal_code' => $institution->postal_code,
                 'phone' => $institution->phone,
                 'email' => $institution->email,
                 'website' => $institution->website,
-                'description' => $institution->description,
-                'latitude' => $institution->latitude,
-                'longitude' => $institution->longitude,
+                'principal_name' => $institution->principal_name,
+                'description' => $institution->description !== null ? (string) $institution->description : '',
+                'vision' => $institution->vision !== null ? (string) $institution->vision : '',
+                'mission' => $institution->mission !== null ? (string) $institution->mission : '',
+                'latitude' => $institution->latitude !== null ? (float) $institution->latitude : null,
+                'longitude' => $institution->longitude !== null ? (float) $institution->longitude : null,
                 'logo_url' => $institution->logo ? asset('storage/' . $institution->logo) : null,
+                'cover_image_url' => $institution->cover_image ? asset('storage/' . $institution->cover_image) : null,
             ],
         ]);
     }

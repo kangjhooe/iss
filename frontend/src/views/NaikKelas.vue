@@ -1,13 +1,6 @@
 <template>
   <Layout>
     <div class="naik-kelas-page">
-      <div class="page-header">
-        <h1 class="page-title">Naik Kelas</h1>
-        <p class="page-subtitle">
-          Pindahkan siswa dari kelas/tahun ajaran saat ini ke kelas/tahun ajaran tujuan. Hanya siswa dengan status Aktif yang dapat dinaikkan.
-        </p>
-      </div>
-
       <div class="form-card">
         <h2 class="section-title">1. Pilih Kelas & Tahun Ajaran Sumber</h2>
         <div class="filter-row">
@@ -34,7 +27,7 @@
           <LoadingSkeleton type="table" :rows="5" :columns="5" />
         </div>
         <div v-else-if="sourceStudents.length === 0" class="empty-inline">
-          Tidak ada siswa aktif di kelas ini.
+          Belum ada siswa aktif di kelas ini.
         </div>
         <div v-else class="table-wrap">
           <table class="data-table">
@@ -314,6 +307,8 @@ watch(targetAcademicYearId, () => {
   width: 100%;
   max-width: 100%;
   padding: 0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
 }
 
 .page-header {
@@ -419,7 +414,7 @@ watch(targetAcademicYearId, () => {
   border-radius: 10px;
   font-weight: 600;
   border: none;
-  background: #2563eb;
+  background: #059669;
   color: white;
   cursor: pointer;
 }

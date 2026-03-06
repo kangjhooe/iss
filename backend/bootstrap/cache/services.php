@@ -29,10 +29,12 @@
     25 => 'Laravel\\Sail\\SailServiceProvider',
     26 => 'Laravel\\Sanctum\\SanctumServiceProvider',
     27 => 'Laravel\\Tinker\\TinkerServiceProvider',
-    28 => 'Carbon\\Laravel\\ServiceProvider',
-    29 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
-    30 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    31 => 'L5Swagger\\L5SwaggerServiceProvider',
+    28 => 'Mews\\Purifier\\PurifierServiceProvider',
+    29 => 'Carbon\\Laravel\\ServiceProvider',
+    30 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
+    31 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    32 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
+    33 => 'L5Swagger\\L5SwaggerServiceProvider',
   ),
   'eager' => 
   array (
@@ -49,10 +51,12 @@
     10 => 'Barryvdh\\DomPDF\\ServiceProvider',
     11 => 'L5Swagger\\L5SwaggerServiceProvider',
     12 => 'Laravel\\Sanctum\\SanctumServiceProvider',
-    13 => 'Carbon\\Laravel\\ServiceProvider',
-    14 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
-    15 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    16 => 'L5Swagger\\L5SwaggerServiceProvider',
+    13 => 'Mews\\Purifier\\PurifierServiceProvider',
+    14 => 'Carbon\\Laravel\\ServiceProvider',
+    15 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
+    16 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    17 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
+    18 => 'L5Swagger\\L5SwaggerServiceProvider',
   ),
   'deferred' => 
   array (

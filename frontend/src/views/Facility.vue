@@ -1,15 +1,6 @@
 <template>
   <Layout>
     <div class="facility-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h1 class="page-title">Sarana Prasarana</h1>
-            <p class="page-subtitle">Kelola data tanah, gedung, dan ruangan sekolah Anda</p>
-          </div>
-        </div>
-      </div>
-
       <!-- Tabs Navigation -->
       <div class="tabs-container">
         <div class="tabs-nav">
@@ -98,8 +89,8 @@
               <tr v-for="land in lands" :key="`land-${land.id}`">
                 <td>{{ land.name }}</td>
                 <td>{{ formatNumber(land.area) }}</td>
-                <td>{{ land.certificate_number || '-' }}<br><small>{{ land.certificate_type || '-' }}</small></td>
-                <td>{{ land.location || '-' }}</td>
+                <td>{{ displayValue(land.certificate_number) }}<br><small>{{ displayValue(land.certificate_type) }}</small></td>
+                <td>{{ displayValue(land.location) }}</td>
                 <td><span :class="getStatusClass(land.status)">{{ land.status }}</span></td>
                 <td>
                   <div class="action-buttons">
@@ -197,10 +188,10 @@
             <tbody>
               <tr v-for="building in buildings" :key="building.id">
                 <td>{{ building.name }}</td>
-                <td>{{ building.code || '-' }}</td>
-                <td>{{ building.land?.name || '-' }}</td>
+                <td>{{ displayValue(building.code) }}</td>
+                <td>{{ displayValue(building.land?.name) }}</td>
                 <td>{{ building.floor_count }}</td>
-                <td>{{ building.building_area ? formatNumber(building.building_area) : '-' }}</td>
+                <td>{{ building.building_area !== undefined && building.building_area !== null && building.building_area !== '' ? formatNumber(building.building_area) : 'Belum ada data' }}</td>
                 <td><span :class="getConditionClass(building.condition)">{{ building.condition }}</span></td>
                 <td>
                   <div class="action-buttons">
@@ -315,14 +306,14 @@
             <tbody>
               <tr v-for="room in rooms" :key="room.id">
                 <td>{{ room.name }}</td>
-                <td>{{ room.code || '-' }}</td>
+                <td>{{ displayValue(room.code) }}</td>
                 <td>{{ room.type }}</td>
-                <td>{{ room.type === 'Laboratorium' && room.lab_type ? labTypeLabel(room.lab_type) : '-' }}</td>
-                <td>{{ room.building?.name || '-' }}</td>
+                <td>{{ room.type === 'Laboratorium' && room.lab_type ? labTypeLabel(room.lab_type) : 'Belum ada data' }}</td>
+                <td>{{ displayValue(room.building?.name) }}</td>
                 <td>{{ room.floor }}</td>
-                <td>{{ room.area ? formatNumber(room.area) : '-' }}</td>
-                <td>{{ room.capacity || '-' }}</td>
-                <td>{{ room.responsible_employee?.name || '-' }}</td>
+                <td>{{ room.area !== undefined && room.area !== null && room.area !== '' ? formatNumber(room.area) : 'Belum ada data' }}</td>
+                <td>{{ displayValue(room.capacity) }}</td>
+                <td>{{ displayValue(room.responsible_employee?.name) }}</td>
                 <td><span :class="getConditionClass(room.condition)">{{ room.condition }}</span></td>
                 <td>
                   <div class="action-buttons">
@@ -1121,8 +1112,10 @@ const confirmDelete = async () => {
 }
 
 // Utility functions
+const displayValue = (val) => (val !== undefined && val !== null && String(val).trim() !== '') ? val : 'Belum ada data'
+
 const formatNumber = (num) => {
-  if (!num) return '-'
+  if (num === undefined || num === null || num === '') return 'Belum ada data'
   return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
 }
 
@@ -1138,7 +1131,7 @@ const getStatusClass = (status) => {
 
 const labTypeLabel = (key) => {
   const labels = { IPA: 'Lab IPA', Komputer: 'Lab Komputer', Bahasa: 'Lab Bahasa', Lainnya: 'Lainnya' }
-  return labels[key] || key || '-'
+  return labels[key] || key || 'Belum ada data'
 }
 
 const getConditionClass = (condition) => {
@@ -1184,38 +1177,15 @@ onMounted(() => {
 .facility-page {
   width: 100%;
   max-width: 100%;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.header-content .page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 4px 0;
-  letter-spacing: -0.5px;
-}
-
-.header-content .page-subtitle {
-  color: #64748b;
-  font-size: 14px;
-  margin: 0;
+  min-height: 100%;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 
 .tabs-container {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
   margin-bottom: 24px;
 }
 
@@ -1223,7 +1193,7 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   padding: 8px;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .tab-btn {
@@ -1245,22 +1215,22 @@ onMounted(() => {
 }
 
 .tab-btn:hover {
-  color: #667eea;
+  color: #059669;
   background: #f8fafc;
 }
 
 .tab-btn.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: #059669;
+  border-bottom-color: #059669;
   font-weight: 600;
-  background: linear-gradient(to bottom, rgba(102, 126, 234, 0.05), transparent);
+  background: linear-gradient(to bottom, rgba(5, 150, 105, 0.06), transparent);
 }
 
 .tab-content {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
   padding: 24px;
 }
 
@@ -1293,9 +1263,9 @@ onMounted(() => {
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .search-input {
@@ -1317,7 +1287,7 @@ onMounted(() => {
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
 }
 
@@ -1332,9 +1302,9 @@ onMounted(() => {
 
 .data-table td {
   padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
   font-size: 14px;
-  color: #1e293b;
+  color: #0f172a;
 }
 
 .data-table td:last-child {
@@ -1391,7 +1361,7 @@ onMounted(() => {
 }
 
 .btn-edit {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .btn-edit:hover {
@@ -1433,7 +1403,7 @@ onMounted(() => {
 .empty-state h3 {
   font-size: 20px;
   font-weight: 600;
-  color: #1e293b;
+  color: #0f172a;
   margin: 0;
 }
 
@@ -1459,7 +1429,7 @@ onMounted(() => {
 }
 
 .loading-spinner {
-  color: #667eea;
+  color: #059669;
 }
 
 .loading-state p {
@@ -1583,9 +1553,9 @@ onMounted(() => {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .form-group select {
@@ -1608,8 +1578,8 @@ onMounted(() => {
 }
 
 .btn-primary {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 12px 22px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -1620,12 +1590,12 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
 }
 
 .btn-primary:disabled {

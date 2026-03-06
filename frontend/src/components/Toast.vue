@@ -151,7 +151,7 @@ onUnmounted(() => {
 }
 
 .toast-info {
-  border-left-color: #3b82f6;
+  border-left-color: #059669;
 }
 
 .toast-icon {
@@ -176,7 +176,7 @@ onUnmounted(() => {
 }
 
 .toast-info .toast-icon {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .toast-content {

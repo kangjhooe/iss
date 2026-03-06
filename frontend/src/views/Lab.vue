@@ -1,29 +1,6 @@
 <template>
   <Layout>
     <div class="lab-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h1 class="page-title">Manajemen Lab</h1>
-            <p class="page-subtitle">Daftar ruang laboratorium dan penanggung jawab (Kepala Lab)</p>
-          </div>
-          <div class="header-actions">
-            <button type="button" class="btn-primary btn-compact" @click="openLabModal()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Lab</span>
-            </button>
-            <router-link to="/facility" class="btn-secondary btn-compact">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Kelola Sarana Prasarana</span>
-            </router-link>
-          </div>
-        </div>
-      </div>
-
       <div class="tabs-nav-lab">
         <button type="button" :class="['tab-btn-lab', { active: labTab === 'list' }]" @click="labTab = 'list'">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -67,6 +44,20 @@
               <option value="Lainnya">Lainnya</option>
             </select>
           </div>
+          <div class="tab-header-actions">
+            <button type="button" class="btn-primary btn-compact" @click="openLabModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Lab</span>
+            </button>
+            <router-link to="/facility" class="btn-secondary btn-compact">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Kelola Sarana Prasarana</span>
+            </router-link>
+          </div>
         </div>
 
       <div v-if="loading" class="loading-state">
@@ -108,9 +99,9 @@
                   </button>
                 </td>
                 <td>{{ room.name }}</td>
-              <td>{{ room.code || '-' }}</td>
+              <td>{{ displayValue(room.code) }}</td>
               <td>{{ labTypeLabel(room.lab_type) }}</td>
-              <td>{{ room.building?.name || '-' }}</td>
+              <td>{{ displayValue(room.building?.name) }}</td>
               <td>{{ room.floor }}</td>
               <td>
                 <select
@@ -181,12 +172,12 @@
                         </thead>
                         <tbody>
                           <tr v-for="item in getRoomInventory(room.id).items" :key="item.id">
-                            <td>{{ item.code || '-' }}</td>
+                            <td>{{ displayValue(item.code) }}</td>
                             <td>{{ item.name }}</td>
-                            <td>{{ item.category?.name || '-' }}</td>
+                            <td>{{ displayValue(item.category?.name) }}</td>
                             <td>{{ item.quantity }} {{ item.unit || '' }}</td>
-                            <td>{{ item.condition || '-' }}</td>
-                            <td>{{ item.status || '-' }}</td>
+                            <td>{{ displayValue(item.condition) }}</td>
+                            <td>{{ displayValue(item.status) }}</td>
                             <td>
                               <button type="button" class="btn-action btn-edit btn-xs" @click="openItemModal(room, item)">Edit</button>
                               <button type="button" class="btn-action btn-delete btn-xs" @click="confirmDeleteItem(room, item)">Hapus</button>
@@ -226,12 +217,12 @@
                         </thead>
                         <tbody>
                           <tr v-for="s in getRoomSchedule(room.id).items" :key="s.id">
-                            <td>{{ s.day_name || '-' }}</td>
+                            <td>{{ displayValue(s.day_name) }}</td>
                             <td>{{ s.period }}</td>
-                            <td>{{ s.start_time || '-' }}-{{ s.end_time || '-' }}</td>
-                            <td>{{ s.subject?.name || '-' }}</td>
-                            <td>{{ s.school_class?.name || '-' }}</td>
-                            <td>{{ s.employee?.name || '-' }}</td>
+                            <td>{{ displayValue(s.start_time) }}-{{ displayValue(s.end_time) }}</td>
+                            <td>{{ displayValue(s.subject?.name) }}</td>
+                            <td>{{ displayValue(s.school_class?.name) }}</td>
+                            <td>{{ displayValue(s.employee?.name) }}</td>
                             <td>
                               <button type="button" class="btn-action btn-edit btn-xs" @click="openScheduleModal(room, s)">Edit</button>
                               <button type="button" class="btn-action btn-delete btn-xs" @click="confirmDeleteSchedule(room, s)">Hapus</button>
@@ -312,9 +303,9 @@
               <tr v-for="lab in labReportData.labs" :key="lab.id">
                 <td>{{ lab.name }}</td>
                 <td>{{ labTypeLabel(lab.lab_type) }}</td>
-                <td>{{ lab.building?.name || '-' }}</td>
+                <td>{{ displayValue(lab.building?.name) }}</td>
                 <td><span :class="getConditionClass(lab.condition)">{{ lab.condition }}</span></td>
-                <td>{{ lab.responsible_employee?.name || '-' }}</td>
+                <td>{{ displayValue(lab.responsible_employee?.name) }}</td>
                 <td>{{ lab.inventory_count }}</td>
                 <td>{{ lab.schedule_count }}</td>
               </tr>
@@ -380,7 +371,7 @@
               <tr v-for="lab in myLabsData.labs" :key="lab.id">
                 <td>{{ lab.name }}</td>
                 <td>{{ labTypeLabel(lab.lab_type) }}</td>
-                <td>{{ lab.building?.name || '-' }}</td>
+                <td>{{ displayValue(lab.building?.name) }}</td>
                 <td><span :class="getConditionClass(lab.condition)">{{ lab.condition }}</span></td>
                 <td>{{ lab.inventory_count }}</td>
                 <td>{{ lab.schedule_count }}</td>
@@ -1141,7 +1132,13 @@ async function updateResponsible(room, employeeId) {
 
 function labTypeLabel(key) {
   const labels = { IPA: 'Lab IPA', Komputer: 'Lab Komputer', Bahasa: 'Lab Bahasa', Lainnya: 'Lainnya' }
-  return labels[key] || key || '-'
+  return labels[key] || key || 'Belum ada data'
+}
+
+function displayValue(val) {
+  if (val === undefined || val === null) return 'Belum ada data'
+  const s = String(val).trim()
+  return s === '' ? 'Belum ada data' : val
 }
 
 function getRoomInventory(roomId) {
@@ -1277,104 +1274,141 @@ async function loadCategories() {
 
 <style scoped>
 .lab-page {
-  padding: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.header-content .page-title {
-  margin: 0 0 0.25rem 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text, #1e293b);
-}
-.header-content .page-subtitle {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  padding: 0;
   margin: 0;
-  color: var(--text-muted, #64748b);
-  font-size: 0.9rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
+
 .tab-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
+
+.tab-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .filters-inline {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
+
 .search-input {
   min-width: 200px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
-.filter-select {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 6px;
+
+.search-input:focus {
+  outline: none;
+  border-color: #059669;
   background: #fff;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
+
+.filter-select {
+  padding: 0.6rem 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #059669;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
+}
+
 .responsible-select {
   min-width: 220px;
   padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 6px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
   background: #fff;
 }
+
+.responsible-select:focus {
+  outline: none;
+  border-color: #059669;
+}
+
 .saving-label {
   margin-left: 0.5rem;
   font-size: 0.85rem;
-  color: var(--text-muted, #666);
+  color: #64748b;
 }
+
 .loading-state {
   text-align: center;
-  padding: 2rem;
-  color: var(--text-muted, #666);
+  padding: 2.5rem;
+  color: #64748b;
 }
+
 .loading-spinner {
   margin-bottom: 0.5rem;
+  color: #059669;
 }
+
 .loading-spinner svg {
   animation: spin 1s linear infinite;
 }
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
 .table-container {
   overflow-x: auto;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
 }
+
 .data-table th,
 .data-table td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid var(--border-color, #eee);
+  border-bottom: 1px solid #e5e7eb;
 }
+
 .data-table th {
-  background: var(--table-header-bg, #f5f5f5);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
+
 .data-table tbody tr:hover {
-  background: var(--row-hover-bg, #fafafa);
+  background: #f8fafc;
 }
 .condition-baik { color: #16a34a; }
 .condition-rusak-ringan { color: #ca8a04; }
@@ -1385,23 +1419,70 @@ async function loadCategories() {
   border: none;
   cursor: pointer;
   padding: 0.25rem;
-  color: var(--text-muted, #666);
+  color: #64748b;
   border-radius: 4px;
 }
-.btn-expand:hover { color: var(--primary, #2563eb); }
+.btn-expand:hover { color: #059669; }
 .btn-expand svg { display: block; transition: transform 0.2s; }
 .btn-expand svg.expanded { transform: rotate(90deg); }
-.inventory-detail-row { background: var(--row-expanded-bg, #f1f5f9); }
-.inventory-detail-cell { padding: 0; vertical-align: top; border-bottom: 1px solid var(--border-color, #e2e8f0); }
+.inventory-detail-row { background: #f8fafc; }
+.inventory-detail-cell { padding: 0; vertical-align: top; border-bottom: 1px solid #e5e7eb; }
 .expanded-detail-card {
   margin: 0.75rem 1rem 1rem 2.5rem;
   padding: 1.25rem;
   background: #fff;
-  border-radius: 10px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-left: 4px solid var(--primary, #2563eb);
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #059669;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
+.expanded-detail-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.expanded-detail-title svg { color: #059669; flex-shrink: 0; }
+.expanded-detail-code { font-weight: 500; color: #64748b; font-size: 0.95rem; }
+.detail-panel-title svg { color: #059669; }
+.inventory-subtable th { background: #f0fdf4; font-weight: 600; }
+.tabs-nav-lab {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.tab-btn-lab {
+  padding: 0.6rem 1.25rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.tab-btn-lab:hover {
+  border-color: #a7f3d0;
+  background: #f8fafc;
+  color: #059669;
+}
+
+.tab-btn-lab.active {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  border-color: #059669;
+}
+
+.tab-panel { margin-top: 0; }
+
 .expanded-detail-card-header {
   display: flex;
   align-items: center;
@@ -1410,22 +1491,13 @@ async function loadCategories() {
   gap: 0.75rem;
   margin-bottom: 0.5rem;
 }
-.expanded-detail-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--text, #1e293b);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.expanded-detail-title svg { color: var(--primary, #2563eb); flex-shrink: 0; }
-.expanded-detail-code { font-weight: 500; color: var(--text-muted, #64748b); font-size: 0.95rem; }
+
 .expanded-detail-desc {
   margin: 0 0 1.25rem;
   font-size: 0.875rem;
-  color: var(--text-muted, #64748b);
+  color: #64748b;
 }
+
 .btn-expand-inline {
   display: inline-flex;
   align-items: center;
@@ -1433,77 +1505,67 @@ async function loadCategories() {
   padding: 0.4rem 0.75rem;
   font-size: 0.85rem;
   font-weight: 500;
-  color: var(--text-muted, #64748b);
-  background: var(--secondary-bg, #f1f5f9);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 6px;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
 }
-.btn-expand-inline:hover { background: #e2e8f0; color: var(--text, #374151); }
-.detail-panel {
+
+.btn-expand-inline:hover { background: #e2e8f0; color: #0f172a; }
+
+.detail-section.detail-panel {
   margin-bottom: 1.25rem;
   padding: 1rem;
-  background: var(--row-expanded-bg, #f8fafc);
-  border-radius: 8px;
-  border: 1px solid var(--border-color, #e2e8f0);
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
 }
+
 .detail-panel:last-child { margin-bottom: 0; }
+
 .detail-panel-title {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--text, #374151);
+  color: #0f172a;
 }
-.detail-panel-title svg { color: var(--primary, #2563eb); }
+
 .inventory-detail-header { font-weight: 600; margin-bottom: 0.75rem; font-size: 0.9rem; }
-.inventory-loading, .inventory-empty { color: var(--text-muted, #64748b); font-size: 0.9rem; padding: 0.5rem 0; }
+
+.inventory-loading, .inventory-empty { color: #64748b; font-size: 0.9rem; padding: 0.5rem 0; }
+
 .inventory-subtable { width: 100%; font-size: 0.85rem; border-collapse: collapse; }
-.inventory-subtable th, .inventory-subtable td { padding: 0.4rem 0.6rem; text-align: left; border: 1px solid var(--border-color, #e2e8f0); }
-.inventory-subtable th { background: #f1f5f9; font-weight: 600; }
+
+.inventory-subtable th, .inventory-subtable td { padding: 0.4rem 0.6rem; text-align: left; border: 1px solid #e5e7eb; }
+
 .empty-state {
   text-align: center;
-  padding: 2rem;
-  color: var(--text-muted, #666);
+  padding: 2.5rem;
+  color: #64748b;
 }
+
 .empty-state-icon {
   display: block;
   margin: 0 auto 1rem;
-  opacity: 0.5;
-  color: var(--text-muted, #64748b);
+  opacity: 0.6;
+  color: #94a3b8;
 }
+
 .empty-state p {
   margin-bottom: 1rem;
+  color: #64748b;
 }
+
 .empty-state-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: center;
 }
-.tabs-nav-lab {
-  display: flex;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
-}
-.tab-btn-lab {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--border-color, #e2e8f0);
-  background: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.tab-btn-lab.active {
-  background: var(--primary, #2563eb);
-  color: #fff;
-  border-color: var(--primary, #2563eb);
-}
-.tab-panel { margin-top: 0; }
+
 .report-lab { padding: 0.5rem 0; }
 .report-summary-cards {
   display: flex;
@@ -1514,45 +1576,62 @@ async function loadCategories() {
 .report-card {
   min-width: 120px;
   padding: 1rem;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   background: #fff;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
-.report-card-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary, #2563eb); }
-.report-card-label { font-size: 0.85rem; color: var(--text-muted, #64748b); }
+.report-card-value { display: block; font-size: 1.5rem; font-weight: 700; color: #059669; }
+.report-card-label { font-size: 0.85rem; color: #64748b; }
 .report-card-small { min-width: 90px; padding: 0.75rem; }
 .report-card-small .report-card-value { font-size: 1.2rem; }
 .report-table { margin-top: 1rem; }
+.report-table thead th {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .btn-primary, .btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 500;
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
   text-decoration: none;
   border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
+
 .btn-primary {
-  background: var(--primary, #2563eb);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
 }
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+}
+
 .btn-secondary {
-  background: var(--secondary-bg, #e5e7eb);
-  color: var(--text, #374151);
+  background: #fff;
+  color: #475569;
+  border: 2px solid #e5e7eb;
 }
+
 .btn-secondary:hover {
-  background: var(--secondary-hover, #d1d5db);
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
+
 .actions-cell {
   white-space: nowrap;
 }
@@ -1585,10 +1664,10 @@ async function loadCategories() {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border-radius: 6px;
+  border-radius: 8px;
   border: none;
   cursor: pointer;
-  background: var(--primary, #2563eb);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   font-weight: 500;
 }
@@ -1632,7 +1711,7 @@ async function loadCategories() {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  border-bottom: 1px solid #e5e7eb;
 }
 .modal-header h3 { margin: 0; font-size: 1.1rem; }
 .btn-close {
@@ -1666,14 +1745,14 @@ async function loadCategories() {
 .form-input {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 6px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
   font-size: 0.9rem;
 }
 .form-input:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  border-color: #059669;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 .required { color: #dc2626; }
 .form-error {
@@ -1686,7 +1765,7 @@ async function loadCategories() {
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 1rem 1.25rem;
-  border-top: 1px solid var(--border-color, #e2e8f0);
+  border-top: 1px solid #e5e7eb;
   margin: 0 -1.25rem -1.25rem;
   padding: 1rem 1.25rem;
 }

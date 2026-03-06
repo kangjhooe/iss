@@ -44,6 +44,55 @@ class StudentAttendanceController extends Controller
     }
 
     /**
+     * List current student's attendance history (for student portal).
+     */
+    public function my(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if (!$user || !$user->isStudent()) {
+                return response()->json(['message' => 'Hanya siswa yang dapat mengakses data ini.'], 403);
+            }
+
+            $institutionId = $user->institution_id;
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $student = $user->studentProfile;
+            if (!$student) {
+                return response()->json(['message' => 'Profil siswa tidak ditemukan untuk akun ini.'], 404);
+            }
+
+            $semesterId = $request->integer('semester_id') ?: null;
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $history = $this->studentAttendanceService->historyForStudent(
+                $student->id,
+                (int) $institutionId,
+                $semesterId,
+                $dateFrom ?: null,
+                $dateTo ?: null
+            );
+
+            return response()->json([
+                'data' => $history,
+                'meta' => [
+                    'total' => $history->count(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('StudentAttendance my history failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal mengambil riwayat absensi.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Store/update bulk attendances for a teaching journal.
      */
     public function store(StoreStudentAttendanceRequest $request): JsonResponse

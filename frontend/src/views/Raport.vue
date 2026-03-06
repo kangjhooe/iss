@@ -1,11 +1,6 @@
 <template>
   <Layout>
     <div class="raport-page">
-      <div class="page-header">
-        <h1 class="page-title">Raport Siswa</h1>
-        <p class="page-subtitle">Lihat dan ekspor nilai per siswa per semester</p>
-      </div>
-
       <div class="filters filters-inline">
         <select v-model="filters.student_id" @change="onFilterChange" class="filter-select">
           <option value="">Pilih Siswa</option>
@@ -64,12 +59,12 @@
             </thead>
             <tbody>
               <tr v-for="row in raportRows" :key="row.subject_id">
-                <td>{{ row.subject?.name }}</td>
-                <td>{{ row.uh ?? '-' }}</td>
-                <td>{{ row.uts ?? '-' }}</td>
-                <td>{{ row.uas ?? '-' }}</td>
-                <td>{{ row.tugas ?? '-' }}</td>
-                <td>{{ row.nilai_akhir ?? '-' }}</td>
+                <td>{{ displayValue(row.subject?.name) }}</td>
+                <td>{{ row.uh ?? 'Belum ada data' }}</td>
+                <td>{{ row.uts ?? 'Belum ada data' }}</td>
+                <td>{{ row.uas ?? 'Belum ada data' }}</td>
+                <td>{{ row.tugas ?? 'Belum ada data' }}</td>
+                <td>{{ row.nilai_akhir ?? 'Belum ada data' }}</td>
               </tr>
             </tbody>
           </table>
@@ -100,6 +95,11 @@ const filters = ref({
 })
 
 const hasSelection = computed(() => filters.value.student_id && filters.value.semester_id)
+
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
 
 function onFilterChange() {
   raportRows.value = []
@@ -172,6 +172,8 @@ onMounted(async () => {
 .raport-page {
   padding: 1.5rem;
   max-width: 100%;
+  min-height: 100%;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 .page-header {
   margin-bottom: 1.5rem;
@@ -195,10 +197,16 @@ onMounted(async () => {
 }
 .filter-select {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.9rem;
   min-width: 200px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.filter-select:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 .empty-state {
   text-align: center;
@@ -242,7 +250,8 @@ onMounted(async () => {
 }
 .data-table th {
   font-weight: 600;
-  background: #f8fafc;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #065f46;
 }
 .btn-primary {
   padding: 0.5rem 1rem;
@@ -251,7 +260,7 @@ onMounted(async () => {
   font-weight: 500;
   cursor: pointer;
   border: none;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
 }
 .btn-primary:disabled {

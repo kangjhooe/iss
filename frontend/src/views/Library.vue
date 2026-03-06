@@ -1,57 +1,66 @@
 <template>
   <Layout>
     <div class="library-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Perpustakaan</h2>
-            <p>Katalog buku, eksemplar, peminjaman, dan laporan</p>
-          </div>
+      <!-- Quick stats strip -->
+      <div class="stats-strip">
+        <div class="stat-item">
+          <span class="stat-num">{{ displayStat(stats.total_books) }}</span>
+          <span class="stat-tag">Buku</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">{{ displayStat(stats.available_copies) }}</span>
+          <span class="stat-tag">Tersedia</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">{{ displayStat(stats.borrowed_copies) }}</span>
+          <span class="stat-tag">Dipinjam</span>
+        </div>
+        <div class="stat-item stat-warn" v-if="(stats.overdue_count ?? 0) > 0">
+          <span class="stat-num">{{ stats.overdue_count }}</span>
+          <span class="stat-tag">Terlambat</span>
         </div>
       </div>
 
       <div class="tabs-container">
-        <div class="tabs-nav">
-          <button @click="activeTab = 'books'" :class="['tab-btn', { active: activeTab === 'books' }]">
-            <span>Katalog Buku</span>
-          </button>
-          <button @click="activeTab = 'categories'" :class="['tab-btn', { active: activeTab === 'categories' }]">
-            <span>Kategori</span>
-          </button>
-          <button @click="activeTab = 'copies'" :class="['tab-btn', { active: activeTab === 'copies' }]">
-            <span>Eksemplar</span>
-          </button>
-          <button @click="activeTab = 'loans'" :class="['tab-btn', { active: activeTab === 'loans' }]">
-            <span>Peminjaman</span>
-          </button>
-          <button @click="activeTab = 'fines'" :class="['tab-btn', { active: activeTab === 'fines' }]">
-            <span>Denda</span>
-          </button>
-          <button @click="activeTab = 'reports'" :class="['tab-btn', { active: activeTab === 'reports' }]">
-            <span>Laporan</span>
+        <div class="tabs-nav" role="tablist">
+          <button v-for="t in tabList" :key="t.id" type="button" role="tab" :aria-selected="activeTab === t.id"
+            @click="activeTab = t.id" :class="['tab-btn', { active: activeTab === t.id }]">
+            <span class="tab-icon" v-html="t.icon"></span>
+            <span class="tab-label">{{ t.label }}</span>
           </button>
         </div>
       </div>
 
       <!-- BOOKS TAB -->
       <div v-show="activeTab === 'books'" class="tab-content">
-        <div class="tab-header">
-          <div class="filters filters-inline">
-            <input
-              v-model="bookFilters.search"
-              @input="debounceLoadBooks"
-              placeholder="Cari judul, pengarang, ISBN..."
-              class="search-input"
-            />
-            <select v-model="bookFilters.category_id" @change="loadBooks(1)" class="filter-select">
-              <option value="">Semua Kategori</option>
-              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.code }} - {{ c.name }}</option>
-            </select>
+          <div class="tab-header">
+            <div class="filters filters-inline">
+              <div class="search-wrap">
+                <input
+                  v-model="bookFilters.search"
+                  @input="debounceLoadBooks"
+                  placeholder="Cari judul, pengarang, ISBN..."
+                  class="search-input"
+                />
+                <button v-if="bookFilters.search" type="button" class="search-clear" @click="bookFilters.search = ''; loadBooks(1)" aria-label="Hapus pencarian">×</button>
+              </div>
+              <select v-model="bookFilters.category_id" @change="loadBooks(1)" class="filter-select">
+                <option value="">Semua Kategori</option>
+                <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.code }} - {{ c.name }}</option>
+              </select>
+              <select v-model="booksPerPage" @change="loadBooks(1)" class="filter-select per-page-select">
+                <option :value="10">10 / halaman</option>
+                <option :value="15">15 / halaman</option>
+                <option :value="25">25 / halaman</option>
+                <option :value="50">50 / halaman</option>
+              </select>
+            </div>
+            <button @click="openBookModal()" class="btn-primary btn-add"><span>Tambah Buku</span></button>
           </div>
-          <button @click="openBookModal()" class="btn-primary"><span>Tambah Buku</span></button>
-        </div>
-        <div v-if="booksLoading" class="loading-state"><p>Memuat data...</p></div>
-        <div v-else class="table-container">
+          <div v-if="booksLoading" class="loading-wrap">
+            <LoadingSkeleton type="table" :rows="8" :columns="6" :cell-widths="['22%','18%','14%','12%','8%','26%']" />
+          </div>
+          <div v-else class="table-container">
           <table class="data-table">
             <thead>
               <tr>
@@ -67,26 +76,26 @@
               <tr v-for="b in books" :key="b.id">
                 <td>
                   <div class="name-cell">
-                    <div class="name">{{ b.title }}</div>
-                    <div v-if="b.publisher" class="muted small">{{ b.publisher }}{{ b.year ? ', ' + b.year : '' }}</div>
+                    <div class="name">{{ displayValue(b.title) }}</div>
+                    <div v-if="b.publisher" class="muted small">{{ displayValue(b.publisher) }}{{ b.year ? ', ' + b.year : '' }}</div>
                   </div>
                 </td>
-                <td>{{ b.author || '-' }}</td>
-                <td>{{ b.category?.name || '-' }}</td>
-                <td>{{ b.isbn || '-' }}</td>
+                <td>{{ displayValue(b.author) }}</td>
+                <td>{{ displayValue(b.category?.name) }}</td>
+                <td>{{ displayValue(b.isbn) }}</td>
                 <td>{{ b.copies_count ?? b.available_copies_count ?? 0 }}</td>
                 <td>
                   <div class="action-buttons">
                     <button @click="openBookModal(b)" class="btn-action btn-edit">Edit</button>
                     <button @click="openCopyModal(null, b)" class="btn-action btn-secondary">Eksemplar</button>
-                    <button @click="deleteBook(b)" class="btn-action btn-delete">Hapus</button>
+                    <button @click="confirmDelete('book', b)" class="btn-action btn-delete">Hapus</button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
           <div v-if="books.length === 0" class="empty-state">
-            <h3>Tidak ada buku</h3>
+            <h3>Belum ada buku</h3>
             <p>Tambahkan kategori lalu tambah buku.</p>
             <button @click="openBookModal()" class="btn-primary">Tambah Buku</button>
           </div>
@@ -102,16 +111,27 @@
       <div v-show="activeTab === 'categories'" class="tab-content">
         <div class="tab-header">
           <div class="filters filters-inline">
-            <input v-model="categoryFilters.search" @input="debounceLoadCategories" placeholder="Cari kode / nama..." class="search-input" />
+            <div class="search-wrap">
+              <input v-model="categoryFilters.search" @input="debounceLoadCategories" placeholder="Cari kode / nama..." class="search-input" />
+              <button v-if="categoryFilters.search" type="button" class="search-clear" @click="categoryFilters.search = ''; loadCategories(1)" aria-label="Hapus pencarian">×</button>
+            </div>
             <select v-model="categoryFilters.is_active" @change="loadCategories(1)" class="filter-select">
               <option value="">Semua</option>
               <option value="1">Aktif</option>
               <option value="0">Nonaktif</option>
             </select>
+            <select v-model="categoriesPerPage" @change="loadCategories(1)" class="filter-select per-page-select">
+              <option :value="10">10 / halaman</option>
+              <option :value="15">15 / halaman</option>
+              <option :value="25">25 / halaman</option>
+              <option :value="50">50 / halaman</option>
+            </select>
           </div>
-          <button @click="openCategoryModal()" class="btn-primary"><span>Tambah Kategori</span></button>
+          <button @click="openCategoryModal()" class="btn-primary btn-add"><span>Tambah Kategori</span></button>
         </div>
-        <div v-if="categoriesLoading" class="loading-state"><p>Memuat data...</p></div>
+        <div v-if="categoriesLoading" class="loading-wrap">
+          <LoadingSkeleton type="table" :rows="6" :columns="4" />
+        </div>
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
@@ -119,20 +139,20 @@
             </thead>
             <tbody>
               <tr v-for="c in categories" :key="c.id">
-                <td>{{ c.code }}</td>
-                <td><div class="name-cell"><div class="name">{{ c.name }}</div><div v-if="c.description" class="muted small">{{ c.description }}</div></div></td>
+                <td>{{ displayValue(c.code) }}</td>
+                <td><div class="name-cell"><div class="name">{{ displayValue(c.name) }}</div><div v-if="c.description" class="muted small">{{ displayValue(c.description) }}</div></div></td>
                 <td><span :class="c.is_active ? 'badge-success' : 'badge-gray'">{{ c.is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                 <td>
                   <div class="action-buttons">
                     <button @click="openCategoryModal(c)" class="btn-action btn-edit">Edit</button>
-                    <button @click="deleteCategory(c)" class="btn-action btn-delete">Hapus</button>
+                    <button @click="confirmDelete('category', c)" class="btn-action btn-delete">Hapus</button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
           <div v-if="categories.length === 0" class="empty-state">
-            <h3>Tidak ada kategori</h3>
+            <h3>Belum ada kategori</h3>
             <p>Tambahkan kategori buku terlebih dahulu.</p>
             <button @click="openCategoryModal()" class="btn-primary">Tambah Kategori</button>
           </div>
@@ -148,7 +168,10 @@
       <div v-show="activeTab === 'copies'" class="tab-content">
         <div class="tab-header">
           <div class="filters filters-inline">
-            <input v-model="copyFilters.search" @input="debounceLoadCopies" placeholder="Kode eksemplar..." class="search-input" />
+            <div class="search-wrap">
+              <input v-model="copyFilters.search" @input="debounceLoadCopies" placeholder="Kode eksemplar..." class="search-input" />
+              <button v-if="copyFilters.search" type="button" class="search-clear" @click="copyFilters.search = ''; loadCopies(1)" aria-label="Hapus pencarian">×</button>
+            </div>
             <select v-model="copyFilters.book_id" @change="loadCopies(1)" class="filter-select">
               <option value="">Semua Buku</option>
               <option v-for="b in booksList" :key="b.id" :value="b.id">{{ b.title }}</option>
@@ -160,10 +183,18 @@
               <option value="Rusak">Rusak</option>
               <option value="Hilang">Hilang</option>
             </select>
+            <select v-model="copiesPerPage" @change="loadCopies(1)" class="filter-select per-page-select">
+              <option :value="10">10 / halaman</option>
+              <option :value="15">15 / halaman</option>
+              <option :value="25">25 / halaman</option>
+              <option :value="50">50 / halaman</option>
+            </select>
           </div>
-          <button @click="openCopyModal()" class="btn-primary"><span>Tambah Eksemplar</span></button>
+          <button @click="openCopyModal()" class="btn-primary btn-add"><span>Tambah Eksemplar</span></button>
         </div>
-        <div v-if="copiesLoading" class="loading-state"><p>Memuat data...</p></div>
+        <div v-if="copiesLoading" class="loading-wrap">
+          <LoadingSkeleton type="table" :rows="6" :columns="5" />
+        </div>
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
@@ -171,22 +202,22 @@
             </thead>
             <tbody>
               <tr v-for="cp in copies" :key="cp.id">
-                <td><strong>{{ cp.copy_code }}</strong></td>
-                <td><div class="name-cell"><div class="name">{{ cp.book?.title }}</div><div class="muted small">{{ cp.book?.author }}</div></div></td>
+                <td><strong>{{ displayValue(cp.copy_code) }}</strong></td>
+                <td><div class="name-cell"><div class="name">{{ displayValue(cp.book?.title) }}</div><div class="muted small">{{ displayValue(cp.book?.author) }}</div></div></td>
                 <td><span :class="getCopyStatusClass(cp.status)">{{ cp.status }}</span></td>
-                <td>{{ cp.condition || '-' }}</td>
+                <td>{{ displayValue(cp.condition) }}</td>
                 <td>
                   <div class="action-buttons">
                     <button @click="openCopyModal(cp)" class="btn-action btn-edit">Edit</button>
                     <button v-if="cp.status === 'Tersedia'" @click="openLoanModal(cp)" class="btn-action btn-secondary">Pinjam</button>
-                    <button @click="deleteCopy(cp)" class="btn-action btn-delete">Hapus</button>
+                    <button @click="confirmDelete('copy', cp)" class="btn-action btn-delete">Hapus</button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
           <div v-if="copies.length === 0" class="empty-state">
-            <h3>Tidak ada eksemplar</h3>
+            <h3>Belum ada eksemplar</h3>
             <p>Tambahkan buku lalu tambah eksemplar.</p>
             <button @click="openCopyModal()" class="btn-primary">Tambah Eksemplar</button>
           </div>
@@ -202,7 +233,10 @@
       <div v-show="activeTab === 'loans'" class="tab-content">
         <div class="tab-header">
           <div class="filters filters-inline">
-            <input v-model="loanFilters.search" @input="debounceLoadLoans" placeholder="Cari peminjam..." class="search-input" />
+            <div class="search-wrap">
+              <input v-model="loanFilters.search" @input="debounceLoadLoans" placeholder="Cari peminjam..." class="search-input" />
+              <button v-if="loanFilters.search" type="button" class="search-clear" @click="loanFilters.search = ''; loadLoans(1)" aria-label="Hapus pencarian">×</button>
+            </div>
             <select v-model="loanFilters.status" @change="loadLoans(1)" class="filter-select">
               <option value="">Semua Status</option>
               <option value="Dipinjam">Dipinjam</option>
@@ -215,10 +249,18 @@
               <option value="Employee">Guru/Karyawan</option>
               <option value="External">Tamu</option>
             </select>
+            <select v-model="loansPerPage" @change="loadLoans(1)" class="filter-select per-page-select">
+              <option :value="10">10 / halaman</option>
+              <option :value="15">15 / halaman</option>
+              <option :value="25">25 / halaman</option>
+              <option :value="50">50 / halaman</option>
+            </select>
           </div>
-          <button @click="openLoanModal()" class="btn-primary"><span>Catat Peminjaman</span></button>
+          <button @click="openLoanModal()" class="btn-primary btn-add"><span>Catat Peminjaman</span></button>
         </div>
-        <div v-if="loansLoading" class="loading-state"><p>Memuat data...</p></div>
+        <div v-if="loansLoading" class="loading-wrap">
+          <LoadingSkeleton type="table" :rows="6" :columns="7" />
+        </div>
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
@@ -228,18 +270,18 @@
               <tr v-for="ln in loans" :key="ln.id">
                 <td>
                   <div class="name-cell">
-                    <div class="name">{{ ln.borrower_name }}</div>
+                    <div class="name">{{ displayValue(ln.borrower_name) }}</div>
                     <div class="muted small">{{ ln.borrower_type }} {{ ln.borrower_identifier ? ' · ' + ln.borrower_identifier : '' }}</div>
                   </div>
                 </td>
                 <td>
                   <div class="name-cell">
-                    <div class="name">{{ ln.copy?.book?.title }}</div>
-                    <div class="muted small">Eks: {{ ln.copy?.copy_code }}</div>
+                    <div class="name">{{ displayValue(ln.copy?.book?.title) }}</div>
+                    <div class="muted small">Eks: {{ displayValue(ln.copy?.copy_code) }}</div>
                   </div>
                 </td>
-                <td>{{ ln.loan_date }}</td>
-                <td>{{ ln.due_date }}</td>
+                <td>{{ displayValue(ln.loan_date) }}</td>
+                <td>{{ displayValue(ln.due_date) }}</td>
                 <td><span :class="getLoanStatusClass(ln.status)">{{ ln.status }}</span></td>
                 <td>Rp {{ formatNumber(ln.fine_amount || 0) }} <span v-if="ln.remaining_fine > 0" class="muted">(sisa: {{ formatNumber(ln.remaining_fine) }})</span></td>
                 <td>
@@ -268,10 +310,15 @@
       <div v-show="activeTab === 'fines'" class="tab-content">
         <div class="tab-header">
           <div class="filters filters-inline">
-            <input v-model="fineFilters.loan_id" @input="debounceLoadFinePayments" placeholder="ID peminjaman (opsional)..." class="search-input" />
+            <div class="search-wrap">
+              <input v-model="fineFilters.loan_id" @input="debounceLoadFinePayments" placeholder="ID peminjaman (opsional)..." class="search-input" />
+              <button v-if="fineFilters.loan_id" type="button" class="search-clear" @click="fineFilters.loan_id = ''; loadFinePayments(1)" aria-label="Hapus">×</button>
+            </div>
           </div>
         </div>
-        <div v-if="finePaymentsLoading" class="loading-state"><p>Memuat data...</p></div>
+        <div v-if="finePaymentsLoading" class="loading-wrap">
+          <LoadingSkeleton type="table" :rows="6" :columns="4" />
+        </div>
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
@@ -279,10 +326,10 @@
             </thead>
             <tbody>
               <tr v-for="fp in finePayments" :key="fp.id">
-                <td>{{ fp.paid_at }}</td>
+                <td>{{ displayValue(fp.paid_at) }}</td>
                 <td>#{{ fp.loan_id }}</td>
                 <td>Rp {{ formatNumber(fp.amount) }}</td>
-                <td>{{ fp.payment_method || '-' }}</td>
+                <td>{{ displayValue(fp.payment_method) }}</td>
               </tr>
             </tbody>
           </table>
@@ -313,12 +360,20 @@
         </div>
         <div class="reports-grid">
           <div class="stat-cards">
-            <div class="stat-card"><span class="stat-value">{{ stats.total_books ?? 0 }}</span><span class="stat-label">Total Buku</span></div>
-            <div class="stat-card"><span class="stat-value">{{ stats.total_copies ?? 0 }}</span><span class="stat-label">Total Eksemplar</span></div>
-            <div class="stat-card"><span class="stat-value">{{ stats.available_copies ?? 0 }}</span><span class="stat-label">Tersedia</span></div>
-            <div class="stat-card"><span class="stat-value">{{ stats.borrowed_copies ?? 0 }}</span><span class="stat-label">Dipinjam</span></div>
-            <div class="stat-card"><span class="stat-value">{{ stats.overdue_count ?? 0 }}</span><span class="stat-label">Terlambat</span></div>
-            <div class="stat-card"><span class="stat-value">Rp {{ formatNumber(stats.total_fines_collected ?? 0) }}</span><span class="stat-label">Denda Terkumpul</span></div>
+            <div class="stat-card" v-for="(sc, idx) in reportStatCards" :key="idx" :style="{ animationDelay: idx * 0.05 + 's' }">
+              <span class="stat-value">{{ sc.value }}</span>
+              <span class="stat-label">{{ sc.label }}</span>
+            </div>
+          </div>
+          <div class="report-section chart-section">
+            <h3>Peminjaman per Bulan ({{ reportYear }})</h3>
+            <div class="chart-wrap" v-if="!loansByMonthLoading">
+              <Bar :data="loansByMonthData" :options="chartOptionsBar" />
+            </div>
+            <p v-else class="muted chart-placeholder">Memuat data peminjaman per bulan...</p>
+            <select v-model="reportYear" @change="loadLoansByMonth" class="filter-select chart-year-select">
+              <option v-for="y in reportYearOptions" :key="y" :value="y">{{ y }}</option>
+            </select>
           </div>
           <div class="report-section">
             <h3>Buku Paling Banyak Dipinjam</h3>
@@ -337,9 +392,20 @@
         </div>
       </div>
 
+      <!-- Confirm delete -->
+      <ConfirmDialog
+        :show="confirmShow"
+        title="Konfirmasi Hapus"
+        :message="confirmMessage"
+        :loading="confirmLoading"
+        @confirm="executeDelete"
+        @update:show="confirmShow = $event"
+      />
+
       <!-- MODALS (Category, Book, Copy, Loan, Return, FinePayment) - see script for refs -->
       <Teleport to="body">
-        <div v-if="showCategoryModal" class="modal-overlay" @click.self="showCategoryModal = false">
+        <Transition name="modal">
+          <div v-if="showCategoryModal" class="modal-overlay" @click.self="showCategoryModal = false">
           <div class="modal-card">
             <h3>{{ editingCategory ? 'Edit Kategori' : 'Tambah Kategori' }}</h3>
             <form @submit.prevent="saveCategory">
@@ -354,7 +420,9 @@
             </form>
           </div>
         </div>
+        </Transition>
 
+        <Transition name="modal">
         <div v-if="showBookModal" class="modal-overlay" @click.self="showBookModal = false">
           <div class="modal-card modal-wide">
             <h3>{{ editingBook ? 'Edit Buku' : 'Tambah Buku' }}</h3>
@@ -383,7 +451,9 @@
             </form>
           </div>
         </div>
+        </Transition>
 
+        <Transition name="modal">
         <div v-if="showCopyModal" class="modal-overlay" @click.self="showCopyModal = false">
           <div class="modal-card">
             <h3>{{ editingCopy ? 'Edit Eksemplar' : 'Tambah Eksemplar' }}</h3>
@@ -402,7 +472,9 @@
             </form>
           </div>
         </div>
+        </Transition>
 
+        <Transition name="modal">
         <div v-if="showLoanModal" class="modal-overlay" @click.self="showLoanModal = false">
           <div class="modal-card">
             <h3>Catat Peminjaman</h3>
@@ -424,7 +496,9 @@
             </form>
           </div>
         </div>
+        </Transition>
 
+        <Transition name="modal">
         <div v-if="showReturnModal" class="modal-overlay" @click.self="showReturnModal = false">
           <div class="modal-card">
             <h3>Pengembalian Buku</h3>
@@ -439,7 +513,9 @@
             </form>
           </div>
         </div>
+        </Transition>
 
+        <Transition name="modal">
         <div v-if="showFinePaymentModal" class="modal-overlay" @click.self="showFinePaymentModal = false">
           <div class="modal-card">
             <h3>Bayar Denda</h3>
@@ -456,21 +532,41 @@
             </form>
           </div>
         </div>
+        </Transition>
       </Teleport>
     </div>
   </Layout>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
+import { Bar } from 'vue-chartjs'
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
 import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { libraryApi } from '@/api/library'
 import { useToast } from '@/composables/useToast'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const toast = useToast()
 
 const activeTab = ref('books')
 const saving = ref(false)
+const booksPerPage = ref(15)
+const categoriesPerPage = ref(15)
+const copiesPerPage = ref(15)
+const loansPerPage = ref(15)
+
+const tabList = [
+  { id: 'books', label: 'Katalog Buku', icon: '📚' },
+  { id: 'categories', label: 'Kategori', icon: '🏷️' },
+  { id: 'copies', label: 'Eksemplar', icon: '📋' },
+  { id: 'loans', label: 'Peminjaman', icon: '📖' },
+  { id: 'fines', label: 'Denda', icon: '💰' },
+  { id: 'reports', label: 'Laporan', icon: '📊' }
+]
 
 // Categories
 const categories = ref([])
@@ -528,10 +624,81 @@ const finePaymentForm = ref({ amount: 0, paid_at: '', payment_method: '', notes:
 
 // Reports
 const stats = ref({})
+
+function displayStat(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return typeof v === 'number' ? String(v) : String(v).trim() || 'Belum ada data'
+}
+
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
+
 const topBooks = ref([])
 const reportDateFrom = ref('')
 const reportDateTo = ref('')
 const exportingPdf = ref(false)
+const reportYear = ref(new Date().getFullYear())
+const reportYearOptions = computed(() => {
+  const y = new Date().getFullYear()
+  return [y, y - 1, y - 2]
+})
+const loansByMonth = ref([])
+const loansByMonthLoading = ref(false)
+
+// Confirm delete
+const confirmShow = ref(false)
+const confirmTarget = ref(null) // { type: 'category'|'book'|'copy', item }
+const confirmLoading = ref(false)
+
+const confirmMessage = computed(() => {
+  if (!confirmTarget.value) return ''
+  const { type, item } = confirmTarget.value
+  if (type === 'category') return `Hapus kategori "${item.name}"?`
+  if (type === 'book') return `Hapus buku "${item.title}"?`
+  if (type === 'copy') return `Hapus eksemplar ${item.copy_code}?`
+  return ''
+})
+
+const reportStatCards = computed(() => [
+  { value: stats.value.total_books ?? 0, label: 'Total Buku' },
+  { value: stats.value.total_copies ?? 0, label: 'Total Eksemplar' },
+  { value: stats.value.available_copies ?? 0, label: 'Tersedia' },
+  { value: stats.value.borrowed_copies ?? 0, label: 'Dipinjam' },
+  { value: stats.value.overdue_count ?? 0, label: 'Terlambat' },
+  { value: 'Rp ' + formatNumber(stats.value.total_fines_collected ?? 0), label: 'Denda Terkumpul' }
+])
+
+const chartOptionsBar = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false }
+  },
+  scales: {
+    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+  }
+}
+
+const loansByMonthData = computed(() => {
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
+  const data = loansByMonth.value || []
+  const countByMonth = Array.from({ length: 12 }, (_, i) => {
+    const d = data.find(r => (r.month || 0) === i + 1)
+    return d ? (d.count ?? d.loan_count ?? 0) : 0
+  })
+  return {
+    labels: months,
+    datasets: [{
+      label: 'Peminjaman',
+      data: countByMonth,
+      backgroundColor: 'rgba(5, 150, 105, 0.7)',
+      borderColor: 'rgb(5, 150, 105)',
+      borderWidth: 1
+    }]
+  }
+})
 
 function formatNumber(n) { return Number(n).toLocaleString('id-ID') }
 function formatDate(d) { return d ? (typeof d === 'string' ? d : d.toISOString().slice(0, 10)) : '-' }
@@ -562,7 +729,7 @@ function getLoanStatusClass(s) {
 async function loadCategories(page = 1) {
   categoriesLoading.value = true
   try {
-    const res = await libraryApi.getCategories({ page, per_page: 15, search: categoryFilters.value.search || undefined, is_active: categoryFilters.value.is_active || undefined })
+    const res = await libraryApi.getCategories({ page, per_page: categoriesPerPage.value, search: categoryFilters.value.search || undefined, is_active: categoryFilters.value.is_active || undefined })
     categories.value = res.data.data ?? []
     const meta = res.data.meta || res.data
     categoriesMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
@@ -575,7 +742,7 @@ async function loadCategories(page = 1) {
 async function loadBooks(page = 1) {
   booksLoading.value = true
   try {
-    const res = await libraryApi.getBooks({ page, per_page: 15, search: bookFilters.value.search || undefined, category_id: bookFilters.value.category_id || undefined })
+    const res = await libraryApi.getBooks({ page, per_page: booksPerPage.value, search: bookFilters.value.search || undefined, category_id: bookFilters.value.category_id || undefined })
     books.value = res.data.data ?? []
     const meta = res.data.meta || res.data
     booksMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1, total: meta.total ?? 0 }
@@ -588,7 +755,7 @@ async function loadBooks(page = 1) {
 async function loadCopies(page = 1) {
   copiesLoading.value = true
   try {
-    const res = await libraryApi.getCopies({ page, per_page: 15, book_id: copyFilters.value.book_id || undefined, status: copyFilters.value.status || undefined, search: copyFilters.value.search || undefined })
+    const res = await libraryApi.getCopies({ page, per_page: copiesPerPage.value, book_id: copyFilters.value.book_id || undefined, status: copyFilters.value.status || undefined, search: copyFilters.value.search || undefined })
     copies.value = res.data.data ?? []
     const meta = res.data.meta || res.data
     copiesMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
@@ -601,7 +768,7 @@ async function loadCopies(page = 1) {
 async function loadLoans(page = 1) {
   loansLoading.value = true
   try {
-    const res = await libraryApi.getLoans({ page, per_page: 15, status: loanFilters.value.status || undefined, borrower_type: loanFilters.value.borrower_type || undefined, search: loanFilters.value.search || undefined })
+    const res = await libraryApi.getLoans({ page, per_page: loansPerPage.value, status: loanFilters.value.status || undefined, borrower_type: loanFilters.value.borrower_type || undefined, search: loanFilters.value.search || undefined })
     loans.value = res.data.data ?? []
     const meta = res.data.meta || res.data
     loansMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
@@ -635,6 +802,18 @@ async function loadTopBooks() {
     const res = await libraryApi.getTopBooks({ limit: 10 })
     topBooks.value = res.data.data || []
   } catch (_) {}
+}
+async function loadLoansByMonth() {
+  loansByMonthLoading.value = true
+  try {
+    const res = await libraryApi.getLoansByMonth({ year: reportYear.value })
+    const raw = res.data?.data ?? res.data
+    loansByMonth.value = Array.isArray(raw) ? raw : []
+  } catch (_) {
+    loansByMonth.value = []
+  } finally {
+    loansByMonthLoading.value = false
+  }
 }
 async function loadBooksList() {
   try {
@@ -686,16 +865,39 @@ async function saveCategory() {
     saving.value = false
   }
 }
-async function deleteCategory(cat) {
-  if (!confirm('Hapus kategori "' + cat.name + '"?')) return
+function confirmDelete(type, item) {
+  confirmTarget.value = { type, item }
+  confirmShow.value = true
+}
+async function executeDelete() {
+  if (!confirmTarget.value) return
+  confirmLoading.value = true
+  const { type, item } = confirmTarget.value
   try {
-    await libraryApi.deleteCategory(cat.id)
-    toast.success('Berhasil', 'Kategori dihapus')
-    loadCategories(categoriesMeta.value.current_page)
-    loadCategoriesForSelect()
-    loadBooksList()
+    if (type === 'category') {
+      await libraryApi.deleteCategory(item.id)
+      toast.success('Berhasil', 'Kategori dihapus')
+      loadCategories(categoriesMeta.value.current_page)
+      loadCategoriesForSelect()
+      loadBooksList()
+    } else if (type === 'book') {
+      await libraryApi.deleteBook(item.id)
+      toast.success('Berhasil', 'Buku dihapus')
+      loadBooks(booksMeta.value.current_page)
+      loadBooksList()
+      loadCopies(copiesMeta.value.current_page)
+    } else if (type === 'copy') {
+      await libraryApi.deleteCopy(item.id)
+      toast.success('Berhasil', 'Eksemplar dihapus')
+      loadCopies(copiesMeta.value.current_page)
+      loadAvailableCopies()
+    }
+    confirmShow.value = false
+    confirmTarget.value = null
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
+  } finally {
+    confirmLoading.value = false
   }
 }
 
@@ -728,18 +930,6 @@ async function saveBook() {
     saving.value = false
   }
 }
-async function deleteBook(book) {
-  if (!confirm('Hapus buku "' + book.title + '"?')) return
-  try {
-    await libraryApi.deleteBook(book.id)
-    toast.success('Berhasil', 'Buku dihapus')
-    loadBooks(booksMeta.value.current_page)
-    loadBooksList()
-    loadCopies(copiesMeta.value.current_page)
-  } catch (e) {
-    toast.error('Gagal', getErrorMessage(e))
-  }
-}
 
 function openCopyModal(copy = null, book = null) {
   editingCopy.value = copy
@@ -764,17 +954,6 @@ async function saveCopy() {
     toast.error('Gagal', getErrorMessage(e))
   } finally {
     saving.value = false
-  }
-}
-async function deleteCopy(cp) {
-  if (!confirm('Hapus eksemplar ' + cp.copy_code + '?')) return
-  try {
-    await libraryApi.deleteCopy(cp.id)
-    toast.success('Berhasil', 'Eksemplar dihapus')
-    loadCopies(copiesMeta.value.current_page)
-    loadAvailableCopies()
-  } catch (e) {
-    toast.error('Gagal', getErrorMessage(e))
   }
 }
 
@@ -893,9 +1072,10 @@ watch(activeTab, (tab) => {
   if (tab === 'copies') { loadCopies(1); loadBooksList() }
   if (tab === 'loans') loadLoans(1)
   if (tab === 'fines') loadFinePayments(1)
-  if (tab === 'reports') { loadStats(); loadTopBooks() }
+  if (tab === 'reports') { loadStats(); loadTopBooks(); loadLoansByMonth() }
 })
 onMounted(() => {
+  loadStats()
   loadCategories(1)
   loadCategoriesForSelect()
   loadBooks(1)
@@ -904,38 +1084,69 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.library-page { padding: 0 1rem 2rem; }
-.page-header { margin-bottom: 1.5rem; }
-.page-header h2 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0 0 0.25rem 0; }
-.page-header p { color: #64748b; margin: 0; font-size: 0.9rem; }
+.library-page { padding: 0 1rem 2rem; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
+
+/* Hero header */
+.page-hero { position: relative; margin: -0.5rem -1rem 1.25rem -1rem; padding: 1.5rem 1.5rem 1.75rem; border-radius: 0 0 20px 20px; overflow: hidden; }
+.hero-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%); opacity: 0.97; }
+.hero-bg::after { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); opacity: 0.5; }
+.hero-content { position: relative; display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+.hero-icon-wrap { width: 56px; height: 56px; border-radius: 16px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; animation: iconFloat 3s ease-in-out infinite; }
+.hero-icon { width: 32px; height: 32px; color: #fff; }
+.hero-title { font-size: 1.75rem; font-weight: 800; color: #fff; margin: 0 0 0.25rem 0; letter-spacing: -0.02em; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+.hero-subtitle { color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; }
+@keyframes iconFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+/* Stats strip */
+.stats-strip { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; }
+.stat-item { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.65rem 1rem; display: flex; align-items: baseline; gap: 0.5rem; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.stat-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15); }
+.stat-item.stat-warn { background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%); border-color: #f59e0b; }
+.stat-num { font-size: 1.15rem; font-weight: 700; color: #1e293b; }
+.stat-tag { font-size: 0.8rem; color: #64748b; }
+.stat-item.stat-warn .stat-num { color: #92400e; }
+.stat-item.stat-warn .stat-tag { color: #b45309; }
+
+/* Tabs */
 .tabs-container { margin-bottom: 1.25rem; border-bottom: 2px solid #e2e8f0; }
 .tabs-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-.tab-btn { padding: 0.6rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #64748b; font-weight: 500; cursor: pointer; }
+.tab-btn { padding: 0.6rem 1rem; background: none; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #64748b; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; transition: color 0.2s ease, border-color 0.2s ease; }
 .tab-btn:hover { color: #475569; }
-.tab-btn.active { color: #667eea; border-bottom-color: #667eea; }
-.tab-content { padding-top: 1rem; }
+.tab-btn.active { color: #059669; border-bottom-color: #059669; }
+.tab-icon { font-size: 1.1rem; line-height: 1; }
+.tab-content { padding-top: 1rem; animation: tabIn 0.3s ease; }
+@keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
 .tab-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-.search-input { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; min-width: 180px; }
-.filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; min-width: 140px; }
-.btn-primary { padding: 0.6rem 1.25rem; background: #667eea; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
-.btn-primary:hover { background: #5a67d8; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.loading-state { text-align: center; padding: 2rem; color: #64748b; }
-.table-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.search-wrap { position: relative; display: inline-flex; }
+.search-input { padding: 0.5rem 2rem 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; min-width: 180px; transition: border-color 0.2s, box-shadow 0.2s; }
+.search-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15); }
+.search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: none; background: #e2e8f0; color: #64748b; border-radius: 6px; cursor: pointer; font-size: 1.1rem; line-height: 1; display: flex; align-items: center; justify-content: center; transition: background 0.2s, color 0.2s; }
+.search-clear:hover { background: #cbd5e1; color: #475569; }
+.per-page-select { min-width: 120px; }
+.filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; min-width: 140px; }
+.btn-primary { padding: 0.6rem 1.25rem; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease; }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-add { display: inline-flex; align-items: center; gap: 0.4rem; }
+.loading-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; padding: 0.5rem; background: #fff; }
+.table-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #f1f5f9; }
-.data-table th { background: #f8fafc; font-weight: 600; color: #475569; font-size: 0.8rem; text-transform: uppercase; }
-.data-table tbody tr:hover { background: #f8fafc; }
+.data-table th { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); font-weight: 600; color: #065f46; font-size: 0.8rem; text-transform: uppercase; }
+.data-table tbody tr { transition: background 0.15s ease; }
+.data-table tbody tr:hover { background: #f1f5f9; }
 .name-cell .name { font-weight: 500; }
 .muted { color: #64748b; font-size: 0.85rem; }
 .small { font-size: 0.8rem; }
 .action-buttons { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.btn-action { padding: 0.35rem 0.65rem; border-radius: 6px; border: none; font-size: 0.8rem; cursor: pointer; font-weight: 500; }
-.btn-edit { background: #dbeafe; color: #1d4ed8; }
-.btn-edit:hover { background: #bfdbfe; }
-.btn-secondary { background: #e0e7ff; color: #4338ca; }
-.btn-secondary:hover { background: #c7d2fe; }
+.btn-action { padding: 0.35rem 0.65rem; border-radius: 8px; border: none; font-size: 0.8rem; cursor: pointer; font-weight: 500; transition: transform 0.1s ease; }
+.btn-action:hover { transform: scale(1.02); }
+.btn-edit { background: rgba(5, 150, 105, 0.12); color: #059669; }
+.btn-edit:hover { background: rgba(5, 150, 105, 0.2); }
+.btn-secondary { background: #ecfdf5; color: #047857; }
+.btn-secondary:hover { background: #d1fae5; }
 .btn-delete { background: #fee2e2; color: #b91c1c; }
 .btn-delete:hover { background: #fecaca; }
 .btn-renew { background: #d1fae5; color: #047857; }
@@ -947,7 +1158,8 @@ onMounted(() => {
 .empty-state { text-align: center; padding: 2.5rem; color: #64748b; }
 .empty-state h3 { margin: 0 0 0.5rem 0; color: #475569; }
 .pagination { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; flex-wrap: wrap; }
-.pagination-btn { padding: 0.4rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
+.pagination-btn { padding: 0.4rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; transition: background 0.2s; }
+.pagination-btn:hover:not(:disabled) { background: #f8fafc; }
 .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .pagination-info { font-size: 0.85rem; color: #64748b; }
 .report-export-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; padding: 0.75rem 0; border-bottom: 1px solid #e2e8f0; }
@@ -955,12 +1167,17 @@ onMounted(() => {
 .filter-sep { color: #64748b; font-size: 0.9rem; }
 .reports-grid { display: flex; flex-direction: column; gap: 1.5rem; }
 .stat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
-.stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; text-align: center; }
-.stat-value { display: block; font-size: 1.25rem; font-weight: 700; color: #1e293b; }
-.stat-label { font-size: 0.8rem; color: #64748b; }
+.stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; text-align: center; animation: statCardIn 0.4s ease backwards; }
+.stat-card .stat-value { display: block; font-size: 1.25rem; font-weight: 700; color: #1e293b; }
+.stat-card .stat-label { font-size: 0.8rem; color: #64748b; }
+@keyframes statCardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .report-section h3 { margin: 0 0 0.75rem 0; font-size: 1rem; color: #475569; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
-.modal-card { background: #fff; border-radius: 16px; padding: 1.5rem; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.15); }
+.chart-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; }
+.chart-wrap { height: 260px; position: relative; }
+.chart-year-select { margin-top: 0.75rem; max-width: 120px; }
+.chart-placeholder { margin: 1rem 0 0; font-size: 0.9rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-card { background: #fff; border-radius: 16px; padding: 1.5rem; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
 .modal-wide { max-width: 560px; }
 .modal-card h3 { margin: 0 0 1rem 0; font-size: 1.15rem; color: #1e293b; }
 .form-group { margin-bottom: 1rem; }
@@ -968,10 +1185,19 @@ onMounted(() => {
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
-.btn-secondary { padding: 0.5rem 1rem; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+.modal-footer .btn-secondary { padding: 0.5rem 1rem; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+.modal-footer .btn-secondary:hover { background: #e2e8f0; }
+
+/* Modal transition */
+.modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-active .modal-card, .modal-leave-active .modal-card { transition: transform 0.25s ease; }
+.modal-enter-from .modal-card, .modal-leave-to .modal-card { transform: scale(0.95); }
 
 @media (max-width: 768px) {
   .library-page { padding: 0 0.75rem 1.5rem; }
+  .page-hero { margin-left: -0.75rem; margin-right: -0.75rem; padding: 1.25rem 1rem; }
+  .hero-title { font-size: 1.5rem; }
   .search-input, .filter-select { min-width: 0; width: 100%; }
   .form-row { grid-template-columns: 1fr; }
   .modal-card, .modal-wide { max-width: 100%; margin: 0.5rem; }
@@ -979,7 +1205,9 @@ onMounted(() => {
 
 @media (max-width: 480px) {
   .library-page { padding: 0 0.5rem 1rem; }
-  .page-header h2 { font-size: 1.25rem; }
+  .page-hero { margin-left: -0.5rem; margin-right: -0.5rem; padding: 1rem 0.75rem; }
+  .hero-title { font-size: 1.25rem; }
+  .hero-icon-wrap { width: 48px; height: 48px; }
   .tab-btn { padding: 0.5rem 0.75rem; font-size: 0.85rem; }
   .data-table th, .data-table td { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
 }

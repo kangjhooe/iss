@@ -13,6 +13,12 @@ export const authApi = {
   me() {
     return api.get('/v1/me')
   },
+  updateProfile(data) {
+    return api.put('/v1/me', data)
+  },
+  changePassword(data) {
+    return api.put('/v1/me/password', data)
+  },
   forgotPassword(email) {
     return api.post('/v1/forgot-password', { email })
   },

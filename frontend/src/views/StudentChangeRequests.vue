@@ -227,7 +227,7 @@ onMounted(async () => {
 .error-msg { color: #dc2626; font-size: 14px; margin-bottom: 12px; }
 .btn-primary {
   padding: 10px 20px;
-  background: #667eea;
+  background: #059669;
   color: #fff;
   border: none;
   border-radius: 8px;

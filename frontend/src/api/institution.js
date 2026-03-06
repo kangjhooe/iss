@@ -30,5 +30,14 @@ export const institutionApi = {
         'Content-Type': 'multipart/form-data'
       }
     })
+  },
+  uploadCoverImage(id, file) {
+    const formData = new FormData()
+    formData.append('cover_image', file)
+    return api.post(`/v1/institution/${id}/cover-image`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 }

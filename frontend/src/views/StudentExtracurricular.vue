@@ -100,6 +100,7 @@ onMounted(async () => {
 }
 .card-name { font-weight: 700; color: #0f172a; margin-bottom: 6px; }
 .card-meta, .card-date { font-size: 13px; color: #64748b; }
-.back-link { display: inline-block; margin-top: 16px; color: #0ea5e9; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link { display: inline-block; margin-top: 16px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link:hover { color: #047857; text-decoration: underline; }
 .back-link:hover { text-decoration: underline; }
 </style>

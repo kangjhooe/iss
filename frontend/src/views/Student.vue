@@ -1,68 +1,89 @@
 <template>
   <Layout>
     <div class="student-page">
-      <div class="page-header">
-        <div class="header-content">
-          <h1 class="page-title">Data Siswa</h1>
-          <p class="page-subtitle">Kelola data siswa sekolah Anda</p>
-          <div class="action-buttons-group">
-            <button @click="exportToExcel" class="btn-secondary btn-compact">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Export</span>
-            </button>
-            <button @click="downloadTemplate" class="btn-secondary btn-compact">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Template</span>
-            </button>
-            <label for="import-excel" class="btn-secondary btn-compact cursor-pointer">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Import</span>
-            </label>
-            <input type="file" id="import-excel" accept=".xlsx,.xls" class="input-hidden" @change="handleImportExcel">
-            <button @click="openAddModal" class="btn-secondary btn-compact btn-add">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Siswa</span>
-            </button>
-          </div>
-        </div>
+      <div class="list-tabs">
+        <button
+          type="button"
+          :class="['tab-btn', { active: !filters.only_trashed }]"
+          @click="switchListTab(false)"
+        >
+          Daftar Siswa
+        </button>
+        <button
+          type="button"
+          :class="['tab-btn', { active: filters.only_trashed }]"
+          @click="switchListTab(true)"
+        >
+          Kotak Sampah
+        </button>
       </div>
-
-      <div class="filters filters-inline">
-        <input 
-          v-model="filters.search" 
-          @input="loadStudents" 
-          placeholder="Cari nama, NIK, NIS, NISN..."
-          class="search-input"
-        />
-        <select v-model="filters.class_id" @change="loadStudents" class="filter-select">
-          <option value="">Semua Kelas</option>
-          <option v-for="c in filterClassList" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-        <select v-model="filters.status" @change="loadStudents" class="filter-select">
-          <option value="">Semua Status</option>
-          <option value="Aktif">Aktif</option>
-          <option value="Lulus">Lulus</option>
-          <option value="Pindah">Pindah</option>
-          <option value="Drop Out">Drop Out</option>
-          <option value="Tidak Aktif">Tidak Aktif</option>
-        </select>
+      <div class="toolbar">
+        <div v-if="!filters.only_trashed" class="filters filters-inline">
+          <input 
+            v-model="filters.search" 
+            @input="loadStudents" 
+            placeholder="Cari nama, NIK, NIS, NISN..."
+            class="search-input"
+          />
+          <select v-model="filters.class_id" @change="loadStudents" class="filter-select">
+            <option value="">Semua Kelas</option>
+            <option v-for="c in filterClassList" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+          <select v-model="filters.status" @change="loadStudents" class="filter-select">
+            <option value="">Semua Status</option>
+            <option value="Aktif">Aktif</option>
+            <option value="Lulus">Lulus</option>
+            <option value="Pindah">Pindah</option>
+            <option value="Drop Out">Drop Out</option>
+            <option value="Tidak Aktif">Tidak Aktif</option>
+          </select>
+        </div>
+        <div v-else class="filters filters-inline">
+          <input
+            v-model="filters.search"
+            @input="loadStudents"
+            placeholder="Cari nama, NIK, NIS, NISN..."
+            class="search-input"
+          />
+        </div>
+        <div class="toolbar-actions">
+          <template v-if="!filters.only_trashed">
+          <button @click="exportToExcel" class="btn-secondary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Export</span>
+          </button>
+          <button @click="downloadTemplate" class="btn-secondary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Template</span>
+          </button>
+          <label for="import-excel" class="btn-secondary btn-compact cursor-pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Import</span>
+          </label>
+          <input type="file" id="import-excel" accept=".xlsx,.xls" class="input-hidden" @change="handleImportExcel">
+          <button @click="openAddModal" class="btn-primary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Siswa</span>
+          </button>
+          </template>
+        </div>
       </div>
 
       <!-- Error state (list load failed) -->
@@ -80,26 +101,37 @@
       <div v-else class="content-wrapper">
         <StudentTable
           :students="students"
+          :trash-mode="filters.only_trashed"
           :get-status-class="getStatusClass"
           @view="viewStudent"
           @edit="editStudent"
           @delete="deleteStudent"
           @add="openAddModal"
+          @restore="handleRestoreStudent"
         >
           <template #empty>
+            <template v-if="filters.only_trashed">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <h3>Tidak ada data di kotak sampah</h3>
+              <p>Data siswa yang dihapus akan muncul di sini dan dapat dipulihkan</p>
+            </template>
+            <template v-else>
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <h3>Tidak ada data siswa</h3>
+            <h3>Belum ada data siswa</h3>
             <p>Mulai dengan menambahkan siswa baru</p>
-            <button @click="openAddModal" class="btn-secondary btn-compact btn-add">
+            <button @click="openAddModal" class="btn-primary btn-compact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span>Tambah Siswa</span>
             </button>
+            </template>
           </template>
         </StudentTable>
       </div>
@@ -1343,7 +1375,7 @@ const deleteStudent = async (id) => {
   const confirmed = await showConfirm({
     title: 'Konfirmasi Hapus',
     message: 'Apakah Anda yakin ingin menghapus siswa ini?',
-    warning: 'Data siswa akan dihapus secara permanen dan tidak dapat dikembalikan.'
+    warning: 'Data siswa akan dipindahkan ke kotak sampah dan dapat dipulihkan kapan saja dari menu Kotak Sampah.'
   })
   
   if (!confirmed) return
@@ -1357,6 +1389,21 @@ const deleteStudent = async (id) => {
     toast.error('Gagal', err.formattedMessage || 'Gagal menghapus siswa')
   } finally {
     setDeleteLoading(false)
+  }
+}
+
+function switchListTab(onlyTrashed) {
+  filters.value.only_trashed = !!onlyTrashed
+  loadStudents()
+}
+
+async function handleRestoreStudent(student) {
+  try {
+    await studentApi.restore(student.id)
+    toast.success('Berhasil', 'Siswa berhasil dipulihkan')
+    loadStudents()
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || 'Gagal memulihkan siswa')
   }
 }
 
@@ -2178,7 +2225,7 @@ const printPDF = async () => {
       <body>
         <div class="kop">
           <div class="kop-header">
-            ${institution.logo ? `<img src="${institution.logo}" alt="Logo Sekolah" class="kop-logo" />` : ''}
+            ${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}
             <div style="flex: 1;">
               <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
               <div class="kop-address">${fullAddress}</div>
@@ -2461,6 +2508,63 @@ onMounted(() => {
 .student-page {
   width: 100%;
   max-width: 100%;
+  min-height: 100%;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+}
+
+.list-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.list-tabs .tab-btn {
+  padding: 10px 20px;
+  border: 1px solid #d1fae5;
+  background: #fff;
+  color: #047857;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.list-tabs .tab-btn:hover {
+  background: #ecfdf5;
+}
+
+.list-tabs .tab-btn.active {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  border-color: #047857;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.toolbar .filters {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-compact {
+  padding: 8px 14px;
+  font-size: 13px;
 }
 
 .page-header {
@@ -2545,9 +2649,9 @@ onMounted(() => {
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .search-input {
@@ -2669,7 +2773,7 @@ onMounted(() => {
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
 }
 
@@ -2758,13 +2862,13 @@ onMounted(() => {
 }
 
 .btn-edit {
-  color: #3b82f6;
+  color: #059669;
 }
 
 .btn-edit:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(5, 150, 105, 0.1);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
 }
 
 .btn-delete {
@@ -2870,12 +2974,12 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
 }
 
 .form-modal-title {
@@ -2954,15 +3058,15 @@ onMounted(() => {
 }
 
 .form-tab-btn:hover {
-  color: #4f46e5;
-  background: #f5f3ff;
+  color: #059669;
+  background: #ecfdf5;
 }
 
 .form-tab-btn.active {
-  color: #4f46e5;
-  border-bottom-color: #4f46e5;
+  color: #059669;
+  border-bottom-color: #059669;
   font-weight: 600;
-  background: #faf5ff;
+  background: #ecfdf5;
 }
 
 .form-tab-btn svg {
@@ -3051,8 +3155,8 @@ onMounted(() => {
 .form-modal-body .form-group select:focus,
 .form-modal-body .form-group textarea:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
   transform: none;
 }
 
@@ -3109,7 +3213,7 @@ onMounted(() => {
   padding: 10px 18px;
   font-size: 14px;
   font-weight: 500;
-  color: #4f46e5;
+  color: #059669;
   background: #fff;
   border: 1px solid #c7d2fe;
   border-radius: 10px;
@@ -3118,7 +3222,7 @@ onMounted(() => {
 }
 
 .btn-outline:hover {
-  background: #eef2ff;
+  background: #ecfdf5;
   border-color: #a5b4fc;
 }
 
@@ -3127,7 +3231,7 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border: none;
   border-radius: 10px;
   cursor: pointer;
@@ -3135,12 +3239,12 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
 }
 
 .btn-submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);
 }
 
 .btn-submit:disabled {
@@ -3259,7 +3363,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #667eea;
+  color: #059669;
   font-size: 20px;
   font-weight: 700;
   margin-bottom: 20px;
@@ -3325,7 +3429,7 @@ onMounted(() => {
 .counseling-empty .link-counseling {
   display: inline-block;
   margin-top: 0.5rem;
-  color: #0ea5e9;
+  color: #059669;
   font-weight: 500;
   text-decoration: none;
 }
@@ -3369,7 +3473,7 @@ onMounted(() => {
 .counseling-status.status-ekskul-keluar { background: #feebc8; color: #c05621; }
 .counseling-status.status-ekskul-lulus { background: #e9d8fd; color: #553c9a; }
 .link-counseling {
-  color: #0ea5e9;
+  color: #059669;
   font-weight: 500;
   text-decoration: none;
 }
@@ -3406,7 +3510,7 @@ onMounted(() => {
 }
 
 .btn-buku-induk-link {
-  color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #059669);
   text-decoration: none;
   font-size: 0.9rem;
   padding: 8px 12px;
@@ -3480,7 +3584,7 @@ onMounted(() => {
 }
 
 .tab-btn:hover {
-  color: #667eea;
+  color: #059669;
   background: #f8fafc;
   border-radius: 8px 8px 0 0;
 }
@@ -3491,15 +3595,15 @@ onMounted(() => {
 }
 
 .tab-btn.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: #059669;
+  border-bottom-color: #059669;
   font-weight: 600;
-  background: linear-gradient(to bottom, rgba(102, 126, 234, 0.05), transparent);
+  background: linear-gradient(to bottom, rgba(5, 150, 105, 0.05), transparent);
 }
 
 .tab-btn.active svg {
   opacity: 1;
-  color: #667eea;
+  color: #059669;
 }
 
 .tab-content {
@@ -3577,9 +3681,9 @@ onMounted(() => {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 4px 12px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1), 0 4px 12px rgba(5, 150, 105, 0.15);
   transform: translateY(-1px);
 }
 
@@ -3636,20 +3740,20 @@ onMounted(() => {
 }
 
 .btn-add {
-  border-color: #667eea;
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.08);
+  border-color: #059669;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.08);
 }
 
 .btn-add:hover {
-  background: rgba(102, 126, 234, 0.15);
-  border-color: #667eea;
-  color: #5a67d8;
+  background: rgba(5, 150, 105, 0.15);
+  border-color: #059669;
+  color: #059669;
 }
 
 .btn-primary {
   padding: 10px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -3660,12 +3764,12 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
 }
 
 .btn-primary:disabled {
@@ -3719,7 +3823,7 @@ onMounted(() => {
 }
 
 .loading-spinner {
-  color: #667eea;
+  color: #059669;
 }
 
 .loading-state p {

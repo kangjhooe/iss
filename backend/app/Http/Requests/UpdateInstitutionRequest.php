@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\NpsnReferensiRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -49,6 +50,7 @@ class UpdateInstitutionRequest extends FormRequest
                 'size:8',
                 'regex:/^[0-9]{8}$/',
                 Rule::unique('institution', 'npsn')->ignore($institutionId),
+                new NpsnReferensiRule(),
             ];
         } else {
             // For non-super admin, name and npsn cannot be changed directly
@@ -64,6 +66,8 @@ class UpdateInstitutionRequest extends FormRequest
             'sub_district' => 'nullable|string|max:255',
             'district' => 'nullable|string|max:255',
             'province' => 'nullable|string|max:255',
+            'province_code' => 'nullable|string|max:2',
+            'district_code' => 'nullable|string|max:2',
             'postal_code' => 'nullable|string|max:10',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
@@ -71,9 +75,14 @@ class UpdateInstitutionRequest extends FormRequest
             'principal_name' => 'nullable|string|max:255',
             'principal_nip' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'vision' => 'nullable|string',
+            'mission' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
             'active_academic_year_id' => 'nullable|exists:academic_years,id',
             'active_semester_id' => 'nullable|exists:semesters,id',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'location_radius' => 'nullable|integer|min:10|max:5000',
         ];
         
         return array_merge($rules, $baseRules);

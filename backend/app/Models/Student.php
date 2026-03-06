@@ -209,6 +209,14 @@ class Student extends Model
     }
 
     /**
+     * Get exam participants (peserta ujian) for this student.
+     */
+    public function examParticipants()
+    {
+        return $this->hasMany(ExamParticipant::class);
+    }
+
+    /**
      * Get the extracurricular enrollments (peserta ekskul) for this student.
      */
     public function extracurricularEnrollments()

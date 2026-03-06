@@ -1,31 +1,22 @@
 <template>
   <Layout>
     <div class="academic-year-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Manajemen Tahun Ajaran</h2>
-            <p>Kelola data tahun ajaran sekolah</p>
-          </div>
-          <div class="action-buttons-group">
-            <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Tahun Ajaran</span>
-            </button>
-          </div>
+      <div class="tab-header">
+        <div class="filters filters-inline">
+          <input 
+            v-model="filters.search" 
+            @input="loadAcademicYears" 
+            placeholder="Cari tahun ajaran..."
+            class="search-input"
+          />
         </div>
-      </div>
-
-      <div class="filters filters-inline">
-        <input 
-          v-model="filters.search" 
-          @input="loadAcademicYears" 
-          placeholder="Cari tahun ajaran..."
-          class="search-input"
-        />
+        <button @click="showAddModal = true" class="btn-primary btn-add">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Tambah Tahun Ajaran</span>
+        </button>
       </div>
 
       <div v-if="loading" class="loading-wrap">
@@ -45,10 +36,10 @@
           </thead>
           <tbody>
             <tr v-for="year in academicYears" :key="year.id">
-              <td><strong>{{ year.code }}</strong></td>
-              <td>{{ year.name || '-' }}</td>
-              <td>{{ formatDate(year.start_date) }}</td>
-              <td>{{ formatDate(year.end_date) }}</td>
+              <td><strong>{{ displayValue(year.code) }}</strong></td>
+              <td>{{ displayValue(year.name) }}</td>
+              <td>{{ displayValue(formatDate(year.start_date)) }}</td>
+              <td>{{ displayValue(formatDate(year.end_date)) }}</td>
               <td>
                 <div class="action-buttons">
                   <button @click="editAcademicYear(year)" class="btn-action btn-edit" title="Edit">
@@ -69,7 +60,7 @@
         </table>
 
         <div v-if="academicYears.length === 0" class="empty-state">
-          <p>Tidak ada data tahun ajaran</p>
+          <p>Belum ada data tahun ajaran</p>
         </div>
 
         <div v-if="pagination && pagination.last_page > 1" class="pagination">
@@ -224,6 +215,11 @@ const form = ref({
   description: ''
 })
 
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
+
 const loadAcademicYears = async (page = 1) => {
   loading.value = true
   try {
@@ -355,6 +351,29 @@ onMounted(() => {
   width: 100%;
   max-width: 100%;
   padding: 0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+
+.tab-header .filters-inline {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .page-header {
@@ -385,7 +404,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #667eea;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -395,7 +414,8 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
 }
 
 .filters {
@@ -418,7 +438,8 @@ onMounted(() => {
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
 .loading-state {
@@ -447,7 +468,7 @@ onMounted(() => {
 }
 
 .data-table thead {
-  background: #f7fafc;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
 }
 
 .data-table th {
@@ -455,7 +476,7 @@ onMounted(() => {
   text-align: left;
   font-weight: 600;
   font-size: 13px;
-  color: #4a5568;
+  color: #065f46;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -485,11 +506,11 @@ onMounted(() => {
 }
 
 .btn-edit {
-  color: #48bb78;
+  color: #059669;
 }
 
 .btn-edit:hover {
-  background: #f0fff4;
+  background: rgba(5, 150, 105, 0.12);
 }
 
 .btn-delete {
@@ -528,8 +549,8 @@ onMounted(() => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #059669;
+  color: #059669;
 }
 
 .pagination-btn:disabled {
@@ -638,7 +659,8 @@ onMounted(() => {
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
 .error-message {

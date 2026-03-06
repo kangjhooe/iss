@@ -1,40 +1,33 @@
 <template>
   <Layout>
     <div class="extracurricular-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Ekstrakurikuler</h2>
-            <p>Kelola data ekstrakurikuler dan peserta</p>
-          </div>
-          <div class="action-buttons-group">
-            <button @click="openAddModal" class="btn-primary btn-compact">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Ekstrakurikuler</span>
-            </button>
-          </div>
+      <div class="toolbar">
+        <div class="filters filters-inline">
+          <input
+            v-model="filters.search"
+            type="text"
+            placeholder="Cari nama ekskul..."
+            class="search-input"
+            @input="debounceLoad"
+          />
+          <select v-model="filters.status" @change="loadList" class="filter-select">
+            <option value="">Semua Status</option>
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+          <select v-model="filters.semester_id" @change="loadList" class="filter-select">
+            <option value="">Semua Semester</option>
+            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
         </div>
-      </div>
-
-      <div class="filters filters-inline">
-        <input
-          v-model="filters.search"
-          type="text"
-          placeholder="Cari nama ekskul..."
-          class="search-input"
-          @input="debounceLoad"
-        />
-        <select v-model="filters.status" @change="loadList" class="filter-select">
-          <option value="">Semua Status</option>
-          <option value="Aktif">Aktif</option>
-          <option value="Nonaktif">Nonaktif</option>
-        </select>
-        <select v-model="filters.semester_id" @change="loadList" class="filter-select">
-          <option value="">Semua Semester</option>
-          <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
+        <div class="toolbar-actions">
+          <button @click="openAddModal" class="btn-primary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Ekstrakurikuler</span>
+          </button>
+        </div>
       </div>
 
       <div v-if="listError && !loading" class="error-state">
@@ -63,14 +56,14 @@
           <tbody>
             <tr v-for="item in list" :key="item.id">
               <td>
-                <span class="name-cell">{{ item.name }}</span>
+                <span class="name-cell">{{ displayValue(item.name) }}</span>
                 <span v-if="item.description" class="desc-cell">{{ truncate(item.description, 40) }}</span>
               </td>
-              <td>{{ item.supervisor?.name || '-' }}</td>
-              <td>{{ item.semester?.name || '-' }}</td>
+              <td>{{ displayValue(item.supervisor?.name) }}</td>
+              <td>{{ displayValue(item.semester?.name) }}</td>
               <td>
                 <span v-if="item.day_of_week">{{ dayLabel(item.day_of_week) }} {{ item.start_time || '' }}-{{ item.end_time || '' }}</span>
-                <span v-else>-</span>
+                <span v-else>Belum ada data</span>
               </td>
               <td>
                 <span
@@ -78,12 +71,12 @@
                   @click="openParticipantsModal(item)"
                   title="Kelola peserta"
                 >
-                  {{ item.participants_count ?? '-' }}
+                  {{ item.participants_count ?? 'Belum ada data' }}
                 </span>
               </td>
               <td>
                 <span :class="['status-badge', item.status === 'Aktif' ? 'status-active' : 'status-inactive']">
-                  {{ item.status }}
+                  {{ item.status || 'Belum ada data' }}
                 </span>
               </td>
               <td>
@@ -438,6 +431,11 @@ function statusLabel(s) {
   return labels[s] || s
 }
 
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
+
 function truncate(str, len) {
   if (!str) return ''
   return str.length <= len ? str : str.slice(0, len) + '...'
@@ -789,8 +787,22 @@ onMounted(async () => {
 .extracurricular-page {
   width: 100%;
   max-width: 100%;
-  padding: 0;
+  min-height: 100%;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.toolbar .filters { margin-bottom: 0; flex: 1; min-width: 200px; }
+.toolbar-actions { display: flex; gap: 10px; }
+.btn-compact { display: inline-flex; align-items: center; gap: 8px; }
 
 .page-header {
   margin-bottom: 24px;
@@ -833,6 +845,13 @@ onMounted(async () => {
   min-width: 160px;
 }
 
+.search-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
 .search-input {
   flex: 1;
   max-width: 280px;
@@ -852,12 +871,20 @@ onMounted(async () => {
 
 .link-peserta {
   cursor: pointer;
-  color: #4299e1;
+  color: #059669;
   text-decoration: underline;
 }
 
 .link-peserta:hover {
-  color: #3182ce;
+  color: #047857;
+}
+
+.data-table thead tr {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+.data-table th {
+  font-weight: 600;
+  color: #065f46;
 }
 
 .status-badge {
@@ -912,8 +939,8 @@ onMounted(async () => {
 }
 
 .btn-edit {
-  background: #ebf8ff;
-  color: #2b6cb0;
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
 }
 
 .btn-delete {
@@ -1045,7 +1072,7 @@ onMounted(async () => {
   width: 24px;
   height: 24px;
   border: 2px solid #e2e8f0;
-  border-top-color: #4299e1;
+  border-top-color: #059669;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 8px;
@@ -1087,12 +1114,17 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #667eea;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .btn-secondary {

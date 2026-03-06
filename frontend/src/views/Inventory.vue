@@ -1,15 +1,6 @@
 <template>
   <Layout>
     <div class="inventory-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Inventaris</h2>
-            <p>Kelola kategori, barang inventaris, dan transaksi</p>
-          </div>
-        </div>
-      </div>
-
       <!-- Tabs -->
       <div class="tabs-container">
         <div class="tabs-nav">
@@ -2039,31 +2030,15 @@ onMounted(async () => {
 .inventory-page {
   width: 100%;
   max-width: 100%;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.header-content h2 {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-  letter-spacing: -0.5px;
-}
-
-.header-content p {
-  color: #64748b;
-  font-size: 14px;
-  margin: 0;
+  min-height: 100%;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 
 .tabs-container {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
   margin-bottom: 24px;
 }
 
@@ -2088,20 +2063,20 @@ onMounted(async () => {
 
 .tab-btn:hover {
   background: #f8fafc;
-  color: #667eea;
+  color: #059669;
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
 }
 
 .tab-content {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
   padding: 24px;
 }
 
@@ -2143,14 +2118,14 @@ onMounted(async () => {
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .btn-primary {
   padding: 12px 18px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -2158,12 +2133,12 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 14px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35);
 }
 
 .btn-primary:disabled {
@@ -2187,7 +2162,7 @@ onMounted(async () => {
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
 }
 
@@ -2239,12 +2214,12 @@ onMounted(async () => {
 }
 
 .btn-edit {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
 }
 
 .btn-edit:hover {
-  background: rgba(59, 130, 246, 0.18);
+  background: rgba(5, 150, 105, 0.18);
 }
 
 .btn-delete {
@@ -2400,8 +2375,8 @@ onMounted(async () => {
 
 .btn-outline:hover {
   background: #f8fafc;
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #059669;
+  color: #059669;
 }
 
 .btn-compact {
@@ -2513,8 +2488,8 @@ onMounted(async () => {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: #059669;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .form-hint {

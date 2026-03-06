@@ -1,34 +1,27 @@
 <template>
   <Layout>
     <div class="subject-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Mata Pelajaran</h2>
-            <p>Kelola master mata pelajaran untuk jadwal</p>
-          </div>
-          <div class="action-buttons-group">
-            <button @click="openAddModal" class="btn-secondary btn-compact btn-add">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Mata Pelajaran</span>
-            </button>
-          </div>
+      <div class="toolbar">
+        <div class="filters filters-inline">
+          <input
+            v-model="filters.search"
+            @input="debounceLoad"
+            placeholder="Cari kode atau nama..."
+            class="search-input"
+          />
+          <select v-model="filters.active_only" @change="loadSubjects" class="filter-select">
+            <option :value="true">Aktif saja</option>
+            <option :value="false">Semua</option>
+          </select>
         </div>
-      </div>
-
-      <div class="filters filters-inline">
-        <input
-          v-model="filters.search"
-          @input="debounceLoad"
-          placeholder="Cari kode atau nama..."
-          class="search-input"
-        />
-        <select v-model="filters.active_only" @change="loadSubjects" class="filter-select">
-          <option :value="true">Aktif saja</option>
-          <option :value="false">Semua</option>
-        </select>
+        <div class="toolbar-actions">
+          <button @click="openAddModal" class="btn-primary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Mata Pelajaran</span>
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="loading-wrap">
@@ -48,9 +41,9 @@
           </thead>
           <tbody>
             <tr v-for="item in subjects" :key="item.id">
-              <td>{{ item.code }}</td>
-              <td>{{ item.name }}</td>
-              <td>{{ item.description || '-' }}</td>
+              <td>{{ displayValue(item.code) }}</td>
+              <td>{{ displayValue(item.name) }}</td>
+              <td>{{ displayValue(item.description) }}</td>
               <td>
                 <span :class="item.is_active ? 'badge-success' : 'badge-muted'">
                   {{ item.is_active ? 'Aktif' : 'Nonaktif' }}
@@ -138,6 +131,11 @@ const filters = reactive({
   search: '',
   active_only: true,
 })
+
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
 
 const form = reactive({
   code: '',
@@ -241,18 +239,37 @@ onMounted(loadSubjects)
 </script>
 
 <style scoped>
-.subject-page { width: 100%; max-width: 100%; padding: 1.5rem; }
+.subject-page {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+}
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.toolbar .filters { margin-bottom: 0; flex: 1; min-width: 200px; }
+.toolbar-actions { display: flex; gap: 0.5rem; }
+.btn-compact { display: inline-flex; align-items: center; gap: 0.5rem; }
 .page-header { margin-bottom: 1.5rem; }
 .header-content { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
 .action-buttons-group { display: flex; gap: 0.5rem; }
 .filters-inline { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.search-input { min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; }
-.filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; }
+.search-input { min-width: 200px; padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 6px; transition: border-color 0.2s, box-shadow 0.2s; }
+.search-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
+.filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 6px; transition: border-color 0.2s, box-shadow 0.2s; }
+.filter-select:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
 .loading-state { text-align: center; padding: 2rem; }
-.table-container { overflow-x: auto; }
+.table-container { overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-.data-table th { background: #f7fafc; font-weight: 600; }
+.data-table th { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); font-weight: 600; color: #065f46; }
 .badge-success { background: #c6f6d5; color: #276749; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
 .badge-muted { background: #e2e8f0; color: #4a5568; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
 .action-buttons { display: flex; gap: 0.5rem; }
@@ -264,12 +281,13 @@ onMounted(loadSubjects)
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.35rem; font-weight: 500; }
 .form-input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; }
+.form-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
 .error-message { color: #c53030; margin-bottom: 0.75rem; font-size: 0.875rem; }
-.empty-state { padding: 1.5rem; text-align: center; color: #718096; }
-.btn-primary { background: #3182ce; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; }
+.empty-state { padding: 1.5rem; text-align: center; color: #64748b; }
+.btn-primary { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25); }
 .btn-secondary { background: #e2e8f0; color: #2d3748; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; }
 .btn-action { padding: 0.35rem 0.6rem; font-size: 0.875rem; border-radius: 4px; cursor: pointer; border: none; }
-.btn-edit { background: #ebf8ff; color: #2b6cb0; }
+.btn-edit { background: rgba(5, 150, 105, 0.12); color: #059669; }
 .btn-delete { background: #fed7d7; color: #c53030; }
 </style>

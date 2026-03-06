@@ -1,15 +1,6 @@
 <template>
   <Layout>
     <div class="change-requests-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Permintaan Perubahan Data Guru</h2>
-            <p>Kelola permintaan guru untuk mengubah atau melengkapi data diri (disetujui admin)</p>
-          </div>
-        </div>
-      </div>
-
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="6" :columns="6" :cell-widths="['100px', '1fr', '120px', '100px', '1fr', '120px']" />
       </div>
@@ -47,7 +38,7 @@
             <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <p>Tidak ada request {{ filterStatus ? filterStatus : '' }}</p>
+          <p>Belum ada request {{ filterStatus ? filterStatus : '' }}</p>
         </div>
 
         <div v-else class="requests-list">
@@ -320,7 +311,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.change-requests-page { width: 100%; max-width: 100%; }
+.change-requests-page { width: 100%; max-width: 100%; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
 .page-header { margin-bottom: 32px; }
 .header-content h2 { font-size: 28px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
 .header-content p { color: #64748b; font-size: 14px; margin: 0; }

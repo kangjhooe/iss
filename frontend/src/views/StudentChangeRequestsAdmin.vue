@@ -1,15 +1,6 @@
 <template>
   <Layout>
     <div class="change-requests-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Permintaan Perubahan Data Siswa</h2>
-            <p>Setujui atau tolak permintaan perubahan data dari siswa</p>
-          </div>
-        </div>
-      </div>
-
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="6" :columns="6" :cell-widths="['100px', '1fr', '120px', '100px', '1fr', '120px']" />
       </div>
@@ -43,7 +34,7 @@
         </div>
 
         <div v-if="requests.length === 0" class="empty-state">
-          <p>Tidak ada permintaan {{ filterStatus ? filterStatus : '' }}</p>
+          <p>Belum ada permintaan {{ filterStatus ? filterStatus : '' }}</p>
         </div>
 
         <div v-else class="requests-list">
@@ -300,7 +291,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.change-requests-page { width: 100%; max-width: 100%; }
+.change-requests-page { width: 100%; max-width: 100%; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
 .page-header { margin-bottom: 32px; }
 .header-content h2 { font-size: 28px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
 .header-content p { color: #64748b; font-size: 14px; margin: 0; }
@@ -308,7 +299,7 @@ onMounted(async () => {
 .filter-tabs { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; }
 .tab { padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; color: #64748b; font-weight: 500; cursor: pointer; margin-bottom: -2px; }
 .tab:hover { color: #475569; }
-.tab.active { color: #667eea; border-bottom-color: #667eea; }
+.tab.active { color: #059669; border-bottom-color: #059669; }
 
 .requests-list { display: flex; flex-direction: column; gap: 16px; }
 .request-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0; }
@@ -324,7 +315,7 @@ onMounted(async () => {
 .detail-row { display: flex; gap: 12px; }
 .detail-row .label { font-weight: 600; color: #64748b; min-width: 120px; }
 .detail-row .value { color: #1e293b; }
-.detail-row .new-value { color: #667eea; font-weight: 600; }
+.detail-row .new-value { color: #059669; font-weight: 600; }
 .rejection-reason { color: #dc2626; font-style: italic; }
 
 .request-actions { display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid #e2e8f0; }

@@ -28,7 +28,9 @@ class Institution extends Model
         'village',
         'sub_district',
         'district',
+        'district_code',
         'province',
+        'province_code',
         'postal_code',
         'phone',
         'email',
@@ -36,7 +38,10 @@ class Institution extends Model
         'principal_name',
         'principal_nip',
         'description',
+        'vision',
+        'mission',
         'logo',
+        'cover_image',
         'is_active',
         'active_academic_year_id',
         'active_semester_id',
@@ -382,6 +387,38 @@ class Institution extends Model
     }
 
     /**
+     * Exams (ujian) for this institution.
+     */
+    public function exams()
+    {
+        return $this->hasMany(Exam::class);
+    }
+
+    /**
+     * Bank soal (kumpulan soal) for this institution.
+     */
+    public function bankSoal()
+    {
+        return $this->hasMany(BankSoal::class);
+    }
+
+    /**
+     * Question bank items (soal) for this institution.
+     */
+    public function questionBanks()
+    {
+        return $this->hasMany(QuestionBank::class);
+    }
+
+    /**
+     * Question stimuli (stimulus soal) for this institution.
+     */
+    public function questionStimuli()
+    {
+        return $this->hasMany(QuestionStimulus::class);
+    }
+
+    /**
      * Scope a query to only include active institutions.
      */
     public function scopeActive($query)
@@ -424,6 +461,43 @@ class Institution extends Model
         $my = self::getMutasiLevelGroup($this->level);
         $their = self::getMutasiLevelGroup($other->level);
         return $my !== null && $my === $their;
+    }
+
+    /**
+     * Kode jenjang 1 digit untuk nomor peserta: SD/MI=1, SMP/MTs=2, SMA/MA/SMK/MAK=3, PAUD/TK=4.
+     */
+    public function getJenjangCodeAttribute(): string
+    {
+        if ($this->level === null) {
+            return '0';
+        }
+        return match (strtoupper($this->level)) {
+            'SD', 'MI' => '1',
+            'SMP', 'MTs' => '2',
+            'SMA', 'MA', 'SMK', 'MAK' => '3',
+            'PAUD', 'TK' => '4',
+            default => '0',
+        };
+    }
+
+    /**
+     * Build nomor peserta format: YY-PP-KK-J-SSSS-NNN
+     * (tahun 2, provinsi 2, kabupaten 2, jenjang 1, kode sekolah 4, nomor urut 3 digit).
+     *
+     * @param  int  $participantOrder  1-based nomor urut dalam sesi
+     * @param  \DateTimeInterface|null  $yearSource  Tanggal untuk tahun (default: now)
+     */
+    public function buildNomorPeserta(int $participantOrder, ?\DateTimeInterface $yearSource = null): string
+    {
+        $date = $yearSource ?? now();
+        $yy = $date->format('y');
+        $pp = str_pad((string) ($this->province_code ?? '0'), 2, '0', STR_PAD_LEFT);
+        $kk = str_pad((string) ($this->district_code ?? '0'), 2, '0', STR_PAD_LEFT);
+        $j = $this->jenjang_code;
+        $ssss = $this->npsn ? str_pad(substr((string) $this->npsn, -4), 4, '0', STR_PAD_LEFT) : '0000';
+        $nnn = str_pad((string) max(1, $participantOrder), 3, '0', STR_PAD_LEFT);
+
+        return "{$yy}-{$pp}-{$kk}-{$j}-{$ssss}-{$nnn}";
     }
 
     /**

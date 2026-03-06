@@ -1,15 +1,6 @@
 <template>
   <Layout>
     <div class="change-requests-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Manajemen Request Perubahan</h2>
-            <p>Kelola request perubahan nama sekolah/madrasah dan NPSN</p>
-          </div>
-        </div>
-      </div>
-
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="6" :columns="6" :cell-widths="['100px', '1fr', '120px', '100px', '1fr', '120px']" />
       </div>
@@ -48,7 +39,7 @@
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <p>Tidak ada request {{ filterStatus ? filterStatus : '' }}</p>
+          <p>Belum ada request {{ filterStatus ? filterStatus : '' }}</p>
         </div>
 
         <div v-else class="requests-list">
@@ -317,6 +308,8 @@ onMounted(async () => {
 .change-requests-page {
   width: 100%;
   max-width: 100%;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
 }
 
 .page-header {
@@ -360,8 +353,8 @@ onMounted(async () => {
 }
 
 .tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: #059669;
+  border-bottom-color: #059669;
 }
 
 .requests-list {
@@ -443,7 +436,7 @@ onMounted(async () => {
 }
 
 .detail-row .new-value {
-  color: #667eea;
+  color: #059669;
   font-weight: 600;
 }
 
@@ -600,8 +593,8 @@ onMounted(async () => {
 
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: #059669;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .error-message {
@@ -625,6 +618,6 @@ onMounted(async () => {
 }
 
 .loading-spinner {
-  color: #667eea;
+  color: #059669;
 }
 </style>

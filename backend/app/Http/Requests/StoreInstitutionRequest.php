@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\NpsnReferensiRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreInstitutionRequest extends FormRequest
@@ -24,7 +25,14 @@ class StoreInstitutionRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'npsn' => 'nullable|string|size:8|regex:/^[0-9]{8}$/|unique:institution,npsn',
+            'npsn' => [
+                'nullable',
+                'string',
+                'size:8',
+                'regex:/^[0-9]{8}$/',
+                'unique:institution,npsn',
+                new NpsnReferensiRule(),
+            ],
             'nss' => 'nullable|string|max:255',
             'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MAK,MTs,MI,PAUD',
             'type' => 'required|in:Negeri,Swasta',
@@ -41,6 +49,9 @@ class StoreInstitutionRequest extends FormRequest
             'principal_nip' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'location_radius' => 'nullable|integer|min:10|max:5000',
         ];
     }
 

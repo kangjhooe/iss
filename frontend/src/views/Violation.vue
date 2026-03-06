@@ -1,27 +1,17 @@
 <template>
   <Layout>
     <div class="violation-page">
-      <header class="page-header">
-        <div class="header-content">
-          <div class="header-icon-wrap">
-            <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <div class="toolbar" v-if="primaryActionLabel">
+        <div class="toolbar-spacer"></div>
+        <div class="header-actions">
+          <button @click="primaryActionClick" class="btn-primary btn-compact">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-          </div>
-          <div>
-            <h1 class="page-title">Pelanggaran</h1>
-            <p class="page-subtitle">Catatan pelanggaran siswa dan master jenis pelanggaran</p>
-          </div>
-          <div class="header-actions">
-            <button v-if="primaryActionLabel" @click="primaryActionClick" class="btn-primary btn-compact">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>{{ primaryActionLabel }}</span>
-            </button>
-          </div>
+            <span>{{ primaryActionLabel }}</span>
+          </button>
         </div>
-      </header>
+      </div>
 
       <!-- Single-level tabs: semua dalam satu baris dengan pengelompokan visual -->
       <div class="nav-tabs-wrap">
@@ -1346,8 +1336,15 @@ onMounted(async () => {
   min-height: 100%;
   padding: 1.5rem;
   margin: 0 auto;
-  background: #f1f5f9;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+.toolbar-spacer { flex: 1; }
 .page-header {
   margin-bottom: 1.25rem;
   padding: 1.25rem 1.5rem;
@@ -1366,12 +1363,12 @@ onMounted(async () => {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);
 }
 .header-icon {
   flex-shrink: 0;
@@ -1441,10 +1438,10 @@ onMounted(async () => {
   color: #0f172a;
 }
 .nav-tab.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
 }
 .nav-tab .nav-tab-label {
   font-size: 0.9rem;
@@ -1468,7 +1465,7 @@ onMounted(async () => {
   color: #475569;
   background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
   border-radius: 10px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid #059669;
   line-height: 1.5;
 }
 .filter-toggle {
@@ -1524,8 +1521,8 @@ onMounted(async () => {
 }
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 .filter-select {
   padding: 0.55rem 0.85rem;
@@ -1546,7 +1543,7 @@ onMounted(async () => {
   width: 44px;
   height: 44px;
   border: 3px solid #e2e8f0;
-  border-top-color: #667eea;
+  border-top-color: #059669;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 0.85rem;
@@ -1569,9 +1566,9 @@ onMounted(async () => {
   padding: 0.6rem 1.25rem;
   font-weight: 600;
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
 }
-.btn-empty-cta:hover { box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+.btn-empty-cta:hover { box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4); }
 .table-container {
   overflow-x: auto;
   border: 1px solid #e2e8f0;
@@ -1633,7 +1630,7 @@ onMounted(async () => {
   border-radius: 6px;
   font-size: 0.75rem;
 }
-.status-badge.status-dicatat { background: #e0e7ff; color: #3730a3; }
+.status-badge.status-dicatat { background: #ecfdf5; color: #047857; }
 .status-badge.status-sanksi_diberikan { background: #fef3c7; color: #92400e; }
 .status-badge.status-follow_up { background: #d1fae5; color: #065f46; }
 .status-badge.status-selesai { background: #d1fae5; color: #047857; }
@@ -1646,25 +1643,25 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 1rem;
   padding: 1.1rem 1.35rem;
-  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   border: 1px solid #c7d2fe;
   border-radius: 12px;
   font-size: 0.9rem;
-  color: #3730a3;
+  color: #047857;
   margin-bottom: 1.5rem;
   line-height: 1.55;
-  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.08);
+  box-shadow: 0 1px 4px rgba(5, 150, 105, 0.08);
 }
 .points-info-icon {
   flex-shrink: 0;
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  background: rgba(99, 102, 241, 0.25);
+  background: rgba(5, 150, 105, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4f46e5;
+  color: #059669;
 }
 .points-info-text { flex: 1; min-width: 0; }
 .points-filter-hint { font-size: 0.85rem; color: #64748b; margin: 0.5rem 0 1rem; }
@@ -1724,7 +1721,7 @@ onMounted(async () => {
 }
 .table-points tbody tr.row-good { background: #f0fdf4; }
 .table-points tbody tr.row-warning { background: #fffbeb; }
-.thresholds-hint { margin-bottom: 1rem; padding: 0.75rem 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #667eea; }
+.thresholds-hint { margin-bottom: 1rem; padding: 0.75rem 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #059669; }
 .action-buttons { display: flex; gap: 0.5rem; }
 .btn-action {
   padding: 0.35rem 0.6rem;
@@ -1858,15 +1855,15 @@ onMounted(async () => {
   font-size: 0.9rem;
 }
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   border: none;
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.35);
   transition: opacity 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
 }
 .btn-primary:hover:not(:disabled) {
   opacity: 0.95;
-  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45);
   transform: translateY(-1px);
 }
 .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
@@ -1880,8 +1877,8 @@ onMounted(async () => {
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 .type-card {
   transition: box-shadow 0.15s ease, border-color 0.15s ease;

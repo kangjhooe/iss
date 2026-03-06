@@ -1,6 +1,6 @@
 {
   "name": "servr-in-frontend",
-  "version": "1.0.0",
+  "version": "0.3.26.3.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -8,10 +8,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vueup/vue-quill": "^1.2.0",
     "axios": "^1.6.7",
     "chart.js": "^4.5.1",
     "idb": "^8.0.3",
     "pinia": "^2.1.7",
+    "quill": "^2.0.3",
     "vite-plugin-pwa": "^1.2.0",
     "vue": "^3.4.21",
     "vue-chartjs": "^5.3.3",

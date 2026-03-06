@@ -1,55 +1,43 @@
 <template>
   <Layout>
     <div class="teaching-journal-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div class="header-icon-wrap">
-            <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 6.25278V19.2528M12 6.25278C10.8321 5.47686 9.24649 5 7.5 5C5.75351 5 4.16789 5.47686 3 6.25278V19.2528C4.16789 18.4769 5.75351 18 7.5 18C9.24649 18 10.8321 18.4769 12 19.2528M12 6.25278C13.1679 5.47686 14.7535 5 16.5 5C18.2465 5 19.8321 5.47686 21 6.25278V19.2528C19.8321 18.4769 18.2465 18 16.5 18C14.7535 18 13.1679 18.4769 12 19.2528" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="page-title">Jurnal Mengajar</h1>
-            <p class="page-subtitle">Catatan pertemuan mengajar per tanggal, kelas, dan mata pelajaran</p>
-          </div>
-          <div class="header-actions">
-            <button @click="exportToCsv" :disabled="exporting" class="btn-secondary btn-compact">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>{{ exporting ? 'Mengekspor...' : 'Export CSV' }}</span>
-            </button>
-            <button @click="openAddModal" class="btn-primary btn-compact">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Jurnal</span>
-            </button>
-          </div>
+      <div class="toolbar">
+        <div class="filters filters-inline">
+          <select v-model="filters.semester_id" @change="loadJournals" class="filter-select">
+            <option value="">Semua Semester</option>
+            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+          <select v-model="filters.class_id" @change="loadJournals" class="filter-select">
+            <option value="">Semua Kelas</option>
+            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+          <select v-if="!isTeacher" v-model="filters.employee_id" @change="loadJournals" class="filter-select">
+            <option value="">Semua Guru</option>
+            <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }}</option>
+          </select>
+          <select v-model="filters.subject_id" @change="loadJournals" class="filter-select">
+            <option value="">Semua Mapel</option>
+            <option v-for="sub in subjects" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
+          </select>
+          <input v-model="filters.date_from" type="date" class="filter-select" @change="loadJournals" />
+          <input v-model="filters.date_to" type="date" class="filter-select" @change="loadJournals" />
         </div>
-      </div>
-
-      <div class="filters filters-inline">
-        <select v-model="filters.semester_id" @change="loadJournals" class="filter-select">
-          <option value="">Semua Semester</option>
-          <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
-        <select v-model="filters.class_id" @change="loadJournals" class="filter-select">
-          <option value="">Semua Kelas</option>
-          <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-        <select v-if="!isTeacher" v-model="filters.employee_id" @change="loadJournals" class="filter-select">
-          <option value="">Semua Guru</option>
-          <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }}</option>
-        </select>
-        <select v-model="filters.subject_id" @change="loadJournals" class="filter-select">
-          <option value="">Semua Mapel</option>
-          <option v-for="sub in subjects" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
-        </select>
-        <input v-model="filters.date_from" type="date" class="filter-select" @change="loadJournals" />
-        <input v-model="filters.date_to" type="date" class="filter-select" @change="loadJournals" />
+        <div class="toolbar-actions">
+          <button @click="exportToCsv" :disabled="exporting" class="btn-secondary btn-compact">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ exporting ? 'Mengekspor...' : 'Export CSV' }}</span>
+          </button>
+          <button @click="openAddModal" class="btn-primary btn-compact">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Jurnal</span>
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="loading-wrap">
@@ -84,12 +72,12 @@
           <tbody>
             <tr v-for="j in journals" :key="j.id">
               <td>{{ formatDate(j.journal_date) }}</td>
-              <td>{{ j.school_class?.name }}</td>
-              <td>{{ j.subject?.name }}</td>
-              <td>{{ j.employee?.name }}</td>
-              <td>{{ j.period }}</td>
-              <td class="summary-cell">{{ truncate(j.material_taught, 40) }}</td>
-              <td class="summary-cell">{{ truncate(j.attendance_notes, 30) }}</td>
+              <td>{{ displayValue(j.school_class?.name) }}</td>
+              <td>{{ displayValue(j.subject?.name) }}</td>
+              <td>{{ displayValue(j.employee?.name) }}</td>
+              <td>{{ j.period ?? 'Belum ada data' }}</td>
+              <td class="summary-cell">{{ truncate(j.material_taught, 40) || 'Belum ada data' }}</td>
+              <td class="summary-cell">{{ truncate(j.attendance_notes, 30) || 'Belum ada data' }}</td>
               <td>
                 <div class="action-buttons">
                   <button @click="openEditModal(j)" class="btn-action btn-edit" title="Edit">✎</button>
@@ -253,6 +241,11 @@ const deleteMessage = computed(() => {
   const j = deleteTarget.value
   return `Yakin menghapus jurnal ${formatDate(j.journal_date)} - ${j.school_class?.name || ''} ${j.subject?.name || ''}?`
 })
+
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
 
 function formatDate(val) {
   if (!val) return '-'
@@ -470,9 +463,33 @@ onMounted(async () => {
 .teaching-journal-page {
   width: 100%;
   max-width: 100%;
+  min-height: 100%;
   padding: 1.5rem;
   margin: 0 auto;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.toolbar .filters {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .page-header {
   margin-bottom: 1.5rem;
 }
@@ -486,7 +503,7 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -517,10 +534,16 @@ onMounted(async () => {
 }
 .filter-select {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.9rem;
   min-width: 140px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.filter-select:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 .loading-wrap {
   width: 100%;
@@ -564,7 +587,8 @@ onMounted(async () => {
 }
 .data-table th {
   font-weight: 600;
-  background: #f8fafc;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #065f46;
 }
 .summary-cell {
   max-width: 200px;
@@ -585,8 +609,8 @@ onMounted(async () => {
   font-size: 0.85rem;
 }
 .btn-action.btn-edit:hover {
-  background: #e0f2fe;
-  border-color: #0ea5e9;
+  background: #ecfdf5;
+  border-color: #059669;
 }
 .btn-action.btn-delete:hover {
   background: #fee2e2;
@@ -708,7 +732,7 @@ onMounted(async () => {
   border: none;
 }
 .btn-primary {
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
 }
 .btn-secondary {

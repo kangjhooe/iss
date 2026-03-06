@@ -67,6 +67,15 @@ use App\Http\Controllers\API\PpdbApplicantController;
 use App\Http\Controllers\API\PublicPpdbController;
 use App\Http\Controllers\API\PublicSchoolController;
 use App\Http\Controllers\API\AppBrandingController;
+use App\Http\Controllers\API\ExamController;
+use App\Http\Controllers\API\ExamSessionController;
+use App\Http\Controllers\API\ExamControlController;
+use App\Http\Controllers\API\ExamParticipantController;
+use App\Http\Controllers\API\ExamAttemptController;
+use App\Http\Controllers\API\QuestionStimulusController;
+use App\Http\Controllers\API\QuestionBankController;
+use App\Http\Controllers\API\QuestionAssetController;
+use App\Http\Controllers\API\BankSoalController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
@@ -87,6 +96,8 @@ Route::get('/', function () {
             'protected' => [
                 'POST /api/v1/logout' => 'Logout user',
                 'GET /api/v1/me' => 'Get current user',
+                'PUT /api/v1/me' => 'Update current user profile (name, email)',
+                'PUT /api/v1/me/password' => 'Change current user password',
                 'GET /api/v1/teacher/dashboard' => 'Teacher dashboard summary',
                 'GET /api/v1/institution' => 'List institutions',
                 'GET /api/v1/institution/my' => 'Get my institution',
@@ -135,8 +146,17 @@ Route::middleware('throttle:10,1')->post('/public/ppdb/confirm-re-registration',
 Route::middleware('throttle:15,1')->post('/public/ppdb/documents', [PublicPpdbController::class, 'uploadDocument'])->name('public.ppdb.upload-document');
 Route::middleware('throttle:10,1')->post('/public/ppdb/register', [PublicPpdbController::class, 'register'])->name('public.ppdb.register');
 
+// Public exam attempt (siswa masuk ujian dengan token dari kartu peserta)
+Route::middleware('throttle:60,1')->prefix('exam/attempt')->group(function () {
+    Route::post('/enter', [ExamAttemptController::class, 'enter'])->name('exam.attempt.enter');
+    Route::get('/question', [ExamAttemptController::class, 'question'])->name('exam.attempt.question');
+    Route::put('/answer', [ExamAttemptController::class, 'saveAnswer'])->name('exam.attempt.answer');
+    Route::post('/submit', [ExamAttemptController::class, 'submit'])->name('exam.attempt.submit');
+});
+
 // Public school landing: institusi by NPSN, buku tamu submit
 Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])->name('public.school.show');
+Route::middleware('throttle:30,1')->get('/public/npsn-lookup', [PublicSchoolController::class, 'lookupNpsnReferensi'])->name('public.npsn-lookup');
 Route::middleware('throttle:5,1')->post('/public/guest-visit', [PublicSchoolController::class, 'storeGuestVisit'])->name('public.guest-visit.store');
 
 // Public landing stats & recent institutions (untuk halaman awal)
@@ -151,6 +171,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/me', [AuthController::class, 'updateProfile']);
+    Route::put('/me/password', [AuthController::class, 'changePassword']);
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
@@ -168,6 +190,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('/institution/my', [InstitutionController::class, 'myInstitution']);
         Route::put('/institution/{id}/active-academic-year', [InstitutionController::class, 'updateActiveAcademicYear'])->name('institution.update-active-academic-year');
         Route::post('/institution/{id}/logo', [InstitutionController::class, 'uploadLogo'])->name('institution.upload-logo');
+        Route::post('/institution/{id}/cover-image', [InstitutionController::class, 'uploadCoverImage'])->name('institution.upload-cover-image');
         Route::get('/institution/{id}/logo', [InstitutionController::class, 'getLogo'])->name('institution.get-logo');
         Route::apiResource('institution', InstitutionController::class);
     });
@@ -283,6 +306,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::put('/student-attendances/{student_attendance}', [StudentAttendanceController::class, 'update'])->name('student-attendances.update');
     });
 
+    // Student attendance self history (for portal siswa)
+    Route::get('/student-attendances/my', [StudentAttendanceController::class, 'my'])->name('student-attendances.my');
+
     // Absensi (Guru & Staff per hari)
     Route::middleware('module:attendance')->group(function () {
         Route::get('/employee-attendances/status-options', [EmployeeAttendanceController::class, 'statusOptions'])->name('employee-attendances.status-options');
@@ -353,6 +379,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('/class/export/pdf', [ClassController::class, 'exportPdf'])->name('class.export.pdf');
     });
 
+    // GET subjects: boleh diakses modul Jadwal atau Ujian Online (untuk dropdown mapel di bank soal, dll.)
+    Route::middleware('module:schedule|online_exam')->group(function () {
+        Route::get('subjects', [SubjectController::class, 'index'])->name('subjects.index.shared');
+    });
+
     // Jadwal Pelajaran (Schedule) routes
     Route::middleware('module:schedule')->group(function () {
         Route::apiResource('subjects', SubjectController::class);
@@ -378,9 +409,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/academic-years', [AcademicYearController::class, 'store'])->name('academic-years.store');
         Route::put('/academic-years/{id}', [AcademicYearController::class, 'update'])->name('academic-years.update');
         Route::delete('/academic-years/{id}', [AcademicYearController::class, 'destroy'])->name('academic-years.destroy');
-        // App branding (logo aplikasi & favicon)
+        // App branding (logo, favicon, hero halaman awal)
         Route::post('/app-branding/logo', [AppBrandingController::class, 'uploadLogo'])->name('app-branding.upload-logo');
         Route::post('/app-branding/favicon', [AppBrandingController::class, 'uploadFavicon'])->name('app-branding.upload-favicon');
+        Route::put('/app-branding/hero', [AppBrandingController::class, 'updateHero'])->name('app-branding.update-hero');
+        Route::post('/app-branding/hero-image', [AppBrandingController::class, 'uploadHeroImage'])->name('app-branding.upload-hero-image');
     });
 
     // Semester routes
@@ -604,5 +637,52 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('ppdb-applicants/{ppdb_applicant}/documents', [PpdbApplicantController::class, 'uploadDocument'])->name('ppdb-applicants.upload-document');
         Route::delete('ppdb-applicants/{ppdb_applicant}/documents/{documentId}', [PpdbApplicantController::class, 'deleteDocument'])->name('ppdb-applicants.delete-document');
         Route::get('ppdb-applicants/{ppdb_applicant}/documents/{documentId}/download', [PpdbApplicantController::class, 'downloadDocument'])->name('ppdb-applicants.download-document');
+    });
+
+    // Ujian Online (admin/guru: exam, session, bank soal, peserta, kendali)
+    Route::middleware('module:online_exam')->prefix('exam')->group(function () {
+        Route::get('exams/by-code/{code}', [ExamController::class, 'showByCode'])->name('exams.by-code');
+        Route::apiResource('exams', ExamController::class);
+        Route::post('exams/{exam}/questions', [ExamController::class, 'attachQuestions'])->name('exams.attach-questions');
+        Route::get('sessions', [ExamSessionController::class, 'index'])->name('exam.sessions.index');
+        Route::post('sessions', [ExamSessionController::class, 'store'])->name('exam.sessions.store');
+        Route::get('sessions/{exam_session}', [ExamSessionController::class, 'show'])->name('exam.sessions.show');
+        Route::put('sessions/{exam_session}', [ExamSessionController::class, 'update'])->name('exam.sessions.update');
+        Route::delete('sessions/{exam_session}', [ExamSessionController::class, 'destroy'])->name('exam.sessions.destroy');
+        Route::post('sessions/{exam_session}/start', [ExamControlController::class, 'startSession'])->name('exam.sessions.start');
+        Route::post('sessions/{exam_session}/regenerate-entry-pin', [ExamControlController::class, 'regenerateEntryPin'])->name('exam.sessions.regenerate-entry-pin');
+        Route::post('sessions/{exam_session}/end', [ExamControlController::class, 'endSession'])->name('exam.sessions.end');
+        Route::post('sessions/{exam_session}/reset', [ExamControlController::class, 'resetSession'])->name('exam.sessions.reset');
+        Route::post('sessions/{exam_session}/compute-scores', [ExamControlController::class, 'computeScores'])->name('exam.sessions.compute-scores');
+        Route::get('sessions/{exam_session}/participants', [ExamParticipantController::class, 'index'])->name('exam.sessions.participants.index');
+        Route::post('sessions/{exam_session}/participants', [ExamParticipantController::class, 'store'])->name('exam.sessions.participants.store');
+        Route::post('sessions/{exam_session}/participants/generate-numbers', [ExamParticipantController::class, 'generateNumbers'])->name('exam.sessions.participants.generate-numbers');
+        Route::put('sessions/{exam_session}/participants/reorder', [ExamParticipantController::class, 'reorder'])->name('exam.sessions.participants.reorder');
+        Route::get('sessions/{exam_session}/participants/print-cards', [ExamParticipantController::class, 'printSessionCards'])->name('exam.sessions.participants.print-cards');
+        Route::delete('participants/{exam_participant}', [ExamParticipantController::class, 'destroy'])->name('exam.participants.destroy');
+        Route::put('participants/{exam_participant}', [ExamParticipantController::class, 'update'])->name('exam.participants.update');
+        Route::get('participants/{exam_participant}/answers', [ExamParticipantController::class, 'answers'])->name('exam.participants.answers');
+        Route::post('participants/{exam_participant}/recompute', [ExamControlController::class, 'recomputeParticipant'])->name('exam.participants.recompute');
+        Route::put('answers/{exam_answer}/score', [ExamControlController::class, 'updateAnswerScore'])->name('exam.answers.update-score');
+        Route::post('participants/{exam_participant}/regenerate-token', [ExamParticipantController::class, 'regenerateToken'])->name('exam.participants.regenerate-token');
+        Route::get('participants/{exam_participant}/print-card', [ExamParticipantController::class, 'printCard'])->name('exam.participants.print-card');
+        Route::post('participants/{exam_participant}/release-score', [ExamControlController::class, 'releaseScore'])->name('exam.participants.release-score');
+        Route::get('subjects', [SubjectController::class, 'index'])->name('exam.subjects.index');
+        Route::get('subjects-ready', [ExamController::class, 'subjectsReady'])->name('exam.subjects.ready');
+    });
+    Route::middleware('module:online_exam')->group(function () {
+        Route::apiResource('question-stimuli', QuestionStimulusController::class);
+        Route::post('banks/restore', [BankSoalController::class, 'restore'])->name('exam.banks.restore');
+        Route::get('banks/{bank_soal}/backup', [BankSoalController::class, 'backup'])->name('exam.banks.backup');
+        Route::get('banks', [BankSoalController::class, 'index'])->name('exam.banks.index');
+        Route::post('banks', [BankSoalController::class, 'store'])->name('exam.banks.store');
+        Route::get('banks/{bank_soal}', [BankSoalController::class, 'show'])->name('exam.banks.show');
+        Route::put('banks/{bank_soal}', [BankSoalController::class, 'update'])->name('exam.banks.update');
+        Route::delete('banks/{bank_soal}', [BankSoalController::class, 'destroy'])->name('exam.banks.destroy');
+        Route::get('banks/{bank_soal}/shares', [BankSoalController::class, 'listShares'])->name('exam.banks.shares.index');
+        Route::post('banks/{bank_soal}/share', [BankSoalController::class, 'invite'])->name('exam.banks.share.invite');
+        Route::delete('banks/{bank_soal}/share/{user_id}', [BankSoalController::class, 'revoke'])->name('exam.banks.share.revoke');
+        Route::post('question-assets/upload', [QuestionAssetController::class, 'uploadImage'])->name('exam.question-assets.upload');
+        Route::apiResource('question-bank', QuestionBankController::class);
     });
 });

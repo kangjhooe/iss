@@ -136,12 +136,12 @@ async function install() {
 }
 
 .btn-install {
-  background: #0ea5e9;
+  background: #059669;
   color: #fff;
 }
 
 .btn-install:hover {
-  background: #0284c7;
+  background: #047857;
 }
 
 @media (max-width: 640px) {

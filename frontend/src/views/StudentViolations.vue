@@ -1,9 +1,9 @@
 <template>
   <Layout>
     <div class="page">
-      <div class="page-header">
-        <h1>Pelanggaran & Prestasi</h1>
-        <p class="page-subtitle">Riwayat pelanggaran dan prestasi Anda</p>
+      <div v-if="!studentId && authStore.user?.role === 'student'" class="alert alert-warning">
+        <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah. Silakan hubungi operator sekolah atau admin.
+        <router-link to="/student/dashboard" class="alert-link">← Kembali ke Dashboard</router-link>
       </div>
 
       <div v-if="loading" class="loading-state">
@@ -24,7 +24,9 @@
             </div>
           </div>
           <div v-else class="empty-state">
-            <p>Belum ada catatan pelanggaran.</p>
+            <p v-if="loadError">Gagal memuat data. Silakan coba lagi atau kembali ke dashboard.</p>
+            <p v-else>Belum ada catatan pelanggaran.</p>
+            <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
           </div>
         </section>
 
@@ -41,7 +43,9 @@
             </div>
           </div>
           <div v-else class="empty-state">
-            <p>Belum ada catatan prestasi.</p>
+            <p v-if="loadError">Gagal memuat data. Silakan coba lagi atau kembali ke dashboard.</p>
+            <p v-else>Belum ada catatan prestasi.</p>
+            <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
           </div>
         </section>
 
@@ -61,6 +65,7 @@ const authStore = useAuthStore()
 const studentId = computed(() => authStore.user?.student_profile?.id)
 
 const loading = ref(true)
+const loadError = ref(false)
 const violations = ref([])
 const achievements = ref([])
 
@@ -76,6 +81,7 @@ onMounted(async () => {
     return
   }
   try {
+    loadError.value = false
     const [vRes, aRes] = await Promise.all([
       violationApi.getByStudent(studentId.value, { per_page: 100 }),
       achievementApi.getByStudent(studentId.value, { per_page: 100 })
@@ -85,6 +91,7 @@ onMounted(async () => {
     violations.value = Array.isArray(vList) ? vList : (vList?.data ?? [])
     achievements.value = Array.isArray(aList) ? aList : (aList?.data ?? [])
   } catch {
+    loadError.value = true
     violations.value = []
     achievements.value = []
   } finally {
@@ -94,7 +101,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 100%; padding: 0; }
+.page { max-width: 100%; padding: 0; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
 .page-header { margin-bottom: 24px; }
 .page-header h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
 .page-subtitle { font-size: 14px; color: #64748b; margin: 0; }
@@ -122,6 +129,11 @@ onMounted(async () => {
 .card-meta { font-size: 12px; color: #475569; }
 
 .empty-state { padding: 16px; text-align: center; color: #94a3b8; font-size: 14px; }
-.back-link { display: inline-block; margin-top: 16px; color: #0ea5e9; text-decoration: none; font-weight: 600; font-size: 14px; }
-.back-link:hover { text-decoration: underline; }
+.back-link { display: inline-block; margin-top: 16px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link:hover { text-decoration: underline; color: #047857; }
+
+.alert { padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
+.alert-warning { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
+.alert-link { display: inline-block; margin-top: 10px; color: #b45309; font-weight: 600; text-decoration: none; }
+.alert-link:hover { text-decoration: underline; }
 </style>

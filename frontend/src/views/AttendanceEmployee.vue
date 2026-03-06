@@ -472,7 +472,7 @@ onMounted(async () => {
 .header-content { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .header-icon-wrap {
   width: 48px; height: 48px; border-radius: 12px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex; align-items: center; justify-content: center; color: #fff;
 }
 .header-actions { margin-left: auto; display: flex; gap: 0.5rem; }
@@ -493,7 +493,7 @@ onMounted(async () => {
 .status-badge.alpha { background: #fee2e2; color: #991b1b; }
 .status-badge.izin, .status-badge.sakit, .status-badge.cuti { background: #fef3c7; color: #92400e; }
 .btn-action { padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 0.85rem; }
-.btn-action.btn-edit:hover { background: #e0f2fe; border-color: #0ea5e9; }
+.btn-action.btn-edit:hover { background: #ecfdf5; border-color: #059669; }
 .btn-primary.btn-compact, .btn-secondary.btn-compact { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
 .pagination-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
 .pagination-info { color: #64748b; font-size: 0.9rem; }
@@ -513,7 +513,7 @@ onMounted(async () => {
 .form-row { display: flex; gap: 1rem; }
 .form-row .form-group { flex: 1; }
 .bulk-actions-inline { margin-bottom: 0.75rem; }
-.btn-outline { padding: 0.4rem 0.75rem; font-size: 0.85rem; border: 1px solid #0ea5e9; border-radius: 8px; background: #fff; color: #0ea5e9; cursor: pointer; }
+.btn-outline { padding: 0.4rem 0.75rem; font-size: 0.85rem; border: 1px solid #059669; border-radius: 8px; background: #fff; color: #059669; cursor: pointer; }
 .btn-outline:hover { background: #e0f2fe; }
 .form-hint { color: #64748b; font-size: 0.85rem; margin-bottom: 0.75rem; }
 .table-scroll { max-height: 45vh; overflow-y: auto; margin-bottom: 1rem; }
@@ -522,7 +522,7 @@ onMounted(async () => {
 .form-error { color: #dc2626; font-size: 0.9rem; margin-bottom: 0.75rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
 .btn-secondary { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
-.btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #0ea5e9; color: #fff; cursor: pointer; }
+.btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #059669; color: #fff; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .offline-indicator {
   background: #fef3c7;

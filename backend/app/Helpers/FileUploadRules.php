@@ -213,6 +213,14 @@ class FileUploadRules
     }
 
     /**
+     * Get validation rules for institution cover/hero image (halaman publik).
+     */
+    public static function institutionCoverImage(): array
+    {
+        return self::rules(self::TYPE_IMAGE_LOGO, self::SIZE_MEDIUM, true, 'cover_image'); // 5MB for hero
+    }
+
+    /**
      * Get validation rules for app logo upload (super admin).
      */
     public static function appLogo(): array
@@ -226,5 +234,13 @@ class FileUploadRules
     public static function appFavicon(): array
     {
         return self::rules(self::TYPE_FAVICON, 512, true, 'favicon'); // 512 KB
+    }
+
+    /**
+     * Get validation rules for hero image upload (super admin). JPG, PNG, GIF, max 2MB.
+     */
+    public static function appHeroImage(): array
+    {
+        return self::rules(self::TYPE_IMAGE_LOGO, self::SIZE_SMALL, true, 'hero_image');
     }
 }

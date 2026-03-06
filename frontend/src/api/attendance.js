@@ -16,6 +16,13 @@ export const studentAttendanceApi = {
   update(id, data) {
     return api.put(`/v1/student-attendances/${id}`, data)
   },
+  /**
+   * Riwayat absensi untuk siswa yang sedang login (portal siswa).
+   * Filter opsional: semester_id, date_from, date_to (YYYY-MM-DD).
+   */
+  getMy(params) {
+    return api.get('/v1/student-attendances/my', { params })
+  },
 }
 
 /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\NpsnValidationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -67,6 +68,20 @@ class StoreInstitutionChangeRequestRequest extends FormRequest
                         if ($exists) {
                             $fail('NPSN sudah terdaftar');
                         }
+                    }
+                },
+                function ($attribute, $value, $fail) {
+                    $fieldName = $this->input('field_name');
+                    if ($fieldName !== 'npsn') {
+                        return;
+                    }
+                    $svc = NpsnValidationService::fromConfig();
+                    $normalized = $svc->normalizeNpsn($value);
+                    if ($normalized === null) {
+                        return;
+                    }
+                    if (! $svc->isValid($normalized)) {
+                        $fail('NPSN tidak terdaftar di data referensi Kemendikbud. Pastikan NPSN benar dan sekolah masih aktif.');
                     }
                 },
             ],

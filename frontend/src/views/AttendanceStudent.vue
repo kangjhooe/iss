@@ -1,33 +1,19 @@
 <template>
   <Layout>
     <div class="attendance-student-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div class="header-icon-wrap">
-            <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="page-title">Absensi Siswa</h1>
-            <p class="page-subtitle">Kehadiran siswa per jam pelajaran (per sesi jurnal mengajar)</p>
-          </div>
+      <div class="toolbar">
+        <div class="filters filters-inline">
+          <select v-model="filters.semester_id" @change="loadJournals" class="filter-select">
+            <option value="">Semua Semester</option>
+            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+          <select v-model="filters.class_id" @change="loadJournals" class="filter-select">
+            <option value="">Semua Kelas</option>
+            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+          <input v-model="filters.date_from" type="date" class="filter-select" @change="loadJournals" />
+          <input v-model="filters.date_to" type="date" class="filter-select" @change="loadJournals" />
         </div>
-      </div>
-
-      <div class="filters filters-inline">
-        <select v-model="filters.semester_id" @change="loadJournals" class="filter-select">
-          <option value="">Semua Semester</option>
-          <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
-        <select v-model="filters.class_id" @change="loadJournals" class="filter-select">
-          <option value="">Semua Kelas</option>
-          <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-        <input v-model="filters.date_from" type="date" class="filter-select" @change="loadJournals" />
-        <input v-model="filters.date_to" type="date" class="filter-select" @change="loadJournals" />
       </div>
 
       <div v-if="loading" class="loading-wrap">
@@ -35,7 +21,7 @@
       </div>
 
       <div v-else-if="journals.length === 0" class="empty-state">
-        <h3 class="empty-title">Tidak ada jurnal mengajar</h3>
+        <h3 class="empty-title">Belum ada jurnal mengajar</h3>
         <p class="empty-desc">Pilih filter atau buat jurnal mengajar terlebih dahulu untuk mengisi absensi siswa.</p>
       </div>
 
@@ -54,10 +40,10 @@
           <tbody>
             <tr v-for="j in journals" :key="j.id">
               <td>{{ formatDate(j.journal_date) }}</td>
-              <td>{{ j.school_class?.name }}</td>
-              <td>{{ j.subject?.name }}</td>
-              <td>{{ j.employee?.name }}</td>
-              <td>{{ j.period }}</td>
+              <td>{{ displayValue(j.school_class?.name) }}</td>
+              <td>{{ displayValue(j.subject?.name) }}</td>
+              <td>{{ displayValue(j.employee?.name) }}</td>
+              <td>{{ j.period ?? 'Belum ada data' }}</td>
               <td>
                 <button @click="openAttendanceModal(j)" class="btn-primary btn-compact">Isi Absensi</button>
               </td>
@@ -179,6 +165,11 @@ const attendanceRows = ref([])
 const attendanceLoading = ref(false)
 const attendanceSaving = ref(false)
 const attendanceFormError = ref('')
+
+function displayValue(v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
 
 function formatDate(d) {
   if (!d) return '-'
@@ -342,14 +333,17 @@ onMounted(async () => {
   max-width: 100%;
   padding: 1.5rem;
   margin: 0 auto;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
+.toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+.toolbar .filters { margin-bottom: 0; flex: 1; min-width: 200px; }
 .page-header { margin-bottom: 1.5rem; }
 .header-content { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .header-icon-wrap {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -358,7 +352,8 @@ onMounted(async () => {
 .page-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem 0; }
 .page-subtitle { color: #64748b; margin: 0; font-size: 0.9rem; }
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
-.filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; }
+.filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; transition: border-color 0.2s, box-shadow 0.2s; }
+.filter-select:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
 .loading-wrap { width: 100%; margin: 1rem 0; }
 .empty-state { text-align: center; padding: 2rem; background: #f8fafc; border-radius: 12px; }
 .empty-title { font-size: 1.25rem; margin: 0 0 0.5rem 0; }
@@ -366,7 +361,7 @@ onMounted(async () => {
 .table-container { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-.data-table th { font-weight: 600; background: #f8fafc; }
+.data-table th { font-weight: 600; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #065f46; }
 .btn-primary.btn-compact { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
 .pagination-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
 .pagination-info { color: #64748b; font-size: 0.9rem; }
@@ -387,7 +382,7 @@ onMounted(async () => {
 .form-error { color: #dc2626; font-size: 0.9rem; margin-bottom: 0.75rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
 .btn-secondary { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
-.btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #0ea5e9; color: #fff; cursor: pointer; }
+.btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; cursor: pointer; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .offline-indicator {
   background: #fef3c7;

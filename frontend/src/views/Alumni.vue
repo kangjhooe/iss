@@ -505,9 +505,9 @@ watch(() => filters.graduation_year, () => {
 
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .filter-select {
@@ -522,9 +522,9 @@ watch(() => filters.graduation_year, () => {
 
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
 .loading-state {
@@ -542,7 +542,7 @@ watch(() => filters.graduation_year, () => {
 }
 
 .loading-spinner {
-  color: #667eea;
+  color: #059669;
 }
 
 .loading-spinner svg {
@@ -571,7 +571,7 @@ watch(() => filters.graduation_year, () => {
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
 }
 
@@ -609,13 +609,13 @@ watch(() => filters.graduation_year, () => {
   justify-content: center;
   padding: 8px;
   border-radius: 10px;
-  color: #667eea;
+  color: #059669;
   text-decoration: none;
   transition: background 0.2s;
 }
 
 .btn-action:hover {
-  background: rgba(102, 126, 234, 0.12);
+  background: rgba(5, 150, 105, 0.12);
 }
 
 .btn-dest {
@@ -672,7 +672,7 @@ watch(() => filters.graduation_year, () => {
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
 }
 
@@ -727,7 +727,7 @@ watch(() => filters.graduation_year, () => {
   display: inline-block;
   font-size: 11px;
   text-transform: uppercase;
-  color: #667eea;
+  color: #059669;
   font-weight: 600;
   margin-bottom: 4px;
 }
@@ -764,7 +764,7 @@ watch(() => filters.graduation_year, () => {
 }
 
 .btn-icon.btn-edit {
-  background: #e0e7ff;
+  background: #ecfdf5;
   color: #4338ca;
 }
 
@@ -820,7 +820,7 @@ watch(() => filters.graduation_year, () => {
 .dest-form .form-row select:focus,
 .dest-form .form-row textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
 }
 
 .dest-form .form-actions {
@@ -848,7 +848,7 @@ watch(() => filters.graduation_year, () => {
   padding: 10px 20px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   font-size: 14px;
   font-weight: 600;
@@ -1005,7 +1005,7 @@ watch(() => filters.graduation_year, () => {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   font-weight: 600;
   font-size: 14px;
@@ -1047,7 +1047,7 @@ watch(() => filters.graduation_year, () => {
 }
 
 .btn-pagination:hover:not(:disabled) {
-  border-color: #667eea;
+  border-color: #059669;
   background: #f8fafc;
 }
 

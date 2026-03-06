@@ -1,50 +1,43 @@
 <template>
   <Layout>
     <div class="class-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h2>Manajemen Kelas</h2>
-            <p>Kelola data kelas sekolah Anda</p>
-          </div>
-          <div class="action-buttons-group">
-            <button @click="exportPdf" :disabled="exportingPdf" class="btn-secondary btn-compact">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>{{ exportingPdf ? 'Mengekspor...' : 'Export PDF' }}</span>
-            </button>
-            <button @click="showAddModal = true" class="btn-secondary btn-compact btn-add">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Kelas</span>
-            </button>
-          </div>
+      <div class="toolbar">
+        <div class="filters filters-inline">
+          <input 
+            v-model="filters.search" 
+            @input="loadClasses" 
+            placeholder="Cari nama atau kode kelas..."
+            class="search-input"
+          />
+          <select v-model="filters.grade" @change="loadClasses" class="filter-select">
+            <option value="">Semua Tingkat</option>
+            <option v-for="grade in availableGrades" :key="grade" :value="grade">
+              Tingkat {{ grade }}
+            </option>
+          </select>
+          <select v-model="filters.status" @change="loadClasses" class="filter-select">
+            <option value="">Semua Status</option>
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
         </div>
-      </div>
-
-      <div class="filters filters-inline">
-        <input 
-          v-model="filters.search" 
-          @input="loadClasses" 
-          placeholder="Cari nama atau kode kelas..."
-          class="search-input"
-        />
-        <select v-model="filters.grade" @change="loadClasses" class="filter-select">
-          <option value="">Semua Tingkat</option>
-          <option v-for="grade in availableGrades" :key="grade" :value="grade">
-            Tingkat {{ grade }}
-          </option>
-        </select>
-        <select v-model="filters.status" @change="loadClasses" class="filter-select">
-          <option value="">Semua Status</option>
-          <option value="Aktif">Aktif</option>
-          <option value="Nonaktif">Nonaktif</option>
-        </select>
+        <div class="toolbar-actions">
+          <button @click="exportPdf" :disabled="exportingPdf" class="btn-secondary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ exportingPdf ? 'Mengekspor...' : 'Export PDF' }}</span>
+          </button>
+          <button @click="showAddModal = true" class="btn-primary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Kelas</span>
+          </button>
+        </div>
       </div>
 
       <div v-if="listError && !loading" class="error-state">
@@ -72,32 +65,32 @@
           </thead>
           <tbody>
             <tr v-for="classItem in classes" :key="classItem.id">
-              <td>{{ classItem.code || '-' }}</td>
-              <td>{{ classItem.name }}</td>
-              <td>{{ classItem.grade ? `Tingkat ${classItem.grade}` : '-' }}</td>
-              <td>{{ classItem.room?.name || '-' }}</td>
-              <td>{{ classItem.teacher?.name || '-' }}</td>
+              <td>{{ displayValue(classItem.code) }}</td>
+              <td>{{ displayValue(classItem.name) }}</td>
+              <td>{{ classItem.grade != null && classItem.grade !== '' ? `Tingkat ${classItem.grade}` : 'Belum ada data' }}</td>
+              <td>{{ displayValue(classItem.room?.name) }}</td>
+              <td>{{ displayValue(classItem.teacher?.name) }}</td>
               <td>
                 <span 
                   v-if="classItem.capacity"
                   @click="openViewStudentsModal(classItem)"
-                  style="cursor: pointer; color: #4299e1; text-decoration: underline;"
+                  class="link-student-count"
                   title="Klik untuk melihat daftar siswa"
                 >
-                  {{ classItem.students_count || 0 }} / {{ classItem.capacity }}
+                  {{ classItem.students_count ?? 0 }} / {{ classItem.capacity }}
                 </span>
                 <span 
                   v-else
                   @click="openViewStudentsModal(classItem)"
-                  style="cursor: pointer; color: #4299e1; text-decoration: underline;"
+                  class="link-student-count"
                   title="Klik untuk melihat daftar siswa"
                 >
-                  {{ classItem.students_count || 0 }}
+                  {{ classItem.students_count ?? 0 }}
                 </span>
               </td>
               <td>
                 <span :class="getStatusClass(classItem.status)">
-                  {{ classItem.status }}
+                  {{ classItem.status || 'Belum ada data' }}
                 </span>
               </td>
               <td>
@@ -125,7 +118,7 @@
         </table>
 
         <div v-if="classes.length === 0" class="empty-state">
-          <p>Tidak ada data kelas</p>
+          <p>Belum ada data kelas</p>
         </div>
 
         <div v-if="pagination && pagination.last_page > 1" class="pagination">
@@ -291,13 +284,12 @@
               <p>Tidak ada siswa yang tersedia</p>
             </div>
 
-            <div v-else class="student-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div v-else class="student-list" style="max-height: 400px;">
               <div 
                 v-for="student in availableStudents" 
                 :key="student.id"
                 class="student-item"
-                style="display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.2s;"
-                :style="{ background: selectedStudentIds.includes(student.id) ? '#ebf8ff' : 'white' }"
+                :class="{ 'student-item-selected': selectedStudentIds.includes(student.id) }"
                 @click="toggleStudent(student.id)"
               >
                 <input 
@@ -353,7 +345,7 @@
               <p>Belum ada siswa di kelas ini</p>
             </div>
 
-            <div v-else class="student-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div v-else class="student-list" style="max-height: 400px;">
               <div 
                 v-for="student in classStudents" 
                 :key="student.id"
@@ -479,6 +471,11 @@ const availableGrades = computed(() => {
   }
   return []
 })
+
+function displayValue (v) {
+  if (v === null || v === undefined || v === '') return 'Belum ada data'
+  return String(v).trim() || 'Belum ada data'
+}
 
 const loadInstitution = async () => {
   try {
@@ -861,48 +858,35 @@ onMounted(async () => {
 .class-page {
   width: 100%;
   max-width: 100%;
+  min-height: 100%;
   padding: 0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 
-.page-header {
-  margin-bottom: 24px;
-}
-
-.header-content {
+.toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
-.header-content h2 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
-  color: #1a202c;
+.toolbar .filters {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 200px;
 }
 
-.header-content p {
-  font-size: 14px;
-  color: #718096;
-  margin: 0;
-}
-
-.btn-primary {
+.toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 10px;
 }
 
-.btn-primary:hover {
-  background: #5568d3;
+.btn-compact {
+  padding: 8px 14px;
+  font-size: 13px;
 }
 
 .filters {
@@ -915,17 +899,39 @@ onMounted(async () => {
 .search-input,
 .filter-select {
   padding: 10px 16px;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 14px;
   flex: 1;
   min-width: 200px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .error-state {
@@ -962,7 +968,8 @@ onMounted(async () => {
   background: white;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
 }
 
 .data-table {
@@ -971,7 +978,7 @@ onMounted(async () => {
 }
 
 .data-table thead {
-  background: #f7fafc;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
 }
 
 .data-table th {
@@ -979,7 +986,7 @@ onMounted(async () => {
   text-align: left;
   font-weight: 600;
   font-size: 13px;
-  color: #4a5568;
+  color: #065f46;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -989,6 +996,22 @@ onMounted(async () => {
   border-top: 1px solid #e2e8f0;
   font-size: 14px;
   color: #2d3748;
+}
+
+.link-student-count {
+  cursor: pointer;
+  color: #059669;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.link-student-count:hover {
+  color: #047857;
+}
+
+.text-empty {
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .action-buttons {
@@ -1009,19 +1032,19 @@ onMounted(async () => {
 }
 
 .btn-add {
-  color: #48bb78;
+  color: #059669;
 }
 
 .btn-add:hover {
-  background: #f0fff4;
+  background: #ecfdf5;
 }
 
 .btn-edit {
-  color: #48bb78;
+  color: #059669;
 }
 
 .btn-edit:hover {
-  background: #f0fff4;
+  background: #ecfdf5;
 }
 
 .btn-delete {
@@ -1052,7 +1075,37 @@ onMounted(async () => {
 .empty-state {
   padding: 60px 20px;
   text-align: center;
-  color: #718096;
+  color: #64748b;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.student-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.student-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s;
+  background: white;
+}
+
+.student-item:last-child {
+  border-bottom: none;
+}
+
+.student-item-selected {
+  background: #ecfdf5;
 }
 
 .pagination {
@@ -1073,8 +1126,8 @@ onMounted(async () => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #059669;
+  color: #059669;
 }
 
 .pagination-btn:disabled {
@@ -1176,7 +1229,8 @@ onMounted(async () => {
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .error-message {

@@ -1,56 +1,44 @@
 <template>
   <Layout>
     <div class="counseling-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div class="header-icon-wrap">
-            <svg class="header-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <div class="toolbar">
+        <div class="main-tabs">
+          <button :class="['main-tab', { active: activeTab === 'list' }]" @click="activeTab = 'list'; loadSessions()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 6H21M8 12H21M8 18H21M3 6H3.01M3 12H3.01M3 18H3.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-          </div>
-          <div>
-            <h1 class="page-title">Konseling</h1>
-            <p class="page-subtitle">Sesi konseling siswa dan master jenis konseling</p>
-          </div>
-          <div class="header-actions">
-            <button v-if="activeTab === 'list'" @click="exportToCsv" :disabled="exporting" class="btn-secondary btn-compact">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>{{ exporting ? 'Mengekspor...' : 'Export CSV' }}</span>
-            </button>
-            <button v-if="activeTab === 'list'" @click="openAddModal" class="btn-primary btn-compact">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Sesi Konseling</span>
-            </button>
-            <button v-if="activeTab === 'types'" @click="openAddTypeModal" class="btn-primary btn-compact">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Tambah Jenis Konseling</span>
-            </button>
-          </div>
+            <span>Daftar Sesi Konseling</span>
+          </button>
+          <button :class="['main-tab', { active: activeTab === 'types' }]" @click="activeTab = 'types'; loadTypes()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Jenis Konseling</span>
+          </button>
         </div>
-      </div>
-
-      <div class="main-tabs">
-        <button :class="['main-tab', { active: activeTab === 'list' }]" @click="activeTab = 'list'; loadSessions()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 6H21M8 12H21M8 18H21M3 6H3.01M3 12H3.01M3 18H3.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Daftar Sesi Konseling</span>
-        </button>
-        <button :class="['main-tab', { active: activeTab === 'types' }]" @click="activeTab = 'types'; loadTypes()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Jenis Konseling</span>
-        </button>
+        <div class="header-actions">
+          <button v-if="activeTab === 'list'" @click="exportToCsv" :disabled="exporting" class="btn-secondary btn-compact">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ exporting ? 'Mengekspor...' : 'Export CSV' }}</span>
+          </button>
+          <button v-if="activeTab === 'list'" @click="openAddModal" class="btn-primary btn-compact">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Sesi Konseling</span>
+          </button>
+          <button v-if="activeTab === 'types'" @click="openAddTypeModal" class="btn-primary btn-compact">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Jenis Konseling</span>
+          </button>
+        </div>
       </div>
 
       <!-- Tab: Daftar Sesi Konseling -->
@@ -811,8 +799,8 @@ const sessionsByMonthChartData = computed(() => {
       {
         label: 'Jumlah sesi',
         data: data.map((d) => d.count),
-        backgroundColor: 'rgba(14, 165, 233, 0.6)',
-        borderColor: 'rgb(14, 165, 233)',
+        backgroundColor: 'rgba(5, 150, 105, 0.6)',
+        borderColor: 'rgb(5, 150, 105)',
         borderWidth: 1,
       },
     ],
@@ -821,7 +809,7 @@ const sessionsByMonthChartData = computed(() => {
 const sessionsByTypeChartData = computed(() => {
   const data = statsData.value?.by_type
   if (!data?.length) return null
-  const colors = ['#0ea5e9', '#06b6d4', '#22d3ee', '#67e8f9', '#a5f3fc', '#cffafe']
+  const colors = ['#059669', '#047857', '#22d3ee', '#67e8f9', '#a5f3fc', '#cffafe']
   return {
     labels: data.map((d) => d.name),
     datasets: [
@@ -920,9 +908,20 @@ onMounted(async () => {
 .counseling-page {
   width: 100%;
   max-width: 100%;
+  min-height: 100%;
   padding: 1.5rem;
   margin: 0 auto;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.toolbar .main-tabs { margin-bottom: 0; }
 .page-header {
   margin-bottom: 1.5rem;
 }
@@ -936,7 +935,7 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -983,10 +982,10 @@ onMounted(async () => {
   border-color: #cbd5e1;
 }
 .main-tab.active {
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
 }
 .filters-inline {
   display: flex;
@@ -1016,7 +1015,7 @@ onMounted(async () => {
   width: 40px;
   height: 40px;
   border: 3px solid #e2e8f0;
-  border-top-color: #0ea5e9;
+  border-top-color: #059669;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 0.75rem;
@@ -1112,7 +1111,7 @@ onMounted(async () => {
 }
 .btn-edit:hover {
   background: #eff6ff;
-  border-color: #0ea5e9;
+  border-color: #059669;
 }
 .btn-delete:hover {
   background: #fef2f2;
@@ -1261,7 +1260,7 @@ onMounted(async () => {
   padding: 0.5rem 1rem;
   border-radius: 8px;
   border: none;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   font-weight: 500;
   cursor: pointer;
@@ -1395,7 +1394,7 @@ onMounted(async () => {
   margin-left: auto;
   padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
-  border: 1px solid #0ea5e9;
+  border: 1px solid #059669;
   border-radius: 6px;
   background: #fff;
   color: #0369a1;
@@ -1417,7 +1416,7 @@ onMounted(async () => {
 }
 .btn-history-link:hover {
   background: #e0f2fe;
-  border-color: #0ea5e9;
+  border-color: #059669;
   color: #0369a1;
 }
 .history-modal .modal-content { max-width: 640px; }

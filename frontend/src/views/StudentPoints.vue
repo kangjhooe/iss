@@ -1,17 +1,12 @@
 <template>
   <Layout>
     <div class="page">
-      <div class="page-header">
-        <h1>Poin Saya</h1>
-        <p class="page-subtitle">Ringkasan poin pelanggaran dan prestasi</p>
-      </div>
-
       <div v-if="loading" class="loading-state">
         <p>Memuat data poin...</p>
       </div>
 
       <div v-else-if="!summary" class="empty-state">
-        <p>Tidak dapat memuat data poin.</p>
+        <p>Belum dapat memuat data poin.</p>
         <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
       </div>
 
@@ -79,7 +74,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 100%; padding: 0; }
+.page { max-width: 100%; padding: 0; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
 .page-header { margin-bottom: 24px; }
 .page-header h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
 .page-subtitle { font-size: 14px; color: #64748b; margin: 0; }
@@ -131,6 +126,6 @@ onMounted(async () => {
 .action-desc { font-size: 14px; color: #475569; margin: 0 0 6px 0; }
 .action-range { font-size: 13px; color: #64748b; margin: 0; }
 
-.back-link { display: inline-block; margin-top: 16px; color: #0ea5e9; text-decoration: none; font-weight: 600; font-size: 14px; }
-.back-link:hover { text-decoration: underline; }
+.back-link { display: inline-block; margin-top: 16px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back-link:hover { text-decoration: underline; color: #047857; }
 </style>

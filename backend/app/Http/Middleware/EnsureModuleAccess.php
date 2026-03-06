@@ -20,7 +20,16 @@ class EnsureModuleAccess
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        if (!$user->hasModuleAccess($moduleKey)) {
+        // Support multiple modules separated by | (user needs access to any one)
+        $keys = array_map('trim', explode('|', $moduleKey));
+        $hasAccess = false;
+        foreach ($keys as $key) {
+            if ($key && $user->hasModuleAccess($key)) {
+                $hasAccess = true;
+                break;
+            }
+        }
+        if (!$hasAccess) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 

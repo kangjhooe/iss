@@ -197,7 +197,7 @@ onMounted(() => {
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
 }
-.top-bar-link { color: #4f46e5; font-weight: 500; text-decoration: none; }
+.top-bar-link { color: #059669; font-weight: 500; text-decoration: none; }
 .top-bar-link:hover { text-decoration: underline; }
 .top-bar-brand { font-weight: 600; color: #334155; }
 
@@ -231,7 +231,7 @@ onMounted(() => {
   border-radius: 10px;
   font-size: 0.95rem;
 }
-.form-input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79,70,229,0.15); }
+.form-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15); }
 .file-input { padding: 0.5rem; }
 
 .upload-row {
@@ -244,7 +244,7 @@ onMounted(() => {
 .btn-wrap { flex-shrink: 0; }
 .btn-upload {
   padding: 0.65rem 1.25rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #059669 0%, #059669 100%);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -281,13 +281,13 @@ onMounted(() => {
 .btn-outline {
   display: inline-block;
   padding: 0.6rem 1.25rem;
-  border: 1px solid #4f46e5;
-  color: #4f46e5;
+  border: 1px solid #059669;
+  color: #059669;
   border-radius: 10px;
   font-weight: 600;
   text-decoration: none;
 }
-.btn-outline:hover { background: #eef2ff; }
-.btn-outline-primary { background: #eef2ff; border-color: #4f46e5; color: #4f46e5; }
-.btn-outline-primary:hover { background: #e0e7ff; }
+.btn-outline:hover { background: #ecfdf5; }
+.btn-outline-primary { background: #ecfdf5; border-color: #059669; color: #059669; }
+.btn-outline-primary:hover { background: #d1fae5; }
 </style>

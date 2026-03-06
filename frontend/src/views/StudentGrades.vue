@@ -1,8 +1,8 @@
 <template>
   <Layout>
     <div class="page">
-      <div class="page-header">
-        <h1>Nilai Saya</h1>
+      <div class="tab-header">
+        <h1 class="tab-title">Nilai Saya</h1>
         <div v-if="semesters.length" class="semester-select-wrap">
           <label for="semester-select">Semester:</label>
           <select id="semester-select" v-model="selectedSemesterId" class="semester-select">
@@ -161,6 +161,23 @@ async function downloadRaport() {
 .page {
   max-width: 100%;
   padding: 0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
+  min-height: 100%;
+}
+
+.tab-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.tab-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
 }
 
 .page-header {
@@ -212,7 +229,7 @@ async function downloadRaport() {
 .back-link {
   display: inline-block;
   margin-top: 16px;
-  color: #0ea5e9;
+  color: #059669;
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
@@ -220,6 +237,7 @@ async function downloadRaport() {
 
 .back-link:hover {
   text-decoration: underline;
+  color: #047857;
 }
 
 .grades-wrap {
@@ -239,15 +257,15 @@ async function downloadRaport() {
   font-size: 14px;
   font-weight: 600;
   color: #fff;
-  background: #0ea5e9;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: box-shadow 0.2s;
 }
 
 .btn-download:hover:not(:disabled) {
-  background: #0284c7;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
 }
 
 .btn-download:disabled {
@@ -290,7 +308,7 @@ async function downloadRaport() {
 
 .nilai-akhir {
   font-weight: 700;
-  color: #0ea5e9;
+  color: #059669;
 }
 
 @media (max-width: 768px) {

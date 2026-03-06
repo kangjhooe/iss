@@ -363,7 +363,7 @@ const handleRegister = async () => {
 .register-container::before {
   width: 400px;
   height: 400px;
-  background: rgba(102, 126, 234, 0.15);
+  background: rgba(5, 150, 105, 0.15);
   top: -100px;
   right: -100px;
   animation-delay: 0s;
@@ -372,7 +372,7 @@ const handleRegister = async () => {
 .register-container::after {
   width: 300px;
   height: 300px;
-  background: rgba(118, 75, 162, 0.12);
+  background: rgba(4, 120, 87, 0.12);
   bottom: -80px;
   left: -80px;
   animation-delay: -8s;
@@ -399,7 +399,7 @@ const handleRegister = async () => {
   backdrop-filter: blur(12px);
   border-radius: 20px;
   padding: 48px 40px;
-  box-shadow: 0 4px 24px rgba(102, 126, 234, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 24px rgba(5, 150, 105, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
   position: relative;
   z-index: 1;
   animation: cardEnter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -553,14 +553,14 @@ const handleRegister = async () => {
 }
 
 .password-toggle:hover {
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.08);
+  color: #059669;
+  background: rgba(5, 150, 105, 0.08);
 }
 
 .password-toggle:focus {
   outline: none;
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.12);
+  color: #059669;
+  background: rgba(5, 150, 105, 0.12);
 }
 
 .form-group input:hover {
@@ -569,13 +569,13 @@ const handleRegister = async () => {
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
+  border-color: #059669;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.12);
   transform: translateY(-1px);
 }
 
 .form-group:focus-within .input-icon {
-  color: #667eea;
+  color: #059669;
   transform: scale(1.08);
 }
 
@@ -620,7 +620,7 @@ const handleRegister = async () => {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -633,19 +633,19 @@ const handleRegister = async () => {
   justify-content: center;
   gap: 8px;
   margin-top: 8px;
-  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
   animation: formGroupIn 0.35s ease 0.9s both;
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
-  background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.45);
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
 }
 
 .btn-primary:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.3);
 }
 
 .btn-primary:disabled {
@@ -734,14 +734,14 @@ const handleRegister = async () => {
 }
 
 .link {
-  color: #667eea;
+  color: #059669;
   text-decoration: none;
   font-weight: 500;
   transition: all 0.25s ease;
 }
 
 .link:hover {
-  color: #5568d3;
+  color: #047857;
   text-decoration: underline;
 }
 

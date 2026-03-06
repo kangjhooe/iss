@@ -20,6 +20,8 @@ Rate limit: auth 5 req/menit, protected 60 req/menit.
 | POST | `/api/v1/refresh-token` | Refresh token |
 | POST | `/api/v1/logout` | Logout (Protected) |
 | GET | `/api/v1/me` | User saat ini (Protected) |
+| PUT | `/api/v1/me` | Update profil (nama, email) – Protected; body: `name`, `email` |
+| PUT | `/api/v1/me/password` | Ubah sandi – Protected; body: `current_password`, `password`, `password_confirmation` |
 
 ## Public (tanpa auth)
 
