@@ -143,7 +143,7 @@ Route::get('/public/ppdb/channels', [PublicPpdbController::class, 'openChannels'
 Route::middleware('throttle:15,1')->get('/public/ppdb/prefill', [PublicPpdbController::class, 'prefill'])->name('public.ppdb.prefill');
 Route::get('/public/ppdb/check-result', [PublicPpdbController::class, 'checkResult'])->name('public.ppdb.check-result');
 Route::middleware('throttle:10,1')->post('/public/ppdb/confirm-re-registration', [PublicPpdbController::class, 'confirmReRegistration'])->name('public.ppdb.confirm-re-registration');
-Route::middleware('throttle:15,1')->post('/public/ppdb/documents', [PublicPpdbController::class, 'uploadDocument'])->name('public.ppdb.upload-document');
+Route::middleware('throttle:10,1')->post('/public/ppdb/documents', [PublicPpdbController::class, 'uploadDocument'])->name('public.ppdb.upload-document');
 Route::middleware('throttle:10,1')->post('/public/ppdb/register', [PublicPpdbController::class, 'register'])->name('public.ppdb.register');
 
 // Public exam attempt (siswa masuk ujian dengan token dari kartu peserta)
@@ -192,6 +192,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/institution/{id}/logo', [InstitutionController::class, 'uploadLogo'])->name('institution.upload-logo');
         Route::post('/institution/{id}/cover-image', [InstitutionController::class, 'uploadCoverImage'])->name('institution.upload-cover-image');
         Route::get('/institution/{id}/logo', [InstitutionController::class, 'getLogo'])->name('institution.get-logo');
+        // POST update agar body terbaca di hosting yang tidak meneruskan body PUT (nginx/shared hosting)
+        Route::post('/institution/{id}/update', [InstitutionController::class, 'update'])->name('institution.update-post');
         Route::apiResource('institution', InstitutionController::class);
     });
 
@@ -625,6 +627,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::apiResource('ppdb-channels', PpdbChannelController::class);
         Route::get('ppdb-applicants', [PpdbApplicantController::class, 'index'])->name('ppdb-applicants.index');
         Route::get('ppdb-applicants/export', [PpdbApplicantController::class, 'export'])->name('ppdb-applicants.export');
+        Route::post('ppdb-applicants/bulk-verification', [PpdbApplicantController::class, 'bulkVerification'])->name('ppdb-applicants.bulk-verification');
         Route::post('ppdb-applicants', [PpdbApplicantController::class, 'store'])->name('ppdb-applicants.store');
         Route::get('ppdb-applicants/{ppdb_applicant}', [PpdbApplicantController::class, 'show'])->name('ppdb-applicants.show');
         Route::put('ppdb-applicants/{ppdb_applicant}', [PpdbApplicantController::class, 'update'])->name('ppdb-applicants.update');

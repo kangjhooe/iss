@@ -857,7 +857,7 @@ async function loadViolations() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat pelanggaran')
+    toast.error('Gagal memuat pelanggaran', e.formattedMessage || 'Data pelanggaran tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -869,7 +869,7 @@ async function loadTypes() {
     const res = await violationTypeApi.getAll({ active_only: false })
     violationTypes.value = res.data.data || []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat jenis pelanggaran')
+    toast.error('Gagal memuat jenis pelanggaran', e.formattedMessage || 'Data jenis pelanggaran tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     typesLoading.value = false
   }
@@ -966,7 +966,7 @@ async function doDeleteViolation() {
     deleteTarget.value = null
     loadViolations()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus pelanggaran', e.formattedMessage || 'Data tidak dapat dihapus. Coba lagi.')
   }
 }
 
@@ -1067,7 +1067,7 @@ async function loadStudentPoints() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat poin siswa')
+    toast.error('Gagal memuat poin siswa', e.formattedMessage || 'Data poin siswa tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     pointsLoading.value = false
   }
@@ -1085,7 +1085,7 @@ async function loadAchievements() {
     const meta = res.data.meta || {}
     achievementsPagination.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat prestasi')
+    toast.error('Gagal memuat prestasi', e.formattedMessage || 'Data prestasi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     achievementsLoading.value = false
   }
@@ -1101,7 +1101,7 @@ async function loadAchievementTypes() {
     const res = await achievementTypeApi.getAll({ active_only: false })
     achievementTypes.value = res.data.data || []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat jenis prestasi')
+    toast.error('Gagal memuat jenis prestasi', e.formattedMessage || 'Data jenis prestasi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     achievementTypesLoading.value = false
   }
@@ -1113,7 +1113,7 @@ async function loadThresholds() {
     const res = await pointThresholdApi.getAll({ active_only: false })
     thresholds.value = res.data.data || []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat aturan tindakan')
+    toast.error('Gagal memuat aturan tindakan', e.formattedMessage || 'Data aturan tindakan tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     thresholdsLoading.value = false
   }
@@ -1208,7 +1208,7 @@ async function doDeleteAchievementType() {
     deleteAchievementTypeTarget.value = null
     loadAchievementTypes()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus jenis prestasi', e.formattedMessage || 'Data tidak dapat dihapus. Coba lagi.')
   }
 }
 
@@ -1255,7 +1255,7 @@ async function doDeleteThreshold() {
     deleteThresholdTarget.value = null
     loadThresholds()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus aturan tindakan', e.formattedMessage || 'Data tidak dapat dihapus. Coba lagi.')
   }
 }
 
@@ -1297,7 +1297,7 @@ async function doDeleteAchievement() {
     loadAchievements()
     if (activeTab.value === 'points') loadStudentPoints()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus prestasi', e.formattedMessage || 'Data tidak dapat dihapus. Coba lagi.')
   }
 }
 

@@ -73,7 +73,9 @@ import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { gradeBookApi } from '@/api/gradeBook'
 import { semesterApi } from '@/api/semester'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const authStore = useAuthStore()
 
 const studentId = computed(() => authStore.user?.student_profile?.id)
@@ -149,8 +151,8 @@ async function downloadRaport() {
     a.click()
     URL.revokeObjectURL(url)
   } catch (err) {
-    const msg = err?.formattedMessage || err?.response?.data?.message || 'Gagal mengunduh raport.'
-    alert(msg)
+    const msg = err?.formattedMessage || err?.response?.data?.message || 'Raport tidak dapat diunduh. Periksa koneksi dan coba lagi.'
+    toast.error('Gagal mengunduh raport', msg)
   } finally {
     downloadingRaport.value = false
   }

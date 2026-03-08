@@ -56,11 +56,11 @@ export function useOfflineSync() {
       }
       
       if (failed > 0 && synced === 0) {
-        toast.error(`${failed} item gagal disinkronkan. Periksa koneksi internet.`)
+        toast.error('Gagal disinkronkan', `${failed} item gagal disinkronkan. Periksa koneksi internet.`)
       }
 
       if (synced > 0) {
-        toast.success(`${synced} item berhasil disinkronkan`)
+        toast.success('Berhasil', `${synced} item berhasil disinkronkan`)
       }
     } catch (error) {
       console.error('Error syncing pending items:', error)

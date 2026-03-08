@@ -196,7 +196,7 @@ async function fetchExam() {
       shuffle_options: e.shuffle_options !== false
     }
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal memuat')
+    toast.error('Gagal memuat ujian', e.response?.data?.message || 'Data ujian tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -222,7 +222,7 @@ async function saveSettings() {
     toast.success('Berhasil', 'Pengaturan disimpan.')
     await fetchExam()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal menyimpan pengaturan')
+    toast.error('Gagal menyimpan pengaturan ujian', e.response?.data?.message || 'Pengaturan tidak dapat disimpan. Coba lagi.')
   } finally {
     savingSettings.value = false
   }
@@ -231,7 +231,7 @@ async function saveSettings() {
 async function addSession() {
   const name = newSessionName.value.trim()
   if (!name) {
-    toast.error('Gagal', 'Nama sesi wajib diisi.')
+    toast.error('Validasi', 'Nama sesi wajib diisi.')
     return
   }
   addingSession.value = true
@@ -253,9 +253,9 @@ async function addSession() {
     const errors = e.response?.data?.errors
     if (errors && typeof errors === 'object') {
       const firstMsg = Object.values(errors).flat().find(Boolean)
-      toast.error('Gagal', firstMsg || 'Gagal menambah sesi')
+      toast.error('Gagal menambah sesi ujian', firstMsg || 'Sesi tidak dapat ditambahkan. Periksa data dan coba lagi.')
     } else {
-      toast.error('Gagal', msg || 'Gagal menambah sesi')
+      toast.error('Gagal menambah sesi ujian', msg || 'Sesi tidak dapat ditambahkan. Periksa data dan coba lagi.')
     }
   } finally {
     addingSession.value = false

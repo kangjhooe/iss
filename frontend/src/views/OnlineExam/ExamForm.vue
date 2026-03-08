@@ -135,7 +135,7 @@ async function loadExam() {
     form.description = d.description ?? ''
     form.subject_id = d.subject_id ?? null
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal memuat ujian')
+    toast.error('Gagal memuat ujian', e.response?.data?.message || 'Data ujian tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   }
 }
 
@@ -167,7 +167,7 @@ async function submit() {
       else router.push('/ujian-online/exams')
     }
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || e.formattedMessage || 'Gagal menyimpan')
+    toast.error('Gagal menyimpan ujian', e.response?.data?.message || e.formattedMessage || 'Perubahan tidak dapat disimpan. Coba lagi.')
   } finally {
     saving.value = false
   }

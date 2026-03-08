@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import QuestionBank from '@/views/OnlineExam/QuestionBank.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -434,7 +433,7 @@ const router = createRouter({
     {
       path: '/ujian-online/bank-soal/:bankId/soal',
       name: 'OnlineExamBankSoal',
-      component: QuestionBank,
+      component: () => import('@/views/OnlineExam/QuestionBank.vue'),
       meta: { requiresAuth: true, requiresModule: 'online_exam' }
     },
     {

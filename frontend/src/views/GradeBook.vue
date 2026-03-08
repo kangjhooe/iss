@@ -212,7 +212,7 @@ async function loadGrades() {
     })
     rows.value = Array.isArray(res.data?.data) ? res.data.data : []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat buku nilai')
+    toast.error('Gagal memuat buku nilai', e.formattedMessage || 'Data buku nilai tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     rows.value = []
   } finally {
     loading.value = false
@@ -237,7 +237,7 @@ async function exportToCsv() {
     window.URL.revokeObjectURL(url)
     toast.success('Export berhasil diunduh')
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal mengekspor')
+    toast.error('Gagal mengekspor buku nilai', e.formattedMessage || 'Data tidak dapat diekspor. Periksa koneksi dan coba lagi.')
   } finally {
     exporting.value = false
   }
@@ -280,7 +280,7 @@ async function saveGrades() {
     toast.success('Nilai berhasil disimpan')
     await loadGrades()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menyimpan nilai')
+    toast.error('Gagal menyimpan nilai', e.formattedMessage || 'Nilai tidak dapat disimpan. Periksa data dan coba lagi.')
   } finally {
     saving.value = false
   }

@@ -217,7 +217,7 @@ async function onLogoSelect(e) {
     toast.success(res.data?.message || 'Logo berhasil diunggah')
   } catch (err) {
     logoError.value = err.formattedMessage || err.message || 'Gagal mengunggah logo'
-    toast.error(logoError.value)
+    toast.error('Gagal mengunggah logo', logoError.value)
   } finally {
     uploadingLogo.value = false
     if (logoInputRef.value) logoInputRef.value.value = ''
@@ -236,7 +236,7 @@ async function onFaviconSelect(e) {
     toast.success(res.data?.message || 'Favicon berhasil diunggah')
   } catch (err) {
     faviconError.value = err.formattedMessage || err.message || 'Gagal mengunggah favicon'
-    toast.error(faviconError.value)
+    toast.error('Gagal mengunggah favicon', faviconError.value)
   } finally {
     uploadingFavicon.value = false
     if (faviconInputRef.value) faviconInputRef.value.value = ''
@@ -255,7 +255,7 @@ async function onHeroImageSelect(e) {
     toast.success(res.data?.message || 'Gambar hero berhasil diunggah')
   } catch (err) {
     heroImageError.value = err.formattedMessage || err.message || 'Gagal mengunggah gambar hero'
-    toast.error(heroImageError.value)
+    toast.error('Gagal mengunggah gambar hero', heroImageError.value)
   } finally {
     uploadingHeroImage.value = false
     if (heroImageInputRef.value) heroImageInputRef.value.value = ''
@@ -279,7 +279,7 @@ async function saveHero() {
     toast.success(res.data?.message || 'Hero berhasil disimpan')
   } catch (err) {
     heroSaveError.value = err.formattedMessage || err.message || 'Gagal menyimpan hero'
-    toast.error(heroSaveError.value)
+    toast.error('Gagal menyimpan pengaturan hero', heroSaveError.value)
   } finally {
     savingHero.value = false
   }

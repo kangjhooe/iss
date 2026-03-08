@@ -124,16 +124,14 @@ class AuthController extends Controller
                 'is_active' => true,
             ]);
 
-            // Auto-verify email in development/local environment
-            $emailVerifiedAt = $this->shouldSkipEmailVerification() ? now() : null;
-            
+            // Set email_verified_at agar user bisa login lagi setelah logout (tanpa wajib klik link verifikasi)
             $user = User::create([
                 'institution_id' => $institution->id,
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'role' => 'institution_admin',
-                'email_verified_at' => $emailVerifiedAt,
+                'email_verified_at' => now(),
             ]);
 
             // Create tokens
@@ -143,7 +141,7 @@ class AuthController extends Controller
             // Send email verification only if not in development
             if (!$this->shouldSkipEmailVerification()) {
                 $verificationToken = Str::random(64);
-                $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+                $frontendUrl = config('frontend.url');
                 $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
                 
                 // Store verification token (you might want to create a separate table for this)
@@ -675,7 +673,7 @@ class AuthController extends Controller
 
             // Generate new verification token
             $verificationToken = Str::random(64);
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+            $frontendUrl = config('frontend.url');
             $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
             
             cache()->put('email_verification_' . $user->id, $verificationToken, now()->addHours(24));

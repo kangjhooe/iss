@@ -187,7 +187,7 @@ const handleVerifyEmail = async () => {
   } catch (err) {
     const errorMessage = err.response?.data?.message || 'Gagal memverifikasi email'
     error.value = errorMessage
-    toast.error('Gagal', errorMessage)
+    toast.error('Gagal memverifikasi email', errorMessage)
     
     if (err.response?.data?.errors) {
       const serverErrors = err.response.data.errors
@@ -234,7 +234,7 @@ const handleResendVerification = async () => {
   } catch (err) {
     const errorMessage = err.response?.data?.message || 'Gagal mengirim ulang kode verifikasi'
     error.value = errorMessage
-    toast.error('Gagal', errorMessage)
+    toast.error('Gagal mengirim ulang kode verifikasi', errorMessage)
   } finally {
     resending.value = false
   }

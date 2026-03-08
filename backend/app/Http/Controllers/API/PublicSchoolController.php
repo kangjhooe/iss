@@ -160,6 +160,7 @@ class PublicSchoolController extends Controller
     /**
      * Statistik publik untuk halaman awal (tanpa auth).
      * Total + breakdown per jenjang (level) dan per type (Negeri/Swasta).
+     * Key level dinormalisasi ke format yang dipakai frontend: SD, MI, SMP, MTs, SMA, MA, SMK, MAK, Lainnya.
      */
     public function stats(): JsonResponse
     {
@@ -167,12 +168,26 @@ class PublicSchoolController extends Controller
 
         $institutionsCount = (clone $base)->count();
 
-        $byLevel = (clone $base)
+        $byLevelRaw = (clone $base)
             ->selectRaw('level, count(*) as count')
             ->groupBy('level')
-            ->pluck('count', 'level')
-            ->mapWithKeys(fn ($count, $level) => [$level ?? 'Lainnya' => (int) $count])
-            ->toArray();
+            ->pluck('count', 'level');
+
+        $levelMap = [
+            'sd' => 'SD', 'mi' => 'MI', 'smp' => 'SMP', 'mts' => 'MTs',
+            'sma' => 'SMA', 'ma' => 'MA', 'smk' => 'SMK', 'mak' => 'MAK',
+        ];
+        $byLevel = [];
+        foreach ($byLevelRaw as $level => $count) {
+            $key = $level === null || $level === '' ? 'Lainnya' : ($levelMap[strtolower((string) $level)] ?? 'Lainnya');
+            $byLevel[$key] = ($byLevel[$key] ?? 0) + (int) $count;
+        }
+        // Pastikan semua key yang frontend harapkan ada (minimal 0)
+        foreach (['SD', 'MI', 'SMP', 'MTs', 'SMA', 'MA', 'SMK', 'MAK', 'Lainnya'] as $k) {
+            if (!isset($byLevel[$k])) {
+                $byLevel[$k] = 0;
+            }
+        }
 
         $byType = (clone $base)
             ->selectRaw('type, count(*) as count')

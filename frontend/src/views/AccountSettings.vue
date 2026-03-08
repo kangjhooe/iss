@@ -215,7 +215,7 @@ async function submitProfile() {
     profileEmailChanged.value = false
     const data = err.response?.data
     if (data?.errors) setProfileErrors(data.errors)
-    else toast.error('Gagal', data?.message || 'Gagal memperbarui profil')
+    else toast.error('Gagal memperbarui profil', data?.message || 'Profil tidak dapat diperbarui. Coba lagi.')
   } finally {
     profileLoading.value = false
   }
@@ -265,7 +265,7 @@ async function submitPassword() {
   } catch (err) {
     const data = err.response?.data
     if (data?.errors) setPasswordErrors(data.errors)
-    else toast.error('Gagal', data?.message || 'Gagal mengubah sandi')
+    else toast.error('Gagal mengubah sandi', data?.message || 'Kata sandi tidak dapat diubah. Pastikan sandi lama benar dan coba lagi.')
   } finally {
     passwordLoading.value = false
   }

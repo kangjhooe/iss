@@ -391,7 +391,7 @@ async function loadAlumniOptions() {
     alumniOptions.value = res.data?.data ?? []
   } catch (e) {
     alumniOptions.value = []
-    toast.error('Gagal memuat daftar alumni', e.formattedMessage)
+    toast.error('Gagal memuat daftar alumni', e.formattedMessage || 'Daftar alumni tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     alumniLoading.value = false
   }
@@ -417,7 +417,7 @@ async function loadList() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error('Gagal memuat data pengambilan ijazah', e.formattedMessage)
+    toast.error('Gagal memuat data pengambilan ijazah', e.formattedMessage || 'Data pengambilan ijazah tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -643,7 +643,7 @@ async function doDelete() {
     deleteTarget.value = null
     loadList()
   } catch (e) {
-    toast.error('Gagal menghapus', e.formattedMessage)
+    toast.error('Gagal menghapus data pengambilan ijazah', e.formattedMessage || 'Data tidak dapat dihapus. Coba lagi.')
   }
 }
 

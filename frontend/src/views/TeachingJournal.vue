@@ -284,7 +284,7 @@ async function loadJournals() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat jurnal mengajar')
+    toast.error('Gagal memuat jurnal mengajar', e.formattedMessage || 'Data jurnal tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -363,7 +363,7 @@ async function exportToCsv() {
     window.URL.revokeObjectURL(url)
     toast.success('Export berhasil diunduh')
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal mengekspor')
+    toast.error('Gagal mengekspor jurnal', e.formattedMessage || 'Data tidak dapat diekspor. Periksa koneksi dan coba lagi.')
   } finally {
     exporting.value = false
   }
@@ -448,7 +448,7 @@ async function doDelete() {
     deleteTarget.value = null
     loadJournals()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus jurnal mengajar', e.formattedMessage || 'Jurnal tidak dapat dihapus. Coba lagi.')
   }
 }
 

@@ -335,7 +335,7 @@ async function regenerateEntryPin() {
       toast.success('Kode ujian diperbarui: ' + data.entry_pin)
     }
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal memperbarui kode')
+    toast.error('Gagal memperbarui kode ujian', e.response?.data?.message || 'Kode ujian tidak dapat diperbarui. Coba lagi.')
   } finally {
     entryPinLoading.value = false
   }
@@ -351,7 +351,7 @@ async function fetchSession(silent = false) {
     session.value = sRes.data?.data ?? sRes.data
     participants.value = pRes.data?.data ?? pRes.data ?? []
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal memuat')
+    toast.error('Gagal memuat sesi ujian', e.response?.data?.message || 'Data sesi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -402,7 +402,7 @@ async function startSession() {
     toast.success('Ujian dimulai.')
     fetchSession()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal memulai ujian', e.response?.data?.message || 'Sesi tidak dapat dimulai. Coba lagi.')
   } finally {
     controlLoading.value = false
   }
@@ -415,7 +415,7 @@ async function endSession() {
     toast.success('Ujian diakhiri.')
     fetchSession()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal mengakhiri ujian', e.response?.data?.message || 'Sesi tidak dapat diakhiri. Coba lagi.')
   } finally {
     controlLoading.value = false
   }
@@ -429,7 +429,7 @@ async function resetSession() {
     toast.success('Sesi direset.')
     fetchSession()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal mereset sesi', e.response?.data?.message || 'Sesi tidak dapat direset. Coba lagi.')
   } finally {
     controlLoading.value = false
   }
@@ -442,7 +442,7 @@ async function computeScores() {
     toast.success('Nilai dihitung.')
     fetchSession()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal menghitung nilai', e.response?.data?.message || 'Nilai tidak dapat dihitung. Coba lagi.')
   } finally {
     controlLoading.value = false
   }
@@ -456,7 +456,7 @@ async function addParticipants() {
     closeAddModal()
     await fetchSession(true)
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal menambah peserta', e.response?.data?.message || 'Peserta tidak dapat ditambahkan. Coba lagi.')
   } finally {
     addLoading.value = false
   }
@@ -469,7 +469,7 @@ async function removeParticipant(p) {
     toast.success('Berhasil', 'Peserta dihapus.')
     await fetchSession(true)
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal menghapus peserta', e.response?.data?.message || 'Peserta tidak dapat dihapus. Coba lagi.')
   }
 }
 
@@ -481,7 +481,7 @@ async function generateParticipantNumbers() {
     toast.success('Berhasil', 'Nomor peserta di-generate.')
     await fetchSession(true)
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal generate nomor peserta')
+    toast.error('Gagal generate nomor peserta', e.response?.data?.message || 'Nomor peserta tidak dapat di-generate. Coba lagi.')
   } finally {
     generateNumbersLoading.value = false
   }
@@ -509,7 +509,7 @@ async function saveEditParticipant() {
     closeEditParticipantModal()
     await fetchSession(true)
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal menyimpan')
+    toast.error('Gagal menyimpan nomor peserta', e.response?.data?.message || 'Perubahan tidak dapat disimpan. Coba lagi.')
   } finally {
     editParticipantSaving.value = false
   }
@@ -527,7 +527,7 @@ async function applyReorder(orderedIds) {
     toast.success('Berhasil', 'Urutan peserta diperbarui.')
     await fetchSession(true)
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal mengubah urutan')
+    toast.error('Gagal mengubah urutan peserta', e.response?.data?.message || 'Urutan tidak dapat diubah. Coba lagi.')
   } finally {
     reorderLoading.value = false
   }
@@ -592,7 +592,7 @@ async function releaseScore(participantId) {
     toast.success('Berhasil', 'Nilai dirilis.')
     await fetchSession(true)
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal merilis nilai', e.response?.data?.message || 'Nilai tidak dapat dirilis. Coba lagi.')
   }
 }
 
@@ -614,7 +614,7 @@ async function loadGradingAnswers(participantId) {
     list.forEach(a => { scores[a.id] = a.score != null ? a.score : '' })
     gradingScores.value = scores
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal memuat jawaban')
+    toast.error('Gagal memuat jawaban uraian', e.response?.data?.message || 'Jawaban tidak dapat dimuat. Coba lagi.')
   } finally {
     gradingAnswersLoading.value = false
   }
@@ -640,7 +640,7 @@ async function saveGradingScores() {
     if (gradingParticipant.value) loadGradingAnswers(gradingParticipant.value.id)
     fetchSession()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal menyimpan')
+    toast.error('Gagal menyimpan nilai uraian', e.response?.data?.message || 'Nilai tidak dapat disimpan. Coba lagi.')
   } finally {
     gradingSaving.value = false
   }
@@ -655,7 +655,7 @@ async function recomputeGradingParticipant() {
     fetchSession()
     closeGradingModal()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal')
+    toast.error('Gagal menghitung ulang nilai', e.response?.data?.message || 'Nilai tidak dapat dihitung ulang. Coba lagi.')
   } finally {
     gradingSaving.value = false
   }

@@ -226,7 +226,9 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { alumniApi } from '@/api/alumni'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const loading = ref(true)
 const alumni = ref([])
 const graduationYears = ref([])
@@ -328,8 +330,8 @@ async function submitDestForm() {
     await loadDestinations()
     loadAlumni()
   } catch (e) {
-    const msg = e.response?.data?.message || 'Gagal menyimpan destinasi.'
-    alert(msg)
+    const msg = e.response?.data?.message || e.formattedMessage || 'Destinasi tidak dapat disimpan. Coba lagi.'
+    toast.error('Gagal menyimpan destinasi', msg)
   } finally {
     destSaving.value = false
   }
@@ -360,8 +362,8 @@ async function doDeleteDest() {
     await loadDestinations()
     loadAlumni()
   } catch (e) {
-    const msg = e.response?.data?.message || 'Gagal menghapus.'
-    alert(msg)
+    const msg = e.response?.data?.message || e.formattedMessage || 'Destinasi tidak dapat dihapus. Coba lagi.'
+    toast.error('Gagal menghapus destinasi', msg)
   }
 }
 

@@ -526,7 +526,7 @@ const loadClasses = async (page = 1) => {
     pagination.value = response.data.meta || null
   } catch (err) {
     listError.value = 'Gagal memuat data kelas. Silakan coba lagi.'
-    toast.error('Gagal', 'Gagal memuat data kelas')
+    toast.error('Gagal memuat data kelas', 'Daftar kelas tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     console.error('Failed to load classes:', err)
   } finally {
     loading.value = false
@@ -555,7 +555,7 @@ const loadClassStudents = async () => {
     const response = await classApi.getStudents(selectedClass.value.id, { per_page: 100 })
     classStudents.value = response.data.data || []
   } catch (err) {
-    toast.error('Gagal', 'Gagal memuat data siswa')
+    toast.error('Gagal memuat data siswa', 'Daftar siswa tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     console.error('Failed to load class students:', err)
   } finally {
     loadingClassStudents.value = false
@@ -581,7 +581,7 @@ const removeStudentFromClass = async (studentId) => {
     await loadClasses()
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus siswa dari kelas'
-    toast.error('Gagal', message)
+    toast.error('Gagal menghapus siswa dari kelas', message)
   } finally {
     setDeleteLoading(false)
   }
@@ -605,7 +605,7 @@ const loadAvailableStudents = async () => {
     const response = await classApi.getAvailableStudents(selectedClass.value.id, params)
     availableStudents.value = response.data.data || []
   } catch (err) {
-    toast.error('Gagal', 'Gagal memuat data siswa')
+    toast.error('Gagal memuat data siswa', 'Daftar siswa tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     console.error('Failed to load available students:', err)
   } finally {
     loadingStudents.value = false
@@ -614,7 +614,7 @@ const loadAvailableStudents = async () => {
 
 const addStudentsToClass = async () => {
   if (!selectedClass.value || selectedStudentIds.value.length === 0) {
-    toast.error('Gagal', 'Pilih minimal satu siswa')
+    toast.error('Pilihan wajib', 'Pilih minimal satu siswa.')
     return
   }
 
@@ -642,7 +642,7 @@ const addStudentsToClass = async () => {
       const firstError = Object.values(errors)[0]
       error.value = Array.isArray(firstError) ? firstError[0] : firstError
     }
-    toast.error('Gagal', error.value)
+    toast.error('Gagal menambahkan siswa ke kelas', error.value)
   } finally {
     saving.value = false
   }
@@ -698,7 +698,7 @@ const deleteClass = async (id) => {
     loadClasses()
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus kelas'
-    toast.error('Gagal', message)
+    toast.error('Gagal menghapus kelas', message)
   } finally {
     setDeleteLoading(false)
   }
@@ -824,7 +824,7 @@ const exportPdf = async () => {
     toast.success('Berhasil', 'Laporan PDF berhasil diekspor')
   } catch (err) {
     console.error('Failed to export PDF:', err)
-    toast.error('Gagal', 'Gagal mengekspor laporan PDF')
+    toast.error('Gagal mengekspor laporan PDF', 'Laporan PDF tidak dapat diekspor. Periksa koneksi dan coba lagi.')
   } finally {
     exportingPdf.value = false
   }

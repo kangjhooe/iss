@@ -525,7 +525,7 @@ function onRestoreFileChange(e) {
 
 async function submitRestore() {
   if (!restoreTargetBankId.value || !restoreFile.value) {
-    toast.error('Pilih bank tujuan dan file ZIP.')
+    toast.error('Pilihan wajib', 'Pilih bank tujuan dan unggah file ZIP terlebih dahulu.')
     return
   }
   restoreLoading.value = true

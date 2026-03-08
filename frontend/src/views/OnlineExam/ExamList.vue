@@ -102,7 +102,8 @@ async function fetchExams(page = 1) {
     exams.value = data?.data ?? data ?? []
     pagination.value = data?.meta ? { ...data.meta, ...data.links } : null
   } catch (e) {
-    toast(e.response?.data?.message || 'Gagal memuat ujian', 'error')
+    const msg = e.response?.data?.message || e.formattedMessage || 'Daftar ujian tidak dapat dimuat. Periksa koneksi dan coba lagi.'
+    toast.error('Gagal memuat daftar ujian', msg)
   } finally {
     loading.value = false
   }
@@ -112,10 +113,11 @@ async function confirmDelete(exam) {
   if (!confirm('Hapus ujian ini? Semua sesi dan data terkait akan ikut terhapus.')) return
   try {
     await examApi.deleteExam(exam.id)
-    toast('Ujian dihapus.')
+    toast.success('Berhasil', 'Ujian telah dihapus.')
     fetchExams()
   } catch (e) {
-    toast(e.response?.data?.message || 'Gagal menghapus', 'error')
+    const msg = e.response?.data?.message || e.formattedMessage || 'Ujian tidak dapat dihapus. Coba lagi.'
+    toast.error('Gagal menghapus ujian', msg)
   }
 }
 

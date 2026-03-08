@@ -13,7 +13,7 @@ Artisan::command('swagger:generate', function () {
         $generator = app(\L5Swagger\Generator::class);
         $generator->generateDocs();
         $this->info('Swagger documentation generated successfully!');
-        $this->info('Access Swagger UI at: http://localhost:8000/api/documentation');
+        $this->info('Access Swagger UI at: ' . rtrim(config('app.url', 'http://localhost:8000'), '/') . '/api/documentation');
     } catch (\Exception $e) {
         $this->error('Error generating Swagger documentation: ' . $e->getMessage());
         $this->error('Stack trace: ' . $e->getTraceAsString());

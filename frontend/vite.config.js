@@ -70,6 +70,24 @@ export default defineConfig(({ mode }) => {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('vue/') || id === 'vue') return 'vue'
+            if (id.includes('vue-router')) return 'vue-router'
+            if (id.includes('pinia')) return 'pinia'
+            if (id.includes('xlsx')) return 'xlsx'
+            if (id.includes('quill') || id.includes('@vueup/vue-quill')) return 'quill'
+            if (id.includes('chart.js') || id.includes('vue-chartjs')) return 'chart'
+            if (id.includes('axios')) return 'axios'
+          }
+        }
+      }
+    },
+    chunkSizeWarningLimit: 600
+  },
   server: {
     port: 5173,
     proxy: {

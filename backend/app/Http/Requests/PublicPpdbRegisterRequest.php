@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Rules\NpsnReferensiRule;
+use App\Http\Rules\UniqueNisnPerPpdbPeriod;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,7 +21,14 @@ class PublicPpdbRegisterRequest extends FormRequest
             'ppdb_channel_id' => 'required|exists:ppdb_channels,id',
             'name' => 'required|string|max:255',
             'nik' => 'nullable|string|max:20',
-            'nisn' => 'nullable|string|max:20',
+            'nisn' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::when($this->filled('nisn'), [
+                    new UniqueNisnPerPpdbPeriod((int) $this->input('ppdb_period_id')),
+                ]),
+            ],
             'gender' => 'required|in:L,P',
             'birth_date' => 'nullable|date',
             'birth_place' => 'nullable|string|max:255',

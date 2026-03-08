@@ -11,7 +11,8 @@ export const institutionApi = {
     return api.post('/v1/institution', data)
   },
   update(id, data) {
-    return api.put(`/v1/institution/${id}`, data)
+    // Pakai POST agar body terbaca di hosting yang tidak meneruskan body PUT (nginx/shared hosting)
+    return api.post(`/v1/institution/${id}/update`, data)
   },
   delete(id) {
     return api.delete(`/v1/institution/${id}`)

@@ -46,6 +46,9 @@ export const ppdbApplicantApi = {
   export(params) {
     return api.get('/v1/ppdb-applicants/export', { params, responseType: 'blob' })
   },
+  bulkVerification(data) {
+    return api.post('/v1/ppdb-applicants/bulk-verification', data)
+  },
   get(id) {
     return api.get(`/v1/ppdb-applicants/${id}`)
   },

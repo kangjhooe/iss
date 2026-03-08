@@ -115,7 +115,7 @@ async function loadRaport() {
     })
     raportRows.value = Array.isArray(res.data?.data) ? res.data.data : []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat raport')
+    toast.error('Gagal memuat raport', e.formattedMessage || 'Data raport tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     raportRows.value = []
   } finally {
     loading.value = false
@@ -139,7 +139,7 @@ async function exportRaport() {
     window.URL.revokeObjectURL(url)
     toast.success('Export raport berhasil diunduh')
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal mengekspor')
+    toast.error('Gagal mengekspor raport', e.formattedMessage || 'Raport tidak dapat diekspor. Periksa koneksi dan coba lagi.')
   } finally {
     exporting.value = false
   }

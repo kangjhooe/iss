@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePpdbApplicantRequest;
 use App\Http\Requests\UpdatePpdbApplicantRequest;
 use App\Http\Resources\PpdbApplicantResource;
+use App\Models\AuditLog;
 use App\Models\PpdbApplicant;
+use App\Exports\PpdbApplicantsExport;
 use App\Models\PpdbApplicantDocument;
 use App\Models\PpdbPeriod;
 use App\Models\Student;
@@ -22,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Excel as ExcelManager;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PpdbApplicantController extends Controller
@@ -50,6 +53,10 @@ class PpdbApplicantController extends Controller
             }
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
+            } elseif ($request->filled('needs_verification') && $request->boolean('needs_verification')) {
+                $query->whereIn('status', ['submitted', 'verification']);
+            } elseif ($request->filled('needs_result') && $request->boolean('needs_result')) {
+                $query->where('status', 'verified');
             }
             if ($request->filled('search')) {
                 $term = '%' . $request->search . '%';
@@ -169,13 +176,73 @@ class PpdbApplicantController extends Controller
             'verification_notes' => 'nullable|string',
         ]);
 
+        $oldVerified = $ppdb_applicant->documents_verified;
+        $oldStatus = $ppdb_applicant->status;
         $ppdb_applicant->update([
             'documents_verified' => $request->documents_verified,
             'verification_notes' => $request->verification_notes,
             'status' => $request->documents_verified ? 'verified' : 'verification',
         ]);
+        AuditLog::logManual($request, 'ppdb_applicant_verification', PpdbApplicant::class, $ppdb_applicant->id, [
+            'documents_verified' => $oldVerified,
+            'status' => $oldStatus,
+        ], [
+            'documents_verified' => $request->documents_verified,
+            'status' => $ppdb_applicant->status,
+        ], $ppdb_applicant->period?->institution_id);
         $ppdb_applicant->load(['period', 'channel', 'documents']);
         return new PpdbApplicantResource($ppdb_applicant);
+    }
+
+    /**
+     * Bulk set verification untuk banyak calon sekaligus (tandai verified).
+     */
+    public function bulkVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $institutionId = $user->institution_id;
+        if ($user->isSuperAdmin() && $request->filled('institution_id')) {
+            $institutionId = (int) $request->institution_id;
+        }
+        if (!$institutionId && !$user->isSuperAdmin()) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $request->validate([
+            'applicant_ids' => 'required|array',
+            'applicant_ids.*' => 'integer|exists:ppdb_applicants,id',
+            'documents_verified' => 'required|boolean',
+            'verification_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $ids = array_unique(array_map('intval', $request->applicant_ids));
+        $applicants = PpdbApplicant::query()
+            ->with('period:id,institution_id')
+            ->whereIn('id', $ids)
+            ->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId))
+            ->get();
+
+        $updated = 0;
+        foreach ($applicants as $applicant) {
+            $oldStatus = $applicant->status;
+            $applicant->update([
+                'documents_verified' => $request->documents_verified,
+                'verification_notes' => $request->verification_notes,
+                'status' => $request->documents_verified ? 'verified' : 'verification',
+            ]);
+            AuditLog::logManual($request, 'ppdb_applicant_bulk_verification', PpdbApplicant::class, $applicant->id, [
+                'status' => $oldStatus,
+            ], [
+                'documents_verified' => $request->documents_verified,
+                'status' => $applicant->status,
+            ], $institutionId);
+            $updated++;
+        }
+
+        return response()->json([
+            'message' => $updated . ' calon berhasil diperbarui.',
+            'updated_count' => $updated,
+        ]);
     }
 
     public function submit(Request $request, PpdbApplicant $ppdb_applicant): PpdbApplicantResource|JsonResponse
@@ -227,6 +294,10 @@ class PpdbApplicantController extends Controller
             }
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
+            } elseif ($request->filled('needs_verification') && $request->boolean('needs_verification')) {
+                $query->whereIn('status', ['submitted', 'verification']);
+            } elseif ($request->filled('needs_result') && $request->boolean('needs_result')) {
+                $query->where('status', 'verified');
             }
             if ($request->filled('search')) {
                 $term = '%' . $request->search . '%';
@@ -242,42 +313,54 @@ class PpdbApplicantController extends Controller
 
             $applicants = $query->orderBy('registration_number')->limit(5000)->get();
             $periodName = $applicants->first()?->period?->name ?? 'ppdb';
-            $filename = 'calon-ppdb-' . Str::slug($periodName) . '-' . date('Y-m-d-His') . '.csv';
+            $format = strtolower((string) $request->get('format', 'csv'));
+            $requestedColumns = $request->filled('columns')
+                ? array_map('trim', explode(',', (string) $request->columns))
+                : null;
 
-            return response()->streamDownload(function () use ($applicants) {
+            $allColumns = [
+                'registration_number' => 'No. Pendaftaran',
+                'name' => 'Nama',
+                'nik' => 'NIK',
+                'nisn' => 'NISN',
+                'gender' => 'Jenis Kelamin',
+                'birth_place' => 'Tempat Lahir',
+                'birth_date' => 'Tanggal Lahir',
+                'address' => 'Alamat',
+                'phone' => 'Telepon',
+                'email' => 'Email',
+                'previous_school' => 'Asal Sekolah',
+                'previous_school_npsn' => 'NPSN Asal',
+                'previous_school_address' => 'Alamat Asal',
+                'channel' => 'Jalur',
+                'period' => 'Periode',
+                'status' => 'Status',
+                'rank' => 'Rank',
+                'father_name' => 'Ayah',
+                'mother_name' => 'Ibu',
+                'guardian_name' => 'Wali',
+                'created_at' => 'Tgl Daftar',
+                'documents_verified' => 'Berkas Verifikasi',
+                'notes' => 'Catatan',
+            ];
+            $cols = $requestedColumns
+                ? array_intersect_key($allColumns, array_flip(array_filter($requestedColumns)))
+                : $allColumns;
+            $colKeys = array_keys($cols);
+            $headers = array_values($cols);
+
+            if ($format === 'xlsx') {
+                return $this->exportExcel($applicants, $colKeys, $headers, $periodName);
+            }
+
+            $filename = 'calon-ppdb-' . Str::slug($periodName) . '-' . date('Y-m-d-His') . '.csv';
+            return response()->streamDownload(function () use ($applicants, $colKeys, $headers) {
                 $out = fopen('php://output', 'w');
                 fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-                fputcsv($out, [
-                    'No. Pendaftaran', 'Nama', 'NIK', 'NISN', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir',
-                    'Alamat', 'Telepon', 'Email', 'Asal Sekolah', 'NPSN Asal', 'Alamat Asal', 'Jalur', 'Periode', 'Status', 'Rank',
-                    'Ayah', 'Ibu', 'Wali', 'Tgl Daftar', 'Berkas Verifikasi', 'Catatan',
-                ]);
+                fputcsv($out, $headers);
                 foreach ($applicants as $a) {
-                    fputcsv($out, [
-                        $a->registration_number ?? '',
-                        $a->name ?? '',
-                        $a->nik ?? '',
-                        $a->nisn ?? '',
-                        $a->gender === 'L' ? 'Laki-laki' : ($a->gender === 'P' ? 'Perempuan' : ''),
-                        $a->birth_place ?? '',
-                        $a->birth_date?->format('Y-m-d') ?? '',
-                        $a->address ?? '',
-                        $a->phone ?? '',
-                        $a->email ?? '',
-                        $a->previous_school ?? '',
-                        $a->previous_school_npsn ?? '',
-                        $a->previous_school_address ?? '',
-                        $a->channel?->name ?? '',
-                        $a->period?->name ?? '',
-                        $a->status ?? '',
-                        $a->rank ?? '',
-                        $a->father_name ?? '',
-                        $a->mother_name ?? '',
-                        $a->guardian_name ?? '',
-                        $a->created_at?->format('Y-m-d H:i') ?? '',
-                        $a->documents_verified ? 'Ya' : 'Tidak',
-                        $a->notes ?? '',
-                    ]);
+                    $row = $this->exportRow($a, $colKeys);
+                    fputcsv($out, $row);
                 }
                 fclose($out);
             }, $filename, [
@@ -309,6 +392,25 @@ class PpdbApplicantController extends Controller
             'result_notes' => 'nullable|string',
         ]);
 
+        if ($request->status === 'passed') {
+            $channel = $ppdb_applicant->channel;
+            if ($channel && $channel->quota !== null && (int) $channel->quota > 0) {
+                $currentPassedCount = PpdbApplicant::query()
+                    ->where('ppdb_period_id', $period->id)
+                    ->where('ppdb_channel_id', $channel->id)
+                    ->where('status', 'passed')
+                    ->where('id', '!=', $ppdb_applicant->id)
+                    ->count();
+                $isNewlyPassed = $ppdb_applicant->status !== 'passed';
+                $totalPassed = $currentPassedCount + ($isNewlyPassed ? 1 : 0);
+                if ($totalPassed > (int) $channel->quota) {
+                    return response()->json([
+                        'message' => 'Kuota jalur "' . $channel->name . '" sudah terpenuhi (' . (int) $channel->quota . '). Tidak dapat menambah calon lulus.',
+                    ], 422);
+                }
+            }
+        }
+
         $updates = [
             'status' => $request->status,
             'rank' => $request->rank,
@@ -323,7 +425,16 @@ class PpdbApplicantController extends Controller
             $updates['announcement_at'] = $request->date('announcement_at') ?? now();
         }
 
+        $oldStatus = $ppdb_applicant->status;
+        $oldRank = $ppdb_applicant->rank;
         $ppdb_applicant->update($updates);
+        AuditLog::logManual($request, 'ppdb_applicant_result', PpdbApplicant::class, $ppdb_applicant->id, [
+            'status' => $oldStatus,
+            'rank' => $oldRank,
+        ], [
+            'status' => $updates['status'],
+            'rank' => $updates['rank'] ?? null,
+        ], $period->institution_id);
         $ppdb_applicant->load(['period', 'channel', 'documents']);
         return new PpdbApplicantResource($ppdb_applicant);
     }
@@ -445,6 +556,14 @@ class PpdbApplicantController extends Controller
             'student_id' => $student->id,
             'status' => 'converted',
         ]);
+
+        AuditLog::logManual($request, 'ppdb_applicant_convert_to_student', PpdbApplicant::class, $ppdb_applicant->id, [
+            'student_id' => null,
+            'status' => 're_registration',
+        ], [
+            'student_id' => $student->id,
+            'status' => 'converted',
+        ], $institutionId);
 
         return response()->json([
             'message' => 'Calon berhasil dijadikan siswa.',
@@ -573,6 +692,53 @@ class PpdbApplicantController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Satu baris data export untuk satu calon (urutan sesuai colKeys).
+     */
+    private function exportRow(PpdbApplicant $a, array $colKeys): array
+    {
+        $map = [
+            'registration_number' => $a->registration_number ?? '',
+            'name' => $a->name ?? '',
+            'nik' => $a->nik ?? '',
+            'nisn' => $a->nisn ?? '',
+            'gender' => $a->gender === 'L' ? 'Laki-laki' : ($a->gender === 'P' ? 'Perempuan' : ''),
+            'birth_place' => $a->birth_place ?? '',
+            'birth_date' => $a->birth_date?->format('Y-m-d') ?? '',
+            'address' => $a->address ?? '',
+            'phone' => $a->phone ?? '',
+            'email' => $a->email ?? '',
+            'previous_school' => $a->previous_school ?? '',
+            'previous_school_npsn' => $a->previous_school_npsn ?? '',
+            'previous_school_address' => $a->previous_school_address ?? '',
+            'channel' => $a->channel?->name ?? '',
+            'period' => $a->period?->name ?? '',
+            'status' => $a->status ?? '',
+            'rank' => $a->rank ?? '',
+            'father_name' => $a->father_name ?? '',
+            'mother_name' => $a->mother_name ?? '',
+            'guardian_name' => $a->guardian_name ?? '',
+            'created_at' => $a->created_at?->format('Y-m-d H:i') ?? '',
+            'documents_verified' => $a->documents_verified ? 'Ya' : 'Tidak',
+            'notes' => $a->notes ?? '',
+        ];
+        $row = [];
+        foreach ($colKeys as $key) {
+            $row[] = $map[$key] ?? '';
+        }
+        return $row;
+    }
+
+    /**
+     * Export ke Excel (xlsx) dengan Laravel Excel 3.x.
+     */
+    private function exportExcel($applicants, array $colKeys, array $headers, string $periodName)
+    {
+        $filename = 'calon-ppdb-' . Str::slug($periodName) . '-' . date('Y-m-d-His') . '.xlsx';
+        $export = new PpdbApplicantsExport($applicants, $colKeys, $headers);
+        return app(ExcelManager::class)->download($export, $filename, ExcelManager::XLSX);
     }
 
     private function generateRegistrationNumber(int $periodId): string

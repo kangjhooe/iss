@@ -14,9 +14,9 @@ return [
             $allowed = array_merge($allowed, explode(',', env('CORS_ALLOWED_ORIGINS')));
         }
 
-        // Add FRONTEND_URL if set
-        if (env('FRONTEND_URL')) {
-            $frontendUrl = trim(env('FRONTEND_URL'));
+        // Add FRONTEND_URL from config (reads env)
+        if (config('frontend.url')) {
+            $frontendUrl = rtrim(config('frontend.url'), '/');
             if (!in_array($frontendUrl, $allowed)) {
                 $allowed[] = $frontendUrl;
             }

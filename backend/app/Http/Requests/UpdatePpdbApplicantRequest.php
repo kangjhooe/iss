@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\NpsnReferensiRule;
+use App\Http\Rules\UniqueNisnPerPpdbPeriod;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePpdbApplicantRequest extends FormRequest
 {
@@ -13,11 +16,19 @@ class UpdatePpdbApplicantRequest extends FormRequest
 
     public function rules(): array
     {
+        $applicant = $this->route('ppdb_applicant');
+        $periodId = $applicant?->ppdb_period_id;
+        $ignoreId = $applicant?->id;
         return [
             'ppdb_channel_id' => 'sometimes|exists:ppdb_channels,id',
             'name' => 'sometimes|string|max:255',
             'nik' => 'nullable|string|max:20',
-            'nisn' => 'nullable|string|max:20',
+            'nisn' => array_filter([
+                'nullable',
+                'string',
+                'max:20',
+                ($periodId && $this->filled('nisn')) ? new UniqueNisnPerPpdbPeriod((int) $periodId, (int) $ignoreId) : null,
+            ]),
             'gender' => 'sometimes|in:L,P',
             'birth_date' => 'nullable|date',
             'birth_place' => 'nullable|string|max:255',
@@ -26,7 +37,16 @@ class UpdatePpdbApplicantRequest extends FormRequest
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',
             'previous_school' => 'nullable|string|max:255',
-            'previous_school_npsn' => 'nullable|string|max:20',
+            'previous_school_npsn' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::when($this->filled('previous_school_npsn'), [
+                    'size:8',
+                    'regex:/^[0-9]{8}$/',
+                    new NpsnReferensiRule(),
+                ]),
+            ],
             'previous_school_address' => 'nullable|string',
             'father_name' => 'nullable|string|max:255',
             'father_phone' => 'nullable|string|max:50',

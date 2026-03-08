@@ -532,7 +532,7 @@ async function loadSessions() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat sesi konseling')
+    toast.error('Gagal memuat sesi konseling', e.formattedMessage || 'Data sesi konseling tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -544,7 +544,7 @@ async function loadTypes() {
     const res = await counselingTypeApi.getAll({ active_only: false })
     counselingTypes.value = res.data.data || []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat jenis konseling')
+    toast.error('Gagal memuat jenis konseling', e.formattedMessage || 'Data jenis konseling tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     typesLoading.value = false
   }
@@ -624,7 +624,7 @@ async function exportToCsv() {
     window.URL.revokeObjectURL(url)
     toast.success('Export berhasil diunduh')
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal mengekspor')
+    toast.error('Gagal mengekspor data konseling', e.formattedMessage || 'Data tidak dapat diekspor. Periksa koneksi dan coba lagi.')
   } finally {
     exporting.value = false
   }
@@ -720,7 +720,7 @@ async function doDeleteSession() {
     loadStats()
     loadUpcoming()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus sesi konseling', e.formattedMessage || 'Sesi tidak dapat dihapus. Coba lagi.')
   }
 }
 

@@ -474,7 +474,7 @@ async function downloadPdf() {
     toast.success('Berhasil', 'Buku induk berhasil diunduh')
   } catch (err) {
     console.error(err)
-    toast.error('Gagal', err.response?.data?.message || 'Gagal mengunduh buku induk')
+    toast.error('Gagal mengunduh buku induk', err.response?.data?.message || 'Buku induk tidak dapat diunduh. Periksa koneksi dan coba lagi.')
   } finally {
     downloadingPdf.value = false
   }

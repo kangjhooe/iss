@@ -19,7 +19,9 @@ import { ref } from 'vue'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
 import { examApi } from '@/api/exam'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: 'Tulis di sini...' },
@@ -58,7 +60,8 @@ function imageHandler(quill) {
       }
     } catch (e) {
       console.error('Upload gambar gagal:', e)
-      alert(e.response?.data?.message || 'Gagal mengunggah gambar.')
+      const msg = e.response?.data?.message || e.formattedMessage || 'Gambar tidak dapat diunggah. Pastikan format JPG/PNG/GIF dan ukuran sesuai batas.'
+      toast.error('Gagal mengunggah gambar', msg)
     }
   }
 }

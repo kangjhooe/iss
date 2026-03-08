@@ -93,7 +93,7 @@ async function loadStudents() {
     const res = await studentApi.getAll({ per_page: 500, status: 'Aktif' })
     students.value = res.data.data || []
   } catch (e) {
-    toast.error('Gagal memuat daftar siswa')
+    toast.error('Gagal memuat daftar siswa', 'Daftar siswa tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   }
 }
 
@@ -102,7 +102,7 @@ async function loadEmployees() {
     const res = await employeeApi.getAll({ per_page: 500 })
     employees.value = res.data.data || []
   } catch (e) {
-    toast.error('Gagal memuat daftar pegawai')
+    toast.error('Gagal memuat daftar pegawai', 'Daftar pegawai tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   }
 }
 
@@ -133,7 +133,7 @@ async function generateQr() {
     qrCode.value = res.data.data.qr_code
     toast.success('QR code berhasil digenerate')
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal generate QR code')
+    toast.error('Gagal membuat QR code', e.formattedMessage || 'QR code tidak dapat digenerate. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }

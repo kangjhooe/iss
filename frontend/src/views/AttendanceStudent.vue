@@ -199,7 +199,7 @@ async function loadJournals() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat jurnal')
+    toast.error('Gagal memuat jurnal', e.formattedMessage || 'Data jurnal mengajar tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -266,7 +266,7 @@ async function openAttendanceModal(j) {
         return
       }
     }
-    toast.error(e.formattedMessage || 'Gagal memuat daftar absensi')
+    toast.error('Gagal memuat daftar absensi', e.formattedMessage || 'Daftar absensi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     showAttendanceModal.value = false
   } finally {
     attendanceLoading.value = false

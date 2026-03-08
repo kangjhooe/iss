@@ -234,6 +234,7 @@ class PublicPpdbController extends Controller
             'status' => $applicant->status,
             'rank' => $applicant->rank,
             'announcement_at' => $applicant->announcement_at?->format('Y-m-d H:i'),
+            're_registration_deadline' => $applicant->re_registration_deadline?->format('Y-m-d'),
             're_registration_confirmed_at' => $applicant->re_registration_confirmed_at ? true : false,
             'result_notes' => $applicant->result_notes,
             // Full data for printing

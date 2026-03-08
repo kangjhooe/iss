@@ -96,7 +96,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { examAttemptApi } from '@/api/exam'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const entryPin = ref('')
 const nomorUrut = ref('')
 const loginToken = ref('')
@@ -241,7 +243,8 @@ async function submitExam() {
     await examAttemptApi.submit(loginToken.value)
     attemptInfo.value = { ...attemptInfo.value, submitted: true }
   } catch (e) {
-    alert(e.response?.data?.message || 'Gagal mengirim.')
+    const msg = e.response?.data?.message || e.formattedMessage || 'Jawaban ujian tidak dapat dikirim. Periksa koneksi dan coba lagi.'
+    toast.error('Gagal mengirim jawaban ujian', msg)
   }
 }
 

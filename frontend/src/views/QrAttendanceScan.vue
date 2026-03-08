@@ -122,7 +122,7 @@ async function loadTeachingJournals() {
     const res = await teachingJournalApi.getAll({ per_page: 100 })
     teachingJournals.value = res.data.data || []
   } catch (e) {
-    toast.error('Gagal memuat jurnal mengajar')
+    toast.error('Gagal memuat jurnal mengajar', 'Data jurnal mengajar tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loadingJournals.value = false
   }
@@ -168,7 +168,7 @@ async function handleQrScan(qrData) {
 
 async function handleManualScan() {
   if (!manualQrData.value.trim()) {
-    toast.error('Masukkan data QR code terlebih dahulu')
+    toast.error('Data tidak lengkap', 'Masukkan data QR code terlebih dahulu.')
     return
   }
   await processQrScan(manualQrData.value.trim())
@@ -179,11 +179,11 @@ async function processQrScan(qrData) {
   try {
     const parsed = JSON.parse(qrData)
     if (!parsed.type || !parsed.id || !parsed.institution_id || !parsed.timestamp) {
-      toast.error('Format QR code tidak valid')
+      toast.error('Format tidak valid', 'Format QR code tidak valid. Pastikan QR dari aplikasi absensi.')
       return
     }
   } catch (e) {
-    toast.error('QR code tidak valid. Pastikan format JSON benar.')
+    toast.error('QR code tidak valid', 'Pastikan format JSON benar atau pindai ulang dari aplikasi absensi.')
     return
   }
 
@@ -192,16 +192,16 @@ async function processQrScan(qrData) {
   const hasLocation = await getCurrentLocation()
   if (!hasLocation) {
     // Show warning but continue - backend will handle validation
-    toast.warning('Lokasi tidak dapat dideteksi. Absensi mungkin akan ditolak jika sekolah sudah set koordinat.')
+    toast.warning('Peringatan', 'Lokasi tidak dapat dideteksi. Absensi mungkin akan ditolak jika sekolah sudah set koordinat.')
   }
 
   // Validate form
   if (attendanceType.value === 'student' && !selectedTeachingJournal.value) {
-    toast.error('Pilih jurnal mengajar terlebih dahulu')
+    toast.error('Pilihan wajib', 'Pilih jurnal mengajar terlebih dahulu.')
     return
   }
   if (attendanceType.value === 'employee' && !attendanceDate.value) {
-    toast.error('Pilih tanggal terlebih dahulu')
+    toast.error('Pilihan wajib', 'Pilih tanggal terlebih dahulu.')
     return
   }
 
@@ -228,7 +228,7 @@ async function processQrScan(qrData) {
       data: res.data.data,
     }
     
-    toast.success(res.data.message)
+    toast.success('Berhasil', res.data.message || 'Absensi berhasil dicatat.')
     manualQrData.value = ''
   } catch (e) {
     const errorMsg = e.response?.data?.message || e.formattedMessage || 'Gagal memproses absensi'
@@ -242,12 +242,12 @@ async function processQrScan(qrData) {
       distance: errorData.distance,
       requiredRadius: errorData.required_radius,
     }
-    toast.error(errorMsg)
+    toast.error('Gagal absensi', errorMsg)
   }
 }
 
 function handleScannerError(error) {
-  toast.error('Error scanner: ' + error.message)
+  toast.error('Kesalahan scanner', 'Error scanner: ' + error.message)
 }
 
 function resetForm() {

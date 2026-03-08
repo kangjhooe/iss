@@ -154,7 +154,7 @@ async function fetchExams() {
     const list = data?.data ?? data ?? []
     exams.value = Array.isArray(list) ? list : (list?.data ?? [])
   } catch (e) {
-    toast.error(e.response?.data?.message || 'Gagal memuat daftar ujian')
+    toast.error('Gagal memuat daftar sesi ujian', e.response?.data?.message || e.formattedMessage || 'Daftar sesi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     exams.value = []
   } finally {
     loadingExams.value = false
@@ -187,7 +187,7 @@ async function submitAddSession() {
       scheduled_start_at: newSessionStart.value || null,
       scheduled_end_at: newSessionEnd.value || null
     })
-    toast.success('Sesi ditambahkan.')
+    toast.success('Berhasil', 'Sesi ujian telah ditambahkan.')
     closeAddForm()
     await fetchSessions()
   } catch (e) {
@@ -195,9 +195,9 @@ async function submitAddSession() {
     const errors = e.response?.data?.errors
     if (errors && typeof errors === 'object') {
       const firstMsg = Object.values(errors).flat().find(Boolean)
-      toast.error(firstMsg || 'Gagal menambah sesi')
+      toast.error('Gagal menambah sesi ujian', firstMsg || 'Sesi tidak dapat ditambahkan. Periksa data dan coba lagi.')
     } else {
-      toast.error(msg || 'Gagal menambah sesi')
+      toast.error('Gagal menambah sesi ujian', msg || 'Sesi tidak dapat ditambahkan. Periksa data dan coba lagi.')
     }
   } finally {
     addingSession.value = false

@@ -324,7 +324,7 @@ class AuthService
     protected function sendVerificationEmail(User $user): void
     {
         $verificationToken = Str::random(64);
-        $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+        $frontendUrl = config('frontend.url');
         $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
 
         // Store verification token

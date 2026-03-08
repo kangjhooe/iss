@@ -299,7 +299,7 @@ const loadSemesters = async (page = 1) => {
     semesters.value = response.data.data || []
     pagination.value = response.data.meta || null
   } catch (err) {
-    toast.error('Gagal', 'Gagal memuat data semester')
+    toast.error('Gagal memuat data semester', 'Daftar semester tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     console.error('Failed to load semesters:', err)
   } finally {
     loading.value = false
@@ -335,7 +335,7 @@ const activateSemester = async (id) => {
     loadSemesters()
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal mengaktifkan semester'
-    toast.error('Gagal', message)
+    toast.error('Gagal mengaktifkan semester', message)
   }
 }
 
@@ -350,7 +350,7 @@ const deleteSemester = async (id) => {
     loadSemesters()
   } catch (err) {
     const message = err.response?.data?.message || 'Gagal menghapus semester'
-    toast.error('Gagal', message)
+    toast.error('Gagal menghapus semester', message)
   }
 }
 

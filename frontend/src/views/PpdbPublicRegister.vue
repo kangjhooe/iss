@@ -368,7 +368,9 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ppdbPublicApi } from '@/api/ppdbPublic'
 import { schoolPublicApi } from '@/api/schoolPublic'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const route = useRoute()
 const institutionId = computed(() => route.query.institution_id ? Number(route.query.institution_id) : null)
 const npsn = computed(() => route.params.npsn || route.query.npsn || '')
@@ -426,11 +428,13 @@ const params = computed(() => {
 })
 
 const linkLengkapiBerkas = computed(() => {
-  const q = new URLSearchParams()
-  if (submittedData.value?.registration_number) q.set('registration_number', submittedData.value.registration_number)
-  if (institution.value?.npsn) q.set('npsn', institution.value.npsn)
-  const query = q.toString()
-  return query ? '/lengkapi-berkas-ppdb?' + query : '/lengkapi-berkas-ppdb'
+  const reg = submittedData.value?.registration_number
+  const n = institution.value?.npsn
+  if (!reg) return { path: '/lengkapi-berkas-ppdb' }
+  return {
+    path: '/lengkapi-berkas-ppdb',
+    query: { registration_number: reg, ...(n ? { npsn: n } : {}) },
+  }
 })
 
 async function loadData() {
@@ -604,7 +608,7 @@ function printFormulir() {
   const printContent = printAreaRef.value.innerHTML
   const win = window.open('', '_blank')
   if (!win) {
-    alert('Izinkan pop-up untuk mencetak formulir.')
+    toast.info('Cetak formulir', 'Izinkan pop-up browser untuk mencetak formulir pendaftaran.')
     return
   }
   win.document.write(`

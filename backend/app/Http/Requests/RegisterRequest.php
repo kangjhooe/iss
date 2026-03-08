@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Http\Rules\NpsnReferensiRule;
+use App\Http\Rules\UniqueEmailForRegistration;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
@@ -29,12 +31,18 @@ class RegisterRequest extends FormRequest
                 'string',
                 'size:8',
                 'regex:/^[0-9]{8}$/',
-                'unique:institution,npsn',
+                Rule::unique('institution', 'npsn')->whereNull('deleted_at'),
                 new NpsnReferensiRule(),
             ],
             'institution_name' => 'required|string|max:255',
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:user,email',
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                new UniqueEmailForRegistration(),
+            ],
             'phone' => 'required|string|max:20',
             'password' => [
                 'required',

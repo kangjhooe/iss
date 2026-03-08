@@ -251,7 +251,8 @@
                 <span class="stats-number" :aria-label="(institutionsCount ?? 0).toLocaleString('id-ID')">{{ displayTotal.toLocaleString('id-ID') }}</span>
               </div>
               <p class="stats-caption">Sekolah & madrasah sudah bergabung</p>
-              <p v-if="!statsLoading && (institutionsCount ?? 0) === 0" class="stats-zero-cta">Jadilah yang pertama bergabung.</p>
+              <p v-if="statsLoadError" class="stats-error-msg">Statistik tidak dapat dimuat. Periksa koneksi atau coba lagi.</p>
+              <p v-else-if="!statsLoading && (institutionsCount ?? 0) === 0" class="stats-zero-cta">Jadilah yang pertama bergabung.</p>
             </div>
             <div class="stats-decoration" aria-hidden="true">
               <svg class="stats-decoration-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -435,6 +436,7 @@ const statsByType = ref({})
 const recentInstitutions = ref([])
 const statsLoading = ref(true)
 const recentLoading = ref(true)
+const statsLoadError = ref(false)
 const sliderTrackRef = ref(null)
 const canScrollPrev = ref(false)
 const canScrollNext = ref(false)
@@ -552,16 +554,18 @@ onMounted(async () => {
       schoolPublicApi.getStats(),
       schoolPublicApi.getRecentInstitutions(12),
     ])
-    const data = statsRes.data?.data ?? {}
+    // Backend mengembalikan { data: { institutions_count, by_level, by_type } }; dukung juga bentuk langsung
+    const data = statsRes.data?.data ?? statsRes.data ?? {}
     institutionsCount.value = data.institutions_count ?? 0
     statsByLevel.value = data.by_level ?? {}
     statsByType.value = data.by_type ?? {}
-    recentInstitutions.value = recentRes.data?.data ?? []
+    recentInstitutions.value = Array.isArray(recentRes.data?.data) ? recentRes.data.data : (recentRes.data ?? [])
   } catch (_) {
     institutionsCount.value = 0
     statsByLevel.value = {}
     statsByType.value = {}
     recentInstitutions.value = []
+    statsLoadError.value = true
   } finally {
     statsLoading.value = false
     recentLoading.value = false
@@ -993,6 +997,13 @@ a.btn:focus-visible {
 .stats-zero-cta {
   font-size: 13px;
   color: #059669;
+  margin: 8px 0 0;
+  font-weight: 500;
+}
+
+.stats-error-msg {
+  font-size: 13px;
+  color: #b91c1c;
   margin: 8px 0 0;
   font-weight: 500;
 }

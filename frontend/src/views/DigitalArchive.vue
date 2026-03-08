@@ -320,7 +320,7 @@ async function loadList() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error('Gagal memuat arsip', e.formattedMessage)
+    toast.error('Gagal memuat arsip', e.formattedMessage || 'Data arsip tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }
@@ -461,7 +461,7 @@ async function downloadFile(item) {
     window.URL.revokeObjectURL(url)
     toast.success('Unduh dimulai')
   } catch (e) {
-    toast.error('Gagal mengunduh', e.formattedMessage)
+    toast.error('Gagal mengunduh dokumen', e.formattedMessage || 'Dokumen tidak dapat diunduh. Periksa koneksi dan coba lagi.')
   }
 }
 
@@ -477,7 +477,7 @@ async function doDelete() {
     deleteTarget.value = null
     loadList()
   } catch (e) {
-    toast.error('Gagal menghapus', e.formattedMessage)
+    toast.error('Gagal menghapus dokumen', e.formattedMessage || 'Dokumen tidak dapat dihapus. Coba lagi.')
   }
 }
 

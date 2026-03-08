@@ -150,7 +150,7 @@ async function submitForm() {
     showForm.value = false
     fetchStimuli()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal menyimpan.')
+    toast.error('Gagal menyimpan stimulus', e.response?.data?.message || 'Perubahan tidak dapat disimpan. Coba lagi.')
   } finally {
     saving.value = false
   }
@@ -165,7 +165,7 @@ async function confirmDelete(s) {
     toast.success('Berhasil', 'Stimulus dihapus.')
     fetchStimuli()
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal menghapus.')
+    toast.error('Gagal menghapus stimulus', e.response?.data?.message || 'Stimulus tidak dapat dihapus. Coba lagi.')
   }
 }
 

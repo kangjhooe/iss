@@ -170,7 +170,7 @@ class InstitutionController extends Controller
             }
 
             $validated = $request->validated();
-            
+
             // Check if user is trying to change name or npsn without super admin permission
             $isSuperAdmin = method_exists($user, 'isSuperAdmin') ? $user->isSuperAdmin() : false;
             
@@ -219,11 +219,38 @@ class InstitutionController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json([
-                'message' => 'Terjadi kesalahan saat memperbarui institusi',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
+            $message = self::userFriendlyUpdateError($e, false);
+            $payload = ['message' => $message];
+            if (config('app.debug') && $e->getMessage()) {
+                $payload['error'] = $e->getMessage();
+            }
+            return response()->json($payload, 500);
         }
+    }
+
+    /**
+     * Pesan error yang ramah untuk user (profil/update), termasuk tip untuk hosting.
+     */
+    private static function userFriendlyUpdateError(\Throwable $e, bool $isUpload): string
+    {
+        if (config('app.debug') && $e->getMessage()) {
+            return 'Terjadi kesalahan: ' . $e->getMessage();
+        }
+        $msg = $e->getMessage();
+        $isStorage = (
+            stripos($msg, 'Permission denied') !== false
+            || stripos($msg, 'failed to open stream') !== false
+            || stripos($msg, 'No such file or directory') !== false
+            || stripos($msg, 'Unable to write') !== false
+            || stripos($msg, 'Directory') !== false && stripos($msg, 'exist') !== false
+        );
+        if ($isUpload && $isStorage) {
+            return 'Gagal menyimpan file. Pastikan di server: (1) Jalankan php artisan storage:link, (2) Folder storage/app/public dapat ditulis (permission).';
+        }
+        if ($isUpload) {
+            return 'Gagal mengunggah file. Pastikan ukuran file sesuai (maks. 5MB) dan format JPG/PNG/GIF. Di hosting, cek juga batas upload PHP (upload_max_filesize, post_max_size minimal 6MB).';
+        }
+        return 'Gagal memperbarui profil. Jika di hosting, periksa: (1) Jalankan php artisan storage:link, (2) Izin tulis pada folder storage, (3) Batas upload PHP minimal 6MB. Silakan coba lagi.';
     }
 
     /**
@@ -479,7 +506,11 @@ class InstitutionController extends Controller
                 'institution_id' => $id,
                 'error' => $e->getMessage(),
             ]);
-            return \App\Helpers\ApiResponse::serverError('Terjadi kesalahan saat mengupload logo', $e->getMessage());
+            $message = self::userFriendlyUpdateError($e, true);
+            return response()->json([
+                'message' => $message,
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 
@@ -540,7 +571,11 @@ class InstitutionController extends Controller
                 'institution_id' => $id,
                 'error' => $e->getMessage(),
             ]);
-            return \App\Helpers\ApiResponse::serverError('Terjadi kesalahan saat mengupload gambar cover', $e->getMessage());
+            $message = self::userFriendlyUpdateError($e, true);
+            return response()->json([
+                'message' => $message,
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 

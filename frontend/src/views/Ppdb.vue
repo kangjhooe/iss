@@ -186,10 +186,19 @@
               <option value="">Semua Jalur</option>
               <option v-for="c in channels" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
-            <select v-model="applicantFilters.status" @change="loadApplicants" class="filter-select">
+            <select v-model="applicantFilters.status" @change="applicantFilters.needs_verification = false; applicantFilters.needs_result = false; loadApplicants()" class="filter-select">
               <option value="">Semua Status</option>
               <option v-for="(l, k) in statusApplicantLabels" :key="k" :value="k">{{ l }}</option>
             </select>
+            <button type="button" class="filter-quick-btn" :class="{ active: applicantFilters.needs_verification }" @click="setFilterNeedsVerification">
+              Perlu verifikasi
+            </button>
+            <button type="button" class="filter-quick-btn" :class="{ active: applicantFilters.needs_result }" @click="setFilterNeedsResult">
+              Perlu set hasil
+            </button>
+            <button v-if="selectedApplicantIds.length" type="button" class="btn-bulk-verify" :disabled="bulkVerifying" @click="doBulkVerification">
+              {{ bulkVerifying ? 'Memproses...' : 'Tandai verified (' + selectedApplicantIds.length + ')' }}
+            </button>
             <button type="button" class="btn-export" :disabled="exportingApplicants" @click="exportApplicants">
               {{ exportingApplicants ? 'Mengekspor...' : 'Export CSV' }}
             </button>
@@ -205,6 +214,9 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th class="col-check">
+                    <input type="checkbox" :checked="applicants.length > 0 && selectedApplicantIds.length === applicants.length" :indeterminate="selectedApplicantIds.length > 0 && selectedApplicantIds.length < applicants.length" @change="toggleSelectAllApplicants" />
+                  </th>
                   <th>No. Pendaftaran</th>
                   <th>Nama</th>
                   <th>Jalur</th>
@@ -217,6 +229,10 @@
               </thead>
               <tbody>
                 <tr v-for="a in applicants" :key="a.id">
+                  <td class="col-check">
+                    <input v-if="a.status === 'submitted' || a.status === 'verification'" type="checkbox" :value="a.id" v-model="selectedApplicantIds" />
+                    <span v-else class="cell-empty">—</span>
+                  </td>
                   <td><strong>{{ a.registration_number }}</strong></td>
                   <td>{{ a.name }}</td>
                   <td>{{ a.channel?.name }}</td>
@@ -609,7 +625,9 @@ const channelsLoading = ref(false)
 const applicants = ref([])
 const applicantsLoading = ref(false)
 const applicantsPagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
-const applicantFilters = ref({ search: '', ppdb_period_id: '', ppdb_channel_id: '', status: '' })
+const applicantFilters = ref({ search: '', ppdb_period_id: '', ppdb_channel_id: '', status: '', needs_verification: false, needs_result: false })
+const selectedApplicantIds = ref([])
+const bulkVerifying = ref(false)
 const exportingApplicants = ref(false)
 const statsPeriodId = ref('')
 const statsData = ref(null)
@@ -704,7 +722,7 @@ async function loadStatistics() {
     const res = await ppdbPeriodApi.getStatistics(id)
     statsData.value = res.data?.data || res.data
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat statistik')
+    toast.error('Gagal memuat statistik PPDB', e.formattedMessage || 'Statistik tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     statsLoading.value = false
   }
@@ -716,7 +734,7 @@ async function loadPeriods() {
     const res = await ppdbPeriodApi.getAll({ per_page: 100 })
     periods.value = res.data.data || []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat periode')
+    toast.error('Gagal memuat periode PPDB', e.formattedMessage || 'Daftar periode tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     periodsLoading.value = false
   }
@@ -728,7 +746,7 @@ async function loadChannels() {
     const res = await ppdbChannelApi.getAll({ active_only: false })
     channels.value = res.data.data || []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat jalur')
+    toast.error('Gagal memuat jalur PPDB', e.formattedMessage || 'Daftar jalur tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     channelsLoading.value = false
   }
@@ -738,6 +756,41 @@ let applicantDebounce = null
 function debounceLoadApplicants() {
   clearTimeout(applicantDebounce)
   applicantDebounce = setTimeout(loadApplicants, 300)
+}
+
+function setFilterNeedsVerification() {
+  applicantFilters.value.status = ''
+  applicantFilters.value.needs_result = false
+  applicantFilters.value.needs_verification = true
+  loadApplicants()
+}
+function setFilterNeedsResult() {
+  applicantFilters.value.status = ''
+  applicantFilters.value.needs_verification = false
+  applicantFilters.value.needs_result = true
+  loadApplicants()
+}
+function toggleSelectAllApplicants(e) {
+  const checked = e.target.checked
+  const eligibles = applicants.value.filter(a => a.status === 'submitted' || a.status === 'verification').map(a => a.id)
+  selectedApplicantIds.value = checked ? [...eligibles] : []
+}
+async function doBulkVerification() {
+  if (!selectedApplicantIds.value.length) return
+  bulkVerifying.value = true
+  try {
+    await ppdbApplicantApi.bulkVerification({
+      applicant_ids: selectedApplicantIds.value,
+      documents_verified: true,
+    })
+    toast.success(selectedApplicantIds.value.length + ' calon ditandai verified')
+    selectedApplicantIds.value = []
+    loadApplicants()
+  } catch (e) {
+    toast.error('Gagal bulk verifikasi', e.response?.data?.message || e.formattedMessage)
+  } finally {
+    bulkVerifying.value = false
+  }
 }
 
 async function loadApplicants() {
@@ -751,13 +804,16 @@ async function loadApplicants() {
     if (!params.ppdb_period_id) delete params.ppdb_period_id
     if (!params.ppdb_channel_id) delete params.ppdb_channel_id
     if (!params.status) delete params.status
+    if (!params.needs_verification) delete params.needs_verification
+    if (!params.needs_result) delete params.needs_result
     if (!params.search) delete params.search
     const res = await ppdbApplicantApi.getAll(params)
     applicants.value = res.data.data || []
     const meta = res.data.meta || {}
     applicantsPagination.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1, per_page: meta.per_page ?? 15, total: meta.total ?? 0 }
+    selectedApplicantIds.value = []
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat calon')
+    toast.error('Gagal memuat calon PPDB', e.formattedMessage || 'Daftar calon tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     applicantsLoading.value = false
   }
@@ -771,11 +827,13 @@ function goApplicantsPage(page) {
 async function exportApplicants() {
   exportingApplicants.value = true
   try {
-    const params = { ...applicantFilters.value }
+    const params = { ...applicantFilters.value, format: 'csv' }
     if (!params.ppdb_period_id) delete params.ppdb_period_id
     if (!params.ppdb_channel_id) delete params.ppdb_channel_id
     if (!params.status) delete params.status
     if (!params.search) delete params.search
+    if (!params.needs_verification) delete params.needs_verification
+    if (!params.needs_result) delete params.needs_result
     const res = await ppdbApplicantApi.export(params)
     const blob = res.data
     const url = URL.createObjectURL(blob)
@@ -786,7 +844,7 @@ async function exportApplicants() {
     URL.revokeObjectURL(url)
     toast.success('Export berhasil')
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal mengekspor')
+    toast.error('Gagal mengekspor data PPDB', e.formattedMessage || 'Data tidak dapat diekspor. Periksa koneksi dan coba lagi.')
   } finally {
     exportingApplicants.value = false
   }
@@ -898,7 +956,7 @@ async function doConfirmReReg(a) {
       detailApplicant.value = res.data.data || res.data
     }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal konfirmasi')
+    toast.error('Gagal konfirmasi daftar ulang', e.formattedMessage || 'Konfirmasi tidak dapat disimpan. Coba lagi.')
   }
 }
 
@@ -951,7 +1009,7 @@ async function doDeletePeriod() {
     deletePeriodTarget.value = null
     loadPeriods()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus periode', e.formattedMessage || 'Periode tidak dapat dihapus. Coba lagi.')
   }
 }
 
@@ -1000,7 +1058,7 @@ async function doDeleteChannel() {
     deleteChannelTarget.value = null
     loadChannels()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus jalur', e.formattedMessage || 'Jalur tidak dapat dihapus. Coba lagi.')
   }
 }
 
@@ -1100,7 +1158,7 @@ async function downloadDocument(d) {
     a.click()
     URL.revokeObjectURL(url)
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal mengunduh')
+    toast.error('Gagal mengunduh berkas', e.formattedMessage || 'Berkas tidak dapat diunduh. Periksa koneksi dan coba lagi.')
   }
 }
 
@@ -1113,7 +1171,7 @@ async function submitVerification() {
     toast.success('Verifikasi berhasil disimpan')
     loadApplicants()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menyimpan verifikasi')
+    toast.error('Gagal menyimpan verifikasi', e.formattedMessage || 'Data verifikasi tidak dapat disimpan. Coba lagi.')
   } finally {
     verificationSubmitting.value = false
   }
@@ -1133,7 +1191,7 @@ async function doDeleteApplicant() {
     if (detailApplicant.value?.id === id) detailApplicant.value = null
     loadApplicants()
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal menghapus')
+    toast.error('Gagal menghapus calon', e.formattedMessage || 'Calon tidak dapat dihapus. Coba lagi.')
   }
 }
 
@@ -1272,6 +1330,32 @@ onMounted(() => {
 }
 .btn-export:hover:not(:disabled) { background: #f8fafc; border-color: #059669; color: #059669; }
 .btn-export:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.filter-quick-btn {
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #64748b;
+}
+.filter-quick-btn:hover { border-color: #059669; color: #059669; }
+.filter-quick-btn.active { background: #ecfdf5; border-color: #059669; color: #059669; }
+.btn-bulk-verify {
+  padding: 0.5rem 1rem;
+  background: #059669;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-bulk-verify:hover:not(:disabled) { opacity: 0.95; }
+.btn-bulk-verify:disabled { opacity: 0.7; cursor: not-allowed; }
+.col-check { width: 2.5rem; text-align: center; vertical-align: middle; }
+.cell-empty { color: #94a3b8; font-size: 0.875rem; }
 
 .table-wrap { overflow-x: auto; padding: 0; }
 .table-wrap.content-card { padding: 0; }

@@ -225,7 +225,7 @@ const loadRequests = async () => {
       pendingCount.value = countResponse.data.count ?? 0
     }
   } catch (err) {
-    toast.error('Gagal', 'Gagal memuat data permintaan')
+    toast.error('Gagal memuat permintaan perubahan', 'Data permintaan perubahan siswa tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     console.error(err)
   } finally {
     loading.value = false

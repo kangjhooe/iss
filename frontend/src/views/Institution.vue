@@ -49,7 +49,7 @@
           <select v-model="filters.is_active" @change="loadInstitutions" class="filter-select">
             <option value="">Semua Status Aktif</option>
             <option value="1">Aktif</option>
-            <option value="0">Nonaktif (diban)</option>
+            <option value="0">Nonaktif (dibekukan)</option>
           </select>
         </div>
 
@@ -363,6 +363,7 @@
               style="display: none"
             />
           </div>
+          <div v-if="coverUploadError" class="error-message" style="margin-top: 12px;">{{ coverUploadError }}</div>
         </div>
 
         <div class="info-section">
@@ -626,6 +627,7 @@
                 <input ref="coverInput" type="file" accept="image/*" @change="handleCoverUpload" style="display: none" />
               </div>
               <small class="form-hint">Ditampilkan di hero halaman publik. Maks. 5MB.</small>
+              <div v-if="coverUploadError" class="error-message" style="margin-top: 8px;">{{ coverUploadError }}</div>
             </div>
 
             <div v-if="error" class="error-message">{{ error }}</div>
@@ -687,7 +689,10 @@
             <button @click="closeSuperAdminModal" class="btn-close">×</button>
           </div>
           
-          <form @submit.prevent="showEditModalSuperAdmin ? handleUpdateSuperAdmin() : handleAddInstitution()" class="modal-body">
+          <div v-if="showEditModalSuperAdmin && loadingEditDetail" class="modal-body" style="text-align: center; padding: 2rem;">
+            <span>Memuat data...</span>
+          </div>
+          <form v-else @submit.prevent="showEditModalSuperAdmin ? handleUpdateSuperAdmin() : handleAddInstitution()" class="modal-body">
             <div class="form-row">
               <div class="form-group">
                 <label>Nama Sekolah/Madrasah *</label>
@@ -973,6 +978,7 @@ const logoInput = ref(null)
 const coverInput = ref(null)
 const uploadingLogo = ref(false)
 const uploadingCover = ref(false)
+const coverUploadError = ref('')
 
 const isSuperAdmin = computed(() => authStore.user?.role === 'super_admin')
 
@@ -995,6 +1001,7 @@ const filters = ref({
 const showAddModal = ref(false)
 const showEditModalSuperAdmin = ref(false)
 const selectedInstitution = ref(null)
+const loadingEditDetail = ref(false)
 
 const requestForm = ref({
   newValue: ''
@@ -1376,18 +1383,46 @@ const loadInstitutions = async () => {
   }
 }
 
-const viewInstitution = (inst) => {
+const viewInstitution = async (inst) => {
   selectedInstitution.value = inst
-  Object.assign(form.value, inst)
   error.value = ''
   showEditModalSuperAdmin.value = true
+  loadingEditDetail.value = true
+  try {
+    const res = await institutionApi.get(inst.id)
+    const full = res.data?.data || res.data
+    if (full) {
+      selectedInstitution.value = full
+      Object.assign(form.value, full)
+    } else {
+      Object.assign(form.value, inst)
+    }
+  } catch (e) {
+    Object.assign(form.value, inst)
+  } finally {
+    loadingEditDetail.value = false
+  }
 }
 
-const editInstitution = (inst) => {
+const editInstitution = async (inst) => {
   selectedInstitution.value = inst
-  Object.assign(form.value, inst)
   error.value = ''
   showEditModalSuperAdmin.value = true
+  loadingEditDetail.value = true
+  try {
+    const res = await institutionApi.get(inst.id)
+    const full = res.data?.data || res.data
+    if (full) {
+      selectedInstitution.value = full
+      Object.assign(form.value, full)
+    } else {
+      Object.assign(form.value, inst)
+    }
+  } catch (e) {
+    Object.assign(form.value, inst)
+  } finally {
+    loadingEditDetail.value = false
+  }
 }
 
 const deleteInstitution = async (id) => {
@@ -1457,12 +1492,32 @@ const handleUpdateSuperAdmin = async () => {
   updating.value = true
   
   try {
-    const response = await institutionApi.update(selectedInstitution.value.id, form.value)
+    // Kirim hanya field yang diizinkan (sama seperti handleUpdate) agar backend tidak dapat object/relasi
+    const allowedKeys = [
+      'name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
+      'province_code', 'district_code',
+      'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
+      'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
+      'active_academic_year_id', 'active_semester_id'
+    ]
+    const dataToSend = {}
+    for (const key of allowedKeys) {
+      if (Object.prototype.hasOwnProperty.call(form.value, key)) {
+        const v = form.value[key]
+        if (key === 'description' || key === 'vision' || key === 'mission') {
+          dataToSend[key] = v != null ? String(v) : ''
+        } else {
+          dataToSend[key] = v
+        }
+      }
+    }
+
+    await institutionApi.update(selectedInstitution.value.id, dataToSend)
     toast.success('Berhasil', 'Institusi berhasil diperbarui')
     showEditModalSuperAdmin.value = false
     await loadInstitutions()
   } catch (err) {
-    const errorMsg = err.response?.data?.message || 'Gagal memperbarui institusi'
+    const errorMsg = err.formattedMessage || err.response?.data?.message || err.response?.data?.error || 'Gagal memperbarui institusi'
     error.value = errorMsg
     toast.error('Gagal', errorMsg)
     
@@ -1592,6 +1647,7 @@ const handleCoverUpload = async (event) => {
   }
 
   uploadingCover.value = true
+  coverUploadError.value = ''
   try {
     const institutionId = institution.value?.id
     if (!institutionId) {
@@ -1607,8 +1663,17 @@ const handleCoverUpload = async (event) => {
     toast.success('Berhasil', 'Gambar cover berhasil diupload')
     if (coverInput.value) coverInput.value.value = ''
   } catch (err) {
-    const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal mengupload gambar cover'
+    const errorMsg = err.formattedMessage || err.response?.data?.message || err.response?.data?.error || 'Gagal mengupload gambar cover'
+    coverUploadError.value = errorMsg
     toast.error('Gagal', errorMsg)
+    // Tampilkan error validasi per field jika ada
+    if (err.response?.data?.errors && typeof err.response.data.errors === 'object') {
+      const parts = Object.entries(err.response.data.errors).map(([k, v]) => {
+        const text = Array.isArray(v) ? v[0] : v
+        return k === 'cover_image' ? text : `${k}: ${text}`
+      })
+      if (parts.length) coverUploadError.value = parts.join('. ')
+    }
   } finally {
     uploadingCover.value = false
   }

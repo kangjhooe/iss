@@ -341,11 +341,11 @@ function openStimulusForm() {
 async function submitStimulusForm() {
   const contentTrim = (stimulusForm.content || '').trim()
   if (!contentTrim) {
-    toast.error('Konten stimulus wajib diisi.')
+    toast.error('Validasi', 'Konten stimulus wajib diisi.')
     return
   }
   if (!bankId.value) {
-    toast.error('Bank soal tidak diketahui.')
+    toast.error('Bank soal tidak diketahui', 'Pilih atau buat bank soal terlebih dahulu.')
     return
   }
   savingStimulus.value = true
@@ -416,7 +416,7 @@ async function submitQuestion() {
     showForm.value = false
     fetchQuestions()
   } catch (e) {
-    toast.error('Gagal menyimpan', e.response?.data?.message || 'Gagal menyimpan')
+    toast.error('Gagal menyimpan bank soal', e.response?.data?.message || 'Perubahan tidak dapat disimpan. Coba lagi.')
   } finally {
     saving.value = false
   }
@@ -429,7 +429,7 @@ async function confirmDelete(q) {
     toast.success('Soal dihapus.')
     fetchQuestions()
   } catch (e) {
-    toast.error('Gagal menghapus', e.response?.data?.message || 'Gagal menghapus')
+    toast.error('Gagal menghapus soal', e.response?.data?.message || 'Soal tidak dapat dihapus. Coba lagi.')
   }
 }
 

@@ -113,7 +113,9 @@ import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { auditLogApi } from '@/api/auditLog'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const logs = ref([])
 const loading = ref(true)
 const exporting = ref(false)
@@ -218,7 +220,8 @@ async function handleExport() {
     URL.revokeObjectURL(url)
   } catch (err) {
     console.error('Export failed', err)
-    alert('Gagal mengekspor. Coba lagi.')
+    const msg = err?.response?.data?.message || err?.formattedMessage || 'Log audit tidak dapat diekspor ke CSV. Periksa koneksi dan coba lagi.'
+    toast.error('Gagal mengekspor log audit', msg)
   } finally {
     exporting.value = false
   }

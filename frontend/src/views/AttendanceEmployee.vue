@@ -292,7 +292,7 @@ async function loadAttendances() {
       total: meta.total ?? 0,
     }
   } catch (e) {
-    toast.error(e.formattedMessage || 'Gagal memuat absensi')
+    toast.error('Gagal memuat absensi', e.formattedMessage || 'Data absensi pegawai tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
   }

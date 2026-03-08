@@ -96,6 +96,12 @@
               <dd class="text-success">Sudah dikonfirmasi</dd>
             </div>
           </template>
+          <template v-else-if="result.re_registration_deadline && (result.status === 'passed' || result.status === 'reserve')">
+            <div class="result-row">
+              <dt>Batas konfirmasi daftar ulang</dt>
+              <dd>{{ formatDateId(result.re_registration_deadline) }}</dd>
+            </div>
+          </template>
           <template v-if="result.student">
             <div class="result-row result-row-highlight">
               <dt>NIS (Siswa)</dt>
@@ -115,12 +121,18 @@
           </svg>
           Konfirmasi daftar ulang berhasil. Silakan menunggu informasi lanjutan dari sekolah.
         </div>
+        <div v-else-if="reRegDeadlinePassed && (result.status === 'passed' || result.status === 'reserve')" class="deadline-passed-banner">
+          <svg class="deadline-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+          </svg>
+          Batas waktu konfirmasi daftar ulang telah lewat. Silakan hubungi sekolah.
+        </div>
         <div class="result-actions">
           <button
             v-if="canConfirmReReg"
             type="button"
             class="btn-confirm-rereg"
-            :disabled="confirmReRegLoading"
+            :disabled="confirmReRegLoading || reRegDeadlinePassed"
             @click="doConfirmReReg"
           >
             <span v-if="confirmReRegLoading" class="btn-spinner"></span>
@@ -189,7 +201,9 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ppdbPublicApi } from '@/api/ppdbPublic'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const searchQuery = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -218,7 +232,18 @@ function statusLabel(s) {
 
 const canConfirmReReg = computed(() => {
   const r = result.value
-  return r && (r.status === 'passed' || r.status === 'reserve') && !r.re_registration_confirmed_at
+  if (!r || r.re_registration_confirmed_at) return false
+  if (r.status !== 'passed' && r.status !== 'reserve') return false
+  if (reRegDeadlinePassed.value) return false
+  return true
+})
+
+const reRegDeadlinePassed = computed(() => {
+  const r = result.value
+  if (!r?.re_registration_deadline) return false
+  const deadline = new Date(r.re_registration_deadline)
+  deadline.setHours(23, 59, 59, 999)
+  return new Date() > deadline
 })
 
 function formatDateId(val) {
@@ -301,7 +326,7 @@ function printFormulir() {
   const printContent = printAreaRef.value.innerHTML
   const win = window.open('', '_blank')
   if (!win) {
-    alert('Izinkan pop-up untuk mencetak formulir.')
+    toast.info('Cetak formulir', 'Izinkan pop-up browser untuk mencetak formulir hasil seleksi.')
     return
   }
   win.document.write(`
@@ -408,6 +433,19 @@ function printFormulir() {
 }
 .success-banner .success-icon { flex-shrink: 0; }
 .result-success-banner { margin-top: 0.5rem; }
+.deadline-passed-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  border: 1px solid #fcd34d;
+}
+.deadline-passed-banner .deadline-icon { flex-shrink: 0; }
 .btn-spinner {
   width: 18px;
   height: 18px;

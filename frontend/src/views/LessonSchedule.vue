@@ -219,7 +219,9 @@ import { institutionApi } from '@/api/institution'
 import { semesterApi } from '@/api/semester'
 import { teacherApi } from '@/api/teacher'
 import { facilityApi } from '@/api/facility'
+import { useToast } from '@/composables/useToast'
 
+const toast = useToast()
 const activeTab = ref('byClass')
 const semesters = ref([])
 const classes = ref([])
@@ -410,7 +412,8 @@ async function deleteSlot(id) {
     loadByClassIfNeeded()
     loadSchedules()
   } catch (e) {
-    alert(e.formattedMessage || e.message || 'Gagal menghapus.')
+    const msg = e.formattedMessage || e.message || e.response?.data?.message || 'Slot jadwal tidak dapat dihapus. Coba lagi.'
+    toast.error('Gagal menghapus slot jadwal', msg)
   }
 }
 
