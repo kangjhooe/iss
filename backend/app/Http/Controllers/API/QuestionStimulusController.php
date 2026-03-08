@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Log;
-use Mews\Purifier\Facades\Purifier;
+use App\Services\HtmlPurifier;
 
 class QuestionStimulusController extends Controller
 {
@@ -130,15 +130,6 @@ class QuestionStimulusController extends Controller
     private function sanitizeStimulusHtml(string $html): string
     {
         $html = is_array($html) ? '' : (string) $html;
-        $html = trim($html);
-        if ($html === '') {
-            return $html;
-        }
-        try {
-            return Purifier::clean($html, 'question');
-        } catch (\Throwable $e) {
-            Log::warning('QuestionStimulus Purifier fallback', ['error' => $e->getMessage()]);
-            return strip_tags($html, '<p><br><strong><b><em><i><u><s><sub><sup><span><ul><ol><li><a><img><table><thead><tbody><tr><th><td><div><h2><h3><h4>');
-        }
+        return HtmlPurifier::sanitizeQuestion($html, 'question');
     }
 }

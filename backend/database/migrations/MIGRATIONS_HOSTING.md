@@ -2,7 +2,41 @@
 
 Jika di hosting muncul error **"Unknown column 'xxx' in 'SET'"** atau **"Column not found"**, biasanya database di server belum menjalankan migrasi terbaru (schema belum sama dengan kode).
 
-## Solusi umum
+## Error: "Method Illuminate\\Foundation\\Application::share does not exist"
+
+Jika saat menjalankan `php artisan migrate` muncul error:
+
+```text
+In Macroable.php line 115: Method Illuminate\Foundation\Application::share does not exist.
+```
+
+**Penyebab**: Cache bootstrap lama atau versi package (misalnya L5-Swagger) di server tidak kompatibel dengan Laravel yang dipakai.
+
+**Langkah perbaikan di hosting (jalankan berurutan):**
+
+1. **Bersihkan cache Laravel**
+   ```bash
+   php artisan config:clear
+   php artisan cache:clear
+   php artisan optimize:clear
+   ```
+
+2. **Hapus file cache bootstrap** (jika masih error):
+   - Hapus atau kosongkan isi folder `backend/bootstrap/cache/` **kecuali** file `.gitignore`.
+   - Atau hapus hanya: `config.php`, `services.php`, `packages.php` jika ada.
+   - Setelah itu jalankan lagi: `php artisan migrate`.
+
+3. **Pastikan dependency sama dengan development**
+   - Di server wajib pakai `composer install` (bukan `composer update`).
+   - Pastikan file `composer.lock` ikut di-upload / di-deploy agar versi package sama.
+
+4. **Opsi sementara: nonaktifkan L5-Swagger**
+   - Jika migrate harus jalan dulu dan error belum hilang, di `backend/bootstrap/app.php` hapus atau komentar baris `\L5Swagger\L5SwaggerServiceProvider::class` dari array `withProviders`.
+   - Setelah migrate berhasil, kembalikan lagi dan jalankan `composer install` + `php artisan optimize:clear`.
+
+---
+
+## Solusi umum (Unknown column)
 
 Jalankan di server hosting:
 

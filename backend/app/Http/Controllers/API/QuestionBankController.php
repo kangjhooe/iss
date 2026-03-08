@@ -15,7 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Log;
-use Mews\Purifier\Facades\Purifier;
+use App\Services\HtmlPurifier;
 
 class QuestionBankController extends Controller
 {
@@ -234,9 +234,6 @@ class QuestionBankController extends Controller
 
     private function sanitizeQuestionHtml(string $html): string
     {
-        if (trim($html) === '') {
-            return $html;
-        }
-        return Purifier::clean($html, 'question');
+        return HtmlPurifier::sanitizeQuestion($html, 'question');
     }
 }

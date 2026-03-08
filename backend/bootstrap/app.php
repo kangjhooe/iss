@@ -4,8 +4,21 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
+// Kompatibilitas: paket lama (mis. l5-swagger versi lama) memakai Application::share() yang sudah dihapus di Laravel 5.4+.
+// share($closure) dulu dipakai: $app['key'] = $app->share(function($app) { ... }); kita emulasikan dengan closure yang singleton.
+Application::macro('share', function (\Closure $closure) {
+    $cached = null;
+    return function ($app) use ($closure, &$cached) {
+        if ($cached === null) {
+            $cached = $closure($app);
+        }
+        return $cached;
+    };
+});
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
+        \App\Providers\OptionalPurifierServiceProvider::class,
         \L5Swagger\L5SwaggerServiceProvider::class,
     ])
     ->withRouting(

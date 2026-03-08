@@ -13,9 +13,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('institution', function (Blueprint $table) {
-            $table->text('vision')->nullable()->after('description');
-            $table->text('mission')->nullable()->after('vision');
-            $table->string('cover_image')->nullable()->after('logo')->comment('Gambar cover/hero halaman publik');
+            if (!Schema::hasColumn('institution', 'vision')) {
+                $table->text('vision')->nullable()->after('description');
+            }
+            if (!Schema::hasColumn('institution', 'mission')) {
+                $table->text('mission')->nullable()->after('vision');
+            }
+            if (!Schema::hasColumn('institution', 'cover_image')) {
+                $table->string('cover_image')->nullable()->after('logo')->comment('Gambar cover/hero halaman publik');
+            }
         });
     }
 
@@ -25,7 +31,13 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('institution', function (Blueprint $table) {
-            $table->dropColumn(['vision', 'mission', 'cover_image']);
+            $columnsToDrop = array_filter(
+                ['vision', 'mission', 'cover_image'],
+                fn ($col) => Schema::hasColumn('institution', $col)
+            );
+            if (!empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 };

@@ -38,7 +38,7 @@ class InstitutionResource extends JsonResource
             'description' => $this->description,
             'vision' => $this->vision,
             'mission' => $this->mission,
-            'logo' => $this->logo ? url('/api/v1/institution/' . $this->id . '/logo') : null,
+            'logo' => $this->logo ? asset('storage/' . $this->logo) : null,
             'cover_image' => $this->cover_image ? asset('storage/' . $this->cover_image) : null,
             'is_active' => $this->is_active,
             'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
