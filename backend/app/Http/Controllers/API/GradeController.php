@@ -10,6 +10,7 @@ use App\Http\Resources\GradeResource;
 use App\Models\Grade;
 use App\Models\LessonSchedule;
 use App\Services\GradeService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
@@ -23,14 +24,31 @@ class GradeController extends Controller
         protected GradeService $gradeService
     ) {}
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
+    private function canAccessGrade($user, Grade $grade): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return InstitutionContext::canAccessInstitution($user, (int) $grade->institution_id);
+    }
+
     /**
      * List grades with filters.
      */
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -56,7 +74,7 @@ class GradeController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -102,7 +120,7 @@ class GradeController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -152,7 +170,7 @@ class GradeController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -209,7 +227,7 @@ class GradeController extends Controller
     public function show(Request $request, Grade $grade): GradeResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $grade->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessGrade($user, $grade)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $grade->load(['student', 'subject', 'schoolClass', 'semester', 'employee']);
@@ -223,7 +241,7 @@ class GradeController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $grade->institution_id && !$user->isSuperAdmin()) {
+            if (!$this->canAccessGrade($user, $grade)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
             $grade->update($request->validated());
@@ -241,7 +259,7 @@ class GradeController extends Controller
     public function destroy(Request $request, Grade $grade): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $grade->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessGrade($user, $grade)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $grade->delete();
@@ -255,7 +273,7 @@ class GradeController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -336,7 +354,7 @@ class GradeController extends Controller
                 }
                 $institutionId = $profile->institution_id;
             } else {
-                $institutionId = $user->institution_id;
+                $institutionId = $this->resolveInstitutionId($request);
             }
 
             if (!$institutionId) {
@@ -374,7 +392,7 @@ class GradeController extends Controller
                 }
                 $institutionId = $profile->institution_id;
             } else {
-                $institutionId = $user->institution_id;
+                $institutionId = $this->resolveInstitutionId($request);
             }
 
             if (!$institutionId) {

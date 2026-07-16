@@ -51,7 +51,7 @@ class TeacherRepository extends BaseRepository
 
         $perPage = min($perPage, 100);
 
-        return $query->select(['id', 'institution_id', 'nip', 'nuptk', 'name', 'gender', 'status', 'employment_status', 'created_at'])
+        return $query->select(['id', 'institution_id', 'nip', 'nuptk', 'name', 'gender', 'status', 'employment_status', 'notes', 'created_at'])
             ->with('institution:id,name')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);

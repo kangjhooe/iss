@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateSubjectRequest;
 use App\Http\Resources\SubjectResource;
 use App\Models\Subject;
 use App\Services\SubjectService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -19,11 +20,28 @@ class SubjectController extends Controller
     {
     }
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
+    private function canAccessSubject($user, Subject $subject): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return InstitutionContext::canAccessInstitution($user, (int) $subject->institution_id);
+    }
+
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -43,8 +61,7 @@ class SubjectController extends Controller
     public function store(StoreSubjectRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -62,7 +79,7 @@ class SubjectController extends Controller
     public function show(Request $request, Subject $subject): SubjectResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $subject->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessSubject($user, $subject)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         return new SubjectResource($subject);
@@ -72,7 +89,7 @@ class SubjectController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $subject->institution_id && !$user->isSuperAdmin()) {
+            if (!$this->canAccessSubject($user, $subject)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
             $subject = $this->subjectService->update($subject, $request->validated());
@@ -89,7 +106,7 @@ class SubjectController extends Controller
     public function destroy(Request $request, Subject $subject): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $subject->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessSubject($user, $subject)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         if ($subject->lessonSchedules()->exists()) {

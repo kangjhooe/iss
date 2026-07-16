@@ -20,7 +20,7 @@
                 <span class="card-desc">{{ v.violation_type?.name || v.description || '-' }}</span>
                 <span class="card-date">{{ formatDate(v.violation_date || v.date) }}</span>
               </div>
-              <div v-if="v.points !== undefined" class="card-meta">Poin: {{ v.points }}</div>
+              <div v-if="violationPoints(v) != null" class="card-meta">Poin: +{{ violationPoints(v) }}</div>
             </div>
           </div>
           <div v-else class="empty-state">
@@ -39,7 +39,7 @@
                 <span class="card-desc">{{ a.achievement_type?.name || a.description || '-' }}</span>
                 <span class="card-date">{{ formatDate(a.achievement_date || a.date) }}</span>
               </div>
-              <div v-if="a.points !== undefined" class="card-meta">Poin: {{ a.points }}</div>
+              <div v-if="achievementPoints(a) != null" class="card-meta">Poin: −{{ achievementPoints(a) }}</div>
             </div>
           </div>
           <div v-else class="empty-state">
@@ -73,6 +73,16 @@ function formatDate(val) {
   if (!val) return '-'
   const d = new Date(val)
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function violationPoints(v) {
+  const pts = v.point_weight ?? v.violation_type?.point_weight ?? v.points
+  return pts === undefined || pts === null ? null : pts
+}
+
+function achievementPoints(a) {
+  const pts = a.point_value ?? a.achievement_type?.point_value ?? a.points
+  return pts === undefined || pts === null ? null : pts
 }
 
 onMounted(async () => {

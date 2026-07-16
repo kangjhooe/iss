@@ -19,6 +19,9 @@ class StoreStudentActionLogRequest extends FormRequest
             'action_name' => 'required|string|max:255',
             'action_date' => 'required|date',
             'notes' => 'nullable|string',
+            'mark_violations_resolved' => 'sometimes|boolean',
+            'academic_year_id' => 'nullable|exists:academic_years,id',
+            'semester_id' => 'nullable|exists:semesters,id',
         ];
     }
 }

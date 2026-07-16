@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_active',
         'failed_login_attempts',
         'locked_until',
         'email_verified_at',
@@ -50,6 +51,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'locked_until' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -214,6 +216,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the surat created by this user.
+     */
+    public function suratCreated()
+    {
+        return $this->hasMany(Surat::class, 'created_by');
+    }
+
+    /**
+     * Get the announcements created by this user.
+     */
+    public function announcementsCreated()
+    {
+        return $this->hasMany(Announcement::class, 'created_by');
+    }
+
+    /**
      * Get the correspondence created by this user.
      */
     public function correspondencesCreated()
@@ -327,11 +345,123 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether the user may manage a lab room (admin or assigned penanggung jawab).
+     */
+    public function canManageLab(Room $room): bool
+    {
+        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+            return true;
+        }
+
+        if (!\App\Support\InstitutionContext::canAccessInstitution($this, (int) $room->institution_id)) {
+            return false;
+        }
+
+        if ($room->type !== 'Laboratorium') {
+            return true;
+        }
+
+        $employee = $this->employeeProfile()->first();
+
+        return $employee && (int) $room->responsible_employee_id === (int) $employee->id;
+    }
+
+    /**
+     * Whether the user is penanggung jawab (Kepala Lab) for at least one laboratorium.
+     */
+    public function isLabResponsible(): bool
+    {
+        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+            return false;
+        }
+
+        $employee = $this->employeeProfile()->first();
+        if (!$employee) {
+            return false;
+        }
+
+        return Room::query()
+            ->where('type', 'Laboratorium')
+            ->where('responsible_employee_id', $employee->id)
+            ->exists();
+    }
+
+    /**
+     * Whether the user is pembina of at least one ekstrakurikuler.
+     */
+    public function isExtracurricularSupervisor(): bool
+    {
+        return \App\Support\ExtracurricularAccess::isSupervisor($this);
+    }
+
+    /**
+     * Room IDs of labs this user is responsible for.
+     *
+     * @return array<int, int>
+     */
+    public function managedLabRoomIds(): array
+    {
+        $employee = $this->employeeProfile()->first();
+        if (!$employee) {
+            return [];
+        }
+
+        return Room::query()
+            ->where('type', 'Laboratorium')
+            ->where('responsible_employee_id', $employee->id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Whether the user may view a lab room in an accessible institution.
+     */
+    public function canViewLab(Room $room): bool
+    {
+        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+            return true;
+        }
+
+        return \App\Support\InstitutionContext::canAccessInstitution($this, (int) $room->institution_id);
+    }
+
+    /**
      * Check if user account is locked.
+     * Expired locks are cleared so the user gets a fresh attempt window.
      */
     public function isLocked(): bool
     {
-        return $this->locked_until && $this->locked_until->isFuture();
+        if (!$this->locked_until) {
+            return false;
+        }
+
+        if ($this->locked_until->isFuture()) {
+            return true;
+        }
+
+        // Lock window expired — reset counter so one wrong password
+        // does not immediately re-lock the account.
+        $this->forceFill([
+            'failed_login_attempts' => 0,
+            'locked_until' => null,
+        ])->save();
+
+        return false;
+    }
+
+    /**
+     * Minutes remaining until lock expires (at least 1 while locked).
+     */
+    public function lockedMinutesRemaining(): int
+    {
+        if (!$this->locked_until || !$this->locked_until->isFuture()) {
+            return 0;
+        }
+
+        $seconds = $this->locked_until->getTimestamp() - now()->getTimestamp();
+
+        return (int) max(1, (int) ceil($seconds / 60));
     }
 
     /**

@@ -119,6 +119,14 @@ class Correspondence extends Model
     }
 
     /**
+     * Get the editor surat linked to this correspondence (1:1 after publish).
+     */
+    public function surat()
+    {
+        return $this->hasOne(Surat::class, 'correspondence_id');
+    }
+
+    /**
      * Scope a query to filter by type.
      */
     public function scopeByType($query, string $type)

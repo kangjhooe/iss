@@ -18,7 +18,16 @@ class AppBranding extends Model
         'hero_primary_cta_to',
         'hero_secondary_cta_text',
         'hero_secondary_cta_to',
+        'maintenance_mode',
+        'maintenance_message',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'maintenance_mode' => 'boolean',
+        ];
+    }
 
     protected $appends = ['app_logo_url', 'favicon_url', 'hero_image_url'];
 

@@ -33,6 +33,13 @@
           <p class="action-range">
             Rentang poin: {{ summary.required_action.point_min }} – {{ summary.required_action.point_max }}
           </p>
+          <p v-if="summary.action_fulfilled" class="action-fulfilled">Status: sudah ditindak pada periode ini.</p>
+          <p v-else-if="summary.action_pending" class="action-pending">
+            Status: menunggu pelaksanaan tindakan
+            <template v-if="summary.new_points_since_action > 0">
+              (skor naik +{{ summary.new_points_since_action }} sejak tindakan terakhir)
+            </template>.
+          </p>
         </div>
 
         <div v-else class="action-card action-ok">
@@ -125,6 +132,8 @@ onMounted(async () => {
 .action-name { font-weight: 600; color: #0f172a; margin: 0 0 6px 0; }
 .action-desc { font-size: 14px; color: #475569; margin: 0 0 6px 0; }
 .action-range { font-size: 13px; color: #64748b; margin: 0; }
+.action-fulfilled { font-size: 13px; color: #047857; font-weight: 600; margin: 8px 0 0; }
+.action-pending { font-size: 13px; color: #b45309; font-weight: 600; margin: 8px 0 0; }
 
 .back-link { display: inline-block; margin-top: 16px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
 .back-link:hover { text-decoration: underline; color: #047857; }

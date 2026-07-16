@@ -60,6 +60,24 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTeacher: true }
     },
     {
+      path: '/teacher/poin',
+      name: 'TeacherMyPoints',
+      component: () => import('@/views/TeacherMyPoints.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true }
+    },
+    {
+      path: '/teacher-appreciation',
+      name: 'TeacherAppreciation',
+      component: () => import('@/views/TeacherAppreciation.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['teacher_appreciation', 'teacher_violation_report'] }
+    },
+    {
+      path: '/guru-piket',
+      name: 'GuruPiket',
+      component: () => import('@/views/GuruPiket.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['guru_piket', 'guru_piket_manage'] }
+    },
+    {
       path: '/super-admin/dashboard',
       name: 'SuperAdminDashboard',
       component: () => import('@/views/SuperAdminDashboard.vue'),
@@ -69,6 +87,48 @@ const router = createRouter({
       path: '/super-admin/app-branding',
       name: 'AppBranding',
       component: () => import('@/views/AppBranding.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/institution-admins',
+      name: 'InstitutionAdmins',
+      component: () => import('@/views/InstitutionAdmins.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/onboard',
+      name: 'SuperAdminOnboard',
+      component: () => import('@/views/SuperAdminOnboard.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/adoption',
+      name: 'AdoptionMonitoring',
+      component: () => import('@/views/AdoptionMonitoring.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/broadcasts',
+      name: 'BroadcastAnnouncements',
+      component: () => import('@/views/BroadcastAnnouncements.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/templates',
+      name: 'SuperAdminTemplates',
+      component: () => import('@/views/SuperAdminTemplates.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/reports',
+      name: 'AggregateReport',
+      component: () => import('@/views/AggregateReport.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/system-settings',
+      name: 'SystemSettings',
+      component: () => import('@/views/SystemSettings.vue'),
       meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
@@ -162,6 +222,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
+      path: '/luluskan-siswa',
+      name: 'LuluskanSiswa',
+      component: () => import('@/views/LuluskanSiswa.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
       path: '/naik-kelas',
       name: 'NaikKelas',
       component: () => import('@/views/NaikKelas.vue'),
@@ -180,10 +246,22 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'counseling' }
     },
     {
+      path: '/laporan-bk',
+      name: 'LaporanBk',
+      component: () => import('../views/LaporanBk.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'] }
+    },
+    {
       path: '/extracurricular',
       name: 'Extracurricular',
       component: () => import('../views/Extracurricular.vue'),
-      meta: { requiresAuth: true, requiresModule: 'extracurricular' }
+      meta: { requiresAuth: true, requiresModule: 'extracurricular', allowExtracurricularSupervisor: true }
+    },
+    {
+      path: '/extracurricular/:id',
+      name: 'ExtracurricularDetail',
+      component: () => import('../views/ExtracurricularDetail.vue'),
+      meta: { requiresAuth: true, requiresModule: 'extracurricular', allowExtracurricularSupervisor: true }
     },
     {
       path: '/subject',
@@ -261,7 +339,19 @@ const router = createRouter({
       path: '/lab',
       name: 'Lab',
       component: () => import('@/views/Lab.vue'),
-      meta: { requiresAuth: true, requiresModule: 'facility' }
+      meta: { requiresAuth: true, requiresModule: 'facility', allowLabResponsible: true }
+    },
+    {
+      path: '/lab/:id',
+      name: 'LabDetail',
+      component: () => import('@/views/LabDetail.vue'),
+      meta: { requiresAuth: true, requiresModule: 'facility', allowLabResponsible: true }
+    },
+    {
+      path: '/lab-booking',
+      name: 'LabBookingRequest',
+      component: () => import('@/views/LabBookingRequest.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/class',
@@ -302,6 +392,30 @@ const router = createRouter({
     {
       path: '/correspondence',
       name: 'Correspondence',
+      component: () => import('@/views/Surat/Index.vue'),
+      meta: { requiresAuth: true, requiresModule: 'correspondence' }
+    },
+    {
+      path: '/correspondence/templates',
+      name: 'CorrespondenceTemplates',
+      component: () => import('@/views/Surat/Template/Index.vue'),
+      meta: { requiresAuth: true, requiresModule: 'correspondence' }
+    },
+    {
+      path: '/correspondence/kop',
+      name: 'CorrespondenceKop',
+      component: () => import('@/views/Surat/Kop/Index.vue'),
+      meta: { requiresAuth: true, requiresModule: 'correspondence' }
+    },
+    {
+      path: '/correspondence/tanda-tangan',
+      name: 'CorrespondenceTandaTangan',
+      component: () => import('@/views/Surat/TandaTangan/Index.vue'),
+      meta: { requiresAuth: true, requiresModule: 'correspondence' }
+    },
+    {
+      path: '/correspondence/workflow',
+      name: 'CorrespondenceWorkflow',
       component: () => import('@/views/Correspondence.vue'),
       meta: { requiresAuth: true, requiresModule: 'correspondence' }
     },
@@ -477,7 +591,24 @@ const hasModuleAccess = (user, moduleKey) => {
   if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'institution_admin') {
     return true
   }
-  return (user.permissions || []).includes(moduleKey)
+  if ((user.permissions || []).includes(moduleKey)) return true
+  // Guru terjadwal piket boleh akses modul operasional (bukan manage)
+  if (moduleKey === 'guru_piket' && (user.is_piket_scheduled || user.is_piket_on_duty)) {
+    return true
+  }
+  return false
+}
+
+const hasAnyModuleAccess = (user, moduleKeys) => {
+  if (!user || !Array.isArray(moduleKeys) || !moduleKeys.length) return false
+  if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'institution_admin') {
+    return true
+  }
+  if (moduleKeys.some(k => hasModuleAccess(user, k))) return true
+  if (moduleKeys.includes('guru_piket') && (user.is_piket_scheduled || user.is_piket_on_duty)) {
+    return true
+  }
+  return false
 }
 
 router.beforeEach(async (to, from, next) => {
@@ -661,6 +792,28 @@ router.beforeEach(async (to, from, next) => {
     } else {
       next()
     }
+  } else if (to.meta.requiresAnyModule) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next('/login')
+        return
+      }
+    }
+
+    if (!hasAnyModuleAccess(authStore.user, to.meta.requiresAnyModule)) {
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
+    } else {
+      next()
+    }
   } else if (to.meta.requiresModule) {
     if (!authStore.user) {
       try {
@@ -674,6 +827,14 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (!hasModuleAccess(authStore.user, to.meta.requiresModule)) {
+      if (to.meta.allowLabResponsible && authStore.user?.is_lab_responsible) {
+        next()
+        return
+      }
+      if (to.meta.allowExtracurricularSupervisor && authStore.user?.is_extracurricular_supervisor) {
+        next()
+        return
+      }
       const defaultRoute = getDefaultRoute(authStore.user?.role)
       if (to.path !== defaultRoute) {
         next(defaultRoute)

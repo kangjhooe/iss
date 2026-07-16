@@ -29,6 +29,32 @@ class EnsureModuleAccess
                 break;
             }
         }
+
+        // Kepala Lab (penanggung jawab) may use facility/inventory/schedule APIs
+        // for managing their assigned labs without full module grants.
+        if (!$hasAccess) {
+            $labModules = ['facility', 'inventory', 'schedule'];
+            $needsLabBypass = count(array_intersect($keys, $labModules)) > 0;
+            if ($needsLabBypass && $user->isLabResponsible()) {
+                $hasAccess = true;
+            }
+        }
+
+        // Pembina ekskul may use extracurricular APIs for supervised clubs
+        // even before permission sync / re-login.
+        if (!$hasAccess && in_array('extracurricular', $keys, true) && $user->isExtracurricularSupervisor()) {
+            $hasAccess = true;
+        }
+
+        // Guru terjadwal piket boleh akses API modul (lapor kejadian / log)
+        // meskipun permission belum tersync ke session.
+        if (!$hasAccess) {
+            $needsPiketBypass = count(array_intersect($keys, ['guru_piket', 'guru_piket_manage'])) > 0;
+            if ($needsPiketBypass && \App\Support\PiketAccess::canAccess($user)) {
+                $hasAccess = true;
+            }
+        }
+
         if (!$hasAccess) {
             return response()->json(['message' => 'Forbidden'], 403);
         }

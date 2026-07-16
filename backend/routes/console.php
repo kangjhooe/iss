@@ -4,6 +4,18 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
+Artisan::command('wali-kelas:revoke-class-permission', function () {
+    $service = app(\App\Services\WaliKelasPermissionService::class);
+    $synced = $service->syncAllCurrentWaliKelas();
+    $this->info("Synced wali kelas permissions for {$synced} teacher(s) (student/class/violation/counseling stripped unless from duty).");
+})->purpose('Sinkronkan ulang permission wali kelas (cabut student/class/BK penuh jika bukan dari tugas tambahan)');
+
+Artisan::command('wali-kelas:sync-permissions', function () {
+    $service = app(\App\Services\WaliKelasPermissionService::class);
+    $synced = $service->syncAllCurrentWaliKelas();
+    $this->info("Synced wali kelas permissions for {$synced} teacher(s).");
+})->purpose('Sinkronkan ulang permission semua wali kelas aktif');
+
 Artisan::command('swagger:generate', function () {
     // Generate Swagger documentation manually
     $this->info('Generating Swagger documentation...');
@@ -32,4 +44,10 @@ Schedule::command('academic-calendar:send-reminders')
 // Rotate exam entry PIN every 20 minutes for started sessions
 Schedule::command('exam:rotate-entry-pins')
     ->cron('*/20 * * * *')
+    ->withoutOverlapping();
+
+// Mark overdue inventory loans daily
+Schedule::command('inventory:mark-loans-overdue')
+    ->dailyAt('01:00')
+    ->timezone('Asia/Jakarta')
     ->withoutOverlapping();

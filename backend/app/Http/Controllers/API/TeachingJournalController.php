@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateTeachingJournalRequest;
 use App\Http\Resources\TeachingJournalResource;
 use App\Models\TeachingJournal;
 use App\Services\TeachingJournalService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,24 @@ class TeachingJournalController extends Controller
         protected TeachingJournalService $teachingJournalService
     ) {}
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
+    private function canAccessJournal($user, TeachingJournal $journal): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return InstitutionContext::canAccessInstitution($user, (int) $journal->institution_id);
+    }
+
     /**
      * List teaching journals for current institution.
      * Teachers (role teacher/staff) see only their own entries unless admin.
@@ -28,7 +47,7 @@ class TeachingJournalController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -71,7 +90,7 @@ class TeachingJournalController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -109,7 +128,7 @@ class TeachingJournalController extends Controller
     public function show(Request $request, TeachingJournal $teaching_journal): TeachingJournalResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $teaching_journal->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessJournal($user, $teaching_journal)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -132,7 +151,7 @@ class TeachingJournalController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $teaching_journal->institution_id && !$user->isSuperAdmin()) {
+            if (!$this->canAccessJournal($user, $teaching_journal)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -163,7 +182,7 @@ class TeachingJournalController extends Controller
     public function destroy(Request $request, TeachingJournal $teaching_journal): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $teaching_journal->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessJournal($user, $teaching_journal)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -186,7 +205,7 @@ class TeachingJournalController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }

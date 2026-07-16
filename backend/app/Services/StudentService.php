@@ -46,6 +46,10 @@ class StudentService
             $query->where('class_id', $filters['class_id']);
         }
 
+        if (!empty($filters['class_ids']) && is_array($filters['class_ids'])) {
+            $query->whereIn('class_id', $filters['class_ids']);
+        }
+
         if (isset($filters['academic_year'])) {
             $query->where('academic_year', $filters['academic_year']);
         }
@@ -162,23 +166,46 @@ class StudentService
 
     /**
      * Determine history status based on changes.
+     * Nilai harus cocok dengan enum class_student_history.status:
+     * Aktif | Pindah | Lulus | Drop Out
      */
     protected function determineHistoryStatus(bool $classChanged, bool $academicYearChanged, bool $statusChanged, string $newStatus): string
     {
-        // Priority: status change > class change > academic year change
-        if ($statusChanged && in_array($newStatus, ['Lulus', 'Pindah', 'Drop Out'])) {
-            return strtolower(str_replace(' ', '_', $newStatus));
-        }
-
-        if ($classChanged) {
-            return 'pindah';
+        if ($statusChanged && in_array($newStatus, ['Lulus', 'Pindah', 'Drop Out'], true)) {
+            return $newStatus;
         }
 
         if ($academicYearChanged) {
-            return 'naik_kelas';
+            return 'Aktif'; // naik kelas ke tahun ajaran baru
         }
 
-        return 'update';
+        if ($classChanged) {
+            return 'Pindah';
+        }
+
+        return 'Aktif';
+    }
+
+    /**
+     * Normalisasi status riwayat kelas ke nilai enum database.
+     */
+    protected function normalizeHistoryStatus(string $status): string
+    {
+        $map = [
+            'masuk' => 'Aktif',
+            'naik_kelas' => 'Aktif',
+            'update' => 'Aktif',
+            'aktif' => 'Aktif',
+            'Aktif' => 'Aktif',
+            'pindah' => 'Pindah',
+            'Pindah' => 'Pindah',
+            'lulus' => 'Lulus',
+            'Lulus' => 'Lulus',
+            'drop_out' => 'Drop Out',
+            'Drop Out' => 'Drop Out',
+        ];
+
+        return $map[$status] ?? 'Aktif';
     }
 
     /**
@@ -230,7 +257,7 @@ class StudentService
             'academic_year_id' => $academicYearId,
             'semester_id' => $semesterId,
             'start_date' => now(),
-            'status' => $status,
+            'status' => $this->normalizeHistoryStatus($status),
             'notes' => "Auto-generated: {$status}",
         ]);
     }
@@ -325,7 +352,7 @@ class StudentService
 
         if ($oldClassId && $oldAcademicYearId) {
             $this->endPreviousHistory($student->id, $oldClassId, $oldAcademicYearId);
-            $this->createClassHistory($student, $oldClassId, $oldAcademicYearId, $student->semester_id, 'lulus');
+            $this->createClassHistory($student, $oldClassId, $oldAcademicYearId, $student->semester_id, 'Lulus');
         }
 
         $student->update([

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\WaliKelasAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,15 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $homeroomClassIds = [];
+        $bkScopeMode = 'all';
+        try {
+            $homeroomClassIds = WaliKelasAccess::homeroomClassIds($this->resource)->all();
+            $bkScopeMode = WaliKelasAccess::mustScopeBkToHomeroom($this->resource) ? 'homeroom' : 'all';
+        } catch (\Throwable $e) {
+            // ignore — jangan gagalkan payload user
+        }
+
         return [
             'id' => $this->id,
             'institution_id' => $this->institution_id,
@@ -31,7 +41,46 @@ class UserResource extends JsonResource
                 },
                 []
             ),
+            'homeroom_class_ids' => $homeroomClassIds,
+            'bk_scope' => $bkScopeMode,
+            'is_lab_responsible' => (function () {
+                try {
+                    return $this->resource->isLabResponsible();
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })(),
+            'is_extracurricular_supervisor' => (function () {
+                try {
+                    return $this->resource->isExtracurricularSupervisor();
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })(),
+            'is_piket_scheduled' => (function () use ($request) {
+                try {
+                    $institutionId = $request->attributes->get('current_institution_id');
+                    return \App\Support\PiketAccess::isScheduled(
+                        $this->resource,
+                        $institutionId ? (int) $institutionId : null
+                    );
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })(),
+            'is_piket_on_duty' => (function () use ($request) {
+                try {
+                    $institutionId = $request->attributes->get('current_institution_id');
+                    return \App\Support\PiketAccess::isOnDutyToday(
+                        $this->resource,
+                        $institutionId ? (int) $institutionId : null
+                    );
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })(),
             'email_verified_at' => $this->email_verified_at?->toISOString(),
+            'is_active' => $this->is_active !== false,
             'is_locked' => $this->isLocked(),
             'failed_login_attempts' => $this->failed_login_attempts ?? 0,
             'institution' => $this->when(

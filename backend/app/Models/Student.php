@@ -161,6 +161,14 @@ class Student extends Model
     }
 
     /**
+     * Get the surat (editor) for this student.
+     */
+    public function surat()
+    {
+        return $this->hasMany(Surat::class);
+    }
+
+    /**
      * Get the student mutations (mutasi) for this student.
      */
     public function studentMutations()

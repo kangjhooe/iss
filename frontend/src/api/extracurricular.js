@@ -40,4 +40,45 @@ export const extracurricularApi = {
   removeStudent(extracurricularId, studentId, params) {
     return api.delete(`/v1/extracurriculars/${extracurricularId}/students/${studentId}`, { params })
   },
+
+  // Activity
+  getSessions(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/sessions`, { params })
+  },
+  createSession(id, data) {
+    return api.post(`/v1/extracurriculars/${id}/sessions`, data)
+  },
+  updateSession(id, sessionId, data) {
+    return api.put(`/v1/extracurriculars/${id}/sessions/${sessionId}`, data)
+  },
+  deleteSession(id, sessionId) {
+    return api.delete(`/v1/extracurriculars/${id}/sessions/${sessionId}`)
+  },
+  getAttendances(id, sessionId) {
+    return api.get(`/v1/extracurriculars/${id}/sessions/${sessionId}/attendances`)
+  },
+  saveAttendances(id, sessionId, data) {
+    return api.put(`/v1/extracurriculars/${id}/sessions/${sessionId}/attendances`, data)
+  },
+  getGrades(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/grades`, { params })
+  },
+  saveGrades(id, data) {
+    return api.put(`/v1/extracurriculars/${id}/grades`, data)
+  },
+  getReport(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/report`, { params })
+  },
+  exportReport(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/report/export`, {
+      params,
+      responseType: 'blob',
+    })
+  },
+  exportReportPdf(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/report/pdf`, {
+      params,
+      responseType: 'blob',
+    })
+  },
 }

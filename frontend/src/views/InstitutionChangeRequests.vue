@@ -165,7 +165,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
@@ -207,13 +207,13 @@ const loadRequests = async () => {
   }
 }
 
-const showApproveModal = (request) => {
+const openApproveModal = (request) => {
   selectedRequest.value = request
   approveError.value = ''
   showApproveModalFlag.value = true
 }
 
-const showRejectModal = (request) => {
+const openRejectModal = (request) => {
   selectedRequest.value = request
   rejectionReason.value = ''
   rejectError.value = ''
@@ -619,5 +619,62 @@ onMounted(async () => {
 
 .loading-spinner {
   color: #059669;
+}
+
+@media (max-width: 768px) {
+  .filter-tabs {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .tab {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .request-card {
+    padding: 16px;
+  }
+
+  .request-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .detail-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .detail-row .label {
+    min-width: 0;
+  }
+
+  .request-actions {
+    flex-direction: column;
+  }
+
+  .btn-approve,
+  .btn-reject {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .modal-content {
+    width: 100%;
+    margin: 0;
+    max-height: calc(100dvh - 24px);
+  }
+
+  .empty-state {
+    padding: 48px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content h2 {
+    font-size: 22px;
+  }
 }
 </style>

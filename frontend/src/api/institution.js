@@ -14,6 +14,10 @@ export const institutionApi = {
     // Pakai POST agar body terbaca di hosting yang tidak meneruskan body PUT (nginx/shared hosting)
     return api.post(`/v1/institution/${id}/update`, data)
   },
+  updateStatus(id, isActive) {
+    // POST agar body terbaca di hosting yang tidak meneruskan body PATCH/PUT
+    return api.post(`/v1/institution/${id}/status`, { is_active: isActive })
+  },
   delete(id) {
     return api.delete(`/v1/institution/${id}`)
   },

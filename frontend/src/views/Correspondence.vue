@@ -4,7 +4,7 @@
       <div class="page-header">
         <div class="header-content">
           <div>
-            <h2>Persuratan</h2>
+            <h2>Arsip Persuratan</h2>
             <p>Kelola surat masuk, keluar, dan internal</p>
           </div>
           <div class="action-buttons-group">
@@ -91,7 +91,8 @@
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            Pencarian Lanjutan
+            <span class="btn-label-full">Pencarian Lanjutan</span>
+            <span class="btn-label-short">Filter</span>
           </button>
           <button @click="showExportModal = true" class="btn-secondary btn-sm">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -173,74 +174,129 @@
       </div>
 
       <div v-if="loading" class="loading-wrap">
-        <LoadingSkeleton type="table" :rows="8" :columns="7" :cell-widths="['120px', '80px', '80px', '1fr', '140px', '100px', '90px']" />
+        <LoadingSkeleton type="table" :rows="8" :columns="8" :cell-widths="['48px', '120px', '80px', '80px', '1fr', '140px', '100px', '90px']" />
       </div>
       
-      <div v-else class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th class="col-no-surat">No. Surat</th>
-              <th class="col-tipe">Tipe</th>
-              <th class="col-jenis">Jenis</th>
-              <th class="col-perihal">Perihal</th>
-              <th class="col-dari-kepada">Dari/Kepada</th>
-              <th class="col-tanggal">Tanggal</th>
-              <th class="col-aksi">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in correspondence" :key="item.id">
-              <td class="col-no-surat">{{ item.letter_number || item.reference_number || '-' }}</td>
-              <td class="col-tipe">
-                <span :class="['badge', getTypeClass(item.type)]">
-                  {{ getTypeLabel(item.type) }}
-                </span>
-              </td>
-              <td class="col-jenis">
-                <span v-if="item.letter_type_name" class="letter-type-badge">
-                  {{ item.letter_type_code }} - {{ item.letter_type_abbr }} ({{ item.letter_type_name }})
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td class="col-perihal">{{ item.subject }}</td>
-              <td class="col-dari-kepada">{{ item.type === 'masuk' ? (item.from || '-') : (item.to || '-') }}</td>
-              <td class="col-tanggal">{{ formatDate(item.date) }}</td>
-              <td class="col-aksi">
-                <div class="action-buttons">
-                  <button @click="viewCorrespondence(item)" class="btn-action btn-view" title="Lihat Detail">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button v-if="item.status === 'pending'" @click="approveCorrespondence(item.id)" class="btn-action btn-approve" title="Setujui">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button v-if="item.status === 'approved'" @click="sendCorrespondence(item.id)" class="btn-action btn-send" title="Kirim">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="editCorrespondence(item)" class="btn-action btn-edit" title="Edit">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="deleteCorrespondence(item.id)" class="btn-action btn-delete" title="Hapus">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else class="list-wrapper">
+        <!-- Desktop: table -->
+        <div v-if="correspondence.length > 0" class="table-container table-desktop">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th class="col-no-surat">No. Surat</th>
+                <th class="col-tipe">Tipe</th>
+                <th class="col-jenis">Jenis</th>
+                <th class="col-perihal">Perihal</th>
+                <th class="col-dari-kepada">Dari/Kepada</th>
+                <th class="col-tanggal">Tanggal</th>
+                <th class="col-aksi">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in correspondence" :key="item.id">
+                <td class="col-no">{{ rowNumber(index) }}</td>
+                <td class="col-no-surat">{{ item.letter_number || item.reference_number || '-' }}</td>
+                <td class="col-tipe">
+                  <span :class="['badge', getTypeClass(item.type)]">
+                    {{ getTypeLabel(item.type) }}
+                  </span>
+                </td>
+                <td class="col-jenis">
+                  <span v-if="item.letter_type_name" class="letter-type-badge">
+                    {{ item.letter_type_code }} - {{ item.letter_type_abbr }} ({{ item.letter_type_name }})
+                  </span>
+                  <span v-else>-</span>
+                </td>
+                <td class="col-perihal">{{ item.subject }}</td>
+                <td class="col-dari-kepada">{{ item.type === 'masuk' ? (item.from || '-') : (item.to || '-') }}</td>
+                <td class="col-tanggal">{{ formatDate(item.date) }}</td>
+                <td class="col-aksi">
+                  <div class="action-buttons">
+                    <button @click="viewCorrespondence(item)" class="btn-action btn-view" title="Lihat Detail">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button v-if="item.status === 'pending'" @click="approveCorrespondence(item.id)" class="btn-action btn-approve" title="Setujui">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button v-if="item.status === 'approved'" @click="sendCorrespondence(item.id)" class="btn-action btn-send" title="Kirim">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button @click="editCorrespondence(item)" class="btn-action btn-edit" title="Edit">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button @click="deleteCorrespondence(item.id)" class="btn-action btn-delete" title="Hapus">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile: cards -->
+        <div v-if="correspondence.length > 0" class="correspondence-cards table-mobile">
+          <div v-for="item in correspondence" :key="'m-' + item.id" class="correspondence-card">
+            <div class="correspondence-card-main">
+              <div class="correspondence-card-top">
+                <span :class="['badge', getTypeClass(item.type)]">{{ getTypeLabel(item.type) }}</span>
+                <span class="correspondence-card-date">{{ formatDate(item.date) }}</span>
+              </div>
+              <h3 class="correspondence-card-subject">{{ item.subject || '-' }}</h3>
+              <div class="correspondence-card-meta">
+                <span class="correspondence-card-number">{{ item.letter_number || item.reference_number || '-' }}</span>
+                <span v-if="item.letter_type_abbr" class="correspondence-card-type">{{ item.letter_type_code }} · {{ item.letter_type_abbr }}</span>
+              </div>
+              <p class="correspondence-card-party">
+                {{ item.type === 'masuk' ? 'Dari' : 'Kepada' }}: {{ item.type === 'masuk' ? (item.from || '-') : (item.to || '-') }}
+              </p>
+            </div>
+            <div class="correspondence-card-actions">
+              <button @click="viewCorrespondence(item)" class="btn-action btn-view" title="Lihat Detail">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button v-if="item.status === 'pending'" @click="approveCorrespondence(item.id)" class="btn-action btn-approve" title="Setujui">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button v-if="item.status === 'approved'" @click="sendCorrespondence(item.id)" class="btn-action btn-send" title="Kirim">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button @click="editCorrespondence(item)" class="btn-action btn-edit" title="Edit">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button @click="deleteCorrespondence(item.id)" class="btn-action btn-delete" title="Hapus">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
         <!-- Pagination -->
         <div v-if="correspondence.length > 0 && correspondenceList.last_page > 1" class="pagination">
@@ -1737,6 +1793,12 @@ const getFileUrl = (item) => {
   return '#'
 }
 
+const rowNumber = (index) => {
+  const page = correspondenceList.value.current_page || 1
+  const perPage = correspondenceList.value.per_page || 15
+  return (page - 1) * perPage + index + 1
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
@@ -1866,6 +1928,36 @@ onMounted(async () => {
   margin: 0;
 }
 
+.action-buttons-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.btn-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.btn-compact svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .btn-primary {
   display: flex;
   align-items: center;
@@ -1897,6 +1989,14 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
+.filters.filters-inline {
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
 .search-input {
   flex: 1;
   min-width: 200px;
@@ -1905,12 +2005,13 @@ onMounted(async () => {
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s;
+  box-sizing: border-box;
 }
 
 .search-input:focus {
   outline: none;
   border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .filter-select {
@@ -1921,12 +2022,14 @@ onMounted(async () => {
   background: white;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 140px;
+  box-sizing: border-box;
 }
 
 .filter-select:focus {
   outline: none;
   border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .loading-state {
@@ -1943,11 +2046,107 @@ onMounted(async () => {
   color: #059669;
 }
 
+.list-wrapper {
+  width: 100%;
+}
+
 .table-container {
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-desktop {
+  display: block;
+}
+
+.table-mobile {
+  display: none;
+}
+
+.correspondence-cards.table-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.correspondence-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.correspondence-card-main {
+  min-width: 0;
+}
+
+.correspondence-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.correspondence-card-date {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.correspondence-card-subject {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.correspondence-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.correspondence-card-number {
+  font-weight: 600;
+  color: #475569;
+  word-break: break-all;
+}
+
+.correspondence-card-type {
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.correspondence-card-party {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.correspondence-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
 }
 
 .data-table {
@@ -1971,6 +2170,16 @@ onMounted(async () => {
 }
 
 /* Column Widths */
+.data-table th.col-no,
+.data-table td.col-no {
+  width: 52px;
+  max-width: 52px;
+  min-width: 52px;
+  text-align: center;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
 .data-table th.col-no-surat,
 .data-table td.col-no-surat {
   width: 220px;
@@ -2216,7 +2425,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 11000;
   padding: 20px;
 }
 
@@ -2335,6 +2544,10 @@ textarea.form-input {
 }
 
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 10px 24px;
   background: white;
   color: #64748b;
@@ -2349,6 +2562,10 @@ textarea.form-input {
 .btn-secondary:hover {
   background: #f8fafc;
   border-color: #cbd5e1;
+}
+
+.btn-label-short {
+  display: none;
 }
 
 .detail-section {
@@ -2397,17 +2614,189 @@ textarea.form-input {
   text-decoration: underline;
 }
 
+@media (max-width: 1024px) {
+  .data-table th.col-no,
+  .data-table td.col-no,
+  .data-table th.col-no-surat,
+  .data-table td.col-no-surat,
+  .data-table th.col-jenis,
+  .data-table td.col-jenis,
+  .data-table th.col-dari-kepada,
+  .data-table td.col-dari-kepada,
+  .data-table th.col-tanggal,
+  .data-table td.col-tanggal,
+  .data-table th.col-tipe,
+  .data-table td.col-tipe,
+  .data-table th.col-aksi,
+  .data-table td.col-aksi {
+    min-width: 0;
+    width: auto;
+    max-width: none;
+  }
+
+  .data-table {
+    min-width: 900px;
+  }
+
+  /* Override global module-page.css compact-row layout */
+  .correspondence-page :deep(.action-buttons-group),
+  .action-buttons-group {
+    flex-wrap: wrap !important;
+  }
+
+  .correspondence-page .action-buttons-group .btn-compact,
+  .action-buttons-group .btn-compact {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 40px;
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+  }
+
+  .correspondence-page .action-buttons-group .btn-compact span,
+  .action-buttons-group .btn-compact span {
+    display: inline !important;
+  }
+
+  .correspondence-page .filters.filters-inline,
+  .filters.filters-inline {
+    flex-direction: column !important;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+
+  .correspondence-page .filters-inline .search-input,
+  .filters-inline .search-input,
+  .correspondence-page .filters-inline .filter-select,
+  .filters-inline .filter-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: 1 1 auto !important;
+    font-size: 14px !important;
+    padding: 10px 12px !important;
+  }
+}
+
 @media (max-width: 768px) {
   .correspondence-page {
-    padding: 16px;
+    padding: 12px;
+    padding-bottom: 88px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
   }
 
   .header-content {
     flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 
-  .filters {
-    flex-direction: column;
+  .header-content h2 {
+    font-size: 22px;
+  }
+
+  .header-content p {
+    font-size: 13px;
+  }
+
+  .action-buttons-group {
+    width: 100%;
+  }
+
+  .action-buttons-group .btn-add {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    justify-content: center;
+    padding: 12px 16px !important;
+    min-height: 44px;
+  }
+
+  .statistics-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .stat-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .action-bar {
+    margin-bottom: 12px;
+  }
+
+  .action-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  .action-group .btn-sm {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .action-group .btn-sm svg {
+    display: none;
+  }
+
+  .btn-label-full {
+    display: none;
+  }
+
+  .btn-label-short {
+    display: inline;
+  }
+
+  .filters.filters-inline {
+    flex-direction: column !important;
+    padding: 12px !important;
+    margin-bottom: 16px;
+    gap: 8px !important;
+  }
+
+  .search-input,
+  .filter-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .advanced-search {
+    padding: 12px;
+  }
+
+  .search-row {
+    grid-template-columns: 1fr;
   }
 
   .form-row,
@@ -2415,17 +2804,167 @@ textarea.form-input {
     grid-template-columns: 1fr;
   }
 
-  .data-table {
+  .table-desktop {
+    display: none;
+  }
+
+  .correspondence-cards.table-mobile {
+    display: flex;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+    padding: 14px;
+    margin-top: 12px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .pagination-info {
     font-size: 12px;
+    order: -1;
   }
 
-  .data-table th,
-  .data-table td {
-    padding: 12px 8px;
+  .pagination-btn {
+    width: 100%;
   }
 
-  .action-buttons {
-    flex-wrap: wrap;
+  .empty-state {
+    padding: 48px 20px;
+  }
+
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modal-large {
+    max-width: 100%;
+  }
+
+  .modal-header,
+  .modal-body {
+    padding: 16px;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .modal-footer .btn-primary,
+  .modal-footer .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .section-header .btn-sm {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .attachment-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .attachment-actions {
+    justify-content: flex-end;
+  }
+
+  .disposition-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .disposition-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .disposition-actions {
+    width: 100%;
+  }
+
+  .disposition-actions .btn-sm,
+  .disposition-actions .btn-complete {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .export-options {
+    flex-direction: column;
+  }
+
+  .btn-action {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .correspondence-page {
+    padding: 10px;
+    padding-bottom: 88px;
+  }
+
+  .statistics-dashboard {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stat-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .action-group {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .action-group .btn-sm {
+    padding: 10px 4px;
+    font-size: 11px;
+  }
+
+  .action-group .btn-sm svg {
+    display: none;
+  }
+
+  .btn-label-full {
+    display: none;
+  }
+
+  .btn-label-short {
+    display: inline;
+  }
+
+  .header-content h2 {
+    font-size: 20px;
+  }
+
+  .correspondence-card {
+    padding: 14px;
+  }
+
+  .correspondence-card-subject {
+    font-size: 14px;
   }
 }
 
@@ -2436,6 +2975,17 @@ textarea.form-input {
   padding: 20px;
   border-top: 1px solid #e2e8f0;
   background: #f8fafc;
+  border-radius: 0 0 12px 12px;
+}
+
+.table-desktop .pagination {
+  border-top: 1px solid #e2e8f0;
+}
+
+.list-wrapper > .pagination {
+  margin-top: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 
 .pagination-btn {
@@ -2757,7 +3307,7 @@ textarea.form-input {
 /* Statistics Dashboard */
 .statistics-dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -2842,6 +3392,7 @@ textarea.form-input {
 .action-group {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn-sm {

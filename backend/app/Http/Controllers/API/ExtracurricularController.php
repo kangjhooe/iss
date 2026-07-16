@@ -13,7 +13,10 @@ use App\Http\Resources\StudentResource;
 use App\Models\Extracurricular;
 use App\Models\ExtracurricularStudent;
 use App\Models\Institution;
+use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Support\ExtracurricularAccess;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -30,20 +33,25 @@ class ExtracurricularController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
             if (!$institutionId && !$user->isSuperAdmin()) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
-            if ($user->isSuperAdmin() && $request->has('institution_id')) {
-                $institutionId = $request->get('institution_id');
             }
             if (!$institutionId) {
                 return response()->json(['message' => 'Pilih institusi.'], 400);
             }
 
             $query = Extracurricular::forInstitution($institutionId)
-                ->withCount('extracurricularStudents as participants_count')
+                ->withCount(['extracurricularStudents as participants_count' => function ($q) use ($institutionId) {
+                    $activeSemesterId = $this->getActiveSemesterId($institutionId);
+                    if ($activeSemesterId) {
+                        $q->where('semester_id', $activeSemesterId);
+                    }
+                    $q->where('status', 'aktif');
+                }])
                 ->with(['supervisor:id,name,nip,email', 'academicYear:id,name,code', 'semester:id,name', 'room:id,name,code']);
+
+            ExtracurricularAccess::scopeVisible($query, $user);
 
             if ($request->filled('status')) {
                 $query->where('status', $request->get('status'));
@@ -66,7 +74,11 @@ class ExtracurricularController extends Controller
             $perPage = min($request->get('per_page', 15), 100);
             $items = $query->paginate($perPage);
 
-            return ExtracurricularResource::collection($items);
+            return ExtracurricularResource::collection($items)->additional([
+                'meta_access' => [
+                    'can_manage_all' => ExtracurricularAccess::canManageAll($user),
+                ],
+            ]);
         } catch (\Exception $e) {
             Log::error('Extracurricular index failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -83,12 +95,12 @@ class ExtracurricularController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            if (!ExtracurricularAccess::canMutateCatalog($user)) {
+                return response()->json(['message' => 'Hanya admin/koordinator yang dapat menambah ekstrakurikuler.'], 403);
+            }
+            $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
             if (!$institutionId && !$user->isSuperAdmin()) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
-            if ($user->isSuperAdmin() && $request->filled('institution_id')) {
-                $institutionId = $request->get('institution_id');
             }
             if (!$institutionId) {
                 return response()->json(['message' => 'Pilih institusi.'], 400);
@@ -99,7 +111,28 @@ class ExtracurricularController extends Controller
             if (!isset($data['status'])) {
                 $data['status'] = 'Aktif';
             }
+
+            $institution = Institution::find($institutionId);
+            $data['semester_id'] = $institution?->active_semester_id;
+            $data['academic_year_id'] = $institution?->active_academic_year_id
+                ?? $institution?->activeSemester?->academic_year_id;
+
+            if (isset($data['days_of_week']) && is_array($data['days_of_week'])) {
+                $data['days_of_week'] = array_values(array_unique(array_map('intval', $data['days_of_week'])));
+                sort($data['days_of_week']);
+            }
+            if (!empty($data['is_outdoor'])) {
+                $data['room_id'] = null;
+            } else {
+                $data['is_outdoor'] = false;
+                $data['location_note'] = $data['location_note'] ?? null;
+                if (!empty($data['room_id'])) {
+                    $data['location_note'] = null;
+                }
+            }
+
             $extracurricular = Extracurricular::create($data);
+            ExtracurricularAccess::grantAccessForEmployee($extracurricular->supervisor_employee_id);
 
             return (new ExtracurricularResource($extracurricular->load(['supervisor', 'academicYear', 'semester', 'room'])))
                 ->response()
@@ -119,7 +152,7 @@ class ExtracurricularController extends Controller
     public function show(Request $request, Extracurricular $extracurricular): ExtracurricularResource|JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+        if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -134,7 +167,12 @@ class ExtracurricularController extends Controller
             }]);
         }
 
-        return new ExtracurricularResource($extracurricular);
+        return (new ExtracurricularResource($extracurricular))->additional([
+            'meta_access' => [
+                'can_manage_all' => ExtracurricularAccess::canManageAll($user),
+                'can_mutate_catalog' => ExtracurricularAccess::canMutateCatalog($user),
+            ],
+        ]);
     }
 
     /**
@@ -144,11 +182,29 @@ class ExtracurricularController extends Controller
     {
         try {
             $user = $request->user();
-            if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+            if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $extracurricular->update($request->validated());
+            $data = $request->validated();
+            if (!ExtracurricularAccess::canMutateCatalog($user)) {
+                unset($data['supervisor_employee_id'], $data['status']);
+            }
+            if (isset($data['days_of_week']) && is_array($data['days_of_week'])) {
+                $data['days_of_week'] = array_values(array_unique(array_map('intval', $data['days_of_week'])));
+                sort($data['days_of_week']);
+            }
+            if (array_key_exists('is_outdoor', $data) && $data['is_outdoor']) {
+                $data['room_id'] = null;
+            } elseif (!empty($data['room_id'])) {
+                $data['is_outdoor'] = false;
+                $data['location_note'] = null;
+            }
+
+            $extracurricular->update($data);
+            if (array_key_exists('supervisor_employee_id', $data)) {
+                ExtracurricularAccess::grantAccessForEmployee($extracurricular->supervisor_employee_id);
+            }
             return new ExtracurricularResource($extracurricular->fresh(['supervisor', 'academicYear', 'semester', 'room']));
         } catch (\Exception $e) {
             Log::error('Extracurricular update failed', ['error' => $e->getMessage()]);
@@ -165,8 +221,8 @@ class ExtracurricularController extends Controller
     public function destroy(Request $request, Extracurricular $extracurricular): JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if (!ExtracurricularAccess::canMutateCatalog($user) || !ExtracurricularAccess::canAccess($user, $extracurricular)) {
+            return response()->json(['message' => 'Hanya admin/koordinator yang dapat menghapus ekstrakurikuler.'], 403);
         }
 
         if ($extracurricular->extracurricularStudents()->exists()) {
@@ -185,7 +241,7 @@ class ExtracurricularController extends Controller
     public function getStudents(Request $request, Extracurricular $extracurricular): JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+        if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -199,31 +255,37 @@ class ExtracurricularController extends Controller
         }
         $participants = $query->orderBy('joined_at', 'desc')->get();
 
-        return response()->json(['data' => ExtracurricularStudentResource::collection($participants)]);
+        return response()->json([
+            'data' => ExtracurricularStudentResource::collection($participants)->resolve(),
+        ]);
     }
 
     /**
-     * List students available to add (same institution, not already in this ekskul for the semester).
+     * List students available to add. Requires class_id.
      */
     public function getAvailableStudents(Request $request, Extracurricular $extracurricular): JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+        if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $semesterId = $request->get('semester_id') ?? $this->getActiveSemesterId($extracurricular->institution_id);
-        if (!$semesterId) {
-            return response()->json(['message' => 'Semester aktif tidak ditemukan. Tetapkan semester aktif di profil instansi.'], 400);
+        if (!$request->filled('class_id')) {
+            return response()->json(['data' => []]);
         }
 
-        $alreadyEnrolledIds = $extracurricular->extracurricularStudents()
-            ->where('semester_id', $semesterId)
-            ->pluck('student_id');
+        $semesterId = $this->getActiveSemesterId($extracurricular->institution_id);
+        $alreadyEnrolledQuery = $extracurricular->extracurricularStudents();
+        if ($semesterId) {
+            $alreadyEnrolledQuery->where('semester_id', $semesterId);
+        } else {
+            $alreadyEnrolledQuery->where('status', 'aktif');
+        }
 
         $query = Student::where('institution_id', $extracurricular->institution_id)
             ->where('status', 'Aktif')
-            ->whereNotIn('id', $alreadyEnrolledIds);
+            ->where('class_id', $request->get('class_id'))
+            ->whereNotIn('id', $alreadyEnrolledQuery->pluck('student_id'));
 
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -234,53 +296,46 @@ class ExtracurricularController extends Controller
             });
         }
 
-        $perPage = min($request->get('per_page', 20), 100);
-        $students = $query->with('class')->orderBy('name')->paginate($perPage);
+        $perPage = min((int) $request->get('per_page', 200), 200);
+        $students = $query->with('class:id,name')->orderBy('name')->paginate($perPage);
 
-        return response()->json(StudentResource::collection($students));
+        return StudentResource::collection($students)->response();
     }
 
     /**
-     * Add students as participants.
+     * Add students as participants (semester/tahun ajaran aktif diisi otomatis).
      */
     public function addStudents(StoreExtracurricularStudentRequest $request, Extracurricular $extracurricular): JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+        if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $semesterId = $request->get('semester_id') ?? $this->getActiveSemesterId($extracurricular->institution_id);
-        $academicYearId = $request->get('academic_year_id');
-        if (!$academicYearId && $extracurricular->academic_year_id) {
-            $academicYearId = $extracurricular->academic_year_id;
-        }
-        if (!$academicYearId && $semesterId) {
-            $semester = \App\Models\Semester::find($semesterId);
-            if ($semester) {
-                $academicYearId = $semester->academic_year_id;
-            }
-        }
+        $institution = Institution::find($extracurricular->institution_id);
+        $semesterId = $institution?->active_semester_id;
+        $academicYearId = $institution?->active_academic_year_id
+            ?? $institution?->activeSemester?->academic_year_id
+            ?? $extracurricular->academic_year_id;
+
         if (!$semesterId) {
-            return response()->json(['message' => 'Semester aktif tidak ditemukan.'], 400);
+            return response()->json(['message' => 'Semester aktif tidak ditemukan. Tetapkan semester aktif di profil instansi.'], 400);
         }
 
-        $joinedAt = $request->get('joined_at') ?? now()->format('Y-m-d');
         $studentIds = $request->validated()['student_ids'];
-
-        // Filter: only students from same institution and not already enrolled this semester
         $alreadyEnrolledIds = $extracurricular->extracurricularStudents()
             ->where('semester_id', $semesterId)
             ->pluck('student_id')
-            ->toArray();
+            ->all();
 
         $validStudents = Student::where('institution_id', $extracurricular->institution_id)
             ->whereIn('id', $studentIds)
             ->whereNotIn('id', $alreadyEnrolledIds)
-            ->pluck('id')
-            ->toArray();
+            ->pluck('id');
 
         $added = 0;
+        $joinedAt = now()->format('Y-m-d');
+
         DB::beginTransaction();
         try {
             foreach ($validStudents as $studentId) {
@@ -304,6 +359,10 @@ class ExtracurricularController extends Controller
             ], 500);
         }
 
+        if ($added === 0) {
+            return response()->json(['message' => 'Tidak ada siswa baru yang ditambahkan (sudah terdaftar atau tidak valid).'], 422);
+        }
+
         return response()->json([
             'message' => $added . ' peserta berhasil ditambahkan.',
             'added_count' => $added,
@@ -316,7 +375,7 @@ class ExtracurricularController extends Controller
     public function removeStudent(Request $request, Extracurricular $extracurricular, int $studentId): JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+        if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -352,7 +411,7 @@ class ExtracurricularController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
             if ($user->isStudent()) {
                 $profile = $user->studentProfile;
                 if (!$profile || (int) $profile->id !== $studentId) {
@@ -394,7 +453,7 @@ class ExtracurricularController extends Controller
     public function exportParticipants(Request $request, Extracurricular $extracurricular): StreamedResponse|JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+        if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -418,7 +477,7 @@ class ExtracurricularController extends Controller
                     $p->student?->name ?? '-',
                     $p->student?->nis ?? '-',
                     $p->student?->nisn ?? '-',
-                    $p->student?->class?->name ?? '-',
+                    self::studentClassName($p->student),
                     $p->semester?->name ?? '-',
                     $p->joined_at?->format('Y-m-d') ?? '-',
                     $p->left_at?->format('Y-m-d') ?? '-',
@@ -438,7 +497,7 @@ class ExtracurricularController extends Controller
     public function updateEnrollment(UpdateExtracurricularStudentRequest $request, Extracurricular $extracurricular, int $enrollmentId): JsonResponse
     {
         $user = $request->user();
-        if (!$user->isSuperAdmin() && $user->institution_id !== $extracurricular->institution_id) {
+        if (!ExtracurricularAccess::canAccess($user, $extracurricular)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -470,5 +529,32 @@ class ExtracurricularController extends Controller
         $institution = Institution::find($institutionId);
 
         return $institution?->active_semester_id;
+    }
+
+    /**
+     * Student has both string column `class` and relation `class()`.
+     * Never use $student->class->name directly.
+     */
+    private static function studentClassName(?Student $student): string
+    {
+        if (!$student) {
+            return '-';
+        }
+        if ($student->relationLoaded('class')) {
+            $related = $student->getRelation('class');
+            if ($related instanceof SchoolClass) {
+                return $related->name ?: '-';
+            }
+        }
+        if ($student->class_id) {
+            $name = SchoolClass::where('id', $student->class_id)->value('name');
+            if ($name) {
+                return $name;
+            }
+        }
+
+        return is_string($student->getAttributes()['class'] ?? null)
+            ? ($student->getAttributes()['class'] ?: '-')
+            : '-';
     }
 }

@@ -10,6 +10,9 @@ export const employeeApi = {
   getDashboard() {
     return api.get('/v1/teacher/dashboard')
   },
+  getHomeroomClassStudents(classId, params) {
+    return api.get(`/v1/teacher/dashboard/classes/${classId}/students`, { params })
+  },
   get(id) {
     return api.get(`/v1/employee/${id}`)
   },

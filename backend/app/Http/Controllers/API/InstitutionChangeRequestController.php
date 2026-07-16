@@ -173,12 +173,40 @@ class InstitutionChangeRequestController extends Controller
             DB::beginTransaction();
             
             if ($request->action === 'approve') {
-                // Update institution field
                 $institution = $changeRequest->institution;
+
+                if (!$institution) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Institusi terkait tidak ditemukan atau sudah dihapus',
+                    ], 422);
+                }
+
+                $allowedFields = ['name', 'npsn'];
+                if (!in_array($changeRequest->field_name, $allowedFields, true)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Field perubahan tidak valid',
+                    ], 422);
+                }
+
+                // Re-check NPSN uniqueness at approve time (may have changed since request created)
+                if ($changeRequest->field_name === 'npsn') {
+                    $npsnTaken = \App\Models\Institution::where('npsn', $changeRequest->new_value)
+                        ->where('id', '!=', $institution->id)
+                        ->exists();
+
+                    if ($npsnTaken) {
+                        DB::rollBack();
+                        return response()->json([
+                            'message' => 'NPSN sudah terdaftar pada institusi lain',
+                        ], 422);
+                    }
+                }
+
                 $institution->{$changeRequest->field_name} = $changeRequest->new_value;
                 $institution->save();
                 
-                // Update request status
                 $changeRequest->status = 'approved';
                 $changeRequest->approved_by = $request->user()->id;
                 $changeRequest->approved_at = now();
@@ -192,7 +220,6 @@ class InstitutionChangeRequestController extends Controller
                 
                 $message = 'Request berhasil disetujui';
             } else {
-                // Reject request
                 $changeRequest->status = 'rejected';
                 $changeRequest->approved_by = $request->user()->id;
                 $changeRequest->rejection_reason = $request->rejection_reason;
@@ -217,6 +244,23 @@ class InstitutionChangeRequestController extends Controller
             return response()->json([
                 'message' => 'Request tidak ditemukan',
             ], 404);
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            Log::error('Failed to approve/reject change request (query)', [
+                'request_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            if (str_contains($e->getMessage(), 'Duplicate') || str_contains($e->getMessage(), 'UNIQUE')) {
+                return response()->json([
+                    'message' => 'NPSN sudah terdaftar pada institusi lain',
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memproses request',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to approve/reject change request', [

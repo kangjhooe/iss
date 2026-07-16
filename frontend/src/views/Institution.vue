@@ -64,20 +64,24 @@
                 <th>NPSN</th>
                 <th>Nama Sekolah/Madrasah</th>
                 <th>Jenjang</th>
-                <th>Status</th>
-                <th>Aktif</th>
+                <th>Jenis</th>
+                <th>Status Operasional</th>
                 <th>Alamat</th>
                 <th>Tanggal Daftar</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="inst in institutions" :key="inst.id">
+              <tr v-for="inst in institutions" :key="inst.id" :class="{ 'row-inactive': inst.is_active === false }">
                 <td>{{ displayValue(inst.npsn) }}</td>
                 <td>{{ inst.name }}</td>
                 <td>{{ displayValue(inst.level) }}</td>
                 <td>{{ inst.type }}</td>
-                <td><span :class="inst.is_active !== false ? 'status-active' : 'status-inactive'">{{ inst.is_active !== false ? 'Ya' : 'Tidak' }}</span></td>
+                <td>
+                  <span :class="inst.is_active !== false ? 'status-active' : 'status-inactive'">
+                    {{ inst.is_active !== false ? 'Aktif' : 'Dibekukan' }}
+                  </span>
+                </td>
                 <td>{{ displayValue(inst.address) }}</td>
                 <td>{{ formatDate(inst.created_at) }}</td>
                 <td>
@@ -92,6 +96,22 @@
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button
+                      @click="toggleInstitutionStatus(inst)"
+                      class="btn-action"
+                      :class="inst.is_active !== false ? 'btn-suspend' : 'btn-activate'"
+                      :title="inst.is_active !== false ? 'Bekukan institusi' : 'Aktifkan institusi'"
+                      :disabled="statusTogglingId === inst.id"
+                    >
+                      <svg v-if="inst.is_active !== false" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M7 11V7C7 4.23858 9.23858 2 12 2C14.7614 2 17 4.23858 17 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                      <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9818C18.7182 19.709 16.9033 20.9725 14.8354 21.5839C12.7674 22.1953 10.5573 22.1219 8.53447 21.3746C6.51168 20.6273 4.78465 19.2461 3.61096 17.4371C2.43727 15.628 1.87979 13.4881 2.02168 11.3363C2.16356 9.18455 2.99721 7.13631 4.39828 5.49706C5.79935 3.85781 7.69279 2.71537 9.79619 2.24013C11.8996 1.7649 14.1003 1.98232 16.07 2.85999" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 4L12 14.01L9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                     </button>
                     <button @click="deleteInstitution(inst.id)" class="btn-action btn-delete" title="Hapus">
@@ -414,11 +434,10 @@
           <form @submit.prevent="handleUpdate" class="modal-body">
             <div class="form-row">
               <div class="form-group">
-                <label>Nama {{ institutionTypeLabel }} *</label>
+                <label>Nama {{ institutionTypeLabel }}</label>
                 <input 
                   v-model="form.name" 
                   :disabled="!isSuperAdmin"
-                  :required="isSuperAdmin"
                 />
                 <small v-if="!isSuperAdmin" class="form-hint">
                   Perubahan nama {{ institutionTypeLabel.toLowerCase() }} memerlukan persetujuan super admin. Gunakan tombol "Ubah" di profil untuk request perubahan.
@@ -461,8 +480,8 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>Status *</label>
-                <select v-model="form.type" required>
+                <label>Status</label>
+                <select v-model="form.type">
                   <option value="Swasta">Swasta</option>
                   <option value="Negeri">Negeri</option>
                 </select>
@@ -473,7 +492,7 @@
                   <input type="checkbox" v-model="form.is_active" />
                   <span>Instansi aktif</span>
                 </label>
-                <small class="form-hint">Nonaktifkan untuk memban: user instansi tidak dapat login.</small>
+                <small class="form-hint">Nonaktifkan untuk membekukan: user instansi tidak dapat login.</small>
               </div>
             </div>
 
@@ -535,7 +554,7 @@
               </div>
               <div class="form-group">
                 <label>Website</label>
-                <input v-model="form.website" />
+                <input v-model="form.website" placeholder="contoh: sekolah.sch.id" />
               </div>
             </div>
 
@@ -695,8 +714,8 @@
           <form v-else @submit.prevent="showEditModalSuperAdmin ? handleUpdateSuperAdmin() : handleAddInstitution()" class="modal-body">
             <div class="form-row">
               <div class="form-group">
-                <label>Nama Sekolah/Madrasah *</label>
-                <input v-model="form.name" required />
+                <label>Nama Sekolah/Madrasah <span v-if="!showEditModalSuperAdmin">*</span></label>
+                <input v-model="form.name" :required="!showEditModalSuperAdmin" />
               </div>
               <div class="form-group">
                 <label>NPSN</label>
@@ -729,8 +748,8 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>Status *</label>
-                <select v-model="form.type" required>
+                <label>Status <span v-if="!showEditModalSuperAdmin">*</span></label>
+                <select v-model="form.type" :required="!showEditModalSuperAdmin">
                   <option value="Swasta">Swasta</option>
                   <option value="Negeri">Negeri</option>
                 </select>
@@ -741,7 +760,7 @@
                   <input type="checkbox" v-model="form.is_active" />
                   <span>Instansi aktif</span>
                 </label>
-                <small class="form-hint">Nonaktifkan untuk memban: user instansi tidak dapat login.</small>
+                <small class="form-hint">Nonaktifkan untuk membekukan: user instansi tidak dapat login.</small>
               </div>
             </div>
 
@@ -937,24 +956,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { institutionApi } from '@/api/institution'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
-import { validators } from '@/utils/validation'
+import { validators, validateForm } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { getInstitutionTypeLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const referenceStore = useReferenceDataStore()
 const academicYears = computed(() => referenceStore.academicYears)
@@ -1002,6 +1022,7 @@ const showAddModal = ref(false)
 const showEditModalSuperAdmin = ref(false)
 const selectedInstitution = ref(null)
 const loadingEditDetail = ref(false)
+const statusTogglingId = ref(null)
 
 const requestForm = ref({
   newValue: ''
@@ -1173,38 +1194,203 @@ const handleRequestChange = async () => {
   }
 }
 
-const getValidationRules = () => {
-  return {
-    name: [
-      (value) => validators.required(value, `Nama ${institutionTypeLabel.value.toLowerCase()} wajib diisi`),
-      (value) => validators.maxLength(value, 255, `Nama ${institutionTypeLabel.value.toLowerCase()} maksimal 255 karakter`)
-    ],
-    npsn: [
-      (value) => value ? validators.npsn(value, 'NPSN harus terdiri dari 8 digit angka') : null
-    ],
-    type: [
-      (value) => validators.required(value, 'Status institusi wajib diisi')
-    ],
+const getValidationRules = (mode = 'update') => {
+  const isCreate = mode === 'create'
+  const optionalWebsite = (value) => {
+    if (!value || !String(value).trim()) return null
+    const v = String(value).trim()
+    if (/^https?:\/\//i.test(v)) {
+      try {
+        new URL(v)
+        return null
+      } catch {
+        // Edit: URL belum lengkap jangan blokir
+        return isCreate ? 'Format URL tidak valid' : null
+      }
+    }
+    // Izinkan domain tanpa protokol
+    if (/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(\/.*)?$/i.test(v)) {
+      return null
+    }
+    // Edit bertahap: teks belum berbentuk domain lengkap tidak memblokir simpan
+    return isCreate ? 'Format website tidak valid' : null
+  }
+  const optionalPhone = (value) => {
+    if (!value || !String(value).trim()) return null
+    const digits = String(value).replace(/[^0-9]/g, '')
+    // Edit bertahap: nomor belum lengkap tidak memblokir simpan
+    if (!isCreate && digits.length > 0 && digits.length < 8) return null
+    if (digits.length < 8 || digits.length > 15) {
+      return 'Nomor telepon harus 8–15 digit'
+    }
+    return null
+  }
+  const optionalNpsn = (value) => {
+    if (!value || !String(value).trim()) return null
+    const digits = String(value).replace(/\D/g, '')
+    // Edit: NPSN belum 8 digit dianggap belum selesai diisi → tidak error, tidak dikirim
+    if (!isCreate && digits.length > 0 && digits.length < 8) return null
+    return validators.npsn(value, 'NPSN harus terdiri dari 8 digit angka')
+  }
+  const optionalEmail = (value) => {
+    if (!value || !String(value).trim()) return null
+    const v = String(value).trim()
+    // Edit: email belum lengkap (belum ada @) jangan blokir simpan
+    if (!isCreate && !v.includes('@')) return null
+    return validators.email(v, 'Format email tidak valid')
+  }
+
+  const rules = {
+    npsn: [optionalNpsn],
     email: [
-      (value) => value ? validators.email(value, 'Format email tidak valid') : null,
+      optionalEmail,
       (value) => value ? validators.maxLength(value, 255, 'Email maksimal 255 karakter') : null
     ],
-    website: [
-      (value) => value ? validators.url(value, 'Format URL tidak valid') : null
-    ],
-    phone: [
-      (value) => value ? validators.phone(value, 'Format nomor telepon tidak valid') : null,
-      (value) => value ? validators.maxLength(value, 20, 'Nomor telepon maksimal 20 karakter') : null
+    website: [optionalWebsite],
+    phone: [optionalPhone]
+  }
+
+  if (isCreate) {
+    rules.name = [
+      (value) => validators.required(value, `Nama ${institutionTypeLabel.value.toLowerCase()} wajib diisi`),
+      (value) => validators.maxLength(value, 255, `Nama ${institutionTypeLabel.value.toLowerCase()} maksimal 255 karakter`)
+    ]
+    rules.type = [
+      (value) => validators.required(value, 'Status institusi wajib diisi')
+    ]
+  } else {
+    // Edit: field opsional boleh kosong; hanya cek format jika terisi
+    rules.name = [
+      (value) => value ? validators.maxLength(value, 255, `Nama ${institutionTypeLabel.value.toLowerCase()} maksimal 255 karakter`) : null
+    ]
+    rules.type = [
+      (value) => {
+        if (!value) return null
+        return ['Negeri', 'Swasta'].includes(value) ? null : 'Status institusi harus Negeri atau Swasta'
+      }
     ]
   }
+
+  return rules
 }
 
-// Setup form validation
-const { validateAll, setErrors } = useFormValidation({
+const INSTITUTION_PAYLOAD_KEYS = [
+  'name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
+  'province_code', 'district_code',
+  'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
+  'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
+  'active_academic_year_id', 'active_semester_id'
+]
+
+const emptyToNull = (v) => {
+  if (v === undefined || v === null) return null
+  if (typeof v === 'number' && Number.isNaN(v)) return null
+  if (typeof v === 'string' && v.trim() === '') return null
+  return v
+}
+
+/** Bangun payload update: field kosong → null; name/npsn kosong tidak dikirim agar tidak menimpa data wajib di DB */
+const buildInstitutionUpdatePayload = (source, { preserveNameNpsnFrom } = {}) => {
+  const dataToSend = {}
+  for (const key of INSTITUTION_PAYLOAD_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(source, key)) continue
+    const v = source[key]
+    if (key === 'description' || key === 'vision' || key === 'mission') {
+      dataToSend[key] = v != null ? String(v) : ''
+      continue
+    }
+    if (key === 'latitude' || key === 'longitude' || key === 'location_radius') {
+      const num = emptyToNull(v)
+      if (key === 'location_radius' && num != null) {
+        const n = Number(num)
+        // Belum valid (di luar 10–5000) → jangan kirim agar tidak gagal validasi
+        if (!Number.isFinite(n) || n < 10 || n > 5000) continue
+      }
+      dataToSend[key] = num
+      continue
+    }
+    if (key === 'type') {
+      dataToSend[key] = emptyToNull(v) || 'Swasta'
+      continue
+    }
+    if (key === 'npsn') {
+      const npsn = emptyToNull(v)
+      // Hanya kirim NPSN jika lengkap 8 digit; kosong/belum lengkap = biarkan nilai lama
+      if (npsn && /^[0-9]{8}$/.test(String(npsn))) {
+        dataToSend[key] = String(npsn)
+      }
+      continue
+    }
+    if (key === 'name') {
+      const name = emptyToNull(typeof v === 'string' ? v.trim() : v)
+      if (name) dataToSend[key] = name
+      continue
+    }
+    if (key === 'email') {
+      const email = emptyToNull(typeof v === 'string' ? v.trim() : v)
+      // Belum lengkap / tidak valid → jangan kirim (biarkan nilai lama atau null jika memang kosong)
+      if (email === null) {
+        dataToSend[key] = null
+      } else if (email.includes('@') && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email)) {
+        dataToSend[key] = email
+      }
+      continue
+    }
+    if (key === 'phone') {
+      const phone = emptyToNull(typeof v === 'string' ? v.trim() : v)
+      if (phone === null) {
+        dataToSend[key] = null
+      } else {
+        const digits = String(phone).replace(/[^0-9]/g, '')
+        if (digits.length >= 8 && digits.length <= 15) {
+          dataToSend[key] = phone
+        }
+      }
+      continue
+    }
+    if (key === 'website') {
+      const website = emptyToNull(typeof v === 'string' ? v.trim() : v)
+      if (website === null) {
+        dataToSend[key] = null
+      } else if (
+        /^https?:\/\//i.test(website) ||
+        /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(\/.*)?$/i.test(website)
+      ) {
+        dataToSend[key] = website
+      }
+      continue
+    }
+    dataToSend[key] = emptyToNull(typeof v === 'string' ? v.trim() : v)
+  }
+
+  if (preserveNameNpsnFrom) {
+    // Admin sekolah tidak mengubah name/npsn lewat form ini
+    delete dataToSend.name
+    delete dataToSend.npsn
+    delete dataToSend.is_active
+  }
+
+  return dataToSend
+}
+
+// Setup form validation (fieldErrors + setErrors dari server)
+const { setErrors } = useFormValidation({
   form,
-  initialValues: {},
-  rules: getValidationRules()
+  initialValues: {
+    name: '', npsn: '', type: '', email: '', website: '', phone: ''
+  },
+  rules: getValidationRules('update')
 })
+
+const validateInstitutionForm = (mode = 'update') => {
+  const { isValid, errors } = validateForm(form.value, getValidationRules(mode))
+  setErrors(errors)
+  if (!isValid) {
+    const first = Object.values(errors)[0]
+    error.value = first || 'Mohon perbaiki kesalahan pada form'
+  }
+  return isValid
+}
 
 const handleUpdate = async () => {
   error.value = ''
@@ -1226,40 +1412,16 @@ const handleUpdate = async () => {
     }
   }
   
-  // Validate form
-  const isValid = validateAll()
-  if (!isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form'
+  if (!validateInstitutionForm('update')) {
     return
   }
   
   updating.value = true
   
   try {
-    // Prepare data to send - only send allowed fields; always include vision, mission, description (undefined would be omitted by JSON)
-    const allowedKeys = [
-      'name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
-      'province_code', 'district_code',
-      'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
-      'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
-      'active_academic_year_id', 'active_semester_id'
-    ]
-    const dataToSend = {}
-    for (const key of allowedKeys) {
-      if (Object.prototype.hasOwnProperty.call(form.value, key)) {
-        const v = form.value[key]
-        if (key === 'description' || key === 'vision' || key === 'mission') {
-          dataToSend[key] = v != null ? String(v) : ''
-        } else {
-          dataToSend[key] = v
-        }
-      }
-    }
-    if (!isSuperAdmin.value) {
-      dataToSend.name = institution.value.name
-      dataToSend.npsn = institution.value.npsn
-      dataToSend.is_active = institution.value.is_active
-    }
+    const dataToSend = buildInstitutionUpdatePayload(form.value, {
+      preserveNameNpsnFrom: !isSuperAdmin.value
+    })
 
     const response = await institutionApi.update(institution.value.id, dataToSend)
     
@@ -1429,7 +1591,7 @@ const deleteInstitution = async (id) => {
   const confirmed = await showConfirm({
     title: 'Konfirmasi Hapus Instansi',
     message: 'Apakah Anda yakin ingin menghapus instansi ini? Instansi akan dikeluarkan dari daftar dan seluruh user instansi tersebut tidak dapat login.',
-    warning: 'Tindakan ini untuk penindakan pelanggaran. Gunakan "Nonaktif" jika hanya ingin menunda sementara.'
+    warning: 'Tindakan ini untuk penindakan pelanggaran. Gunakan "Bekukan" jika hanya ingin menunda sementara.'
   })
   
   if (!confirmed) return
@@ -1447,13 +1609,37 @@ const deleteInstitution = async (id) => {
   }
 }
 
+const toggleInstitutionStatus = async (inst) => {
+  const willActivate = inst.is_active === false
+  const confirmed = await showConfirm({
+    title: willActivate ? 'Aktifkan Institusi' : 'Bekukan Institusi',
+    message: willActivate
+      ? `Aktifkan kembali "${inst.name}"? User institusi dapat login lagi.`
+      : `Bekukan "${inst.name}"? User institusi tidak dapat login sampai diaktifkan kembali.`,
+    warning: willActivate
+      ? 'Status institusi akan berubah menjadi aktif.'
+      : 'Gunakan pembekuan untuk penundaan sementara. Hapus hanya jika perlu penindakan permanen.'
+  })
+
+  if (!confirmed) return
+
+  statusTogglingId.value = inst.id
+  try {
+    await institutionApi.updateStatus(inst.id, willActivate)
+    toast.success('Berhasil', willActivate ? 'Institusi berhasil diaktifkan' : 'Institusi berhasil dibekukan')
+    await loadInstitutions()
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 'Gagal memperbarui status institusi'
+    toast.error('Gagal', errorMsg)
+  } finally {
+    statusTogglingId.value = null
+  }
+}
+
 const handleAddInstitution = async () => {
   error.value = ''
   
-  // Validate form
-  const isValid = validateAll()
-  if (!isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form'
+  if (!validateInstitutionForm('create')) {
     return
   }
   
@@ -1482,35 +1668,14 @@ const handleAddInstitution = async () => {
 const handleUpdateSuperAdmin = async () => {
   error.value = ''
   
-  // Validate form
-  const isValid = validateAll()
-  if (!isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form'
+  if (!validateInstitutionForm('update')) {
     return
   }
   
   updating.value = true
   
   try {
-    // Kirim hanya field yang diizinkan (sama seperti handleUpdate) agar backend tidak dapat object/relasi
-    const allowedKeys = [
-      'name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
-      'province_code', 'district_code',
-      'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
-      'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
-      'active_academic_year_id', 'active_semester_id'
-    ]
-    const dataToSend = {}
-    for (const key of allowedKeys) {
-      if (Object.prototype.hasOwnProperty.call(form.value, key)) {
-        const v = form.value[key]
-        if (key === 'description' || key === 'vision' || key === 'mission') {
-          dataToSend[key] = v != null ? String(v) : ''
-        } else {
-          dataToSend[key] = v
-        }
-      }
-    }
+    const dataToSend = buildInstitutionUpdatePayload(form.value)
 
     await institutionApi.update(selectedInstitution.value.id, dataToSend)
     toast.success('Berhasil', 'Institusi berhasil diperbarui')
@@ -1682,10 +1847,24 @@ const handleCoverUpload = async (event) => {
 onMounted(async () => {
   await authStore.fetchUser()
   if (isSuperAdmin.value) {
+    applyActiveFilterFromQuery()
     await loadInstitutions()
   } else {
     await loadInstitution()
   }
+})
+
+const applyActiveFilterFromQuery = () => {
+  const q = route.query.is_active
+  if (q === '0' || q === '1' || q === 'true' || q === 'false') {
+    filters.value.is_active = (q === '1' || q === 'true') ? '1' : '0'
+  }
+}
+
+watch(() => route.query.is_active, async () => {
+  if (!isSuperAdmin.value) return
+  applyActiveFilterFromQuery()
+  await loadInstitutions()
 })
 </script>
 
@@ -1843,13 +2022,43 @@ onMounted(async () => {
 }
 
 .status-active {
-  color: #27ae60;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 600;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
 }
 
 .status-inactive {
-  color: #e74c3c;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 600;
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.row-inactive td {
+  opacity: 0.85;
+}
+
+.btn-suspend {
+  color: #d97706;
+}
+
+.btn-suspend:hover {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.btn-activate {
+  color: #059669;
+}
+
+.btn-activate:hover {
+  background: rgba(5, 150, 105, 0.12);
 }
 
 .modal-overlay {
@@ -2332,5 +2541,91 @@ onMounted(async () => {
   justify-content: center;
   color: #94a3b8;
   background: #f8fafc;
+}
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-buttons-group {
+    width: 100%;
+  }
+
+  .filters-inline {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .filters-inline .search-input,
+  .filters-inline .filter-select {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .header-content h2 {
+    font-size: 20px;
+  }
+
+  .institution-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .info-grid,
+  .form-row,
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -4px;
+  }
+
+  .data-table {
+    min-width: 720px;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 24px);
+    margin: 0;
+  }
+
+  .institution-card-footer {
+    justify-content: stretch;
+  }
+
+  .institution-card-footer .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .data-table th,
+  .data-table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
 }
 </style>

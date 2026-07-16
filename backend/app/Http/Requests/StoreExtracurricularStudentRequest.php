@@ -14,11 +14,8 @@ class StoreExtracurricularStudentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'student_ids' => 'required|array',
-            'student_ids.*' => 'required|exists:student,id',
-            'academic_year_id' => 'nullable|exists:academic_years,id',
-            'semester_id' => 'nullable|exists:semesters,id',
-            'joined_at' => 'sometimes|date',
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'required|integer|exists:student,id',
         ];
     }
 
@@ -26,6 +23,7 @@ class StoreExtracurricularStudentRequest extends FormRequest
     {
         return [
             'student_ids.required' => 'Pilih minimal satu siswa.',
+            'student_ids.min' => 'Pilih minimal satu siswa.',
             'student_ids.*.exists' => 'Siswa tidak ditemukan.',
         ];
     }

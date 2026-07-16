@@ -13,6 +13,7 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Support\InstitutionContext;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Http\Request;
@@ -40,6 +41,39 @@ class AuthController extends Controller
             env('COOKIE_DOMAIN'), // null = current host (localhost / api domain)
             $secure,
             true,  // httpOnly
+            false,
+            'lax'
+        );
+    }
+
+    private function makeActiveInstitutionCookie(int $institutionId): \Symfony\Component\HttpFoundation\Cookie
+    {
+        $minutes = 30 * 24 * 60;
+        $secure = request()->secure();
+        return Cookie::make(
+            InstitutionContext::COOKIE_ACTIVE_INSTITUTION,
+            (string) $institutionId,
+            $minutes,
+            '/',
+            env('COOKIE_DOMAIN'),
+            $secure,
+            true,
+            false,
+            'lax'
+        );
+    }
+
+    private function clearActiveInstitutionCookie(): \Symfony\Component\HttpFoundation\Cookie
+    {
+        $secure = request()->secure();
+        return Cookie::make(
+            InstitutionContext::COOKIE_ACTIVE_INSTITUTION,
+            '',
+            -1,
+            '/',
+            env('COOKIE_DOMAIN'),
+            $secure,
+            true,
             false,
             'lax'
         );
@@ -75,7 +109,36 @@ class AuthController extends Controller
         return [
             Cookie::make(AddTokenFromCookie::COOKIE_AUTH, '', -1, '/', $domain, $secure, true, false, 'lax'),
             Cookie::make(AddTokenFromCookie::COOKIE_REFRESH, '', -1, '/', $domain, $secure, true, false, 'lax'),
+            Cookie::make(AddTokenFromCookie::COOKIE_IMPERSONATOR, '', -1, '/', $domain, $secure, true, false, 'lax'),
+            Cookie::make(AddTokenFromCookie::COOKIE_IMPERSONATOR_REFRESH, '', -1, '/', $domain, $secure, true, false, 'lax'),
+            Cookie::make(InstitutionContext::COOKIE_ACTIVE_INSTITUTION, '', -1, '/', $domain, $secure, true, false, 'lax'),
         ];
+    }
+
+    private function isMaintenanceEnabled(): bool
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('app_branding')
+                || !\Illuminate\Support\Facades\Schema::hasColumn('app_branding', 'maintenance_mode')) {
+                return false;
+            }
+            return (bool) \App\Models\AppBranding::query()->value('maintenance_mode');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function maintenanceMessage(): string
+    {
+        try {
+            $msg = \App\Models\AppBranding::query()->value('maintenance_message');
+            if (is_string($msg) && trim($msg) !== '') {
+                return $msg;
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+        return 'Sistem sedang dalam mode pemeliharaan. Silakan coba lagi nanti.';
     }
 
     /**
@@ -224,15 +287,39 @@ class AuthController extends Controller
 
             $user = User::where('email', $validated['email'])->first();
 
+            // Check if account is deactivated by admin
+            if ($user && $user->is_active === false) {
+                throw ValidationException::withMessages([
+                    'email' => ['Akun Anda dinonaktifkan. Silakan hubungi administrator.'],
+                ]);
+            }
+
+            // Maintenance mode: only super_admin may login
+            if ($user && !$user->isSuperAdmin() && $this->isMaintenanceEnabled()) {
+                throw ValidationException::withMessages([
+                    'email' => [$this->maintenanceMessage()],
+                ]);
+            }
+
             // Check if account is locked
             if ($user && $user->isLocked()) {
-                $minutesRemaining = now()->diffInMinutes($user->locked_until, false);
+                $minutesRemaining = $user->lockedMinutesRemaining();
                 throw ValidationException::withMessages([
                     'email' => ["Akun Anda terkunci. Silakan coba lagi dalam {$minutesRemaining} menit."],
                 ]);
             }
 
-            if (!$user || !Hash::check($validated['password'], $user->password)) {
+            $passwordValid = false;
+            try {
+                $passwordValid = $user && Hash::check($validated['password'], $user->password);
+            } catch (\RuntimeException $e) {
+                Log::error('Password hash algorithm error on login', [
+                    'email' => $validated['email'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if (!$passwordValid) {
                 if ($user) {
                     $user->incrementFailedLoginAttempts();
                 }
@@ -290,14 +377,29 @@ class AuthController extends Controller
                 ]);
             }
 
+            if ($user->role === 'teacher' || $user->role === 'staff') {
+                try {
+                    $user->load(['teacherProfile']);
+                } catch (\Exception $e) {
+                    // ignore
+                }
+            }
+
+            InstitutionContext::applyToRequest($request, $user);
+            $userPayload = (new UserResource($user))->resolve();
+            $userPayload = array_merge($userPayload, $this->institutionContextPayload($user, $request));
+
             $response = response()->json([
                 'message' => 'Login berhasil',
-                'user' => new UserResource($user),
+                'user' => $userPayload,
                 'token' => $accessToken,
                 'refresh_token' => $refreshToken,
             ]);
             $response->cookie($this->makeAuthCookie($accessToken));
             $response->cookie($this->makeRefreshCookie($refreshToken));
+            if (!empty($userPayload['active_institution_id'])) {
+                $response->cookie($this->makeActiveInstitutionCookie((int) $userPayload['active_institution_id']));
+            }
             return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
@@ -358,8 +460,15 @@ class AuthController extends Controller
             if ($user->role === 'teacher' || $user->role === 'staff') {
                 $loads[] = 'teacherProfile';
             }
+
+            InstitutionContext::applyToRequest($request, $user);
+
+            $userPayload = (new UserResource($user->load($loads)))->resolve();
+            $userPayload['impersonation'] = $this->resolveImpersonationMeta($request);
+            $userPayload = array_merge($userPayload, $this->institutionContextPayload($user, $request));
+
             return response()->json([
-                'user' => new UserResource($user->load($loads)),
+                'user' => $userPayload,
             ]);
         } catch (\Exception $e) {
             Log::error('Get user failed', [
@@ -370,6 +479,114 @@ class AuthController extends Controller
                 'message' => 'Terjadi kesalahan saat mengambil data user',
             ], 500);
         }
+    }
+
+    /**
+     * Switch active institution context (induk / non-induk).
+     */
+    public function switchInstitution(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $validated = $request->validate([
+                'institution_id' => 'required|integer|exists:institution,id',
+            ]);
+
+            $institutionId = (int) $validated['institution_id'];
+            if (!InstitutionContext::canAccessInstitution($user, $institutionId)) {
+                return response()->json([
+                    'message' => 'Anda tidak memiliki akses ke sekolah ini',
+                ], 403);
+            }
+
+            $request->attributes->set('current_institution_id', $institutionId);
+            $request->attributes->set(
+                'current_affiliation',
+                InstitutionContext::affiliationFor($user, $institutionId)
+            );
+
+            $loads = ['institution', 'permissions'];
+            if ($user->role === 'teacher' || $user->role === 'staff') {
+                $loads[] = 'teacherProfile';
+            }
+            if ($user->role === 'student') {
+                $loads[] = 'studentProfile.schoolClass';
+                $loads[] = 'studentProfile.institution';
+            }
+
+            $userPayload = (new UserResource($user->load($loads)))->resolve();
+            $userPayload['impersonation'] = $this->resolveImpersonationMeta($request);
+            $userPayload = array_merge($userPayload, $this->institutionContextPayload($user, $request));
+
+            $response = response()->json([
+                'message' => 'Konteks sekolah berhasil diganti',
+                'user' => $userPayload,
+            ]);
+            $response->cookie($this->makeActiveInstitutionCookie($institutionId));
+
+            return $response;
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Switch institution failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengganti sekolah',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function institutionContextPayload(User $user, Request $request): array
+    {
+        $available = InstitutionContext::availableInstitutions($user);
+        $activeId = InstitutionContext::resolveActiveInstitutionId($user, $request);
+        $active = $available->firstWhere('id', $activeId);
+
+        return [
+            'available_institutions' => $available->values()->all(),
+            'active_institution_id' => $activeId,
+            'active_affiliation' => InstitutionContext::affiliationFor($user, $activeId),
+            'active_institution' => $active ? [
+                'id' => $active['id'],
+                'name' => $active['name'],
+                'npsn' => $active['npsn'] ?? null,
+                'affiliation' => $active['affiliation'],
+            ] : null,
+        ];
+    }
+
+    /**
+     * Meta impersonation dari cookie impersonator_token (jika valid).
+     */
+    private function resolveImpersonationMeta(Request $request): array
+    {
+        $inactive = [
+            'active' => false,
+            'admin_id' => null,
+            'admin_name' => null,
+            'admin_email' => null,
+        ];
+
+        $token = $request->cookie(AddTokenFromCookie::COOKIE_IMPERSONATOR);
+        if (!$token) {
+            return $inactive;
+        }
+
+        $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+        $admin = $tokenModel?->tokenable;
+        if (!$admin instanceof User || !$admin->isSuperAdmin()) {
+            return $inactive;
+        }
+
+        return [
+            'active' => true,
+            'admin_id' => $admin->id,
+            'admin_name' => $admin->name,
+            'admin_email' => $admin->email,
+        ];
     }
 
     /**

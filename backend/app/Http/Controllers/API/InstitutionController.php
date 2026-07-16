@@ -181,7 +181,7 @@ class InstitutionController extends Controller
                     ], 422);
                 }
                 
-                if (isset($validated['npsn']) && $validated['npsn'] !== $institution->npsn) {
+                if (array_key_exists('npsn', $validated) && $validated['npsn'] !== null && $validated['npsn'] !== $institution->npsn) {
                     return response()->json([
                         'message' => 'Perubahan NPSN memerlukan persetujuan super admin. Silakan gunakan fitur request perubahan.',
                     ], 422);
@@ -194,6 +194,17 @@ class InstitutionController extends Controller
                 unset($validated['name']);
                 unset($validated['npsn']);
                 unset($validated['is_active']);
+            }
+
+            // Jangan timpa kolom wajib DB dengan null (edit bertahap / field kosong)
+            if (array_key_exists('name', $validated) && ($validated['name'] === null || $validated['name'] === '')) {
+                unset($validated['name']);
+            }
+            if (array_key_exists('npsn', $validated) && ($validated['npsn'] === null || $validated['npsn'] === '')) {
+                unset($validated['npsn']);
+            }
+            if (array_key_exists('type', $validated) && ($validated['type'] === null || $validated['type'] === '')) {
+                unset($validated['type']);
             }
 
             $institution->update($validated);
@@ -225,6 +236,57 @@ class InstitutionController extends Controller
                 $payload['error'] = $e->getMessage();
             }
             return response()->json($payload, 500);
+        }
+    }
+
+    /**
+     * Toggle / set institution active status (super admin only).
+     * Nonaktif = dibekukan: user institusi tidak dapat login.
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            $user = $request->user();
+            if (!$user?->isSuperAdmin()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $validated = $request->validate([
+                'is_active' => 'required|boolean',
+            ]);
+
+            $institution = Institution::findOrFail($id);
+            $institution->is_active = $validated['is_active'];
+            $institution->save();
+
+            Log::info('Institution status updated', [
+                'institution_id' => $institution->id,
+                'is_active' => $institution->is_active,
+                'user_id' => $user->id,
+            ]);
+
+            $label = $institution->is_active ? 'diaktifkan' : 'dibekukan';
+
+            return response()->json([
+                'message' => "Institusi berhasil {$label}",
+                'data' => new InstitutionResource($institution),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Institusi tidak ditemukan',
+            ], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Failed to update institution status', [
+                'institution_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memperbarui status institusi',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 

@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateEmployeeAttendanceRequest;
 use App\Http\Resources\EmployeeAttendanceResource;
 use App\Models\EmployeeAttendance;
 use App\Services\EmployeeAttendanceService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,14 +21,22 @@ class EmployeeAttendanceController extends Controller
         protected EmployeeAttendanceService $employeeAttendanceService
     ) {}
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
     /**
      * List employee attendances for current institution.
      */
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -57,8 +66,7 @@ class EmployeeAttendanceController extends Controller
     public function store(StoreEmployeeAttendanceRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -84,8 +92,7 @@ class EmployeeAttendanceController extends Controller
     public function bulkStore(BulkEmployeeAttendanceRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -114,8 +121,7 @@ class EmployeeAttendanceController extends Controller
     public function update(UpdateEmployeeAttendanceRequest $request, EmployeeAttendance $employeeAttendance): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId || $employeeAttendance->institution_id !== (int) $institutionId) {
                 return response()->json(['message' => 'Unauthorized.'], 403);
             }

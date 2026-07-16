@@ -7,6 +7,9 @@
         </div>
         <h1>Selamat Datang</h1>
         <p>Masuk ke akun Anda untuk melanjutkan</p>
+        <div v-if="brandingStore.isMaintenanceMode" class="maintenance-notice">
+          {{ brandingStore.maintenanceMessage || 'Sistem sedang dalam mode pemeliharaan. Hanya super admin yang dapat masuk.' }}
+        </div>
       </div>
       
       <form @submit.prevent="handleLogin" class="login-form">
@@ -106,13 +109,19 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAppBrandingStore } from '@/stores/appBranding'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
 import AppLogo from '@/components/AppLogo.vue'
+
+const brandingStore = useAppBrandingStore()
+onMounted(() => {
+  brandingStore.refreshBranding()
+})
 
 const toast = useToast()
 
@@ -165,8 +174,10 @@ const handleLogin = async () => {
     // Redirect based on user role
     if (authStore.user?.role === 'super_admin') {
       router.push('/super-admin/dashboard')
-    } else if (authStore.user?.role === 'teacher') {
+    } else if (authStore.user?.role === 'teacher' || authStore.user?.role === 'staff') {
       router.push('/teacher/dashboard')
+    } else if (authStore.user?.role === 'student') {
+      router.push('/student/dashboard')
     } else {
       router.push('/dashboard')
     }
@@ -348,6 +359,18 @@ const handleLogin = async () => {
   color: #64748b;
   font-size: 14px;
   margin: 0;
+}
+
+.maintenance-notice {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
 }
 
 .login-form {

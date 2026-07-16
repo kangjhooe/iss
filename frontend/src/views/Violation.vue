@@ -21,6 +21,13 @@
               <span class="nav-tab-label">Daftar Pelanggaran</span>
               <span class="nav-tab-hint">Catat pelanggaran</span>
             </button>
+            <button :class="['nav-tab', { active: activeTab === 'pending' }]" @click="switchTab('pending')">
+              <span class="nav-tab-label">Usulan Piket</span>
+              <span class="nav-tab-hint">
+                Menunggu BK
+                <template v-if="pendingProposalCount"> ({{ pendingProposalCount }})</template>
+              </span>
+            </button>
             <button :class="['nav-tab', { active: activeTab === 'types' }]" @click="switchTab('types')">
               <span class="nav-tab-label">Jenis Pelanggaran</span>
               <span class="nav-tab-hint">Master jenis & bobot</span>
@@ -50,8 +57,11 @@
       </div>
 
       <main class="page-main">
-      <!-- Tab: Daftar Pelanggaran -->
-      <template v-if="activeTab === 'list'">
+      <!-- Tab: Daftar Pelanggaran / Usulan Piket -->
+      <template v-if="activeTab === 'list' || activeTab === 'pending'">
+        <div v-if="activeTab === 'pending'" class="pending-banner">
+          Usulan dari guru piket. Setujui agar poin masuk ke skor siswa, atau tolak jika tidak sesuai.
+        </div>
         <div class="filters filters-inline">
           <input
             v-model="filters.search"
@@ -60,12 +70,19 @@
             class="search-input"
             @input="debounceLoadViolations"
           />
-          <select v-model="filters.status" @change="loadViolations" class="filter-select">
+          <select
+            v-if="activeTab === 'list'"
+            v-model="filters.status"
+            @change="loadViolations"
+            class="filter-select"
+          >
             <option value="">Semua Status</option>
+            <option value="pending">Menunggu BK</option>
             <option value="dicatat">Dicatat</option>
             <option value="sanksi_diberikan">Sanksi Diberikan</option>
             <option value="follow_up">Follow Up</option>
             <option value="selesai">Selesai</option>
+            <option value="ditolak">Ditolak</option>
           </select>
           <select v-model="filters.violation_type_id" @change="loadViolations" class="filter-select">
             <option value="">Semua Jenis</option>
@@ -99,9 +116,13 @@
               <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <h3 class="empty-title">Belum ada catatan pelanggaran</h3>
-          <p class="empty-desc">Tambahkan pelanggaran siswa atau atur filter untuk melihat data.</p>
-          <button @click="openAddModal" class="btn-primary btn-empty-cta">Tambah Pelanggaran</button>
+          <h3 class="empty-title">{{ activeTab === 'pending' ? 'Tidak ada usulan menunggu' : 'Belum ada catatan pelanggaran' }}</h3>
+          <p class="empty-desc">
+            {{ activeTab === 'pending'
+              ? 'Guru piket belum mengajukan pelanggaran siswa, atau semua sudah diproses.'
+              : 'Tambahkan pelanggaran siswa atau atur filter untuk melihat data.' }}
+          </p>
+          <button v-if="activeTab === 'list'" @click="openAddModal" class="btn-primary btn-empty-cta">Tambah Pelanggaran</button>
         </div>
 
         <div v-else class="table-container">
@@ -125,6 +146,10 @@
                 <td>
                   <span class="student-name">{{ v.student?.name }}</span>
                   <span class="student-meta">{{ v.student?.nisn || v.student?.nis || '-' }}</span>
+                  <span v-if="v.piket_incident" class="student-meta piket-source">
+                    Dari piket: {{ v.piket_incident.type_label || v.piket_incident.incident_type }}
+                    <template v-if="v.piket_incident.minutes_late"> · {{ v.piket_incident.minutes_late }} mnt</template>
+                  </span>
                 </td>
                 <td>{{ v.violation_type?.name }}</td>
                 <td><span :class="['category-badge', v.violation_type?.category]">{{ v.violation_type?.category }}</span></td>
@@ -134,8 +159,14 @@
                 <td>{{ v.reporter?.name }}</td>
                 <td>
                   <div class="action-buttons">
-                    <button @click="openEditModal(v)" class="btn-action btn-edit" title="Edit">✎</button>
-                    <button @click="confirmDelete(v)" class="btn-action btn-delete" title="Hapus">🗑</button>
+                    <template v-if="v.status === 'pending'">
+                      <button type="button" class="btn-sm-approve" @click="approveViolation(v)">Setujui</button>
+                      <button type="button" class="btn-sm-reject" @click="openRejectModal(v)">Tolak</button>
+                    </template>
+                    <template v-else>
+                      <button @click="openEditModal(v)" class="btn-action btn-edit" title="Edit" :disabled="v.status === 'ditolak'">✎</button>
+                      <button @click="confirmDelete(v)" class="btn-action btn-delete" title="Hapus">🗑</button>
+                    </template>
                   </div>
                 </td>
               </tr>
@@ -143,7 +174,7 @@
           </table>
         </div>
 
-        <div v-if="activeTab === 'list' && pagination.last_page > 1" class="pagination-bar">
+        <div v-if="(activeTab === 'list' || activeTab === 'pending') && pagination.last_page > 1" class="pagination-bar">
           <span class="pagination-info">
             Menampilkan {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} dari {{ pagination.total }}
           </span>
@@ -191,67 +222,182 @@
             </svg>
           </div>
           <div class="points-info-text">
-            <strong>Skor pelanggaran</strong> = poin pelanggaran − poin prestasi. Makin besar skor = makin buruk. Prestasi mengurangi skor. <strong>Tabung prestasi</strong> = total poin prestasi yang ditabung (siswa berprestasi punya tabung tinggi).
+            Skor = Σ pelanggaran − prestasi <strong>per periode</strong>. Setelah tindakan dicatat, pelanggaran baru atau skor yang naik akan membuka ulang status <strong>Menunggu</strong>.
           </div>
         </div>
+
         <div class="points-summary-cards">
           <div class="summary-card card-warning">
             <div class="summary-icon summary-icon-warning">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 9V13M12 17H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0378 2.66667 10.268 4L3.33978 16C2.56998 17.3333 3.53223 19 5.07183 19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
-            <span class="summary-value">{{ pointsPagination.total ?? studentPoints.length }}</span>
-            <span class="summary-label">Siswa Perlu Tindakan</span>
+            <div class="summary-body">
+              <span class="summary-value">{{ pointsPendingCount }}</span>
+              <span class="summary-label">Menunggu tindakan</span>
+            </div>
+          </div>
+          <div class="summary-card card-total">
+            <div class="summary-icon summary-icon-total">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 21V19C17 16.7909 15.2091 15 13 15H5C2.79086 15 1 16.7909 1 19V21M23 21V19C22.9986 17.1771 21.765 15.5857 20 15.13M16 3.13C17.7699 3.58317 19.0078 5.17799 19.0078 7.005C19.0078 8.83201 17.7699 10.4268 16 10.88M13 7C13 9.20914 11.2091 11 9 11C6.79086 11 5 9.20914 5 7C5 4.79086 6.79086 3 9 3C11.2091 3 13 4.79086 13 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="summary-body">
+              <span class="summary-value">{{ pointsPagination.total ?? studentPoints.length }}</span>
+              <span class="summary-label">Siswa skor &gt; 0</span>
+            </div>
           </div>
         </div>
-        <p class="points-filter-hint">Hanya menampilkan siswa yang punya pelanggaran dan perlu tindakan (skor &gt; 0).</p>
-        <div class="filters">
+
+        <div class="filters filters-inline points-filters">
           <input v-model="pointSearch" type="text" placeholder="Cari nama, NIS, NISN..." class="search-input" @input="debounceLoadStudentPoints" />
+          <select v-model="pointFilters.academic_year_id" class="filter-select" @change="onPointPeriodChange">
+            <option value="">Semua Tahun</option>
+            <option v-for="y in academicYears" :key="y.id" :value="String(y.id)">{{ y.name }}</option>
+          </select>
+          <select v-model="pointFilters.semester_id" class="filter-select" @change="onPointPeriodChange">
+            <option value="">Semua Semester</option>
+            <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+          </select>
+          <label class="filter-chip" :class="{ active: pointFilters.pending_only }">
+            <input v-model="pointFilters.pending_only" type="checkbox" @change="onPointPeriodChange" />
+            Hanya menunggu
+          </label>
         </div>
+
         <div v-if="pointsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat poin siswa...</p></div>
         <div v-else-if="studentPoints.length === 0" class="empty-state">
-          <h3 class="empty-title">Tidak ada siswa yang perlu tindakan</h3>
-          <p class="empty-desc">Saat ini tidak ada siswa dengan skor pelanggaran &gt; 0. Data akan muncul setelah ada pelanggaran yang dicatat.</p>
+          <h3 class="empty-title">Tidak ada siswa dengan skor &gt; 0</h3>
+          <p class="empty-desc">Tidak ada data untuk periode ini, atau filter menyembunyikan semua baris. Catat pelanggaran di tab Daftar untuk melihat skor.</p>
         </div>
-        <div v-else class="table-container table-points">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Siswa</th>
-                <th class="th-num">+ Pelanggaran</th>
-                <th class="th-num">− Prestasi</th>
-                <th class="th-num">Skor</th>
-                <th class="th-num">Tabung prestasi</th>
-                <th>Tindakan wajib</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in studentPoints" :key="row.student_id" :class="{ 'row-good': row.total_points <= 0 && (row.achievement_bank ?? row.achievement_points) > 0, 'row-warning': row.required_action }">
-                <td>
+        <div v-else class="points-list">
+          <article
+            v-for="row in studentPoints"
+            :key="row.student_id"
+            class="points-row"
+            :class="{
+              'is-pending': row.action_pending,
+              'is-done': row.action_fulfilled,
+              'is-no-rule': !row.required_action && row.total_points > 0,
+              'is-expanded': expandedPointStudentId === row.student_id,
+            }"
+          >
+            <div class="points-row-top">
+              <div class="points-row-main">
+                <div class="points-student">
                   <span class="student-name">{{ row.student?.name }}</span>
-                  <span class="student-meta">{{ row.student?.nisn || row.student?.nis || '-' }}</span>
-                  <span v-if="row.total_points <= 0 && (row.achievement_bank ?? row.achievement_points) > 0" class="badge-prestasi">Siswa Berprestasi</span>
-                </td>
-                <td class="num-add">+{{ row.violation_points }}</td>
-                <td class="num-sub">−{{ row.achievement_points }}</td>
-                <td :class="['num-total', row.total_points > 40 ? 'score-bad' : row.total_points > 20 ? 'score-warn' : row.total_points <= 0 ? 'score-good' : 'score-normal']">
-                  {{ row.total_points }}
-                </td>
-                <td class="num-bank">{{ row.achievement_bank ?? row.achievement_points }}</td>
-                <td>
-                  <span v-if="row.required_action" class="action-badge">{{ row.required_action.action_name }}</span>
-                  <span v-else class="text-muted">—</span>
-                </td>
-                <td>
-                  <button v-if="row.required_action" @click="openLogActionModal(row)" class="btn-action btn-edit">Catat Tindakan</button>
-                  <span v-else class="text-muted">—</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <span class="student-meta">
+                    {{ row.student?.nisn || row.student?.nis || '—' }}
+                    · {{ row.violations_count || row.violations?.length || 0 }} pelanggaran
+                  </span>
+                  <p v-if="row.action_pending && row.reopen_reason" class="reopen-hint">
+                    {{ reopenReasonLabel(row) }}
+                  </p>
+                </div>
+
+                <div class="points-score-block">
+                  <div
+                    class="score-pill"
+                    :class="row.total_points > 40 ? 'score-bad' : row.total_points > 20 ? 'score-warn' : 'score-normal'"
+                  >
+                    <span class="score-pill-label">Skor</span>
+                    <span class="score-pill-value">{{ row.total_points }}</span>
+                  </div>
+                  <div class="score-breakdown" title="Pelanggaran − Prestasi">
+                    <span class="bd-add">+{{ row.violation_points }}</span>
+                    <span class="bd-sep">−</span>
+                    <span class="bd-sub">{{ row.achievement_points }}</span>
+                  </div>
+                  <span v-if="row.new_points_since_action > 0" class="new-points-badge">
+                    +{{ row.new_points_since_action }} sejak tindakan
+                  </span>
+                </div>
+
+                <div class="points-action-info">
+                  <template v-if="row.required_action">
+                    <span class="action-name-line">{{ row.required_action.action_name }}</span>
+                    <span class="action-range-line">Skor {{ row.required_action.point_min }}–{{ row.required_action.point_max }}</span>
+                  </template>
+                  <template v-else>
+                    <span class="action-name-line muted">Belum ada aturan</span>
+                    <span class="action-range-line">Atur di tab Aturan Tindakan</span>
+                  </template>
+                  <span
+                    class="status-chip"
+                    :class="{
+                      pending: row.action_pending,
+                      done: row.action_fulfilled,
+                      none: !row.action_pending && !row.action_fulfilled,
+                    }"
+                  >
+                    {{ row.action_pending ? 'Menunggu' : row.action_fulfilled ? 'Sudah ditindak' : '—' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="points-row-actions">
+                <button
+                  type="button"
+                  class="btn-points-primary"
+                  :class="{ secondary: row.action_fulfilled }"
+                  @click="openLogActionModal(row, !!row.action_fulfilled)"
+                >
+                  {{ row.action_fulfilled ? 'Catat lagi' : 'Catat tindakan' }}
+                </button>
+                <button type="button" class="btn-points-ghost" @click="togglePointExpand(row.student_id)">
+                  {{ expandedPointStudentId === row.student_id ? 'Sembunyikan' : 'Detail' }}
+                </button>
+                <button type="button" class="btn-points-ghost" @click="openActionHistory(row)">
+                  Riwayat
+                </button>
+              </div>
+            </div>
+
+            <div v-if="expandedPointStudentId === row.student_id" class="points-row-detail">
+              <h4 class="detail-title">Pelanggaran periode ini ({{ row.violations_count || row.violations?.length || 0 }})</h4>
+              <div v-if="!(row.violations && row.violations.length)" class="detail-empty">
+                Tidak ada detail pelanggaran.
+              </div>
+              <ul v-else class="violation-mini-list">
+                <li v-for="v in row.violations" :key="v.id" class="violation-mini-item">
+                  <div class="vmi-main">
+                    <strong>{{ v.violation_type?.name || 'Pelanggaran' }}</strong>
+                    <span class="vmi-date">{{ formatDate(v.violation_date) }}</span>
+                  </div>
+                  <div class="vmi-meta">
+                    <span class="vmi-points">+{{ v.point_weight ?? v.violation_type?.point_weight ?? 0 }}</span>
+                    <span :class="['status-badge', 'status-' + v.status]">{{ getStatusLabel(v.status) }}</span>
+                  </div>
+                </li>
+              </ul>
+
+              <h4 class="detail-title">Prestasi periode ini ({{ row.achievements_count || row.achievements?.length || 0 }})</h4>
+              <div v-if="!(row.achievements && row.achievements.length)" class="detail-empty">
+                Belum ada prestasi pada periode ini.
+              </div>
+              <ul v-else class="violation-mini-list">
+                <li v-for="a in row.achievements" :key="'ach-' + a.id" class="violation-mini-item achievement-mini-item">
+                  <div class="vmi-main">
+                    <strong>{{ a.achievement_type?.name || 'Prestasi' }}</strong>
+                    <span class="vmi-date">{{ formatDate(a.achievement_date) }}</span>
+                  </div>
+                  <div class="vmi-meta">
+                    <span class="vmi-points vmi-points-good">−{{ a.point_value }}</span>
+                  </div>
+                </li>
+              </ul>
+
+              <p v-if="row.latest_action" class="detail-last-action">
+                Tindakan terakhir: <strong>{{ row.latest_action.action_name }}</strong>
+                ({{ formatDate(row.latest_action.action_date) }})
+                <template v-if="row.score_at_action != null"> · skor saat itu {{ row.score_at_action }}</template>
+              </p>
+            </div>
+          </article>
         </div>
+
         <div v-if="activeTab === 'points' && pointsPagination.last_page > 1" class="pagination-bar">
           <span class="pagination-info">Halaman {{ pointsPagination.current_page }} / {{ pointsPagination.last_page }}</span>
           <div class="pagination-buttons">
@@ -263,11 +409,40 @@
 
       <!-- Tab: Prestasi -->
       <template v-if="activeTab === 'prestasi'">
+        <div class="filters filters-inline">
+          <input
+            v-model="achievementFilters.search"
+            type="text"
+            placeholder="Cari nama, NIS, NISN siswa..."
+            class="search-input"
+            @input="debounceLoadAchievements"
+          />
+          <select v-model="achievementFilters.achievement_type_id" class="filter-select" @change="onAchievementFilterChange">
+            <option value="">Semua jenis</option>
+            <option v-for="t in achievementTypes" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
+          </select>
+          <select v-model="achievementFilters.academic_year_id" class="filter-select" @change="onAchievementFilterChange">
+            <option value="">Semua Tahun</option>
+            <option v-for="y in academicYears" :key="y.id" :value="String(y.id)">{{ y.name }}</option>
+          </select>
+          <select v-model="achievementFilters.semester_id" class="filter-select" @change="onAchievementFilterChange">
+            <option value="">Semua Semester</option>
+            <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+          </select>
+        </div>
         <div v-if="achievementsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat prestasi...</p></div>
         <div v-else-if="achievements.length === 0" class="empty-state">
           <h3 class="empty-title">Belum ada prestasi</h3>
-          <p class="empty-desc">Prestasi mengurangi poin pelanggaran. Tambahkan prestasi siswa.</p>
-          <button @click="openAddPrestasiModal" class="btn-primary btn-empty-cta">Tambah Prestasi</button>
+          <p class="empty-desc">
+            Prestasi mengurangi skor pelanggaran pada periode terpilih.
+            <template v-if="achievementTypes.length === 0"> Buat Jenis Prestasi dulu sebelum mencatat.</template>
+          </p>
+          <button
+            v-if="achievementTypes.length === 0"
+            @click="switchTab('achievement_types'); openAddAchievementTypeModal()"
+            class="btn-primary btn-empty-cta"
+          >Tambah Jenis Prestasi</button>
+          <button v-else @click="openAddPrestasiModal" class="btn-primary btn-empty-cta">Tambah Prestasi</button>
         </div>
         <div v-else class="table-container">
           <table class="data-table">
@@ -284,14 +459,17 @@
             <tbody>
               <tr v-for="a in achievements" :key="a.id">
                 <td>{{ formatDate(a.achievement_date) }}</td>
-                <td>{{ a.student?.name }}</td>
+                <td>
+                  <span class="student-name">{{ a.student?.name }}</span>
+                  <span class="student-meta">{{ a.student?.nisn || a.student?.nis || '—' }}</span>
+                </td>
                 <td>{{ a.achievement_type?.name }}</td>
-                <td>+{{ a.point_value }}</td>
+                <td class="num-sub">+{{ a.point_value }}</td>
                 <td>{{ a.giver?.name }}</td>
                 <td>
-                <button @click="openEditPrestasiModal(a)" class="btn-action btn-edit">Edit</button>
-                <button @click="confirmDeleteAchievement(a)" class="btn-action btn-delete">Hapus</button>
-              </td>
+                  <button @click="openEditPrestasiModal(a)" class="btn-action btn-edit">Edit</button>
+                  <button @click="confirmDeleteAchievement(a)" class="btn-action btn-delete">Hapus</button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -363,6 +541,32 @@
         </div>
       </template>
       </main>
+
+      <!-- Modal: Tolak usulan piket -->
+      <div v-if="showRejectModal" class="modal-overlay" @click="showRejectModal = false">
+        <div class="modal-content form-modal" @click.stop>
+          <div class="modal-header">
+            <h3>Tolak Usulan Piket</h3>
+            <button @click="showRejectModal = false" class="btn-close">×</button>
+          </div>
+          <form @submit.prevent="submitReject" class="modal-body">
+            <p class="reject-hint">
+              {{ rejectTarget?.student?.name }} — {{ rejectTarget?.violation_type?.name }}
+            </p>
+            <div class="form-group">
+              <label>Alasan penolakan *</label>
+              <textarea v-model="rejectNotes" rows="3" required placeholder="Jelaskan alasan penolakan untuk guru piket"></textarea>
+            </div>
+            <div v-if="formError" class="error-message">{{ formError }}</div>
+            <div class="modal-footer">
+              <button type="button" @click="showRejectModal = false" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="formSubmitting" class="btn-primary">
+                {{ formSubmitting ? 'Menolak...' : 'Tolak Usulan' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <!-- Modal: Tambah/Edit Pelanggaran -->
       <div v-if="showFormModal" class="modal-overlay" @click="showFormModal = false">
@@ -599,31 +803,127 @@
 
       <!-- Modal: Catat Tindakan -->
       <div v-if="showLogActionModal" class="modal-overlay" @click="showLogActionModal = false">
-        <div class="modal-content form-modal" @click.stop>
+        <div class="modal-content form-modal action-form-modal" @click.stop>
           <div class="modal-header">
-            <h3>Catat Tindakan Dilaksanakan</h3>
-            <button @click="showLogActionModal = false" class="btn-close">×</button>
+            <h3>{{ logActionRow?.action_fulfilled ? 'Catat Tindakan Lanjutan' : 'Catat Tindakan' }}</h3>
+            <button @click="showLogActionModal = false" class="btn-close" type="button" aria-label="Tutup">×</button>
           </div>
           <form @submit.prevent="submitLogAction" class="modal-body">
-            <p v-if="logActionRow" class="form-hint">Siswa: <strong>{{ logActionRow.student?.name }}</strong>. Tindakan: <strong>{{ logActionRow.required_action?.action_name }}</strong>.</p>
+            <div v-if="logActionRow" class="action-student-card">
+              <div class="asc-top">
+                <div>
+                  <p class="asc-name">{{ logActionRow.student?.name }}</p>
+                  <p class="asc-meta">{{ logActionRow.student?.nisn || logActionRow.student?.nis || '—' }}</p>
+                </div>
+                <div
+                  class="asc-score"
+                  :class="logActionRow.total_points > 40 ? 'score-bad' : logActionRow.total_points > 20 ? 'score-warn' : 'score-normal'"
+                >
+                  <span>Skor</span>
+                  <strong>{{ logActionRow.total_points }}</strong>
+                </div>
+              </div>
+              <div class="asc-breakdown">
+                <span><em>+{{ logActionRow.violation_points }}</em> pelanggaran</span>
+                <span><em>−{{ logActionRow.achievement_points }}</em> prestasi</span>
+              </div>
+              <div v-if="logActionRow.required_action" class="asc-required">
+                <span class="asc-required-label">Tindakan wajib</span>
+                <strong>{{ logActionRow.required_action.action_name }}</strong>
+                <span class="asc-required-range">Rentang skor {{ logActionRow.required_action.point_min }}–{{ logActionRow.required_action.point_max }}</span>
+              </div>
+              <p v-else class="asc-no-rule">Tidak ada aturan threshold untuk skor ini — Anda tetap dapat mencatat tindakan manual.</p>
+              <p v-if="logActionRow.action_pending && logActionRow.reopen_reason" class="asc-reopen">
+                {{ reopenReasonLabel(logActionRow) }}
+              </p>
+              <p class="asc-close-hint">
+                Menyimpan akan menutup pelanggaran dengan tanggal ≤ tanggal tindakan. Pelanggaran setelah tanggal itu tetap terbuka.
+              </p>
+            </div>
+
             <div class="form-group">
-              <label>Nama Tindakan *</label>
-              <input v-model="logActionForm.action_name" type="text" required placeholder="Panggilan orang tua" />
+              <label for="log-action-name">Nama tindakan *</label>
+              <input
+                id="log-action-name"
+                v-model="logActionForm.action_name"
+                type="text"
+                required
+                placeholder="Contoh: Panggilan orang tua"
+              />
             </div>
             <div class="form-group">
-              <label>Tanggal Dilaksanakan *</label>
-              <input v-model="logActionForm.action_date" type="date" required />
+              <label for="log-action-date">Tanggal dilaksanakan *</label>
+              <input id="log-action-date" v-model="logActionForm.action_date" type="date" required />
             </div>
             <div class="form-group">
-              <label>Catatan</label>
-              <textarea v-model="logActionForm.notes" rows="2" placeholder="Hasil panggilan, dll."></textarea>
+              <label for="log-action-notes">Catatan hasil</label>
+              <textarea
+                id="log-action-notes"
+                v-model="logActionForm.notes"
+                rows="3"
+                placeholder="Ringkasan hasil pertemuan, kesepakatan, atau tindak lanjut..."
+              ></textarea>
             </div>
+
+            <fieldset class="resolve-options">
+              <legend>Status pelanggaran terkait</legend>
+              <label class="resolve-option" :class="{ selected: logActionForm.resolution === 'follow_up' }">
+                <input v-model="logActionForm.resolution" type="radio" value="follow_up" />
+                <span class="resolve-option-body">
+                  <strong>Follow Up</strong>
+                  <small>Tindakan sudah dilakukan; pelanggaran masih dipantau.</small>
+                </span>
+              </label>
+              <label class="resolve-option" :class="{ selected: logActionForm.resolution === 'selesai' }">
+                <input v-model="logActionForm.resolution" type="radio" value="selesai" />
+                <span class="resolve-option-body">
+                  <strong>Selesai</strong>
+                  <small>Tutup semua pelanggaran terbuka pada periode ini.</small>
+                </span>
+              </label>
+            </fieldset>
+
             <div v-if="logActionFormError" class="error-message">{{ logActionFormError }}</div>
             <div class="modal-footer">
               <button type="button" @click="showLogActionModal = false" class="btn-secondary">Batal</button>
-              <button type="submit" :disabled="logActionFormSubmitting" class="btn-primary">{{ logActionFormSubmitting ? 'Menyimpan...' : 'Simpan' }}</button>
+              <button type="submit" :disabled="logActionFormSubmitting" class="btn-primary">
+                {{ logActionFormSubmitting ? 'Menyimpan...' : 'Simpan tindakan' }}
+              </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- Modal: Riwayat Tindakan -->
+      <div v-if="showActionHistoryModal" class="modal-overlay" @click="showActionHistoryModal = false">
+        <div class="modal-content form-modal modal-wide" @click.stop>
+          <div class="modal-header">
+            <h3>Riwayat Tindakan</h3>
+            <button @click="showActionHistoryModal = false" class="btn-close" type="button" aria-label="Tutup">×</button>
+          </div>
+          <div class="modal-body">
+            <div v-if="actionHistoryStudent" class="action-student-card">
+              <p class="asc-name">{{ actionHistoryStudent.student?.name }}</p>
+              <p class="asc-meta">{{ actionHistoryStudent.student?.nisn || actionHistoryStudent.student?.nis || '—' }} · Skor {{ actionHistoryStudent.total_points }}</p>
+            </div>
+            <div v-if="actionHistoryLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat riwayat...</p></div>
+            <div v-else-if="actionHistory.length === 0" class="empty-state" style="padding: 1.5rem;">
+              <p class="empty-desc" style="margin: 0;">Belum ada catatan tindakan untuk siswa ini pada periode terpilih.</p>
+            </div>
+            <ul v-else class="history-list">
+              <li v-for="log in actionHistory" :key="log.id" class="history-item">
+                <div class="history-item-top">
+                  <strong>{{ log.action_name }}</strong>
+                  <time>{{ formatDate(log.action_date) }}</time>
+                </div>
+                <p v-if="log.notes" class="history-notes">{{ log.notes }}</p>
+                <p class="history-meta">Dicatat oleh {{ log.recorder?.name || '—' }}</p>
+              </li>
+            </ul>
+            <div class="modal-footer">
+              <button type="button" @click="showActionHistoryModal = false" class="btn-secondary">Tutup</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -672,10 +972,11 @@ function primaryActionClick() {
 
 const tabDescription = computed(() => {
   const desc = {
-    list: 'Catat setiap pelanggaran siswa di sini. Data dipakai untuk menghitung poin di tab Poin Siswa.',
+    list: 'Catat setiap pelanggaran siswa di sini. Data dipakai untuk menghitung poin di tab Poin Siswa. Usulan piket menunggu tidak dihitung sampai disetujui.',
+    pending: 'Usulan pelanggaran dari guru piket. Setujui agar poin masuk, atau tolak dengan alasan.',
     types: 'Atur jenis pelanggaran (mis. Terlambat, Tidak pakai atribut) beserta kategori dan bobot poin.',
-    points: 'Hanya menampilkan siswa yang punya pelanggaran dan perlu tindakan (skor > 0). Alur: catat pelanggaran di Daftar → skor muncul di sini → gunakan "Catat Tindakan" per siswa.',
-    prestasi: 'Prestasi mengurangi skor pelanggaran. Catat prestasi siswa di sini.',
+    points: 'Skor = Σ pelanggaran − prestasi per periode. Pelanggaran baru setelah tindakan (atau skor naik) membuka ulang status Menunggu. Gunakan Detail untuk melihat tiap pelanggaran.',
+    prestasi: 'Prestasi mengurangi skor pelanggaran pada periode yang sama. Catat di sini setelah Jenis Prestasi tersedia.',
     achievement_types: 'Atur jenis prestasi dan nilai poin pengurang.',
     thresholds: 'Atur rentang skor pelanggaran dan tindakan wajib (mis. skor 40–999 = Panggilan orang tua).',
   }
@@ -684,8 +985,10 @@ const tabDescription = computed(() => {
 
 function switchTab(tab) {
   activeTab.value = tab
-  if (tab === 'list') loadViolations()
-  else if (tab === 'types') loadTypes()
+  if (tab === 'list' || tab === 'pending') {
+    pagination.value.current_page = 1
+    loadViolations()
+  } else if (tab === 'types') loadTypes()
   else if (tab === 'points') loadStudentPoints()
   else if (tab === 'prestasi') loadAchievements()
   else if (tab === 'achievement_types') loadAchievementTypes()
@@ -697,6 +1000,10 @@ const violations = ref([])
 const violationTypes = ref([])
 const students = ref([])
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
+const pendingProposalCount = ref(0)
+const showRejectModal = ref(false)
+const rejectTarget = ref(null)
+const rejectNotes = ref('')
 
 const referenceStore = useReferenceDataStore()
 const academicYears = computed(() => referenceStore.academicYears)
@@ -749,19 +1056,54 @@ const deleteThresholdTarget = ref(null)
 
 // Poin siswa
 const pointSearch = ref('')
+const pointFilters = ref({
+  academic_year_id: '',
+  semester_id: '',
+  pending_only: false,
+})
 const studentPoints = ref([])
 const pointsLoading = ref(false)
-const pointsPagination = ref({ current_page: 1, last_page: 1 })
+const pointsPagination = ref({ current_page: 1, last_page: 1, total: 0, pending_count: 0 })
+const pointsPendingCount = computed(() => pointsPagination.value.pending_count ?? studentPoints.value.filter((r) => r.action_pending).length)
+const expandedPointStudentId = ref(null)
 let pointsDebounceTimer = null
 function debounceLoadStudentPoints() {
   clearTimeout(pointsDebounceTimer)
-  pointsDebounceTimer = setTimeout(() => loadStudentPoints(), 300)
+  pointsDebounceTimer = setTimeout(() => {
+    pointsPagination.value.current_page = 1
+    loadStudentPoints()
+  }, 300)
+}
+function onPointPeriodChange() {
+  pointsPagination.value.current_page = 1
+  expandedPointStudentId.value = null
+  loadStudentPoints()
+}
+function togglePointExpand(studentId) {
+  expandedPointStudentId.value = expandedPointStudentId.value === studentId ? null : studentId
+}
+function reopenReasonLabel(row) {
+  const reasons = {
+    never_acted: 'Belum pernah dicatat tindakan untuk threshold ini.',
+    score_increased: `Skor naik setelah tindakan terakhir${row.score_at_action != null ? ` (dari ${row.score_at_action} → ${row.total_points})` : ''}.`,
+    new_violations: row.open_after_action_count
+      ? `Ada ${row.open_after_action_count} pelanggaran baru setelah tindakan terakhir.`
+      : 'Ada pelanggaran baru setelah tindakan terakhir.',
+    no_threshold: 'Belum ada aturan threshold — tindakan manual diperlukan.',
+  }
+  return reasons[row.reopen_reason] || 'Perlu dicatat tindakan.'
 }
 
 // Prestasi
 const achievements = ref([])
 const achievementsLoading = ref(false)
 const achievementsPagination = ref({ current_page: 1, last_page: 1 })
+const achievementFilters = ref({
+  search: '',
+  achievement_type_id: '',
+  academic_year_id: '',
+  semester_id: '',
+})
 const achievementTypes = ref([])
 const achievementTypesLoading = ref(false)
 const showPrestasiModal = ref(false)
@@ -774,6 +1116,18 @@ const editingAchievementType = ref(null)
 const achievementTypeForm = ref({ name: '', point_value: 10, category: '' })
 const achievementTypeFormError = ref('')
 const achievementTypeFormSubmitting = ref(false)
+let achievementsDebounceTimer = null
+function debounceLoadAchievements() {
+  clearTimeout(achievementsDebounceTimer)
+  achievementsDebounceTimer = setTimeout(() => {
+    achievementsPagination.value.current_page = 1
+    loadAchievements()
+  }, 300)
+}
+function onAchievementFilterChange() {
+  achievementsPagination.value.current_page = 1
+  loadAchievements()
+}
 
 // Aturan tindakan
 const thresholds = ref([])
@@ -787,9 +1141,22 @@ const thresholdFormSubmitting = ref(false)
 // Catat tindakan
 const showLogActionModal = ref(false)
 const logActionRow = ref(null)
-const logActionForm = ref({ student_id: '', point_threshold_id: null, action_name: '', action_date: '', notes: '' })
+const logActionForm = ref({
+  student_id: '',
+  point_threshold_id: null,
+  action_name: '',
+  action_date: '',
+  notes: '',
+  resolution: 'follow_up',
+})
 const logActionFormError = ref('')
 const logActionFormSubmitting = ref(false)
+
+// Riwayat tindakan
+const showActionHistoryModal = ref(false)
+const actionHistoryStudent = ref(null)
+const actionHistory = ref([])
+const actionHistoryLoading = ref(false)
 
 const deleteViolationMessage = computed(() => {
   const name = deleteTarget.value?.student?.name || ''
@@ -821,10 +1188,12 @@ function formatDate(val) {
 }
 
 const statusLabels = {
+  pending: 'Menunggu BK',
   dicatat: 'Dicatat',
   sanksi_diberikan: 'Sanksi Diberikan',
   follow_up: 'Follow Up',
   selesai: 'Selesai',
+  ditolak: 'Ditolak',
 }
 function getStatusLabel(status) {
   return statusLabels[status] || status
@@ -839,7 +1208,13 @@ async function loadViolations() {
       per_page: 15,
       ...filters.value,
     }
-    if (!params.status) delete params.status
+    if (activeTab.value === 'pending') {
+      params.status = 'pending'
+      delete params.academic_year_id
+      delete params.semester_id
+    } else if (!params.status) {
+      delete params.status
+    }
     if (!params.violation_type_id) delete params.violation_type_id
     if (!params.academic_year_id) delete params.academic_year_id
     if (!params.semester_id) delete params.semester_id
@@ -850,16 +1225,53 @@ async function loadViolations() {
     const res = await violationApi.getAll(params)
     violations.value = res.data.data || []
     const meta = res.data.meta || {}
+    const metaExtra = res.data.meta_extra || {}
     pagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
       per_page: meta.per_page ?? 15,
       total: meta.total ?? 0,
     }
+    if (typeof metaExtra.pending_count === 'number') {
+      pendingProposalCount.value = metaExtra.pending_count
+    }
   } catch (e) {
     toast.error('Gagal memuat pelanggaran', e.formattedMessage || 'Data pelanggaran tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
+  }
+}
+
+async function approveViolation(v) {
+  try {
+    await violationApi.approve(v.id)
+    toast.success('Usulan disetujui — poin siswa diperbarui')
+    await loadViolations()
+  } catch (e) {
+    toast.error('Gagal menyetujui', e.formattedMessage || e.response?.data?.message || 'Coba lagi.')
+  }
+}
+
+function openRejectModal(v) {
+  rejectTarget.value = v
+  rejectNotes.value = ''
+  formError.value = ''
+  showRejectModal.value = true
+}
+
+async function submitReject() {
+  if (!rejectTarget.value) return
+  formSubmitting.value = true
+  formError.value = ''
+  try {
+    await violationApi.reject(rejectTarget.value.id, { review_notes: rejectNotes.value })
+    toast.success('Usulan ditolak')
+    showRejectModal.value = false
+    await loadViolations()
+  } catch (e) {
+    formError.value = e.formattedMessage || e.response?.data?.message || 'Gagal menolak usulan.'
+  } finally {
+    formSubmitting.value = false
   }
 }
 
@@ -907,6 +1319,12 @@ function openAddModal() {
 }
 
 function openEditModal(v) {
+  if (v.status === 'pending' || v.status === 'ditolak') {
+    toast.error('Tidak dapat diedit', v.status === 'pending'
+      ? 'Usulan menunggu harus disetujui atau ditolak terlebih dahulu.'
+      : 'Pelanggaran yang ditolak tidak dapat diubah.')
+    return
+  }
   editingViolation.value = v
   form.value = {
     student_id: v.student_id,
@@ -1053,18 +1471,25 @@ async function doDeleteType() {
 async function loadStudentPoints() {
   pointsLoading.value = true
   try {
-    const res = await studentPointApi.getList({
+    const params = {
       page: pointsPagination.value.current_page,
       per_page: 15,
-      search: pointSearch.value,
+      search: pointSearch.value || undefined,
       needs_action: 1,
-    })
+      academic_year_id: pointFilters.value.academic_year_id,
+      semester_id: pointFilters.value.semester_id,
+    }
+    if (pointFilters.value.pending_only) {
+      params.pending_only = 1
+    }
+    const res = await studentPointApi.getList(params)
     studentPoints.value = res.data.data || []
     const meta = res.data.meta || {}
     pointsPagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
       total: meta.total ?? 0,
+      pending_count: meta.pending_count ?? 0,
     }
   } catch (e) {
     toast.error('Gagal memuat poin siswa', e.formattedMessage || 'Data poin siswa tidak dapat dimuat. Periksa koneksi dan coba lagi.')
@@ -1080,7 +1505,18 @@ function goToPointsPage(page) {
 async function loadAchievements() {
   achievementsLoading.value = true
   try {
-    const res = await achievementApi.getAll({ page: achievementsPagination.value.current_page, per_page: 15 })
+    if (achievementTypes.value.length === 0) {
+      loadAchievementTypes()
+    }
+    const params = {
+      page: achievementsPagination.value.current_page,
+      per_page: 15,
+      search: achievementFilters.value.search || undefined,
+      achievement_type_id: achievementFilters.value.achievement_type_id || undefined,
+      academic_year_id: achievementFilters.value.academic_year_id,
+      semester_id: achievementFilters.value.semester_id,
+    }
+    const res = await achievementApi.getAll(params)
     achievements.value = res.data.data || []
     const meta = res.data.meta || {}
     achievementsPagination.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
@@ -1259,14 +1695,20 @@ async function doDeleteThreshold() {
   }
 }
 
-function openLogActionModal(row) {
+function openLogActionModal(row, isAgain = false) {
   logActionRow.value = row
   logActionForm.value = {
     student_id: row.student_id,
     point_threshold_id: row.required_action?.id || null,
-    action_name: row.required_action?.action_name || '',
+    action_name: row.required_action?.action_name || row.latest_action?.action_name || '',
     action_date: new Date().toISOString().slice(0, 10),
     notes: '',
+    resolution: 'follow_up',
+    academic_year_id: pointFilters.value.academic_year_id || undefined,
+    semester_id: pointFilters.value.semester_id || undefined,
+  }
+  if (!logActionForm.value.action_name && !isAgain) {
+    logActionForm.value.action_name = 'Tindak lanjut pembinaan'
   }
   logActionFormError.value = ''
   showLogActionModal.value = true
@@ -1274,14 +1716,50 @@ function openLogActionModal(row) {
 async function submitLogAction() {
   logActionFormSubmitting.value = true
   logActionFormError.value = ''
+  const markResolved = logActionForm.value.resolution === 'selesai'
   try {
-    await studentActionLogApi.create(logActionForm.value)
-    toast.success('Tindakan berhasil dicatat')
+    await studentActionLogApi.create({
+      student_id: logActionForm.value.student_id,
+      point_threshold_id: logActionForm.value.point_threshold_id,
+      action_name: logActionForm.value.action_name,
+      action_date: logActionForm.value.action_date,
+      notes: logActionForm.value.notes || undefined,
+      mark_violations_resolved: markResolved,
+      academic_year_id: pointFilters.value.academic_year_id || undefined,
+      semester_id: pointFilters.value.semester_id || undefined,
+    })
+    toast.success(
+      markResolved
+        ? 'Tindakan dicatat; pelanggaran periode ini ditandai selesai'
+        : 'Tindakan dicatat; pelanggaran terkait diubah ke Follow Up'
+    )
     showLogActionModal.value = false
+    loadStudentPoints()
+    if (activeTab.value === 'list') loadViolations()
   } catch (e) {
     logActionFormError.value = e.formattedMessage || e.response?.data?.message || 'Gagal menyimpan'
   } finally {
     logActionFormSubmitting.value = false
+  }
+}
+
+async function openActionHistory(row) {
+  actionHistoryStudent.value = row
+  actionHistory.value = []
+  showActionHistoryModal.value = true
+  actionHistoryLoading.value = true
+  try {
+    const params = { per_page: 50 }
+    if (pointFilters.value.academic_year_id) params.academic_year_id = pointFilters.value.academic_year_id
+    if (pointFilters.value.semester_id) params.semester_id = pointFilters.value.semester_id
+    const res = await studentActionLogApi.getByStudent(row.student_id, params)
+    const list = res.data?.data ?? res.data ?? []
+    actionHistory.value = Array.isArray(list) ? list : []
+  } catch (e) {
+    toast.error('Gagal memuat riwayat tindakan', e.formattedMessage || 'Coba lagi.')
+    actionHistory.value = []
+  } finally {
+    actionHistoryLoading.value = false
   }
 }
 
@@ -1311,10 +1789,16 @@ async function loadInstitutionAndDefaults() {
     semesters.value = semRes.data?.data ?? semRes.data ?? []
     await referenceStore.getAcademicYears()
     if (institution.value?.active_academic_year_id) {
-      filters.value.academic_year_id = String(institution.value.active_academic_year_id)
+      const yearId = String(institution.value.active_academic_year_id)
+      filters.value.academic_year_id = yearId
+      pointFilters.value.academic_year_id = yearId
+      achievementFilters.value.academic_year_id = yearId
     }
     if (institution.value?.active_semester_id) {
-      filters.value.semester_id = String(institution.value.active_semester_id)
+      const semId = String(institution.value.active_semester_id)
+      filters.value.semester_id = semId
+      pointFilters.value.semester_id = semId
+      achievementFilters.value.semester_id = semId
     }
   } catch {
     institution.value = null
@@ -1630,13 +2114,39 @@ onMounted(async () => {
   border-radius: 6px;
   font-size: 0.75rem;
 }
+.status-badge.status-pending { background: #fffbeb; color: #b45309; }
 .status-badge.status-dicatat { background: #ecfdf5; color: #047857; }
 .status-badge.status-sanksi_diberikan { background: #fef3c7; color: #92400e; }
-.status-badge.status-follow_up { background: #d1fae5; color: #065f46; }
+.status-badge.status-follow_up { background: #ffedd5; color: #c2410c; }
 .status-badge.status-selesai { background: #d1fae5; color: #047857; }
+.status-badge.status-ditolak { background: #fef2f2; color: #b91c1c; }
+.pending-banner {
+  background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px;
+}
+.piket-source { display: block; color: #2563eb; }
+.btn-sm-approve, .btn-sm-reject {
+  border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.btn-sm-approve { background: #ecfdf5; color: #047857; }
+.btn-sm-reject { background: #fef2f2; color: #b91c1c; }
+.reject-hint { margin: 0 0 12px; font-size: 13px; color: #64748b; }
 .action-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; background: #fef3c7; color: #92400e; }
 .text-danger { color: #b91c1c; font-weight: 500; }
 .text-muted { color: #64748b; }
+.text-warn-soft { color: #b45309; font-size: 0.8rem; }
+.filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.form-check-row { margin-top: 0.25rem; }
+.form-check-row .form-hint { margin: 0.35rem 0 0; font-size: 0.8rem; }
+.modal-wide { max-width: 640px; }
 .point-add { color: #b91c1c; font-weight: 600; }
 .points-info-banner {
   display: flex;
@@ -1667,39 +2177,296 @@ onMounted(async () => {
 .points-filter-hint { font-size: 0.85rem; color: #64748b; margin: 0.5rem 0 1rem; }
 .points-summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 640px) {
+  .points-summary-cards { grid-template-columns: 1fr; }
 }
 .summary-card {
-  padding: 1.35rem 1.35rem;
-  border-radius: 14px;
-  text-align: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.15rem;
+  border-radius: 12px;
+  text-align: left;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
   border: 1px solid rgba(0,0,0,0.04);
 }
-.summary-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-}
+.summary-body { min-width: 0; }
 .summary-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 0.85rem;
+  flex-shrink: 0;
+  margin: 0;
 }
 .summary-icon-total { background: rgba(71, 85, 105, 0.12); color: #475569; }
 .summary-icon-warning { background: rgba(146, 64, 14, 0.18); color: #b45309; }
 .summary-icon-good { background: rgba(5, 150, 105, 0.18); color: #059669; }
-.summary-card .summary-value { display: block; font-size: 2rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; }
-.summary-card .summary-label { font-size: 0.82rem; color: #64748b; margin-top: 0.3rem; display: block; font-weight: 500; }
-.card-total { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+.summary-card .summary-value { display: block; font-size: 1.65rem; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+.summary-card .summary-label { font-size: 0.8rem; color: #64748b; margin-top: 0.15rem; display: block; font-weight: 500; }
+.card-total { background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }
 .card-warning { background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 100%); color: #92400e; border: 1px solid #fde68a; }
+.card-warning .summary-label { color: #a16207; }
 .card-good { background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%); color: #065f46; border: 1px solid #a7f3d0; }
+
+.points-filters { margin-bottom: 1rem; }
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 0.82rem;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+.filter-chip input { accent-color: #059669; }
+.filter-chip.active {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+  font-weight: 600;
+}
+
+.points-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.points-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  border-left: 4px solid #cbd5e1;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+}
+.points-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+.points-row.is-pending { border-left-color: #f59e0b; background: #fffbeb; }
+.points-row.is-done { border-left-color: #10b981; background: #f0fdf4; }
+.points-row.is-no-rule { border-left-color: #94a3b8; }
+.points-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1.1rem;
+}
+.points-row-main {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.3fr) auto minmax(160px, 1.2fr);
+  gap: 1rem;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.points-student { min-width: 0; }
+.points-student .student-name {
+  display: block;
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.points-student .student-meta {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+.reopen-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: #c2410c;
+  line-height: 1.35;
+}
+.new-points-badge {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.points-row-detail {
+  padding: 0 1.1rem 1rem;
+  border-top: 1px dashed #e2e8f0;
+  background: rgba(255,255,255,0.55);
+}
+.detail-title {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.detail-empty { font-size: 0.85rem; color: #94a3b8; padding: 0.5rem 0; }
+.violation-mini-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.violation-mini-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+.vmi-main { min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.vmi-main strong { font-size: 0.85rem; color: #0f172a; }
+.vmi-date { font-size: 0.72rem; color: #64748b; }
+.vmi-meta { display: flex; align-items: center; gap: 0.45rem; flex-shrink: 0; }
+.vmi-points { font-size: 0.8rem; font-weight: 700; color: #b91c1c; }
+.vmi-points-good { color: #059669; }
+.achievement-mini-item { border-color: #bbf7d0; background: #f0fdf4; }
+.detail-last-action {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+.points-score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.score-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.score-pill-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8; }
+.score-pill-value { font-size: 1.15rem; line-height: 1; }
+.score-pill.score-bad { background: #fef2f2; color: #b91c1c; }
+.score-pill.score-warn { background: #fff7ed; color: #c2410c; }
+.score-pill.score-normal { background: #f1f5f9; color: #334155; }
+.score-pill.score-good { background: #ecfdf5; color: #047857; }
+.score-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.score-breakdown .bd-add { color: #b91c1c; font-weight: 600; }
+.score-breakdown .bd-sub { color: #059669; font-weight: 600; }
+.score-breakdown .bd-sep { color: #94a3b8; }
+.points-action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.action-name-line {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.action-name-line.muted { color: #64748b; font-weight: 500; }
+.action-range-line { font-size: 0.75rem; color: #64748b; }
+.status-chip {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.status-chip.pending { background: #ffedd5; color: #c2410c; }
+.status-chip.done { background: #d1fae5; color: #047857; }
+.status-chip.none { background: #f1f5f9; color: #64748b; }
+.points-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  min-width: 132px;
+}
+.btn-points-primary {
+  padding: 0.5rem 0.85rem;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+}
+.btn-points-primary:hover { filter: brightness(1.05); }
+.btn-points-primary.secondary {
+  background: #fff;
+  color: #047857;
+  border: 1px solid #6ee7b7;
+  box-shadow: none;
+}
+.btn-points-ghost {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-points-ghost:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+@media (max-width: 900px) {
+  .points-row-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .points-row-main {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .points-score-block { align-items: flex-start; }
+  .points-row-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .btn-points-primary,
+  .btn-points-ghost { flex: 1; }
+}
+
+/* Legacy table-points helpers (kept for safety) */
 .table-points .th-num { text-align: center; }
 .table-points .num-add { text-align: center; color: #b91c1c; font-weight: 600; }
 .table-points .num-sub { text-align: center; color: #059669; font-weight: 600; }
@@ -1721,6 +2488,7 @@ onMounted(async () => {
 }
 .table-points tbody tr.row-good { background: #f0fdf4; }
 .table-points tbody tr.row-warning { background: #fffbeb; }
+.filters-inline { align-items: center; }
 .thresholds-hint { margin-bottom: 1rem; padding: 0.75rem 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #059669; }
 .action-buttons { display: flex; gap: 0.5rem; }
 .btn-action {
@@ -1886,5 +2654,163 @@ onMounted(async () => {
 .type-card:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   border-color: #cbd5e1;
+}
+
+.action-form-modal { max-width: 520px; }
+.action-student-card {
+  margin-bottom: 1.15rem;
+  padding: 0.95rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+}
+.asc-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.asc-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.asc-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.asc-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 10px;
+  min-width: 58px;
+}
+.asc-score span { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
+.asc-score strong { font-size: 1.25rem; line-height: 1.1; }
+.asc-score.score-bad { background: #fef2f2; color: #b91c1c; }
+.asc-score.score-warn { background: #fff7ed; color: #c2410c; }
+.asc-score.score-normal { background: #e2e8f0; color: #334155; }
+.asc-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.asc-breakdown em { font-style: normal; font-weight: 700; }
+.asc-breakdown span:first-child em { color: #b91c1c; }
+.asc-breakdown span:last-child em { color: #059669; }
+.asc-required {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #cbd5e1;
+}
+.asc-required-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+.asc-required strong { color: #0f172a; font-size: 0.95rem; }
+.asc-required-range { font-size: 0.78rem; color: #64748b; }
+.asc-no-rule {
+  margin: 0.75rem 0 0;
+  padding-top: 0.65rem;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 0.82rem;
+  color: #b45309;
+}
+.asc-reopen {
+  margin: 0.65rem 0 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  font-size: 0.8rem;
+  color: #c2410c;
+  line-height: 1.4;
+}
+.asc-close-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.resolve-options {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: none;
+}
+.resolve-options legend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+.resolve-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.resolve-option:last-child { margin-bottom: 0; }
+.resolve-option input { margin-top: 0.2rem; accent-color: #059669; }
+.resolve-option.selected {
+  border-color: #6ee7b7;
+  background: #ecfdf5;
+}
+.resolve-option-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.resolve-option-body strong { font-size: 0.9rem; color: #0f172a; }
+.resolve-option-body small { font-size: 0.78rem; color: #64748b; line-height: 1.35; }
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.history-item {
+  padding: 0.85rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.history-item-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.history-item-top strong { color: #0f172a; font-size: 0.92rem; }
+.history-item-top time { font-size: 0.78rem; color: #64748b; white-space: nowrap; }
+.history-notes {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+}
+.history-meta {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
 }
 </style>

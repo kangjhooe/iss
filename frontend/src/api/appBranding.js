@@ -38,6 +38,13 @@ export const appBrandingApi = {
   },
 
   /**
+   * Update maintenance mode. Hanya super admin.
+   */
+  updateMaintenance(payload) {
+    return api.put('/v1/app-branding/maintenance', payload)
+  },
+
+  /**
    * Upload gambar hero halaman awal. Hanya super admin.
    */
   uploadHeroImage(file) {

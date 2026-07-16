@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateStudentAttendanceRequest;
 use App\Http\Resources\StudentAttendanceResource;
 use App\Models\StudentAttendance;
 use App\Services\StudentAttendanceService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,14 +19,22 @@ class StudentAttendanceController extends Controller
         protected StudentAttendanceService $studentAttendanceService
     ) {}
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
     /**
      * List attendances for a teaching journal (students in that class with current/default status).
      */
     public function index(Request $request, int $teachingJournalId): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -98,8 +107,7 @@ class StudentAttendanceController extends Controller
     public function store(StoreStudentAttendanceRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -135,8 +143,7 @@ class StudentAttendanceController extends Controller
     public function update(UpdateStudentAttendanceRequest $request, StudentAttendance $studentAttendance): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId || $studentAttendance->institution_id !== (int) $institutionId) {
                 return response()->json(['message' => 'Unauthorized.'], 403);
             }

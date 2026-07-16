@@ -2,8 +2,8 @@
   <LoadingSkeleton 
     type="table" 
     :rows="5" 
-    :columns="8"
-    :cell-widths="['120px', '100px', '120px', '200px', '120px', '100px', '100px', '150px']"
+    :columns="9"
+    :cell-widths="['48px', '120px', '100px', '120px', '200px', '120px', '100px', '100px', '150px']"
   />
 </template>
 

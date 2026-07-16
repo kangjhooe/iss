@@ -9,6 +9,7 @@ use App\Http\Resources\SemesterResource;
 use App\Models\Institution;
 use App\Models\Semester;
 use App\Services\SemesterService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 
 class SemesterController extends Controller
@@ -28,7 +29,9 @@ class SemesterController extends Controller
 
         $user = $request->user();
         if ($user && !$user->isSuperAdmin()) {
-            $institutionId = $user->institution_id ?? $user->studentProfile?->institution_id ?? null;
+            $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'))
+                ?? $user->studentProfile?->institution_id
+                ?? null;
             if ($institutionId) {
                 $institution = Institution::find($institutionId);
                 if ($institution && $institution->active_academic_year_id) {

@@ -21,7 +21,7 @@
           </select>
         </div>
         <div class="toolbar-actions">
-          <button @click="openAddModal" class="btn-primary btn-compact">
+          <button v-if="canManageAll" @click="openAddModal" class="btn-primary btn-compact">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -41,76 +41,108 @@
       </div>
 
       <div v-else class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Nama</th>
-              <th>Pembina</th>
-              <th>Semester</th>
-              <th>Jadwal</th>
-              <th>Peserta</th>
-              <th>Status</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in list" :key="item.id">
-              <td>
-                <span class="name-cell">{{ displayValue(item.name) }}</span>
-                <span v-if="item.description" class="desc-cell">{{ truncate(item.description, 40) }}</span>
-              </td>
-              <td>{{ displayValue(item.supervisor?.name) }}</td>
-              <td>{{ displayValue(item.semester?.name) }}</td>
-              <td>
-                <span v-if="item.day_of_week">{{ dayLabel(item.day_of_week) }} {{ item.start_time || '' }}-{{ item.end_time || '' }}</span>
-                <span v-else>Belum ada data</span>
-              </td>
-              <td>
-                <span
-                  class="link-peserta"
-                  @click="openParticipantsModal(item)"
-                  title="Kelola peserta"
-                >
-                  {{ item.participants_count ?? 'Belum ada data' }}
-                </span>
-              </td>
-              <td>
-                <span :class="['status-badge', item.status === 'Aktif' ? 'status-active' : 'status-inactive']">
-                  {{ item.status || 'Belum ada data' }}
-                </span>
-              </td>
-              <td>
-                <div class="action-buttons">
-                  <button @click="openParticipantsModal(item)" class="btn-action btn-add" title="Kelola Peserta">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="openEditModal(item)" class="btn-action btn-edit" title="Edit">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button @click="confirmDelete(item)" class="btn-action btn-delete" title="Hapus">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
         <div v-if="list.length === 0" class="empty-state">
-          <p>Belum ada data ekstrakurikuler. Klik "Tambah Ekstrakurikuler" untuk menambah.</p>
+          <div class="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="empty-title">Belum ada ekstrakurikuler</h3>
+          <p class="empty-desc">Tambahkan ekskul pertama untuk mulai mengelola peserta dan jadwal.</p>
+          <button v-if="canManageAll" type="button" @click="openAddModal" class="btn-primary btn-compact">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tambah Ekstrakurikuler</span>
+          </button>
         </div>
 
-        <div v-if="pagination && pagination.last_page > 1" class="pagination-bar">
+        <div v-else class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-nama">Nama</th>
+                <th class="col-pembina">Pembina</th>
+                <th class="col-jadwal">Jadwal</th>
+                <th class="col-lokasi">Lokasi</th>
+                <th class="col-center col-peserta">Peserta</th>
+                <th class="col-center col-status">Status</th>
+                <th class="col-aksi">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in list" :key="item.id">
+                <td class="col-nama">
+                  <button type="button" class="cell-link" @click="$router.push(`/extracurricular/${item.id}`)">
+                    <span class="cell-main">{{ displayValue(item.name) }}</span>
+                    <span v-if="item.description" class="cell-sub">{{ truncate(item.description, 48) }}</span>
+                  </button>
+                </td>
+                <td class="col-pembina">
+                  <span :class="{ 'cell-muted': !item.supervisor?.name }">
+                    {{ item.supervisor?.name || '—' }}
+                  </span>
+                </td>
+                <td class="col-jadwal">
+                  <template v-if="dayNames(item).length">
+                    <div class="day-chips">
+                      <span v-for="d in dayNames(item)" :key="d" class="day-chip">{{ d }}</span>
+                    </div>
+                    <div v-if="item.start_time || item.end_time" class="cell-sub cell-time">
+                      {{ formatTime(item.start_time) }}–{{ formatTime(item.end_time) }}
+                    </div>
+                  </template>
+                  <span v-else class="cell-muted">—</span>
+                </td>
+                <td class="col-lokasi">
+                  <template v-if="item.is_outdoor">
+                    <span class="cell-main">Di luar ruangan</span>
+                    <span v-if="item.location_note" class="cell-sub">{{ item.location_note }}</span>
+                  </template>
+                  <span v-else-if="item.room?.name" class="cell-main">{{ item.room.name }}</span>
+                  <span v-else class="cell-muted">—</span>
+                </td>
+                <td class="col-center col-peserta">
+                  <button
+                    type="button"
+                    class="link-peserta"
+                    @click="$router.push(`/extracurricular/${item.id}`)"
+                    title="Kelola peserta, pertemuan, nilai, laporan"
+                  >
+                    {{ item.participants_count ?? 0 }}<template v-if="item.capacity"> / {{ item.capacity }}</template>
+                  </button>
+                </td>
+                <td class="col-center col-status">
+                  <span :class="['status-badge', item.status === 'Aktif' ? 'status-active' : 'status-inactive']">
+                    {{ item.status || '—' }}
+                  </span>
+                </td>
+                <td class="col-aksi">
+                  <div class="action-buttons">
+                    <button type="button" @click="$router.push(`/extracurricular/${item.id}`)" class="btn-action btn-kelola" title="Kelola">
+                      Kelola
+                    </button>
+                    <button type="button" @click="openEditModal(item)" class="btn-action btn-edit" title="Edit">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button v-if="canManageAll" type="button" @click="confirmDelete(item)" class="btn-action btn-delete" title="Hapus">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="list.length > 0 && pagination && pagination.last_page > 1" class="pagination-bar">
           <span class="pagination-info">
             Halaman {{ pagination.current_page }} dari {{ pagination.last_page }} ({{ pagination.total }} data)
           </span>
@@ -147,22 +179,6 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Tahun Ajaran</label>
-                <select v-model="form.academic_year_id" class="form-input">
-                  <option value="">-- Pilih --</option>
-                  <option v-for="y in academicYears" :key="y.id" :value="y.id">{{ y.name }}</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Semester</label>
-                <select v-model="form.semester_id" class="form-input">
-                  <option value="">-- Pilih --</option>
-                  <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
                 <label>Kapasitas (opsional)</label>
                 <input v-model.number="form.capacity" type="number" min="1" placeholder="Jumlah maksimal" class="form-input" />
               </div>
@@ -174,14 +190,22 @@
                 </select>
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Hari</label>
-                <select v-model="form.day_of_week" class="form-input">
-                  <option value="">-- Pilih --</option>
-                  <option v-for="(label, val) in days" :key="val" :value="Number(val)">{{ label }}</option>
-                </select>
+            <div class="form-group">
+              <label>Hari</label>
+              <div class="day-checkboxes">
+                <label v-for="(label, val) in days" :key="val" class="day-check">
+                  <input
+                    type="checkbox"
+                    :value="Number(val)"
+                    :checked="(form.days_of_week || []).includes(Number(val))"
+                    @change="toggleDay(Number(val), $event.target.checked)"
+                  />
+                  <span>{{ label }}</span>
+                </label>
               </div>
+              <p class="form-hint">Bisa pilih lebih dari satu hari.</p>
+            </div>
+            <div class="form-row">
               <div class="form-group">
                 <label>Jam Mulai</label>
                 <input v-model="form.start_time" type="time" class="form-input" />
@@ -192,11 +216,16 @@
               </div>
             </div>
             <div class="form-group">
-              <label>Ruangan</label>
-              <select v-model="form.room_id" class="form-input">
+              <label>Lokasi</label>
+              <select v-model="locationSelect" class="form-input">
                 <option value="">-- Pilih --</option>
-                <option v-for="r in rooms" :key="r.id" :value="r.id">{{ r.name }} {{ r.code ? `(${r.code})` : '' }}</option>
+                <option value="outdoor">Di luar ruangan</option>
+                <option v-for="r in rooms" :key="r.id" :value="'room:' + r.id">{{ r.name }} {{ r.code ? `(${r.code})` : '' }}</option>
               </select>
+            </div>
+            <div v-if="locationSelect === 'outdoor'" class="form-group">
+              <label>Keterangan lokasi (opsional)</label>
+              <input v-model="form.location_note" type="text" placeholder="Contoh: Lapangan basket, Halaman sekolah" class="form-input" />
             </div>
             <div class="modal-footer">
               <button type="button" @click="closeFormModal" class="btn-secondary">Batal</button>
@@ -210,105 +239,115 @@
       <div v-if="showParticipantsModal" class="modal-overlay" @click="closeParticipantsModal">
         <div class="modal-content modal-large" @click.stop>
           <div class="modal-header">
-            <h3>Peserta – {{ selectedEkskul?.name }}</h3>
+            <h3>{{ showAddPanel ? 'Tambah Peserta' : 'Peserta' }} – {{ selectedEkskul?.name }}</h3>
             <button @click="closeParticipantsModal" class="modal-close">×</button>
           </div>
           <div class="modal-body">
-            <div class="participants-toolbar">
-              <select v-model="participantsSemesterId" @change="loadParticipants" class="form-input" style="max-width: 200px;">
-                <option value="">Semester aktif</option>
-                <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
-              </select>
-              <button type="button" @click="exportParticipants" :disabled="exportingParticipants" class="btn-secondary btn-sm">
-                {{ exportingParticipants ? 'Mengekspor...' : 'Export CSV' }}
-              </button>
-              <button type="button" @click="openAddParticipantModal" class="btn-primary btn-sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Tambah Peserta
-              </button>
-            </div>
-            <div v-if="participantsLoading" class="loading-inline"><div class="loading-spinner"></div> Memuat peserta...</div>
-            <div v-else-if="participants.length === 0" class="empty-inline">Belum ada peserta untuk semester ini.</div>
-            <div v-else class="participants-list">
-              <table class="data-table data-table-sm">
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>NIS / NISN</th>
-                    <th>Kelas</th>
-                    <th>Bergabung</th>
-                    <th>Keluar</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="p in participants" :key="p.id">
-                    <td>{{ p.student?.name }}</td>
-                    <td>{{ p.student?.nis || '-' }} / {{ p.student?.nisn || '-' }}</td>
-                    <td>{{ p.student?.class?.name || '-' }}</td>
-                    <td>{{ p.joined_at }}</td>
-                    <td>{{ p.left_at || '-' }}</td>
-                    <td><span :class="['status-badge', 'status-' + p.status]">{{ statusLabel(p.status) }}</span></td>
-                    <td>
-                      <button type="button" class="btn-action btn-edit btn-sm" @click="openEditEnrollmentModal(p)" title="Edit status">Edit</button>
-                      <button type="button" class="btn-action btn-delete btn-sm" @click="confirmRemoveParticipant(p)" title="Keluarkan">Hapus</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+            <!-- Daftar peserta -->
+            <template v-if="!showAddPanel">
+              <div class="participants-toolbar">
+                <button type="button" @click="exportParticipants" :disabled="exportingParticipants" class="btn-secondary btn-sm">
+                  {{ exportingParticipants ? 'Mengekspor...' : 'Export CSV' }}
+                </button>
+                <button type="button" @click="openAddPanel" class="btn-primary btn-sm">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Tambah Peserta
+                </button>
+              </div>
+              <div v-if="participantsLoading" class="loading-inline"><div class="loading-spinner"></div> Memuat peserta...</div>
+              <div v-else-if="participants.length === 0" class="empty-inline">Belum ada peserta.</div>
+              <div v-else class="participants-list">
+                <table class="data-table data-table-sm">
+                  <thead>
+                    <tr>
+                      <th class="col-no">No</th>
+                      <th>Nama</th>
+                      <th>NIS / NISN</th>
+                      <th>Kelas</th>
+                      <th class="col-aksi">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(p, idx) in participants" :key="p.id">
+                      <td class="col-no">{{ idx + 1 }}</td>
+                      <td>{{ p.student?.name || '—' }}</td>
+                      <td>{{ p.student?.nis || '—' }} / {{ p.student?.nisn || '—' }}</td>
+                      <td>{{ p.student?.class?.name || '—' }}</td>
+                      <td class="col-aksi">
+                        <button type="button" class="btn-action btn-delete btn-sm" @click="confirmRemoveParticipant(p)" title="Keluarkan">Hapus</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
 
-      <!-- Modal: Tambah Peserta -->
-      <div v-if="showAddParticipantModal" class="modal-overlay" @click="closeAddParticipantModal">
-        <div class="modal-content modal-large" @click.stop>
-          <div class="modal-header">
-            <h3>Tambah Peserta – {{ selectedEkskul?.name }}</h3>
-            <button @click="closeAddParticipantModal" class="modal-close">×</button>
-          </div>
-          <div class="modal-body">
-            <input
-              v-model="availableStudentSearch"
-              type="text"
-              placeholder="Cari nama, NIS, NISN..."
-              class="form-input"
-              style="margin-bottom: 12px;"
-              @input="debounceLoadAvailable"
-            />
-            <div v-if="availableLoading" class="loading-inline">Memuat siswa...</div>
-            <div v-else-if="availableStudents.length === 0" class="empty-inline">Tidak ada siswa yang bisa ditambahkan atau tidak ditemukan.</div>
-            <div v-else class="available-list">
-              <table class="data-table data-table-sm">
-                <thead>
-                  <tr>
-                    <th><input type="checkbox" :checked="allSelected" @change="toggleAllAvailable" /></th>
-                    <th>Nama</th>
-                    <th>NIS / NISN</th>
-                    <th>Kelas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="s in availableStudents" :key="s.id">
-                    <td><input type="checkbox" :checked="selectedStudentIds.includes(s.id)" @change="toggleStudent(s.id)" /></td>
-                    <td>{{ s.name }}</td>
-                    <td>{{ s.nis || '-' }} / {{ s.nisn || '-' }}</td>
-                    <td>{{ s.class?.name || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div v-if="addParticipantError" class="error-message" style="margin-top: 12px;">{{ addParticipantError }}</div>
-            <div class="modal-footer" style="margin-top: 16px;">
-              <button type="button" @click="closeAddParticipantModal" class="btn-secondary">Batal</button>
-              <button type="button" @click="submitAddParticipants" :disabled="savingParticipants || selectedStudentIds.length === 0" class="btn-primary">
-                {{ savingParticipants ? 'Menambah...' : 'Tambah ' + selectedStudentIds.length + ' peserta' }}
-              </button>
-            </div>
+            <!-- Tambah peserta: pilih kelas → pilih siswa -->
+            <template v-else>
+              <div class="form-group">
+                <label>Kelas <span class="required">*</span></label>
+                <select v-model="availableClassId" class="form-input" @change="onClassChange">
+                  <option value="">-- Pilih kelas --</option>
+                  <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+              <div v-if="availableClassId" class="form-group">
+                <input
+                  v-model="availableStudentSearch"
+                  type="text"
+                  placeholder="Cari nama, NIS, NISN..."
+                  class="form-input"
+                  @input="debounceLoadAvailable"
+                />
+              </div>
+              <div v-if="!availableClassId" class="empty-inline">Pilih kelas terlebih dahulu untuk menampilkan siswa.</div>
+              <div v-else-if="availableLoading" class="loading-inline">Memuat siswa...</div>
+              <div v-else-if="availableError" class="error-message">{{ availableError }}</div>
+              <div v-else-if="availableStudents.length === 0" class="empty-inline">Tidak ada siswa tersedia di kelas ini.</div>
+              <div v-else class="available-list">
+                <div class="available-list-header">
+                  <label class="day-check">
+                    <input type="checkbox" :checked="allSelected" @change="toggleAllAvailable" />
+                    <span>Pilih semua ({{ availableStudents.length }})</span>
+                  </label>
+                </div>
+                <table class="data-table data-table-sm">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Nama</th>
+                      <th>NIS / NISN</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="s in availableStudents"
+                      :key="s.id"
+                      class="student-row"
+                      @click="toggleStudent(s.id)"
+                    >
+                      <td><input type="checkbox" :checked="selectedStudentIds.includes(s.id)" @click.stop @change="toggleStudent(s.id)" /></td>
+                      <td>{{ s.name }}</td>
+                      <td>{{ s.nis || '-' }} / {{ s.nisn || '-' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-if="addParticipantError" class="error-message" style="margin-top: 12px;">{{ addParticipantError }}</div>
+              <div class="modal-footer" style="margin-top: 16px;">
+                <button type="button" @click="closeAddPanel" class="btn-secondary">Kembali</button>
+                <button
+                  type="button"
+                  @click="submitAddParticipants"
+                  :disabled="savingParticipants || selectedStudentIds.length === 0"
+                  class="btn-primary"
+                >
+                  {{ savingParticipants ? 'Menambah...' : 'Tambah ' + selectedStudentIds.length + ' peserta' }}
+                </button>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -365,8 +404,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { extracurricularApi } from '@/api/extracurricular'
 import { teacherApi } from '@/api/teacher'
-import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
+import { classApi } from '@/api/class'
 import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
@@ -375,56 +414,108 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
-const DAYS = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat' }
+const DAYS = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu' }
 const days = DAYS
 
 const list = ref([])
 const loading = ref(true)
 const listError = ref('')
 const pagination = ref(null)
+const canManageAll = ref(true)
 const filters = ref({ search: '', status: '', semester_id: '' })
 
 const showFormModal = ref(false)
 const showParticipantsModal = ref(false)
-const showAddParticipantModal = ref(false)
+const showAddPanel = ref(false)
 const editingItem = ref(null)
 const selectedEkskul = ref(null)
 const saving = ref(false)
 const formError = ref('')
-const referenceStore = useReferenceDataStore()
-const academicYears = computed(() => referenceStore.academicYears)
 
 const teachers = ref([])
 const semesters = ref([])
+const classes = ref([])
 const rooms = ref([])
+const locationSelect = ref('')
 
 const form = ref({
   name: '',
   description: '',
   supervisor_employee_id: null,
-  academic_year_id: null,
-  semester_id: null,
   capacity: null,
   status: 'Aktif',
-  day_of_week: null,
+  days_of_week: [],
   start_time: '',
   end_time: '',
   room_id: null,
+  is_outdoor: false,
+  location_note: '',
 })
 
 const participants = ref([])
 const participantsLoading = ref(false)
-const participantsSemesterId = ref('')
+const exportingParticipants = ref(false)
 const availableStudents = ref([])
 const availableLoading = ref(false)
+const availableError = ref('')
+const availableClassId = ref('')
 const availableStudentSearch = ref('')
 const selectedStudentIds = ref([])
 const savingParticipants = ref(false)
 const addParticipantError = ref('')
 
+const showEditEnrollmentModal = ref(false)
+const editingEnrollment = ref(null)
+const savingEnrollment = ref(false)
+const editEnrollmentError = ref('')
+const enrollmentForm = ref({
+  status: 'aktif',
+  left_at: '',
+  notes: '',
+})
+
 function dayLabel(dayOfWeek) {
   return DAYS[dayOfWeek] || ''
 }
+
+function dayNames(item) {
+  if (Array.isArray(item.day_labels) && item.day_labels.length) {
+    return item.day_labels
+  }
+  if (Array.isArray(item.days_of_week) && item.days_of_week.length) {
+    return item.days_of_week.map(dayLabel).filter(Boolean)
+  }
+  return []
+}
+
+function toggleDay(day, checked) {
+  const current = [...(form.value.days_of_week || [])]
+  if (checked) {
+    if (!current.includes(day)) current.push(day)
+  } else {
+    const idx = current.indexOf(day)
+    if (idx >= 0) current.splice(idx, 1)
+  }
+  current.sort((a, b) => a - b)
+  form.value.days_of_week = current
+}
+
+function applyLocationSelect(value) {
+  if (value === 'outdoor') {
+    form.value.is_outdoor = true
+    form.value.room_id = null
+  } else if (typeof value === 'string' && value.startsWith('room:')) {
+    form.value.is_outdoor = false
+    form.value.room_id = Number(value.slice(5))
+    form.value.location_note = ''
+  } else {
+    form.value.is_outdoor = false
+    form.value.room_id = null
+    form.value.location_note = ''
+  }
+}
+
+watch(locationSelect, (val) => applyLocationSelect(val))
 
 function statusLabel(s) {
   const labels = { aktif: 'Aktif', keluar: 'Keluar', lulus: 'Lulus' }
@@ -432,8 +523,8 @@ function statusLabel(s) {
 }
 
 function displayValue(v) {
-  if (v === null || v === undefined || v === '') return 'Belum ada data'
-  return String(v).trim() || 'Belum ada data'
+  if (v === null || v === undefined || v === '') return '—'
+  return String(v).trim() || '—'
 }
 
 function truncate(str, len) {
@@ -441,9 +532,17 @@ function truncate(str, len) {
   return str.length <= len ? str : str.slice(0, len) + '...'
 }
 
-async function loadList(page = 1) {
-  loading.value = true
-  listError.value = ''
+function formatTime(t) {
+  if (!t) return '?'
+  // Accept "HH:mm" or "HH:mm:ss"
+  return String(t).slice(0, 5)
+}
+
+async function loadList(page = 1, { silent = false } = {}) {
+  if (!silent) {
+    loading.value = true
+    listError.value = ''
+  }
   try {
     const params = { page, per_page: 15 }
     if (filters.value.search) params.search = filters.value.search
@@ -452,11 +551,14 @@ async function loadList(page = 1) {
     const res = await extracurricularApi.getAll(params)
     list.value = res.data.data || []
     pagination.value = res.data.meta || null
+    if (res.data.meta_access && typeof res.data.meta_access.can_manage_all === 'boolean') {
+      canManageAll.value = res.data.meta_access.can_manage_all
+    }
   } catch (e) {
     listError.value = e.formattedMessage || 'Gagal memuat data ekstrakurikuler.'
-    toast.error('Gagal', listError.value)
+    if (!silent) toast.error('Gagal', listError.value)
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -472,33 +574,44 @@ function openAddModal() {
     name: '',
     description: '',
     supervisor_employee_id: null,
-    academic_year_id: null,
-    semester_id: null,
     capacity: null,
     status: 'Aktif',
-    day_of_week: null,
+    days_of_week: [],
     start_time: '',
     end_time: '',
     room_id: null,
+    is_outdoor: false,
+    location_note: '',
   }
+  locationSelect.value = ''
   formError.value = ''
   showFormModal.value = true
 }
 
 function openEditModal(item) {
   editingItem.value = item
+  const daysOfWeek = Array.isArray(item.days_of_week)
+    ? item.days_of_week.map(Number)
+    : (item.day_of_week != null ? [Number(item.day_of_week)] : [])
   form.value = {
     name: item.name || '',
     description: item.description || '',
     supervisor_employee_id: item.supervisor_employee_id || null,
-    academic_year_id: item.academic_year_id || null,
-    semester_id: item.semester_id || null,
     capacity: item.capacity || null,
     status: item.status || 'Aktif',
-    day_of_week: item.day_of_week ?? null,
+    days_of_week: daysOfWeek,
     start_time: item.start_time || '',
     end_time: item.end_time || '',
     room_id: item.room_id || null,
+    is_outdoor: !!item.is_outdoor,
+    location_note: item.location_note || '',
+  }
+  if (item.is_outdoor) {
+    locationSelect.value = 'outdoor'
+  } else if (item.room_id) {
+    locationSelect.value = 'room:' + item.room_id
+  } else {
+    locationSelect.value = ''
   }
   formError.value = ''
   showFormModal.value = true
@@ -514,13 +627,24 @@ async function saveForm() {
   saving.value = true
   formError.value = ''
   try {
-    const payload = { ...form.value }
-    if (payload.supervisor_employee_id === '') payload.supervisor_employee_id = null
-    if (payload.academic_year_id === '') payload.academic_year_id = null
-    if (payload.semester_id === '') payload.semester_id = null
-    if (payload.room_id === '') payload.room_id = null
-    if (payload.capacity === '') payload.capacity = null
-    if (payload.day_of_week === '') payload.day_of_week = null
+    applyLocationSelect(locationSelect.value)
+    const normalizeTime = (t) => {
+      if (!t) return null
+      return String(t).slice(0, 5)
+    }
+    const payload = {
+      name: form.value.name,
+      description: form.value.description || null,
+      supervisor_employee_id: form.value.supervisor_employee_id || null,
+      capacity: form.value.capacity === '' || form.value.capacity == null ? null : form.value.capacity,
+      status: form.value.status || 'Aktif',
+      days_of_week: Array.isArray(form.value.days_of_week) ? form.value.days_of_week : [],
+      start_time: normalizeTime(form.value.start_time),
+      end_time: normalizeTime(form.value.end_time),
+      is_outdoor: !!form.value.is_outdoor,
+      room_id: form.value.is_outdoor ? null : (form.value.room_id || null),
+      location_note: form.value.is_outdoor ? (form.value.location_note || null) : null,
+    }
     if (editingItem.value) {
       await extracurricularApi.update(editingItem.value.id, payload)
       toast.success('Berhasil', 'Ekstrakurikuler berhasil diperbarui')
@@ -560,8 +684,9 @@ function confirmDelete(item) {
 
 function openParticipantsModal(item) {
   selectedEkskul.value = item
-  participantsSemesterId.value = ''
   participants.value = []
+  showAddPanel.value = false
+  resetAddPanel()
   showParticipantsModal.value = true
   loadParticipants()
 }
@@ -570,9 +695,7 @@ async function exportParticipants() {
   if (!selectedEkskul.value) return
   exportingParticipants.value = true
   try {
-    const params = {}
-    if (participantsSemesterId.value) params.semester_id = participantsSemesterId.value
-    const res = await extracurricularApi.exportParticipants(selectedEkskul.value.id, params)
+    const res = await extracurricularApi.exportParticipants(selectedEkskul.value.id)
     const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -625,17 +748,16 @@ async function submitEditEnrollment() {
   }
 }
 
-async function loadParticipants() {
+async function loadParticipants({ silent = false } = {}) {
   if (!selectedEkskul.value) return
   participantsLoading.value = true
   try {
-    const params = {}
-    if (participantsSemesterId.value) params.semester_id = participantsSemesterId.value
-    const res = await extracurricularApi.getStudents(selectedEkskul.value.id, params)
-    participants.value = res.data.data || []
+    const res = await extracurricularApi.getStudents(selectedEkskul.value.id)
+    const raw = res.data?.data ?? res.data
+    participants.value = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : [])
   } catch (e) {
-    toast.error('Gagal', e.formattedMessage || 'Gagal memuat peserta')
     participants.value = []
+    if (!silent) toast.error('Gagal', e.formattedMessage || 'Gagal memuat peserta')
   } finally {
     participantsLoading.value = false
   }
@@ -645,29 +767,57 @@ function closeParticipantsModal() {
   showParticipantsModal.value = false
   selectedEkskul.value = null
   participants.value = []
+  showAddPanel.value = false
+  resetAddPanel()
 }
 
-function openAddParticipantModal() {
-  if (!selectedEkskul.value) return
+function resetAddPanel() {
+  selectedStudentIds.value = []
+  availableStudents.value = []
+  availableClassId.value = ''
+  availableStudentSearch.value = ''
+  availableError.value = ''
+  addParticipantError.value = ''
+}
+
+function openAddPanel() {
+  resetAddPanel()
+  showAddPanel.value = true
+  if (!classes.value.length) loadClasses()
+}
+
+function closeAddPanel() {
+  showAddPanel.value = false
+  resetAddPanel()
+}
+
+function onClassChange() {
   selectedStudentIds.value = []
   availableStudentSearch.value = ''
-  addParticipantError.value = ''
-  showAddParticipantModal.value = true
-  loadAvailableStudents()
+  availableStudents.value = []
+  availableError.value = ''
+  if (availableClassId.value) loadAvailableStudents()
 }
 
 async function loadAvailableStudents() {
-  if (!selectedEkskul.value) return
+  if (!selectedEkskul.value || !availableClassId.value) {
+    availableStudents.value = []
+    return
+  }
   availableLoading.value = true
+  availableError.value = ''
   try {
-    const params = { per_page: 50 }
-    if (participantsSemesterId.value) params.semester_id = participantsSemesterId.value
+    const params = {
+      per_page: 200,
+      class_id: availableClassId.value,
+    }
     if (availableStudentSearch.value) params.search = availableStudentSearch.value
     const res = await extracurricularApi.getAvailableStudents(selectedEkskul.value.id, params)
-    const data = res.data.data
-    availableStudents.value = Array.isArray(data) ? data : (data?.data || [])
+    const data = res.data?.data ?? res.data
+    availableStudents.value = Array.isArray(data) ? data : []
   } catch (e) {
     availableStudents.value = []
+    availableError.value = e.formattedMessage || e.response?.data?.message || 'Gagal memuat daftar siswa'
   } finally {
     availableLoading.value = false
   }
@@ -698,6 +848,7 @@ function toggleStudent(id) {
 }
 
 async function submitAddParticipants() {
+  if (savingParticipants.value) return
   if (!selectedEkskul.value || selectedStudentIds.value.length === 0) {
     toast.error('Gagal', 'Pilih minimal satu siswa')
     return
@@ -705,14 +856,13 @@ async function submitAddParticipants() {
   savingParticipants.value = true
   addParticipantError.value = ''
   try {
-    await extracurricularApi.addStudents(selectedEkskul.value.id, {
+    const res = await extracurricularApi.addStudents(selectedEkskul.value.id, {
       student_ids: selectedStudentIds.value,
-      semester_id: participantsSemesterId.value || undefined,
     })
-    toast.success('Berhasil', 'Peserta berhasil ditambahkan')
-    closeAddParticipantModal()
-    loadParticipants()
-    loadList()
+    toast.success('Berhasil', res.data?.message || 'Peserta berhasil ditambahkan')
+    closeAddPanel()
+    await loadParticipants({ silent: true })
+    await loadList(pagination.value?.current_page || 1, { silent: true })
   } catch (e) {
     addParticipantError.value = e.formattedMessage || e.response?.data?.message || 'Gagal menambahkan peserta'
     toast.error('Gagal', addParticipantError.value)
@@ -721,14 +871,7 @@ async function submitAddParticipants() {
   }
 }
 
-function closeAddParticipantModal() {
-  showAddParticipantModal.value = false
-  selectedStudentIds.value = []
-  availableStudents.value = []
-  addParticipantError.value = ''
-}
-
-function confirmRemoveParticipant(p) {
+async function confirmRemoveParticipant(p) {
   showConfirm({
     title: 'Keluarkan Peserta',
     message: 'Keluarkan ' + (p.student?.name || 'siswa ini') + ' dari ekskul?',
@@ -737,12 +880,10 @@ function confirmRemoveParticipant(p) {
     if (!ok) return
     setDeleteLoading(true)
     try {
-      await extracurricularApi.removeStudent(selectedEkskul.value.id, p.student_id, {
-        semester_id: participantsSemesterId.value || undefined,
-      })
+      await extracurricularApi.removeStudent(selectedEkskul.value.id, p.student_id)
       toast.success('Berhasil', 'Peserta dikeluarkan')
-      loadParticipants()
-      loadList()
+      await loadParticipants({ silent: true })
+      await loadList(pagination.value?.current_page || 1, { silent: true })
     } catch (e) {
       toast.error('Gagal', e.formattedMessage || e.response?.data?.message || 'Gagal mengeluarkan')
     } finally {
@@ -753,8 +894,9 @@ function confirmRemoveParticipant(p) {
 
 async function loadTeachers() {
   try {
-    const res = await teacherApi.getAll({ status: 'Aktif', per_page: 200 })
-    teachers.value = res.data.data || []
+    // Jangan filter status ketat: beberapa institusi pakai status berbeda
+    const res = await teacherApi.getAll({ per_page: 200 })
+    teachers.value = (res.data.data || []).filter((t) => !t.status || t.status === 'Aktif')
   } catch (_) {
     teachers.value = []
   }
@@ -769,6 +911,15 @@ async function loadSemesters() {
   }
 }
 
+async function loadClasses() {
+  try {
+    const res = await classApi.getAll({ status: 'Aktif', per_page: 200 })
+    classes.value = res.data.data || []
+  } catch (_) {
+    classes.value = []
+  }
+}
+
 async function loadRooms() {
   try {
     const res = await facilityApi.getRooms({})
@@ -779,7 +930,7 @@ async function loadRooms() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadTeachers(), referenceStore.getAcademicYears(), loadSemesters(), loadRooms(), loadList()])
+  await Promise.all([loadTeachers(), loadSemesters(), loadClasses(), loadRooms(), loadList()])
 })
 </script>
 
@@ -788,7 +939,7 @@ onMounted(async () => {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  padding: 1.5rem;
+  padding: 0;
   background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 
@@ -800,33 +951,25 @@ onMounted(async () => {
   gap: 16px;
   margin-bottom: 24px;
 }
-.toolbar .filters { margin-bottom: 0; flex: 1; min-width: 200px; }
-.toolbar-actions { display: flex; gap: 10px; }
-.btn-compact { display: inline-flex; align-items: center; gap: 8px; }
 
-.page-header {
-  margin-bottom: 24px;
+.toolbar .filters {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 200px;
 }
 
-.header-content {
+.toolbar-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: 10px;
 }
 
-.header-content h2 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
-  color: #1a202c;
-}
-
-.header-content p {
-  font-size: 14px;
-  color: #718096;
-  margin: 0;
+.btn-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
 }
 
 .filters {
@@ -839,10 +982,13 @@ onMounted(async () => {
 .search-input,
 .filter-select {
   padding: 10px 16px;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 14px;
+  background: #fff;
+  flex: 1;
   min-width: 160px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .search-input:focus,
@@ -853,104 +999,400 @@ onMounted(async () => {
 }
 
 .search-input {
-  flex: 1;
   max-width: 280px;
 }
 
-.name-cell {
-  font-weight: 500;
-  display: block;
+.table-container {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.desc-cell {
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.data-table thead {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.data-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
   font-size: 12px;
-  color: #718096;
+  color: #065f46;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 14px 16px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 14px;
+  color: #2d3748;
+  vertical-align: middle;
+}
+
+.data-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.col-nama {
+  min-width: 180px;
+  max-width: 260px;
+}
+
+.col-pembina {
+  min-width: 120px;
+}
+
+.col-jadwal {
+  min-width: 140px;
+}
+
+.col-lokasi {
+  min-width: 120px;
+}
+
+.col-peserta {
+  width: 88px;
+}
+
+.col-status {
+  width: 100px;
+}
+
+.col-center {
+  text-align: center;
+}
+
+.col-aksi {
+  width: 140px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.cell-main {
+  display: block;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.cell-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.cell-link:hover .cell-main {
+  color: #059669;
+}
+
+.cell-sub {
   display: block;
   margin-top: 2px;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.cell-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-muted {
+  color: #94a3b8;
+}
+
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.day-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .link-peserta {
+  border: none;
+  background: none;
+  padding: 0;
   cursor: pointer;
   color: #059669;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .link-peserta:hover {
   color: #047857;
 }
 
-.data-table thead tr {
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-}
-.data-table th {
-  font-weight: 600;
-  color: #065f46;
-}
-
 .status-badge {
-  padding: 4px 10px;
-  border-radius: 6px;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.status-active {
+.status-active,
+.status-aktif {
   background: #c6f6d5;
-  color: #276749;
+  color: #22543d;
 }
 
 .status-inactive {
   background: #fed7d7;
-  color: #c53030;
-}
-
-.status-aktif {
-  background: #c6f6d5;
-  color: #276749;
+  color: #742a2a;
 }
 
 .status-keluar {
-  background: #feebc8;
-  color: #c05621;
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .status-lulus {
-  background: #e9d8fd;
-  color: #553c9a;
+  background: #f5f3ff;
+  color: #6d28d9;
 }
 
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .btn-action {
-  padding: 6px 10px;
+  padding: 6px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  background: #edf2f7;
-  color: #4a5568;
+  background: transparent;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
 }
 
 .btn-action:hover {
-  background: #e2e8f0;
+  background: #f1f5f9;
+}
+
+.btn-kelola {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+}
+
+.btn-kelola:hover {
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .btn-edit {
-  background: rgba(5, 150, 105, 0.12);
   color: #059669;
 }
 
+.btn-edit:hover {
+  background: #ecfdf5;
+}
+
 .btn-delete {
-  background: #fff5f5;
-  color: #c53030;
+  color: #dc2626;
+}
+
+.btn-delete:hover {
+  background: #fef2f2;
 }
 
 .btn-add {
-  background: #f0fff4;
-  color: #276749;
+  color: #047857;
+}
+
+.btn-add:hover {
+  background: #ecfdf5;
+}
+
+.available-list-header {
+  margin-bottom: 8px;
+}
+
+.student-row {
+  cursor: pointer;
+}
+
+.student-row:hover {
+  background: #f8fafc;
+}
+
+.empty-state {
+  padding: 56px 24px;
+  text-align: center;
+  color: #64748b;
+}
+
+.empty-icon {
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.empty-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.empty-desc {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.error-state {
+  padding: 32px;
+  text-align: center;
+  background: #fef2f2;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+}
+
+.error-text {
+  color: #b91c1c;
+  margin: 0 0 16px;
+}
+
+.loading-wrap {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.loading-wrap p {
+  color: #64748b;
+  margin-top: 12px;
+}
+
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pagination-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-page {
+  padding: 8px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.btn-page:hover:not(:disabled) {
+  border-color: #059669;
+  color: #059669;
+}
+
+.btn-page:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .toolbar-actions .btn-compact {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .filters {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .search-input {
+    grid-column: 1 / -1;
+    max-width: none;
+    width: 100%;
+  }
+
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 12px 14px;
+  }
 }
 
 .modal-overlay {
@@ -967,7 +1409,7 @@ onMounted(async () => {
 .modal-content {
   background: #fff;
   border-radius: 12px;
-  max-width: 520px;
+  max-width: 560px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -1029,6 +1471,43 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.day-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.day-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  font-size: 13px;
+  margin-bottom: 0;
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.day-check:has(input:checked) {
+  border-color: #059669;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.day-check input {
+  margin: 0;
+  accent-color: #059669;
+}
+
+.form-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
 .form-input {
   width: 100%;
   padding: 10px 14px;
@@ -1061,6 +1540,18 @@ onMounted(async () => {
   font-size: 13px;
 }
 
+.data-table-sm .col-no {
+  width: 48px;
+  text-align: center;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table-sm .col-aksi {
+  width: 72px;
+  text-align: right;
+}
+
 .loading-inline,
 .empty-inline {
   padding: 16px;
@@ -1082,31 +1573,6 @@ onMounted(async () => {
   to {
     transform: rotate(360deg);
   }
-}
-
-.pagination-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.btn-page {
-  padding: 8px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn-page:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .btn-primary {
@@ -1143,23 +1609,5 @@ onMounted(async () => {
 
 .required {
   color: #e53e3e;
-}
-
-.error-state {
-  text-align: center;
-  padding: 24px;
-  color: #c53030;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 32px;
-  color: #718096;
-}
-
-.loading-wrap {
-  width: 100%;
-  text-align: center;
-  padding: 32px;
 }
 </style>

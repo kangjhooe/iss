@@ -27,6 +27,35 @@ class UpdateInstitutionRequest extends FormRequest
     }
 
     /**
+     * Normalisasi input kosong agar edit bertahap (field opsional boleh kosong).
+     */
+    protected function prepareForValidation(): void
+    {
+        $nullableKeys = [
+            'nss', 'level', 'address', 'village', 'sub_district', 'district', 'province',
+            'province_code', 'district_code', 'postal_code', 'phone', 'email', 'website',
+            'principal_name', 'principal_nip', 'description', 'vision', 'mission',
+            'active_academic_year_id', 'active_semester_id', 'latitude', 'longitude', 'location_radius',
+            'npsn', 'name', 'type',
+        ];
+
+        $merged = [];
+        foreach ($nullableKeys as $key) {
+            if (!$this->exists($key)) {
+                continue;
+            }
+            $value = $this->input($key);
+            if ($value === '' || (is_string($value) && trim($value) === '')) {
+                $merged[$key] = null;
+            }
+        }
+
+        if ($merged !== []) {
+            $this->merge($merged);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -43,7 +72,8 @@ class UpdateInstitutionRequest extends FormRequest
         $isSuperAdmin = $user && method_exists($user, 'isSuperAdmin') ? $user->isSuperAdmin() : false;
         
         if ($isSuperAdmin) {
-            $rules['name'] = 'sometimes|required|string|max:255';
+            // Edit bertahap: name/npsn boleh tidak dikirim atau kosong (nilai lama dipertahankan di controller)
+            $rules['name'] = 'sometimes|nullable|string|max:255';
             $rules['npsn'] = [
                 'nullable',
                 'string',
@@ -60,7 +90,7 @@ class UpdateInstitutionRequest extends FormRequest
         $baseRules = [
             'nss' => 'nullable|string|max:255',
             'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MAK,MTs,MI,PAUD',
-            'type' => 'sometimes|required|in:Negeri,Swasta',
+            'type' => 'sometimes|nullable|in:Negeri,Swasta',
             'address' => 'nullable|string',
             'village' => 'nullable|string|max:255',
             'sub_district' => 'nullable|string|max:255',
@@ -99,7 +129,6 @@ class UpdateInstitutionRequest extends FormRequest
             'npsn.size' => 'NPSN harus terdiri dari 8 digit',
             'npsn.regex' => 'NPSN harus berupa angka 8 digit',
             'npsn.unique' => 'NPSN sudah terdaftar',
-            'type.required' => 'Status institusi wajib diisi',
             'type.in' => 'Status institusi harus Negeri atau Swasta',
         ];
     }

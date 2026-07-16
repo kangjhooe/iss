@@ -386,10 +386,7 @@ const formatNumber = (num) => {
   return new Intl.NumberFormat('id-ID').format(num)
 }
 
-const formatStatValue = (num) => {
-  if (num === 0) return 'Belum ada data'
-  return formatNumber(num)
-}
+const formatStatValue = (num) => formatNumber(num ?? 0)
 
 const institutionTypeLabel = computed(() => {
   return getInstitutionTypeLabel(institution.value?.level)
@@ -658,9 +655,7 @@ onMounted(async () => {
 }
 
 .stat-value.stat-empty {
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .loading-text {
@@ -760,6 +755,7 @@ onMounted(async () => {
   padding: 24px 28px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid #e5e7eb;
+  margin-bottom: 24px;
 }
 
 .section-header {
@@ -900,116 +896,100 @@ onMounted(async () => {
   color: #64748b;
 }
 
-/* Responsive Design - Tablet */
+/* Tablet */
 @media (max-width: 768px) {
   .welcome-section {
-    padding: 12px 18px;
-    margin-bottom: 18px;
-    border-radius: 10px;
-  }
-  
-  .welcome-content h1 {
-    font-size: 16px;
-  }
-  
-  .welcome-content p {
-    font-size: 12px;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  .stat-card {
-    padding: 16px;
-  }
-  
-  .quick-actions {
-    padding: 20px;
-  }
-  
-  .actions-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  
-  .action-card {
-    padding: 14px;
-  }
-  
-  .section-header h2 {
-    font-size: 18px;
-  }
-}
-
-/* Mobile - smartphone: grid 2 kolom aksi cepat, tampilan lebih menarik */
-@media (max-width: 480px) {
-  .dashboard {
-    padding-bottom: 8px;
-  }
-
-  .welcome-section {
-    padding: 12px 16px;
+    padding: 14px 16px;
     margin-bottom: 16px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.15);
+    border-radius: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .welcome-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .welcome-sep {
+    display: none;
   }
 
   .welcome-content h1 {
     font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 2px;
   }
 
-  .welcome-content p {
+  .welcome-content p,
+  .welcome-content .welcome-inst {
     font-size: 12px;
-    opacity: 0.95;
+  }
+
+  .academic-period {
+    padding-left: 0;
+    border-left: none;
+    margin-top: 2px;
+    font-size: 11px;
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
 
   .stat-card {
-    padding: 18px 20px;
-    border-radius: 14px;
-    min-height: auto;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  }
-
-  .stat-icon {
-    width: 44px;
-    height: 44px;
+    padding: 14px;
+    gap: 12px;
     border-radius: 12px;
   }
 
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .stat-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .stat-title {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
   .stat-value {
-    font-size: 26px;
+    font-size: 20px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-action {
+    margin-top: 8px;
+    font-size: 12px;
   }
 
   .quick-actions {
-    padding: 20px 16px;
-    border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  }
-
-  .section-header {
+    padding: 18px 16px;
+    border-radius: 14px;
     margin-bottom: 16px;
   }
 
-  .section-header h2 {
-    font-size: 18px;
-    font-weight: 700;
+  .section-header {
+    margin-bottom: 14px;
   }
 
-  /* Aksi cepat: 2 kolom seperti tombol shortcut */
+  .section-header h2 {
+    font-size: 16px;
+  }
+
   .actions-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .action-card {
@@ -1017,30 +997,221 @@ onMounted(async () => {
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 20px 12px;
-    min-height: 120px;
-    border-radius: 14px;
-    gap: 12px;
+    padding: 16px 10px;
+    min-height: 100px;
+    border-radius: 12px;
+    gap: 10px;
   }
 
   .action-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-  }
-
-  .action-content {
-    order: 2;
+    width: 40px;
+    height: 40px;
   }
 
   .action-content h4 {
     font-size: 13px;
-    font-weight: 600;
     line-height: 1.3;
   }
 
   .action-arrow {
     display: none;
+  }
+
+  .audit-section {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .audit-desc {
+    font-size: 13px;
+  }
+}
+
+/* Smartphone */
+@media (max-width: 480px) {
+  .dashboard {
+    padding-bottom: 4px;
+  }
+
+  .welcome-section {
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+  }
+
+  .welcome-content h1 {
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  .welcome-content p,
+  .welcome-content .welcome-inst {
+    font-size: 12px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .academic-period {
+    font-size: 11px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 8px;
+    border-radius: 12px;
+    border-left-width: 3px;
+  }
+
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .stat-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .stat-title {
+    font-size: 9px;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    margin-bottom: 2px;
+  }
+
+  .stat-value.stat-empty,
+  .loading-text {
+    font-size: 13px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .stat-action {
+    margin-top: 6px;
+    font-size: 11px;
+    padding: 4px 0;
+  }
+
+  .quick-actions {
+    padding: 14px 12px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+  }
+
+  .section-header {
+    margin-bottom: 12px;
+  }
+
+  .section-header h2 {
+    font-size: 15px;
+  }
+
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .action-card {
+    padding: 14px 8px;
+    min-height: 88px;
+    border-radius: 12px;
+    gap: 8px;
+  }
+
+  .action-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .action-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .action-content h4 {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .audit-section {
+    padding: 14px 12px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+  }
+
+  .audit-item {
+    padding: 8px 0;
+  }
+
+  .audit-desc {
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .audit-meta {
+    font-size: 11px;
+  }
+
+  .audit-loading,
+  .audit-empty {
+    font-size: 13px;
+  }
+}
+
+/* Layar sangat sempit */
+@media (max-width: 360px) {
+  .stats-grid {
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 10px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .action-card {
+    min-height: 80px;
+    padding: 12px 6px;
+  }
+
+  .action-content h4 {
+    font-size: 11px;
+  }
+}
+
+/* Kurangi hover berat di perangkat sentuh */
+@media (hover: none) {
+  .stat-card:hover,
+  .action-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border-color: #e5e7eb;
+    background: #f8fafc;
+  }
+
+  .action-card:active {
+    background: #fff;
+    border-color: #cbd5e1;
   }
 }
 </style>

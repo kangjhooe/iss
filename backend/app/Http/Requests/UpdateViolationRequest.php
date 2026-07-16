@@ -18,6 +18,7 @@ class UpdateViolationRequest extends FormRequest
             'violation_date' => 'sometimes|date',
             'sanction' => 'nullable|string|max:255',
             'status' => 'sometimes|in:dicatat,sanksi_diberikan,follow_up,selesai',
+            // pending/ditolak hanya via approve/reject
             'description' => 'nullable|string',
             'follow_up_notes' => 'nullable|string',
         ];

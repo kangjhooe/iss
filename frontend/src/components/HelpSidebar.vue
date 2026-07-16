@@ -112,22 +112,15 @@
           </div>
         </section>
 
-        <!-- Akademik -->
+        <!-- Keguruan -->
         <section class="help-section help-section--academic">
           <h3 class="help-section-head">
             <span class="help-section-icon help-section-icon--emerald">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7h8M8 11h8M8 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Akademik
+            Keguruan
           </h3>
           <div class="help-cards">
-            <div class="help-card">
-              <span class="help-card-icon help-card-icon--emerald">👤</span>
-              <div class="help-card-body">
-                <div class="help-card-title">Data Siswa & Buku Induk</div>
-                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Buku Induk per siswa bisa diakses dari detail siswa.</p>
-              </div>
-            </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--green">👨‍🏫</span>
               <div class="help-card-body">
@@ -195,9 +188,16 @@
           </h3>
           <div class="help-cards">
             <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">👤</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Data Siswa</div>
+                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Buku Induk per siswa bisa diakses dari detail siswa.</p>
+              </div>
+            </div>
+            <div class="help-card">
               <span class="help-card-icon help-card-icon--amber">↔️</span>
               <div class="help-card-body">
-                <div class="help-card-title">Mutasi Siswa</div>
+                <div class="help-card-title">Mutasi</div>
                 <p class="help-card-desc">Pindah masuk/keluar. Notifikasi mutasi bisa dilihat di ikon lonceng (header).</p>
               </div>
             </div>
@@ -209,19 +209,31 @@
               </div>
             </div>
             <div class="help-card">
-              <span class="help-card-icon help-card-icon--orange">🎓</span>
+              <span class="help-card-icon help-card-icon--blue">🎓</span>
               <div class="help-card-body">
-                <div class="help-card-title">Alumni</div>
-                <p class="help-card-desc">Siswa lulus per tahun. Filter & ekspor data alumni.</p>
+                <div class="help-card-title">Luluskan</div>
+                <p class="help-card-desc">Tetapkan siswa aktif sebagai lulusan. Pilih kelas, centang siswa, set tahun lulus.</p>
               </div>
             </div>
             <div class="help-card">
-              <span class="help-card-icon help-card-icon--orange">📄</span>
+              <span class="help-card-icon help-card-icon--orange">🎓</span>
               <div class="help-card-body">
-                <div class="help-card-title">Pengambilan Ijazah</div>
-                <p class="help-card-desc">Catatan pengambilan dokumen (ijazah, raport, SKHUN) oleh alumni, tanggal, nomor ijazah/kode blangko.</p>
+                <div class="help-card-title">Alumni</div>
+                <p class="help-card-desc">Data lulusan per tahun. Filter, destinasi lanjut, & arsip.</p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- Bimbingan Konseling -->
+        <section class="help-section help-section--student">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--cyan">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Bimbingan Konseling
+          </h3>
+          <div class="help-cards">
             <div class="help-card">
               <span class="help-card-icon help-card-icon--red">⚠️</span>
               <div class="help-card-body">
@@ -237,10 +249,43 @@
               </div>
             </div>
             <div class="help-card">
+              <span class="help-card-icon help-card-icon--blue">📊</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Laporan BK</div>
+                <p class="help-card-desc">Rekap per kelas/bulan + detail siapa saja yang melanggar (filter kelas & bulan). Bisa diekspor CSV atau cetak PDF.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Layanan -->
+        <section class="help-section help-section--student">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--cyan">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Layanan
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--orange">📄</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Pengambilan Ijazah</div>
+                <p class="help-card-desc">Catatan pengambilan dokumen (ijazah, raport, SKHUN) oleh alumni, tanggal, nomor ijazah/kode blangko.</p>
+              </div>
+            </div>
+            <div class="help-card">
               <span class="help-card-icon help-card-icon--teal">⚽</span>
               <div class="help-card-body">
                 <div class="help-card-title">Ekstrakurikuler</div>
                 <p class="help-card-desc">Daftar ekskul, pembina, dan pendaftaran siswa.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">📝</span>
+              <div class="help-card-body">
+                <div class="help-card-title">PPDB</div>
+                <p class="help-card-desc">Penerimaan peserta didik baru: pendaftaran, seleksi, dan status.</p>
               </div>
             </div>
           </div>
@@ -259,7 +304,7 @@
               <span class="help-card-icon help-card-icon--violet">📝</span>
               <div class="help-card-body">
                 <div class="help-card-title">Persuratan</div>
-                <p class="help-card-desc">Surat masuk/keluar, disposisi, lampiran, alur persetujuan.</p>
+                <p class="help-card-desc">Editor surat dari template platform/sekolah, kop, TTD, terbitkan ke arsip, disposisi.</p>
               </div>
             </div>
             <div class="help-card">

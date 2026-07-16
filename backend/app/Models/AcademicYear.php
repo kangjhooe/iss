@@ -97,6 +97,14 @@ class AcademicYear extends Model
     }
 
     /**
+     * Get the student action logs for this academic year.
+     */
+    public function studentActionLogs()
+    {
+        return $this->hasMany(StudentActionLog::class, 'academic_year_id');
+    }
+
+    /**
      * Get the grades (nilai) for this academic year.
      */
     public function grades()

@@ -3,11 +3,34 @@ import { authApi } from '@/api/auth'
 import router from '@/router'
 import { clearAuth } from '@/utils/tokenStorage'
 
+const getDefaultRoute = (role) => {
+  if (role === 'super_admin') return '/super-admin/dashboard'
+  if (role === 'teacher' || role === 'staff') return '/teacher/dashboard'
+  if (role === 'student') return '/student/dashboard'
+  return '/dashboard'
+}
+
+function syncActiveInstitutionGlobal(user) {
+  if (typeof window === 'undefined') return
+  window.__ISS_ACTIVE_INSTITUTION_ID__ = user?.active_institution_id
+    || user?.institution_id
+    || null
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     isAuthenticated: false // Ditentukan dari /me atau setelah login; token via httpOnly cookie
   }),
+
+  getters: {
+    isImpersonating: (state) => !!state.user?.impersonation?.active,
+    availableInstitutions: (state) => state.user?.available_institutions || [],
+    activeInstitutionId: (state) => state.user?.active_institution_id || state.user?.institution_id || null,
+    activeInstitution: (state) => state.user?.active_institution || state.user?.institution || null,
+    activeAffiliation: (state) => state.user?.active_affiliation || 'induk',
+    canSwitchInstitution: (state) => (state.user?.available_institutions || []).length > 1
+  },
 
   actions: {
     async login(credentials) {
@@ -27,6 +50,7 @@ export const useAuthStore = defineStore('auth', {
         // Auth token & refresh token disimpan di httpOnly cookie oleh backend; tidak disimpan di localStorage
         this.user = responseData.user
         this.isAuthenticated = true
+        syncActiveInstitutionGlobal(this.user)
         return responseData
       } catch (error) {
         // Re-throw with better error message
@@ -64,6 +88,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await authApi.register(data)
         this.user = response.data.user
         this.isAuthenticated = true
+        syncActiveInstitutionGlobal(this.user)
         return response.data
       } catch (error) {
         throw error
@@ -78,6 +103,7 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.user = null
         this.isAuthenticated = false
+        syncActiveInstitutionGlobal(null)
         clearAuth()
         // Full reload ke /login agar cookie/state bersih dan request login berikutnya tidak terpengaruh cache atau state lama
         window.location.href = '/login'
@@ -89,12 +115,45 @@ export const useAuthStore = defineStore('auth', {
         const response = await authApi.me()
         this.user = response.data.user
         this.isAuthenticated = true
+        syncActiveInstitutionGlobal(this.user)
         return response.data.user
       } catch (error) {
         this.isAuthenticated = false
         this.user = null
+        syncActiveInstitutionGlobal(null)
         throw error
       }
+    },
+
+    async switchInstitution(institutionId) {
+      const response = await authApi.switchInstitution(institutionId)
+      const user = response.data?.user
+      if (!user) throw new Error('Data user tidak ditemukan')
+      this.user = user
+      syncActiveInstitutionGlobal(this.user)
+      return user
+    },
+
+    async startImpersonate(adminId) {
+      const response = await authApi.startImpersonate(adminId)
+      const user = response.data?.user
+      if (!user) throw new Error('Data user tidak ditemukan')
+      this.user = user
+      this.isAuthenticated = true
+      syncActiveInstitutionGlobal(this.user)
+      await router.replace(getDefaultRoute(user.role))
+      return user
+    },
+
+    async stopImpersonate() {
+      const response = await authApi.stopImpersonate()
+      const user = response.data?.user
+      if (!user) throw new Error('Data user tidak ditemukan')
+      this.user = user
+      this.isAuthenticated = true
+      syncActiveInstitutionGlobal(this.user)
+      await router.replace(getDefaultRoute(user.role))
+      return user
     }
   }
 })

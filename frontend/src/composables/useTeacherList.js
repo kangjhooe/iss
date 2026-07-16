@@ -49,8 +49,10 @@ export function useTeacherList() {
   const getStatusClass = (status) => {
     const classes = {
       'Aktif': 'status-active',
+      'Cuti': 'status-leave',
       'Pensiun': 'status-success',
       'Pindah': 'status-warning',
+      'Mengundurkan Diri': 'status-resigned',
       'Tidak Aktif': 'status-inactive'
     }
     return classes[status] || ''

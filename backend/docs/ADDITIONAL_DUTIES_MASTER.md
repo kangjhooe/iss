@@ -23,6 +23,10 @@ Tabel `additional_duties` dan mapping ke modul (permissions). Satu guru bisa pun
 | operator_sekolah | Operator Sekolah | report, institution, student, class, teacher |
 | koordinator_ekstrakurikuler | Koordinator Ekstrakurikuler | student, report |
 | pembina_ekstrakurikuler | Pembina Ekstrakurikuler | student, report |
+| guru_piket | Guru Piket | guru_piket, teacher_violation_report |
+
+Catatan tambahan permission (bukan duty terpisah):
+- `guru_piket_manage` — kelola jadwal/pengaturan/review log; dipetakan ke duty `kepala_sekolah`, `waka_kesiswaan`, `operator_sekolah` (bersama `guru_piket`).
 
 ## Tabel database
 

@@ -9,7 +9,13 @@ use App\Http\Controllers\API\CorrespondenceStatisticsController;
 use App\Http\Controllers\API\CorrespondenceExportController;
 use App\Http\Controllers\API\CorrespondenceImportController;
 use App\Http\Controllers\API\DispositionController;
+use App\Http\Controllers\API\SuratController;
+use App\Http\Controllers\API\TemplateSuratController;
+use App\Http\Controllers\API\KopSuratController;
+use App\Http\Controllers\API\AsetTandaTanganController;
 use App\Http\Controllers\API\FacilityController;
+use App\Http\Controllers\API\LabBookingController;
+use App\Http\Controllers\API\LabUsageJournalController;
 use App\Http\Controllers\API\InstitutionChangeRequestController;
 use App\Http\Controllers\API\StudentChangeRequestController;
 use App\Http\Controllers\API\TeacherChangeRequestController;
@@ -26,11 +32,21 @@ use App\Http\Controllers\API\ViolationController;
 use App\Http\Controllers\API\ViolationTypeController;
 use App\Http\Controllers\API\CounselingController;
 use App\Http\Controllers\API\CounselingTypeController;
+use App\Http\Controllers\API\BkReportController;
 use App\Http\Controllers\API\AchievementController;
 use App\Http\Controllers\API\AchievementTypeController;
 use App\Http\Controllers\API\PointThresholdController;
 use App\Http\Controllers\API\StudentActionLogController;
 use App\Http\Controllers\API\StudentPointController;
+use App\Http\Controllers\API\TeacherAchievementTypeController;
+use App\Http\Controllers\API\TeacherAchievementController;
+use App\Http\Controllers\API\TeacherPointRewardController;
+use App\Http\Controllers\API\TeacherRewardLogController;
+use App\Http\Controllers\API\TeacherPointController;
+use App\Http\Controllers\API\MyTeacherAppreciationController;
+use App\Http\Controllers\API\TeacherViolationTypeController;
+use App\Http\Controllers\API\TeacherViolationController;
+use App\Http\Controllers\API\PiketController;
 use App\Http\Controllers\API\EmployeeController;
 use App\Http\Controllers\API\EmployeeInstitutionAssignmentController;
 use App\Http\Controllers\API\InventoryController;
@@ -40,6 +56,12 @@ use App\Http\Controllers\API\InventoryMaintenanceController;
 use App\Http\Controllers\API\InventoryLoanController;
 use App\Http\Controllers\API\InventoryReportController;
 use App\Http\Controllers\API\TeacherDashboardController;
+use App\Http\Controllers\API\SuperAdminDashboardController;
+use App\Http\Controllers\API\InstitutionAdminController;
+use App\Http\Controllers\API\SuperAdminAdoptionController;
+use App\Http\Controllers\API\SuperAdminBroadcastController;
+use App\Http\Controllers\API\SuperAdminReportController;
+use App\Http\Controllers\API\SuperAdminImpersonationController;
 use App\Http\Controllers\API\PermissionController;
 use App\Http\Controllers\API\AdditionalDutyController;
 use App\Http\Controllers\API\AuditLogController;
@@ -54,6 +76,7 @@ use App\Http\Controllers\API\QrAttendanceController;
 use App\Http\Controllers\API\GuestVisitController;
 use App\Http\Controllers\API\DocumentPickupController;
 use App\Http\Controllers\API\ExtracurricularController;
+use App\Http\Controllers\API\ExtracurricularActivityController;
 use App\Http\Controllers\API\LibraryBookCategoryController;
 use App\Http\Controllers\API\LibraryBookController;
 use App\Http\Controllers\API\LibraryBookCopyController;
@@ -167,12 +190,13 @@ Route::middleware('throttle:30,1')->get('/public/institutions/recent', [PublicSc
 Route::get('/app-branding', [AppBrandingController::class, 'show'])->name('app-branding.show');
 
 // Protected routes with rate limiting
-Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/me', [AuthController::class, 'updateProfile']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
+    Route::post('/me/switch-institution', [AuthController::class, 'switchInstitution']);
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
@@ -200,23 +224,22 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Student routes (list tanpa cache agar tambah/edit/import langsung muncul)
     Route::middleware('module:student')->group(function () {
         Route::get('/student', [StudentController::class, 'index']);
+        Route::post('/student', [StudentController::class, 'store']);
+        Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
+        Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
+        Route::post('/student/graduate-bulk', [AlumniController::class, 'graduateBulk']);
+        Route::get('/alumni', [AlumniController::class, 'index']);
+        Route::get('/alumni/graduation-years', [AlumniController::class, 'graduationYears']);
         Route::get('/student/{id}', [StudentController::class, 'show']);
         Route::get('/student/{id}/buku-induk', [BukuIndukController::class, 'show'])->name('student.buku-induk');
         Route::get('/student/{id}/buku-induk/pdf', [BukuIndukController::class, 'print'])->name('student.buku-induk.pdf');
-        Route::post('/student', [StudentController::class, 'store']);
         Route::put('/student/{id}', [StudentController::class, 'update']);
         Route::delete('/student/{id}', [StudentController::class, 'destroy']);
         Route::post('/student/{id}/restore', [StudentController::class, 'restore']);
-        Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
-        Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
+        Route::post('/student/{id}/graduate', [AlumniController::class, 'graduate']);
         Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
         Route::delete('/student/{id}/documents/{documentId}', [StudentController::class, 'deleteDocument'])->name('student.delete-document');
         Route::get('/student/{id}/documents/{documentId}/download', [StudentController::class, 'downloadDocument'])->name('student.download-document');
-        // Alumni (lulusan)
-        Route::get('/alumni', [AlumniController::class, 'index']);
-        Route::get('/alumni/graduation-years', [AlumniController::class, 'graduationYears']);
-        Route::post('/student/{id}/graduate', [AlumniController::class, 'graduate']);
-        Route::post('/student/graduate-bulk', [AlumniController::class, 'graduateBulk']);
         // Tracking destinasi alumni (lanjut sekolah/kuliah/kerja/dll)
         Route::get('/alumni/destination-types', [AlumniDestinationController::class, 'types'])->name('alumni.destination-types');
         Route::get('/alumni/students/{studentId}/destinations', [AlumniDestinationController::class, 'indexByStudent'])->name('alumni.destinations.by-student');
@@ -242,6 +265,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('/violations', [ViolationController::class, 'index']);
         Route::post('/violations', [ViolationController::class, 'store']);
         Route::get('/violations/by-student/{studentId}', [ViolationController::class, 'byStudent'])->name('violations.by-student');
+        Route::post('/violations/{violation}/approve', [ViolationController::class, 'approve']);
+        Route::post('/violations/{violation}/reject', [ViolationController::class, 'reject']);
         Route::get('/violations/{violation}', [ViolationController::class, 'show']);
         Route::put('/violations/{violation}', [ViolationController::class, 'update']);
         Route::delete('/violations/{violation}', [ViolationController::class, 'destroy']);
@@ -296,6 +321,115 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::delete('/counseling-types/{counseling_type}', [CounselingTypeController::class, 'destroy']);
     });
 
+    // Laporan BK (akses jika punya modul violation, counseling, atau bk_report untuk wali kelas)
+    Route::middleware('module:violation|counseling|bk_report')->group(function () {
+        Route::get('/bk-reports/summary', [BkReportController::class, 'summary'])->name('bk-reports.summary');
+        Route::get('/bk-reports/violations', [BkReportController::class, 'violationDetail'])->name('bk-reports.violations');
+        Route::get('/bk-reports/export', [BkReportController::class, 'export'])->name('bk-reports.export');
+        Route::get('/bk-reports/export-violations', [BkReportController::class, 'exportViolations'])->name('bk-reports.export-violations');
+    });
+
+    // Apresiasi Guru (poin & prestasi guru)
+    Route::middleware('module:teacher_appreciation')->group(function () {
+        Route::get('/teacher-achievement-types', [TeacherAchievementTypeController::class, 'index']);
+        Route::post('/teacher-achievement-types', [TeacherAchievementTypeController::class, 'store']);
+        Route::get('/teacher-achievement-types/{teacher_achievement_type}', [TeacherAchievementTypeController::class, 'show']);
+        Route::put('/teacher-achievement-types/{teacher_achievement_type}', [TeacherAchievementTypeController::class, 'update']);
+        Route::delete('/teacher-achievement-types/{teacher_achievement_type}', [TeacherAchievementTypeController::class, 'destroy']);
+
+        Route::get('/teacher-achievements', [TeacherAchievementController::class, 'index']);
+        Route::post('/teacher-achievements', [TeacherAchievementController::class, 'store']);
+        Route::get('/teacher-achievements/by-employee/{employeeId}', [TeacherAchievementController::class, 'byEmployee']);
+        Route::post('/teacher-achievements/{teacher_achievement}/approve', [TeacherAchievementController::class, 'approve']);
+        Route::post('/teacher-achievements/{teacher_achievement}/reject', [TeacherAchievementController::class, 'reject']);
+        Route::get('/teacher-achievements/{teacher_achievement}', [TeacherAchievementController::class, 'show']);
+        Route::match(['put', 'post'], '/teacher-achievements/{teacher_achievement}', [TeacherAchievementController::class, 'update']);
+        Route::delete('/teacher-achievements/{teacher_achievement}', [TeacherAchievementController::class, 'destroy']);
+
+        Route::get('/teacher-point-rewards', [TeacherPointRewardController::class, 'index']);
+        Route::post('/teacher-point-rewards', [TeacherPointRewardController::class, 'store']);
+        Route::get('/teacher-point-rewards/{teacher_point_reward}', [TeacherPointRewardController::class, 'show']);
+        Route::put('/teacher-point-rewards/{teacher_point_reward}', [TeacherPointRewardController::class, 'update']);
+        Route::delete('/teacher-point-rewards/{teacher_point_reward}', [TeacherPointRewardController::class, 'destroy']);
+
+        Route::get('/teacher-reward-logs', [TeacherRewardLogController::class, 'index']);
+        Route::post('/teacher-reward-logs', [TeacherRewardLogController::class, 'store']);
+        Route::get('/teacher-reward-logs/by-employee/{employeeId}', [TeacherRewardLogController::class, 'byEmployee']);
+        Route::delete('/teacher-reward-logs/{teacher_reward_log}', [TeacherRewardLogController::class, 'destroy']);
+
+        Route::get('/teacher-points', [TeacherPointController::class, 'index']);
+        Route::get('/teacher-points/leaderboard', [TeacherPointController::class, 'leaderboard']);
+        Route::get('/teacher-points/report-summary', [TeacherPointController::class, 'reportSummary']);
+        Route::get('/teacher-points/{employeeId}/summary', [TeacherPointController::class, 'summary']);
+        Route::get('/teacher-appreciation/employees', [TeacherPointController::class, 'employees']);
+
+        // Jenis pelanggaran & approve (KS/admin)
+        Route::get('/teacher-violation-types', [TeacherViolationTypeController::class, 'index']);
+        Route::post('/teacher-violation-types', [TeacherViolationTypeController::class, 'store']);
+        Route::get('/teacher-violation-types/{teacher_violation_type}', [TeacherViolationTypeController::class, 'show']);
+        Route::put('/teacher-violation-types/{teacher_violation_type}', [TeacherViolationTypeController::class, 'update']);
+        Route::delete('/teacher-violation-types/{teacher_violation_type}', [TeacherViolationTypeController::class, 'destroy']);
+
+        Route::post('/teacher-violations/{teacher_violation}/approve', [TeacherViolationController::class, 'approve']);
+        Route::post('/teacher-violations/{teacher_violation}/reject', [TeacherViolationController::class, 'reject']);
+        Route::match(['put', 'post'], '/teacher-violations/{teacher_violation}', [TeacherViolationController::class, 'update']);
+        Route::delete('/teacher-violations/{teacher_violation}', [TeacherViolationController::class, 'destroy']);
+    });
+
+    // Catat/lihat pelanggaran: KS (teacher_appreciation) atau Guru Piket (teacher_violation_report)
+    Route::middleware('module:teacher_appreciation|teacher_violation_report')->group(function () {
+        Route::get('/teacher-violations', [TeacherViolationController::class, 'index']);
+        Route::post('/teacher-violations', [TeacherViolationController::class, 'store']);
+        Route::get('/teacher-violations/{teacher_violation}', [TeacherViolationController::class, 'show']);
+        Route::get('/teacher-violation-types-active', [TeacherViolationTypeController::class, 'index']);
+        Route::get('/teacher-appreciation/employees-lite', [TeacherPointController::class, 'employees']);
+    });
+
+    // Modul Guru Piket: jadwal, log harian, monitoring, laporan mingguan
+    Route::middleware('module:guru_piket|guru_piket_manage')->group(function () {
+        Route::get('/piket/dashboard', [PiketController::class, 'dashboard']);
+        Route::get('/piket/today', [PiketController::class, 'today']);
+        Route::get('/piket/settings', [PiketController::class, 'settings']);
+        Route::put('/piket/settings', [PiketController::class, 'updateSettings']);
+        Route::get('/piket/employees-lite', [PiketController::class, 'employeesLite']);
+        Route::get('/piket/students-lite', [PiketController::class, 'studentsLite']);
+        Route::get('/piket/classes-lite', [PiketController::class, 'classesLite']);
+
+        Route::get('/piket-schedules', [PiketController::class, 'schedulesIndex']);
+        Route::post('/piket-schedules', [PiketController::class, 'schedulesStore']);
+        Route::put('/piket-schedules/{piket_schedule}', [PiketController::class, 'schedulesUpdate']);
+        Route::delete('/piket-schedules/{piket_schedule}', [PiketController::class, 'schedulesDestroy']);
+
+        Route::get('/piket-logs', [PiketController::class, 'logsIndex']);
+        Route::post('/piket-logs', [PiketController::class, 'logsStore']);
+        Route::put('/piket-logs/{piket_log}', [PiketController::class, 'logsUpdate']);
+        Route::post('/piket-logs/{piket_log}/review', [PiketController::class, 'logsReview']);
+        Route::delete('/piket-logs/{piket_log}', [PiketController::class, 'logsDestroy']);
+
+        Route::get('/piket-incidents', [PiketController::class, 'incidentsIndex']);
+        Route::post('/piket-incidents', [PiketController::class, 'incidentsStore']);
+        Route::put('/piket-incidents/{piket_incident}', [PiketController::class, 'incidentsUpdate']);
+        Route::delete('/piket-incidents/{piket_incident}', [PiketController::class, 'incidentsDestroy']);
+        Route::post('/piket-incidents/{piket_incident}/propose-violation', [PiketController::class, 'proposeViolation']);
+        Route::post('/piket-incidents/{piket_incident}/propose-teacher-violation', [PiketController::class, 'proposeTeacherViolation']);
+        Route::get('/piket/violation-types-active', [PiketController::class, 'violationTypesActive']);
+        Route::get('/piket/teacher-violation-types-active', [PiketController::class, 'teacherViolationTypesActive']);
+        Route::post('/piket/scan/empty-classes', [PiketController::class, 'scanEmptyClasses']);
+        Route::post('/piket/scan/teacher-lateness', [PiketController::class, 'scanTeacherLateness']);
+        Route::post('/piket/scan', [PiketController::class, 'scanAll']);
+
+        Route::get('/piket/weekly-report', [PiketController::class, 'weeklyReport']);
+    });
+
+    // Self-service apresiasi guru (tanpa wajib modul)
+    Route::get('/teacher/my-points/summary', [MyTeacherAppreciationController::class, 'summary']);
+    Route::get('/teacher/my-points/leaderboard', [MyTeacherAppreciationController::class, 'leaderboard']);
+    Route::get('/teacher/my-achievements', [MyTeacherAppreciationController::class, 'achievements']);
+    Route::post('/teacher/my-achievements', [MyTeacherAppreciationController::class, 'submit']);
+    Route::get('/teacher/my-achievements/{teacher_achievement}', [MyTeacherAppreciationController::class, 'show']);
+    Route::get('/teacher/my-achievement-types', [MyTeacherAppreciationController::class, 'types']);
+    Route::get('/teacher/my-violations', [MyTeacherAppreciationController::class, 'violations']);
+
     // Jurnal Mengajar (Teaching Journal) + Absensi Siswa per jam
     Route::middleware('module:teaching_journal')->group(function () {
         Route::get('/teaching-journals', [TeachingJournalController::class, 'index'])->name('teaching-journals.index');
@@ -341,11 +475,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::delete('/grades/{grade}', [GradeController::class, 'destroy'])->name('grades.destroy');
     });
 
-    // Employee routes with caching
+    // Employee routes (tanpa cache list agar tambah/edit/hapus selalu dapat data segar)
     Route::middleware('module:teacher')->group(function () {
-        Route::middleware('cache:300')->group(function () {
-            Route::get('/employee', [EmployeeController::class, 'index']);
-        });
+        Route::get('/employee', [EmployeeController::class, 'index']);
         Route::get('/employee/search', [EmployeeController::class, 'searchByNik']);
         Route::get('/employee/{id}', [EmployeeController::class, 'show']);
         Route::post('/employee', [EmployeeController::class, 'store']);
@@ -365,20 +497,21 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/employee-assignments/{assignment}/end', [EmployeeInstitutionAssignmentController::class, 'end']);
     });
 
-    // Class routes with caching
-    Route::middleware('module:class')->group(function () {
-        Route::middleware('cache:300')->group(function () {
-            Route::get('/class', [ClassController::class, 'index']);
-        });
+    // Class routes (tanpa cache list agar naik kelas/luluskan selalu dapat data segar)
+    Route::middleware('module:class|student')->group(function () {
+        Route::get('/class', [ClassController::class, 'index']);
+        Route::get('/class/export/pdf', [ClassController::class, 'exportPdf'])->name('class.export.pdf');
+        Route::post('/class/clone-to-year', [ClassController::class, 'cloneToYear'])->name('class.clone-to-year');
         Route::get('/class/{id}', [ClassController::class, 'show']);
+        Route::get('/class/{id}/available-students', [ClassController::class, 'getAvailableStudents'])->name('class.available-students');
+        Route::get('/class/{id}/students', [ClassController::class, 'getStudents'])->name('class.students');
+    });
+    Route::middleware('module:class')->group(function () {
         Route::post('/class', [ClassController::class, 'store']);
         Route::put('/class/{id}', [ClassController::class, 'update']);
         Route::delete('/class/{id}', [ClassController::class, 'destroy']);
-        Route::get('/class/{id}/available-students', [ClassController::class, 'getAvailableStudents'])->name('class.available-students');
-        Route::get('/class/{id}/students', [ClassController::class, 'getStudents'])->name('class.students');
         Route::post('/class/{id}/students', [ClassController::class, 'addStudents'])->name('class.add-students');
         Route::delete('/class/{id}/students/{studentId}', [ClassController::class, 'removeStudent'])->name('class.remove-student');
-        Route::get('/class/export/pdf', [ClassController::class, 'exportPdf'])->name('class.export.pdf');
     });
 
     // GET subjects: boleh diakses modul Jadwal atau Ujian Online (untuk dropdown mapel di bank soal, dll.)
@@ -416,6 +549,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('/app-branding/favicon', [AppBrandingController::class, 'uploadFavicon'])->name('app-branding.upload-favicon');
         Route::put('/app-branding/hero', [AppBrandingController::class, 'updateHero'])->name('app-branding.update-hero');
         Route::post('/app-branding/hero-image', [AppBrandingController::class, 'uploadHeroImage'])->name('app-branding.upload-hero-image');
+        Route::put('/app-branding/maintenance', [AppBrandingController::class, 'updateMaintenance'])->name('app-branding.update-maintenance');
     });
 
     // Semester routes
@@ -466,11 +600,35 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         
         // Room routes
         Route::get('/rooms', [FacilityController::class, 'getRooms']);
+        Route::get('/rooms/{id}', [FacilityController::class, 'getRoom']);
         Route::post('/rooms', [FacilityController::class, 'createRoom']);
         Route::put('/rooms/{id}', [FacilityController::class, 'updateRoom']);
         Route::delete('/rooms/{id}', [FacilityController::class, 'deleteRoom']);
         Route::get('/lab-report', [FacilityController::class, 'getLabReport']);
+        Route::get('/lab-report/export', [FacilityController::class, 'exportLabReport']);
+        Route::get('/labs/{id}/export', [FacilityController::class, 'exportLabReport']);
         Route::get('/my-labs', [FacilityController::class, 'getMyLabs']);
+
+        // Lab booking
+        Route::get('/lab-bookings', [LabBookingController::class, 'index']);
+        Route::post('/lab-bookings', [LabBookingController::class, 'store']);
+        Route::post('/lab-bookings/{id}/approve', [LabBookingController::class, 'approve']);
+        Route::post('/lab-bookings/{id}/reject', [LabBookingController::class, 'reject']);
+        Route::post('/lab-bookings/{id}/cancel', [LabBookingController::class, 'cancel']);
+
+        // Lab usage journal
+        Route::get('/lab-journals', [LabUsageJournalController::class, 'index']);
+        Route::post('/lab-journals', [LabUsageJournalController::class, 'store']);
+        Route::put('/lab-journals/{id}', [LabUsageJournalController::class, 'update']);
+        Route::delete('/lab-journals/{id}', [LabUsageJournalController::class, 'destroy']);
+    });
+
+    // Lab booking untuk guru/staff (tanpa wajib modul facility)
+    Route::prefix('lab-booking')->group(function () {
+        Route::get('/labs', [LabBookingController::class, 'labsForBooking']);
+        Route::get('/', [LabBookingController::class, 'index']);
+        Route::post('/', [LabBookingController::class, 'store']);
+        Route::post('/{id}/cancel', [LabBookingController::class, 'cancel']);
     });
 
     // Inventory routes (Inventaris)
@@ -519,6 +677,30 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
     // Teacher dashboard
     Route::get('/teacher/dashboard', [TeacherDashboardController::class, 'index'])->name('teacher.dashboard');
+    Route::get('/teacher/dashboard/classes/{id}/students', [TeacherDashboardController::class, 'classStudents'])
+        ->name('teacher.dashboard.class-students');
+
+    // Super admin dashboard & institution status
+    Route::get('/super-admin/dashboard', [SuperAdminDashboardController::class, 'index'])->name('super-admin.dashboard');
+    Route::patch('/institution/{id}/status', [InstitutionController::class, 'updateStatus'])->name('institution.update-status');
+    Route::post('/institution/{id}/status', [InstitutionController::class, 'updateStatus'])->name('institution.update-status-post');
+
+    // Super admin: institution admins & onboarding
+    Route::get('/super-admin/institution-admins', [InstitutionAdminController::class, 'index'])->name('super-admin.institution-admins.index');
+    Route::post('/super-admin/institution-admins', [InstitutionAdminController::class, 'store'])->name('super-admin.institution-admins.store');
+    Route::post('/super-admin/institution-admins/{id}/reset-password', [InstitutionAdminController::class, 'resetPassword'])->name('super-admin.institution-admins.reset-password');
+    Route::post('/super-admin/institution-admins/{id}/status', [InstitutionAdminController::class, 'updateStatus'])->name('super-admin.institution-admins.status');
+    Route::post('/super-admin/onboard', [InstitutionAdminController::class, 'onboard'])->name('super-admin.onboard');
+
+    // Super admin: adoption, broadcast, aggregate reports
+    Route::get('/super-admin/adoption', [SuperAdminAdoptionController::class, 'index'])->name('super-admin.adoption');
+    Route::get('/super-admin/broadcasts', [SuperAdminBroadcastController::class, 'index'])->name('super-admin.broadcasts.index');
+    Route::post('/super-admin/broadcasts', [SuperAdminBroadcastController::class, 'store'])->name('super-admin.broadcasts.store');
+    Route::get('/super-admin/broadcasts/{id}', [SuperAdminBroadcastController::class, 'show'])->name('super-admin.broadcasts.show');
+    Route::get('/super-admin/reports/aggregate', [SuperAdminReportController::class, 'index'])->name('super-admin.reports.aggregate');
+    Route::get('/super-admin/reports/aggregate/export', [SuperAdminReportController::class, 'export'])->name('super-admin.reports.aggregate.export');
+    Route::post('/super-admin/institution-admins/{id}/impersonate', [SuperAdminImpersonationController::class, 'start'])->name('super-admin.impersonate.start');
+    Route::post('/super-admin/impersonate/stop', [SuperAdminImpersonationController::class, 'stop'])->name('super-admin.impersonate.stop');
 
     // Correspondence routes (Persuratan)
     Route::prefix('correspondence')->middleware('module:correspondence')->group(function () {
@@ -559,6 +741,27 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Disposition routes (standalone)
     Route::middleware('module:correspondence')->group(function () {
         Route::get('/dispositions/pending', [DispositionController::class, 'pending'])->name('dispositions.pending');
+    });
+
+    // Editor Persuratan (template + surat Word-like)
+    Route::middleware('module:correspondence')->group(function () {
+        Route::get('templates/placeholders', [TemplateSuratController::class, 'placeholders'])->name('templates.placeholders');
+        Route::post('templates/{id}/toggle-status', [TemplateSuratController::class, 'toggleStatus'])->name('templates.toggle-status');
+        Route::post('templates/{id}/fork', [TemplateSuratController::class, 'fork'])->name('templates.fork');
+        Route::apiResource('templates', TemplateSuratController::class)->parameters(['templates' => 'id']);
+
+        Route::post('surat/generate', [SuratController::class, 'generate'])->name('surat.generate');
+        Route::post('surat/upload-image', [SuratController::class, 'uploadImage'])->name('surat.upload-image');
+        Route::get('surat/students', [SuratController::class, 'students'])->name('surat.students');
+        Route::get('surat/employees', [SuratController::class, 'employees'])->name('surat.employees');
+        Route::get('surat/{id}/pdf', [SuratController::class, 'exportPdf'])->name('surat.pdf');
+        Route::get('surat/{id}/print', [SuratController::class, 'print'])->name('surat.print');
+        Route::get('surat/{id}/layout', [SuratController::class, 'layout'])->name('surat.layout');
+        Route::post('surat/{id}/terbitkan', [SuratController::class, 'publish'])->name('surat.publish');
+        Route::apiResource('surat', SuratController::class)->parameters(['surat' => 'id']);
+
+        Route::apiResource('kop-surat', KopSuratController::class)->parameters(['kop-surat' => 'id']);
+        Route::apiResource('aset-tanda-tangan', AsetTandaTanganController::class)->parameters(['aset-tanda-tangan' => 'id']);
     });
 
     // Digital Archive (Arsip Digital)
@@ -618,6 +821,18 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('extracurriculars/{extracurricular}/students', [ExtracurricularController::class, 'addStudents'])->name('extracurriculars.add-students');
         Route::put('extracurriculars/{extracurricular}/enrollments/{enrollmentId}', [ExtracurricularController::class, 'updateEnrollment'])->name('extracurriculars.update-enrollment');
         Route::delete('extracurriculars/{extracurricular}/students/{studentId}', [ExtracurricularController::class, 'removeStudent'])->name('extracurriculars.remove-student');
+
+        Route::get('extracurriculars/{extracurricular}/sessions', [ExtracurricularActivityController::class, 'listSessions'])->name('extracurriculars.sessions.index');
+        Route::post('extracurriculars/{extracurricular}/sessions', [ExtracurricularActivityController::class, 'storeSession'])->name('extracurriculars.sessions.store');
+        Route::put('extracurriculars/{extracurricular}/sessions/{extracurricularSession}', [ExtracurricularActivityController::class, 'updateSession'])->name('extracurriculars.sessions.update');
+        Route::delete('extracurriculars/{extracurricular}/sessions/{extracurricularSession}', [ExtracurricularActivityController::class, 'destroySession'])->name('extracurriculars.sessions.destroy');
+        Route::get('extracurriculars/{extracurricular}/sessions/{extracurricularSession}/attendances', [ExtracurricularActivityController::class, 'getAttendances'])->name('extracurriculars.attendances.index');
+        Route::put('extracurriculars/{extracurricular}/sessions/{extracurricularSession}/attendances', [ExtracurricularActivityController::class, 'saveAttendances'])->name('extracurriculars.attendances.save');
+        Route::get('extracurriculars/{extracurricular}/grades', [ExtracurricularActivityController::class, 'listGrades'])->name('extracurriculars.grades.index');
+        Route::put('extracurriculars/{extracurricular}/grades', [ExtracurricularActivityController::class, 'saveGrades'])->name('extracurriculars.grades.save');
+        Route::get('extracurriculars/{extracurricular}/report', [ExtracurricularActivityController::class, 'report'])->name('extracurriculars.report');
+        Route::get('extracurriculars/{extracurricular}/report/export', [ExtracurricularActivityController::class, 'exportReportCsv'])->name('extracurriculars.report.export');
+        Route::get('extracurriculars/{extracurricular}/report/pdf', [ExtracurricularActivityController::class, 'exportReportPdf'])->name('extracurriculars.report.pdf');
     });
 
     // PPDB (Penerimaan Peserta Didik Baru)

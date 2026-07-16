@@ -1,6 +1,19 @@
 <template>
   <Layout>
     <div class="teacher-page">
+      <div class="page-header">
+        <div class="header-content">
+          <div>
+            <h1 class="page-title">{{ filters.only_trashed ? 'Kotak Sampah Guru' : 'Data Guru' }}</h1>
+            <p class="page-subtitle">
+              {{ filters.only_trashed
+                ? 'Data yang dihapus dapat dipulihkan kapan saja'
+                : `${teachers.length} data terdaftar` }}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div class="list-tabs">
         <button
           type="button"
@@ -17,11 +30,12 @@
           Kotak Sampah
         </button>
       </div>
+
       <div class="toolbar">
         <TeacherFilters
           v-if="!filters.only_trashed"
           :model-value="filters"
-          @update:model-value="(v) => Object.assign(filters.value, v)"
+          @update:model-value="onFiltersUpdate"
           @filter="loadTeachers"
         />
         <div v-else class="filters filters-inline">
@@ -34,62 +48,56 @@
         </div>
         <div class="toolbar-actions">
           <template v-if="!filters.only_trashed">
-          <button @click="exportToExcel" class="btn-secondary btn-compact">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Export</span>
-          </button>
-          <button @click="downloadTemplate" class="btn-secondary btn-compact">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Template</span>
-          </button>
-          <button
-            v-if="isInstitutionAdmin"
-            @click="openAssignmentRequestModal"
-            class="btn-secondary btn-compact"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Non Induk</span>
-          </button>
-          <button
-            v-if="isInstitutionAdmin"
-            @click="openAssignmentRequestsModal"
-            class="btn-secondary btn-compact"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 3V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Permintaan</span>
-          </button>
-          <label for="import-excel-employee" class="btn-secondary btn-compact cursor-pointer">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Import</span>
-          </label>
-          <input type="file" id="import-excel-employee" accept=".xlsx,.xls" class="input-hidden" @change="handleImportExcel">
-          <button @click="showAddModal = true" class="btn-primary btn-compact">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Tambah Guru</span>
-          </button>
+            <div class="action-buttons-group">
+              <button type="button" @click="exportToExcel" class="btn-secondary btn-compact" title="Export Excel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Export</span>
+              </button>
+              <button type="button" @click="downloadTemplate" class="btn-secondary btn-compact" title="Unduh template">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Template</span>
+              </button>
+              <label for="import-excel-employee" class="btn-secondary btn-compact cursor-pointer" title="Import Excel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Import</span>
+              </label>
+              <input type="file" id="import-excel-employee" accept=".xlsx,.xls" class="input-hidden" @change="handleImportExcel">
+            </div>
+            <div v-if="isInstitutionAdmin" class="action-buttons-group">
+              <button type="button" @click="openAssignmentRequestModal" class="btn-secondary btn-compact">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Non Induk</span>
+              </button>
+              <button type="button" @click="openAssignmentRequestsModal" class="btn-secondary btn-compact btn-with-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 6H21M8 12H21M8 18H21M3 6H3.01M3 12H3.01M3 18H3.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Permintaan</span>
+                <span v-if="pendingAssignmentCount > 0" class="toolbar-badge">{{ pendingAssignmentCount > 99 ? '99+' : pendingAssignmentCount }}</span>
+              </button>
+            </div>
+            <button type="button" @click="showAddModal = true" class="btn-primary btn-compact">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Guru</span>
+            </button>
           </template>
         </div>
       </div>
@@ -300,8 +308,8 @@
                     <input v-model="form.phone" />
                   </div>
                   <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" v-model="form.email" />
+                    <label>Email <span v-if="form.type === 'Guru'">*</span></label>
+                    <input type="email" v-model="form.email" :required="form.type === 'Guru'" />
                   </div>
                 </div>
 
@@ -377,10 +385,15 @@
                     <label>Status</label>
                     <select v-model="form.status">
                       <option value="Aktif">Aktif</option>
+                      <option value="Cuti">Cuti</option>
                       <option value="Pensiun">Pensiun</option>
                       <option value="Pindah">Pindah</option>
+                      <option value="Mengundurkan Diri">Mengundurkan Diri</option>
                       <option value="Tidak Aktif">Tidak Aktif</option>
                     </select>
+                    <p v-if="notesRequiredForStatus" class="form-hint status-notes-hint">
+                      Status ini tidak menghapus data guru. Isi catatan lengkap (tanggal &amp; alasan) di tab Tambahan.
+                    </p>
                   </div>
                 </div>
 
@@ -438,8 +451,20 @@
             <div v-show="activeTab === 3" class="form-tab-content">
               <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
                 <div class="form-group">
-                  <label>Catatan</label>
-                  <textarea v-model="form.notes" rows="5"></textarea>
+                  <label>
+                    Catatan
+                    <span v-if="notesRequiredForStatus" class="required-mark">*</span>
+                  </label>
+                  <textarea
+                    v-model="form.notes"
+                    rows="5"
+                    :placeholder="notesRequiredForStatus
+                      ? 'Wajib: tulis tanggal mulai/akhir, alasan cuti/keluar/pindah/pensiun, dan keterangan lain yang relevan'
+                      : 'Catatan tambahan tentang guru (opsional)'"
+                  ></textarea>
+                  <p v-if="notesRequiredForStatus" class="form-hint">
+                    Data guru tetap tampil di daftar. Jangan hapus guru hanya karena cuti atau mengundurkan diri.
+                  </p>
                 </div>
 
                 <div class="module-access">
@@ -1019,17 +1044,17 @@
             </div>
 
             <!-- Catatan -->
-            <div class="biodata-section view-card" v-if="viewingTeacher.notes">
+            <div class="biodata-section view-card" v-if="viewingTeacher.notes || ['Cuti', 'Mengundurkan Diri', 'Pensiun', 'Pindah'].includes(viewingTeacher.status)">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                Catatan
+                Catatan Status
               </h4>
               <div class="biodata-grid">
                 <div class="biodata-item">
-                  <span class="value">{{ viewingTeacher.notes }}</span>
+                  <span class="value">{{ viewingTeacher.notes || 'Belum ada catatan' }}</span>
                 </div>
               </div>
             </div>
@@ -1182,12 +1207,12 @@
                     <td>{{ request.subject || '-' }}</td>
                     <td>{{ request.assignment_title || '-' }}</td>
                     <td>
-                      <div class="action-buttons">
-                        <button @click="approveAssignment(request)" class="btn-action btn-view" title="Setujui">
-                          ✓
+                      <div class="action-buttons assignment-actions">
+                        <button type="button" @click="approveAssignment(request)" class="btn-approve-text" title="Setujui">
+                          Setujui
                         </button>
-                        <button @click="rejectAssignment(request)" class="btn-action btn-delete" title="Tolak">
-                          ×
+                        <button type="button" @click="rejectAssignment(request)" class="btn-reject-text" title="Tolak">
+                          Tolak
                         </button>
                       </div>
                     </td>
@@ -1284,6 +1309,10 @@
       :title="confirmDialog.title"
       :message="confirmDialog.message"
       :warning="confirmDialog.warning"
+      :confirm-text="confirmDialog.confirmText"
+      :cancel-text="confirmDialog.cancelText"
+      :loading-text="confirmDialog.loadingText"
+      :confirm-variant="confirmDialog.confirmVariant"
       :loading="confirmDialog.loading"
       @confirm="handleConfirm"
       @cancel="handleCancel"
@@ -1345,6 +1374,7 @@ const assignmentForm = ref({
   assignment_notes: ''
 })
 const pendingAssignments = ref([])
+const pendingAssignmentCount = ref(0)
 const loadingPendingAssignments = ref(false)
 const importResult = ref({
   created_accounts: [],
@@ -1405,6 +1435,9 @@ const editingId = ref(null)
 const isInstitutionAdmin = computed(() => authStore.user?.role === 'institution_admin')
 const isNonIndukEdit = computed(() => Boolean(editingId.value && form.value.affiliation === 'non_induk'))
 const isViewingGuru = computed(() => (viewingTeacher.value?.type || '').toString().toLowerCase() === 'guru')
+const notesRequiredForStatus = computed(() =>
+  ['Cuti', 'Mengundurkan Diri', 'Pensiun', 'Pindah'].includes(form.value.status)
+)
 const canResetEmployeePassword = computed(() => {
   const role = authStore.user?.role
   return role === 'institution_admin' || role === 'admin' || role === 'super_admin'
@@ -1530,11 +1563,32 @@ const downloadImportCredentials = () => {
   URL.revokeObjectURL(url)
 }
 
+const syncPendingAssignmentCount = (list, meta) => {
+  const total = meta?.total
+  pendingAssignmentCount.value = typeof total === 'number' ? total : (list?.length || 0)
+}
+
+const refreshPendingAssignmentCount = async () => {
+  if (!isInstitutionAdmin.value) {
+    pendingAssignmentCount.value = 0
+    return
+  }
+
+  try {
+    const response = await employeeApi.getPendingAssignments({ per_page: 1 })
+    const list = response.data.data || []
+    syncPendingAssignmentCount(list, response.data.meta)
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 const loadPendingAssignments = async () => {
   loadingPendingAssignments.value = true
   try {
     const response = await employeeApi.getPendingAssignments({ per_page: 100 })
     pendingAssignments.value = response.data.data || []
+    syncPendingAssignmentCount(pendingAssignments.value, response.data.meta)
   } catch (err) {
     toast.error('Gagal', 'Gagal memuat permintaan non-induk')
     console.error(err)
@@ -1547,7 +1601,10 @@ const approveAssignment = async (assignment) => {
   const confirmed = await showConfirm({
     title: 'Konfirmasi Persetujuan',
     message: 'Setujui permintaan non-induk ini?',
-    warning: ''
+    warning: '',
+    confirmText: 'Setujui',
+    loadingText: 'Menyetujui...',
+    confirmVariant: 'primary'
   })
   
   if (!confirmed) return
@@ -1585,7 +1642,10 @@ const endAssignment = async (assignment) => {
   const confirmed = await showConfirm({
     title: 'Konfirmasi Akhiri Penugasan',
     message: 'Akhiri penugasan non-induk ini?',
-    warning: ''
+    warning: '',
+    confirmText: 'Akhiri',
+    loadingText: 'Mengakhiri...',
+    confirmVariant: 'danger'
   })
   
   if (!confirmed) return
@@ -1674,7 +1734,7 @@ const deleteTeacher = async (id) => {
   const confirmed = await showConfirm({
     title: 'Konfirmasi Hapus',
     message: 'Apakah Anda yakin ingin menghapus guru ini?',
-    warning: 'Data guru akan dipindahkan ke kotak sampah dan dapat dipulihkan kapan saja dari menu Kotak Sampah.'
+    warning: 'Untuk cuti, mengundurkan diri, pensiun, atau pindah: ubah Status dan isi Catatan, jangan hapus. Hapus hanya untuk data salah — data masuk kotak sampah dan bisa dipulihkan.'
   })
   
   if (!confirmed) return
@@ -1694,6 +1754,10 @@ const deleteTeacher = async (id) => {
 function switchListTab(onlyTrashed) {
   filters.value.only_trashed = !!onlyTrashed
   loadTeachers()
+}
+
+function onFiltersUpdate(next) {
+  Object.assign(filters.value, next)
 }
 
 async function handleRestoreTeacher(teacher) {
@@ -1733,11 +1797,16 @@ const validationRules = {
   ],
   join_date: [
     (value) => validators.date(value, 'Format tanggal tidak valid')
+  ],
+  notes: [
+    (value) => notesRequiredForStatus.value
+      ? validators.required(value, 'Catatan wajib diisi untuk status Cuti, Mengundurkan Diri, Pensiun, atau Pindah')
+      : null
   ]
 }
 
 // Setup form validation
-const { validateAll, setErrors } = useFormValidation({
+const { validateAll, setErrors, fieldErrors } = useFormValidation({
   form,
   initialValues: {},
   rules: validationRules
@@ -1777,7 +1846,19 @@ const handleSubmit = async () => {
   // Validate form
   const isValid = validateAll()
   if (!isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form'
+    if (notesRequiredForStatus.value && !(form.value.notes || '').trim()) {
+      activeTab.value = 3
+      error.value = 'Catatan wajib diisi untuk status Cuti, Mengundurkan Diri, Pensiun, atau Pindah'
+    } else {
+      const firstError = Object.values(fieldErrors).find((msg) => msg)
+      error.value = firstError || 'Mohon perbaiki kesalahan pada form'
+      // Email & identitas ada di tab 1; catatan di tab 3
+      if (fieldErrors.notes) {
+        activeTab.value = 3
+      } else {
+        activeTab.value = 1
+      }
+    }
     return
   }
   
@@ -2481,6 +2562,7 @@ const handleImportExcel = async (event) => {
 onMounted(() => {
   loadPermissions()
   referenceStore.getAdditionalDuties()
+  refreshPendingAssignmentCount()
 })
 </script>
 
@@ -2489,125 +2571,186 @@ onMounted(() => {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
-}
-
-.list-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
-}
-
-.list-tabs .tab-btn {
-  padding: 10px 20px;
-  border: 1px solid #d1fae5;
-  background: #fff;
-  color: #047857;
-  border-radius: 10px;
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.list-tabs .tab-btn:hover {
-  background: #ecfdf5;
-}
-
-.list-tabs .tab-btn.active {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: #fff;
-  border-color: #047857;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.toolbar .filters {
-  margin-bottom: 0;
-  flex: 1;
-  min-width: 200px;
-}
-
-.toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.btn-compact {
-  padding: 8px 14px;
-  font-size: 13px;
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .header-content {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 24px;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.header-content .page-title {
+.page-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #0f172a;
   margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
 }
 
-.header-content .page-subtitle {
+.page-subtitle {
   color: #64748b;
-  font-size: 14px;
+  font-size: 13px;
   margin: 0;
+}
+
+.list-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.list-tabs .tab-btn {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.list-tabs .tab-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.list-tabs .tab-btn.active {
+  background: #059669;
+  color: #fff;
+  border-color: #059669;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.toolbar :deep(.filters),
+.toolbar .filters {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: min(100%, 280px);
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-buttons-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.btn-compact {
+  padding: 8px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.btn-with-badge {
+  position: relative;
+}
+
+.toolbar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.action-buttons-group .btn-compact {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.action-buttons-group .btn-compact:hover {
+  background: #f1f5f9;
 }
 
 .filters {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
-  background: white;
-  padding: 20px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: #fff;
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.filters-inline {
+  align-items: center;
 }
 
 .search-input,
 .filter-select {
-  padding: 12px 16px;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
   background: #f8fafc;
-  transition: all 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .search-input:focus,
 .filter-select:focus {
   outline: none;
   border-color: #059669;
-  background: white;
-  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
 .search-input {
   flex: 1;
-  min-width: 250px;
+  min-width: 180px;
 }
 
 .filter-select {
-  min-width: 180px;
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.error-message {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.input-hidden {
+  display: none;
 }
 
 .table-container {
@@ -2672,6 +2815,25 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.status-leave {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.status-resigned {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.required-mark {
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+.status-notes-hint {
+  margin-top: 6px;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;
@@ -2704,6 +2866,40 @@ onMounted(() => {
   color: #1d4ed8;
   font-size: 11px;
   font-weight: 600;
+}
+
+.assignment-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn-approve-text,
+.btn-reject-text {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-approve-text {
+  background: #059669;
+  color: #fff;
+}
+
+.btn-approve-text:hover {
+  background: #047857;
+}
+
+.btn-reject-text {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.btn-reject-text:hover {
+  background: #fecaca;
 }
 
 .btn-action {
@@ -3644,6 +3840,14 @@ onMounted(() => {
   background: rgba(251, 191, 36, 0.25);
   color: #fde047;
 }
+.view-profile-status.status-leave {
+  background: rgba(217, 119, 6, 0.25);
+  color: #fdba74;
+}
+.view-profile-status.status-resigned {
+  background: rgba(220, 38, 38, 0.25);
+  color: #fca5a5;
+}
 
 @media (max-width: 560px) {
   .view-modal { max-width: 95%; }
@@ -4341,16 +4545,23 @@ onMounted(() => {
 
 /* Action Buttons Group */
 .action-buttons-group {
-  display: flex;
-  gap: 8px;
+  display: inline-flex;
+  gap: 4px;
   align-items: center;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
 }
 
 .btn-compact {
-  padding: 8px 16px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px !important;
   font-size: 13px !important;
-  gap: 6px !important;
   border-radius: 10px;
+  white-space: nowrap;
 }
 
 .btn-compact svg {
@@ -4364,67 +4575,42 @@ onMounted(() => {
   .header-content {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
   }
 
-  .action-buttons-group {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .filters {
+  .toolbar {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .search-input,
+  .toolbar-actions {
+    justify-content: flex-start;
+  }
+
   .filter-select {
-    width: 100%;
-    min-width: auto;
+    max-width: none;
   }
 }
 
 @media (max-width: 768px) {
   .page-header {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
-  .header-content .page-subtitle {
-    font-size: 13px;
+  .page-title {
+    font-size: 1.25rem;
   }
 
-  .filters {
-    padding: 16px;
-    margin-bottom: 16px;
+  .page-subtitle {
+    font-size: 12px;
   }
 
-  .table-container {
-    border-radius: 12px;
-    overflow-x: auto;
+  .toolbar-actions {
+    width: 100%;
   }
 
-  .data-table {
-    min-width: 800px;
-  }
-
-  .data-table th {
-    padding: 12px 14px;
-    font-size: 11px;
-  }
-
-  .data-table td {
-    padding: 12px 14px;
-    font-size: 13px;
-  }
-
-  .action-buttons {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .btn-action {
-    width: 40px;
-    height: 40px;
-    padding: 6px;
+  .action-buttons-group {
+    flex: 1;
   }
 
   .modal-content {
@@ -4505,13 +4691,12 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
-
   .action-buttons-group {
-    flex-direction: column;
+    width: 100%;
+    justify-content: space-between;
   }
 
-  .action-buttons-group button,
-  .action-buttons-group label {
+  .toolbar-actions .btn-primary {
     width: 100%;
     justify-content: center;
   }

@@ -50,6 +50,10 @@ class InventoryRepository extends BaseRepository
             $query->where('room_id', $filters['room_id']);
         }
 
+        if (!empty($filters['room_ids']) && is_array($filters['room_ids'])) {
+            $query->whereIn('room_id', $filters['room_ids']);
+        }
+
         if (isset($filters['building_id'])) {
             $query->where('building_id', $filters['building_id']);
         }

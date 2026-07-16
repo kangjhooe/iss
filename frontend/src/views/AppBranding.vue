@@ -599,6 +599,12 @@ async function saveHero() {
 }
 
 /* ----- Responsive ----- */
+@media (max-width: 900px) {
+  .branding-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .branding-grid {
     grid-template-columns: 1fr;
@@ -614,6 +620,22 @@ async function saveHero() {
 
   .hero-card {
     padding: 1.25rem;
+  }
+
+  .page-header,
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-save {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header__title {
+    font-size: 1.25rem;
   }
 }
 </style>

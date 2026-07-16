@@ -5,6 +5,7 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th class="col-no">No</th>
             <th>NIK</th>
             <th>NIS</th>
             <th>NISN</th>
@@ -16,7 +17,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="student in students" :key="student.id">
+          <tr v-for="(student, index) in students" :key="student.id">
+            <td class="col-no">{{ index + 1 }}</td>
             <td>{{ displayValue(student.nik) }}</td>
             <td>{{ displayValue(student.nis) }}</td>
             <td>{{ displayValue(student.nisn) }}</td>
@@ -184,6 +186,12 @@ defineEmits(['view', 'edit', 'delete', 'add', 'restore'])
   font-weight: 600;
   color: #065f46;
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.data-table .col-no {
+  width: 3rem;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .data-table tbody tr:hover {

@@ -1,0 +1,402 @@
+/**
+ * Responsive layout untuk semua halaman Super Admin.
+ * Diaktifkan saat Layout punya class .layout-super-admin
+ */
+
+/* ---- Base content ---- */
+.layout-super-admin .content {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.layout-super-admin .content > * {
+  max-width: 100%;
+}
+
+/* ---- Page headers ---- */
+.layout-super-admin .page-header,
+.layout-super-admin .welcome-section {
+  max-width: 100%;
+}
+
+.layout-super-admin .page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.layout-super-admin .header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ---- Filters ---- */
+.layout-super-admin .filters,
+.layout-super-admin .filters-inline {
+  max-width: 100%;
+}
+
+.layout-super-admin .filters-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.layout-super-admin .filters-inline .search-input,
+.layout-super-admin .filters-inline .filter-select,
+.layout-super-admin .filters-inline input,
+.layout-super-admin .filters-inline select {
+  min-width: 0;
+}
+
+/* ---- Tables: horizontal scroll, tidak pecah layout ---- */
+.layout-super-admin .table-container,
+.layout-super-admin .requests-container,
+.layout-super-admin .broadcast-list {
+  max-width: 100%;
+}
+
+.layout-super-admin .table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+}
+
+.layout-super-admin .data-table {
+  width: 100%;
+}
+
+.layout-super-admin .table-container .data-table,
+.layout-super-admin .table-desktop .data-table {
+  min-width: 640px;
+}
+
+.layout-super-admin .data-table th,
+.layout-super-admin .data-table td {
+  white-space: nowrap;
+}
+
+.layout-super-admin .data-table td:nth-child(2),
+.layout-super-admin .data-table th:nth-child(2) {
+  white-space: normal;
+  min-width: 140px;
+}
+
+/* ---- Modals ---- */
+.layout-super-admin .modal-overlay {
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  align-items: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.layout-super-admin .modal-content {
+  margin: auto;
+  width: 100%;
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+}
+
+/* ---- Cards / panels ---- */
+.layout-super-admin .panel,
+.layout-super-admin .stat-card,
+.layout-super-admin .action-card,
+.layout-super-admin .request-card,
+.layout-super-admin .broadcast-card {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* ---- Tablet ---- */
+@media (max-width: 1024px) {
+  .layout-super-admin .content {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .layout-super-admin .panels-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .layout-super-admin .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .layout-super-admin .form-grid,
+  .layout-super-admin .form-row,
+  .layout-super-admin .branding-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 768px) {
+  .layout-super-admin .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .layout-super-admin .page-header h1,
+  .layout-super-admin .page-header h2 {
+    font-size: 1.25rem !important;
+    line-height: 1.3;
+  }
+
+  .layout-super-admin .page-header p {
+    font-size: 0.8125rem !important;
+  }
+
+  .layout-super-admin .header-actions,
+  .layout-super-admin .action-buttons-group {
+    width: 100%;
+  }
+
+  .layout-super-admin .header-actions > *,
+  .layout-super-admin .action-buttons-group > * {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .layout-super-admin .filters-inline {
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    overflow: visible !important;
+  }
+
+  .layout-super-admin .filters-inline .search-input,
+  .layout-super-admin .filters-inline .filter-select,
+  .layout-super-admin .filters-inline input,
+  .layout-super-admin .filters-inline select,
+  .layout-super-admin .filters-inline .filter-group {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .layout-super-admin .filters-inline .filter-group {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .layout-super-admin .filters-bar {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  .layout-super-admin .filters-bar .filter-select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .layout-super-admin .filters-bar .filter-select:nth-child(3),
+  .layout-super-admin .filters-bar .btn-export {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .layout-super-admin .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .layout-super-admin .actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .layout-super-admin .welcome-section {
+    padding: 16px !important;
+    margin-bottom: 16px !important;
+    flex-direction: column;
+    text-align: left !important;
+    gap: 0;
+  }
+
+  .layout-super-admin .welcome-content h1 {
+    font-size: 1.125rem !important;
+    color: #ffffff !important;
+  }
+
+  .layout-super-admin .welcome-content p {
+    color: rgba(255, 255, 255, 0.95) !important;
+  }
+
+  .layout-super-admin .welcome-icon {
+    display: none !important;
+  }
+
+  .layout-super-admin .quick-actions,
+  .layout-super-admin .panel,
+  .layout-super-admin .wizard {
+    padding: 14px !important;
+  }
+
+  .layout-super-admin .section-header h2 {
+    font-size: 1.0625rem !important;
+  }
+
+  .layout-super-admin .action-card {
+    padding: 12px !important;
+  }
+
+  .layout-super-admin .panel-header {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+  }
+
+  .layout-super-admin .action-buttons {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .layout-super-admin .btn-action {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  /* Steps wizard */
+  .layout-super-admin .steps {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+
+  .layout-super-admin .step {
+    font-size: 12px !important;
+  }
+
+  .layout-super-admin .step-line {
+    display: none;
+  }
+
+  .layout-super-admin .wizard-actions {
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .layout-super-admin .wizard-actions .spacer {
+    display: none;
+  }
+
+  .layout-super-admin .wizard-actions > * {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Request / detail rows */
+  .layout-super-admin .detail-row {
+    flex-direction: column;
+    gap: 4px !important;
+  }
+
+  .layout-super-admin .detail-row .label {
+    min-width: 0 !important;
+  }
+
+  .layout-super-admin .request-actions,
+  .layout-super-admin .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .layout-super-admin .request-actions > *,
+  .layout-super-admin .modal-actions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .layout-super-admin .filter-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    padding-bottom: 4px;
+  }
+
+  .layout-super-admin .filter-tabs .tab,
+  .layout-super-admin .filter-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .layout-super-admin .card-top,
+  .layout-super-admin .card-foot {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .layout-super-admin .password-box {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .layout-super-admin .module-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .layout-super-admin .module-pct {
+    text-align: left !important;
+  }
+
+  /* Bottom nav space */
+  .layout-super-admin:has(.bottom-nav) .content {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
+  }
+}
+
+/* ---- Small phones ---- */
+@media (max-width: 480px) {
+  .layout-super-admin .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .layout-super-admin .stat-value,
+  .layout-super-admin .stat-card strong {
+    font-size: 1.25rem !important;
+  }
+
+  .layout-super-admin .welcome-content h1 {
+    font-size: 1.0625rem !important;
+  }
+
+  .layout-super-admin .data-table {
+    min-width: 560px;
+    font-size: 12px;
+  }
+
+  .layout-super-admin .data-table th,
+  .layout-super-admin .data-table td {
+    padding: 10px 8px !important;
+  }
+
+  .layout-super-admin .modal-content {
+    border-radius: 12px !important;
+  }
+
+  .layout-super-admin .header-actions > *,
+  .layout-super-admin .wizard-actions > * {
+    flex: 1 1 100%;
+  }
+}
+
+/* ---- Touch targets ---- */
+@media (hover: none) and (pointer: coarse) {
+  .layout-super-admin .btn-primary,
+  .layout-super-admin .btn-secondary,
+  .layout-super-admin .btn-compact,
+  .layout-super-admin .btn-action,
+  .layout-super-admin .action-card,
+  .layout-super-admin .tab,
+  .layout-super-admin .filter-tab {
+    min-height: 44px;
+  }
+}

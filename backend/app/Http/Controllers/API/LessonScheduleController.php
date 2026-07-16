@@ -10,6 +10,7 @@ use App\Http\Resources\LessonScheduleResource;
 use App\Models\Institution;
 use App\Models\LessonSchedule;
 use App\Services\LessonScheduleService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -21,14 +22,31 @@ class LessonScheduleController extends Controller
         protected LessonScheduleService $lessonScheduleService
     ) {}
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
+    private function canAccessSchedule($user, LessonSchedule $schedule): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return InstitutionContext::canAccessInstitution($user, (int) $schedule->institution_id);
+    }
+
     /**
      * List lesson schedules with filters.
      */
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -59,8 +77,7 @@ class LessonScheduleController extends Controller
     public function store(StoreLessonScheduleRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -88,7 +105,7 @@ class LessonScheduleController extends Controller
     public function show(Request $request, LessonSchedule $lesson_schedule): LessonScheduleResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $lesson_schedule->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessSchedule($user, $lesson_schedule)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $lesson_schedule->load(['semester', 'schoolClass', 'subject', 'employee', 'room']);
@@ -102,7 +119,7 @@ class LessonScheduleController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $lesson_schedule->institution_id && !$user->isSuperAdmin()) {
+            if (!$this->canAccessSchedule($user, $lesson_schedule)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -125,7 +142,7 @@ class LessonScheduleController extends Controller
     public function destroy(Request $request, LessonSchedule $lesson_schedule): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $lesson_schedule->institution_id && !$user->isSuperAdmin()) {
+        if (!$this->canAccessSchedule($user, $lesson_schedule)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -139,7 +156,7 @@ class LessonScheduleController extends Controller
     public function byClass(Request $request, int $classId): JsonResponse
     {
         $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if ($user->isStudent()) {
             $profile = $user->studentProfile;
             if (!$profile || (int) $profile->class_id !== (int) $classId) {
@@ -161,8 +178,7 @@ class LessonScheduleController extends Controller
      */
     public function byTeacher(Request $request, int $employeeId): JsonResponse
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         $semesterId = $request->get('semester_id');
         if (!$institutionId || !$semesterId) {
             return response()->json(['message' => 'Institusi atau semester tidak ditemukan.'], 403);
@@ -177,8 +193,7 @@ class LessonScheduleController extends Controller
      */
     public function byRoom(Request $request, int $roomId): JsonResponse
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         $semesterId = $request->get('semester_id');
         if (!$institutionId || !$semesterId) {
             return response()->json(['message' => 'Institusi atau semester tidak ditemukan.'], 403);
@@ -194,8 +209,7 @@ class LessonScheduleController extends Controller
     public function copySemester(CopyLessonScheduleRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -225,8 +239,7 @@ class LessonScheduleController extends Controller
      */
     public function deleteByClass(Request $request, int $classId): JsonResponse
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         $semesterId = $request->get('semester_id');
         if (!$institutionId || !$semesterId) {
             return response()->json(['message' => 'Semester wajib dipilih (semester_id).'], 422);
@@ -244,8 +257,7 @@ class LessonScheduleController extends Controller
      */
     public function deleteBySemester(Request $request, int $semesterId): JsonResponse
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }

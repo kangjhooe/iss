@@ -7,6 +7,7 @@ use App\Http\Requests\StoreTeacherRequest;
 use App\Http\Requests\UpdateTeacherRequest;
 use App\Http\Resources\TeacherResource;
 use App\Models\Teacher;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -28,9 +29,9 @@ class TeacherController extends Controller
                 $query->withTrashed();
             }
 
-            // Filter berdasarkan institusi user yang login
+            // Filter berdasarkan institusi aktif (induk / non-induk)
             if (!$user->isAdminOrSuperAdmin()) {
-                $institutionId = $user->institution_id;
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
             } elseif ($request->has('institution_id')) {
                 $institutionId = $request->institution_id;
             }
@@ -72,7 +73,7 @@ class TeacherController extends Controller
                 };
             }
 
-            $teachers = $query->select(['id', 'institution_id', 'nik', 'type', 'nip', 'nuptk', 'name', 'gender', 'subject', 'status', 'employment_status', 'created_at'])
+            $teachers = $query->select(['id', 'institution_id', 'nik', 'type', 'nip', 'nuptk', 'name', 'gender', 'subject', 'status', 'employment_status', 'notes', 'created_at'])
                 ->with($relations)
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
@@ -144,7 +145,11 @@ class TeacherController extends Controller
         try {
             $teacher = Teacher::findOrFail($id);
             $user = $request->user();
-            $currentInstitutionId = $request->get('institution_id') ?? $user->institution_id;
+            $currentInstitutionId = \App\Support\InstitutionContext::resolveForUser(
+                $user,
+                $request,
+                $request->get('institution_id')
+            );
 
             // Jika bukan admin/super admin, hanya bisa melihat guru dari institusi sendiri
             if (!$user->isAdminOrSuperAdmin() && $currentInstitutionId != $teacher->institution_id) {

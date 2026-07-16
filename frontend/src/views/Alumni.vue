@@ -6,7 +6,7 @@
           <h1 class="page-title">Alumni</h1>
           <p class="page-subtitle">Data lulusan / alumni sekolah Anda</p>
           <div class="action-buttons-group">
-            <router-link to="/student?status=Aktif" class="btn-secondary btn-compact btn-add">
+            <router-link to="/luluskan-siswa" class="btn-secondary btn-compact btn-add">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -30,7 +30,7 @@
       </div>
 
       <div v-if="loading" class="loading-wrap">
-        <LoadingSkeleton type="table" :rows="8" :columns="8" :cell-widths="['100px', '120px', '180px', '100px', '120px', '100px', '160px', '100px']" />
+        <LoadingSkeleton type="table" :rows="8" :columns="9" :cell-widths="['48px', '100px', '120px', '180px', '100px', '120px', '100px', '160px', '100px']" />
       </div>
 
       <div v-else class="content-wrapper">
@@ -39,6 +39,7 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th class="col-no">No</th>
                 <th>NIS</th>
                 <th>NISN</th>
                 <th>Nama</th>
@@ -50,7 +51,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in alumni" :key="item.id">
+              <tr v-for="(item, index) in alumni" :key="item.id">
+                <td class="col-no">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
                 <td>{{ item.nis || '-' }}</td>
                 <td>{{ item.nisn || '-' }}</td>
                 <td>{{ item.name }}</td>
@@ -70,7 +72,7 @@
                     </svg>
                     Destinasi
                   </button>
-                  <router-link :to="`/student?id=${item.id}`" class="btn-action btn-view" title="Lihat arsip">
+                  <router-link :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }" class="btn-action btn-view" title="Lihat arsip">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -102,7 +104,7 @@
                   <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <router-link :to="`/student?id=${item.id}`" class="btn-action btn-view" title="Lihat arsip">
+              <router-link :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }" class="btn-action btn-view" title="Lihat arsip">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -119,8 +121,8 @@
             </svg>
           </div>
           <h3>Belum ada data alumni</h3>
-          <p>Alumni akan muncul setelah siswa diluluskan (status Lulus). Gunakan tombol <strong>Luluskan Siswa</strong> atau ubah status siswa di halaman Data Siswa.</p>
-          <router-link to="/student" class="btn-empty-cta">Ke Data Siswa</router-link>
+          <p>Alumni akan muncul setelah siswa diluluskan. Gunakan tombol <strong>Luluskan Siswa</strong> untuk memproses kelulusan per kelas.</p>
+          <router-link to="/luluskan-siswa" class="btn-empty-cta">Luluskan Siswa</router-link>
         </div>
 
         <!-- Modal: Kelola destinasi alumni -->
@@ -584,6 +586,12 @@ watch(() => filters.graduation_year, () => {
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.data-table .col-no {
+  width: 3rem;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .data-table td {

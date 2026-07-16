@@ -2,7 +2,7 @@
   <Layout>
     <div class="buku-induk-page">
       <div class="tab-header">
-        <router-link to="/student" class="back-link">← Kembali ke Daftar Siswa</router-link>
+        <router-link :to="backLink" class="back-link">{{ backLabel }}</router-link>
         <div v-if="data" class="header-actions">
           <button
             @click="downloadPdf"
@@ -24,7 +24,7 @@
       </div>
       <div v-else-if="error" class="error-wrap">
         <p>{{ error }}</p>
-        <router-link to="/student" class="btn-secondary">Kembali ke Daftar Siswa</router-link>
+        <router-link :to="backLink" class="btn-secondary">{{ backLabel.replace(/^←\s*/, '') }}</router-link>
       </div>
       <div v-else-if="data" class="buku-induk-content">
         <!-- Identitas Siswa -->
@@ -396,6 +396,11 @@ const data = ref(null)
 const downloadingPdf = ref(false)
 
 const studentId = computed(() => route.params.id)
+
+const backLink = computed(() => (route.query.from === 'alumni' ? '/alumni' : '/student'))
+const backLabel = computed(() =>
+  route.query.from === 'alumni' ? '← Kembali ke Alumni' : '← Kembali ke Daftar Siswa'
+)
 
 const classDisplay = computed(() => {
   if (!data.value?.student) return '-'

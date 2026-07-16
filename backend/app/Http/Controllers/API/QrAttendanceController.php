@@ -14,6 +14,7 @@ use App\Services\QrCodeService;
 use App\Services\GeolocationService;
 use App\Services\EmployeeAttendanceService;
 use App\Services\StudentAttendanceService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,16 +28,24 @@ class QrAttendanceController extends Controller
         protected StudentAttendanceService $studentAttendanceService
     ) {}
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
     /**
      * Generate QR code untuk siswa.
      */
     public function generateStudentQr(Request $request, Student $student): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
 
-            if (!$institutionId || $student->institution_id !== $institutionId) {
+            if (!$institutionId || (int) $student->institution_id !== (int) $institutionId) {
                 return response()->json(['message' => 'Unauthorized.'], 403);
             }
 
@@ -66,10 +75,9 @@ class QrAttendanceController extends Controller
     public function generateEmployeeQr(Request $request, Employee $employee): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
 
-            if (!$institutionId || $employee->institution_id !== $institutionId) {
+            if (!$institutionId || !InstitutionContext::employeeBelongsToInstitution($employee, $institutionId)) {
                 return response()->json(['message' => 'Unauthorized.'], 403);
             }
 
@@ -99,8 +107,7 @@ class QrAttendanceController extends Controller
     public function scanQrAttendance(ScanQrAttendanceRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
@@ -173,10 +180,10 @@ class QrAttendanceController extends Controller
 
             // Process attendance berdasarkan type
             if ($request->attendance_type === 'student') {
-                return $this->processStudentAttendance($qrData, $request);
-            } else {
-                return $this->processEmployeeAttendance($qrData, $request);
+                return $this->processStudentAttendance($qrData, $request, $institutionId);
             }
+
+            return $this->processEmployeeAttendance($qrData, $request, $institutionId);
         } catch (\Exception $e) {
             Log::error('Scan QR attendance failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -189,7 +196,7 @@ class QrAttendanceController extends Controller
     /**
      * Process student attendance dari QR scan.
      */
-    private function processStudentAttendance(array $qrData, ScanQrAttendanceRequest $request): JsonResponse
+    private function processStudentAttendance(array $qrData, ScanQrAttendanceRequest $request, int $institutionId): JsonResponse
     {
         $studentId = $qrData['id'];
         $teachingJournalId = $request->teaching_journal_id;
@@ -197,7 +204,7 @@ class QrAttendanceController extends Controller
         // Validasi teaching journal exists dulu (sebelum dipakai)
         $teachingJournal = TeachingJournal::with(['subject:id,name', 'schoolClass:id,name'])
             ->where('id', $teachingJournalId)
-            ->where('institution_id', $request->user()->institution_id)
+            ->where('institution_id', $institutionId)
             ->first();
 
         if (!$teachingJournal) {
@@ -206,7 +213,7 @@ class QrAttendanceController extends Controller
 
         // Validasi student exists dan dalam institution yang sama
         $student = Student::where('id', $studentId)
-            ->where('institution_id', $request->user()->institution_id)
+            ->where('institution_id', $institutionId)
             ->first();
 
         if (!$student) {
@@ -238,7 +245,7 @@ class QrAttendanceController extends Controller
 
         // Create attendance dengan status hadir
         $attendance = StudentAttendance::create([
-            'institution_id' => $request->user()->institution_id,
+            'institution_id' => $institutionId,
             'teaching_journal_id' => $teachingJournalId,
             'student_id' => $studentId,
             'status' => 'hadir',
@@ -264,22 +271,19 @@ class QrAttendanceController extends Controller
     /**
      * Process employee attendance dari QR scan.
      */
-    private function processEmployeeAttendance(array $qrData, ScanQrAttendanceRequest $request): JsonResponse
+    private function processEmployeeAttendance(array $qrData, ScanQrAttendanceRequest $request, int $institutionId): JsonResponse
     {
         $employeeId = $qrData['id'];
         $date = $request->date;
 
-        // Validasi employee exists dan dalam institution yang sama
-        $employee = Employee::where('id', $employeeId)
-            ->where('institution_id', $request->user()->institution_id)
-            ->first();
-
-        if (!$employee) {
+        // Validasi employee exists dan dalam institution (induk atau non-induk approved)
+        $employee = Employee::where('id', $employeeId)->first();
+        if (!$employee || !InstitutionContext::employeeBelongsToInstitution($employee, $institutionId)) {
             return response()->json(['message' => 'Pegawai tidak ditemukan.'], 404);
         }
 
         // Check jika sudah ada attendance untuk tanggal ini
-        $existingAttendance = EmployeeAttendance::where('institution_id', $request->user()->institution_id)
+        $existingAttendance = EmployeeAttendance::where('institution_id', $institutionId)
             ->where('employee_id', $employeeId)
             ->where('date', $date)
             ->first();
@@ -298,7 +302,7 @@ class QrAttendanceController extends Controller
 
         // Create attendance dengan status hadir dan waktu masuk sekarang
         $attendance = $this->employeeAttendanceService->upsert(
-            $request->user()->institution_id,
+            $institutionId,
             [
                 'employee_id' => $employeeId,
                 'date' => $date,

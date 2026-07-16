@@ -1,5 +1,18 @@
 <template>
-  <div class="layout">
+  <div class="layout" :class="{ 'layout-super-admin': isSuperAdminLayout }">
+    <div v-if="authStore.isImpersonating" class="impersonation-banner">
+      <div class="impersonation-banner-inner">
+        <span>
+          Mode support: menyamar sebagai <strong>{{ authStore.user?.name }}</strong>
+          <template v-if="authStore.user?.institution?.name"> ({{ authStore.user.institution.name }})</template>
+          — kembali sebagai {{ authStore.user?.impersonation?.admin_name || 'Super Admin' }}
+        </span>
+        <button type="button" class="impersonation-exit-btn" :disabled="stoppingImpersonation" @click="handleStopImpersonation">
+          {{ stoppingImpersonation ? 'Mengembalikan...' : 'Keluar Impersonate' }}
+        </button>
+      </div>
+    </div>
+
     <!-- Mobile Menu Button -->
     <button 
       @click="toggleSidebar" 
@@ -33,10 +46,14 @@
       
       <ul class="nav-menu">
         <template v-for="entry in menuEntries" :key="entry.key">
-          <li v-if="entry.type === 'link'">
+          <li v-if="entry.type === 'divider'" class="nav-divider" aria-hidden="true">
+            <span>{{ entry.label }}</span>
+          </li>
+          <li v-else-if="entry.type === 'link'">
             <router-link :to="entry.to" class="nav-item">
               <component :is="entry.icon" />
-              <span>{{ entry.label }}</span>
+              <span class="nav-item-label">{{ entry.label }}</span>
+              <span v-if="entry.maturity === 'beta'" class="nav-badge">Beta</span>
             </router-link>
           </li>
           <li v-else-if="entry.type === 'group'" class="nav-group">
@@ -48,7 +65,8 @@
               @click="toggleGroup(entry.key)"
             >
               <component :is="entry.icon" />
-              <span>{{ entry.label }}</span>
+              <span class="nav-item-label">{{ entry.label }}</span>
+              <span v-if="entry.maturity === 'beta'" class="nav-badge">Beta</span>
               <svg class="nav-group-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" :class="{ 'nav-group-chevron--open': isGroupExpanded(entry.key) }">
                 <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -62,7 +80,7 @@
                   class="nav-subitem"
                   :class="{ 'nav-subitem--active': child.active }"
                 >
-                  {{ child.label }}
+                  <span>{{ child.label }}</span>
                 </router-link>
               </div>
             </Transition>
@@ -88,6 +106,14 @@
           <div class="user-details">
             <p class="user-name">{{ authStore.user?.name || 'User' }}</p>
             <p class="user-email">{{ authStore.user?.email || 'email@example.com' }}</p>
+            <p
+              v-if="authStore.activeInstitution?.name && authStore.user?.role !== 'super_admin'"
+              class="user-institution"
+              :class="{ 'user-institution-non-induk': authStore.activeAffiliation === 'non_induk' }"
+            >
+              {{ authStore.activeInstitution.name }}
+              <template v-if="authStore.activeAffiliation === 'non_induk'"> · Non-Induk</template>
+            </p>
           </div>
           <svg class="user-menu-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" :class="{ 'user-menu-chevron--open': userMenuOpen }">
             <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -126,6 +152,35 @@
         <div class="topbar-content">
           <h1>{{ pageTitle }}</h1>
           <div class="topbar-actions">
+            <div
+              v-if="authStore.canSwitchInstitution"
+              class="institution-switcher"
+            >
+              <label class="institution-switcher-label" for="active-institution-select">Sekolah</label>
+              <select
+                id="active-institution-select"
+                class="institution-switcher-select"
+                :value="authStore.activeInstitutionId || ''"
+                :disabled="switchingInstitution"
+                @change="handleSwitchInstitution"
+              >
+                <option
+                  v-for="inst in authStore.availableInstitutions"
+                  :key="inst.id"
+                  :value="inst.id"
+                >
+                  {{ inst.name }}{{ inst.affiliation === 'non_induk' ? ' (Non-Induk)' : ' (Induk)' }}
+                </option>
+              </select>
+            </div>
+            <span
+              v-else-if="authStore.activeInstitution?.name && authStore.user?.role !== 'super_admin'"
+              class="institution-chip"
+              :class="{ 'institution-chip-non-induk': authStore.activeAffiliation === 'non_induk' }"
+              :title="authStore.activeAffiliation === 'non_induk' ? 'Penugasan non-induk' : 'Sekolah induk'"
+            >
+              {{ authStore.activeInstitution.name }}
+            </span>
             <router-link
               v-if="showNotificationBell"
               to="/notifications"
@@ -252,6 +307,42 @@ import AppLogo from '@/components/AppLogo.vue'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const isSuperAdminLayout = computed(() => authStore.user?.role === 'super_admin')
+const stoppingImpersonation = ref(false)
+const switchingInstitution = ref(false)
+
+async function handleStopImpersonation() {
+  if (stoppingImpersonation.value) return
+  stoppingImpersonation.value = true
+  try {
+    await authStore.stopImpersonate()
+  } catch (e) {
+    console.error(e)
+    alert(e?.response?.data?.message || e?.message || 'Gagal keluar dari impersonate')
+  } finally {
+    stoppingImpersonation.value = false
+  }
+}
+
+async function handleSwitchInstitution(event) {
+  const nextId = Number(event?.target?.value)
+  if (!nextId || nextId === Number(authStore.activeInstitutionId)) return
+  if (switchingInstitution.value) return
+
+  switchingInstitution.value = true
+  try {
+    await authStore.switchInstitution(nextId)
+    window.location.reload()
+  } catch (e) {
+    console.error(e)
+    alert(e?.response?.data?.message || e?.message || 'Gagal mengganti sekolah')
+    if (event?.target) {
+      event.target.value = String(authStore.activeInstitutionId || '')
+    }
+  } finally {
+    switchingInstitution.value = false
+  }
+}
 
 const MOBILE_BREAKPOINT = 768
 const sidebarOpen = ref(false)
@@ -278,6 +369,11 @@ const IconStudents = () => h('svg', { class: 'nav-icon', width: 20, height: 20, 
   h('path', { d: 'M2 9v10l10 5 10-5V9', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 const IconAdmin = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M21 8V21H3V8', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M23 3H1V8H23V3Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M10 12H14', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconCorrespondence = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M22 6L12 13L2 6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
@@ -298,6 +394,10 @@ const IconGrade = () => h('svg', { class: 'nav-icon', width: 20, height: 20, vie
 const IconCounseling = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
+const IconLayanan = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
 const IconPoints = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
@@ -311,10 +411,22 @@ const IconAuditLog = () => h('svg', { class: 'nav-icon', width: 20, height: 20, 
   h('path', { d: 'M16 17H8', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M10 9H8', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
+const IconReport = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M18 20V10M12 20V4M6 20V14', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
 const IconExam = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 12h6M9 16h6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconLibrary = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconLab = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M9 3h6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M10 3v7.4L5.2 18a2 2 0 0 0 1.7 3h10.2a2 2 0 0 0 1.7-3L14 10.4V3', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M8.5 14h7', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 
 const canAccessModule = (moduleKey) => {
@@ -323,8 +435,23 @@ const canAccessModule = (moduleKey) => {
   if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') {
     return true
   }
-  return (authStore.user?.permissions || []).includes(moduleKey)
+  if ((authStore.user?.permissions || []).includes(moduleKey)) return true
+  if (moduleKey === 'guru_piket' && (authStore.user?.is_piket_scheduled || authStore.user?.is_piket_on_duty)) {
+    return true
+  }
+  return false
 }
+
+const isLabResponsible = () => !!authStore.user?.is_lab_responsible
+const isExtracurricularSupervisor = () => !!authStore.user?.is_extracurricular_supervisor
+const canAccessExtracurricular = () => canAccessModule('extracurricular') || isExtracurricularSupervisor()
+const canAccessPiket = () =>
+  canAccessModule('guru_piket')
+  || canAccessModule('guru_piket_manage')
+  || !!authStore.user?.is_piket_scheduled
+  || !!authStore.user?.is_piket_on_duty
+
+const canAccessLabManagement = () => canAccessModule('facility') || isLabResponsible()
 
 function getDashboardTo() {
   const role = authStore.user?.role
@@ -340,7 +467,7 @@ const menuEntries = computed(() => {
   const addVisible = (group) => {
     const visible = (group.children || []).filter(c => c.visible).map(c => {
       const toPath = c.to?.split('?')[0] ?? c.to
-      let active = !!toPath && (path === toPath || path.startsWith(toPath + '/'))
+      let active = !!toPath && (c.exact ? path === toPath : (path === toPath || path.startsWith(toPath + '/')))
       if (active && c.to?.includes('?')) {
         const qs = c.to.split('?')[1] || ''
         const params = new URLSearchParams(qs)
@@ -360,10 +487,20 @@ const menuEntries = computed(() => {
       { type: 'link', key: 'dashboard', to: '/super-admin/dashboard', label: 'Dashboard', icon: IconDashboard },
       addVisible({ type: 'group', key: 'sistem', label: 'Sistem', icon: IconSettings, children: [
         { to: '/institution', label: 'Kelola Institusi', visible: true },
+        { to: '/super-admin/institution-admins', label: 'Admin Institusi', visible: true },
+        { to: '/super-admin/onboard', label: 'Onboarding Sekolah', visible: true },
         { to: '/academic-year', label: 'Tahun Ajaran', visible: true },
         { to: '/super-admin/app-branding', label: 'Branding Aplikasi', visible: true },
+        { to: '/super-admin/system-settings', label: 'Pengaturan Sistem', visible: true },
         { to: '/institution-change-requests', label: 'Request Perubahan', visible: true }
-      ]})
+      ]}),
+      addVisible({ type: 'group', key: 'platform', label: 'Platform', icon: IconReport, children: [
+        { to: '/super-admin/adoption', label: 'Monitoring Adopsi', visible: true },
+        { to: '/super-admin/broadcasts', label: 'Broadcast', visible: true },
+        { to: '/super-admin/templates', label: 'Library Template Surat', visible: true },
+        { to: '/super-admin/reports', label: 'Laporan Agregat', visible: true }
+      ]}),
+      { type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog }
     ]
   }
   if (role === 'student') {
@@ -384,59 +521,96 @@ const menuEntries = computed(() => {
   const entries = [
     { type: 'link', key: 'dashboard', to: getDashboardTo(), label: 'Dashboard', icon: IconDashboard },
     ...(role === 'teacher' || role === 'staff' ? [{ type: 'link', key: 'teacher-profile', to: '/teacher/profile', label: 'Profil Saya', icon: IconSettings }] : []),
+    ...(role === 'teacher' || role === 'staff' ? [{ type: 'link', key: 'teacher-points', to: '/teacher/poin', label: 'Poin & Prestasi Saya', icon: IconPoints }] : []),
+    // Ready
     addVisible({ type: 'group', key: 'master', label: 'Master Data', icon: IconDatabase, children: [
       { to: '/institution', label: 'Profil Instansi', visible: canAccessModule('institution') },
       { to: '/facility', label: 'Sarana Prasarana', visible: canAccessModule('facility') },
       { to: '/inventory', label: 'Inventaris', visible: canAccessModule('inventory') },
       { to: '/class', label: 'Kelas', visible: canAccessModule('class') }
     ]}),
-    addVisible({ type: 'group', key: 'akademik', label: 'Akademik', icon: IconAcademic, children: [
-      { to: '/student', label: 'Data Siswa', visible: canAccessModule('student') },
+    addVisible({ type: 'group', key: 'akademik', label: 'Keguruan', icon: IconAcademic, children: [
       { to: '/teacher', label: 'Data Guru', visible: canAccessModule('teacher') },
+      { to: '/teacher-appreciation', label: 'Apresiasi Guru', visible: canAccessModule('teacher_appreciation') || canAccessModule('teacher_violation_report') },
+      { to: '/guru-piket', label: 'Guru Piket', visible: canAccessPiket() },
       { to: '/lesson-schedule', label: 'Jadwal Pelajaran', visible: canAccessModule('schedule') },
       { to: '/teaching-journal', label: 'Jurnal Mengajar', visible: canAccessModule('teaching_journal') },
       { to: '/grade-book', label: 'Buku Nilai', visible: canAccessModule('grade_book') },
       { to: '/raport', label: 'Raport Siswa', visible: canAccessModule('grade_book') }
     ]}),
-    addVisible({ type: 'group', key: 'ujian-online', label: 'Ujian Online', icon: IconExam, children: [
+    addVisible({ type: 'group', key: 'kesiswaan', label: 'Kesiswaan', icon: IconStudents, children: [
+      { to: '/student', label: 'Data Siswa', visible: canAccessModule('student') },
+      { to: '/student-mutation', label: 'Mutasi', visible: canAccessModule('student') },
+      { to: '/naik-kelas', label: 'Naik Kelas', visible: canAccessModule('student') },
+      { to: '/luluskan-siswa', label: 'Luluskan', visible: canAccessModule('student') },
+      { to: '/alumni', label: 'Alumni', visible: canAccessModule('student') }
+    ]}),
+    addVisible({ type: 'group', key: 'bk', label: 'Bimbingan Konseling', icon: IconCounseling, children: [
+      { to: '/violation', label: 'Pelanggaran', visible: canAccessModule('violation') },
+      { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
+      { to: '/laporan-bk', label: 'Laporan BK', visible: canAccessModule('violation') || canAccessModule('counseling') || canAccessModule('bk_report') }
+    ]}),
+    addVisible({ type: 'group', key: 'correspondence', label: 'Persuratan', icon: IconCorrespondence, children: [
+      { to: '/correspondence', label: 'Buat Surat', visible: canAccessModule('correspondence'), exact: true },
+      { to: '/correspondence/workflow', label: 'Arsip', visible: canAccessModule('correspondence') },
+      { to: '/correspondence/templates', label: 'Template', visible: canAccessModule('correspondence') },
+      { to: '/correspondence/kop', label: 'KOP', visible: canAccessModule('correspondence') },
+      { to: '/correspondence/tanda-tangan', label: 'TTD & Stempel', visible: canAccessModule('correspondence') }
+    ]}),
+    ...(canAccessExtracurricular()
+      ? [{ type: 'link', key: 'extracurricular', to: '/extracurricular', label: 'Ekstrakurikuler', icon: IconStudents }]
+      : []),
+    addVisible({ type: 'group', key: 'laboratorium', label: 'Laboratorium', icon: IconLab, children: [
+      { to: '/lab', label: canAccessModule('facility') ? 'Manajemen Lab' : 'Lab Saya', visible: canAccessLabManagement() },
+      { to: '/lab-booking', label: 'Booking Lab', visible: role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility') }
+    ]}),
+    ...(canAccessModule('library')
+      ? [{ type: 'link', key: 'perpustakaan', to: '/library', label: 'Perpustakaan', icon: IconLibrary }]
+      : []),
+    ...(role === 'institution_admin' || role === 'admin'
+      ? [
+          { type: 'link', key: 'pengaturan', to: '/module-access', label: 'Akses Modul', icon: IconModuleAccess },
+          { type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog }
+        ]
+      : []),
+    // Beta
+    { type: 'divider', key: 'beta-divider', label: 'Sedang dikembangkan' },
+    addVisible({ type: 'group', key: 'ujian-online', label: 'Ujian Online', icon: IconExam, maturity: 'beta', children: [
       { to: '/ujian-online/exams', label: 'Daftar Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/sesi?fokus=peserta', label: 'Peserta Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/sesi?fokus=kontrol', label: 'Kontrol Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/bank-soal', label: 'Bank Soal', visible: canAccessModule('online_exam') }
     ]}),
-    addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, children: [
+    addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, maturity: 'beta', children: [
       { to: '/attendance/student', label: 'Absensi Siswa', visible: canAccessModule('teaching_journal') },
       { to: '/attendance/employee', label: 'Absensi Guru & Staff', visible: canAccessModule('attendance') }
     ]}),
-    addVisible({ type: 'group', key: 'kesiswaan', label: 'Kesiswaan', icon: IconStudents, children: [
-      { to: '/student-mutation', label: 'Mutasi Siswa', visible: canAccessModule('student') },
-      { to: '/naik-kelas', label: 'Naik Kelas', visible: canAccessModule('student') },
-      { to: '/alumni', label: 'Alumni', visible: canAccessModule('student') },
+    addVisible({ type: 'group', key: 'layanan', label: 'Layanan', icon: IconLayanan, maturity: 'beta', children: [
       { to: '/student-change-requests', label: 'Permintaan Perubahan Siswa', visible: canAccessModule('student') },
       { to: '/teacher-change-requests', label: 'Permintaan Perubahan Guru', visible: canAccessModule('teacher') },
       { to: '/pengambilan-ijazah', label: 'Pengambilan Ijazah', visible: canAccessModule('document_pickup') },
-      { to: '/violation', label: 'Pelanggaran', visible: canAccessModule('violation') },
-      { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
-      { to: '/extracurricular', label: 'Ekstrakurikuler', visible: canAccessModule('extracurricular') },
       { to: '/ppdb', label: 'PPDB', visible: canAccessModule('ppdb') }
     ]}),
-    addVisible({ type: 'group', key: 'administrasi', label: 'Administrasi', icon: IconAdmin, children: [
-      { to: '/correspondence', label: 'Persuratan', visible: canAccessModule('correspondence') },
+    addVisible({ type: 'group', key: 'administrasi', label: 'Administrasi', icon: IconAdmin, maturity: 'beta', children: [
       { to: '/digital-archive', label: 'Arsip Digital', visible: canAccessModule('digital_archive') },
-      { to: '/library', label: 'Perpustakaan', visible: canAccessModule('library') },
-      { to: '/lab', label: 'Manajemen Lab', visible: canAccessModule('facility') },
       { to: '/buku-tamu', label: 'Buku Tamu', visible: canAccessModule('guest_book') },
       { to: '/report', label: 'Laporan', visible: canAccessModule('report') }
     ]})
   ]
-  if (role === 'institution_admin' || role === 'admin') {
-    entries.push({ type: 'link', key: 'pengaturan', to: '/module-access', label: 'Akses Modul', icon: IconModuleAccess })
-    entries.push({ type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog })
+  const visible = entries.filter(e =>
+    e.type === 'divider' ||
+    e.type === 'link' ||
+    (e.type === 'group' && e.visibleChildren?.length > 0)
+  )
+  // Hide beta divider if no beta items remain after filtering
+  const betaStart = visible.findIndex(e => e.key === 'beta-divider')
+  if (betaStart !== -1) {
+    const hasBetaItems = visible.slice(betaStart + 1).some(e => e.type !== 'divider')
+    if (!hasBetaItems) {
+      return visible.filter(e => e.key !== 'beta-divider')
+    }
   }
-  if (role === 'super_admin') {
-    entries.push({ type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog })
-  }
-  return entries.filter(e => e.type === 'link' || (e.type === 'group' && e.visibleChildren?.length > 0))
+  return visible
 })
 const hasActiveChild = (entry) => {
   if (entry.type !== 'group' || !entry.children) return false
@@ -484,8 +658,8 @@ const bottomNavItems = computed(() => {
     return [
       { to: '/super-admin/dashboard', label: 'Beranda', icon: 'home' },
       { to: '/institution', label: 'Institusi', icon: 'institution' },
-      { to: '/academic-year', label: 'Tahun Ajaran', icon: 'academic-year' },
-      { to: '/institution-change-requests', label: 'Request', icon: 'request' }
+      { to: '/institution-change-requests', label: 'Request', icon: 'request' },
+      { to: '/audit-log', label: 'Audit', icon: 'settings' }
     ]
   }
   if (role === 'student') {
@@ -500,14 +674,15 @@ const bottomNavItems = computed(() => {
   if (role === 'teacher' || role === 'staff') {
     const items = [
       { to: '/teacher/dashboard', label: 'Beranda', icon: 'home' },
-      { to: '/teacher/profile', label: 'Profil', icon: 'settings' },
-      { to: '/class', label: 'Kelas', icon: 'class' }
+      { to: '/teacher/profile', label: 'Profil', icon: 'settings' }
     ]
+    if (canAccessModule('class')) items.push({ to: '/class', label: 'Kelas', icon: 'class' })
     if (canAccessModule('student')) items.push({ to: '/student', label: 'Siswa', icon: 'student' })
     if (canAccessModule('violation')) items.push({ to: '/violation', label: 'Pelanggaran', icon: 'violation' })
+    else if (canAccessModule('bk_report')) items.push({ to: '/laporan-bk', label: 'Laporan BK', icon: 'violation' })
     if (canAccessModule('ppdb')) items.push({ to: '/ppdb', label: 'PPDB', icon: 'student' })
     if (canAccessModule('counseling')) items.push({ to: '/counseling', label: 'Konseling', icon: 'counseling' })
-    if (canAccessModule('extracurricular')) items.push({ to: '/extracurricular', label: 'Ekskul', icon: 'extracurricular' })
+    if (canAccessExtracurricular()) items.push({ to: '/extracurricular', label: 'Ekskul', icon: 'extracurricular' })
     if (canAccessModule('report')) items.push({ to: '/report', label: 'Laporan', icon: 'report' })
     if (canAccessModule('library')) items.push({ to: '/library', label: 'Perpustakaan', icon: 'library' })
     if (canAccessModule('teaching_journal')) items.push({ to: '/teaching-journal', label: 'Jurnal', icon: 'journal' })
@@ -541,6 +716,9 @@ const pageTitle = computed(() => {
   const titles = {
     Dashboard: 'Dashboard',
     TeacherDashboard: 'Dashboard Guru',
+    TeacherMyPoints: 'Poin & Prestasi Saya',
+    TeacherAppreciation: 'Apresiasi Guru',
+    GuruPiket: 'Guru Piket',
     StudentDashboard: 'Dashboard Siswa',
     StudentSchedule: 'Jadwal Saya',
     StudentGrades: 'Nilai Saya',
@@ -552,11 +730,22 @@ const pageTitle = computed(() => {
     StudentProfile: 'Profil Saya',
     SuperAdminDashboard: 'Dashboard Super Admin',
     AppBranding: 'Branding Aplikasi',
+    InstitutionAdmins: 'Admin Institusi',
+    SuperAdminOnboard: 'Onboarding Sekolah',
+    AdoptionMonitoring: 'Monitoring Adopsi',
+    BroadcastAnnouncements: 'Broadcast',
+    SuperAdminTemplates: 'Library Template Surat',
+    AggregateReport: 'Laporan Agregat',
+    SystemSettings: 'Pengaturan Sistem',
     Institution: authStore.user?.role === 'super_admin' ? 'Kelola Institusi' : 'Profil Instansi',
     Student: 'Data Siswa',
     Teacher: 'Data Guru',
     Facility: 'Sarana Prasarana',
-    Lab: 'Manajemen Lab',
+    Lab: authStore.user?.is_lab_responsible && !(authStore.user?.permissions || []).includes('facility') && authStore.user?.role !== 'admin' && authStore.user?.role !== 'institution_admin' && authStore.user?.role !== 'super_admin'
+      ? 'Lab Saya'
+      : 'Manajemen Lab',
+    LabDetail: 'Detail Lab',
+    LabBookingRequest: 'Booking Lab',
     Inventory: 'Inventaris',
     Class: 'Kelas',
     Report: 'Laporan & Statistik',
@@ -569,11 +758,14 @@ const pageTitle = computed(() => {
     AccountSettings: 'Pengaturan Akun',
     AuditLog: 'Audit Log',
     Alumni: 'Alumni',
+    LuluskanSiswa: 'Luluskan Siswa',
     NaikKelas: 'Naik Kelas',
     Violation: 'Pelanggaran',
     Counseling: 'Konseling',
+    LaporanBk: 'Laporan BK',
     StudentAttendance: 'Absensi Saya',
     Extracurricular: 'Ekstrakurikuler',
+    ExtracurricularDetail: 'Detail Ekstrakurikuler',
     LessonSchedule: 'Jadwal Pelajaran',
     TeachingJournal: 'Jurnal Mengajar',
     AttendanceStudent: 'Absensi Siswa',
@@ -589,7 +781,11 @@ const pageTitle = computed(() => {
     OnlineExamBank: 'Bank Soal',
     OnlineExamBankStimulus: 'Stimulus Soal',
     ExamTake: 'Ikuti Ujian',
-    Correspondence: 'Persuratan',
+    Correspondence: 'Buat Surat',
+    CorrespondenceTemplates: 'Template Surat',
+    CorrespondenceKop: 'Manajemen KOP',
+    CorrespondenceTandaTangan: 'Tanda Tangan & Stempel',
+    CorrespondenceWorkflow: 'Arsip Persuratan',
     DigitalArchive: 'Arsip Digital',
     BukuTamu: 'Buku Tamu',
     DocumentPickup: 'Pengambilan Ijazah',
@@ -688,6 +884,67 @@ const handleLogout = async () => {
   background: #f8fafc;
 }
 
+.impersonation-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  background: #f59e0b;
+  color: #78350f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.impersonation-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.impersonation-exit-btn {
+  border: none;
+  background: #78350f;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.impersonation-exit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.layout:has(.impersonation-banner) .sidebar {
+  top: 44px;
+  height: calc(100vh - 44px);
+}
+
+.layout:has(.impersonation-banner) .main-content {
+  padding-top: 44px;
+}
+
+.layout:has(.impersonation-banner) .mobile-menu-btn {
+  top: calc(12px + 44px);
+}
+
+@media (max-width: 768px) {
+  .layout:has(.impersonation-banner) .main-content {
+    padding-top: calc(56px + 44px);
+  }
+
+  .layout:has(.impersonation-banner) .topbar {
+    top: 44px;
+  }
+}
+
 .sidebar {
   width: 280px;
   min-width: 280px;
@@ -760,6 +1017,48 @@ const handleLogout = async () => {
 
 .nav-menu li.nav-group {
   margin-bottom: 2px;
+}
+
+.nav-divider {
+  margin: 14px 8px 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  list-style: none;
+}
+
+.nav-divider span {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 0 4px;
+}
+
+.nav-item-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  line-height: 1.4;
+}
+
+.nav-item.router-link-active .nav-badge {
+  color: #fef3c7;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .nav-item {
@@ -846,7 +1145,6 @@ const handleLogout = async () => {
 }
 
 .nav-group-chevron {
-  margin-left: auto;
   flex-shrink: 0;
   transition: transform 0.25s ease;
 }
@@ -970,6 +1268,19 @@ const handleLogout = async () => {
   text-overflow: ellipsis;
 }
 
+.user-institution {
+  font-size: 11px;
+  color: #6ee7b7;
+  margin: 4px 0 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-institution-non-induk {
+  color: #fdba74;
+}
+
 .user-menu-chevron {
   flex-shrink: 0;
   color: #94a3b8;
@@ -1078,6 +1389,64 @@ const handleLogout = async () => {
   letter-spacing: -0.5px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.institution-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(320px, 46vw);
+}
+
+.institution-switcher-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.institution-switcher-select {
+  min-width: 0;
+  flex: 1;
+  max-width: 260px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.institution-switcher-select:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.institution-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(240px, 40vw);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.institution-chip-non-induk {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .notification-bell {
   position: relative;
   display: inline-flex;
@@ -1141,7 +1510,7 @@ const handleLogout = async () => {
   position: fixed;
   top: 16px;
   left: 16px;
-  z-index: 1001;
+  z-index: 1003;
   width: 44px;
   height: 44px;
   background: white;
@@ -1267,7 +1636,14 @@ const handleLogout = async () => {
 /* Responsive: sembunyikan sidebar hanya di mobile (≤768px), tampilkan tombol menu */
 @media (max-width: 768px) {
   .layout {
-    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  .main-content {
+    min-width: 0;
+    max-width: 100%;
+    /* ruang untuk topbar fixed (judul satu baris) */
+    padding-top: 56px;
   }
 
   .mobile-menu-btn {
@@ -1297,12 +1673,16 @@ const handleLogout = async () => {
   .main-content {
     margin-left: 0 !important;
     width: 100%;
-    min-width: 0;
-    max-width: 100%;
   }
 
   .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
     padding-left: 56px;
+    z-index: 1002;
   }
 }
 
@@ -1320,25 +1700,29 @@ const handleLogout = async () => {
 
   .topbar {
     padding-left: 56px;
+    z-index: 1002;
   }
 
   .topbar-content {
     padding: 12px 16px;
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
+    min-height: 56px;
+    box-sizing: border-box;
   }
 
   .topbar h1 {
-    font-size: 20px;
+    font-size: 1.0625rem;
+    line-height: 1.3;
   }
 
   .breadcrumb {
-    font-size: 11px;
+    display: none;
   }
 
   .content {
-    padding: 16px 12px;
+    padding: 14px 12px;
     padding-left: max(12px, env(safe-area-inset-left));
     padding-right: max(12px, env(safe-area-inset-right));
   }

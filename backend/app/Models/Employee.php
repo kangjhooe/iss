@@ -101,11 +101,11 @@ class Employee extends Model
     }
 
     /**
-     * Scope a query to filter by institution.
+     * Scope a query to filter by institution (induk + approved non-induk).
      */
     public function scopeForInstitution($query, $institutionId)
     {
-        return $query->where('institution_id', $institutionId);
+        return \App\Support\InstitutionContext::scopeEmployeesForInstitution($query, (int) $institutionId);
     }
 
     /**

@@ -33,5 +33,14 @@ export const authApi = {
   },
   refreshToken() {
     return api.post('/v1/refresh-token')
+  },
+  startImpersonate(adminId) {
+    return api.post(`/v1/super-admin/institution-admins/${adminId}/impersonate`)
+  },
+  stopImpersonate() {
+    return api.post('/v1/super-admin/impersonate/stop')
+  },
+  switchInstitution(institutionId) {
+    return api.post('/v1/me/switch-institution', { institution_id: institutionId })
   }
 }

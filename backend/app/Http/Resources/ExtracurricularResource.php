@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -36,15 +37,19 @@ class ExtracurricularResource extends JsonResource
             ] : null),
             'capacity' => $this->capacity,
             'status' => $this->status,
-            'day_of_week' => $this->day_of_week,
-            'start_time' => $this->start_time?->format('H:i'),
-            'end_time' => $this->end_time?->format('H:i'),
+            'days_of_week' => $this->days_of_week ?? [],
+            'day_labels' => $this->day_labels,
+            'start_time' => $this->formatTimeValue($this->start_time),
+            'end_time' => $this->formatTimeValue($this->end_time),
             'room_id' => $this->room_id,
             'room' => $this->whenLoaded('room', fn () => $this->room ? [
                 'id' => $this->room->id,
                 'name' => $this->room->name,
                 'code' => $this->room->code,
             ] : null),
+            'is_outdoor' => (bool) $this->is_outdoor,
+            'location_note' => $this->location_note,
+            'location_label' => $this->location_label,
             'students_count' => $this->when(isset($this->students_count), $this->students_count),
             'participants_count' => $this->when(isset($this->participants_count), $this->participants_count),
             'participants' => $this->whenLoaded('extracurricularStudents', function () {
@@ -53,5 +58,20 @@ class ExtracurricularResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    private function formatTimeValue(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if ($value instanceof CarbonInterface) {
+            return $value->format('H:i');
+        }
+        if (is_string($value)) {
+            return substr($value, 0, 5);
+        }
+
+        return null;
     }
 }

@@ -2,13 +2,23 @@
   <Layout>
     <div class="lab-page">
       <div class="tabs-nav-lab">
-        <button type="button" :class="['tab-btn-lab', { active: labTab === 'list' }]" @click="labTab = 'list'">
+        <button
+          v-if="!isLabResponsibleOnly"
+          type="button"
+          :class="['tab-btn-lab', { active: labTab === 'list' }]"
+          @click="labTab = 'list'"
+        >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <span>Daftar Lab</span>
         </button>
-        <button type="button" :class="['tab-btn-lab', { active: labTab === 'report' }]" @click="switchToReport">
+        <button
+          v-if="!isLabResponsibleOnly"
+          type="button"
+          :class="['tab-btn-lab', { active: labTab === 'report' }]"
+          @click="switchToReport"
+        >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 17V7M13 17V7M17 17V7M5 17V7M3 21H21M3 3H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -19,7 +29,7 @@
             <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span>Dashboard Saya</span>
+          <span>{{ isLabResponsibleOnly ? 'Lab Saya' : 'Dashboard Saya' }}</span>
         </button>
       </div>
 
@@ -45,13 +55,13 @@
             </select>
           </div>
           <div class="tab-header-actions">
-            <button type="button" class="btn-primary btn-compact" @click="openLabModal()">
+            <button v-if="isSchoolAdmin" type="button" class="btn-primary btn-compact" @click="openLabModal()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span>Tambah Lab</span>
             </button>
-            <router-link to="/facility" class="btn-secondary btn-compact">
+            <router-link v-if="hasFacilityModule" to="/facility" class="btn-secondary btn-compact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -105,22 +115,34 @@
               <td>{{ room.floor }}</td>
               <td>
                 <select
+                  v-if="isSchoolAdmin"
                   :value="room.responsible_employee_id || ''"
+                  @focus="ensureEmployees"
                   @change="(e) => updateResponsible(room, e.target.value)"
                   class="responsible-select"
                   :disabled="savingId === room.id"
                 >
                   <option value="">— Pilih penanggung jawab —</option>
+                  <option
+                    v-if="room.responsible_employee_id && !employees.some(e => e.id === room.responsible_employee_id)"
+                    :value="room.responsible_employee_id"
+                  >
+                    {{ room.responsible_employee?.name || 'Penanggung jawab saat ini' }}
+                  </option>
                   <option v-for="emp in employees" :key="emp.id" :value="emp.id">
                     {{ emp.name }}{{ emp.nip ? ' (' + emp.nip + ')' : '' }}
                   </option>
                 </select>
+                <span v-else>{{ room.responsible_employee?.name || 'Belum ditetapkan' }}</span>
                 <span v-if="savingId === room.id" class="saving-label">Menyimpan...</span>
               </td>
               <td><span :class="getConditionClass(room.condition)">{{ room.condition }}</span></td>
               <td class="actions-cell">
-                <button type="button" class="btn-action btn-edit" @click="openLabModal(room)" title="Edit lab">Edit</button>
-                <button type="button" class="btn-action btn-delete" @click="confirmDeleteLab(room)" title="Hapus lab">Hapus</button>
+                <router-link :to="`/lab/${room.id}`" class="btn-action btn-edit" title="Kelola lab">Kelola</router-link>
+                <template v-if="isSchoolAdmin">
+                  <button type="button" class="btn-action btn-edit" @click="openLabModal(room)" title="Edit lab">Edit</button>
+                  <button type="button" class="btn-action btn-delete" @click="confirmDeleteLab(room)" title="Hapus lab">Hapus</button>
+                </template>
               </td>
               </tr>
               <tr v-if="expandedRoomId === room.id" class="inventory-detail-row">
@@ -134,12 +156,15 @@
                         Detail Lab: {{ room.name }}
                         <span v-if="room.code" class="expanded-detail-code">({{ room.code }})</span>
                       </h4>
-                      <button type="button" class="btn-expand-inline" @click="toggleInventory(room)" title="Tutup panel ini">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Tutup
-                      </button>
+                      <div style="display:flex;gap:0.5rem;align-items:center;">
+                        <router-link :to="`/lab/${room.id}`" class="btn-sm btn-primary">Buka workspace</router-link>
+                        <button type="button" class="btn-expand-inline" @click="toggleInventory(room)" title="Tutup panel ini">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                          Tutup
+                        </button>
+                      </div>
                     </div>
                     <p class="expanded-detail-desc">Kelola inventaris barang dan jadwal penggunaan lab ini di bawah.</p>
 
@@ -247,7 +272,7 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Tambah Lab</span>
             </button>
-            <router-link to="/facility" class="btn-secondary">
+            <router-link v-if="hasFacilityModule" to="/facility" class="btn-secondary">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -259,6 +284,12 @@
       </div>
 
       <div v-show="labTab === 'report'" class="tab-panel">
+        <div class="tab-header" style="margin-bottom: 1rem;">
+          <div></div>
+          <div class="tab-header-actions">
+            <button type="button" class="btn-secondary btn-compact" @click="exportAllLabsPdf">Cetak PDF</button>
+          </div>
+        </div>
         <div v-if="labReportLoading" class="loading-state">
           <div class="loading-spinner">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -275,6 +306,14 @@
             <div class="report-card">
               <span class="report-card-value">{{ labReportData.summary?.total_labs ?? 0 }}</span>
               <span class="report-card-label">Total Lab</span>
+            </div>
+            <div class="report-card">
+              <span class="report-card-value">{{ labReportData.summary?.total_damaged_items ?? 0 }}</span>
+              <span class="report-card-label">Barang Rusak</span>
+            </div>
+            <div class="report-card">
+              <span class="report-card-value">{{ labReportData.summary?.total_open_maintenance ?? 0 }}</span>
+              <span class="report-card-label">Perawatan Terbuka</span>
             </div>
             <div v-for="(count, cond) in labReportData.summary?.by_condition" :key="'cond-' + cond" class="report-card">
               <span class="report-card-value">{{ count }}</span>
@@ -296,7 +335,9 @@
                 <th>Kondisi</th>
                 <th>Penanggung Jawab</th>
                 <th>Jumlah Barang</th>
+                <th>Rusak</th>
                 <th>Jadwal (semester aktif)</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -307,7 +348,9 @@
                 <td><span :class="getConditionClass(lab.condition)">{{ lab.condition }}</span></td>
                 <td>{{ displayValue(lab.responsible_employee?.name) }}</td>
                 <td>{{ lab.inventory_count }}</td>
+                <td>{{ lab.damaged_count ?? 0 }}</td>
                 <td>{{ lab.schedule_count }}</td>
+                <td><router-link :to="`/lab/${lab.id}`" class="btn-action btn-edit">Kelola</router-link></td>
               </tr>
             </tbody>
           </table>
@@ -338,6 +381,18 @@
               <span class="report-card-value">{{ myLabsData.summary?.total ?? 0 }}</span>
               <span class="report-card-label">Lab yang saya tanggung jawabi</span>
             </div>
+            <div class="report-card report-card-small">
+              <span class="report-card-value">{{ myLabsData.summary?.total_pending_bookings ?? 0 }}</span>
+              <span class="report-card-label">Booking menunggu</span>
+            </div>
+            <div class="report-card report-card-small">
+              <span class="report-card-value">{{ myLabsData.summary?.total_active_loans ?? 0 }}</span>
+              <span class="report-card-label">Peminjaman aktif</span>
+            </div>
+            <div class="report-card report-card-small">
+              <span class="report-card-value">{{ myLabsData.summary?.total_damaged ?? 0 }}</span>
+              <span class="report-card-label">Barang rusak</span>
+            </div>
             <div v-for="(count, cond) in myLabsData.summary?.by_condition" :key="'my-cond-' + cond" class="report-card report-card-small">
               <span class="report-card-value">{{ count }}</span>
               <span class="report-card-label">{{ cond }}</span>
@@ -348,8 +403,8 @@
               <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <p>Anda belum ditetapkan sebagai penanggung jawab (Kepala Lab) untuk ruang lab manapun. Tetapkan di tab Daftar Lab atau melalui Sarana Prasarana.</p>
-            <router-link to="/facility" class="btn-primary">
+            <p>Anda belum ditetapkan sebagai penanggung jawab (Kepala Lab) untuk ruang lab manapun. Minta admin menetapkan Anda di Manajemen Lab atau Sarana Prasarana.</p>
+            <router-link v-if="hasFacilityModule" to="/facility" class="btn-primary">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -363,8 +418,13 @@
                 <th>Jenis</th>
                 <th>Gedung</th>
                 <th>Kondisi</th>
-                <th>Jumlah Barang</th>
-                <th>Jadwal (sem. aktif)</th>
+                <th>Barang</th>
+                <th>Rusak</th>
+                <th>Pinjam</th>
+                <th>Booking</th>
+                <th>Jadwal hari ini</th>
+                <th>Pemakaian minggu ini</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -374,7 +434,14 @@
                 <td>{{ displayValue(lab.building?.name) }}</td>
                 <td><span :class="getConditionClass(lab.condition)">{{ lab.condition }}</span></td>
                 <td>{{ lab.inventory_count }}</td>
-                <td>{{ lab.schedule_count }}</td>
+                <td>{{ lab.damaged_count ?? 0 }}</td>
+                <td>{{ lab.active_loans ?? 0 }}</td>
+                <td>{{ lab.pending_bookings ?? 0 }}</td>
+                <td>{{ lab.today_schedule_count ?? 0 }}</td>
+                <td>{{ lab.week_usage_count ?? 0 }}</td>
+                <td>
+                  <router-link :to="`/lab/${lab.id}`" class="btn-action btn-edit">Kelola</router-link>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -498,8 +565,8 @@
                 <input v-model="itemForm.code" class="form-input" placeholder="Opsional" />
               </div>
               <div class="form-group">
-                <label>Kategori</label>
-                <select v-model="itemForm.category_id" class="form-input">
+                <label>Kategori <span class="required">*</span></label>
+                <select v-model="itemForm.category_id" required class="form-input">
                   <option value="">— Pilih —</option>
                   <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </select>
@@ -521,18 +588,17 @@
                 <select v-model="itemForm.condition" class="form-input">
                   <option value="Baik">Baik</option>
                   <option value="Rusak Ringan">Rusak Ringan</option>
-                  <option value="Rusak Sedang">Rusak Sedang</option>
                   <option value="Rusak Berat">Rusak Berat</option>
+                  <option value="Habis Pakai">Habis Pakai</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>Status</label>
                 <select v-model="itemForm.status" class="form-input">
-                  <option value="">—</option>
                   <option value="Tersedia">Tersedia</option>
                   <option value="Dipinjam">Dipinjam</option>
                   <option value="Rusak">Rusak</option>
-                  <option value="Dalam Perbaikan">Dalam Perbaikan</option>
+                  <option value="Hilang">Hilang</option>
                 </select>
               </div>
             </div>
@@ -644,7 +710,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'
@@ -655,8 +721,23 @@ import { semesterApi } from '@/api/semester'
 import { classApi } from '@/api/class'
 import { subjectApi } from '@/api/subject'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
+const authStore = useAuthStore()
+const isSchoolAdmin = computed(() => {
+  const r = authStore.user?.role
+  return r === 'admin' || r === 'institution_admin' || r === 'super_admin'
+})
+
+const hasFacilityModule = computed(() => {
+  if (isSchoolAdmin.value) return true
+  return (authStore.user?.permissions || []).includes('facility')
+})
+
+const isLabResponsibleOnly = computed(() => {
+  return !!authStore.user?.is_lab_responsible && !hasFacilityModule.value
+})
 
 const dayNamesMap = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat' }
 
@@ -683,6 +764,12 @@ const classes = ref([])
 const subjects = ref([])
 const teachers = ref([])
 const categories = ref([])
+const employeesLoaded = ref(false)
+const categoriesLoaded = ref(false)
+const scheduleLookupsLoaded = ref(false)
+let employeesPromise = null
+let categoriesPromise = null
+let scheduleLookupsPromise = null
 
 const showLabModal = ref(false)
 const editingLab = ref(null)
@@ -753,6 +840,7 @@ function debounceLoad() {
 }
 
 async function openLabModal(room = null) {
+  await Promise.all([loadBuildings(), ensureEmployees()])
   editingLab.value = room
   if (room) {
     labForm.name = room.name || ''
@@ -865,23 +953,25 @@ async function doDeleteLab() {
   }
 }
 
-function openItemModal(room, item = null) {
+async function openItemModal(room, item = null) {
+  await ensureCategories()
   itemModalRoom.value = room
   editingItem.value = item
+  const defaultCat = categories.value.find(c => String(c.code || '').toUpperCase() === 'LAB' || /lab/i.test(c.name || ''))
   if (item) {
     itemForm.name = item.name || ''
     itemForm.code = item.code || ''
-    itemForm.category_id = item.category_id || item.category?.id || ''
+    itemForm.category_id = item.category_id || item.category?.id || defaultCat?.id || ''
     itemForm.quantity = item.quantity ?? 1
-    itemForm.unit = item.unit || ''
-    itemForm.condition = item.condition || 'Baik'
-    itemForm.status = item.status || 'Tersedia'
+    itemForm.unit = item.unit || 'Unit'
+    itemForm.condition = ['Baik', 'Rusak Ringan', 'Rusak Berat', 'Habis Pakai'].includes(item.condition) ? item.condition : 'Baik'
+    itemForm.status = ['Tersedia', 'Dipinjam', 'Rusak', 'Hilang', 'Dijual'].includes(item.status) ? item.status : 'Tersedia'
   } else {
     itemForm.name = ''
     itemForm.code = ''
-    itemForm.category_id = ''
+    itemForm.category_id = defaultCat?.id || ''
     itemForm.quantity = 1
-    itemForm.unit = ''
+    itemForm.unit = 'Unit'
     itemForm.condition = 'Baik'
     itemForm.status = 'Tersedia'
   }
@@ -898,20 +988,26 @@ function closeItemModal() {
 
 async function saveItem() {
   if (!itemModalRoom.value) return
+  if (!itemForm.category_id) {
+    itemFormError.value = 'Kategori wajib dipilih'
+    toast.error('Validasi', itemFormError.value)
+    return
+  }
   itemFormError.value = ''
   itemSaving.value = true
   const roomId = itemModalRoom.value.id
   try {
     const payload = {
       name: itemForm.name,
-      code: itemForm.code || null,
-      category_id: itemForm.category_id ? Number(itemForm.category_id) : null,
+      category_id: Number(itemForm.category_id),
       quantity: itemForm.quantity,
-      unit: itemForm.unit || null,
+      unit: itemForm.unit || 'Unit',
       condition: itemForm.condition,
-      status: itemForm.status || null,
-      room_id: roomId
+      status: itemForm.status || 'Tersedia',
+      room_id: roomId,
+      building_id: itemModalRoom.value.building_id || undefined,
     }
+    if (itemForm.code) payload.code = itemForm.code
     if (editingItem.value) {
       await inventoryApi.updateItem(editingItem.value.id, payload)
       toast.success('Berhasil', 'Barang berhasil diperbarui')
@@ -925,7 +1021,9 @@ async function saveItem() {
     const items = data?.data ?? (Array.isArray(data) ? data : [])
     roomInventoryMap.value = { ...roomInventoryMap.value, [roomId]: { items, loading: false, loaded: true } }
   } catch (e) {
-    itemFormError.value = e.response?.data?.message || e.message || 'Gagal menyimpan'
+    itemFormError.value = e.response?.data?.message
+      || (e.response?.data?.errors && Object.values(e.response.data.errors).flat()[0])
+      || e.message || 'Gagal menyimpan'
     toast.error('Gagal', itemFormError.value)
   } finally {
     itemSaving.value = false
@@ -965,7 +1063,8 @@ async function doDeleteItem() {
   }
 }
 
-function openScheduleModal(room, schedule = null) {
+async function openScheduleModal(room, schedule = null) {
+  await ensureScheduleLookups()
   scheduleModalRoom.value = room
   editingSchedule.value = schedule
   if (schedule) {
@@ -1080,6 +1179,7 @@ async function loadLabs() {
 }
 
 async function loadBuildings() {
+  if (buildings.value.length) return
   try {
     const res = await facilityApi.getBuildings({})
     buildings.value = res?.data?.data ?? res?.data ?? []
@@ -1088,14 +1188,54 @@ async function loadBuildings() {
   }
 }
 
-async function loadEmployees() {
-  try {
-    const res = await employeeApi.getAll({ per_page: 500 })
-    const list = res?.data?.data ?? res?.data ?? []
-    employees.value = Array.isArray(list) ? list : (list?.data ?? [])
-  } catch {
-    employees.value = []
-  }
+async function ensureEmployees() {
+  if (employeesLoaded.value) return
+  if (employeesPromise) return employeesPromise
+  employeesPromise = (async () => {
+    try {
+      const res = await employeeApi.getAll({ per_page: 500 })
+      const list = res?.data?.data ?? res?.data ?? []
+      employees.value = Array.isArray(list) ? list : (list?.data ?? [])
+    } catch {
+      employees.value = []
+    } finally {
+      employeesLoaded.value = true
+      employeesPromise = null
+    }
+  })()
+  return employeesPromise
+}
+
+async function ensureCategories() {
+  if (categoriesLoaded.value) return
+  if (categoriesPromise) return categoriesPromise
+  categoriesPromise = (async () => {
+    try {
+      const res = await inventoryApi.getCategories({ per_page: 200 })
+      categories.value = res?.data?.data ?? res?.data ?? []
+    } catch {
+      categories.value = []
+    } finally {
+      categoriesLoaded.value = true
+      categoriesPromise = null
+    }
+  })()
+  return categoriesPromise
+}
+
+async function ensureScheduleLookups() {
+  if (scheduleLookupsLoaded.value) return
+  if (scheduleLookupsPromise) return scheduleLookupsPromise
+  scheduleLookupsPromise = Promise.all([
+    loadSemesters(),
+    loadClasses(),
+    loadSubjects(),
+    loadTeachers(),
+  ]).finally(() => {
+    scheduleLookupsLoaded.value = true
+    scheduleLookupsPromise = null
+  })
+  return scheduleLookupsPromise
 }
 
 async function updateResponsible(room, employeeId) {
@@ -1230,9 +1370,68 @@ onMounted(async () => {
     const inst = instRes?.data?.data ?? instRes?.data
     if (inst?.active_semester_id) activeSemesterId.value = inst.active_semester_id
   } catch {}
-  await Promise.all([loadBuildings(), loadEmployees(), loadSemesters(), loadClasses(), loadSubjects(), loadCategories()])
+
+  if (isLabResponsibleOnly.value) {
+    await switchToMyLabs()
+    return
+  }
+
+  await loadBuildings()
   await loadLabs()
 })
+
+async function loadTeachers() {
+  try {
+    const res = await employeeApi.getAll({ per_page: 500, type: 'Guru' })
+    let list = res?.data?.data ?? res?.data ?? []
+    if (!Array.isArray(list)) list = list?.data ?? []
+    if (!list.length) {
+      const res2 = await employeeApi.getAll({ per_page: 500 })
+      list = res2?.data?.data ?? res2?.data ?? []
+      if (!Array.isArray(list)) list = list?.data ?? []
+    }
+    teachers.value = list
+  } catch {
+    teachers.value = []
+  }
+}
+
+async function exportAllLabsPdf() {
+  try {
+    const res = await facilityApi.exportLabReport()
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview.')
+      URL.revokeObjectURL(url)
+      return
+    }
+    win.document.write(`<!DOCTYPE html><html><head><title>Preview Rekap Lab</title>
+      <style>
+        body{margin:0;font-family:system-ui,sans-serif;background:#0f172a}
+        .toolbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#f8fafc;border-bottom:1px solid #1e293b}
+        .toolbar h1{margin:0;font-size:14px}
+        .actions button{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+        .btn-print{background:#059669;color:#fff}
+        .btn-close{background:#334155;color:#e2e8f0;margin-left:8px}
+        iframe{width:100%;height:calc(100vh - 52px);border:0;background:#525659}
+      </style></head><body>
+      <div class="toolbar">
+        <h1>Preview Rekapitulasi Lab</h1>
+        <div class="actions">
+          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus();document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
+          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
+        </div>
+      </div>
+      <iframe id="pdfFrame" src="${url}"></iframe>
+    </body></html>`)
+    win.document.close()
+    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+  } catch (e) {
+    toast.error('Gagal', 'Gagal membuka preview laporan PDF')
+  }
+}
 
 async function loadSemesters() {
   try {
@@ -1259,15 +1458,6 @@ async function loadSubjects() {
     subjects.value = Array.isArray(raw) ? raw : (raw?.data ?? [])
   } catch {
     subjects.value = []
-  }
-}
-
-async function loadCategories() {
-  try {
-    const res = await inventoryApi.getCategories({ per_page: 200 })
-    categories.value = res?.data?.data ?? res?.data ?? []
-  } catch {
-    categories.value = []
   }
 }
 </script>

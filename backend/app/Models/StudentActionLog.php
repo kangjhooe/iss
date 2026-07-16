@@ -19,12 +19,16 @@ class StudentActionLog extends Model
         'action_date',
         'recorded_by',
         'notes',
+        'score_at_action',
+        'academic_year_id',
+        'semester_id',
     ];
 
     protected function casts(): array
     {
         return [
             'action_date' => 'date',
+            'score_at_action' => 'integer',
         ];
     }
 
@@ -46,6 +50,16 @@ class StudentActionLog extends Model
     public function recorder()
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function academicYear()
+    {
+        return $this->belongsTo(AcademicYear::class, 'academic_year_id');
+    }
+
+    public function semester()
+    {
+        return $this->belongsTo(Semester::class, 'semester_id');
     }
 
     public function scopeForInstitution($query, int $institutionId)

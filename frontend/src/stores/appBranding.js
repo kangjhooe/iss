@@ -12,13 +12,16 @@ export const useAppBrandingStore = defineStore('appBranding', {
     heroPrimaryCtaTo: null,
     heroSecondaryCtaText: null,
     heroSecondaryCtaTo: null,
+    maintenanceMode: false,
+    maintenanceMessage: null,
     loaded: false
   }),
 
   getters: {
     hasAppLogo: (state) => !!state.appLogoUrl,
     hasFavicon: (state) => !!state.faviconUrl,
-    hasHeroImage: (state) => !!state.heroImageUrl
+    hasHeroImage: (state) => !!state.heroImageUrl,
+    isMaintenanceMode: (state) => !!state.maintenanceMode
   },
 
   actions: {
@@ -36,11 +39,23 @@ export const useAppBrandingStore = defineStore('appBranding', {
         this.heroPrimaryCtaTo = data.hero_primary_cta_to ?? null
         this.heroSecondaryCtaText = data.hero_secondary_cta_text ?? null
         this.heroSecondaryCtaTo = data.hero_secondary_cta_to ?? null
+        this.maintenanceMode = !!data.maintenance_mode
+        this.maintenanceMessage = data.maintenance_message || null
         this.loaded = true
         this.applyFavicon()
       } catch {
         this.loaded = true
       }
+    },
+
+    async refreshBranding() {
+      this.loaded = false
+      await this.fetchBranding()
+    },
+
+    setMaintenance(data) {
+      if (data.maintenance_mode !== undefined) this.maintenanceMode = !!data.maintenance_mode
+      if (data.maintenance_message !== undefined) this.maintenanceMessage = data.maintenance_message
     },
 
     applyFavicon() {

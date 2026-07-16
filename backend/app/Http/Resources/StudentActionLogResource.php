@@ -16,11 +16,20 @@ class StudentActionLogResource extends JsonResource
             'action_name' => $this->action_name,
             'action_date' => $this->action_date?->format('Y-m-d'),
             'notes' => $this->notes,
+            'score_at_action' => $this->score_at_action,
             'recorded_by' => $this->recorded_by,
+            'academic_year_id' => $this->academic_year_id,
+            'semester_id' => $this->semester_id,
             'created_at' => $this->created_at->toIso8601String(),
             'recorder' => $this->whenLoaded('recorder', fn () => [
                 'id' => $this->recorder->id,
                 'name' => $this->recorder->name,
+            ]),
+            'student' => $this->whenLoaded('student', fn () => [
+                'id' => $this->student->id,
+                'name' => $this->student->name,
+                'nis' => $this->student->nis,
+                'nisn' => $this->student->nisn,
             ]),
         ];
     }

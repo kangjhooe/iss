@@ -250,7 +250,7 @@ class LessonScheduleService
             Subject::where('id', $data['subject_id'])->where('institution_id', $institutionId)->firstOrFail();
         }
         if (isset($data['employee_id'])) {
-            Employee::where('id', $data['employee_id'])->where('institution_id', $institutionId)->firstOrFail();
+            Employee::forInstitution($institutionId)->where('id', $data['employee_id'])->firstOrFail();
         }
         if (!empty($data['room_id'])) {
             \App\Models\Room::where('id', $data['room_id'])->where('institution_id', $institutionId)->firstOrFail();

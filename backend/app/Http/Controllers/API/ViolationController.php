@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ViolationController extends Controller
 {
@@ -32,9 +33,14 @@ class ViolationController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $filters = $request->only(['student_id', 'violation_type_id', 'status', 'date_from', 'date_to', 'search', 'academic_year_id', 'semester_id']);
+            $filters = $request->only([
+                'student_id', 'violation_type_id', 'status', 'date_from', 'date_to',
+                'search', 'academic_year_id', 'semester_id', 'from_piket',
+            ]);
+            // Usulan pending: jangan auto-filter periode agar antrean BK lengkap.
+            $skipPeriodDefault = ($filters['status'] ?? null) === Violation::STATUS_PENDING;
             $institution = Institution::find($institutionId);
-            if ($institution) {
+            if ($institution && !$skipPeriodDefault) {
                 if (!isset($filters['academic_year_id']) && $institution->active_academic_year_id) {
                     $filters['academic_year_id'] = $institution->active_academic_year_id;
                 }
@@ -45,7 +51,11 @@ class ViolationController extends Controller
             $perPage = min($request->get('per_page', 15), 100);
             $violations = $this->violationService->listForInstitution($institutionId, $filters, $perPage);
 
-            return ViolationResource::collection($violations);
+            return ViolationResource::collection($violations)->additional([
+                'meta_extra' => [
+                    'pending_count' => $this->violationService->countPending($institutionId),
+                ],
+            ]);
         } catch (\Exception $e) {
             Log::error('Violation index failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -56,7 +66,7 @@ class ViolationController extends Controller
     }
 
     /**
-     * Store a new violation.
+     * Store a new violation (BK/admin: langsung dicatat).
      */
     public function store(StoreViolationRequest $request): JsonResponse
     {
@@ -67,10 +77,14 @@ class ViolationController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
+            $asPending = $request->boolean('force_pending')
+                || !$this->violationService->canDirectApprove($user);
+
             $violation = $this->violationService->create(
                 $institutionId,
                 $request->validated(),
-                $user->id
+                $user->id,
+                $asPending
             );
 
             return (new ViolationResource($violation))
@@ -78,6 +92,8 @@ class ViolationController extends Controller
                 ->setStatusCode(201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Siswa atau jenis pelanggaran tidak ditemukan.'], 404);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Violation store failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -97,7 +113,7 @@ class ViolationController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $violation->load(['student.class:id,name', 'violationType', 'reporter']);
+        $violation->load(['student.class:id,name', 'violationType', 'reporter', 'reviewer', 'piketIncident']);
         return new ViolationResource($violation);
     }
 
@@ -114,6 +130,8 @@ class ViolationController extends Controller
 
             $violation = $this->violationService->update($violation, $request->validated());
             return new ViolationResource($violation);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Violation update failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -135,6 +153,64 @@ class ViolationController extends Controller
 
         $violation->delete();
         return response()->json(['message' => 'Pelanggaran berhasil dihapus.']);
+    }
+
+    /**
+     * BK menyetujui usulan dari guru piket.
+     */
+    public function approve(Request $request, Violation $violation): ViolationResource|JsonResponse
+    {
+        $user = $request->user();
+        if ($user->institution_id !== $violation->institution_id && !$user->isSuperAdmin()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (!$this->violationService->canDirectApprove($user)) {
+            return response()->json(['message' => 'Hanya BK / pengelola pelanggaran yang dapat menyetujui.'], 403);
+        }
+
+        $data = $request->validate([
+            'violation_type_id' => 'nullable|integer|exists:violation_types,id',
+            'sanction' => 'nullable|string|max:255',
+            'review_notes' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $violation = $this->violationService->approve($violation, $user, $data);
+            return new ViolationResource($violation);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Violation approve failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal menyetujui pelanggaran.'], 500);
+        }
+    }
+
+    /**
+     * BK menolak usulan dari guru piket.
+     */
+    public function reject(Request $request, Violation $violation): ViolationResource|JsonResponse
+    {
+        $user = $request->user();
+        if ($user->institution_id !== $violation->institution_id && !$user->isSuperAdmin()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (!$this->violationService->canDirectApprove($user)) {
+            return response()->json(['message' => 'Hanya BK / pengelola pelanggaran yang dapat menolak.'], 403);
+        }
+
+        $data = $request->validate([
+            'review_notes' => 'required|string|max:2000',
+        ]);
+
+        try {
+            $violation = $this->violationService->reject($violation, $user, $data['review_notes']);
+            return new ViolationResource($violation);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Violation reject failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal menolak pelanggaran.'], 500);
+        }
     }
 
     /**

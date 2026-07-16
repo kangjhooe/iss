@@ -187,5 +187,61 @@ export const facilityApi = {
    */
   getMyLabs() {
     return api.get('/v1/facility/my-labs')
+  },
+
+  /**
+   * Export laporan lab (semua lab atau satu lab).
+   */
+  exportLabReport(params = {}) {
+    return api.get('/v1/facility/lab-report/export', { params, responseType: 'blob' })
+  },
+
+  exportLab(id, params = {}) {
+    return api.get(`/v1/facility/labs/${id}/export`, { params, responseType: 'blob' })
+  },
+
+  // ==================== Lab Booking ====================
+  getLabBookings(params = {}) {
+    return api.get('/v1/facility/lab-bookings', { params })
+  },
+  createLabBooking(data) {
+    return api.post('/v1/facility/lab-bookings', data)
+  },
+  approveLabBooking(id, data = {}) {
+    return api.post(`/v1/facility/lab-bookings/${id}/approve`, data)
+  },
+  rejectLabBooking(id, data = {}) {
+    return api.post(`/v1/facility/lab-bookings/${id}/reject`, data)
+  },
+  cancelLabBooking(id) {
+    return api.post(`/v1/facility/lab-bookings/${id}/cancel`)
+  },
+
+  // Booking terbuka untuk guru (tanpa modul facility)
+  getLabsForBooking(params = {}) {
+    return api.get('/v1/lab-booking/labs', { params })
+  },
+  getOpenLabBookings(params = {}) {
+    return api.get('/v1/lab-booking', { params })
+  },
+  createOpenLabBooking(data) {
+    return api.post('/v1/lab-booking', data)
+  },
+  cancelOpenLabBooking(id) {
+    return api.post(`/v1/lab-booking/${id}/cancel`)
+  },
+
+  // ==================== Lab Usage Journal ====================
+  getLabJournals(params = {}) {
+    return api.get('/v1/facility/lab-journals', { params })
+  },
+  createLabJournal(data) {
+    return api.post('/v1/facility/lab-journals', data)
+  },
+  updateLabJournal(id, data) {
+    return api.put(`/v1/facility/lab-journals/${id}`, data)
+  },
+  deleteLabJournal(id) {
+    return api.delete(`/v1/facility/lab-journals/${id}`)
   }
 }

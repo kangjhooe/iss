@@ -16,6 +16,9 @@ export const classApi = {
   delete(id) {
     return api.delete(`/v1/class/${id}`)
   },
+  cloneToYear(data) {
+    return api.post('/v1/class/clone-to-year', data)
+  },
   addStudents(id, studentIds) {
     return api.post(`/v1/class/${id}/students`, { student_ids: studentIds })
   },

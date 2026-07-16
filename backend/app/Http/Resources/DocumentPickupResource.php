@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\SchoolClass;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,14 +15,20 @@ class DocumentPickupResource extends JsonResource
             'institution_id' => $this->institution_id,
             'student_id' => $this->student_id,
             'student' => $this->whenLoaded('student', function () {
+                // Student has both a string column `class` and a `class()` relation —
+                // always read via getRelation() to avoid the string attribute.
+                $classRelation = $this->student->relationLoaded('class')
+                    ? $this->student->getRelation('class')
+                    : null;
+
                 return [
                     'id' => $this->student->id,
                     'name' => $this->student->name,
                     'nis' => $this->student->nis,
                     'nisn' => $this->student->nisn,
                     'graduation_year' => $this->student->graduation_year,
-                    'class_detail' => $this->student->relationLoaded('class') && $this->student->class
-                        ? ['id' => $this->student->class->id, 'name' => $this->student->class->name]
+                    'class_detail' => $classRelation instanceof SchoolClass
+                        ? ['id' => $classRelation->id, 'name' => $classRelation->name]
                         : null,
                 ];
             }),

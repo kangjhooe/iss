@@ -28,13 +28,18 @@ class AchievementController extends Controller
             $academicYearId = $request->get('academic_year_id');
             $semesterId = $request->get('semester_id');
             $institution = Institution::find($institutionId);
-            if ($institution) {
-                if (!$academicYearId && $institution->active_academic_year_id) {
-                    $academicYearId = $institution->active_academic_year_id;
-                }
-                if (!$semesterId && $institution->active_semester_id) {
-                    $semesterId = $institution->active_semester_id;
-                }
+
+            // Explicit empty = semua periode; jika param tidak dikirim, default ke aktif
+            if ($request->has('academic_year_id') && $request->academic_year_id === '') {
+                $academicYearId = null;
+            } elseif (!$request->has('academic_year_id') && $institution?->active_academic_year_id) {
+                $academicYearId = $institution->active_academic_year_id;
+            }
+
+            if ($request->has('semester_id') && $request->semester_id === '') {
+                $semesterId = null;
+            } elseif (!$request->has('semester_id') && $institution?->active_semester_id) {
+                $semesterId = $institution->active_semester_id;
             }
 
             $query = Achievement::with(['student:id,name,nis,nisn', 'achievementType:id,name,point_value', 'giver:id,name', 'academicYear:id,name,code', 'semester:id,name'])
@@ -52,6 +57,14 @@ class AchievementController extends Controller
             }
             if ($request->filled('achievement_type_id')) {
                 $query->where('achievement_type_id', $request->achievement_type_id);
+            }
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->whereHas('student', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('nis', 'like', "%{$search}%")
+                        ->orWhere('nisn', 'like', "%{$search}%");
+                });
             }
             if ($request->filled('date_from')) {
                 $query->whereDate('achievement_date', '>=', $request->date_from);
@@ -82,6 +95,9 @@ class AchievementController extends Controller
             $type = AchievementType::where('id', $request->achievement_type_id)->where('institution_id', $institutionId)->where('is_active', true)->firstOrFail();
 
             $pointValue = $request->input('point_value', $type->point_value);
+            $institution = Institution::find($institutionId);
+            $academicYearId = $student->academic_year_id ?: $institution?->active_academic_year_id;
+            $semesterId = $student->semester_id ?: $institution?->active_semester_id;
 
             $achievement = Achievement::create([
                 'institution_id' => $institutionId,
@@ -91,8 +107,8 @@ class AchievementController extends Controller
                 'achievement_date' => $request->achievement_date,
                 'point_value' => $pointValue,
                 'notes' => $request->notes,
-                'academic_year_id' => $student->academic_year_id,
-                'semester_id' => $student->semester_id,
+                'academic_year_id' => $academicYearId,
+                'semester_id' => $semesterId,
             ]);
 
             $achievement->load(['student', 'achievementType', 'giver', 'academicYear:id,name,code', 'semester:id,name']);
@@ -125,13 +141,27 @@ class AchievementController extends Controller
             $type = AchievementType::where('id', $request->achievement_type_id)->where('institution_id', $institutionId)->where('is_active', true)->firstOrFail();
 
             $pointValue = $request->input('point_value', $type->point_value);
+            $institution = Institution::find($institutionId);
+            $achievement->loadMissing('student');
 
-            $achievement->update([
+            $payload = [
                 'achievement_type_id' => $type->id,
                 'achievement_date' => $request->achievement_date,
                 'point_value' => $pointValue,
                 'notes' => $request->notes,
-            ]);
+            ];
+
+            // Perbaiki data lama yang belum punya periode
+            if (!$achievement->academic_year_id) {
+                $payload['academic_year_id'] = $achievement->student?->academic_year_id
+                    ?: $institution?->active_academic_year_id;
+            }
+            if (!$achievement->semester_id) {
+                $payload['semester_id'] = $achievement->student?->semester_id
+                    ?: $institution?->active_semester_id;
+            }
+
+            $achievement->update($payload);
 
             $achievement->load(['student', 'achievementType', 'giver', 'academicYear:id,name,code', 'semester:id,name']);
             return new AchievementResource($achievement);

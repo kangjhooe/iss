@@ -29,19 +29,40 @@ class InventoryController extends Controller
             $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
             $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
 
+            $user = $request->user();
             $institutionId = null;
-            if ($request->user()->isSuperAdmin()) {
+            if ($user->isSuperAdmin()) {
                 $institutionId = $request->get('institution_id');
-            } elseif ($request->user()->isAdmin()) {
-                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
+            } elseif ($user->isAdmin()) {
+                $institutionId = $request->get('institution_id') ?? $user->institution_id;
             } else {
-                $institutionId = $request->user()->institution_id;
+                $institutionId = $user->institution_id;
             }
             if ($institutionId === null) {
                 $perPage = min($request->get('per_page', 15), 100);
                 return InventoryItemResource::collection(
                     new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage)
                 );
+            }
+
+            // Kepala Lab tanpa modul inventory hanya melihat barang di lab yang ditanggungjawabi
+            if (
+                !$user->isAdminOrSuperAdmin()
+                && !$user->isInstitutionAdmin()
+                && !$user->hasModuleAccess('inventory')
+                && $user->isLabResponsible()
+            ) {
+                $managedIds = $user->managedLabRoomIds();
+                if (!empty($filters['room_id'])) {
+                    if (!in_array((int) $filters['room_id'], $managedIds, true)) {
+                        $perPage = min($request->get('per_page', 15), 100);
+                        return InventoryItemResource::collection(
+                            new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage)
+                        );
+                    }
+                } else {
+                    $filters['room_ids'] = $managedIds ?: [0];
+                }
             }
 
             $perPage = min($request->get('per_page', 15), 100);
@@ -67,8 +88,8 @@ class InventoryController extends Controller
     public function store(StoreInventoryRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? $request->institution_id 
+            $institutionId = $request->user()->isAdminOrSuperAdmin() || $request->user()->isInstitutionAdmin()
+                ? ($request->institution_id ?? $request->user()->institution_id)
                 : $request->user()->institution_id;
 
             if (!$institutionId) {

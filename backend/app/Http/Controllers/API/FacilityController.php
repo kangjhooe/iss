@@ -7,14 +7,56 @@ use App\Models\Building;
 use App\Models\Employee;
 use App\Models\Institution;
 use App\Models\InventoryItem;
+use App\Models\InventoryLoan;
+use App\Models\InventoryMaintenance;
+use App\Models\LabBooking;
+use App\Models\LabUsageJournal;
 use App\Models\Land;
 use App\Models\LessonSchedule;
 use App\Models\Room;
+use App\Notifications\LabNotification;
+use App\Support\InstitutionContext;
+use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class FacilityController extends Controller
 {
+    /**
+     * Ensure user can view the room (same institution / admin).
+     */
+    protected function ensureCanViewRoom(Request $request, Room $room): void
+    {
+        $user = $request->user();
+        if (!$user->canViewLab($room)) {
+            throw new HttpException(403, 'Unauthorized');
+        }
+    }
+
+    /**
+     * Ensure user can manage the lab (admin or assigned PJ).
+     */
+    protected function ensureCanManageLab(Request $request, Room $room): void
+    {
+        $user = $request->user();
+        if (!$user->canManageLab($room)) {
+            throw new HttpException(403, 'Anda tidak berwenang mengelola lab ini');
+        }
+    }
+
+    /**
+     * Resolve institution id for the current user (active context / non-induk aware).
+     */
+    protected function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
     // ========== LAND (TANAH) ==========
     
     public function getLands(Request $request)
@@ -22,23 +64,9 @@ class FacilityController extends Controller
         try {
             $query = Land::query();
 
-            $user = $request->user();
-            $institutionId = null;
-            if ($user->isSuperAdmin()) {
-                $institutionId = $request->get('institution_id');
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
-            } elseif ($user->isAdmin()) {
-                $institutionId = $request->get('institution_id') ?? $user->institution_id;
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
-            } else {
-                $institutionId = $user->institution_id;
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['data' => []]);
             }
             $query->where('institution_id', $institutionId);
 
@@ -214,23 +242,9 @@ class FacilityController extends Controller
         try {
             $query = Building::query();
 
-            $user = $request->user();
-            $institutionId = null;
-            if ($user->isSuperAdmin()) {
-                $institutionId = $request->get('institution_id');
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
-            } elseif ($user->isAdmin()) {
-                $institutionId = $request->get('institution_id') ?? $user->institution_id;
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
-            } else {
-                $institutionId = $user->institution_id;
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['data' => []]);
             }
             $query->where('institution_id', $institutionId);
 
@@ -401,22 +415,9 @@ class FacilityController extends Controller
             $query = Room::query();
 
             $user = $request->user();
-            $institutionId = null;
-            if ($user->isSuperAdmin()) {
-                $institutionId = $request->get('institution_id');
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
-            } elseif ($user->isAdmin()) {
-                $institutionId = $request->get('institution_id') ?? $user->institution_id;
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
-            } else {
-                $institutionId = $user->institution_id;
-                if (!$institutionId) {
-                    return response()->json(['data' => []]);
-                }
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['data' => []]);
             }
             $query->where('institution_id', $institutionId);
 
@@ -444,6 +445,17 @@ class FacilityController extends Controller
                 $query->where('lab_type', $request->lab_type);
             }
 
+            // Kepala Lab tanpa modul facility hanya melihat lab yang ditanggungjawabi
+            if (
+                !$user->isAdminOrSuperAdmin()
+                && !$user->isInstitutionAdmin()
+                && !$user->hasModuleAccess('facility')
+                && $user->isLabResponsible()
+            ) {
+                $managedIds = $user->managedLabRoomIds();
+                $query->whereIn('id', $managedIds ?: [0]);
+            }
+
             $rooms = $query->with(['institution:id,name', 'building:id,name', 'responsibleEmployee:id,name,nip,nuptk'])
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -453,6 +465,56 @@ class FacilityController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get rooms', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal mengambil data ruangan'], 500);
+        }
+    }
+
+    public function getRoom(Request $request, $id)
+    {
+        try {
+            $room = Room::with(['institution:id,name', 'building:id,name', 'responsibleEmployee:id,name,nip,nuptk'])
+                ->findOrFail($id);
+
+            $this->ensureCanViewRoom($request, $room);
+
+            $user = $request->user();
+            $damagedCount = InventoryItem::where('room_id', $room->id)
+                ->where(function ($q) {
+                    $q->whereIn('condition', ['Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'])
+                        ->orWhereIn('status', ['Rusak', 'Hilang']);
+                })
+                ->count();
+
+            $activeLoans = InventoryLoan::whereHas('item', fn ($q) => $q->where('room_id', $room->id))
+                ->whereIn('status', ['Dipinjam', 'Terlambat'])
+                ->count();
+
+            $pendingBookings = LabBooking::where('room_id', $room->id)
+                ->where('status', 'pending')
+                ->count();
+
+            $openMaintenance = InventoryMaintenance::whereHas('item', fn ($q) => $q->where('room_id', $room->id))
+                ->whereIn('status', ['Terjadwal', 'Dalam Proses'])
+                ->count();
+
+            $data = $room->toArray();
+            $data['can_manage'] = $user->canManageLab($room);
+            $data['is_admin'] = $user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin();
+            $data['stats'] = [
+                'inventory_count' => InventoryItem::where('room_id', $room->id)->count(),
+                'damaged_count' => $damagedCount,
+                'active_loans' => $activeLoans,
+                'pending_bookings' => $pendingBookings,
+                'open_maintenance' => $openMaintenance,
+            ];
+
+            return response()->json(['data' => $data]);
+        } catch (HttpException $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Data ruangan tidak ditemukan'], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to get room', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal mengambil data ruangan'], 500);
         }
     }
@@ -475,18 +537,12 @@ class FacilityController extends Controller
             ]);
 
             $user = $request->user();
-            if ($user->isSuperAdmin()) {
-                // Super admin must provide institution_id
-                $institutionId = $request->institution_id;
-                if (!$institutionId) {
-                    return response()->json(['message' => 'Super admin harus menyertakan institution_id'], 400);
-                }
-            } elseif ($user->isAdmin()) {
-                $institutionId = $request->institution_id ?? $user->institution_id;
-            } else {
-                $institutionId = $user->institution_id;
+            if (($validated['type'] ?? '') === 'Laboratorium'
+                && !$user->isAdminOrSuperAdmin()
+                && !$user->isInstitutionAdmin()) {
+                return response()->json(['message' => 'Hanya admin yang dapat menambah lab'], 403);
             }
-
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
@@ -507,10 +563,10 @@ class FacilityController extends Controller
                 }
             }
 
-            // Validate responsible_employee_id belongs to same institution
+            // Validate responsible_employee_id belongs to same institution (induk + non-induk)
             if (!empty($validated['responsible_employee_id'])) {
                 $employee = Employee::findOrFail($validated['responsible_employee_id']);
-                if ($employee->institution_id != $institutionId) {
+                if (!InstitutionContext::employeeBelongsToInstitution($employee, (int) $institutionId)) {
                     return response()->json(['message' => 'Pegawai tidak ditemukan atau tidak sesuai institusi'], 422);
                 }
             }
@@ -539,10 +595,27 @@ class FacilityController extends Controller
             $room = Room::findOrFail($id);
 
             $user = $request->user();
-            if (!$user->isSuperAdmin() && !$user->isAdmin()) {
-                if ($user->institution_id != $room->institution_id) {
-                    return response()->json(['message' => 'Unauthorized'], 403);
+            $isAdmin = $user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin();
+
+            if ($room->type === 'Laboratorium') {
+                if (!$user->canManageLab($room)) {
+                    return response()->json(['message' => 'Anda tidak berwenang mengelola lab ini'], 403);
                 }
+            } elseif (!$isAdmin && !InstitutionContext::canAccessInstitution($user, (int) $room->institution_id)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            // PJ may only update condition/description on lab rooms
+            if ($room->type === 'Laboratorium' && !$isAdmin) {
+                $validated = $request->validate([
+                    'condition' => 'sometimes|in:Baik,Rusak Ringan,Rusak Sedang,Rusak Berat',
+                    'description' => 'nullable|string',
+                ]);
+                $room->update($validated);
+                return response()->json([
+                    'message' => 'Data ruangan berhasil diperbarui',
+                    'data' => $room->load(['institution', 'building', 'responsibleEmployee'])
+                ]);
             }
 
             $validated = $request->validate([
@@ -579,15 +652,36 @@ class FacilityController extends Controller
                 $validated['responsible_employee_id'] = null;
             }
 
-            // Validate responsible_employee_id belongs to same institution
+            // Validate responsible_employee_id belongs to same institution (induk + non-induk)
             if ($validated['responsible_employee_id']) {
                 $employee = Employee::findOrFail($validated['responsible_employee_id']);
-                if ($employee->institution_id != $room->institution_id) {
+                if (!InstitutionContext::employeeBelongsToInstitution($employee, (int) $room->institution_id)) {
                     return response()->json(['message' => 'Pegawai tidak ditemukan atau tidak sesuai institusi'], 422);
                 }
             }
 
+            // Capture previous PJ before update (admin path)
+            $previousResponsibleId = $room->responsible_employee_id;
+
             $room->update($validated);
+
+            // Notify newly assigned lab responsible
+            $newResponsibleId = $room->responsible_employee_id;
+            if (
+                $room->type === 'Laboratorium'
+                && $newResponsibleId
+                && (int) $newResponsibleId !== (int) $previousResponsibleId
+            ) {
+                $employee = Employee::find($newResponsibleId);
+                $pjUser = $employee?->userAccount;
+                if ($pjUser) {
+                    $pjUser->notify(new LabNotification(
+                        'assigned',
+                        "Anda ditetapkan sebagai penanggung jawab lab {$room->name}.",
+                        ['room_id' => $room->id, 'room_name' => $room->name]
+                    ));
+                }
+            }
 
             return response()->json([
                 'message' => 'Data ruangan berhasil diperbarui',
@@ -612,10 +706,15 @@ class FacilityController extends Controller
             $room = Room::findOrFail($id);
 
             $user = $request->user();
-            if (!$user->isSuperAdmin() && !$user->isAdmin()) {
-                if ($user->institution_id != $room->institution_id) {
-                    return response()->json(['message' => 'Unauthorized'], 403);
-                }
+            $isAdmin = $user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin();
+
+            // Only admin may delete lab rooms
+            if ($room->type === 'Laboratorium' && !$isAdmin) {
+                return response()->json(['message' => 'Hanya admin yang dapat menghapus lab'], 403);
+            }
+
+            if (!$isAdmin && !InstitutionContext::canAccessInstitution($user, (int) $room->institution_id)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $room->delete();
@@ -635,11 +734,7 @@ class FacilityController extends Controller
     public function getLabReport(Request $request)
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
-            if ($user->isSuperAdmin() || $user->isAdmin()) {
-                $institutionId = $request->get('institution_id', $institutionId);
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 403);
             }
@@ -658,6 +753,23 @@ class FacilityController extends Controller
                 ->selectRaw('room_id, COUNT(*) as cnt')
                 ->groupBy('room_id')
                 ->pluck('cnt', 'room_id');
+
+            $damagedCounts = $roomIds ? InventoryItem::whereIn('room_id', $roomIds)
+                ->where(function ($q) {
+                    $q->whereIn('condition', ['Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'])
+                        ->orWhereIn('status', ['Rusak', 'Hilang']);
+                })
+                ->selectRaw('room_id, COUNT(*) as cnt')
+                ->groupBy('room_id')
+                ->pluck('cnt', 'room_id') : collect();
+
+            $openMaintenanceCounts = $roomIds ? InventoryMaintenance::whereHas('item', fn ($q) => $q->whereIn('room_id', $roomIds))
+                ->whereIn('inventory_maintenance.status', ['Terjadwal', 'Dalam Proses'])
+                ->join('inventory_item', 'inventory_maintenance.item_id', '=', 'inventory_item.id')
+                ->whereNull('inventory_maintenance.deleted_at')
+                ->selectRaw('inventory_item.room_id, COUNT(*) as cnt')
+                ->groupBy('inventory_item.room_id')
+                ->pluck('cnt', 'room_id') : collect();
 
             $scheduleCounts = [];
             if ($activeSemesterId) {
@@ -689,6 +801,8 @@ class FacilityController extends Controller
                         'nip' => $room->responsibleEmployee->nip,
                     ] : null,
                     'inventory_count' => $inventoryCounts[$room->id] ?? 0,
+                    'damaged_count' => $damagedCounts[$room->id] ?? 0,
+                    'open_maintenance_count' => $openMaintenanceCounts[$room->id] ?? 0,
                     'schedule_count' => $scheduleCounts[$room->id] ?? 0,
                 ];
             }
@@ -699,6 +813,8 @@ class FacilityController extends Controller
                         'total_labs' => $rooms->count(),
                         'by_condition' => $byCondition,
                         'by_lab_type' => $byLabType,
+                        'total_damaged_items' => $damagedCounts->sum(),
+                        'total_open_maintenance' => $openMaintenanceCounts->sum(),
                     ],
                     'labs' => $labs,
                     'active_semester_id' => $activeSemesterId,
@@ -722,14 +838,14 @@ class FacilityController extends Controller
                 return response()->json(['data' => ['labs' => [], 'summary' => ['total' => 0]]]);
             }
 
-            $institutionId = $employee->institution_id;
+            $institutionId = $this->resolveInstitutionId($request) ?: $employee->institution_id;
             $institution = Institution::find($institutionId);
             $activeSemesterId = $institution?->active_semester_id;
 
             $rooms = Room::with(['building:id,name'])
-                ->where('institution_id', $institutionId)
                 ->where('type', 'Laboratorium')
                 ->where('responsible_employee_id', $employee->id)
+                ->when($institutionId, fn ($q) => $q->where('institution_id', $institutionId))
                 ->orderBy('name')
                 ->get();
 
@@ -738,6 +854,50 @@ class FacilityController extends Controller
                 ->selectRaw('room_id, COUNT(*) as cnt')
                 ->groupBy('room_id')
                 ->pluck('cnt', 'room_id') : collect();
+
+            $damagedCounts = $roomIds ? InventoryItem::whereIn('room_id', $roomIds)
+                ->where(function ($q) {
+                    $q->whereIn('condition', ['Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'])
+                        ->orWhereIn('status', ['Rusak', 'Hilang']);
+                })
+                ->selectRaw('room_id, COUNT(*) as cnt')
+                ->groupBy('room_id')
+                ->pluck('cnt', 'room_id') : collect();
+
+            $activeLoanCounts = $roomIds ? InventoryLoan::whereHas('item', fn ($q) => $q->whereIn('room_id', $roomIds))
+                ->whereIn('inventory_loan.status', ['Dipinjam', 'Terlambat'])
+                ->join('inventory_item', 'inventory_loan.item_id', '=', 'inventory_item.id')
+                ->whereNull('inventory_loan.deleted_at')
+                ->selectRaw('inventory_item.room_id, COUNT(*) as cnt')
+                ->groupBy('inventory_item.room_id')
+                ->pluck('cnt', 'room_id') : collect();
+
+            $pendingBookingCounts = $roomIds ? LabBooking::whereIn('room_id', $roomIds)
+                ->where('status', 'pending')
+                ->selectRaw('room_id, COUNT(*) as cnt')
+                ->groupBy('room_id')
+                ->pluck('cnt', 'room_id') : collect();
+
+            $today = now()->dayOfWeekIso; // 1=Mon .. 7=Sun
+            $todayScheduleCounts = [];
+            if ($activeSemesterId && $roomIds) {
+                $todayScheduleCounts = LessonSchedule::whereIn('room_id', $roomIds)
+                    ->where('semester_id', $activeSemesterId)
+                    ->where('day_of_week', $today)
+                    ->selectRaw('room_id, COUNT(*) as cnt')
+                    ->groupBy('room_id')
+                    ->pluck('cnt', 'room_id')
+                    ->toArray();
+            }
+
+            $weekStart = now()->startOfWeek()->toDateString();
+            $weekEnd = now()->endOfWeek()->toDateString();
+            $weekJournalCounts = $roomIds ? LabUsageJournal::whereIn('room_id', $roomIds)
+                ->whereBetween('date', [$weekStart, $weekEnd])
+                ->selectRaw('room_id, COUNT(*) as cnt')
+                ->groupBy('room_id')
+                ->pluck('cnt', 'room_id') : collect();
+
             $scheduleCounts = [];
             if ($activeSemesterId && $roomIds) {
                 $scheduleCounts = LessonSchedule::whereIn('room_id', $roomIds)
@@ -760,6 +920,11 @@ class FacilityController extends Controller
                     'building' => $room->building ? ['id' => $room->building->id, 'name' => $room->building->name] : null,
                     'condition' => $room->condition,
                     'inventory_count' => $inventoryCounts[$room->id] ?? 0,
+                    'damaged_count' => $damagedCounts[$room->id] ?? 0,
+                    'active_loans' => $activeLoanCounts[$room->id] ?? 0,
+                    'pending_bookings' => $pendingBookingCounts[$room->id] ?? 0,
+                    'today_schedule_count' => $todayScheduleCounts[$room->id] ?? 0,
+                    'week_usage_count' => $weekJournalCounts[$room->id] ?? 0,
                     'schedule_count' => $scheduleCounts[$room->id] ?? 0,
                 ];
             }
@@ -769,6 +934,9 @@ class FacilityController extends Controller
                     'summary' => [
                         'total' => $rooms->count(),
                         'by_condition' => $byCondition,
+                        'total_damaged' => $damagedCounts->sum(),
+                        'total_active_loans' => $activeLoanCounts->sum(),
+                        'total_pending_bookings' => $pendingBookingCounts->sum(),
                     ],
                     'labs' => $labs,
                 ],
@@ -776,6 +944,103 @@ class FacilityController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to get my labs', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal mengambil data lab Anda'], 500);
+        }
+    }
+
+    /**
+     * Export laporan lab (PDF).
+     */
+    public function exportLabReport(Request $request, $id = null)
+    {
+        try {
+            $user = $request->user();
+            $from = $request->get('from', now()->startOfMonth()->toDateString());
+            $to = $request->get('to', now()->toDateString());
+
+            if ($id) {
+                $room = Room::with(['building', 'responsibleEmployee', 'institution'])->findOrFail($id);
+                if ($room->type !== 'Laboratorium') {
+                    return response()->json(['message' => 'Ruangan bukan laboratorium'], 422);
+                }
+                if (!$user->canViewLab($room)) {
+                    return response()->json(['message' => 'Unauthorized'], 403);
+                }
+
+                $items = InventoryItem::with('category')->where('room_id', $room->id)->orderBy('name')->get();
+                $loans = InventoryLoan::with('item')
+                    ->whereHas('item', fn ($q) => $q->where('room_id', $room->id))
+                    ->whereBetween('loan_date', [$from, $to])
+                    ->orderByDesc('loan_date')
+                    ->get();
+                $journals = LabUsageJournal::with(['schoolClass', 'subject', 'recorder'])
+                    ->where('room_id', $room->id)
+                    ->whereBetween('date', [$from, $to])
+                    ->orderByDesc('date')
+                    ->get();
+                $maintenances = InventoryMaintenance::with('item')
+                    ->whereHas('item', fn ($q) => $q->where('room_id', $room->id))
+                    ->whereBetween('scheduled_date', [$from, $to])
+                    ->orderByDesc('scheduled_date')
+                    ->get();
+
+                $pdf = DomPDF::loadView('lab.export', [
+                    'mode' => 'single',
+                    'room' => $room,
+                    'institution' => $room->institution,
+                    'items' => $items,
+                    'loans' => $loans,
+                    'journals' => $journals,
+                    'maintenances' => $maintenances,
+                    'from' => $from,
+                    'to' => $to,
+                    'printedBy' => $user->name,
+                ])->setPaper('a4', 'portrait');
+
+                $filename = 'laporan_lab_' . ($room->code ?: $room->id) . '_' . now()->format('Ymd') . '.pdf';
+                return $pdf->stream($filename, ['Attachment' => false]);
+            }
+
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan'], 403);
+            }
+
+            $rooms = Room::with(['building', 'responsibleEmployee'])
+                ->where('institution_id', $institutionId)
+                ->where('type', 'Laboratorium')
+                ->orderBy('name')
+                ->get();
+
+            $roomIds = $rooms->pluck('id')->toArray();
+            $inventoryCounts = $roomIds
+                ? InventoryItem::whereIn('room_id', $roomIds)->selectRaw('room_id, COUNT(*) as cnt')->groupBy('room_id')->pluck('cnt', 'room_id')
+                : collect();
+            $damagedCounts = $roomIds
+                ? InventoryItem::whereIn('room_id', $roomIds)
+                    ->where(function ($q) {
+                        $q->whereIn('condition', ['Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'])
+                            ->orWhereIn('status', ['Rusak', 'Hilang']);
+                    })
+                    ->selectRaw('room_id, COUNT(*) as cnt')->groupBy('room_id')->pluck('cnt', 'room_id')
+                : collect();
+
+            $pdf = DomPDF::loadView('lab.export', [
+                'mode' => 'all',
+                'rooms' => $rooms,
+                'inventoryCounts' => $inventoryCounts,
+                'damagedCounts' => $damagedCounts,
+                'from' => $from,
+                'to' => $to,
+                'institution' => Institution::find($institutionId),
+                'printedBy' => $user->name,
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->stream('laporan_lab_' . now()->format('Ymd') . '.pdf', ['Attachment' => false]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Lab tidak ditemukan'], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to export lab report', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal mengekspor laporan lab'], 500);
         }
     }
 }

@@ -101,6 +101,14 @@ class Handler extends ExceptionHandler
             return $this->handleAuthorizationException();
         }
 
+        // Handle rate limiting
+        if ($e instanceof \Illuminate\Http\Exceptions\ThrottleRequestsException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terlalu banyak percobaan. Silakan tunggu sebentar dan coba lagi.',
+            ], 429);
+        }
+
         // Handle generic exceptions
         return $this->handleGenericException($e);
     }

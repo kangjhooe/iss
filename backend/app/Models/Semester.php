@@ -107,6 +107,14 @@ class Semester extends Model
     }
 
     /**
+     * Get the student action logs for this semester.
+     */
+    public function studentActionLogs()
+    {
+        return $this->hasMany(StudentActionLog::class, 'semester_id');
+    }
+
+    /**
      * Get the grades (nilai) for this semester.
      */
     public function grades()

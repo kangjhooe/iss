@@ -13,6 +13,15 @@ class Extracurricular extends Model
 
     protected $table = 'extracurriculars';
 
+    public const DAY_NAMES = [
+        1 => 'Senin',
+        2 => 'Selasa',
+        3 => 'Rabu',
+        4 => 'Kamis',
+        5 => 'Jumat',
+        6 => 'Sabtu',
+    ];
+
     protected $fillable = [
         'institution_id',
         'name',
@@ -22,17 +31,20 @@ class Extracurricular extends Model
         'semester_id',
         'capacity',
         'status',
-        'day_of_week',
+        'days_of_week',
         'start_time',
         'end_time',
         'room_id',
+        'is_outdoor',
+        'location_note',
     ];
 
     protected function casts(): array
     {
         return [
             'capacity' => 'integer',
-            'day_of_week' => 'integer',
+            'days_of_week' => 'array',
+            'is_outdoor' => 'boolean',
             'start_time' => 'datetime:H:i',
             'end_time' => 'datetime:H:i',
         ];
@@ -84,6 +96,16 @@ class Extracurricular extends Model
         return $this->hasMany(ExtracurricularStudent::class);
     }
 
+    public function sessions()
+    {
+        return $this->hasMany(ExtracurricularSession::class);
+    }
+
+    public function grades()
+    {
+        return $this->hasMany(ExtracurricularGrade::class);
+    }
+
     public function scopeForInstitution($query, $institutionId)
     {
         return $query->where('institution_id', $institutionId);
@@ -92,5 +114,33 @@ class Extracurricular extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'Aktif');
+    }
+
+    public function getDayLabelsAttribute(): array
+    {
+        $days = $this->days_of_week ?? [];
+        if (!is_array($days)) {
+            return [];
+        }
+        sort($days);
+
+        return array_values(array_filter(array_map(
+            fn ($d) => self::DAY_NAMES[(int) $d] ?? null,
+            $days
+        )));
+    }
+
+    public function getLocationLabelAttribute(): ?string
+    {
+        if ($this->is_outdoor) {
+            return $this->location_note
+                ? 'Di luar ruangan (' . $this->location_note . ')'
+                : 'Di luar ruangan';
+        }
+        if ($this->relationLoaded('room') && $this->room) {
+            return $this->room->name;
+        }
+
+        return null;
     }
 }

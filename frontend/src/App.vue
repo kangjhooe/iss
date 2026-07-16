@@ -386,12 +386,18 @@ input, textarea, select {
   }
   
   .sidebar,
+  .topbar,
+  .mobile-menu-btn,
   .btn-primary,
   .btn-secondary,
   .btn-edit,
-  .btn-delete,
-  .mobile-menu-btn {
+  .btn-delete {
     display: none !important;
+  }
+
+  .layout .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
   }
 }
 </style>

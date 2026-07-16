@@ -77,14 +77,31 @@ class AuthService
         $user = User::where('email', $email)->first();
 
         // Check if account is locked
+        // Check if account is deactivated by admin
+        if ($user && $user->is_active === false) {
+            throw ValidationException::withMessages([
+                'email' => ['Akun Anda dinonaktifkan. Silakan hubungi administrator.'],
+            ]);
+        }
+
         if ($user && $user->isLocked()) {
-            $minutesRemaining = now()->diffInMinutes($user->locked_until, false);
+            $minutesRemaining = $user->lockedMinutesRemaining();
             throw ValidationException::withMessages([
                 'email' => ["Akun Anda terkunci. Silakan coba lagi dalam {$minutesRemaining} menit."],
             ]);
         }
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        $passwordValid = false;
+        try {
+            $passwordValid = $user && Hash::check($password, $user->password);
+        } catch (\RuntimeException $e) {
+            Log::error('Password hash algorithm error on login', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if (!$passwordValid) {
             if ($user) {
                 $user->incrementFailedLoginAttempts();
             }

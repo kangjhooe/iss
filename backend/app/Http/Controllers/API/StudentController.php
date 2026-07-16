@@ -65,9 +65,15 @@ class StudentController extends Controller
             $filters = $request->only(['search', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'gender']);
             $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
             $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
-            
-            // Jika tidak ada filter semester_id, gunakan active_semester_id dari institusi
-            if (!isset($filters['semester_id']) && $institutionId) {
+
+            // Semester aktif hanya sebagai default daftar umum.
+            // Jangan paksa jika class_id / academic_year_id sudah dipilih (fitur naik kelas & luluskan).
+            if (
+                !isset($filters['semester_id'])
+                && !isset($filters['class_id'])
+                && !isset($filters['academic_year_id'])
+                && $institutionId
+            ) {
                 $institution = \App\Models\Institution::find($institutionId);
                 if ($institution && $institution->active_semester_id) {
                     $filters['semester_id'] = $institution->active_semester_id;
@@ -279,15 +285,21 @@ class StudentController extends Controller
     public function promote(PromoteStudentsRequest $request)
     {
         try {
+            $validated = $request->validated();
+            $sourceClass = \App\Models\SchoolClass::find((int) $validated['source_class_id']);
+
             $institutionId = $request->user()->isAdminOrSuperAdmin()
-                ? (int) $request->input('institution_id')
+                ? ((int) ($request->input('institution_id') ?: ($sourceClass?->institution_id ?? 0)))
                 : $request->user()->institution_id;
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 400);
             }
 
-            $validated = $request->validated();
+            if ($sourceClass && (int) $sourceClass->institution_id !== (int) $institutionId) {
+                return response()->json(['message' => 'Kelas sumber tidak sesuai institusi.'], 422);
+            }
+
             $studentIds = isset($validated['student_ids']) && is_array($validated['student_ids'])
                 ? array_values($validated['student_ids'])
                 : null;

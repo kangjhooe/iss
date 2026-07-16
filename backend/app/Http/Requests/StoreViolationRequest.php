@@ -19,6 +19,8 @@ class StoreViolationRequest extends FormRequest
             'violation_date' => 'required|date',
             'sanction' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'force_pending' => 'sometimes|boolean',
+            'piket_incident_id' => 'nullable|integer|exists:piket_incidents,id',
         ];
     }
 

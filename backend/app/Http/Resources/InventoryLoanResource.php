@@ -36,7 +36,9 @@ class InventoryLoanResource extends JsonResource
             'purpose' => $this->purpose,
             'status' => $this->status,
             'notes' => $this->notes,
-            'is_overdue' => $this->isOverdue(),
+            'return_condition' => $this->return_condition,
+            'return_item_status' => $this->return_item_status,
+            'is_overdue' => $this->isOverdue() || $this->status === 'Terlambat',
             'item' => $this->when($this->relationLoaded('item'), function () {
                 return [
                     'id' => $this->item->id ?? null,

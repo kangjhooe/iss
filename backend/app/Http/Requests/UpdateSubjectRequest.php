@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\InstitutionContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,7 +16,9 @@ class UpdateSubjectRequest extends FormRequest
     public function rules(): array
     {
         $subject = $this->route('subject');
-        $institutionId = $this->user()?->institution_id;
+        $user = $this->user();
+        $institutionId = $subject?->institution_id
+            ?? ($user ? InstitutionContext::resolveForUser($user, $this, $this->get('institution_id')) : null);
         return [
             'code' => [
                 'sometimes',

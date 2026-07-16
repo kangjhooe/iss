@@ -33,6 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\AddTokenFromCookie::class,
         ]);
 
+        $middleware->api(append: [
+            \App\Http\Middleware\EnsureNotInMaintenance::class,
+        ]);
+
         // CSRF protection tidak diperlukan untuk API routes yang menggunakan Bearer token
         $middleware->validateCsrfTokens(except: [
             'api/*',
@@ -43,6 +47,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'cache' => \App\Http\Middleware\CacheResponse::class,
             'module' => \App\Http\Middleware\EnsureModuleAccess::class,
+            'maintenance' => \App\Http\Middleware\EnsureNotInMaintenance::class,
+            'institution.context' => \App\Http\Middleware\ResolveActiveInstitution::class,
         ]);
 
         // Force JSON response for API routes FIRST (before authentication)

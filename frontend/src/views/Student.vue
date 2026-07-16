@@ -1089,6 +1089,15 @@
           </div>
 
           <div class="modal-footer">
+            <button
+              v-if="viewingStudent?.status === 'Aktif'"
+              type="button"
+              class="btn-primary"
+              :disabled="graduatingStudent"
+              @click="graduateFromView"
+            >
+              {{ graduatingStudent ? 'Memproses...' : 'Luluskan Siswa' }}
+            </button>
             <button type="button" @click="closeViewModal" class="btn-secondary">Tutup</button>
           </div>
         </div>
@@ -1118,6 +1127,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { useStudentList } from '@/composables/useStudentList'
 import { useAuthStore } from '@/stores/auth'
 import { studentApi } from '@/api/student'
+import { alumniApi } from '@/api/alumni'
 import { institutionApi } from '@/api/institution'
 import { classApi } from '@/api/class'
 import { counselingApi } from '@/api/counseling'
@@ -1138,6 +1148,7 @@ const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
 const viewingStudent = ref(null)
+const graduatingStudent = ref(false)
 const studentCounselingSessions = ref([])
 const studentCounselingLoading = ref(false)
 const studentExtracurricularEnrollments = ref([])
@@ -1577,9 +1588,33 @@ const viewStudent = (student) => {
 const closeViewModal = () => {
   showViewModal.value = false
   viewingStudent.value = null
+  graduatingStudent.value = false
   studentCounselingSessions.value = []
   studentExtracurricularEnrollments.value = []
   studentExtracurricularLoading.value = false
+}
+
+const graduateFromView = async () => {
+  if (!viewingStudent.value?.id || viewingStudent.value.status !== 'Aktif') return
+  const name = viewingStudent.value.name || 'siswa ini'
+  const confirmed = await showConfirm({
+    title: 'Luluskan Siswa',
+    message: `Apakah Anda yakin ingin meluluskan ${name}? Status akan diubah menjadi Lulus dan siswa muncul di daftar Alumni.`,
+    warning: 'Tindakan ini dapat memengaruhi data kesiswaan aktif.'
+  })
+  if (!confirmed) return
+
+  graduatingStudent.value = true
+  try {
+    await alumniApi.graduate(viewingStudent.value.id)
+    toast.success('Berhasil', 'Siswa berhasil diluluskan.')
+    closeViewModal()
+    await loadStudents()
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || err.formattedMessage || 'Gagal meluluskan siswa')
+  } finally {
+    graduatingStudent.value = false
+  }
 }
 
 async function loadStudentCounseling(studentId) {

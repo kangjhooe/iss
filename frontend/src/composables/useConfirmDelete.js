@@ -1,17 +1,17 @@
 /**
- * Composable untuk confirm delete dialog
- * 
+ * Composable untuk confirm dialog (hapus / setujui / aksi lain)
+ *
  * Usage:
  * import { useConfirmDelete } from '@/composables/useConfirmDelete'
- * 
+ *
  * const { showConfirm, confirmDialog } = useConfirmDelete()
- * 
+ *
  * const handleDelete = async (id) => {
  *   const confirmed = await showConfirm({
  *     message: 'Apakah Anda yakin ingin menghapus item ini?',
  *     title: 'Konfirmasi Hapus'
  *   })
- *   
+ *
  *   if (confirmed) {
  *     // Proceed with delete
  *   }
@@ -26,6 +26,10 @@ export function useConfirmDelete() {
     title: 'Konfirmasi Hapus',
     message: '',
     warning: 'Tindakan ini tidak dapat dibatalkan.',
+    confirmText: 'Hapus',
+    cancelText: 'Batal',
+    loadingText: 'Menghapus...',
+    confirmVariant: 'danger',
     loading: false
   })
 
@@ -35,12 +39,14 @@ export function useConfirmDelete() {
         show: true,
         title: options.title || 'Konfirmasi Hapus',
         message: options.message || 'Apakah Anda yakin ingin menghapus item ini?',
-        warning: options.warning || 'Tindakan ini tidak dapat dibatalkan.',
-        loading: false
+        warning: options.warning !== undefined ? options.warning : 'Tindakan ini tidak dapat dibatalkan.',
+        confirmText: options.confirmText || 'Hapus',
+        cancelText: options.cancelText || 'Batal',
+        loadingText: options.loadingText || 'Menghapus...',
+        confirmVariant: options.confirmVariant || 'danger',
+        loading: false,
+        _resolve: resolve
       }
-
-      // Store resolve function
-      confirmDialog.value._resolve = resolve
     })
   }
 

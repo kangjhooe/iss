@@ -110,4 +110,20 @@ class Room extends Model
     {
         return $this->hasMany(Extracurricular::class, 'room_id');
     }
+
+    /**
+     * Lab bookings for this room.
+     */
+    public function labBookings()
+    {
+        return $this->hasMany(LabBooking::class, 'room_id');
+    }
+
+    /**
+     * Lab usage journals for this room.
+     */
+    public function labUsageJournals()
+    {
+        return $this->hasMany(LabUsageJournal::class, 'room_id');
+    }
 }

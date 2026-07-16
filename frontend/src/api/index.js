@@ -10,13 +10,21 @@ const api = axios.create({
   withCredentials: true // Kirim httpOnly cookie (auth_token) ke backend
 })
 
-// Token dikirim via httpOnly cookie; tidak perlu set Authorization dari localStorage
+// Token dikirim via httpOnly cookie; kirim juga konteks sekolah aktif
 api.interceptors.request.use(
   (config) => {
     // Remove Content-Type header for FormData to let browser set it with boundary
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type']
     }
+
+    const activeId = typeof window !== 'undefined'
+      ? window.__ISS_ACTIVE_INSTITUTION_ID__
+      : null
+    if (activeId) {
+      config.headers['X-Institution-Id'] = String(activeId)
+    }
+
     return config
   },
   (error) => {
@@ -40,7 +48,12 @@ api.interceptors.response.use(
         window.location.href = '/login'
       }
     }
-    
+
+    if (error.response?.status === 503 && error.response?.data?.maintenance) {
+      error.formattedMessage = error.response.data.message || 'Sistem sedang dalam mode pemeliharaan.'
+      return Promise.reject(error)
+    }
+
     // Format error message untuk ditampilkan ke user (untuk 422 utamakan errors agar user lihat alasan spesifik)
     if (error.response?.status === 422 && error.response?.data?.errors) {
       const errors = error.response.data.errors

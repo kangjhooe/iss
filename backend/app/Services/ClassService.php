@@ -203,10 +203,20 @@ class ClassService
             }
         }
 
+        $previousTeacherId = $class->teacher_id ? (int) $class->teacher_id : null;
+
         $this->classRepository->update($class, $data);
 
-        if (array_key_exists('teacher_id', $data) && !empty($data['teacher_id'])) {
-            $this->waliKelasPermissionService->grantWaliKelasPermissionsToEmployee((int) $data['teacher_id']);
+        if (array_key_exists('teacher_id', $data)) {
+            $newTeacherId = !empty($data['teacher_id']) ? (int) $data['teacher_id'] : null;
+
+            if ($newTeacherId) {
+                $this->waliKelasPermissionService->grantWaliKelasPermissionsToEmployee($newTeacherId);
+            }
+
+            if ($previousTeacherId && $previousTeacherId !== $newTeacherId) {
+                $this->waliKelasPermissionService->syncWaliKelasPermissionsForEmployee($previousTeacherId);
+            }
         }
 
         Log::info('Class updated', [
@@ -222,13 +232,112 @@ class ClassService
     public function delete(SchoolClass $class): bool
     {
         $classId = $class->id;
+        $previousTeacherId = $class->teacher_id ? (int) $class->teacher_id : null;
         $result = $this->classRepository->delete($class);
+
+        if ($previousTeacherId) {
+            $this->waliKelasPermissionService->syncWaliKelasPermissionsForEmployee($previousTeacherId);
+        }
 
         Log::info('Class deleted', [
             'class_id' => $classId,
         ]);
 
         return $result;
+    }
+
+    /**
+     * Salin kelas aktif dari tahun ajaran sumber ke tahun ajaran tujuan.
+     *
+     * @return array{created: int, skipped: array<int, string>, classes: array<int, SchoolClass>}
+     */
+    public function cloneToAcademicYear(
+        int $institutionId,
+        int $sourceAcademicYearId,
+        int $targetAcademicYearId,
+        ?int $targetSemesterId = null
+    ): array {
+        if ($sourceAcademicYearId === $targetAcademicYearId) {
+            throw ValidationException::withMessages([
+                'target_academic_year_id' => 'Tahun ajaran tujuan harus berbeda dari tahun ajaran sumber.',
+            ]);
+        }
+
+        $targetYear = \App\Models\AcademicYear::find($targetAcademicYearId);
+        if (!$targetYear) {
+            throw ValidationException::withMessages([
+                'target_academic_year_id' => 'Tahun ajaran tujuan tidak ditemukan.',
+            ]);
+        }
+
+        $targetSemesterId = $targetSemesterId
+            ?? \App\Models\Semester::where('academic_year_id', $targetAcademicYearId)->orderBy('id')->value('id');
+
+        if ($targetSemesterId) {
+            $semesterOk = \App\Models\Semester::where('id', $targetSemesterId)
+                ->where('academic_year_id', $targetAcademicYearId)
+                ->exists();
+            if (!$semesterOk) {
+                throw ValidationException::withMessages([
+                    'target_semester_id' => 'Semester tujuan tidak termasuk tahun ajaran tujuan.',
+                ]);
+            }
+        }
+
+        $sourceClasses = SchoolClass::query()
+            ->where('institution_id', $institutionId)
+            ->where('academic_year_id', $sourceAcademicYearId)
+            ->where('status', 'Aktif')
+            ->orderBy('grade')
+            ->orderBy('name')
+            ->get();
+
+        $created = [];
+        $skipped = [];
+        $seenNames = [];
+
+        foreach ($sourceClasses as $source) {
+            $nameKey = mb_strtolower(trim((string) $source->name));
+            if ($nameKey === '' || isset($seenNames[$nameKey])) {
+                continue;
+            }
+            $seenNames[$nameKey] = true;
+
+            $exists = SchoolClass::query()
+                ->where('institution_id', $institutionId)
+                ->where('academic_year_id', $targetAcademicYearId)
+                ->where('name', $source->name)
+                ->exists();
+
+            if ($exists) {
+                $skipped[] = $source->name;
+                continue;
+            }
+
+            $codeBase = $source->code ?: $source->name;
+            $newCode = $codeBase . '-' . ($targetYear->code ?: $targetAcademicYearId);
+
+            $created[] = SchoolClass::create([
+                'institution_id' => $institutionId,
+                'room_id' => null,
+                'teacher_id' => null,
+                'code' => $newCode,
+                'name' => $source->name,
+                'grade' => $source->grade,
+                'academic_year' => $targetYear->code ?: $targetYear->name,
+                'academic_year_id' => $targetAcademicYearId,
+                'semester_id' => $targetSemesterId,
+                'capacity' => $source->capacity,
+                'status' => 'Aktif',
+                'description' => $source->description,
+            ]);
+        }
+
+        return [
+            'created' => count($created),
+            'skipped' => $skipped,
+            'classes' => $created,
+        ];
     }
 
     /**

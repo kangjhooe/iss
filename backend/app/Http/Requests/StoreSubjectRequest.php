@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\InstitutionContext;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSubjectRequest extends FormRequest
@@ -13,7 +14,10 @@ class StoreSubjectRequest extends FormRequest
 
     public function rules(): array
     {
-        $institutionId = $this->user()?->institution_id;
+        $user = $this->user();
+        $institutionId = $user
+            ? InstitutionContext::resolveForUser($user, $this, $this->get('institution_id'))
+            : null;
         return [
             'code' => [
                 'required',

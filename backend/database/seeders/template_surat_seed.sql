@@ -1,0 +1,7 @@
+-- Platform template library
+-- Prefer seeding via:
+--   php artisan db:seed --class=TemplateSuratSeeder
+-- or (PHP 8.0 CLI without full Laravel):
+--   php database/seeders/seed_platform_templates_cli.php
+--
+-- Source of truth: platform_templates_data.php (21 templates)

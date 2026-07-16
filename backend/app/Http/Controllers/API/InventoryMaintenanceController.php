@@ -46,6 +46,10 @@ class InventoryMaintenanceController extends Controller
                 $query->where('status', $request->status);
             }
 
+            if ($request->filled('room_id')) {
+                $query->whereHas('item', fn ($q) => $q->where('room_id', $request->room_id));
+            }
+
             $perPage = min($request->get('per_page', 15), 100);
             $maintenances = $query->orderBy('scheduled_date', 'desc')->paginate($perPage);
 

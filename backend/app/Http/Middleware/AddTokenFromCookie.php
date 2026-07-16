@@ -14,6 +14,8 @@ class AddTokenFromCookie
 {
     public const COOKIE_AUTH = 'auth_token';
     public const COOKIE_REFRESH = 'refresh_token';
+    public const COOKIE_IMPERSONATOR = 'impersonator_token';
+    public const COOKIE_IMPERSONATOR_REFRESH = 'impersonator_refresh_token';
 
     public function handle(Request $request, Closure $next): Response
     {

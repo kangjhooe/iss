@@ -12,8 +12,7 @@ class StoreInstitutionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Only admin can create institutions
-        return $this->user()?->isAdmin() ?? false;
+        return $this->user()?->isAdminOrSuperAdmin() ?? false;
     }
 
     /**

@@ -53,9 +53,13 @@ class UpdateTeacherRequest extends FormRequest
             'education_level' => 'nullable|in:SMA,D3,S1,S2,S3',
             'major' => 'nullable|string|max:255',
             'subject' => 'nullable|string|max:255',
-            'status' => 'nullable|in:Aktif,Pensiun,Pindah,Tidak Aktif',
+            'status' => 'nullable|in:Aktif,Cuti,Pensiun,Pindah,Mengundurkan Diri,Tidak Aktif',
             'join_date' => 'nullable|date',
-            'notes' => 'nullable|string',
+            'notes' => [
+                Rule::requiredIf(fn () => in_array($this->input('status'), ['Cuti', 'Mengundurkan Diri', 'Pensiun', 'Pindah'], true)),
+                'nullable',
+                'string',
+            ],
             'certification_status' => 'nullable|in:Sudah,Belum',
             'certification_date' => 'nullable|date',
             'teacher_registration_number' => 'nullable|string|max:50',
@@ -81,6 +85,7 @@ class UpdateTeacherRequest extends FormRequest
             'gender.in' => 'Jenis kelamin harus L atau P',
             'nuptk.unique' => 'NUPTK sudah terdaftar',
             'email.email' => 'Format email tidak valid',
+            'notes.required' => 'Catatan wajib diisi untuk status Cuti, Mengundurkan Diri, Pensiun, atau Pindah',
         ];
     }
 }

@@ -29,12 +29,14 @@ class InventoryLoan extends Model
         'expected_return_date',
         'actual_return_date',
         'quantity',
-        'purpose',
-        'status',
-        'notes',
-        'created_by',
-        'updated_by',
-    ];
+            'purpose',
+            'status',
+            'notes',
+            'return_condition',
+            'return_item_status',
+            'created_by',
+            'updated_by',
+        ];
 
     /**
      * Get the attributes that should be cast.

@@ -11,6 +11,7 @@ use App\Models\Institution;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Services\ClassService;
+use App\Support\InstitutionContext;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,25 @@ class ClassController extends Controller
         protected ClassService $classService
     ) {}
 
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
+    private function canAccessClass(Request $request, SchoolClass $class): bool
+    {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
+            return true;
+        }
+
+        return InstitutionContext::canAccessInstitution($user, (int) $class->institution_id);
+    }
+
     /**
      * Display a listing of classes.
      */
@@ -28,26 +48,24 @@ class ClassController extends Controller
     {
         $filters = $request->only(['search', 'grade', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'room_id', 'teacher_id']);
         
-        $institutionId = null;
-        if (!$request->user()->isAdminOrSuperAdmin()) {
-            $institutionId = $request->user()->institution_id;
-        } elseif ($request->has('institution_id')) {
-            $institutionId = $request->get('institution_id');
-        }
+        $institutionId = $this->resolveInstitutionId($request);
 
-        // Jika tidak ada filter academic_year_id, gunakan active_academic_year_id dari institusi
-        if (!isset($filters['academic_year_id']) && $institutionId) {
+        // Default tahun ajaran/semester aktif hanya jika filter tidak eksplisit.
+        // Semester aktif tidak boleh dipaksa jika tahun ajaran yang dipilih beda
+        // (menyebabkan dropdown naik kelas/luluskan kosong).
+        if ($institutionId) {
             $institution = Institution::find($institutionId);
-            if ($institution && $institution->active_academic_year_id) {
-                $filters['academic_year_id'] = $institution->active_academic_year_id;
-            }
-        }
-
-        // Jika tidak ada filter semester_id, gunakan active_semester_id dari institusi
-        if (!isset($filters['semester_id']) && $institutionId) {
-            $institution = Institution::find($institutionId);
-            if ($institution && $institution->active_semester_id) {
-                $filters['semester_id'] = $institution->active_semester_id;
+            if ($institution) {
+                if (!isset($filters['academic_year_id']) && $institution->active_academic_year_id) {
+                    $filters['academic_year_id'] = $institution->active_academic_year_id;
+                }
+                if (!isset($filters['semester_id']) && $institution->active_semester_id) {
+                    $yearId = $filters['academic_year_id'] ?? null;
+                    $activeSemester = $institution->activeSemester;
+                    if ($activeSemester && $yearId && (int) $activeSemester->academic_year_id === (int) $yearId) {
+                        $filters['semester_id'] = $institution->active_semester_id;
+                    }
+                }
             }
         }
 
@@ -58,13 +76,56 @@ class ClassController extends Controller
     }
 
     /**
+     * Salin kelas aktif dari satu tahun ajaran ke tahun ajaran lain (untuk persiapan naik kelas).
+     */
+    public function cloneToYear(Request $request)
+    {
+        $request->validate([
+            'source_academic_year_id' => 'required|integer|exists:academic_years,id',
+            'target_academic_year_id' => 'required|integer|exists:academic_years,id',
+            'target_semester_id' => 'nullable|integer|exists:semesters,id',
+            'institution_id' => 'nullable|integer|exists:institution,id',
+        ]);
+
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan. Pilih kelas sumber terlebih dahulu atau kirim institution_id.'], 400);
+            }
+
+            $result = $this->classService->cloneToAcademicYear(
+                $institutionId,
+                (int) $request->input('source_academic_year_id'),
+                (int) $request->input('target_academic_year_id'),
+                $request->filled('target_semester_id') ? (int) $request->input('target_semester_id') : null
+            );
+
+            return response()->json([
+                'message' => $result['created'] . ' kelas berhasil disalin ke tahun ajaran tujuan.'
+                    . (count($result['skipped']) > 0 ? ' ' . count($result['skipped']) . ' dilewati karena sudah ada.' : ''),
+                'created' => $result['created'],
+                'skipped' => $result['skipped'],
+                'data' => ClassResource::collection(collect($result['classes'])),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Failed to clone classes to year', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal menyalin kelas ke tahun ajaran tujuan',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Store a newly created class.
      */
     public function store(StoreClassRequest $request)
     {
-        $institutionId = $request->user()->isAdminOrSuperAdmin() 
-            ? $request->institution_id 
-            : $request->user()->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
 
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -116,7 +177,7 @@ class ClassController extends Controller
         $class = $this->classService->find($id);
 
         // Jika bukan admin/super admin, hanya bisa melihat kelas dari institusi sendiri
-        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
+        if (!$this->canAccessClass($request, $class)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -131,7 +192,7 @@ class ClassController extends Controller
         $class = SchoolClass::findOrFail($id);
 
         // Jika bukan admin/super admin, hanya bisa update kelas dari institusi sendiri
-        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
+        if (!$this->canAccessClass($request, $class)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -157,7 +218,7 @@ class ClassController extends Controller
         $class = SchoolClass::findOrFail($id);
 
         // Jika bukan admin/super admin, hanya bisa hapus kelas dari institusi sendiri
-        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
+        if (!$this->canAccessClass($request, $class)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -183,7 +244,7 @@ class ClassController extends Controller
         $class = SchoolClass::findOrFail($id);
 
         // Jika bukan admin/super admin, hanya bisa menambah siswa ke kelas dari institusi sendiri
-        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
+        if (!$this->canAccessClass($request, $class)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -255,7 +316,7 @@ class ClassController extends Controller
         $class = SchoolClass::findOrFail($id);
 
         // Jika bukan admin/super admin, hanya bisa melihat siswa dari institusi sendiri
-        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
+        if (!$this->canAccessClass($request, $class)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -291,7 +352,7 @@ class ClassController extends Controller
         $class = SchoolClass::findOrFail($id);
 
         // Jika bukan admin/super admin, hanya bisa menghapus siswa dari kelas dari institusi sendiri
-        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
+        if (!$this->canAccessClass($request, $class)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -331,14 +392,19 @@ class ClassController extends Controller
         $class = SchoolClass::findOrFail($id);
 
         // Jika bukan admin/super admin, hanya bisa melihat siswa dari kelas dari institusi sendiri
-        if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $class->institution_id) {
+        if (!$this->canAccessClass($request, $class)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $perPage = min($request->get('per_page', 50), 100);
-        $students = $class->students()
-            ->orderBy('name', 'asc')
-            ->paginate($perPage);
+        $query = $class->students()->orderBy('name', 'asc');
+        if ($request->filled('status')) {
+            $query->where('status', $request->get('status'));
+        }
+        if ($request->filled('academic_year_id')) {
+            $query->where('academic_year_id', $request->get('academic_year_id'));
+        }
+        $students = $query->paginate($perPage);
 
         return StudentResource::collection($students);
     }
@@ -351,16 +417,8 @@ class ClassController extends Controller
         try {
             $filters = $request->only(['search', 'grade', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'room_id', 'teacher_id']);
             
-            $institutionId = null;
-            $institution = null;
-            
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-                $institution = Institution::find($institutionId);
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-                $institution = Institution::find($institutionId);
-            }
+            $institutionId = $this->resolveInstitutionId($request);
+            $institution = $institutionId ? Institution::find($institutionId) : null;
 
             // Jika tidak ada filter academic_year_id, gunakan active_academic_year_id dari institusi
             if (!isset($filters['academic_year_id']) && $institutionId) {

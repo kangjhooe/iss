@@ -499,4 +499,48 @@ onMounted(async () => {
 .page-num {
   color: #64748b;
 }
+
+@media (max-width: 768px) {
+  .tab-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-header .filters-inline {
+    width: 100%;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+
+  .filters-inline .filter-group {
+    width: 100%;
+  }
+
+  .filters-inline .filter-group .filter-select,
+  .filters-inline .filter-group input {
+    width: 100%;
+  }
+
+  .tab-header .btn-primary,
+  .tab-header .btn-compact {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    min-width: 640px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.25rem;
+  }
+}
 </style>

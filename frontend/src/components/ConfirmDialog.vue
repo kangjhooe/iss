@@ -16,7 +16,12 @@
           <button type="button" @click="handleCancel" class="btn-secondary" :disabled="loading">
             {{ cancelText }}
           </button>
-          <button type="button" @click="handleConfirm" class="btn-danger" :disabled="loading">
+          <button
+            type="button"
+            @click="handleConfirm"
+            :class="confirmVariant === 'primary' ? 'btn-confirm-primary' : 'btn-danger'"
+            :disabled="loading"
+          >
             {{ loading ? loadingText : confirmText }}
           </button>
         </div>
@@ -60,6 +65,11 @@ const props = defineProps({
   loadingText: {
     type: String,
     default: 'Menghapus...'
+  },
+  confirmVariant: {
+    type: String,
+    default: 'danger',
+    validator: (value) => ['danger', 'primary'].includes(value)
   },
   closeOnOverlay: {
     type: Boolean,
@@ -108,7 +118,7 @@ watch(() => props.show, (newVal) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: 12000;
   padding: 20px;
 }
 
@@ -217,9 +227,9 @@ watch(() => props.show, (newVal) => {
   cursor: not-allowed;
 }
 
-.btn-danger {
+.btn-danger,
+.btn-confirm-primary {
   padding: 10px 20px;
-  background: #ef4444;
   color: white;
   border: none;
   border-radius: 8px;
@@ -229,11 +239,24 @@ watch(() => props.show, (newVal) => {
   transition: all 0.15s ease;
 }
 
+.btn-danger {
+  background: #ef4444;
+}
+
 .btn-danger:hover:not(:disabled) {
   background: #dc2626;
 }
 
-.btn-danger:disabled {
+.btn-confirm-primary {
+  background: #059669;
+}
+
+.btn-confirm-primary:hover:not(:disabled) {
+  background: #047857;
+}
+
+.btn-danger:disabled,
+.btn-confirm-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

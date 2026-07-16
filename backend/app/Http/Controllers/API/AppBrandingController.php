@@ -8,6 +8,7 @@ use App\Helpers\FileUploadRules;
 use App\Helpers\FileUploadHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class AppBrandingController extends Controller
@@ -18,21 +19,17 @@ class AppBrandingController extends Controller
      */
     public function show()
     {
+        if (!Schema::hasTable('app_branding')) {
+            return response()->json([
+                'data' => $this->defaultBrandingData(),
+            ]);
+        }
+
         $branding = AppBranding::first();
 
         if (!$branding) {
             return response()->json([
-                'data' => [
-                    'app_logo_url' => null,
-                    'favicon_url' => null,
-                    'hero_headline' => null,
-                    'hero_subheadline' => null,
-                    'hero_image_url' => null,
-                    'hero_primary_cta_text' => null,
-                    'hero_primary_cta_to' => null,
-                    'hero_secondary_cta_text' => null,
-                    'hero_secondary_cta_to' => null,
-                ],
+                'data' => $this->defaultBrandingData(),
             ]);
         }
 
@@ -47,8 +44,78 @@ class AppBrandingController extends Controller
                 'hero_primary_cta_to' => $branding->hero_primary_cta_to,
                 'hero_secondary_cta_text' => $branding->hero_secondary_cta_text,
                 'hero_secondary_cta_to' => $branding->hero_secondary_cta_to,
+                'maintenance_mode' => (bool) ($branding->maintenance_mode ?? false),
+                'maintenance_message' => $branding->maintenance_message,
             ],
         ]);
+    }
+
+    /**
+     * Update maintenance mode. Hanya super admin.
+     */
+    public function updateMaintenance(Request $request)
+    {
+        try {
+            if (!$request->user()?->isSuperAdmin()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $validated = $request->validate([
+                'maintenance_mode' => 'required|boolean',
+                'maintenance_message' => 'nullable|string|max:1000',
+            ]);
+
+            $branding = AppBranding::firstOrCreate([], [
+                'app_logo' => null,
+                'favicon' => null,
+                'maintenance_mode' => false,
+            ]);
+
+            $old = [
+                'maintenance_mode' => (bool) $branding->maintenance_mode,
+                'maintenance_message' => $branding->maintenance_message,
+            ];
+
+            $branding->update([
+                'maintenance_mode' => $validated['maintenance_mode'],
+                'maintenance_message' => $validated['maintenance_message'] ?? $branding->maintenance_message,
+            ]);
+
+            \App\Models\AuditLog::logManual(
+                $request,
+                'maintenance.updated',
+                AppBranding::class,
+                $branding->id,
+                $old,
+                [
+                    'maintenance_mode' => (bool) $branding->maintenance_mode,
+                    'maintenance_message' => $branding->maintenance_message,
+                ]
+            );
+
+            Log::info('Maintenance mode updated', [
+                'maintenance_mode' => $branding->maintenance_mode,
+                'user_id' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'message' => $branding->maintenance_mode
+                    ? 'Mode pemeliharaan diaktifkan'
+                    : 'Mode pemeliharaan dinonaktifkan',
+                'data' => [
+                    'maintenance_mode' => (bool) $branding->maintenance_mode,
+                    'maintenance_message' => $branding->maintenance_message,
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Maintenance update failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal memperbarui mode pemeliharaan',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     /**
@@ -230,5 +297,22 @@ class AppBrandingController extends Controller
             Log::error('Hero image upload failed', ['error' => $e->getMessage()]);
             return \App\Helpers\ApiResponse::serverError('Gagal mengunggah gambar hero', $e->getMessage());
         }
+    }
+
+    private function defaultBrandingData(): array
+    {
+        return [
+            'app_logo_url' => null,
+            'favicon_url' => null,
+            'hero_headline' => null,
+            'hero_subheadline' => null,
+            'hero_image_url' => null,
+            'hero_primary_cta_text' => null,
+            'hero_primary_cta_to' => null,
+            'hero_secondary_cta_text' => null,
+            'hero_secondary_cta_to' => null,
+            'maintenance_mode' => false,
+            'maintenance_message' => null,
+        ];
     }
 }

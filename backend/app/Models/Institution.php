@@ -171,6 +171,38 @@ class Institution extends Model
     }
 
     /**
+     * Get the surat (editor) for the institution.
+     */
+    public function surat()
+    {
+        return $this->hasMany(Surat::class);
+    }
+
+    /**
+     * Get the template surat for the institution.
+     */
+    public function templateSurat()
+    {
+        return $this->hasMany(TemplateSurat::class);
+    }
+
+    /**
+     * Get the kop surat for the institution.
+     */
+    public function kopSurat()
+    {
+        return $this->hasMany(KopSurat::class);
+    }
+
+    /**
+     * Get the signature/stamp assets for the institution.
+     */
+    public function asetTandaTangan()
+    {
+        return $this->hasMany(AsetTandaTangan::class);
+    }
+
+    /**
      * Get the correspondence categories for the institution.
      */
     public function correspondenceCategories()
