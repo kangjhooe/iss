@@ -13,6 +13,7 @@ use App\Models\TeacherViolation;
 use App\Models\TeacherViolationType;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -363,6 +364,7 @@ class TeacherPointService
                 'employee.id as employee_id',
                 'employee.name',
                 'employee.nip',
+                'employee.nuptk',
                 'employee.type',
                 'employee.subject',
                 DB::raw('COALESCE(ach.achievement_points, 0) as achievement_points'),
@@ -385,6 +387,7 @@ class TeacherPointService
                     'id' => (int) $row->employee_id,
                     'name' => $row->name,
                     'nip' => $row->nip,
+                    'nuptk' => $row->nuptk,
                     'type' => $row->type,
                     'subject' => $row->subject,
                 ],
@@ -441,8 +444,13 @@ class TeacherPointService
             })
             ->count();
 
-        $pendingAchievement = (int) TeacherAchievement::forInstitution($institutionId)->pending()->count();
-        $pendingViolation = (int) TeacherViolation::forInstitution($institutionId)->pending()->count();
+        $pendingAchievementQuery = TeacherAchievement::forInstitution($institutionId)->pending();
+        $this->applyPeriodFilters($pendingAchievementQuery, $academicYearId, $semesterId);
+        $pendingAchievement = (int) $pendingAchievementQuery->count();
+
+        $pendingViolationQuery = TeacherViolation::forInstitution($institutionId)->pending();
+        $this->applyPeriodFilters($pendingViolationQuery, $academicYearId, $semesterId);
+        $pendingViolation = (int) $pendingViolationQuery->count();
 
         $byCategory = TeacherAchievement::query()
             ->from('teacher_achievements')
@@ -470,6 +478,116 @@ class TeacherPointService
             ->groupBy('teacher_violation_types.category');
         $this->applyPeriodFilters($violationsByCategory, $academicYearId, $semesterId, 'teacher_violations');
 
+        $achievementSub = TeacherAchievement::query()
+            ->select(
+                'employee_id',
+                DB::raw('SUM(point_value) as achievement_points'),
+                DB::raw('COUNT(*) as achievements_count')
+            )
+            ->where('institution_id', $institutionId)
+            ->where('status', TeacherAchievement::STATUS_APPROVED);
+        $this->applyPeriodFilters($achievementSub, $academicYearId, $semesterId);
+        $achievementSub->groupBy('employee_id');
+
+        $violationSub = TeacherViolation::query()
+            ->select(
+                'employee_id',
+                DB::raw('SUM(point_value) as violation_points'),
+                DB::raw('COUNT(*) as violations_count')
+            )
+            ->where('institution_id', $institutionId)
+            ->where('status', TeacherViolation::STATUS_APPROVED);
+        $this->applyPeriodFilters($violationSub, $academicYearId, $semesterId);
+        $violationSub->groupBy('employee_id');
+
+        $teacherRecap = Employee::query()
+            ->from('employee')
+            ->where('employee.institution_id', $institutionId)
+            ->where('employee.status', 'Aktif')
+            ->where('employee.type', 'Guru')
+            ->leftJoinSub($achievementSub, 'report_achievements', 'report_achievements.employee_id', '=', 'employee.id')
+            ->leftJoinSub($violationSub, 'report_violations', 'report_violations.employee_id', '=', 'employee.id')
+            ->select(
+                'employee.id as employee_id',
+                'employee.name',
+                'employee.nip',
+                'employee.nuptk',
+                'employee.subject',
+                DB::raw('COALESCE(report_achievements.achievement_points, 0) as achievement_points'),
+                DB::raw('COALESCE(report_violations.violation_points, 0) as violation_points'),
+                DB::raw('COALESCE(report_achievements.achievement_points, 0) - COALESCE(report_violations.violation_points, 0) as total_points'),
+                DB::raw('COALESCE(report_achievements.achievements_count, 0) as achievements_count'),
+                DB::raw('COALESCE(report_violations.violations_count, 0) as violations_count')
+            )
+            ->orderBy('employee.name')
+            ->get()
+            ->map(fn ($row) => [
+                'employee_id' => (int) $row->employee_id,
+                'name' => $row->name,
+                'nip' => $row->nip,
+                'nuptk' => $row->nuptk,
+                'subject' => $row->subject,
+                'achievements_count' => (int) $row->achievements_count,
+                'achievement_points' => (int) $row->achievement_points,
+                'violations_count' => (int) $row->violations_count,
+                'violation_points' => (int) $row->violation_points,
+                'total_points' => (int) $row->total_points,
+            ])
+            ->values()
+            ->all();
+
+        $achievementDetailsQuery = TeacherAchievement::with([
+            'employee:id,name,nip,nuptk,subject',
+            'achievementType:id,name,category',
+            'giver:id,name',
+            'submitter:id,name',
+        ])
+            ->forInstitution($institutionId)
+            ->approved()
+            ->orderBy('achievement_date')
+            ->orderBy('id');
+        $this->applyPeriodFilters($achievementDetailsQuery, $academicYearId, $semesterId);
+        $achievementDetails = $achievementDetailsQuery->get()->map(fn (TeacherAchievement $item) => [
+            'id' => $item->id,
+            'achievement_date' => $item->achievement_date?->format('Y-m-d'),
+            'employee_name' => $item->employee?->name,
+            'employee_nip' => $item->employee?->nip,
+            'employee_nuptk' => $item->employee?->nuptk,
+            'subject' => $item->employee?->subject,
+            'type_name' => $item->achievementType?->name,
+            'category' => $item->achievementType?->category,
+            'title' => $item->title,
+            'level' => $item->level,
+            'point_value' => (int) $item->point_value,
+            'notes' => $item->notes,
+            'recorded_by' => $item->giver?->name ?: $item->submitter?->name,
+        ])->values()->all();
+
+        $violationDetailsQuery = TeacherViolation::with([
+            'employee:id,name,nip,nuptk,subject',
+            'violationType:id,name,category',
+            'reporter:id,name',
+        ])
+            ->forInstitution($institutionId)
+            ->approved()
+            ->orderBy('violation_date')
+            ->orderBy('id');
+        $this->applyPeriodFilters($violationDetailsQuery, $academicYearId, $semesterId);
+        $violationDetails = $violationDetailsQuery->get()->map(fn (TeacherViolation $item) => [
+            'id' => $item->id,
+            'violation_date' => $item->violation_date?->format('Y-m-d'),
+            'employee_name' => $item->employee?->name,
+            'employee_nip' => $item->employee?->nip,
+            'employee_nuptk' => $item->employee?->nuptk,
+            'subject' => $item->employee?->subject,
+            'type_name' => $item->violationType?->name,
+            'category' => $item->violationType?->category,
+            'point_value' => (int) $item->point_value,
+            'sanction' => $item->sanction,
+            'notes' => $item->notes,
+            'reported_by' => $item->reporter?->name,
+        ])->values()->all();
+
         return [
             'total_achievements' => $totalAchievements,
             'achievement_points' => $achievementPoints,
@@ -490,6 +608,9 @@ class TeacherPointService
                 'count' => (int) $r->count,
             ])->values()->all(),
             'leaderboard' => $this->getLeaderboard($institutionId, $academicYearId, $semesterId, 10)->all(),
+            'teacher_recap' => $teacherRecap,
+            'achievement_details' => $achievementDetails,
+            'violation_details' => $violationDetails,
             'academic_year_id' => $academicYearId,
             'semester_id' => $semesterId,
         ];
@@ -759,6 +880,160 @@ class TeacherPointService
             $institution?->active_academic_year_id ? (int) $institution->active_academic_year_id : null,
             $institution?->active_semester_id ? (int) $institution->active_semester_id : null,
         ];
+    }
+
+    /**
+     * @return array{pending_achievements: int, pending_violations: int}
+     */
+    public function getPendingCounts(int $institutionId): array
+    {
+        return Cache::remember("teacher_appreciation_pending_{$institutionId}", 20, function () use ($institutionId) {
+            return [
+                'pending_achievements' => (int) TeacherAchievement::forInstitution($institutionId)->pending()->count(),
+                'pending_violations' => (int) TeacherViolation::forInstitution($institutionId)->pending()->count(),
+            ];
+        });
+    }
+
+    public function forgetPendingCounts(int $institutionId): void
+    {
+        Cache::forget("teacher_appreciation_pending_{$institutionId}");
+    }
+
+    /**
+     * Lean achievements list query for index / bootstrap.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateAchievements(int $institutionId, array $filters = [], int $perPage = 15)
+    {
+        $query = TeacherAchievement::query()
+            ->select([
+                'id',
+                'institution_id',
+                'employee_id',
+                'achievement_type_id',
+                'title',
+                'achievement_date',
+                'point_value',
+                'level',
+                'notes',
+                'evidence_path',
+                'status',
+                'academic_year_id',
+                'semester_id',
+            ])
+            ->with([
+                'employee:id,name,nip',
+                'achievementType:id,name,category',
+            ])
+            ->forInstitution($institutionId)
+            ->orderByDesc('achievement_date')
+            ->orderByDesc('id');
+
+        $this->applyListFilters($query, $filters, $institutionId, 'achievement');
+
+        return $query->paginate(min($perPage, 100));
+    }
+
+    /**
+     * Lean violations list query for index / bootstrap.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateViolations(int $institutionId, array $filters = [], int $perPage = 15)
+    {
+        $query = TeacherViolation::query()
+            ->select([
+                'id',
+                'institution_id',
+                'employee_id',
+                'piket_incident_id',
+                'violation_type_id',
+                'violation_date',
+                'point_value',
+                'notes',
+                'evidence_path',
+                'status',
+                'sanction',
+                'reported_by',
+                'academic_year_id',
+                'semester_id',
+            ])
+            ->with([
+                'employee:id,name,nip',
+                'violationType:id,name,category',
+                'reporter:id,name',
+            ])
+            ->forInstitution($institutionId)
+            ->orderByDesc('violation_date')
+            ->orderByDesc('id');
+
+        $this->applyListFilters($query, $filters, $institutionId, 'violation');
+
+        return $query->paginate(min($perPage, 100));
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    protected function applyListFilters($query, array $filters, int $institutionId, string $kind): void
+    {
+        if (!empty($filters['academic_year_id'])) {
+            $query->where('academic_year_id', (int) $filters['academic_year_id']);
+        }
+        if (!empty($filters['semester_id'])) {
+            $query->where('semester_id', (int) $filters['semester_id']);
+        }
+        if (!empty($filters['employee_id'])) {
+            $query->where('employee_id', $filters['employee_id']);
+        }
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if ($kind === 'achievement') {
+            if (!empty($filters['achievement_type_id'])) {
+                $query->where('achievement_type_id', $filters['achievement_type_id']);
+            }
+            if (!empty($filters['category'])) {
+                $typeIds = TeacherAchievementType::forInstitution($institutionId)
+                    ->where('category', $filters['category'])
+                    ->pluck('id');
+                $query->whereIn('achievement_type_id', $typeIds);
+            }
+            if (!empty($filters['search'])) {
+                $search = $filters['search'];
+                $query->where(function ($q) use ($search, $institutionId) {
+                    $q->where('title', 'like', "%{$search}%")
+                        ->orWhereIn('employee_id', function ($sub) use ($search, $institutionId) {
+                            $sub->select('id')
+                                ->from('employee')
+                                ->where('institution_id', $institutionId)
+                                ->where(function ($e) use ($search) {
+                                    $e->where('name', 'like', "%{$search}%")
+                                        ->orWhere('nip', 'like', "%{$search}%");
+                                });
+                        });
+                });
+            }
+        } else {
+            if (!empty($filters['violation_type_id'])) {
+                $query->where('violation_type_id', $filters['violation_type_id']);
+            }
+            if (!empty($filters['search'])) {
+                $search = $filters['search'];
+                $query->whereIn('employee_id', function ($sub) use ($search, $institutionId) {
+                    $sub->select('id')
+                        ->from('employee')
+                        ->where('institution_id', $institutionId)
+                        ->where(function ($e) use ($search) {
+                            $e->where('name', 'like', "%{$search}%")
+                                ->orWhere('nip', 'like', "%{$search}%");
+                        });
+                });
+            }
+        }
     }
 
     protected function applyPeriodFilters($query, ?int $academicYearId, ?int $semesterId, ?string $table = null): void

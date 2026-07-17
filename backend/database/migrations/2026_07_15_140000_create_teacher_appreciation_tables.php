@@ -77,7 +77,7 @@ return new class extends Migration
             $table->foreignId('semester_id')->nullable()->constrained('semesters')->onDelete('set null');
             $table->timestamps();
             $table->index(['employee_id', 'reward_date']);
-            $table->index(['institution_id', 'academic_year_id', 'semester_id']);
+            $table->index(['institution_id', 'academic_year_id', 'semester_id'], 'trl_inst_ay_sem_idx');
         });
     }
 

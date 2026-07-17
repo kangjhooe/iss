@@ -13,6 +13,8 @@ use App\Services\StudentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
@@ -62,7 +64,7 @@ class StudentController extends Controller
             }
 
             // Get filters
-            $filters = $request->only(['search', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'gender']);
+            $filters = $request->only(['search', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'gender', 'tingkat']);
             $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
             $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
 
@@ -450,6 +452,7 @@ class StudentController extends Controller
 
             // Ambil semester aktif institusi agar siswa impor muncul di list (list difilter by semester_id)
             $institution = \App\Models\Institution::find($institutionId);
+            $validGrades = $this->validGradesForLevel($institution?->level);
             $defaults = ['institution_id' => $institutionId];
             if ($institution && $institution->active_semester_id) {
                 $defaults['semester_id'] = $institution->active_semester_id;
@@ -470,6 +473,26 @@ class StudentController extends Controller
                         $errors[] = "Baris " . ($index + 1) . ": NIK dan Nama Lengkap wajib diisi";
                         $errorCount++;
                         continue;
+                    }
+
+                    $rowValidator = Validator::make($studentData, [
+                        'tingkat' => $validGrades === null
+                            ? ['nullable', 'integer', Rule::in([])]
+                            : ['required', 'integer', Rule::in($validGrades)],
+                    ], [
+                        'tingkat.required' => 'Tingkat wajib diisi',
+                        'tingkat.integer' => 'Tingkat harus berupa angka',
+                        'tingkat.in' => 'Tingkat tidak sesuai dengan jenjang institusi',
+                    ]);
+
+                    if ($rowValidator->fails()) {
+                        $errors[] = "Baris " . ($index + 1) . ': ' . $rowValidator->errors()->first();
+                        $errorCount++;
+                        continue;
+                    }
+
+                    if ($validGrades !== null) {
+                        $studentData['tingkat'] = (int) $studentData['tingkat'];
                     }
 
                     // Siswa impor wajib punya semester_id agar muncul di daftar (isi dari semester aktif jika belum ada)
@@ -713,5 +736,16 @@ class StudentController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    private function validGradesForLevel(?string $level): ?array
+    {
+        return match ($level) {
+            'PAUD', 'TK' => null,
+            'SD', 'MI' => [1, 2, 3, 4, 5, 6],
+            'SMP', 'MTs' => [7, 8, 9],
+            'SMA', 'MA', 'MAK', 'SMK' => [10, 11, 12],
+            default => range(1, 12),
+        };
     }
 }

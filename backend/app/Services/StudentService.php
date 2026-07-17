@@ -70,10 +70,14 @@ class StudentService
             $query->where('gender', $filters['gender']);
         }
 
+        if (isset($filters['tingkat'])) {
+            $query->where('tingkat', $filters['tingkat']);
+        }
+
         $perPage = min($perPage, 100); // Max 100 per page
 
         // Include graduation_year for list
-        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'graduation_year', 'created_at'])
+        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'tingkat', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'graduation_year', 'created_at'])
             ->with([
                 'institution:id,name,npsn',
                 'class:id,name,grade,academic_year_id',
@@ -232,9 +236,11 @@ class StudentService
             return null;
         }
 
-        // Load class and academic year if not already loaded
-        $class = $student->class_id == $classId ? $student->class : \App\Models\SchoolClass::find($classId);
-        $academicYear = $student->academic_year_id == $academicYearId ? $student->academicYear : \App\Models\AcademicYear::find($academicYearId);
+        // Kolom student.class adalah string nama kelas — jangan dipakai sebagai relasi.
+        $class = \App\Models\SchoolClass::find($classId);
+        $academicYear = $student->relationLoaded('academicYear') && (int) $student->academic_year_id === (int) $academicYearId
+            ? $student->academicYear
+            : \App\Models\AcademicYear::find($academicYearId);
 
         if (!$class || !$academicYear) {
             Log::warning('Cannot create class history - class or academic year not found', [
@@ -320,7 +326,7 @@ class StudentService
         $perPage = min($perPage, 100);
 
         return $query
-            ->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year', 'academic_year_id', 'graduation_year', 'status', 'created_at'])
+            ->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'tingkat', 'class', 'class_id', 'academic_year', 'academic_year_id', 'graduation_year', 'status', 'created_at'])
             ->with([
                 'institution:id,name,npsn',
                 'class:id,name,grade',
@@ -349,15 +355,35 @@ class StudentService
 
         $oldClassId = $student->class_id;
         $oldAcademicYearId = $student->academic_year_id;
+        $oldSemesterId = $student->semester_id;
+
+        // Samakan tahun ajaran/semester dengan kelas jika data siswa tidak sinkron
+        // (sering terjadi setelah naik tahun ajaran tanpa pindah class_id).
+        // Catatan: $student->class adalah kolom string nama kelas, bukan relasi.
+        if ($oldClassId) {
+            $classModel = $student->relationLoaded('class')
+                ? $student->getRelation('class')
+                : \App\Models\SchoolClass::find($oldClassId);
+            if ($classModel instanceof \App\Models\SchoolClass) {
+                if ($classModel->academic_year_id && (int) $oldAcademicYearId !== (int) $classModel->academic_year_id) {
+                    $oldAcademicYearId = (int) $classModel->academic_year_id;
+                }
+                if ($classModel->semester_id && (int) $oldSemesterId !== (int) $classModel->semester_id) {
+                    $oldSemesterId = (int) $classModel->semester_id;
+                }
+            }
+        }
 
         if ($oldClassId && $oldAcademicYearId) {
             $this->endPreviousHistory($student->id, $oldClassId, $oldAcademicYearId);
-            $this->createClassHistory($student, $oldClassId, $oldAcademicYearId, $student->semester_id, 'Lulus');
+            $this->createClassHistory($student, $oldClassId, $oldAcademicYearId, $oldSemesterId, 'Lulus');
         }
 
         $student->update([
             'status' => 'Lulus',
             'graduation_year' => $year,
+            'academic_year_id' => $oldAcademicYearId ?: $student->academic_year_id,
+            'semester_id' => $oldSemesterId ?: $student->semester_id,
         ]);
 
         Log::info('Student graduated', [
@@ -478,6 +504,7 @@ class StudentService
 
         $updateData = [
             'class_id' => $targetClassId,
+            'tingkat' => $targetClass->grade,
             'academic_year_id' => $targetAcademicYearId,
             'class' => $targetClass->name,
             'academic_year' => $targetAcademicYear->name,
@@ -507,6 +534,10 @@ class StudentService
             return true;
         }
 
-        return $student->institution_id === $userInstitutionId;
+        if ($userInstitutionId === null) {
+            return false;
+        }
+
+        return (int) $student->institution_id === (int) $userInstitutionId;
     }
 }

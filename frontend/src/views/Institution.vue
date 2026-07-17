@@ -178,6 +178,10 @@
               </div>
             </div>
             <div class="info-item">
+              <label>Nama Yayasan</label>
+              <p :class="{ 'text-empty': !institution.foundation_name || !String(institution.foundation_name).trim() }">{{ displayValue(institution.foundation_name) }}</p>
+            </div>
+            <div class="info-item">
               <label>NPSN</label>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <p :class="{ 'text-empty': !institution.npsn || !String(institution.npsn).trim() }">{{ displayValue(institution.npsn) }}</p>
@@ -444,6 +448,14 @@
                 </small>
               </div>
               <div class="form-group">
+                <label>Nama Yayasan</label>
+                <input v-model="form.foundation_name" placeholder="Contoh: Yayasan Pendidikan ..." />
+                <small class="form-hint">Tampil di baris atas kop laporan cetak (opsional).</small>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
                 <label>NPSN</label>
                 <input 
                   v-model="form.npsn" 
@@ -453,13 +465,13 @@
                   Perubahan NPSN memerlukan persetujuan super admin. Gunakan tombol "Ubah" di profil untuk request perubahan.
                 </small>
               </div>
-            </div>
-
-            <div class="form-row">
               <div class="form-group">
                 <label>Nomor Statistik</label>
                 <input v-model="form.nss" />
               </div>
+            </div>
+
+            <div class="form-row">
               <div class="form-group">
                 <label>Jenjang</label>
                 <select v-model="form.level">
@@ -476,9 +488,6 @@
                   <option value="PAUD">PAUD</option>
                 </select>
               </div>
-            </div>
-
-            <div class="form-row">
               <div class="form-group">
                 <label>Status</label>
                 <select v-model="form.type">
@@ -486,7 +495,10 @@
                   <option value="Negeri">Negeri</option>
                 </select>
               </div>
-              <div v-if="isSuperAdmin" class="form-group">
+            </div>
+
+            <div class="form-row" v-if="isSuperAdmin">
+              <div class="form-group">
                 <label>Status Aktif</label>
                 <label class="checkbox-label">
                   <input type="checkbox" v-model="form.is_active" />
@@ -718,16 +730,23 @@
                 <input v-model="form.name" :required="!showEditModalSuperAdmin" />
               </div>
               <div class="form-group">
-                <label>NPSN</label>
-                <input v-model="form.npsn" maxlength="8" />
+                <label>Nama Yayasan</label>
+                <input v-model="form.foundation_name" placeholder="Contoh: Yayasan Pendidikan ..." />
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
+                <label>NPSN</label>
+                <input v-model="form.npsn" maxlength="8" />
+              </div>
+              <div class="form-group">
                 <label>Nomor Statistik</label>
                 <input v-model="form.nss" />
               </div>
+            </div>
+
+            <div class="form-row">
               <div class="form-group">
                 <label>Jenjang</label>
                 <select v-model="form.level">
@@ -1035,6 +1054,7 @@ const academicYearForm = ref({
 
 const form = ref({
   name: '',
+  foundation_name: '',
   npsn: '',
   nss: '',
   level: '',
@@ -1275,7 +1295,7 @@ const getValidationRules = (mode = 'update') => {
 }
 
 const INSTITUTION_PAYLOAD_KEYS = [
-  'name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
+  'name', 'foundation_name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
   'province_code', 'district_code',
   'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
   'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
@@ -1698,6 +1718,7 @@ const handleUpdateSuperAdmin = async () => {
 const resetForm = () => {
   form.value = {
     name: '',
+    foundation_name: '',
     npsn: '',
     nss: '',
     level: '',

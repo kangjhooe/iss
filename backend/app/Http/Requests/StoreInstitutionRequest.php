@@ -24,6 +24,7 @@ class StoreInstitutionRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'foundation_name' => 'nullable|string|max:255',
             'npsn' => [
                 'nullable',
                 'string',

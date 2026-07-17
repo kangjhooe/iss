@@ -59,7 +59,7 @@ class StudentMutationService
         DB::beginTransaction();
         try {
             $student->load('class');
-            $grade = $student->class?->grade;
+            $grade = $student->tingkat ?? $student->class?->grade;
             $gender = $student->gender;
             if (is_string($gender)) {
                 $gender = preg_match('/^(L|l|Laki|Male)/i', $gender) ? 'L' : 'P';
@@ -160,6 +160,7 @@ class StudentMutationService
                 'nisn' => $studentNisn,
                 'name' => $studentName,
                 'gender' => $gender,
+                'tingkat' => is_numeric($studentGrade) ? (int) $studentGrade : null,
                 'status' => 'Aktif',
                 'academic_year_id' => $target->active_academic_year_id,
                 'academic_year' => $target->activeAcademicYear?->name,
@@ -261,7 +262,7 @@ class StudentMutationService
 
             // Simpan grade dan gender siswa sebelum pindah (untuk laporan per kelas/L-P)
             $student->load('class');
-            $grade = $student->class?->grade;
+            $grade = $student->tingkat ?? $student->class?->grade;
             $gender = $student->gender;
             if (is_string($gender)) {
                 $gender = preg_match('/^(L|l|Laki|Male)/i', $gender) ? 'L' : 'P';

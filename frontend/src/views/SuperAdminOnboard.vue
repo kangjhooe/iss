@@ -35,6 +35,10 @@
                 <label>Nama Sekolah/Madrasah *</label>
                 <input v-model="form.name" type="text" required class="form-control" maxlength="255" />
               </div>
+              <div class="form-group full">
+                <label>Nama Yayasan</label>
+                <input v-model="form.foundation_name" type="text" class="form-control" maxlength="255" placeholder="Opsional — tampil di kop laporan" />
+              </div>
               <div class="form-group">
                 <label>NPSN</label>
                 <input v-model="form.npsn" type="text" class="form-control" maxlength="8" placeholder="8 digit" />
@@ -159,6 +163,7 @@ const levels = ['TK', 'SD', 'SMP', 'SMA', 'SMK', 'MA', 'MAK', 'MTs', 'MI', 'PAUD
 
 const emptyForm = () => ({
   name: '',
+  foundation_name: '',
   npsn: '',
   level: '',
   type: 'Swasta',
@@ -198,6 +203,7 @@ const handleNext = async () => {
   try {
     const payload = {
       name: form.value.name.trim(),
+      foundation_name: form.value.foundation_name?.trim() || null,
       npsn: form.value.npsn || null,
       level: form.value.level || null,
       type: form.value.type,

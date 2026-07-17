@@ -10,23 +10,20 @@
         .header h1 { font-size: 14pt; font-weight: bold; margin: 0 0 4px 0; }
         .header p { font-size: 8pt; margin: 0; color: #444; }
         .period { font-size: 8pt; margin-bottom: 10px; color: #555; }
-        table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; font-size: 8pt; }
         table th, table td { border: 1px solid #333; padding: 4px 6px; text-align: left; }
         table th { background: #e8e8e8; font-weight: bold; }
         table td.num { text-align: center; width: 28px; }
         table td.time { white-space: nowrap; }
         .footer { margin-top: 10px; font-size: 7pt; text-align: center; color: #666; }
+        @include('partials.print-letterhead-styles')
+        @include('partials.print-signature-styles')
     </style>
 </head>
 <body>
+    @include('partials.print-letterhead', ['institution' => $institution])
     <div class="header">
-        @if($institution)
-            <h1>{{ $institution->name }}</h1>
-            <p>NPSN: {{ $institution->npsn ?? '-' }}</p>
-            <p>BUKU TAMU</p>
-        @else
-            <h1>BUKU TAMU</h1>
-        @endif
+        <h1>BUKU TAMU</h1>
     </div>
 
     @if($date_from || $date_to)
@@ -71,6 +68,12 @@
 
     <div class="footer">
         Dicetak pada {{ now()->locale('id')->isoFormat('D MMMM YYYY HH:mm') }} &mdash; {{ $visits->count() }} catatan
+    </div>
+    <div class="standard-signature-wrap">
+        <div class="standard-signature-left"></div>
+        <div class="standard-signature-right">
+            @include('partials.print-signature', ['institution' => $institution])
+        </div>
     </div>
 </body>
 </html>

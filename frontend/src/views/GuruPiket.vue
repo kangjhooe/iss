@@ -186,6 +186,9 @@
               <option value="">Semua Hari</option>
               <option v-for="(label, key) in days" :key="key" :value="String(key)">{{ label }}</option>
             </select>
+            <span v-if="schedules.length" class="schedule-summary">
+              {{ schedules.length }} penugasan · {{ groupedSchedules.length }} hari
+            </span>
             <div class="filters-spacer"></div>
             <button v-if="canManage" type="button" class="btn-primary btn-compact" @click="openScheduleModal()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -215,28 +218,45 @@
               <thead>
                 <tr>
                   <th>Hari</th>
-                  <th>Shift</th>
                   <th>Guru</th>
+                  <th>Shift</th>
                   <th>Jam</th>
                   <th v-if="canManage">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="s in schedules" :key="s.id">
-                  <td>{{ s.day_name || dayName(s.day_of_week) }}</td>
-                  <td><span class="shift-chip">{{ s.shift_label || shiftLabel(s.shift) }}</span></td>
-                  <td>
-                    <span class="cell-name">{{ s.employee?.name }}</span>
-                    <span class="cell-meta">{{ s.employee?.nip || '-' }}</span>
-                  </td>
-                  <td>{{ formatTimeRange(s.start_time, s.end_time) }}</td>
-                  <td v-if="canManage">
-                    <div class="action-buttons">
-                      <button type="button" class="btn-action btn-edit" title="Edit" @click="openScheduleModal(s)">✎</button>
-                      <button type="button" class="btn-action btn-delete" title="Hapus" @click="removeSchedule(s)">🗑</button>
-                    </div>
-                  </td>
-                </tr>
+                <template v-for="group in groupedSchedules" :key="group.day">
+                  <tr
+                    v-for="(s, index) in group.items"
+                    :key="s.id"
+                    :class="['schedule-row', { 'schedule-group-start': index === 0 }]"
+                  >
+                    <td v-if="index === 0" :rowspan="group.items.length" class="schedule-day-cell">
+                      <span class="schedule-day-name">{{ group.label }}</span>
+                      <span class="schedule-day-count">{{ group.teacherCount }} guru piket</span>
+                      <button
+                        v-if="canManage"
+                        type="button"
+                        class="btn-add-day"
+                        @click="openScheduleModal(null, group.day)"
+                      >
+                        + Tambah guru
+                      </button>
+                    </td>
+                    <td>
+                      <span class="cell-name">{{ s.employee?.name }}</span>
+                      <span class="cell-meta">{{ s.employee?.nip || '-' }}</span>
+                    </td>
+                    <td><span class="shift-chip">{{ s.shift_label || shiftLabel(s.shift) }}</span></td>
+                    <td>{{ formatTimeRange(s.start_time, s.end_time) }}</td>
+                    <td v-if="canManage">
+                      <div class="action-buttons">
+                        <button type="button" class="btn-action btn-edit" title="Edit" @click="openScheduleModal(s)">✎</button>
+                        <button type="button" class="btn-action btn-delete" title="Hapus" @click="removeSchedule(s)">🗑</button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -903,6 +923,35 @@ const allScheduleDaysSelected = computed(() => {
   return keys.length > 0 && keys.every((k) => scheduleForm.days_of_week.includes(String(k)))
 })
 
+const groupedSchedules = computed(() => {
+  const shiftOrder = { pagi: 1, siang: 2, full: 3 }
+  const groups = new Map()
+
+  schedules.value.forEach((schedule) => {
+    const day = Number(schedule.day_of_week)
+    if (!groups.has(day)) {
+      groups.set(day, {
+        day,
+        label: schedule.day_name || dayName(day),
+        items: [],
+      })
+    }
+    groups.get(day).items.push(schedule)
+  })
+
+  return [...groups.values()]
+    .sort((a, b) => a.day - b.day)
+    .map((group) => ({
+      ...group,
+      teacherCount: new Set(group.items.map((item) => item.employee_id)).size,
+      items: group.items.sort((a, b) => {
+        const shiftDiff = (shiftOrder[a.shift] || 99) - (shiftOrder[b.shift] || 99)
+        if (shiftDiff !== 0) return shiftDiff
+        return (a.employee?.name || '').localeCompare(b.employee?.name || '', 'id')
+      }),
+    }))
+})
+
 const toggleAllScheduleDays = () => {
   if (allScheduleDaysSelected.value) {
     scheduleForm.days_of_week = []
@@ -1281,11 +1330,13 @@ const runScan = async () => {
   }
 }
 
-const openScheduleModal = (item = null) => {
+const openScheduleModal = (item = null, presetDay = null) => {
   editingSchedule.value = item
   scheduleForm.employee_id = item ? String(item.employee_id) : ''
-  scheduleForm.day_of_week = item ? String(item.day_of_week) : '1'
-  scheduleForm.days_of_week = item ? [String(item.day_of_week)] : []
+  scheduleForm.day_of_week = item ? String(item.day_of_week) : String(presetDay || '1')
+  scheduleForm.days_of_week = item
+    ? [String(item.day_of_week)]
+    : (presetDay ? [String(presetDay)] : [])
   scheduleForm.shift = item?.shift || 'pagi'
   scheduleForm.start_time = item?.start_time || '07:00'
   scheduleForm.end_time = item?.end_time || '14:00'
@@ -1852,6 +1903,12 @@ onMounted(async () => {
   align-items: flex-end;
 }
 .filters-spacer { flex: 1; min-width: 0.5rem; }
+.schedule-summary {
+  align-self: center;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
 .filter-select,
 .form-input,
 .form-select {
@@ -1982,6 +2039,39 @@ onMounted(async () => {
 }
 .data-table tbody tr:hover { background: #f8fafc; }
 .data-table tbody tr:last-child td { border-bottom: none; }
+.schedule-group-start:not(:first-child) td {
+  border-top: 2px solid #e2e8f0;
+}
+.schedule-day-cell {
+  width: 150px;
+  min-width: 130px;
+  vertical-align: top !important;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+}
+.schedule-day-name {
+  display: block;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.schedule-day-count {
+  display: block;
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+.btn-add-day {
+  margin-top: 0.65rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #059669;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.btn-add-day:hover { color: #047857; text-decoration: underline; }
 .cell-name {
   display: block;
   font-weight: 600;

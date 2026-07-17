@@ -238,6 +238,7 @@ class InstitutionAdminController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
+                'foundation_name' => 'nullable|string|max:255',
                 'npsn' => 'nullable|string|size:8|regex:/^[0-9]{8}$/|unique:institution,npsn',
                 'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MAK,MTs,MI,PAUD',
                 'type' => 'required|in:Negeri,Swasta',
@@ -267,6 +268,7 @@ class InstitutionAdminController extends Controller
 
             $institution = Institution::create([
                 'name' => $validated['name'],
+                'foundation_name' => $validated['foundation_name'] ?? null,
                 'npsn' => $validated['npsn'] ?? null,
                 'level' => $validated['level'] ?? null,
                 'type' => $validated['type'],

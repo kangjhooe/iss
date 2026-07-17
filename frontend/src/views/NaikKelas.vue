@@ -268,9 +268,10 @@ async function loadSourceStudents() {
   }
   loadingStudents.value = true
   try {
+    // class_id sudah menunjuk kelas sumber; jangan filter academic_year_id di siswa
+    // agar data yang tahun ajarannya tidak sinkron tetap muncul.
     const res = await classApi.getStudents(sourceClassId.value, {
       status: 'Aktif',
-      academic_year_id: sourceAcademicYearId.value || undefined,
       per_page: 100
     })
     const data = (res.data?.data ?? []).filter((s) => s.status === 'Aktif')
@@ -281,7 +282,6 @@ async function loadSourceStudents() {
     try {
       const res = await studentApi.getAll({
         class_id: sourceClassId.value,
-        academic_year_id: sourceAcademicYearId.value,
         status: 'Aktif',
         per_page: 100,
         ...institutionParams()

@@ -28,6 +28,12 @@
             margin: 10px 0 5px 0;
             text-transform: uppercase;
         }
+        .header .foundation {
+            font-size: 11pt;
+            font-weight: 600;
+            margin: 6px 0 0 0;
+            text-transform: uppercase;
+        }
         .header p {
             font-size: 11pt;
             margin: 2px 0;
@@ -44,7 +50,8 @@
             margin-bottom: 20px;
         }
         .letter-info table {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
         }
         .letter-info td {
@@ -72,7 +79,8 @@
             text-align: right;
         }
         .signature table {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
         }
         .signature td {
@@ -107,33 +115,11 @@
             font-weight: bold;
             margin-bottom: 10px;
         }
+        @include('partials.print-letterhead-styles')
     </style>
 </head>
 <body>
-    <!-- Header Sekolah -->
-    <div class="header">
-        @if($institution->logo)
-            <img src="{{ public_path('storage/' . $institution->logo) }}" alt="Logo">
-        @endif
-        <h1>{{ $institution->name }}</h1>
-        <p>NPSN: {{ $institution->npsn }}</p>
-        @if($institution->nss)
-            <p>NSS: {{ $institution->nss }}</p>
-        @endif
-        <div class="address">
-            <p>{{ $institution->address }}</p>
-            <p>{{ $institution->village }}, {{ $institution->sub_district }}, {{ $institution->district }}</p>
-            <p>{{ $institution->province }} {{ $institution->postal_code }}</p>
-            @if($institution->phone)
-                <p>Telp: {{ $institution->phone }}</p>
-            @endif
-            @if($institution->email)
-                <p>Email: {{ $institution->email }}</p>
-            @endif
-        </div>
-    </div>
-
-    <div class="divider"></div>
+    @include('partials.print-letterhead', ['institution' => $institution])
 
     <!-- Informasi Surat -->
     <div class="letter-info">
@@ -206,7 +192,7 @@
                     @if($institution->principal_name)
                         {{ $institution->principal_name }}
                     @else
-                        Kepala Sekolah
+                        {{ $institution->principal_title ?? \App\Models\Institution::principalTitleForLevel($institution->level ?? null) }}
                     @endif
                 </div>
                 @if($institution->principal_nip)

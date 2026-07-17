@@ -2,6 +2,29 @@
  * Utility functions untuk institution
  */
 
+const MADRASAH_LEVELS = ['MI', 'MTS', 'MA', 'MAK']
+const SEKOLAH_LEVELS = ['SD', 'SMP', 'SMA', 'SMK']
+
+/**
+ * Apakah jenjang termasuk madrasah (MI, MTs, MA, MAK).
+ * @param {string} level
+ * @returns {boolean}
+ */
+export function isMadrasahLevel(level) {
+  if (!level) return false
+  return MADRASAH_LEVELS.includes(String(level).toUpperCase())
+}
+
+/**
+ * Jabatan penandatangan laporan: satu jabatan saja.
+ * Madrasah → "Kepala Madrasah", selain itu → "Kepala Sekolah".
+ * @param {string} level
+ * @returns {string}
+ */
+export function getPrincipalTitle(level) {
+  return isMadrasahLevel(level) ? 'Kepala Madrasah' : 'Kepala Sekolah'
+}
+
 /**
  * Mendapatkan label jenis instansi berdasarkan level
  * @param {string} level - Level jenjang (SD, SMP, SMA, SMK, MI, MTs, MA, MAK, dll)
@@ -9,16 +32,16 @@
  */
 export function getInstitutionTypeLabel(level) {
   if (!level) return 'Instansi'
-  
-  const madrasahLevels = ['MI', 'MTs', 'MA', 'MAK']
-  const sekolahLevels = ['SD', 'SMP', 'SMA', 'SMK']
-  
-  if (madrasahLevels.includes(level)) {
+
+  const normalized = String(level).toUpperCase()
+
+  if (MADRASAH_LEVELS.includes(normalized)) {
     return 'Madrasah'
-  } else if (sekolahLevels.includes(level)) {
+  }
+  if (SEKOLAH_LEVELS.includes(normalized)) {
     return 'Sekolah'
   }
-  
+
   return 'Instansi' // Default untuk TK, PAUD, dll
 }
 
@@ -41,7 +64,7 @@ export function getValidGradesForLevel(level) {
   if (!level) return []
   const L = String(level).toUpperCase()
   if (L === 'SD' || L === 'MI') return [1, 2, 3, 4, 5, 6]
-  if (L === 'SMP' || L === 'MTs') return [7, 8, 9]
+  if (L === 'SMP' || L === 'MTS') return [7, 8, 9]
   if (L === 'SMA' || L === 'MA' || L === 'MAK' || L === 'SMK') return [10, 11, 12]
   return [] // PAUD, TK, atau lain tidak pakai tingkat numerik
 }

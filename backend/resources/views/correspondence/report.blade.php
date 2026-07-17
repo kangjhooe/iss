@@ -6,7 +6,7 @@
     <title>Laporan Surat Menyurat</title>
     <style>
         @page {
-            size: A4 landscape;
+            size: A4 portrait;
             margin: 15mm;
         }
         body {
@@ -35,7 +35,8 @@
             margin-bottom: 15px;
         }
         .info-section table {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
         }
         .info-section td {
@@ -49,7 +50,8 @@
             background-color: #f2f2f2;
         }
         table {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
             margin-top: 15px;
         }
@@ -107,9 +109,12 @@
             color: #999;
             font-style: italic;
         }
+        @include('partials.print-letterhead-styles')
+        @include('partials.print-signature-styles')
     </style>
 </head>
 <body>
+    @include('partials.print-letterhead', ['institution' => $institution])
     <div class="header">
         <h1>
             @if(isset($filters['type']))
@@ -126,10 +131,6 @@
                 LAPORAN SURAT MENYURAT
             @endif
         </h1>
-        @if($institution)
-        <p>{{ $institution->name }}</p>
-        <p>NPSN: {{ $institution->npsn ?? '-' }}</p>
-        @endif
         <p>Dicetak pada: {{ $generated_at->format('d F Y H:i:s') }}</p>
     </div>
 
@@ -204,6 +205,15 @@
 
     <div class="footer">
         Total: {{ count($correspondence) }} surat
+    </div>
+    <div class="standard-signature-wrap">
+        <div class="standard-signature-left"></div>
+        <div class="standard-signature-right">
+            @include('partials.print-signature', [
+                'institution' => $institution,
+                'date' => $generated_at->locale('id')->translatedFormat('d F Y'),
+            ])
+        </div>
     </div>
 </body>
 </html>

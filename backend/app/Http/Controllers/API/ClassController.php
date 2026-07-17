@@ -273,6 +273,16 @@ class ClassController extends Controller
                     continue;
                 }
 
+                if ($class->grade !== null && (int) $student->tingkat !== (int) $class->grade) {
+                    $errors[] = "Siswa {$student->name} berada di tingkat {$student->tingkat}, bukan tingkat {$class->grade}";
+                    continue;
+                }
+
+                if ($class->grade === null && $student->tingkat !== null) {
+                    $errors[] = "Siswa {$student->name} memiliki tingkat numerik yang tidak sesuai dengan kelas ini";
+                    continue;
+                }
+
                 // Check if class has capacity
                 if ($class->capacity && $class->students()->count() >= $class->capacity) {
                     $errors[] = "Kelas sudah penuh (kapasitas: {$class->capacity})";
@@ -282,6 +292,7 @@ class ClassController extends Controller
                 // Update student class_id, class (string), academic_year_id, and academic_year
                 $student->update([
                     'class_id' => $class->id,
+                    'tingkat' => $class->grade,
                     'class' => $class->name, // Update class string field
                     'academic_year_id' => $class->academic_year_id,
                     'academic_year' => $class->academic_year,
@@ -323,6 +334,12 @@ class ClassController extends Controller
         $query = Student::where('institution_id', $class->institution_id)
             ->where('status', 'Aktif')
             ->whereNull('class_id'); // Only students without class
+
+        if ($class->grade === null) {
+            $query->whereNull('tingkat');
+        } else {
+            $query->where('tingkat', $class->grade);
+        }
 
         if ($request->has('search')) {
             $search = $request->search;

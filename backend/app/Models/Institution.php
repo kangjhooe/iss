@@ -20,6 +20,7 @@ class Institution extends Model
      */
     protected $fillable = [
         'name',
+        'foundation_name',
         'npsn',
         'nss',
         'level',
@@ -530,6 +531,35 @@ class Institution extends Model
         $nnn = str_pad((string) max(1, $participantOrder), 3, '0', STR_PAD_LEFT);
 
         return "{$yy}-{$pp}-{$kk}-{$j}-{$ssss}-{$nnn}";
+    }
+
+    /**
+     * Apakah jenjang termasuk madrasah (MI, MTs, MA, MAK).
+     */
+    public static function isMadrasahLevel(?string $level): bool
+    {
+        if ($level === null || $level === '') {
+            return false;
+        }
+
+        return in_array(strtoupper($level), ['MI', 'MTS', 'MA', 'MAK'], true);
+    }
+
+    /**
+     * Jabatan penandatangan laporan: satu jabatan saja.
+     * Madrasah → "Kepala Madrasah", selain itu → "Kepala Sekolah".
+     */
+    public static function principalTitleForLevel(?string $level): string
+    {
+        return self::isMadrasahLevel($level) ? 'Kepala Madrasah' : 'Kepala Sekolah';
+    }
+
+    /**
+     * Jabatan penandatangan untuk institusi ini.
+     */
+    public function getPrincipalTitleAttribute(): string
+    {
+        return self::principalTitleForLevel($this->level);
     }
 
     /**

@@ -3,7 +3,12 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\TeacherAchievementResource;
+use App\Http\Resources\TeacherViolationResource;
+use App\Models\AcademicYear;
 use App\Models\Employee;
+use App\Models\Institution;
+use App\Models\Semester;
 use App\Models\TeacherAchievement;
 use App\Models\TeacherViolation;
 use App\Services\TeacherPointService;
@@ -221,6 +226,163 @@ class TeacherPointController extends Controller
         $items = $query->limit(300)->get();
 
         return response()->json(['data' => $items]);
+    }
+
+    /**
+     * Cheap badge counts — avoid paginating full achievement/violation lists just for totals.
+     */
+    public function pendingCounts(Request $request): JsonResponse
+    {
+        $institutionId = $request->user()->institution_id;
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        return response()->json([
+            'data' => $this->pointService->getPendingCounts($institutionId),
+        ]);
+    }
+
+    /**
+     * Single payload for first paint of Apresiasi Guru page.
+     * Replaces separate calls: years + semesters + institution period + pending + list.
+     */
+    public function bootstrap(Request $request): JsonResponse
+    {
+        $institutionId = $request->user()->institution_id;
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $institution = Institution::query()
+            ->select([
+                'id',
+                'name',
+                'foundation_name',
+                'npsn',
+                'nss',
+                'level',
+                'address',
+                'village',
+                'sub_district',
+                'district',
+                'province',
+                'postal_code',
+                'phone',
+                'email',
+                'website',
+                'logo',
+                'principal_name',
+                'principal_nip',
+                'active_academic_year_id',
+                'active_semester_id',
+            ])
+            ->find($institutionId);
+
+        $academicYears = AcademicYear::query()
+            ->select('id', 'code', 'name', 'status', 'start_date')
+            ->orderByDesc('start_date')
+            ->limit(40)
+            ->get()
+            ->map(fn (AcademicYear $year) => [
+                'id' => $year->id,
+                'code' => $year->code,
+                'name' => $year->name,
+                'status' => $year->status,
+                'is_active' => $year->status === 'Aktif',
+            ])
+            ->values();
+
+        $academicYearId = $institution?->active_academic_year_id
+            ? (int) $institution->active_academic_year_id
+            : null;
+        $semesterId = $institution?->active_semester_id
+            ? (int) $institution->active_semester_id
+            : null;
+
+        if (!$academicYearId && $academicYears->isNotEmpty()) {
+            $activeYear = $academicYears->firstWhere('is_active', true) ?: $academicYears->first();
+            $academicYearId = (int) $activeYear['id'];
+        }
+
+        $semesters = collect();
+        if ($academicYearId) {
+            $semesters = Semester::query()
+                ->select('id', 'academic_year_id', 'name', 'order', 'status')
+                ->where('academic_year_id', $academicYearId)
+                ->orderBy('order')
+                ->get()
+                ->map(fn (Semester $semester) => [
+                    'id' => $semester->id,
+                    'academic_year_id' => $semester->academic_year_id,
+                    'name' => $semester->name,
+                    'order' => $semester->order,
+                    'status' => $semester->status,
+                    'is_active' => $semester->status === 'Aktif',
+                ])
+                ->values();
+
+            if (!$semesterId && $semesters->isNotEmpty()) {
+                $activeSem = $semesters->firstWhere('is_active', true) ?: $semesters->first();
+                $semesterId = (int) $activeSem['id'];
+            }
+        }
+
+        $tab = $request->get('tab', 'achievements');
+        $perPage = min((int) $request->get('per_page', 15), 50);
+        $filters = [
+            'academic_year_id' => $academicYearId,
+            'semester_id' => $semesterId,
+        ];
+
+        // Load both main lists in one request so Prestasi ↔ Pelanggaran tab switch is instant.
+        $achievementsPaginator = $this->pointService->paginateAchievements($institutionId, $filters, $perPage);
+        $violationsPaginator = $this->pointService->paginateViolations($institutionId, $filters, $perPage);
+        $achievementsPayload = TeacherAchievementResource::collection($achievementsPaginator)->response()->getData(true);
+        $violationsPayload = TeacherViolationResource::collection($violationsPaginator)->response()->getData(true);
+
+        $listKey = in_array($tab, ['violations', 'pending_violations'], true) ? 'violations' : 'achievements';
+        $listPayload = $listKey === 'violations' ? $violationsPayload : $achievementsPayload;
+
+        $pending = $this->pointService->getPendingCounts($institutionId);
+
+        $institutionPayload = null;
+        if ($institution) {
+            $institutionPayload = $institution->toArray();
+            $institutionPayload['logo'] = $institution->logo
+                ? asset('storage/' . $institution->logo)
+                : null;
+            $institutionPayload['active_academic_year_id'] = $institution->active_academic_year_id;
+            $institutionPayload['active_semester_id'] = $institution->active_semester_id;
+        }
+
+        return response()->json([
+            'data' => [
+                'period' => [
+                    'academic_year_id' => $academicYearId ? (string) $academicYearId : '',
+                    'semester_id' => $semesterId ? (string) $semesterId : '',
+                ],
+                'academic_years' => $academicYears,
+                'semesters' => $semesters,
+                'pending_achievements' => $pending['pending_achievements'],
+                'pending_violations' => $pending['pending_violations'],
+                'institution' => $institutionPayload,
+                'list_key' => $listKey,
+                'list' => $listPayload['data'] ?? [],
+                'meta' => $listPayload['meta'] ?? [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $perPage,
+                    'total' => 0,
+                    'from' => null,
+                    'to' => null,
+                ],
+                'achievements' => $achievementsPayload['data'] ?? [],
+                'achievements_meta' => $achievementsPayload['meta'] ?? null,
+                'violations' => $violationsPayload['data'] ?? [],
+                'violations_meta' => $violationsPayload['meta'] ?? null,
+            ],
+        ]);
     }
 
     /**

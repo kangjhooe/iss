@@ -32,51 +32,17 @@ class TeacherAchievementController extends Controller
 
             [$academicYearId, $semesterId] = $this->pointService->resolvePeriodFromRequest($request, $institutionId);
 
-            $query = TeacherAchievement::with([
-                'employee:id,name,nip,nuptk,type,subject',
-                'achievementType:id,name,code,point_value,category',
-                'giver:id,name',
-                'submitter:id,name',
-                'reviewer:id,name',
-                'academicYear:id,name,code',
-                'semester:id,name',
-            ])
-                ->forInstitution($institutionId)
-                ->orderByDesc('achievement_date')
-                ->orderByDesc('id');
+            $paginator = $this->pointService->paginateAchievements($institutionId, [
+                'academic_year_id' => $academicYearId,
+                'semester_id' => $semesterId,
+                'employee_id' => $request->input('employee_id'),
+                'achievement_type_id' => $request->input('achievement_type_id'),
+                'status' => $request->input('status'),
+                'category' => $request->input('category'),
+                'search' => $request->input('search'),
+            ], (int) $request->get('per_page', 15));
 
-            if ($academicYearId) {
-                $query->where('academic_year_id', $academicYearId);
-            }
-            if ($semesterId) {
-                $query->where('semester_id', $semesterId);
-            }
-            if ($request->filled('employee_id')) {
-                $query->where('employee_id', $request->employee_id);
-            }
-            if ($request->filled('achievement_type_id')) {
-                $query->where('achievement_type_id', $request->achievement_type_id);
-            }
-            if ($request->filled('status')) {
-                $query->where('status', $request->status);
-            }
-            if ($request->filled('category')) {
-                $query->whereHas('achievementType', fn ($q) => $q->where('category', $request->category));
-            }
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('title', 'like', "%{$search}%")
-                        ->orWhereHas('employee', function ($eq) use ($search) {
-                            $eq->where('name', 'like', "%{$search}%")
-                                ->orWhere('nip', 'like', "%{$search}%");
-                        });
-                });
-            }
-
-            $perPage = min((int) $request->get('per_page', 15), 100);
-
-            return TeacherAchievementResource::collection($query->paginate($perPage));
+            return TeacherAchievementResource::collection($paginator);
         } catch (\Exception $e) {
             Log::error('TeacherAchievement index failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal mengambil data prestasi guru.'], 500);
@@ -138,6 +104,8 @@ class TeacherAchievementController extends Controller
                 'employee', 'achievementType', 'giver', 'submitter', 'reviewer',
                 'academicYear:id,name,code', 'semester:id,name',
             ]);
+
+            $this->pointService->forgetPendingCounts($institutionId);
 
             return (new TeacherAchievementResource($achievement))->response()->setStatusCode(201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -247,6 +215,8 @@ class TeacherAchievementController extends Controller
 
         $teacher_achievement->delete();
 
+        $this->pointService->forgetPendingCounts((int) $teacher_achievement->institution_id);
+
         return response()->json(['message' => 'Prestasi guru berhasil dihapus.']);
     }
 
@@ -267,6 +237,8 @@ class TeacherAchievementController extends Controller
             'review_notes' => $request->input('review_notes'),
             'given_by' => $teacher_achievement->given_by ?: $request->user()->id,
         ]);
+
+        $this->pointService->forgetPendingCounts((int) $teacher_achievement->institution_id);
 
         $teacher_achievement->load([
             'employee', 'achievementType', 'giver', 'submitter', 'reviewer',
@@ -296,6 +268,8 @@ class TeacherAchievementController extends Controller
             'reviewed_at' => now(),
             'review_notes' => $request->review_notes,
         ]);
+
+        $this->pointService->forgetPendingCounts((int) $teacher_achievement->institution_id);
 
         $teacher_achievement->load([
             'employee', 'achievementType', 'giver', 'submitter', 'reviewer',

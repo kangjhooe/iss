@@ -29,6 +29,13 @@
             margin: 0 0 2px;
             letter-spacing: 0.3px;
         }
+        .kop-text .inst-foundation {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 0 0 2px;
+            letter-spacing: 0.2px;
+        }
         .kop-text .inst-meta {
             font-size: 8.5px;
             color: #444;
@@ -55,7 +62,8 @@
             margin: 3px 0 0;
         }
         .info-box {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             margin: 12px 0 14px;
             border: 1px solid #cbd5e1;
             background: #f8fafc;
@@ -82,8 +90,10 @@
             letter-spacing: 0.4px;
         }
         .summary {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             margin-bottom: 8px;
+            border-collapse: collapse;
         }
         .summary td {
             border: 1px solid #cbd5e1;
@@ -104,7 +114,8 @@
             text-transform: uppercase;
         }
         table.data {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
             margin-bottom: 4px;
         }
@@ -164,6 +175,8 @@
             color: #475569;
             margin-bottom: 10px;
         }
+        @include('partials.print-letterhead-styles')
+        .cell-note { color: #555; font-size: 8px; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -177,34 +190,7 @@
     $signDate = now()->locale('id')->translatedFormat('d F Y');
 @endphp
 
-{{-- KOP --}}
-<table class="kop kop-inner">
-    <tr>
-        <td class="logo-cell">
-            @if($institution && $institution->logo && file_exists(public_path('storage/' . $institution->logo)))
-                <img src="{{ public_path('storage/' . $institution->logo) }}" alt="Logo">
-            @endif
-        </td>
-        <td class="kop-text">
-            <p class="inst-name">{{ $institution->name ?? 'Institusi' }}</p>
-            @if($institution)
-                <p class="inst-meta">
-                    @if($institution->address){{ $institution->address }}@endif
-                    @if($institution->village){{ $institution->address ? ', ' : '' }}{{ $institution->village }}@endif
-                    @if($institution->sub_district){{ ', Kec. ' . $institution->sub_district }}@endif
-                    @if($institution->district){{ ', ' . $institution->district }}@endif
-                </p>
-                <p class="inst-meta">
-                    @if($institution->npsn)NPSN: {{ $institution->npsn }}@endif
-                    @if($institution->phone){{ $institution->npsn ? ' | ' : '' }}Telp: {{ $institution->phone }}@endif
-                    @if($institution->email){{ ($institution->npsn || $institution->phone) ? ' | ' : '' }}{{ $institution->email }}@endif
-                </p>
-            @endif
-        </td>
-        <td class="logo-cell"></td>
-    </tr>
-</table>
-<div class="kop-line"></div>
+@include('partials.print-letterhead', ['institution' => $institution])
 
 @if(($mode ?? '') === 'single')
     <div class="doc-title">
@@ -228,9 +214,12 @@
         </tr>
         <tr>
             <td class="lbl">Penanggung Jawab</td>
-            <td>: {{ $pj->name ?? 'Belum ditetapkan' }}</td>
-            <td class="lbl">NIP</td>
-            <td>: {{ $pj->nip ?? '-' }}</td>
+            <td colspan="3">
+                : {{ $pj->name ?? 'Belum ditetapkan' }}
+                @if($pj)
+                    <div class="cell-note" style="margin-left: 8px;">{{ $pj->nip ?: ($pj->nuptk ?: 'Tanpa NIP/NUPTK') }}</div>
+                @endif
+            </td>
         </tr>
     </table>
 
@@ -401,7 +390,12 @@
                 <td class="center">{{ $r->lab_type ?: '-' }}</td>
                 <td>{{ $r->building->name ?? '-' }}</td>
                 <td class="center">{{ $r->condition }}</td>
-                <td>{{ $r->responsibleEmployee->name ?? '-' }}</td>
+                <td>
+                    <div>{{ $r->responsibleEmployee->name ?? '-' }}</div>
+                    @if($r->responsibleEmployee)
+                        <div class="cell-note">{{ $r->responsibleEmployee->nip ?: ($r->responsibleEmployee->nuptk ?: 'Tanpa NIP/NUPTK') }}</div>
+                    @endif
+                </td>
                 <td class="center">{{ $inventoryCounts[$r->id] ?? 0 }}</td>
                 <td class="center">{{ $damagedCounts[$r->id] ?? 0 }}</td>
             </tr>
@@ -415,7 +409,7 @@
             <td>
                 <div class="sign-box">
                     <div class="place">{{ $city ?: '................' }}, {{ $signDate }}</div>
-                    <div class="role">Mengetahui,<br>Kepala {{ $institution->level ?? 'Sekolah' }}</div>
+                    <div class="role">Mengetahui,<br>{{ $institution->principal_title ?? \App\Models\Institution::principalTitleForLevel($institution->level ?? null) }}</div>
                     <p class="name">{{ $institution->principal_name ?? '(................................)' }}</p>
                     <p class="nip">NIP. {{ $institution->principal_nip ?? '........................' }}</p>
                 </div>

@@ -28,6 +28,12 @@
             text-transform: uppercase;
             margin: 0 0 2px;
         }
+        .kop-text .inst-foundation {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 0 0 2px;
+        }
         .kop-text .inst-meta { font-size: 8.5px; color: #444; margin: 0; }
         .kop-line {
             border-bottom: 0.8px solid #0f172a;
@@ -43,7 +49,8 @@
         }
         .doc-title .subtitle { font-size: 10px; color: #333; margin: 3px 0 0; }
         .summary {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
             margin-bottom: 14px;
         }
@@ -64,7 +71,8 @@
             color: #fff;
         }
         table.data {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
             margin-bottom: 8px;
         }
@@ -98,41 +106,12 @@
             padding: 0;
         }
         .sign .space { height: 48px; }
+        @include('partials.print-letterhead-styles')
+        .cell-note { color: #555; font-size: 8px; margin-top: 2px; }
     </style>
 </head>
 <body>
-    @php
-        $inst = $institution;
-        $logoPath = null;
-        if ($inst && !empty($inst->logo)) {
-            $candidate = storage_path('app/public/' . ltrim($inst->logo, '/'));
-            if (is_file($candidate)) {
-                $logoPath = $candidate;
-            }
-        }
-    @endphp
-
-    <div class="kop">
-        <table class="kop-inner">
-            <tr>
-                <td class="logo-cell">
-                    @if($logoPath)
-                        <img src="{{ $logoPath }}" alt="Logo">
-                    @endif
-                </td>
-                <td class="kop-text">
-                    <p class="inst-name">{{ $inst->name ?? 'Institusi' }}</p>
-                    <p class="inst-meta">
-                        @if(!empty($inst->address)){{ $inst->address }}@endif
-                        @if(!empty($inst->phone)) · Telp. {{ $inst->phone }}@endif
-                        @if(!empty($inst->email)) · {{ $inst->email }}@endif
-                    </p>
-                </td>
-                <td class="logo-cell"></td>
-            </tr>
-        </table>
-    </div>
-    <div class="kop-line"></div>
+    @include('partials.print-letterhead', ['institution' => $institution])
 
     <div class="doc-title">
         <h1>Laporan Mingguan Guru Piket</h1>
@@ -179,7 +158,12 @@
                 <tr>
                     <td>{{ \App\Models\PiketSchedule::DAYS[$s->day_of_week] ?? $s->day_of_week }}</td>
                     <td>{{ \App\Models\PiketSchedule::SHIFTS[$s->shift] ?? $s->shift }}</td>
-                    <td>{{ $s->employee->name ?? '-' }}</td>
+                    <td>
+                        <div>{{ $s->employee->name ?? '-' }}</div>
+                        @if($s->employee)
+                            <div class="cell-note">{{ $s->employee->nip ?: 'Tanpa NIP/NUPTK' }}</div>
+                        @endif
+                    </td>
                     <td>
                         @if($s->start_time)
                             {{ $s->start_time->format('H:i') }}–{{ $s->end_time?->format('H:i') ?? '' }}
@@ -208,7 +192,12 @@
             @forelse($logs as $log)
                 <tr>
                     <td>{{ $log->duty_date?->format('d/m/Y') }}</td>
-                    <td>{{ $log->employee->name ?? '-' }}</td>
+                    <td>
+                        <div>{{ $log->employee->name ?? '-' }}</div>
+                        @if($log->employee)
+                            <div class="cell-note">{{ $log->employee->nip ?: 'Tanpa NIP/NUPTK' }}</div>
+                        @endif
+                    </td>
                     <td>{{ $log->summary ?: '-' }}</td>
                     <td>{{ \App\Models\PiketLog::STATUSES[$log->status] ?? $log->status }}</td>
                 </tr>
@@ -239,7 +228,12 @@
                             <div class="muted">Kelas: {{ $inc->schoolClass->name }}@if($inc->period) · Jam ke-{{ $inc->period }}@endif</div>
                         @endif
                         @if($inc->employee)
-                            <div class="muted">Guru: {{ $inc->employee->name }}</div>
+                            <div class="muted">
+                                Guru: {{ $inc->employee->name }}
+                                @if($inc->employee->nip)
+                                    <span class="cell-note">({{ $inc->employee->nip }})</span>
+                                @endif
+                            </div>
                         @endif
                         @if($inc->student)
                             <div class="muted">Siswa: {{ $inc->student->name }} ({{ $inc->student->nis }})</div>
@@ -260,7 +254,7 @@
         <tr>
             <td>
                 <div>Mengetahui,</div>
-                <div>Kepala Sekolah</div>
+                <div>{{ $inst->principal_title ?? \App\Models\Institution::principalTitleForLevel($inst->level ?? null) }}</div>
                 <div class="space"></div>
                 <div><strong>{{ $inst->principal_name ?? '........................' }}</strong></div>
                 @if(!empty($inst->principal_nip))

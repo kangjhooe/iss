@@ -10,39 +10,26 @@
         .header { text-align: center; margin-bottom: 20px; }
         .header img { max-width: 70px; height: auto; }
         .header h1 { font-size: 14pt; font-weight: bold; margin: 8px 0 4px 0; text-transform: uppercase; }
+        .header .foundation { font-size: 11pt; font-weight: 600; margin: 4px 0 0 0; text-transform: uppercase; }
         .header p { font-size: 10pt; margin: 1px 0; }
         .header .address { font-size: 9pt; margin-top: 4px; }
         .divider { border-top: 2px solid #000; margin: 12px 0; }
         .section-title { font-weight: bold; font-size: 12pt; margin: 14px 0 8px 0; text-decoration: underline; }
-        table.data { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        table.data { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 12px; }
         table.data td { padding: 4px 8px; vertical-align: top; }
         table.data td.label { width: 140px; font-weight: bold; }
         table.data tr.border td { border-bottom: 1px solid #ddd; }
-        table.list { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 10px; }
+        table.list { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; font-size: 10pt; margin-bottom: 10px; }
         table.list th, table.list td { border: 1px solid #333; padding: 5px 6px; text-align: left; }
         table.list th { background: #f0f0f0; font-weight: bold; }
         .footer { margin-top: 20px; font-size: 9pt; text-align: center; color: #666; }
         .no-data { color: #666; font-style: italic; }
+        @include('partials.print-letterhead-styles')
+        @include('partials.print-signature-styles')
     </style>
 </head>
 <body>
-    <div class="header">
-        @if($institution && $institution->logo)
-            <img src="{{ public_path('storage/' . $institution->logo) }}" alt="Logo">
-        @endif
-        @if($institution)
-            <h1>{{ $institution->name }}</h1>
-            <p>NPSN: {{ $institution->npsn }}</p>
-            @if($institution->nss)<p>NSS: {{ $institution->nss }}</p>@endif
-            <div class="address">
-                <p>{{ $institution->address }}</p>
-                <p>{{ $institution->village ?? '' }}, {{ $institution->sub_district ?? '' }}, {{ $institution->district ?? '' }}</p>
-                <p>{{ $institution->province ?? '' }} {{ $institution->postal_code ?? '' }}</p>
-            </div>
-        @endif
-    </div>
-
-    <div class="divider"></div>
+    @include('partials.print-letterhead', ['institution' => $institution])
     <div class="section-title">BUKU INDUK SISWA</div>
 
     <!-- Identitas Siswa -->
@@ -450,6 +437,15 @@
 
     <div class="footer">
         <p>Dicetak pada: {{ $printed_at }}</p>
+    </div>
+    <div class="standard-signature-wrap">
+        <div class="standard-signature-left"></div>
+        <div class="standard-signature-right">
+            @include('partials.print-signature', [
+                'institution' => $institution,
+                'date' => \Carbon\Carbon::parse($printed_at)->locale('id')->translatedFormat('d F Y'),
+            ])
+        </div>
     </div>
 </body>
 </html>

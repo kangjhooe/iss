@@ -21,15 +21,21 @@
         <div v-if="!filters.only_trashed" class="filters filters-inline">
           <input 
             v-model="filters.search" 
-            @input="loadStudents" 
+            @input="loadStudents(1)"
             placeholder="Cari nama, NIK, NIS, NISN..."
             class="search-input"
           />
-          <select v-model="filters.class_id" @change="loadStudents" class="filter-select">
+          <select v-model="filters.class_id" @change="loadStudents(1)" class="filter-select">
             <option value="">Semua Kelas</option>
             <option v-for="c in filterClassList" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
-          <select v-model="filters.status" @change="loadStudents" class="filter-select">
+          <select v-if="availableStudentGrades.length" v-model="filters.tingkat" @change="loadStudents(1)" class="filter-select">
+            <option value="">Semua Tingkat</option>
+            <option v-for="grade in availableStudentGrades" :key="grade" :value="grade">
+              Tingkat {{ grade }}
+            </option>
+          </select>
+          <select v-model="filters.status" @change="loadStudents(1)" class="filter-select">
             <option value="">Semua Status</option>
             <option value="Aktif">Aktif</option>
             <option value="Lulus">Lulus</option>
@@ -41,7 +47,7 @@
         <div v-else class="filters filters-inline">
           <input
             v-model="filters.search"
-            @input="loadStudents"
+            @input="loadStudents(1)"
             placeholder="Cari nama, NIK, NIS, NISN..."
             class="search-input"
           />
@@ -102,6 +108,7 @@
         <StudentTable
           :students="students"
           :trash-mode="filters.only_trashed"
+          :start-index="(pagination.current_page - 1) * pagination.per_page"
           :get-status-class="getStatusClass"
           @view="viewStudent"
           @edit="editStudent"
@@ -134,6 +141,34 @@
             </template>
           </template>
         </StudentTable>
+        <div v-if="students.length > 0 && pagination.last_page > 1" class="pagination-bar">
+          <span class="pagination-info">
+            Menampilkan
+            {{ (pagination.current_page - 1) * pagination.per_page + 1 }}–{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }}
+            dari {{ pagination.total }} siswa
+          </span>
+          <div class="pagination-buttons">
+            <button
+              type="button"
+              class="btn-page"
+              :disabled="pagination.current_page <= 1"
+              @click="goToPage(pagination.current_page - 1)"
+            >
+              Sebelumnya
+            </button>
+            <span class="page-num">
+              Halaman {{ pagination.current_page }} / {{ pagination.last_page }}
+            </span>
+            <button
+              type="button"
+              class="btn-page"
+              :disabled="pagination.current_page >= pagination.last_page"
+              @click="goToPage(pagination.current_page + 1)"
+            >
+              Selanjutnya
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Add/Edit Modal -->
@@ -279,6 +314,15 @@
                   <label>Tanggal Lahir <span class="required">*</span></label>
                   <input type="date" v-model="form.birth_date" required />
                 </div>
+                <div v-if="availableStudentGrades.length" class="form-group">
+                  <label>Tingkat <span class="required">*</span></label>
+                  <select v-model.number="form.tingkat" required @change="onTingkatChange">
+                    <option :value="null">Pilih tingkat</option>
+                    <option v-for="grade in availableStudentGrades" :key="grade" :value="grade">
+                      Tingkat {{ grade }}
+                    </option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -396,7 +440,7 @@
                     >
                       <option :value="null">Pilih Kelas</option>
                       <option
-                        v-for="c in formClassList"
+                        v-for="c in matchingFormClassList"
                         :key="c.id"
                         :value="c.id"
                       >
@@ -831,6 +875,10 @@
                   <span class="value">{{ viewingStudent.class || '-' }}</span>
                 </div>
                 <div class="biodata-item">
+                  <span class="label">Tingkat</span>
+                  <span class="value">{{ viewingStudent.tingkat ?? '-' }}</span>
+                </div>
+                <div class="biodata-item">
                   <span class="label">Tahun Ajaran</span>
                   <span class="value">{{ viewingStudent.academic_year || '-' }}</span>
                 </div>
@@ -1109,6 +1157,10 @@
       :title="confirmDialog.title"
       :message="confirmDialog.message"
       :warning="confirmDialog.warning"
+      :confirm-text="confirmDialog.confirmText"
+      :cancel-text="confirmDialog.cancelText"
+      :loading-text="confirmDialog.loadingText"
+      :confirm-variant="confirmDialog.confirmVariant"
       :loading="confirmDialog.loading"
       @confirm="handleConfirm"
       @cancel="handleCancel"
@@ -1134,7 +1186,7 @@ import { counselingApi } from '@/api/counseling'
 import { extracurricularApi } from '@/api/extracurricular'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { getInstitutionTypeLabel } from '@/utils/institution'
+import { getInstitutionTypeLabel, getPrincipalTitle } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import * as XLSX from 'xlsx'
@@ -1143,7 +1195,16 @@ const toast = useToast()
 const authStore = useAuthStore()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
-const { students, loading, error, filters, loadStudents, getStatusClass } = useStudentList()
+const {
+  students,
+  loading,
+  error,
+  filters,
+  pagination,
+  loadStudents,
+  goToPage,
+  getStatusClass
+} = useStudentList()
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
@@ -1157,6 +1218,14 @@ const myInstitution = ref(null)
 const formClassList = ref([])
 const formClassListLoading = ref(false)
 const filterClassList = ref([])
+
+const availableStudentGrades = computed(() => {
+  const level = myInstitution.value?.level
+  if (level === 'SD' || level === 'MI') return [1, 2, 3, 4, 5, 6]
+  if (level === 'SMP' || level === 'MTs') return [7, 8, 9]
+  if (level === 'SMA' || level === 'MA' || level === 'MAK' || level === 'SMK') return [10, 11, 12]
+  return []
+})
 
 const canAccessCounseling = computed(() => {
   const role = authStore.user?.role
@@ -1195,6 +1264,7 @@ const form = ref({
   weight: null,
   previous_school: '',
   residence_type: '',
+  tingkat: null,
   class: '',
   class_id: null,
   academic_year: '',
@@ -1228,6 +1298,12 @@ const form = ref({
   guardian_occupation: '',
   guardian_income: null,
   notes: ''
+})
+
+const matchingFormClassList = computed(() => {
+  if (!availableStudentGrades.value.length) return formClassList.value
+  if (form.value.tingkat === null || form.value.tingkat === '') return []
+  return formClassList.value.filter(c => Number(c.grade) === Number(form.value.tingkat))
 })
 
 const documentForm = ref({
@@ -1275,6 +1351,7 @@ async function loadFilterClasses() {
   try {
     const r = await institutionApi.getMy()
     const inst = r.data?.data ?? r.data ?? {}
+    myInstitution.value = inst
     const sid = inst?.active_semester_id
     if (!sid) {
       filterClassList.value = []
@@ -1320,6 +1397,18 @@ function onFormClassChange() {
     form.value.class = c.name || ''
     form.value.semester_id = c.semester_id ?? form.value.semester_id
     form.value.academic_year_id = c.academic_year_id ?? form.value.academic_year_id
+  }
+}
+
+function onTingkatChange() {
+  if (!form.value.class_id) return
+
+  const selectedClass = formClassList.value.find(c => c.id === form.value.class_id)
+  if (selectedClass && Number(selectedClass.grade) !== Number(form.value.tingkat)) {
+    form.value.class_id = null
+    form.value.class = ''
+    form.value.semester_id = null
+    form.value.academic_year_id = null
   }
 }
 
@@ -1405,7 +1494,7 @@ const deleteStudent = async (id) => {
 
 function switchListTab(onlyTrashed) {
   filters.value.only_trashed = !!onlyTrashed
-  loadStudents()
+  loadStudents(1)
 }
 
 async function handleRestoreStudent(student) {
@@ -1435,6 +1524,9 @@ const validationRules = {
   ],
   birth_place: [
     (value) => validators.required(value, 'Tempat lahir wajib diisi')
+  ],
+  tingkat: [
+    (value) => availableStudentGrades.value.length === 0 || validators.required(value, 'Tingkat siswa wajib diisi')
   ],
   email: [
     (value) => validators.email(value, 'Format email tidak valid'),
@@ -1534,6 +1626,7 @@ const closeModal = () => {
     weight: null,
     previous_school: '',
     residence_type: '',
+    tingkat: null,
     class: '',
     class_id: null,
     academic_year: '',
@@ -1600,7 +1693,10 @@ const graduateFromView = async () => {
   const confirmed = await showConfirm({
     title: 'Luluskan Siswa',
     message: `Apakah Anda yakin ingin meluluskan ${name}? Status akan diubah menjadi Lulus dan siswa muncul di daftar Alumni.`,
-    warning: 'Tindakan ini dapat memengaruhi data kesiswaan aktif.'
+    warning: 'Tindakan ini dapat memengaruhi data kesiswaan aktif.',
+    confirmText: 'Ya, Luluskan',
+    loadingText: 'Memproses...',
+    confirmVariant: 'primary'
   })
   if (!confirmed) return
 
@@ -1699,6 +1795,7 @@ const exportToExcel = async () => {
     const params = { per_page: 10000 }
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.class) params.class = filters.value.class
+    if (filters.value.tingkat) params.tingkat = filters.value.tingkat
     if (filters.value.status) params.status = filters.value.status
     
     const response = await studentApi.getAll(params)
@@ -1725,6 +1822,7 @@ const exportToExcel = async () => {
       'Berat Badan (kg)': student.weight || '',
       'Sekolah Sebelumnya': student.previous_school || '',
       'Jenis Tempat Tinggal': formatResidenceType(student.residence_type) || '',
+      'Tingkat': student.tingkat ?? '',
       'Kelas': student.class || '',
       'Tahun Ajaran': student.academic_year || '',
       'Status': student.status || '',
@@ -1817,7 +1915,8 @@ const downloadTemplate = () => {
         'Berat Badan (kg)': '45',
         'Sekolah Sebelumnya': 'SD Negeri 1',
         'Jenis Tempat Tinggal': 'tinggal_dengan_orang_tua',
-        'Kelas': '1',
+        'Tingkat': '7',
+        'Kelas': 'VII-A',
         'Tahun Ajaran': '2024/2025',
         'Status': 'Aktif',
         'Nama Ayah': 'Budi Santoso',
@@ -1981,6 +2080,7 @@ const handleImportExcel = async (event) => {
         weight: mapField('Berat Badan (kg)', 'weight') ? parseFloat(mapField('Berat Badan (kg)', 'weight')) : null,
         previous_school: mapField('Sekolah Sebelumnya', 'previous_school'),
         residence_type: parseResidenceType(mapField('Jenis Tempat Tinggal', 'residence_type')),
+        tingkat: mapField('Tingkat', 'tingkat') ? parseInt(mapField('Tingkat', 'tingkat'), 10) : null,
         class: mapField('Kelas', 'class'),
         academic_year: mapField('Tahun Ajaran', 'academic_year'),
         status: mapField('Status', 'status') || 'Aktif',
@@ -2078,7 +2178,7 @@ const printPDF = async () => {
     if (institution.province) addressParts.push(institution.province)
     if (institution.postal_code) addressParts.push(institution.postal_code)
     const fullAddress = addressParts.join(', ') || '-'
-    const principalLabel = `Kepala ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}`
+    const principalLabel = getPrincipalTitle(institution?.level)
     
     const content = `
       <!DOCTYPE html>
@@ -2101,53 +2201,14 @@ const printPDF = async () => {
           margin: 0 auto;
           padding: 0;
         }
-        .kop {
-          border-bottom: 3px solid #000;
-          padding-bottom: 12px;
-          margin-bottom: 20px;
-          text-align: center;
-        }
-        .kop-header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 20px;
-          margin-bottom: 12px;
-        }
-        .kop-logo {
-          max-width: 80px;
-          max-height: 80px;
-          object-fit: contain;
-        }
-        .kop-name {
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 4px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          line-height: 1.2;
-        }
-        .kop-address {
-          font-size: 12px;
-          margin-bottom: 6px;
-          line-height: 1.3;
-        }
-        .kop-info {
-          font-size: 11px;
-          margin-top: 6px;
-          display: flex;
-          justify-content: center;
-          gap: 20px;
-          flex-wrap: wrap;
-          line-height: 1.2;
-        }
-        .kop-info-item {
-          display: flex;
-          gap: 5px;
-        }
-        .kop-info-label {
-          font-weight: bold;
-        }
+        .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
+        .kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
+        .kop-logo { width: 66px; height: 66px; object-fit: contain; }
+        .kop-text { min-width: 0; text-align: center; }
+        .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
+        .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
+        .school-address { font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; margin-top: 3px; }
+        .school-info { font-family: Arial, Helvetica, sans-serif; font-size: 9px; margin-top: 2px; }
         .header {
           text-align: center;
           margin-bottom: 20px;
@@ -2186,6 +2247,8 @@ const printPDF = async () => {
           grid-template-columns: 1fr 2fr;
           gap: 0;
           margin-bottom: 12px;
+          width: calc(100% - 2px);
+          max-width: calc(100% - 2px);
           border: 1px solid #ddd;
         }
         .biodata-item {
@@ -2258,25 +2321,24 @@ const printPDF = async () => {
         </style>
       </head>
       <body>
-        <div class="kop">
-          <div class="kop-header">
-            ${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}
-            <div style="flex: 1;">
-              <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
-              <div class="kop-address">${fullAddress}</div>
+        <header class="kop">
+          <div class="kop-inner">
+            <div>${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}</div>
+            <div class="kop-text">
+              ${institution.foundation_name ? `<div class="foundation">${institution.foundation_name}</div>` : ''}
+              <div class="school">${institution.name || 'NAMA LEMBAGA'}</div>
+              <div class="school-address">${fullAddress || '-'}</div>
+              <div class="school-info">
+                NPSN: ${institution.npsn || '-'}
+                ${institution.nss ? ` · NSS: ${institution.nss}` : ''}
+                ${institution.phone ? ` · Telp: ${institution.phone}` : ''}
+                ${institution.email ? ` · Email: ${institution.email}` : ''}
+                ${institution.website ? ` · ${institution.website}` : ''}
+              </div>
             </div>
+            <div></div>
           </div>
-          <div class="kop-info">
-            <div class="kop-info-item">
-              <span class="kop-info-label">NPSN:</span>
-              <span>${institution.npsn || '-'}</span>
-            </div>
-            <div class="kop-info-item">
-              <span class="kop-info-label">No. Statistik:</span>
-              <span>${institution.nss || '-'}</span>
-            </div>
-          </div>
-        </div>
+        </header>
         
         <div class="header">
           <h1>BIODATA SISWA</h1>
@@ -2718,6 +2780,52 @@ onMounted(() => {
 
 .content-wrapper {
   position: relative;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.pagination-info,
+.page-num {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-page {
+  padding: 8px 14px;
+  color: #047857;
+  font-weight: 500;
+  background: #fff;
+  border: 1px solid #d1fae5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-page:hover:not(:disabled) {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+.btn-page:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .table-container {

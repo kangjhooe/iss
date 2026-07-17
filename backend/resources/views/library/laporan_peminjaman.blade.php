@@ -14,24 +14,21 @@
         .stats table { width: auto; border: none; }
         .stats td { border: none; padding: 2px 12px 2px 0; }
         .stats td:first-child { font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; font-size: 8pt; }
         table th, table td { border: 1px solid #333; padding: 4px 6px; text-align: left; }
         table th { background: #e8e8e8; font-weight: bold; }
         table td.num { text-align: center; width: 26px; }
         table td.date { white-space: nowrap; }
         table td.right { text-align: right; }
         .footer { margin-top: 10px; font-size: 7pt; text-align: center; color: #666; }
+        @include('partials.print-letterhead-styles')
+        @include('partials.print-signature-styles')
     </style>
 </head>
 <body>
+    @include('partials.print-letterhead', ['institution' => $institution])
     <div class="header">
-        @if($institution)
-            <h1>{{ $institution->name }}</h1>
-            <p>NPSN: {{ $institution->npsn ?? '-' }}</p>
-            <p>LAPORAN PEMINJAMAN BUKU PERPUSTAKAAN</p>
-        @else
-            <h1>LAPORAN PEMINJAMAN BUKU PERPUSTAKAAN</h1>
-        @endif
+        <h1>LAPORAN PEMINJAMAN BUKU PERPUSTAKAAN</h1>
     </div>
 
     @if(!empty($date_from) || !empty($date_to))
@@ -92,6 +89,15 @@
 
     <div class="footer">
         Dicetak pada {{ $printed_at }} &mdash; {{ $loans->count() }} catatan
+    </div>
+    <div class="standard-signature-wrap">
+        <div class="standard-signature-left"></div>
+        <div class="standard-signature-right">
+            @include('partials.print-signature', [
+                'institution' => $institution,
+                'date' => \Carbon\Carbon::parse($printed_at)->locale('id')->translatedFormat('d F Y'),
+            ])
+        </div>
     </div>
 </body>
 </html>

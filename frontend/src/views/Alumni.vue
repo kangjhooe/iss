@@ -2,17 +2,45 @@
   <Layout>
     <div class="alumni-page">
       <div class="page-header">
-        <div class="header-content">
+        <div class="header-text">
           <h1 class="page-title">Alumni</h1>
-          <p class="page-subtitle">Data lulusan / alumni sekolah Anda</p>
-          <div class="action-buttons-group">
-            <router-link to="/luluskan-siswa" class="btn-secondary btn-compact btn-add">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Luluskan Siswa</span>
-            </router-link>
-          </div>
+          <p class="page-subtitle">Data lulusan, tracking destinasi, dan laporan cetak resmi</p>
+        </div>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="btn-secondary btn-compact"
+            :disabled="printing || loading"
+            @click="printPdf"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ printing ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
+          </button>
+          <router-link to="/luluskan-siswa" class="btn-primary btn-compact btn-add">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Luluskan Siswa</span>
+          </router-link>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-label">Total Alumni</span>
+          <strong class="stat-value">{{ pagination.total || alumni.length || 0 }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Tahun Lulus</span>
+          <strong class="stat-value">{{ filters.graduation_year || 'Semua' }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Halaman</span>
+          <strong class="stat-value">{{ pagination.current_page }} / {{ pagination.last_page || 1 }}</strong>
         </div>
       </div>
 
@@ -23,10 +51,13 @@
           placeholder="Cari nama, NIS, NISN..."
           class="search-input"
         />
-        <select v-model="filters.graduation_year" @change="loadAlumni" class="filter-select">
+        <select v-model="filters.graduation_year" @change="onFilterYear" class="filter-select">
           <option value="">Semua Tahun Lulus</option>
           <option v-for="y in graduationYears" :key="y" :value="y">{{ y }}</option>
         </select>
+        <button type="button" class="btn-ghost btn-compact" :disabled="loading" @click="resetFilters">
+          Reset
+        </button>
       </div>
 
       <div v-if="loading" class="loading-wrap">
@@ -34,7 +65,6 @@
       </div>
 
       <div v-else class="content-wrapper">
-        <!-- Desktop: table -->
         <div v-if="alumni.length > 0" class="table-container table-desktop">
           <table class="data-table">
             <thead>
@@ -47,7 +77,7 @@
                 <th>Kelas Terakhir</th>
                 <th>Tahun Lulus</th>
                 <th>Destinasi</th>
-                <th>Aksi</th>
+                <th class="col-aksi">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -55,60 +85,65 @@
                 <td class="col-no">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
                 <td>{{ item.nis || '-' }}</td>
                 <td>{{ item.nisn || '-' }}</td>
-                <td>{{ item.name }}</td>
-                <td>{{ item.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td>
+                <td>
+                  <div class="name-cell">
+                    <strong>{{ item.name }}</strong>
+                    <span class="status-pill">Lulus</span>
+                  </div>
+                </td>
+                <td>{{ item.gender === 'L' ? 'Laki-laki' : item.gender === 'P' ? 'Perempuan' : '-' }}</td>
                 <td>{{ item.class_detail?.name || item.class || '-' }}</td>
                 <td>{{ item.graduation_year || '-' }}</td>
                 <td>
-                  <span v-if="item.current_alumni_destination" class="dest-badge">
-                    {{ destinationTypeLabel(item.current_alumni_destination.destination_type) }}: {{ item.current_alumni_destination.destination_name }}
+                  <span v-if="item.current_alumni_destination" class="dest-badge" :title="destinationFull(item.current_alumni_destination)">
+                    {{ destinationTypeLabel(item.current_alumni_destination.destination_type) }}:
+                    {{ item.current_alumni_destination.destination_name }}
                   </span>
-                  <span v-else class="dest-empty">—</span>
+                  <span v-else class="dest-empty">Belum diisi</span>
                 </td>
-                <td>
-                  <button type="button" class="btn-action btn-dest" @click="openDestinations(item)" title="Kelola destinasi">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Destinasi
-                  </button>
-                  <router-link :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }" class="btn-action btn-view" title="Lihat arsip">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </router-link>
+                <td class="col-aksi">
+                  <div class="action-buttons">
+                    <button type="button" class="btn-action btn-dest" @click="openDestinations(item)" title="Kelola destinasi">
+                      Destinasi
+                    </button>
+                    <router-link
+                      :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }"
+                      class="btn-action btn-view"
+                      title="Lihat arsip"
+                    >
+                      Arsip
+                    </router-link>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- Mobile: cards -->
         <div v-if="alumni.length > 0" class="alumni-cards table-mobile">
           <div v-for="item in alumni" :key="item.id" class="alumni-card">
             <div class="alumni-card-main">
-              <h3 class="alumni-card-name">{{ item.name }}</h3>
+              <div class="alumni-card-top">
+                <h3 class="alumni-card-name">{{ item.name }}</h3>
+                <span class="status-pill">Lulus</span>
+              </div>
               <div class="alumni-card-meta">
-                <span class="alumni-card-id">{{ item.nisn ? `NISN: ${item.nisn}` : item.nis ? `NIS: ${item.nis}` : '-' }}</span>
+                <span>{{ item.nisn ? `NISN: ${item.nisn}` : item.nis ? `NIS: ${item.nis}` : '-' }}</span>
                 <span class="alumni-card-badge">{{ item.class_detail?.name || item.class || '-' }} · Lulus {{ item.graduation_year || '-' }}</span>
               </div>
               <p v-if="item.current_alumni_destination" class="alumni-card-dest">
-                {{ destinationTypeLabel(item.current_alumni_destination.destination_type) }}: {{ item.current_alumni_destination.destination_name }}
+                {{ destinationTypeLabel(item.current_alumni_destination.destination_type) }}:
+                {{ item.current_alumni_destination.destination_name }}
               </p>
-              <span class="alumni-card-status">Lulus</span>
+              <p v-else class="alumni-card-dest muted">Destinasi belum diisi</p>
             </div>
             <div class="alumni-card-actions">
-              <button type="button" class="btn-action btn-dest" @click="openDestinations(item)" title="Kelola destinasi">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <router-link :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }" class="btn-action btn-view" title="Lihat arsip">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+              <button type="button" class="btn-action btn-dest" @click="openDestinations(item)">Destinasi</button>
+              <router-link
+                :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }"
+                class="btn-action btn-view"
+              >
+                Arsip
               </router-link>
             </div>
           </div>
@@ -121,11 +156,13 @@
             </svg>
           </div>
           <h3>Belum ada data alumni</h3>
-          <p>Alumni akan muncul setelah siswa diluluskan. Gunakan tombol <strong>Luluskan Siswa</strong> untuk memproses kelulusan per kelas.</p>
+          <p>
+            Alumni akan muncul setelah siswa diluluskan. Gunakan tombol
+            <strong>Luluskan Siswa</strong> untuk memproses kelulusan per kelas.
+          </p>
           <router-link to="/luluskan-siswa" class="btn-empty-cta">Luluskan Siswa</router-link>
         </div>
 
-        <!-- Modal: Kelola destinasi alumni -->
         <div v-if="showDestModal" class="modal-overlay" @click.self="closeDestModal">
           <div class="modal-dest">
             <div class="modal-dest-header">
@@ -187,7 +224,6 @@
           </div>
         </div>
 
-        <!-- Konfirmasi hapus -->
         <div v-if="destToDelete" class="modal-overlay" @click.self="destToDelete = null">
           <div class="modal-confirm">
             <p>Hapus destinasi "{{ destToDelete.destination_name }}"?</p>
@@ -198,7 +234,6 @@
           </div>
         </div>
 
-        <!-- Pagination -->
         <div v-if="pagination.last_page > 1" class="pagination-wrap">
           <button
             :disabled="pagination.current_page <= 1"
@@ -209,6 +244,7 @@
           </button>
           <span class="pagination-info">
             Halaman {{ pagination.current_page }} dari {{ pagination.last_page }}
+            · {{ pagination.total || 0 }} data
           </span>
           <button
             :disabled="pagination.current_page >= pagination.last_page"
@@ -224,14 +260,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { alumniApi } from '@/api/alumni'
+import { institutionApi } from '@/api/institution'
+import { getPrincipalTitle } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 const loading = ref(true)
+const printing = ref(false)
+const institution = ref(null)
 const alumni = ref([])
 const graduationYears = ref([])
 const filters = reactive({
@@ -241,10 +281,10 @@ const filters = reactive({
 const pagination = reactive({
   current_page: 1,
   last_page: 1,
-  per_page: 15
+  per_page: 15,
+  total: 0
 })
 
-// Tracking destinasi alumni
 const destinationTypes = ref({})
 const showDestModal = ref(false)
 const selectedAlumni = ref(null)
@@ -270,6 +310,17 @@ const DEST_TYPE_LABELS = {
 
 function destinationTypeLabel(key) {
   return destinationTypes.value[key] || DEST_TYPE_LABELS[key] || key
+}
+
+function destinationFull(dest) {
+  if (!dest) return ''
+  const parts = [
+    destinationTypeLabel(dest.destination_type),
+    dest.destination_name,
+    dest.program_or_position,
+    dest.year_entered ? `Th. ${dest.year_entered}` : null
+  ].filter(Boolean)
+  return parts.join(' · ')
 }
 
 function resetDestForm() {
@@ -378,6 +429,18 @@ function debouncedLoad() {
   }, 300)
 }
 
+function onFilterYear() {
+  pagination.current_page = 1
+  loadAlumni()
+}
+
+function resetFilters() {
+  filters.search = ''
+  filters.graduation_year = ''
+  pagination.current_page = 1
+  loadAlumni()
+}
+
 async function loadGraduationYears() {
   try {
     const res = await alumniApi.getGraduationYears()
@@ -393,6 +456,16 @@ async function loadDestinationTypes() {
     destinationTypes.value = res.data?.data || {}
   } catch {
     destinationTypes.value = {}
+  }
+}
+
+async function ensureInstitutionLoaded() {
+  if (institution.value?.name) return
+  try {
+    const res = await institutionApi.getMy()
+    institution.value = res.data?.data || res.data || null
+  } catch {
+    institution.value = null
   }
 }
 
@@ -412,9 +485,13 @@ async function loadAlumni() {
       pagination.current_page = meta.current_page
       pagination.last_page = meta.last_page
       pagination.per_page = meta.per_page
+      pagination.total = meta.total ?? alumni.value.length
+    } else {
+      pagination.total = alumni.value.length
     }
   } catch {
     alumni.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -426,14 +503,202 @@ function goPage(page) {
   loadAlumni()
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function genderLabel(gender) {
+  if (gender === 'L') return 'Laki-laki'
+  if (gender === 'P') return 'Perempuan'
+  return '-'
+}
+
+function destinationPrintText(item) {
+  const dest = item.current_alumni_destination
+  if (!dest) return '-'
+  const parts = [
+    destinationTypeLabel(dest.destination_type),
+    dest.destination_name,
+    dest.program_or_position
+  ].filter(Boolean)
+  return parts.join(' — ')
+}
+
+async function fetchAllAlumniForPrint() {
+  const params = {
+    page: 1,
+    per_page: 1000
+  }
+  if (filters.search) params.search = filters.search
+  if (filters.graduation_year) params.graduation_year = filters.graduation_year
+
+  const res = await alumniApi.getList(params)
+  return res.data?.data ?? []
+}
+
+async function printPdf() {
+  printing.value = true
+  try {
+    await ensureInstitutionLoaded()
+    const rows = await fetchAllAlumniForPrint()
+    if (!rows.length) {
+      toast.error('Gagal', 'Tidak ada data alumni untuk dicetak sesuai filter saat ini.')
+      return
+    }
+
+    const inst = institution.value || {}
+    const instName = inst.name || 'Sekolah'
+    const fullAddress = [
+      inst.address,
+      inst.village ? `Desa/Kel. ${inst.village}` : '',
+      inst.sub_district ? `Kec. ${inst.sub_district}` : '',
+      inst.district,
+      inst.province,
+      inst.postal_code,
+    ].filter(Boolean).join(', ')
+
+    const createdAt = new Date().toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    })
+    const placeDate = `${inst.district || inst.city || '........................'}, ${new Date().toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    })}`
+    const filename = `Laporan_Alumni_${new Date().toISOString().slice(0, 10)}.pdf`
+    const filterLabel = [
+      filters.graduation_year ? `Tahun Lulus: ${filters.graduation_year}` : 'Tahun Lulus: Semua',
+      filters.search ? `Pencarian: ${filters.search}` : null,
+    ].filter(Boolean).join(' · ')
+
+    const tableRows = rows.map((item, index) => `
+      <tr>
+        <td class="num">${index + 1}</td>
+        <td>${escapeHtml(item.nis || '-')}</td>
+        <td>${escapeHtml(item.nisn || '-')}</td>
+        <td>${escapeHtml(item.name || '-')}</td>
+        <td>${escapeHtml(genderLabel(item.gender))}</td>
+        <td>${escapeHtml(item.class_detail?.name || item.class || '-')}</td>
+        <td class="num">${escapeHtml(item.graduation_year || '-')}</td>
+        <td>${escapeHtml(destinationPrintText(item))}</td>
+      </tr>
+    `).join('')
+
+    const content = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(filename)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #111; margin: 16px; }
+    h1 { font-size: 16px; margin: 12px 0 4px; text-align: center; text-transform: uppercase; }
+    .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
+    .kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
+    .kop-logo { width: 66px; height: 66px; object-fit: contain; }
+    .kop-text { min-width: 0; text-align: center; }
+    .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
+    .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
+    .school-address { font-size: 10px; line-height: 1.35; margin-top: 3px; }
+    .school-info { font-size: 9px; margin-top: 2px; }
+    .subtitle { text-align: center; color: #444; margin-bottom: 8px; }
+    .period { text-align: center; margin-bottom: 14px; font-size: 11px; }
+    table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 8px; }
+    th, td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
+    th { background: #eee; font-size: 10px; text-transform: uppercase; }
+    td.num, th.num { text-align: right; }
+    tr { page-break-inside: avoid; }
+    .note { font-size: 10px; color: #444; margin: 0 0 10px; }
+    .footer { display: flex; justify-content: space-between; margin-top: 28px; page-break-inside: avoid; }
+    .footer-right { text-align: center; min-width: 220px; }
+    .sig-space { height: 56px; }
+    @media print {
+      @page { size: A4 portrait; margin: 10mm 12mm 10mm 10mm; }
+      body { margin: 0; padding-right: 1px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="kop">
+    <div class="kop-inner">
+      <div>${inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="Logo institusi" class="kop-logo" />` : ''}</div>
+      <div class="kop-text">
+        ${inst.foundation_name ? `<div class="foundation">${escapeHtml(inst.foundation_name)}</div>` : ''}
+        <div class="school">${escapeHtml(instName)}</div>
+        <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
+        <div class="school-info">
+          NPSN: ${escapeHtml(inst.npsn || '-')}
+          ${inst.nss ? ` · NSS: ${escapeHtml(inst.nss)}` : ''}
+          ${inst.phone ? ` · Telp: ${escapeHtml(inst.phone)}` : ''}
+          ${inst.email ? ` · Email: ${escapeHtml(inst.email)}` : ''}
+          ${inst.website ? ` · ${escapeHtml(inst.website)}` : ''}
+        </div>
+      </div>
+      <div></div>
+    </div>
+  </header>
+  <h1>Laporan Data Alumni</h1>
+  <div class="subtitle">Daftar Lulusan &amp; Destinasi</div>
+  <div class="period"><strong>Filter:</strong> ${escapeHtml(filterLabel)}</div>
+  <p class="note">Jumlah data: ${rows.length}</p>
+  <table>
+    <thead>
+      <tr>
+        <th class="num">No</th>
+        <th>NIS</th>
+        <th>NISN</th>
+        <th>Nama</th>
+        <th>JK</th>
+        <th>Kelas Terakhir</th>
+        <th class="num">Th. Lulus</th>
+        <th>Destinasi</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tableRows}
+    </tbody>
+  </table>
+  <div class="footer">
+    <div>
+      <strong>Dibuat pada:</strong><br>${escapeHtml(createdAt)}
+    </div>
+    <div class="footer-right">
+      ${escapeHtml(placeDate)}<br>
+      ${escapeHtml(getPrincipalTitle(inst.level))}
+      <div class="sig-space"></div>
+      <strong>${escapeHtml(inst.principal_name || '___________________')}</strong>
+      <br>NIP. ${escapeHtml(inst.principal_nip || '___________________')}
+    </div>
+  </div>
+</body>
+</html>`
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Gagal', 'Popup diblokir. Izinkan popup untuk mencetak PDF.')
+      return
+    }
+    printWindow.document.write(content)
+    printWindow.document.close()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.document.title = filename
+    }, 250)
+  } catch (err) {
+    if (import.meta.env.DEV) console.error('Error printing alumni report:', err)
+    toast.error('Gagal', 'Gagal menyiapkan cetak PDF alumni.')
+  } finally {
+    printing.value = false
+  }
+}
+
 onMounted(() => {
+  ensureInstitutionLoaded()
   loadGraduationYears()
   loadDestinationTypes()
-  loadAlumni()
-})
-
-watch(() => filters.graduation_year, () => {
-  pagination.current_page = 1
   loadAlumni()
 })
 </script>
@@ -446,44 +711,116 @@ watch(() => filters.graduation_year, () => {
 }
 
 .page-header {
-  margin-bottom: 24px;
-}
-
-.header-content {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  margin-bottom: 20px;
 }
 
-.header-content .page-title {
+.page-title {
   font-size: 1.5rem;
   font-weight: 700;
   color: #1e293b;
   margin: 0 0 4px 0;
 }
 
-.header-content .page-subtitle {
+.page-subtitle {
   color: #64748b;
   font-size: 14px;
   margin: 0;
 }
 
-.action-buttons-group {
+.header-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.action-buttons-group a {
+.header-actions a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   text-decoration: none;
 }
 
-/* Filters: card style seperti Data Siswa */
+.btn-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s, transform 0.15s, background 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: white;
+  color: #0f766e;
+  border: 2px solid #99f6e4;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #ecfdf5;
+}
+
+.btn-secondary:disabled,
+.btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: #f8fafc;
+  color: #475569;
+  border: 2px solid #e2e8f0;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
 .filters.filters-inline {
   display: flex;
   flex-wrap: wrap;
@@ -507,7 +844,8 @@ watch(() => filters.graduation_year, () => {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.search-input:focus {
+.search-input:focus,
+.filter-select:focus {
   outline: none;
   border-color: #059669;
   background: white;
@@ -521,40 +859,6 @@ watch(() => filters.graduation_year, () => {
   border-radius: 12px;
   font-size: 15px;
   background: #f8fafc;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: #059669;
-  background: white;
-  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
-}
-
-.loading-state {
-  text-align: center;
-  padding: 48px 24px;
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-}
-
-.loading-state p {
-  margin: 16px 0 0;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.loading-spinner {
-  color: #059669;
-}
-
-.loading-spinner svg {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .content-wrapper {
@@ -580,12 +884,12 @@ watch(() => filters.graduation_year, () => {
 }
 
 .data-table th {
-  padding: 16px 20px;
+  padding: 14px 16px;
   text-align: left;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 
 .data-table .col-no {
@@ -594,15 +898,16 @@ watch(() => filters.graduation_year, () => {
   white-space: nowrap;
 }
 
+.data-table .col-aksi {
+  width: 180px;
+  text-align: center;
+}
+
 .data-table td {
-  padding: 16px 20px;
+  padding: 14px 16px;
   border-bottom: 1px solid #e2e8f0;
   font-size: 14px;
   color: #1e293b;
-}
-
-.data-table td:last-child {
-  text-align: center;
 }
 
 .data-table tbody tr:hover {
@@ -613,36 +918,63 @@ watch(() => filters.graduation_year, () => {
   border-bottom: none;
 }
 
+.name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.action-buttons {
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .btn-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 7px 10px;
   border-radius: 10px;
-  color: #059669;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
   text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
   transition: background 0.2s;
 }
 
 .btn-action:hover {
-  background: rgba(5, 150, 105, 0.12);
-}
-
-.btn-dest {
-  margin-right: 6px;
+  background: #d1fae5;
 }
 
 .dest-badge {
   font-size: 12px;
-  color: #475569;
+  color: #334155;
   display: inline-block;
-  max-width: 200px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dest-empty {
+.dest-empty,
+.muted {
   color: #94a3b8;
 }
 
@@ -652,7 +984,6 @@ watch(() => filters.graduation_year, () => {
   margin: 6px 0 0 0;
 }
 
-/* Modal destinasi */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -748,7 +1079,8 @@ watch(() => filters.graduation_year, () => {
   color: #1e293b;
 }
 
-.dest-item-sub, .dest-item-year {
+.dest-item-sub,
+.dest-item-year {
   font-size: 13px;
   color: #64748b;
   display: block;
@@ -910,7 +1242,6 @@ watch(() => filters.graduation_year, () => {
   background: #b91c1c;
 }
 
-/* Mobile cards */
 .alumni-cards.table-mobile {
   display: none;
   flex-direction: column;
@@ -919,8 +1250,7 @@ watch(() => filters.graduation_year, () => {
 
 .alumni-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   padding: 16px;
   background: white;
   border-radius: 16px;
@@ -934,11 +1264,18 @@ watch(() => filters.graduation_year, () => {
   min-width: 0;
 }
 
+.alumni-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .alumni-card-name {
   font-size: 16px;
   font-weight: 600;
   color: #1e293b;
-  margin: 0 0 6px 0;
+  margin: 0;
   line-height: 1.3;
 }
 
@@ -949,6 +1286,7 @@ watch(() => filters.graduation_year, () => {
   gap: 8px;
   font-size: 13px;
   color: #64748b;
+  margin-top: 6px;
 }
 
 .alumni-card-badge {
@@ -960,23 +1298,11 @@ watch(() => filters.graduation_year, () => {
   color: #475569;
 }
 
-.alumni-card-status {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  background: #dcfce7;
-  color: #166534;
+.alumni-card-actions {
+  display: flex;
+  gap: 8px;
 }
 
-.alumni-card-actions .btn-action {
-  width: 44px;
-  height: 44px;
-}
-
-/* Empty state */
 .empty-state {
   text-align: center;
   padding: 48px 24px;
@@ -1006,10 +1332,6 @@ watch(() => filters.graduation_year, () => {
   margin: 0 auto 24px;
 }
 
-.empty-state p strong {
-  color: #475569;
-}
-
 .btn-empty-cta {
   display: inline-flex;
   align-items: center;
@@ -1021,15 +1343,8 @@ watch(() => filters.graduation_year, () => {
   font-size: 14px;
   border-radius: 12px;
   text-decoration: none;
-  transition: opacity 0.2s, transform 0.15s;
 }
 
-.btn-empty-cta:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
-}
-
-/* Pagination */
 .pagination-wrap {
   display: flex;
   align-items: center;
@@ -1053,7 +1368,6 @@ watch(() => filters.graduation_year, () => {
   font-weight: 500;
   color: #475569;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
 }
 
 .btn-pagination:hover:not(:disabled) {
@@ -1069,6 +1383,12 @@ watch(() => filters.graduation_year, () => {
 .table-mobile { display: none; }
 .table-desktop { display: block; }
 
+@media (max-width: 900px) {
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .page-header {
     margin-bottom: 16px;
@@ -1079,10 +1399,7 @@ watch(() => filters.graduation_year, () => {
     margin-bottom: 16px;
   }
 
-  .search-input {
-    min-width: 100%;
-  }
-
+  .search-input,
   .filter-select {
     min-width: 100%;
   }
@@ -1092,14 +1409,6 @@ watch(() => filters.graduation_year, () => {
 
   .empty-state {
     padding: 32px 16px;
-  }
-
-  .empty-state h3 {
-    font-size: 18px;
-  }
-
-  .empty-state p {
-    font-size: 13px;
   }
 }
 </style>

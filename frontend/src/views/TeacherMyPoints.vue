@@ -384,6 +384,7 @@ import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { academicYearApi } from '@/api/academicYear'
 import { semesterApi } from '@/api/semester'
+import { institutionApi } from '@/api/institution'
 import { myTeacherAppreciationApi } from '@/api/teacherAppreciation'
 
 const loading = ref(true)
@@ -545,6 +546,7 @@ async function submitAchievement() {
       level: form.level || undefined,
       point_value: form.point_value,
       notes: form.notes,
+      ...periodParams(),
     }
     if (evidenceFile.value) payload.evidence = evidenceFile.value
     await myTeacherAppreciationApi.submit(payload)
@@ -568,19 +570,37 @@ async function submitAchievement() {
 
 onMounted(async () => {
   try {
-    const [yearsRes, typesRes] = await Promise.all([
+    const [yearsRes, typesRes, instRes] = await Promise.all([
       academicYearApi.getAll(),
       myTeacherAppreciationApi.getTypes(),
+      institutionApi.getMy().catch(() => null),
     ])
     academicYears.value = yearsRes.data?.data || yearsRes.data || []
     types.value = typesRes.data?.data || []
-    const activeYear = academicYears.value.find((y) => y.is_active) || academicYears.value[0]
-    if (activeYear) {
-      period.academic_year_id = String(activeYear.id)
-      const semRes = await semesterApi.getByAcademicYear(activeYear.id)
-      semesters.value = semRes.data?.data || semRes.data || []
-      const activeSem = semesters.value.find((s) => s.is_active) || semesters.value[0]
-      if (activeSem) period.semester_id = String(activeSem.id)
+    const institution = instRes ? (instRes.data?.data || instRes.data || null) : null
+    const instYearId = institution?.active_academic_year_id
+    const instSemId = institution?.active_semester_id
+    if (instYearId) {
+      const activeYear = academicYears.value.find((y) => String(y.id) === String(instYearId))
+        || academicYears.value.find((y) => y.is_active)
+        || academicYears.value[0]
+      if (activeYear) {
+        period.academic_year_id = String(activeYear.id)
+        const semRes = await semesterApi.getByAcademicYear(activeYear.id)
+        semesters.value = semRes.data?.data || semRes.data || []
+        const activeSem = (instSemId
+          ? semesters.value.find((s) => String(s.id) === String(instSemId))
+          : null)
+          || semesters.value.find((s) => s.is_active)
+          || semesters.value[0]
+        if (activeSem) period.semester_id = String(activeSem.id)
+      }
+    } else if (academicYears.value.length) {
+      const fallbackYear = academicYears.value.find((y) => y.is_active) || academicYears.value[0]
+      if (fallbackYear) {
+        const semRes = await semesterApi.getByAcademicYear(fallbackYear.id)
+        semesters.value = semRes.data?.data || semRes.data || []
+      }
     }
   } catch {
     /* continue */

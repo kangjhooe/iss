@@ -662,7 +662,7 @@ class ExtracurricularActivityController extends Controller
         }
         usort($matrixRows, fn ($a, $b) => strcmp($a['name'] ?? '', $b['name'] ?? ''));
 
-        $extracurricular->loadMissing(['supervisor:id,name', 'institution', 'room:id,name']);
+        $extracurricular->loadMissing(['supervisor:id,name,nip,nuptk', 'institution', 'room:id,name']);
 
         return [
             'extracurricular' => [
@@ -670,7 +670,12 @@ class ExtracurricularActivityController extends Controller
                 'name' => $extracurricular->name,
                 'description' => $extracurricular->description,
                 'supervisor' => $extracurricular->supervisor
-                    ? ['id' => $extracurricular->supervisor->id, 'name' => $extracurricular->supervisor->name]
+                    ? [
+                        'id' => $extracurricular->supervisor->id,
+                        'name' => $extracurricular->supervisor->name,
+                        'nip' => $extracurricular->supervisor->nip,
+                        'nuptk' => $extracurricular->supervisor->nuptk,
+                    ]
                     : null,
                 'status' => $extracurricular->status,
             ],

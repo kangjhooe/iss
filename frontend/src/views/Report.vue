@@ -128,11 +128,11 @@
               <span class="info-value">{{ formatAddress(reportData.institution) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Kepala {{ getInstitutionTypeLabel(reportData.institution?.level) || 'Sekolah/Madrasah' }}</span>
+              <span class="info-label">{{ getPrincipalTitle(reportData.institution?.level) }}</span>
               <span class="info-value">{{ reportData.institution.principal_name || '-' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">NIP Kepala {{ getInstitutionTypeLabel(reportData.institution?.level) || 'Sekolah/Madrasah' }}</span>
+              <span class="info-label">NIP {{ getPrincipalTitle(reportData.institution?.level) }}</span>
               <span class="info-value">{{ reportData.institution.principal_nip || '-' }}</span>
             </div>
           </div>
@@ -489,7 +489,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
 import { reportApi } from '@/api/report'
-import { getInstitutionTypeLabel } from '@/utils/institution'
+import { getInstitutionTypeLabel, getPrincipalTitle } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 // Register Chart.js components
@@ -1010,9 +1010,7 @@ const formatNumber = (num) => {
   return new Intl.NumberFormat('id-ID').format(num)
 }
 
-const getPrincipalLabel = (institution) => {
-  return `Kepala ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}`
-}
+const getPrincipalLabel = (institution) => getPrincipalTitle(institution?.level)
 
 const exportPDF = async () => {
   if (!reportData.value) {
@@ -1135,43 +1133,14 @@ const exportPDF = async () => {
           margin: 0 auto;
           padding: 0;
         }
-        .kop {
-          border-bottom: 3px solid #000;
-          padding-bottom: 12px;
-          margin-bottom: 20px;
-          text-align: center;
-        }
-        .kop-header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 20px;
-          margin-bottom: 12px;
-        }
-        .kop-logo {
-          max-width: 80px;
-          max-height: 80px;
-          object-fit: contain;
-        }
-        .kop-name {
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 4px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        .kop-address {
-          font-size: 12px;
-          margin-bottom: 6px;
-        }
-        .kop-info {
-          font-size: 11px;
-          margin-top: 6px;
-          display: flex;
-          justify-content: center;
-          gap: 20px;
-          flex-wrap: wrap;
-        }
+        .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
+        .kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
+        .kop-logo { width: 66px; height: 66px; object-fit: contain; }
+        .kop-text { min-width: 0; text-align: center; }
+        .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
+        .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
+        .school-address { font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; margin-top: 3px; }
+        .school-info { font-family: Arial, Helvetica, sans-serif; font-size: 9px; margin-top: 2px; }
         .header {
           text-align: center;
           margin-bottom: 20px;
@@ -1214,7 +1183,8 @@ const exportPDF = async () => {
           font-size: 12px;
         }
         .data-table {
-          width: 100%;
+          width: calc(100% - 2px);
+          max-width: calc(100% - 2px);
           border-collapse: collapse;
           margin-top: 12px;
           font-size: 12px;
@@ -1296,19 +1266,24 @@ const exportPDF = async () => {
         </style>
       </head>
       <body>
-        <div class="kop">
-          <div class="kop-header">
-            ${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}
-            <div style="flex: 1;">
-              <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
-              <div class="kop-address">${fullAddress}</div>
+        <header class="kop">
+          <div class="kop-inner">
+            <div>${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}</div>
+            <div class="kop-text">
+              ${institution.foundation_name ? `<div class="foundation">${institution.foundation_name}</div>` : ''}
+              <div class="school">${institution.name || 'NAMA LEMBAGA'}</div>
+              <div class="school-address">${fullAddress || '-'}</div>
+              <div class="school-info">
+                NPSN: ${institution.npsn || '-'}
+                ${institution.nss ? ` · NSS: ${institution.nss}` : ''}
+                ${institution.phone ? ` · Telp: ${institution.phone}` : ''}
+                ${institution.email ? ` · Email: ${institution.email}` : ''}
+                ${institution.website ? ` · ${institution.website}` : ''}
+              </div>
             </div>
+            <div></div>
           </div>
-          <div class="kop-info">
-            <div>NPSN: ${institution.npsn || '-'}</div>
-            <div>NSS: ${institution.nss || '-'}</div>
-          </div>
-        </div>
+        </header>
         
         <div class="header">
           <h1>LAPORAN STATISTIK LEMBAGA</h1>

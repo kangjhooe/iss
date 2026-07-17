@@ -22,10 +22,12 @@
             <label>Kelas</label>
             <select v-model="classId" class="select-input" :disabled="!academicYearId || loadingClasses">
               <option value="">{{ loadingClasses ? 'Memuat kelas...' : '-- Pilih Kelas --' }}</option>
-              <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+              <option v-for="c in classes" :key="c.id" :value="c.id">
+                {{ c.name }}<template v-if="c.students_count != null"> ({{ c.students_count }} siswa)</template>
+              </option>
             </select>
             <p v-if="academicYearId && !loadingClasses && classes.length === 0" class="field-hint warn">
-              Tidak ada kelas di tahun ajaran ini.
+              Tidak ada kelas di tahun ajaran ini. Coba pilih tahun ajaran tempat kelas/siswa masih terdaftar.
             </p>
           </div>
         </div>
@@ -219,9 +221,11 @@ async function loadStudents() {
   }
   loadingStudents.value = true
   try {
+    // Jangan filter academic_year_id di siswa: class_id sudah cukup.
+    // Filter year di student sering mengosongkan daftar jika data tahun ajaran
+    // siswa tidak sinkron dengan kelasnya.
     const res = await classApi.getStudents(classId.value, {
       status: 'Aktif',
-      academic_year_id: academicYearId.value || undefined,
       per_page: 100
     })
     const data = (res.data?.data ?? []).filter((s) => s.status === 'Aktif')
@@ -231,7 +235,6 @@ async function loadStudents() {
     try {
       const res = await studentApi.getAll({
         class_id: classId.value,
-        academic_year_id: academicYearId.value,
         status: 'Aktif',
         per_page: 100,
         ...institutionParams()

@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Institution;
+use App\Models\SchoolClass;
+use App\Models\Student;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,12 +25,11 @@ class UpdateStudentRequest extends FormRequest
      */
     public function rules(): array
     {
-        $studentId = $this->route('student')->id ?? $this->route('id');
+        $studentId = $this->studentId();
         
         // Get institution ID for unique validation
-        $institutionId = $this->user()->isAdminOrSuperAdmin() 
-            ? $this->input('institution_id')
-            : $this->user()->institution_id;
+        $institutionId = $this->institutionId($studentId);
+        $validGrades = $this->validGrades($institutionId);
         
         return [
             'nik' => [
@@ -70,6 +72,9 @@ class UpdateStudentRequest extends FormRequest
             'weight' => 'nullable|integer|min:0|max:500',
             'previous_school' => 'nullable|string|max:255',
             'residence_type' => 'nullable|in:asrama,kost_kontrak,tinggal_dengan_orang_tua,lainnya',
+            'tingkat' => $validGrades === null
+                ? ['sometimes', 'nullable', 'integer', Rule::in([])]
+                : ['sometimes', 'required', 'integer', Rule::in($validGrades)],
             'class' => 'nullable|string|max:50',
             'class_id' => 'nullable|exists:class,id',
             'academic_year' => 'nullable|string|max:10',
@@ -107,6 +112,31 @@ class UpdateStudentRequest extends FormRequest
         ];
     }
 
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if (!$this->filled('class_id')) {
+                return;
+            }
+
+            $class = SchoolClass::find($this->input('class_id'));
+            if (!$class) {
+                return;
+            }
+
+            $studentId = $this->studentId();
+            $institutionId = $this->institutionId($studentId);
+            if ($institutionId && (int) $class->institution_id !== $institutionId) {
+                $validator->errors()->add('class_id', 'Kelas tidak berasal dari institusi siswa.');
+            }
+
+            $tingkat = $this->input('tingkat', Student::whereKey($studentId)->value('tingkat'));
+            if ($class->grade !== null && (int) $tingkat !== (int) $class->grade) {
+                $validator->errors()->add('class_id', 'Tingkat siswa harus sama dengan tingkat kelas.');
+            }
+        });
+    }
+
     /**
      * Get custom messages for validator errors.
      *
@@ -128,6 +158,43 @@ class UpdateStudentRequest extends FormRequest
             'birth_date.required' => 'Tanggal lahir wajib diisi',
             'birth_place.required' => 'Tempat lahir wajib diisi',
             'email.email' => 'Format email tidak valid',
+            'tingkat.required' => 'Tingkat siswa wajib diisi',
+            'tingkat.integer' => 'Tingkat siswa harus berupa angka',
+            'tingkat.in' => 'Tingkat siswa tidak sesuai dengan jenjang institusi',
         ];
+    }
+
+    private function institutionId($studentId): ?int
+    {
+        if (!$this->user()->isAdminOrSuperAdmin()) {
+            return $this->user()->institution_id ? (int) $this->user()->institution_id : null;
+        }
+
+        $institutionId = $this->input('institution_id')
+            ?: Student::whereKey($studentId)->value('institution_id');
+
+        return $institutionId ? (int) $institutionId : null;
+    }
+
+    private function studentId(): mixed
+    {
+        $routeStudent = $this->route('student');
+
+        return $routeStudent instanceof Student
+            ? $routeStudent->getKey()
+            : ($this->route('id') ?? $routeStudent);
+    }
+
+    private function validGrades(?int $institutionId): ?array
+    {
+        $level = $institutionId ? Institution::whereKey($institutionId)->value('level') : null;
+
+        return match ($level) {
+            'PAUD', 'TK' => null,
+            'SD', 'MI' => [1, 2, 3, 4, 5, 6],
+            'SMP', 'MTs' => [7, 8, 9],
+            'SMA', 'MA', 'MAK', 'SMK' => [10, 11, 12],
+            default => range(1, 12),
+        };
     }
 }

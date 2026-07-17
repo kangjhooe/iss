@@ -150,10 +150,24 @@
         <div ref="printAreaRef" class="formulir-print-wrap">
           <div class="formulir-print">
             <header class="print-kop">
-              <h1 class="print-kop-name">{{ result.institution?.name || 'Sekolah' }}</h1>
-              <p v-if="result.institution?.address" class="print-kop-address">{{ result.institution.address }}</p>
-              <p v-if="result.institution?.npsn" class="print-kop-npsn">NPSN: {{ result.institution.npsn }}</p>
-              <hr class="print-kop-line" />
+              <div class="print-kop-inner">
+                <div>
+                  <img v-if="result.institution?.logo" :src="result.institution.logo" alt="Logo institusi" class="print-kop-logo" />
+                </div>
+                <div class="print-kop-text">
+                  <div v-if="result.institution?.foundation_name" class="print-kop-foundation">{{ result.institution.foundation_name }}</div>
+                  <div class="print-kop-name">{{ result.institution?.name || 'Sekolah' }}</div>
+                  <div class="print-kop-address">{{ result.institution?.address || '-' }}</div>
+                  <div class="print-kop-info">
+                    NPSN: {{ result.institution?.npsn || '-' }}
+                    <template v-if="result.institution?.nss"> · NSS: {{ result.institution.nss }}</template>
+                    <template v-if="result.institution?.phone"> · Telp: {{ result.institution.phone }}</template>
+                    <template v-if="result.institution?.email"> · Email: {{ result.institution.email }}</template>
+                    <template v-if="result.institution?.website"> · {{ result.institution.website }}</template>
+                  </div>
+                </div>
+                <div></div>
+              </div>
             </header>
             <h2 class="print-title">Formulir Pendaftaran PPDB</h2>
             <p class="print-reg-number"><strong>Nomor Pendaftaran:</strong> {{ result.registration_number }}</p>
@@ -337,14 +351,17 @@ function printFormulir() {
       <title>Formulir Pendaftaran PPDB - ${(result.value?.registration_number || '').replace(/</g, '&lt;')}</title>
       <style>
         body { font-family: 'Times New Roman', serif; font-size: 12px; padding: 20px; max-width: 210mm; margin: 0 auto; }
-        .print-kop { text-align: center; margin-bottom: 16px; }
-        .print-kop-name { margin: 0; font-size: 18px; font-weight: bold; }
-        .print-kop-address { margin: 4px 0 0; }
-        .print-kop-npsn { margin: 2px 0 0; font-size: 11px; color: #444; }
-        .print-kop-line { border: none; border-top: 2px solid #000; margin: 12px 0; }
+        .print-kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
+        .print-kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
+        .print-kop-logo { width: 66px; height: 66px; object-fit: contain; }
+        .print-kop-text { min-width: 0; text-align: center; }
+        .print-kop-foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
+        .print-kop-name { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
+        .print-kop-address { font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; margin-top: 3px; }
+        .print-kop-info { font-family: Arial, Helvetica, sans-serif; font-size: 9px; margin-top: 2px; }
         .print-title { text-align: center; font-size: 14px; margin: 0 0 12px; }
         .print-reg-number, .print-meta { margin: 4px 0; }
-        .print-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        .print-table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin: 12px 0; }
         .print-table td { padding: 4px 8px; vertical-align: top; border: 1px solid #ddd; }
         .print-label { width: 28%; font-weight: bold; background: #f5f5f5; }
         .print-signatures { display: flex; justify-content: space-between; margin-top: 32px; padding-top: 24px; }

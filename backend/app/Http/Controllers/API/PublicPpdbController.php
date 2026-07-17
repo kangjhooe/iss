@@ -63,8 +63,14 @@ class PublicPpdbController extends Controller
             $institutionData = [
                 'id' => $institution->id,
                 'name' => $institution->name,
+                'foundation_name' => $institution->foundation_name,
                 'npsn' => $institution->npsn,
+                'nss' => $institution->nss,
                 'address' => $fullAddress ?: $institution->address,
+                'phone' => $institution->phone,
+                'email' => $institution->email,
+                'website' => $institution->website,
+                'logo' => $institution->logo ? asset('storage/' . $institution->logo) : null,
             ];
         }
         return response()->json([
@@ -284,8 +290,14 @@ class PublicPpdbController extends Controller
             ])));
             $data['institution'] = [
                 'name' => $institution->name,
+                'foundation_name' => $institution->foundation_name,
                 'npsn' => $institution->npsn,
+                'nss' => $institution->nss,
                 'address' => $fullAddress ?: $institution->address,
+                'phone' => $institution->phone,
+                'email' => $institution->email,
+                'website' => $institution->website,
+                'logo' => $institution->logo ? asset('storage/' . $institution->logo) : null,
             ];
         }
 

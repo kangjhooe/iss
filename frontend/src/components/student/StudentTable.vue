@@ -11,6 +11,7 @@
             <th>NISN</th>
             <th>Nama</th>
             <th>Jenis Kelamin</th>
+            <th>Tingkat</th>
             <th>Kelas</th>
             <th>Status</th>
             <th>Aksi</th>
@@ -18,12 +19,13 @@
         </thead>
         <tbody>
           <tr v-for="(student, index) in students" :key="student.id">
-            <td class="col-no">{{ index + 1 }}</td>
+            <td class="col-no">{{ startIndex + index + 1 }}</td>
             <td>{{ displayValue(student.nik) }}</td>
             <td>{{ displayValue(student.nis) }}</td>
             <td>{{ displayValue(student.nisn) }}</td>
             <td>{{ displayValue(student.name) }}</td>
             <td>{{ student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : 'Belum ada data' }}</td>
+            <td>{{ displayValue(student.tingkat) }}</td>
             <td>{{ displayValue(student.class) }}</td>
             <td>
               <span :class="getStatusClass(student.status)">
@@ -76,7 +78,9 @@
               {{ student.nis ? `NIS: ${student.nis}` : '' }}{{ student.nis && student.nisn ? ' · ' : '' }}{{ student.nisn ? `NISN: ${student.nisn}` : '' }}
             </span>
             <span v-else class="student-card-id">NIK: {{ displayValue(student.nik) }}</span>
-            <span class="student-card-class">{{ displayValue(student.class) }}</span>
+            <span class="student-card-class">
+              Tingkat: {{ displayValue(student.tingkat) }} · Kelas: {{ displayValue(student.class) }}
+            </span>
           </div>
           <span :class="['student-card-status', getStatusClass(student.status)]">
             {{ student.status || 'Belum ada data' }}
@@ -149,6 +153,10 @@ defineProps({
   trashMode: {
     type: Boolean,
     default: false
+  },
+  startIndex: {
+    type: Number,
+    default: 0
   },
   getStatusClass: {
     type: Function,

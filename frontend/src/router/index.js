@@ -10,6 +10,11 @@ const router = createRouter({
       component: () => import('@/views/Home.vue')
     },
     {
+      path: '/catatan-rilis',
+      name: 'ReleaseNotes',
+      component: () => import('@/views/ReleaseNotes.vue')
+    },
+    {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/Login.vue'),
@@ -111,6 +116,12 @@ const router = createRouter({
       path: '/super-admin/broadcasts',
       name: 'BroadcastAnnouncements',
       component: () => import('@/views/BroadcastAnnouncements.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/super-admin/catatan-rilis',
+      name: 'SuperAdminReleaseNotes',
+      component: () => import('@/views/SuperAdminReleaseNotes.vue'),
       meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {

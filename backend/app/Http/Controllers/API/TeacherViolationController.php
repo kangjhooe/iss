@@ -51,48 +51,16 @@ class TeacherViolationController extends Controller
 
             [$academicYearId, $semesterId] = $this->pointService->resolvePeriodFromRequest($request, $institutionId);
 
-            $query = TeacherViolation::with([
-                'employee:id,name,nip,type,subject',
-                'violationType:id,name,code,point_weight,category',
-                'reporter:id,name',
-                'reviewer:id,name',
-                'piketIncident:id,incident_type,incident_date,minutes_late,description',
-                'academicYear:id,name,code',
-                'semester:id,name',
-            ])
-                ->forInstitution($institutionId)
-                ->orderByDesc('violation_date')
-                ->orderByDesc('id');
+            $paginator = $this->pointService->paginateViolations($institutionId, [
+                'academic_year_id' => $academicYearId,
+                'semester_id' => $semesterId,
+                'employee_id' => $request->input('employee_id'),
+                'violation_type_id' => $request->input('violation_type_id'),
+                'status' => $request->input('status'),
+                'search' => $request->input('search'),
+            ], (int) $request->get('per_page', 15));
 
-            if ($academicYearId) {
-                $query->where('academic_year_id', $academicYearId);
-            }
-            if ($semesterId) {
-                $query->where('semester_id', $semesterId);
-            }
-            if ($request->filled('employee_id')) {
-                $query->where('employee_id', $request->employee_id);
-            }
-            if ($request->filled('violation_type_id')) {
-                $query->where('violation_type_id', $request->violation_type_id);
-            }
-            if ($request->filled('status')) {
-                $query->where('status', $request->status);
-            }
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $query->whereHas('employee', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('nip', 'like', "%{$search}%");
-                });
-            }
-
-            // Piket: boleh lihat semua di institusi (transparansi) atau hanya yang dia laporkan
-            // Keep full list for both roles in same institution.
-
-            $perPage = min((int) $request->get('per_page', 15), 100);
-
-            return TeacherViolationResource::collection($query->paginate($perPage));
+            return TeacherViolationResource::collection($paginator);
         } catch (\Exception $e) {
             Log::error('TeacherViolation index failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal mengambil data pelanggaran guru.'], 500);
@@ -160,6 +128,8 @@ class TeacherViolationController extends Controller
                 'employee', 'violationType', 'reporter', 'reviewer',
                 'academicYear:id,name,code', 'semester:id,name',
             ]);
+
+            $this->pointService->forgetPendingCounts($institutionId);
 
             return (new TeacherViolationResource($violation))->response()->setStatusCode(201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -268,6 +238,8 @@ class TeacherViolationController extends Controller
         }
         $teacher_violation->delete();
 
+        $this->pointService->forgetPendingCounts((int) $teacher_violation->institution_id);
+
         return response()->json(['message' => 'Pelanggaran berhasil dihapus.']);
     }
 
@@ -292,6 +264,7 @@ class TeacherViolationController extends Controller
         ]);
 
         $this->pointService->resolveLinkedPiketIncident($teacher_violation, $user);
+        $this->pointService->forgetPendingCounts((int) $teacher_violation->institution_id);
 
         $teacher_violation->load([
             'employee', 'violationType', 'reporter', 'reviewer', 'piketIncident',
@@ -322,6 +295,8 @@ class TeacherViolationController extends Controller
             'reviewed_at' => now(),
             'review_notes' => $request->review_notes,
         ]);
+
+        $this->pointService->forgetPendingCounts((int) $teacher_violation->institution_id);
 
         $teacher_violation->load([
             'employee', 'violationType', 'reporter', 'reviewer', 'piketIncident',

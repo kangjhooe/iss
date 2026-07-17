@@ -45,6 +45,7 @@ class StudentResource extends JsonResource
             'previous_school_npsn' => $this->previous_school_npsn,
             'previous_school_address' => $this->previous_school_address,
             'residence_type' => $this->residence_type,
+            'tingkat' => $this->tingkat,
             'class' => $this->getRawOriginal('class'), // string column; use class_detail for relation
             'class_id' => $this->class_id,
             'class_detail' => $this->when(

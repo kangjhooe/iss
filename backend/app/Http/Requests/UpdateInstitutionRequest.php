@@ -36,7 +36,7 @@ class UpdateInstitutionRequest extends FormRequest
             'province_code', 'district_code', 'postal_code', 'phone', 'email', 'website',
             'principal_name', 'principal_nip', 'description', 'vision', 'mission',
             'active_academic_year_id', 'active_semester_id', 'latitude', 'longitude', 'location_radius',
-            'npsn', 'name', 'type',
+            'npsn', 'name', 'foundation_name', 'type',
         ];
 
         $merged = [];
@@ -88,6 +88,7 @@ class UpdateInstitutionRequest extends FormRequest
         }
         
         $baseRules = [
+            'foundation_name' => 'nullable|string|max:255',
             'nss' => 'nullable|string|max:255',
             'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MAK,MTs,MI,PAUD',
             'type' => 'sometimes|nullable|in:Negeri,Swasta',

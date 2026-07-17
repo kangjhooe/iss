@@ -55,7 +55,7 @@ class StudentRepository extends BaseRepository
 
         $perPage = min($perPage, 100);
 
-        return $query->select(['id', 'institution_id', 'nis', 'nisn', 'name', 'gender', 'class', 'class_id', 'academic_year_id', 'status', 'created_at'])
+        return $query->select(['id', 'institution_id', 'nis', 'nisn', 'name', 'gender', 'tingkat', 'class', 'class_id', 'academic_year_id', 'status', 'created_at'])
             ->with(['institution:id,name', 'class:id,name,grade'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);

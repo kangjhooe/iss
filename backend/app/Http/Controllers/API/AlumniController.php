@@ -78,7 +78,9 @@ class AlumniController extends Controller
         try {
             $student = Student::findOrFail($id);
 
-            $institutionId = $request->user()->isAdminOrSuperAdmin() ? null : $request->user()->institution_id;
+            $institutionId = $request->user()->isAdminOrSuperAdmin()
+                ? null
+                : ($request->user()->institution_id ? (int) $request->user()->institution_id : null);
             if (!$this->studentService->canAccess($student, $institutionId, $request->user()->isAdminOrSuperAdmin())) {
                 return response()->json(['message' => 'Anda tidak berwenang meluluskan siswa ini.'], 403);
             }
@@ -118,13 +120,21 @@ class AlumniController extends Controller
             $studentIds = $request->input('student_ids');
             $graduationYear = $request->input('graduation_year') ? (int) $request->input('graduation_year') : null;
 
-            $institutionId = $request->user()->isAdminOrSuperAdmin() ? null : $request->user()->institution_id;
+            $institutionId = $request->user()->isAdminOrSuperAdmin()
+                ? null
+                : ($request->user()->institution_id ? (int) $request->user()->institution_id : null);
             $filteredIds = [];
             foreach ($studentIds as $id) {
                 $student = Student::find($id);
                 if ($student && $this->studentService->canAccess($student, $institutionId, $request->user()->isAdminOrSuperAdmin())) {
                     $filteredIds[] = $id;
                 }
+            }
+
+            if (count($studentIds) > 0 && count($filteredIds) === 0) {
+                return response()->json([
+                    'message' => 'Tidak ada siswa yang dapat diluluskan. Pastikan siswa berasal dari institusi Anda.',
+                ], 403);
             }
 
             $result = $this->studentService->graduateBulk($filteredIds, $graduationYear);

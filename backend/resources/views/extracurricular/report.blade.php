@@ -26,6 +26,12 @@
             text-transform: uppercase;
             margin: 0 0 2px;
         }
+        .kop-text .inst-foundation {
+            font-size: 9.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 0 0 2px;
+        }
         .kop-text .inst-meta { font-size: 8px; color: #444; margin: 0; }
         .kop-line {
             border-bottom: 0.8px solid #0f172a;
@@ -41,7 +47,8 @@
         }
         .doc-title .subtitle { font-size: 10px; color: #333; margin: 3px 0 0; }
         .info-box {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             margin: 0 0 12px;
             border: 1px solid #cbd5e1;
             background: #f8fafc;
@@ -54,7 +61,8 @@
         }
         .info-box .lbl { width: 26%; color: #475569; font-weight: bold; }
         .stats {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             margin-bottom: 12px;
             border-collapse: collapse;
         }
@@ -76,7 +84,8 @@
             color: #fff;
         }
         table.data {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
             margin-bottom: 8px;
         }
@@ -103,12 +112,15 @@
         table.matrix .st-empty { color: #94a3b8; }
         .footer {
             margin-top: 18px;
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
         }
         .footer td { border: none; vertical-align: top; font-size: 9px; }
         .sig { text-align: center; width: 42%; }
         .sig-space { height: 48px; }
+        @include('partials.print-letterhead-styles')
+        .cell-note { color: #555; font-size: 8px; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -131,20 +143,10 @@
             !empty($institution->phone) ? 'Telp. '.$institution->phone : null,
             !empty($institution->email) ? $institution->email : null,
         ])->filter()->implode(' · ');
+        $supervisorNip = $ekskul['supervisor']['nip'] ?? $ekskul['supervisor']['nuptk'] ?? null;
     @endphp
 
-    <div class="kop">
-        <table class="kop-inner">
-            <tr>
-                <td class="kop-text">
-                    <p class="inst-name">{{ $instName }}</p>
-                    @if($instAddr)<p class="inst-meta">{{ $instAddr }}</p>@endif
-                    @if($instContact)<p class="inst-meta">{{ $instContact }}</p>@endif
-                </td>
-            </tr>
-        </table>
-    </div>
-    <div class="kop-line"></div>
+    @include('partials.print-letterhead', ['institution' => $institution])
 
     <div class="doc-title">
         <h1>Laporan Kegiatan Ekstrakurikuler</h1>
@@ -160,7 +162,12 @@
         </tr>
         <tr>
             <td class="lbl">Pembina</td>
-            <td>{{ $ekskul['supervisor']['name'] ?? '—' }}</td>
+            <td>
+                <div>{{ $ekskul['supervisor']['name'] ?? '—' }}</div>
+                @if(!empty($ekskul['supervisor']))
+                    <div class="cell-note">{{ $supervisorNip ?: 'Tanpa NIP/NUPTK' }}</div>
+                @endif
+            </td>
             <td class="lbl">Status</td>
             <td>{{ $ekskul['status'] ?? '—' }}</td>
         </tr>
@@ -332,6 +339,7 @@
                 Pembina Ekstrakurikuler
                 <div class="sig-space"></div>
                 <strong>{{ $ekskul['supervisor']['name'] ?? '___________________' }}</strong>
+                <div class="cell-note">NIP. {{ $supervisorNip ?: '___________________' }}</div>
             </td>
         </tr>
     </table>

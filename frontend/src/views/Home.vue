@@ -10,6 +10,7 @@
           <span class="navbar-title">{{ appName }}</span>
         </router-link>
         <div class="navbar-actions">
+          <router-link to="/catatan-rilis" class="nav-link">Update</router-link>
           <router-link to="/login" class="btn btn-ghost">Masuk</router-link>
           <router-link to="/register" class="btn btn-primary">Daftar</router-link>
         </div>
@@ -379,7 +380,7 @@
         <div class="footer-bottom">
           <span>&copy; {{ currentYear }} {{ appName }}</span>
           <span class="footer-sep">·</span>
-          <span class="footer-version">v{{ appVersion }}</span>
+          <router-link to="/catatan-rilis" class="footer-version">v{{ appVersion }}</router-link>
         </div>
       </div>
     </footer>
@@ -1605,6 +1606,13 @@ a.btn:focus-visible {
 
 .footer-version {
   opacity: 0.9;
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-version:hover {
+  color: #a7f3d0;
+  text-decoration: underline;
 }
 
 /* ========== Responsive: Tablet (768px - 1024px) ========== */

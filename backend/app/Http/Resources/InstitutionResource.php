@@ -18,6 +18,7 @@ class InstitutionResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'foundation_name' => $this->foundation_name,
             'npsn' => $this->npsn,
             'nss' => $this->nss,
             'level' => $this->level,

@@ -60,6 +60,8 @@ use App\Http\Controllers\API\SuperAdminDashboardController;
 use App\Http\Controllers\API\InstitutionAdminController;
 use App\Http\Controllers\API\SuperAdminAdoptionController;
 use App\Http\Controllers\API\SuperAdminBroadcastController;
+use App\Http\Controllers\API\SuperAdminReleaseController;
+use App\Http\Controllers\API\PublicReleaseController;
 use App\Http\Controllers\API\SuperAdminReportController;
 use App\Http\Controllers\API\SuperAdminImpersonationController;
 use App\Http\Controllers\API\PermissionController;
@@ -185,6 +187,7 @@ Route::middleware('throttle:5,1')->post('/public/guest-visit', [PublicSchoolCont
 // Public landing stats & recent institutions (untuk halaman awal)
 Route::middleware('throttle:30,1')->get('/public/stats', [PublicSchoolController::class, 'stats'])->name('public.stats');
 Route::middleware('throttle:30,1')->get('/public/institutions/recent', [PublicSchoolController::class, 'recentInstitutions'])->name('public.institutions.recent');
+Route::middleware('throttle:30,1')->get('/public/releases', [PublicReleaseController::class, 'index'])->name('public.releases.index');
 
 // App branding (logo & favicon) - public, no auth. Tidak mengubah logo institusi.
 Route::get('/app-branding', [AppBrandingController::class, 'show'])->name('app-branding.show');
@@ -383,6 +386,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::get('/teacher-violations/{teacher_violation}', [TeacherViolationController::class, 'show']);
         Route::get('/teacher-violation-types-active', [TeacherViolationTypeController::class, 'index']);
         Route::get('/teacher-appreciation/employees-lite', [TeacherPointController::class, 'employees']);
+        Route::get('/teacher-appreciation/pending-counts', [TeacherPointController::class, 'pendingCounts']);
+        Route::get('/teacher-appreciation/bootstrap', [TeacherPointController::class, 'bootstrap']);
     });
 
     // Modul Guru Piket: jadwal, log harian, monitoring, laporan mingguan
@@ -697,6 +702,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     Route::get('/super-admin/broadcasts', [SuperAdminBroadcastController::class, 'index'])->name('super-admin.broadcasts.index');
     Route::post('/super-admin/broadcasts', [SuperAdminBroadcastController::class, 'store'])->name('super-admin.broadcasts.store');
     Route::get('/super-admin/broadcasts/{id}', [SuperAdminBroadcastController::class, 'show'])->name('super-admin.broadcasts.show');
+    Route::get('/super-admin/releases', [SuperAdminReleaseController::class, 'index'])->name('super-admin.releases.index');
+    Route::post('/super-admin/releases', [SuperAdminReleaseController::class, 'store'])->name('super-admin.releases.store');
+    Route::get('/super-admin/releases/{id}', [SuperAdminReleaseController::class, 'show'])->name('super-admin.releases.show');
+    Route::put('/super-admin/releases/{id}', [SuperAdminReleaseController::class, 'update'])->name('super-admin.releases.update');
+    Route::delete('/super-admin/releases/{id}', [SuperAdminReleaseController::class, 'destroy'])->name('super-admin.releases.destroy');
     Route::get('/super-admin/reports/aggregate', [SuperAdminReportController::class, 'index'])->name('super-admin.reports.aggregate');
     Route::get('/super-admin/reports/aggregate/export', [SuperAdminReportController::class, 'export'])->name('super-admin.reports.aggregate.export');
     Route::post('/super-admin/institution-admins/{id}/impersonate', [SuperAdminImpersonationController::class, 'start'])->name('super-admin.impersonate.start');

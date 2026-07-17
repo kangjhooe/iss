@@ -23,6 +23,8 @@ class SubmitTeacherAchievementRequest extends FormRequest
             'level' => ['nullable', 'string', Rule::in(TeacherAchievement::LEVELS)],
             'notes' => 'nullable|string',
             'evidence' => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:5120',
+            'academic_year_id' => 'nullable|exists:academic_years,id',
+            'semester_id' => 'nullable|exists:semesters,id',
         ];
     }
 }

@@ -1332,7 +1332,7 @@ import { employeeApi } from '@/api/teacher'
 import { institutionApi } from '@/api/institution'
 import { permissionApi } from '@/api/permissions'
 import { useReferenceDataStore } from '@/stores/referenceData'
-import { getInstitutionTypeLabel } from '@/utils/institution'
+import { getInstitutionTypeLabel, getPrincipalTitle } from '@/utils/institution'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
@@ -2047,7 +2047,7 @@ const printPDF = async () => {
     if (institution.province) addressParts.push(institution.province)
     if (institution.postal_code) addressParts.push(institution.postal_code)
     const fullAddress = addressParts.join(', ') || '-'
-    const principalLabel = `Kepala ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}`
+    const principalLabel = getPrincipalTitle(institution?.level)
     const roleLabel = (r) => { if (!r) return '-'; if (r === 'teacher') return 'Guru'; if (r === 'staff') return 'Staff'; return r }
     const content = `
 <!DOCTYPE html>
@@ -2058,20 +2058,20 @@ const printPDF = async () => {
   <style>
   @media print { @page { size: A4; margin: 1cm 1.5cm 1cm 1.5cm; } }
   body { font-family: 'Times New Roman', serif; line-height: 1.15; color: #000; max-width: 800px; margin: 0 auto; padding: 0; font-size: 12px; }
-  .kop { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; text-align: center; }
-  .kop-header { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 6px; }
-  .kop-logo { max-width: 64px; max-height: 64px; object-fit: contain; }
-  .kop-name { font-size: 16px; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.15; }
-  .kop-address { font-size: 11px; margin-bottom: 4px; line-height: 1.2; }
-  .kop-info { font-size: 10px; margin-top: 4px; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
-  .kop-info-item { display: flex; gap: 4px; }
-  .kop-info-label { font-weight: bold; }
+  .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
+  .kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
+  .kop-logo { width: 66px; height: 66px; object-fit: contain; }
+  .kop-text { min-width: 0; text-align: center; }
+  .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
+  .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
+  .school-address { font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; margin-top: 3px; }
+  .school-info { font-family: Arial, Helvetica, sans-serif; font-size: 9px; margin-top: 2px; }
   .header { text-align: center; margin-bottom: 10px; margin-top: 8px; }
   .header h1 { color: #000; margin: 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.15; }
   .header p { margin-top: 2px; font-size: 12px; line-height: 1.15; }
   .section { margin-bottom: 10px; page-break-inside: avoid; }
   .section-title { background: #f0f0f0; color: #000; padding: 4px 10px; margin: 0 0 6px 0; font-size: 12px; font-weight: bold; border-left: 3px solid #000; line-height: 1.2; }
-  .biodata-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 0; margin-bottom: 6px; border: 1px solid #ddd; }
+  .biodata-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 0; margin-bottom: 6px; width: calc(100% - 2px); max-width: calc(100% - 2px); border: 1px solid #ddd; }
   .biodata-item { display: contents; }
   .label { font-weight: bold; color: #000; padding: 3px 8px; background: #f8f8f8; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; font-size: 11px; line-height: 1.2; }
   .value { padding: 3px 8px; border-bottom: 1px solid #ddd; font-size: 11px; line-height: 1.2; }
@@ -2086,19 +2086,24 @@ const printPDF = async () => {
   </style>
 </head>
 <body>
-  <div class="kop">
-    <div class="kop-header">
-      ${institution.logo ? `<img src="${institution.logo}" alt="Logo" class="kop-logo" />` : ''}
-      <div style="flex: 1;">
-        <div class="kop-name">${institution.name || 'NAMA LEMBAGA'}</div>
-        <div class="kop-address">${fullAddress}</div>
+  <header class="kop">
+    <div class="kop-inner">
+      <div>${institution.logo ? `<img src="${institution.logo}" alt="Logo" class="kop-logo" />` : ''}</div>
+      <div class="kop-text">
+        ${institution.foundation_name ? `<div class="foundation">${institution.foundation_name}</div>` : ''}
+        <div class="school">${institution.name || 'NAMA LEMBAGA'}</div>
+        <div class="school-address">${fullAddress || '-'}</div>
+        <div class="school-info">
+          NPSN: ${institution.npsn || '-'}
+          ${institution.nss ? ` · NSS: ${institution.nss}` : ''}
+          ${institution.phone ? ` · Telp: ${institution.phone}` : ''}
+          ${institution.email ? ` · Email: ${institution.email}` : ''}
+          ${institution.website ? ` · ${institution.website}` : ''}
+        </div>
       </div>
+      <div></div>
     </div>
-    <div class="kop-info">
-      <div class="kop-info-item"><span class="kop-info-label">NPSN:</span><span>${institution.npsn || '-'}</span></div>
-      <div class="kop-info-item"><span class="kop-info-label">No. Statistik:</span><span>${institution.nss || '-'}</span></div>
-    </div>
-  </div>
+  </header>
   <div class="header">
     <h1>Biodata Pegawai</h1>
     <p>${emp.name || ''}</p>

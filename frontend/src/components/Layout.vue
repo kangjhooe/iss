@@ -497,6 +497,7 @@ const menuEntries = computed(() => {
       addVisible({ type: 'group', key: 'platform', label: 'Platform', icon: IconReport, children: [
         { to: '/super-admin/adoption', label: 'Monitoring Adopsi', visible: true },
         { to: '/super-admin/broadcasts', label: 'Broadcast', visible: true },
+        { to: '/super-admin/catatan-rilis', label: 'Catatan Rilis', visible: true },
         { to: '/super-admin/templates', label: 'Library Template Surat', visible: true },
         { to: '/super-admin/reports', label: 'Laporan Agregat', visible: true }
       ]}),
@@ -734,6 +735,7 @@ const pageTitle = computed(() => {
     SuperAdminOnboard: 'Onboarding Sekolah',
     AdoptionMonitoring: 'Monitoring Adopsi',
     BroadcastAnnouncements: 'Broadcast',
+    SuperAdminReleaseNotes: 'Catatan Rilis',
     SuperAdminTemplates: 'Library Template Surat',
     AggregateReport: 'Laporan Agregat',
     SystemSettings: 'Pengaturan Sistem',

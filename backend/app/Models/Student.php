@@ -41,6 +41,7 @@ class Student extends Model
         'previous_school_npsn',
         'previous_school_address',
         'residence_type',
+        'tingkat',
         'class',
         'academic_year',
         'academic_year_id',
@@ -86,6 +87,7 @@ class Student extends Model
     {
         return [
             'birth_date' => 'date',
+            'tingkat' => 'integer',
             'graduation_year' => 'integer',
             'father_birth_date' => 'date',
             'mother_birth_date' => 'date',

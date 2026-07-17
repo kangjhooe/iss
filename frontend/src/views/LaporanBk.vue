@@ -443,6 +443,7 @@ import { classApi } from '@/api/class'
 import { semesterApi } from '@/api/semester'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { useAuthStore } from '@/stores/auth'
+import { getPrincipalTitle } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend)
@@ -873,6 +874,14 @@ function printPdf() {
   try {
     const inst = institution.value || {}
     const instName = inst.name || 'Sekolah'
+    const fullAddress = [
+      inst.address,
+      inst.village ? `Desa/Kel. ${inst.village}` : '',
+      inst.sub_district ? `Kec. ${inst.sub_district}` : '',
+      inst.district,
+      inst.province,
+      inst.postal_code,
+    ].filter(Boolean).join(', ')
     const title = viewMode.value === 'detail'
       ? 'Laporan BK — Detail & Skor Siswa'
       : 'Laporan BK — Ringkasan'
@@ -901,11 +910,18 @@ function printPdf() {
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 16px; }
     h1 { font-size: 16px; margin: 0 0 4px; text-align: center; }
-    .school { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
+    .kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
+    .kop-logo { width: 66px; height: 66px; object-fit: contain; }
+    .kop-text { min-width: 0; text-align: center; }
+    .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
+    .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
+    .school-address { font-size: 10px; line-height: 1.35; margin-top: 3px; }
+    .school-info { font-size: 9px; margin-top: 2px; }
     .subtitle { text-align: center; color: #444; margin-bottom: 12px; }
     .period { text-align: center; margin-bottom: 16px; font-size: 11px; }
     h2 { font-size: 12px; margin: 18px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 8px; }
     th, td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
     th { background: #eee; font-size: 10px; text-transform: uppercase; }
     td.num, th.num { text-align: right; }
@@ -918,13 +934,30 @@ function printPdf() {
     .footer-right { text-align: center; min-width: 220px; }
     .sig-space { height: 56px; }
     @media print {
-      @page { size: A4 landscape; margin: 10mm; }
-      body { margin: 0; }
+      @page { size: A4 ${viewMode.value === 'detail' ? 'landscape' : 'portrait'}; margin: 10mm 12mm 10mm 10mm; }
+      body { margin: 0; padding-right: 1px; }
     }
   </style>
 </head>
 <body>
-  <div class="school">${escapeHtml(instName)}</div>
+  <header class="kop">
+    <div class="kop-inner">
+      <div>${inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="Logo institusi" class="kop-logo" />` : ''}</div>
+      <div class="kop-text">
+        ${inst.foundation_name ? `<div class="foundation">${escapeHtml(inst.foundation_name)}</div>` : ''}
+        <div class="school">${escapeHtml(instName)}</div>
+        <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
+        <div class="school-info">
+          NPSN: ${escapeHtml(inst.npsn || '-')}
+          ${inst.nss ? ` · NSS: ${escapeHtml(inst.nss)}` : ''}
+          ${inst.phone ? ` · Telp: ${escapeHtml(inst.phone)}` : ''}
+          ${inst.email ? ` · Email: ${escapeHtml(inst.email)}` : ''}
+          ${inst.website ? ` · ${escapeHtml(inst.website)}` : ''}
+        </div>
+      </div>
+      <div></div>
+    </div>
+  </header>
   <h1>${escapeHtml(title)}</h1>
   <div class="subtitle">Bimbingan Konseling</div>
   <div class="period"><strong>Periode / Filter:</strong> ${escapeHtml(periodLabel)}</div>
@@ -935,9 +968,10 @@ function printPdf() {
     </div>
     <div class="footer-right">
       ${escapeHtml(placeDate)}<br>
-      Guru BK / Koordinator BK
+      ${escapeHtml(getPrincipalTitle(inst.level))}
       <div class="sig-space"></div>
-      <strong>${escapeHtml(inst.bk_coordinator_name || '___________________')}</strong>
+      <strong>${escapeHtml(inst.principal_name || '___________________')}</strong>
+      <br>NIP. ${escapeHtml(inst.principal_nip || '___________________')}
     </div>
   </div>
 </body>

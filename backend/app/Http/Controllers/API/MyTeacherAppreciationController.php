@@ -113,7 +113,9 @@ class MyTeacherAppreciationController extends Controller
                 ->where('is_active', true)
                 ->firstOrFail();
 
-            [$yearId, $semesterId] = $this->pointService->resolveActivePeriod($institutionId);
+            [$defaultYear, $defaultSemester] = $this->pointService->resolveActivePeriod($institutionId);
+            $yearId = $request->input('academic_year_id') ?: $defaultYear;
+            $semesterId = $request->input('semester_id') ?: $defaultSemester;
             $pointValue = $type->resolvePointValue(
                 $request->input('level'),
                 $request->filled('point_value') ? (int) $request->point_value : null
@@ -144,6 +146,8 @@ class MyTeacherAppreciationController extends Controller
             ]);
 
             $achievement->load(['achievementType', 'submitter', 'academicYear:id,name,code', 'semester:id,name']);
+
+            $this->pointService->forgetPendingCounts($institutionId);
 
             return (new TeacherAchievementResource($achievement))->response()->setStatusCode(201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

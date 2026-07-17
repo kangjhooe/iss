@@ -96,6 +96,12 @@ export const teacherPointApi = {
   getReportSummary(params) {
     return api.get('/v1/teacher-points/report-summary', { params })
   },
+  getPendingCounts(params) {
+    return api.get('/v1/teacher-appreciation/pending-counts', { params })
+  },
+  bootstrap(params) {
+    return api.get('/v1/teacher-appreciation/bootstrap', { params })
+  },
   getEmployees(params) {
     return api.get('/v1/teacher-appreciation/employees', { params })
   },

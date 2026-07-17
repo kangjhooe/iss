@@ -238,6 +238,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import guestVisitApi from '@/api/guestVisit'
 import { institutionApi } from '@/api/institution'
+import { getPrincipalTitle } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -421,42 +422,51 @@ async function exportPdf() {
   <meta charset="UTF-8">
   <title>Buku Tamu - ${escapeHtml(institution.name || '')}</title>
   <style>
-    @media print { @page { size: A4 landscape; margin: 1.2cm; } }
-    body { font-family: 'DejaVu Sans', 'Segoe UI', sans-serif; font-size: 9pt; line-height: 1.25; color: #000; margin: 0; }
-    .kop { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; text-align: center; }
-    .kop-header { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px; }
-    .kop-logo { max-width: 64px; max-height: 64px; object-fit: contain; }
-    .kop-name { font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-    .kop-address { font-size: 9pt; margin-top: 2px; color: #333; }
-    .kop-info { font-size: 8pt; margin-top: 4px; display: flex; justify-content: center; gap: 12px; }
-    .kop-info span { margin: 0 4px; }
+    @media print { @page { size: A4 landscape; margin: 1.2cm 1.4cm 1.2cm 1.2cm; } }
+    body { font-family: 'DejaVu Sans', 'Segoe UI', sans-serif; font-size: 9pt; line-height: 1.25; color: #000; margin: 0; padding-right: 1px; }
+    .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
+    .kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
+    .kop-logo { width: 66px; height: 66px; object-fit: contain; }
+    .kop-text { min-width: 0; text-align: center; }
+    .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
+    .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
+    .school-address { font-size: 10px; line-height: 1.35; margin-top: 3px; }
+    .school-info { font-size: 9px; margin-top: 2px; }
     .header { text-align: center; margin: 10px 0 8px 0; }
     .header h1 { font-size: 13pt; font-weight: bold; margin: 0 0 4px 0; }
     .period { font-size: 8pt; margin-bottom: 8px; color: #555; }
-    table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+    table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; font-size: 8pt; }
     table th, table td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: middle; }
     table th { background: #e8e8e8; font-weight: bold; }
     .num { width: 28px; text-align: center; }
     .td-photo { width: 48px; text-align: center; padding: 2px; }
     .photo-thumb { width: 40px; height: 40px; object-fit: cover; display: block; margin: 0 auto; }
     .time { white-space: nowrap; }
-    .footer { margin-top: 10px; font-size: 7pt; text-align: center; color: #666; }
+    .footer { display: flex; justify-content: space-between; margin-top: 28px; page-break-inside: avoid; font-size: 9pt; }
+    .footer-meta { font-size: 7pt; color: #666; }
+    .footer-right { text-align: center; min-width: 220px; }
+    .sig-space { height: 56px; }
   </style>
 </head>
 <body>
-  <div class="kop">
-    <div class="kop-header">
-      ${institution.logo ? `<img src="${fullPhotoUrl(institution.logo)}" alt="Logo" class="kop-logo" />` : ''}
-      <div style="flex:1;">
-        <div class="kop-name">${escapeHtml(institution.name || 'NAMA LEMBAGA')}</div>
-        <div class="kop-address">${escapeHtml(fullAddress)}</div>
+  <header class="kop">
+    <div class="kop-inner">
+      <div>${institution.logo ? `<img src="${fullPhotoUrl(institution.logo)}" alt="Logo institusi" class="kop-logo" />` : ''}</div>
+      <div class="kop-text">
+        ${institution.foundation_name ? `<div class="foundation">${escapeHtml(institution.foundation_name)}</div>` : ''}
+        <div class="school">${escapeHtml(institution.name || 'NAMA LEMBAGA')}</div>
+        <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
+        <div class="school-info">
+          NPSN: ${escapeHtml(institution.npsn || '–')}
+          ${institution.nss ? ` · NSS: ${escapeHtml(institution.nss)}` : ''}
+          ${institution.phone ? ` · Telp: ${escapeHtml(institution.phone)}` : ''}
+          ${institution.email ? ` · Email: ${escapeHtml(institution.email)}` : ''}
+          ${institution.website ? ` · ${escapeHtml(institution.website)}` : ''}
+        </div>
       </div>
+      <div></div>
     </div>
-    <div class="kop-info">
-      <span><strong>NPSN:</strong> ${escapeHtml(institution.npsn || '–')}</span>
-      <span><strong>NSS:</strong> ${escapeHtml(institution.nss || '–')}</span>
-    </div>
-  </div>
+  </header>
   <div class="header">
     <h1>BUKU TAMU</h1>
     ${periodText ? `<div class="period">${periodText}</div>` : ''}
@@ -478,7 +488,16 @@ async function exportPdf() {
     <tbody>${rows}</tbody>
   </table>
   <div class="footer">
-    Dicetak pada ${new Date().toLocaleString('id-ID')} — ${visits.length} catatan
+    <div class="footer-meta">
+      Dicetak pada ${new Date().toLocaleString('id-ID')}<br>${visits.length} catatan
+    </div>
+    <div class="footer-right">
+      ${escapeHtml(institution.district || institution.city || '........................')}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br>
+      ${escapeHtml(getPrincipalTitle(institution.level))}
+      <div class="sig-space"></div>
+      <strong>${escapeHtml(institution.principal_name || '___________________')}</strong><br>
+      NIP. ${escapeHtml(institution.principal_nip || '___________________')}
+    </div>
   </div>
 </body>
 </html>`

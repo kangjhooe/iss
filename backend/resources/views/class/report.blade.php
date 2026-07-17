@@ -35,7 +35,8 @@
             margin-bottom: 15px;
         }
         .info-section table {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
         }
         .info-section td {
@@ -53,7 +54,8 @@
             background-color: #f9f9f9;
         }
         table {
-            width: 100%;
+            width: calc(100% - 2px);
+            max-width: calc(100% - 2px);
             border-collapse: collapse;
             margin-top: 15px;
         }
@@ -102,15 +104,20 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+        @include('partials.print-letterhead-styles')
+        @include('partials.print-signature-styles')
+        .footer {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 9px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
+    @include('partials.print-letterhead', ['institution' => $institution])
     <div class="header">
         <h1>LAPORAN DATA KELAS</h1>
-        @if($institution)
-        <p>{{ $institution->name }}</p>
-        <p>NPSN: {{ $institution->npsn ?? '-' }}</p>
-        @endif
         <p>Dicetak pada: {{ $generated_at->format('d F Y H:i:s') }}</p>
     </div>
 
@@ -175,7 +182,12 @@
                 <td>{{ $class->name }}</td>
                 <td class="text-center">{{ $class->grade ? 'Tingkat ' . $class->grade : '-' }}</td>
                 <td>{{ $class->room?->name ?? '-' }}</td>
-                <td>{{ $class->teacher?->name ?? '-' }}</td>
+                <td>
+                    <div>{{ $class->teacher?->name ?? '-' }}</div>
+                    @if($class->teacher)
+                        <div class="cell-note">{{ $class->teacher->nip ?: ($class->teacher->nuptk ?: 'Tanpa NIP/NUPTK') }}</div>
+                    @endif
+                </td>
                 <td class="text-center">{{ $class->students_count ?? 0 }}</td>
                 <td class="text-center">{{ $class->capacity ?? '-' }}</td>
                 <td class="text-center">
@@ -204,6 +216,12 @@
 
     <div class="footer">
         Total: {{ count($classes) }} kelas
+    </div>
+    <div class="standard-signature-wrap">
+        <div class="standard-signature-left"></div>
+        <div class="standard-signature-right">
+            @include('partials.print-signature', ['institution' => $institution, 'date' => $generated_at->locale('id')->translatedFormat('d F Y')])
+        </div>
     </div>
 </body>
 </html>
