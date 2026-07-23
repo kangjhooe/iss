@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTeacherAchievementRequest;
 use App\Http\Requests\UpdateTeacherAchievementRequest;
@@ -10,6 +11,7 @@ use App\Models\Employee;
 use App\Models\TeacherAchievement;
 use App\Models\TeacherAchievementType;
 use App\Services\TeacherPointService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,6 +20,8 @@ use Illuminate\Support\Facades\Storage;
 
 class TeacherAchievementController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected TeacherPointService $pointService
     ) {}
@@ -25,7 +29,7 @@ class TeacherAchievementController extends Controller
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -53,7 +57,7 @@ class TeacherAchievementController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -118,7 +122,8 @@ class TeacherAchievementController extends Controller
 
     public function show(Request $request, TeacherAchievement $teacher_achievement): TeacherAchievementResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_achievement->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_achievement->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -133,11 +138,12 @@ class TeacherAchievementController extends Controller
     public function update(UpdateTeacherAchievementRequest $request, TeacherAchievement $teacher_achievement): TeacherAchievementResource|JsonResponse
     {
         try {
-            if ($request->user()->institution_id !== $teacher_achievement->institution_id && !$request->user()->isSuperAdmin()) {
+            $user = $request->user();
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_achievement->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request) ?: (int) $teacher_achievement->institution_id;
             $type = TeacherAchievementType::where('id', $request->achievement_type_id)
                 ->where('institution_id', $institutionId)
                 ->where('is_active', true)
@@ -205,7 +211,8 @@ class TeacherAchievementController extends Controller
 
     public function destroy(Request $request, TeacherAchievement $teacher_achievement): JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_achievement->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_achievement->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -222,7 +229,8 @@ class TeacherAchievementController extends Controller
 
     public function approve(Request $request, TeacherAchievement $teacher_achievement): TeacherAchievementResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_achievement->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_achievement->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -250,7 +258,8 @@ class TeacherAchievementController extends Controller
 
     public function reject(Request $request, TeacherAchievement $teacher_achievement): TeacherAchievementResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_achievement->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_achievement->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -283,7 +292,7 @@ class TeacherAchievementController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
 
             if ($user->isTeacherOrStaff()) {
                 $profile = $user->employeeProfile;

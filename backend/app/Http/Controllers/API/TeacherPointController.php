@@ -12,6 +12,7 @@ use App\Models\Semester;
 use App\Models\TeacherAchievement;
 use App\Models\TeacherViolation;
 use App\Services\TeacherPointService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -24,7 +25,7 @@ class TeacherPointController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $institutionId = $request->user()->institution_id;
+        $institutionId = InstitutionContext::resolveForUser($request->user(), $request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
@@ -35,7 +36,7 @@ class TeacherPointController extends Controller
 
         [$academicYearId, $semesterId] = $this->pointService->resolvePeriodFromRequest($request, $institutionId);
 
-        $query = Employee::where('institution_id', $institutionId)
+        $query = Employee::forInstitution($institutionId)
             ->where('status', 'Aktif')
             ->select('id', 'name', 'nip', 'nuptk', 'type', 'subject', 'status')
             ->orderBy('name');
@@ -94,13 +95,15 @@ class TeacherPointController extends Controller
     public function summary(Request $request, int $employeeId): JsonResponse
     {
         $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = InstitutionContext::resolveForUser($user, $request);
 
         if ($user->isTeacherOrStaff()) {
             $profile = $user->employeeProfile;
             if ($profile && (int) $profile->id === $employeeId) {
-                $institutionId = $profile->institution_id;
-            } elseif (!$user->permissions()->where('key', 'teacher_appreciation')->exists()
+                // Self view: tetap di institusi aktif (bukan memaksa home employee)
+                $institutionId = InstitutionContext::resolveForUser($user, $request)
+                    ?: $profile->institution_id;
+            } elseif (!$user->hasModuleAccess('teacher_appreciation')
                 && !$user->isAdminOrSuperAdmin()
                 && !$user->isInstitutionAdmin()) {
                 return response()->json(['message' => 'Anda hanya dapat melihat poin sendiri.'], 403);
@@ -111,11 +114,8 @@ class TeacherPointController extends Controller
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
-        $employee = Employee::where('id', $employeeId)
-            ->where('institution_id', $institutionId)
-            ->first();
-
-        if (!$employee) {
+        $employee = Employee::where('id', $employeeId)->first();
+        if (!$employee || !InstitutionContext::employeeBelongsToInstitution($employee, (int) $institutionId)) {
             return response()->json(['message' => 'Guru tidak ditemukan.'], 404);
         }
 
@@ -143,12 +143,13 @@ class TeacherPointController extends Controller
             10
         );
 
-        $rank = null;
-        $leaderboard = $this->pointService->getLeaderboard($institutionId, $academicYearId, $semesterId, 500);
-        $found = $leaderboard->firstWhere('employee_id', $employeeId);
-        if ($found) {
-            $rank = $found['rank'];
-        }
+        $rank = $this->pointService->findEmployeeRank(
+            $employeeId,
+            $institutionId,
+            $academicYearId,
+            $semesterId,
+            $employee->type
+        );
 
         return response()->json([
             'data' => array_merge($summary, [
@@ -160,6 +161,7 @@ class TeacherPointController extends Controller
                     'subject' => $employee->subject,
                 ],
                 'rank' => $rank,
+                'leaderboard_mode' => $this->pointService->getLeaderboardMode($institutionId),
                 'achievements' => $achievements->values()->all(),
                 'violations' => $violations->values()->all(),
                 'reward_logs' => $rewardLogs->values()->all(),
@@ -169,26 +171,29 @@ class TeacherPointController extends Controller
 
     public function leaderboard(Request $request): JsonResponse
     {
-        $institutionId = $request->user()->institution_id;
+        $institutionId = InstitutionContext::resolveForUser($request->user(), $request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
         [$academicYearId, $semesterId] = $this->pointService->resolvePeriodFromRequest($request, $institutionId);
         $limit = min((int) $request->get('limit', 20), 100);
+        $bundle = $this->pointService->getLeaderboardBundle($institutionId, $academicYearId, $semesterId, $limit);
 
         return response()->json([
-            'data' => $this->pointService->getLeaderboard($institutionId, $academicYearId, $semesterId, $limit)->all(),
+            'data' => $bundle,
             'meta' => [
                 'academic_year_id' => $academicYearId,
                 'semester_id' => $semesterId,
+                'mode' => $bundle['mode'],
+                'limit' => $limit,
             ],
         ]);
     }
 
     public function reportSummary(Request $request): JsonResponse
     {
-        $institutionId = $request->user()->institution_id;
+        $institutionId = InstitutionContext::resolveForUser($request->user(), $request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
@@ -205,12 +210,12 @@ class TeacherPointController extends Controller
      */
     public function employees(Request $request): JsonResponse
     {
-        $institutionId = $request->user()->institution_id;
+        $institutionId = InstitutionContext::resolveForUser($request->user(), $request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
-        $query = Employee::where('institution_id', $institutionId)
+        $query = Employee::forInstitution($institutionId)
             ->where('status', 'Aktif')
             ->select('id', 'name', 'nip', 'nuptk', 'type', 'subject')
             ->orderBy('name');
@@ -233,7 +238,7 @@ class TeacherPointController extends Controller
      */
     public function pendingCounts(Request $request): JsonResponse
     {
-        $institutionId = $request->user()->institution_id;
+        $institutionId = InstitutionContext::resolveForUser($request->user(), $request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
@@ -249,7 +254,7 @@ class TeacherPointController extends Controller
      */
     public function bootstrap(Request $request): JsonResponse
     {
-        $institutionId = $request->user()->institution_id;
+        $institutionId = InstitutionContext::resolveForUser($request->user(), $request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }

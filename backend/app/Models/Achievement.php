@@ -11,6 +11,14 @@ class Achievement extends Model
 
     protected $table = 'achievements';
 
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_DICATAT = 'dicatat';
+    public const STATUS_DITOLAK = 'ditolak';
+
+    public const STATUSES_COUNTING_POINTS = [
+        self::STATUS_DICATAT,
+    ];
+
     protected $fillable = [
         'institution_id',
         'student_id',
@@ -19,6 +27,10 @@ class Achievement extends Model
         'achievement_date',
         'point_value',
         'notes',
+        'status',
+        'reviewed_by',
+        'reviewed_at',
+        'review_notes',
         'academic_year_id',
         'semester_id',
     ];
@@ -27,6 +39,7 @@ class Achievement extends Model
     {
         return [
             'achievement_date' => 'date',
+            'reviewed_at' => 'datetime',
         ];
     }
 
@@ -50,20 +63,24 @@ class Achievement extends Model
         return $this->belongsTo(User::class, 'given_by');
     }
 
-    /**
-     * Get the academic year for this achievement.
-     */
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
     public function academicYear()
     {
         return $this->belongsTo(AcademicYear::class, 'academic_year_id');
     }
 
-    /**
-     * Get the semester for this achievement.
-     */
     public function semester()
     {
         return $this->belongsTo(Semester::class, 'semester_id');
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
     }
 
     public function scopeForInstitution($query, int $institutionId)
@@ -74,5 +91,10 @@ class Achievement extends Model
     public function scopeForStudent($query, int $studentId)
     {
         return $query->where('student_id', $studentId);
+    }
+
+    public function scopeCountingPoints($query)
+    {
+        return $query->whereIn('status', self::STATUSES_COUNTING_POINTS);
     }
 }

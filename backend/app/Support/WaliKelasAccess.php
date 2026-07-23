@@ -5,7 +5,9 @@ namespace App\Support;
 use App\Models\Employee;
 use App\Models\Institution;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\User;
+use App\Support\InstitutionContext;
 use Illuminate\Support\Collection;
 
 /**
@@ -63,14 +65,19 @@ class WaliKelasAccess
         $query = SchoolClass::query()
             ->where('teacher_id', $employee->id);
 
-        if ($user->institution_id) {
-            $query->where('institution_id', $user->institution_id);
+        $activeInstitutionId = request()->attributes->get('current_institution_id');
+        $scopeInstitutionId = $activeInstitutionId !== null && $activeInstitutionId !== ''
+            ? (int) $activeInstitutionId
+            : ($user->institution_id ? (int) $user->institution_id : null);
+
+        if ($scopeInstitutionId) {
+            $query->where('institution_id', $scopeInstitutionId);
         }
 
         if ($academicYearId) {
             $query->where('academic_year_id', $academicYearId);
-        } elseif ($user->institution_id) {
-            $activeYearId = Institution::where('id', $user->institution_id)->value('active_academic_year_id');
+        } elseif ($scopeInstitutionId) {
+            $activeYearId = Institution::where('id', $scopeInstitutionId)->value('active_academic_year_id');
             if ($activeYearId) {
                 $query->where('academic_year_id', $activeYearId);
             }
@@ -136,5 +143,65 @@ class WaliKelasAccess
         unset($filters['class_id']);
 
         return $filters;
+    }
+
+    /**
+     * Ambil kelas yang diwaliki user (atau null jika bukan wali / tidak berhak).
+     */
+    public static function resolveHomeroomClass(User $user, int $classId): ?SchoolClass
+    {
+        $employee = self::employeeFor($user);
+        if (!$employee) {
+            return null;
+        }
+
+        $class = SchoolClass::query()->where('id', $classId)->first();
+        if (!$class) {
+            return null;
+        }
+
+        if ((int) $class->teacher_id !== (int) $employee->id) {
+            return null;
+        }
+
+        if (!InstitutionContext::canAccessInstitution($user, (int) $class->institution_id)) {
+            return null;
+        }
+
+        return $class;
+    }
+
+    /**
+     * Pastikan siswa aktif di kelas yang diwaliki.
+     */
+    public static function resolveHomeroomStudent(User $user, int $classId, int $studentId): ?Student
+    {
+        $class = self::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return null;
+        }
+
+        return Student::query()
+            ->where('id', $studentId)
+            ->where('class_id', $class->id)
+            ->first();
+    }
+
+    public static function studentBelongsToHomeroom(User $user, int $studentId): bool
+    {
+        $employee = self::employeeFor($user);
+        if (!$employee) {
+            return false;
+        }
+
+        $homeroomIds = self::homeroomClassIds($user);
+        if ($homeroomIds->isEmpty()) {
+            return false;
+        }
+
+        return \App\Models\Student::query()
+            ->where('id', $studentId)
+            ->whereIn('class_id', $homeroomIds->all())
+            ->exists();
     }
 }

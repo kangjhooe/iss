@@ -104,7 +104,15 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user has access to a module.
+     * Active institution for the current request (header/cookie), fallback to home.
+     */
+    public function currentInstitutionId(?\Illuminate\Http\Request $request = null): ?int
+    {
+        return \App\Support\InstitutionContext::resolveActiveInstitutionId($this, $request);
+    }
+
+    /**
+     * Check if user has access to a module (scoped to active institution).
      */
     public function hasModuleAccess(string $moduleKey): bool
     {
@@ -112,11 +120,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if ($this->relationLoaded('permissions')) {
-            return $this->permissions->contains('key', $moduleKey);
-        }
-
-        return $this->permissions()->where('key', $moduleKey)->exists();
+        return \App\Support\InstitutionContext::hasEffectivePermission($this, $moduleKey);
     }
 
     /**
@@ -368,8 +372,9 @@ class User extends Authenticatable
 
     /**
      * Whether the user is penanggung jawab (Kepala Lab) for at least one laboratorium.
+     * When $institutionId is set, only labs at that school count.
      */
-    public function isLabResponsible(): bool
+    public function isLabResponsible(?int $institutionId = null): bool
     {
         if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
             return false;
@@ -380,18 +385,24 @@ class User extends Authenticatable
             return false;
         }
 
-        return Room::query()
+        $query = Room::query()
             ->where('type', 'Laboratorium')
-            ->where('responsible_employee_id', $employee->id)
-            ->exists();
+            ->where('responsible_employee_id', $employee->id);
+
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
+        }
+
+        return $query->exists();
     }
 
     /**
      * Whether the user is pembina of at least one ekstrakurikuler.
+     * When $institutionId is set, only clubs at that school count.
      */
-    public function isExtracurricularSupervisor(): bool
+    public function isExtracurricularSupervisor(?int $institutionId = null): bool
     {
-        return \App\Support\ExtracurricularAccess::isSupervisor($this);
+        return \App\Support\ExtracurricularAccess::isSupervisor($this, $institutionId);
     }
 
     /**

@@ -4,7 +4,9 @@
       <div class="impersonation-banner-inner">
         <span>
           Mode support: menyamar sebagai <strong>{{ authStore.user?.name }}</strong>
-          <template v-if="authStore.user?.institution?.name"> ({{ authStore.user.institution.name }})</template>
+          <template v-if="authStore.activeInstitution?.name || authStore.user?.institution?.name">
+            ({{ authStore.activeInstitution?.name || authStore.user?.institution?.name }})
+          </template>
           — kembali sebagai {{ authStore.user?.impersonation?.admin_name || 'Super Admin' }}
         </span>
         <button type="button" class="impersonation-exit-btn" :disabled="stoppingImpersonation" @click="handleStopImpersonation">
@@ -36,12 +38,15 @@
 
     <nav class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="logo">
-        <div class="logo-icon">
-          <AppLogo :size="32" />
+        <div class="logo-brand">
+          <div class="logo-icon">
+            <AppLogo :size="32" />
+          </div>
+          <div class="logo-text">
+            <h2>{{ appName }}</h2>
+          </div>
         </div>
-        <div class="logo-text">
-          <h2>{{ appName }}</h2>
-        </div>
+        <p v-if="academicPeriodText" class="logo-period">{{ academicPeriodText }}</p>
       </div>
       
       <ul class="nav-menu">
@@ -311,6 +316,18 @@ const isSuperAdminLayout = computed(() => authStore.user?.role === 'super_admin'
 const stoppingImpersonation = ref(false)
 const switchingInstitution = ref(false)
 
+const academicPeriodText = computed(() => {
+  const inst = authStore.activeInstitution || authStore.user?.institution
+  if (!inst) return ''
+  const year = inst.active_academic_year?.name || inst.active_academic_year?.code
+  const semester = inst.active_semester?.name
+  if (!year && !semester) return ''
+  const parts = []
+  if (year) parts.push(`TP ${year}`)
+  if (semester) parts.push(semester)
+  return parts.join(' · ')
+})
+
 async function handleStopImpersonation() {
   if (stoppingImpersonation.value) return
   stoppingImpersonation.value = true
@@ -332,7 +349,16 @@ async function handleSwitchInstitution(event) {
   switchingInstitution.value = true
   try {
     await authStore.switchInstitution(nextId)
-    window.location.reload()
+    // Full reload ke dashboard agar menu/permission/data benar-benar mengikuti sekolah aktif
+    const role = authStore.user?.role
+    const home = role === 'super_admin'
+      ? '/super-admin/dashboard'
+      : (role === 'teacher' || role === 'staff')
+        ? '/teacher/dashboard'
+        : role === 'student'
+          ? '/student/dashboard'
+          : '/dashboard'
+    window.location.assign(home)
   } catch (e) {
     console.error(e)
     alert(e?.response?.data?.message || e?.message || 'Gagal mengganti sekolah')
@@ -515,14 +541,135 @@ const menuEntries = computed(() => {
       { type: 'link', key: 'student-counseling', to: '/student/konseling', label: 'Konseling', icon: IconCounseling },
       { type: 'link', key: 'student-extracurricular', to: '/student/ekstrakurikuler', label: 'Ekstrakurikuler', icon: IconStudents },
       { type: 'link', key: 'student-points', to: '/student/poin', label: 'Poin Saya', icon: IconPoints },
+      { type: 'link', key: 'student-ebooks', to: '/student/ebooks', label: 'Perpustakaan Digital', icon: IconLibrary },
       { type: 'link', key: 'student-change-requests', to: '/student/permintaan-perubahan', label: 'Permintaan Perubahan', icon: IconAdmin },
       { type: 'link', key: 'student-profile', to: '/student/profil', label: 'Profil Saya', icon: IconSettings }
     ]
   }
+  const isTeacherOrStaff = role === 'teacher' || role === 'staff'
+  const homeroomClasses = isTeacherOrStaff ? (authStore.user?.homeroom_classes || []) : []
+  const teachingAssignments = isTeacherOrStaff ? (authStore.user?.teaching_assignments || []) : []
+  const supervisedExtracurriculars = isTeacherOrStaff ? (authStore.user?.supervised_extracurriculars || []) : []
+  const managedLabs = isTeacherOrStaff ? (authStore.user?.managed_labs || []) : []
+  const hasHomeroom = homeroomClasses.length > 0
+  const hasTeachingAssignments = teachingAssignments.length > 0
+  const hasSupervisedEkskul = supervisedExtracurriculars.length > 0
+  const hasManagedLabs = managedLabs.length > 0
+  // Sembunyikan jurnal/nilai generik jika sudah ada menu Mapel per pair (kurangi duplikasi).
+  const showGenericJournalGrade = !hasTeachingAssignments || !isTeacherOrStaff
+  // Laporan BK di grup BK: jangan dobel untuk wali yang hanya punya bk_report.
+  const showBkReportInBkGroup = canAccessModule('violation') || canAccessModule('counseling')
+    || (canAccessModule('bk_report') && !hasHomeroom)
+  // Raport di Keguruan: sembunyikan jika sudah ada di menu Wali.
+  const showRaportInAkademik = canAccessModule('grade_book') && !hasHomeroom
+
+  const waliChildren = []
+  if (hasHomeroom) {
+    waliChildren.push({
+      to: '/teacher/wali',
+      label: 'Data Siswa',
+      visible: true,
+    })
+    homeroomClasses.forEach((c) => {
+      const classQs = `?class_id=${c.id}`
+      const classLabel = c.name || `Kelas #${c.id}`
+      waliChildren.push({
+        to: `/teacher/wali${classQs}&panel=usulan`,
+        label: `Usulan · ${classLabel}`,
+        visible: true,
+      })
+      waliChildren.push({
+        to: `/teacher/wali${classQs}&panel=jadwal`,
+        label: `Jadwal · ${classLabel}`,
+        visible: true,
+      })
+      if (canAccessModule('teaching_journal')) {
+        waliChildren.push({
+          to: `/attendance/student${classQs}`,
+          label: `Absen · ${classLabel}`,
+          visible: true,
+        })
+      }
+      if (canAccessModule('bk_report') || canAccessModule('violation') || canAccessModule('counseling')) {
+        waliChildren.push({
+          to: `/laporan-bk${classQs}`,
+          label: `BK · ${classLabel}`,
+          visible: true,
+        })
+      }
+      if (canAccessModule('grade_book')) {
+        waliChildren.push({
+          to: `/raport${classQs}`,
+          label: `Raport · ${classLabel}`,
+          visible: true,
+        })
+        waliChildren.push({
+          to: `/raport-kelas${classQs}`,
+          label: `Rekap Nilai · ${classLabel}`,
+          visible: true,
+        })
+      }
+    })
+  }
+
+  const mapelChildren = teachingAssignments.map((a) => ({
+    to: `/teacher/mapel?class_id=${a.class_id}&subject_id=${a.subject_id}`,
+    label: a.label || `${a.subject_name} — ${a.class_name}`,
+    visible: canAccessModule('grade_book') || canAccessModule('teaching_journal') || canAccessModule('online_exam'),
+  }))
+
+  const ekskulChildren = supervisedExtracurriculars.map((e) => ({
+    to: `/extracurricular/${e.id}`,
+    label: e.name || `Ekskul #${e.id}`,
+    visible: true,
+  }))
+  if (hasSupervisedEkskul && canAccessModule('extracurricular')) {
+    ekskulChildren.push({
+      to: '/extracurricular',
+      label: 'Semua Ekskul',
+      visible: true,
+      exact: true,
+    })
+  }
+
+  const labChildren = managedLabs.map((lab) => ({
+    to: `/lab/${lab.id}`,
+    label: lab.name || `Lab #${lab.id}`,
+    visible: true,
+  }))
+  if (hasManagedLabs || canAccessLabManagement()) {
+    labChildren.push({
+      to: '/lab',
+      label: canAccessModule('facility') ? 'Manajemen Lab' : 'Daftar Lab Saya',
+      visible: true,
+      exact: true,
+    })
+  }
+  labChildren.push({
+    to: '/lab-booking',
+    label: 'Booking Lab',
+    visible: role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility'),
+  })
+
   const entries = [
     { type: 'link', key: 'dashboard', to: getDashboardTo(), label: 'Dashboard', icon: IconDashboard },
-    ...(role === 'teacher' || role === 'staff' ? [{ type: 'link', key: 'teacher-profile', to: '/teacher/profile', label: 'Profil Saya', icon: IconSettings }] : []),
-    ...(role === 'teacher' || role === 'staff' ? [{ type: 'link', key: 'teacher-points', to: '/teacher/poin', label: 'Poin & Prestasi Saya', icon: IconPoints }] : []),
+    ...(isTeacherOrStaff ? [{ type: 'link', key: 'teacher-profile', to: '/teacher/profile', label: 'Profil Saya', icon: IconSettings }] : []),
+    ...(isTeacherOrStaff ? [{ type: 'link', key: 'teacher-points', to: '/teacher/poin', label: 'Poin & Prestasi Saya', icon: IconPoints }] : []),
+    ...(isTeacherOrStaff && (canAccessModule('teaching_journal') || canAccessModule('grade_book'))
+      ? [{ type: 'link', key: 'teacher-today', to: '/teacher/today', label: 'Jam Mengajar Hari Ini', icon: IconAttendance }]
+      : []),
+    ...(hasHomeroom
+      ? [addVisible({ type: 'group', key: 'wali-kelas', label: 'Wali Kelas', icon: IconStudents, children: waliChildren })]
+      : []),
+    ...(hasTeachingAssignments
+      ? [addVisible({ type: 'group', key: 'mata-pelajaran', label: 'Mata Pelajaran', icon: IconGrade, children: mapelChildren })]
+      : []),
+    ...(hasSupervisedEkskul
+      ? [addVisible({ type: 'group', key: 'ekskul-saya', label: 'Ekskul Saya', icon: IconStudents, children: ekskulChildren })]
+      : []),
+    ...(hasManagedLabs
+      ? [addVisible({ type: 'group', key: 'lab-saya', label: 'Lab Saya', icon: IconLab, children: labChildren })]
+      : []),
     // Ready
     addVisible({ type: 'group', key: 'master', label: 'Master Data', icon: IconDatabase, children: [
       { to: '/institution', label: 'Profil Instansi', visible: canAccessModule('institution') },
@@ -532,12 +679,13 @@ const menuEntries = computed(() => {
     ]}),
     addVisible({ type: 'group', key: 'akademik', label: 'Keguruan', icon: IconAcademic, children: [
       { to: '/teacher', label: 'Data Guru', visible: canAccessModule('teacher') },
+      { to: '/teacher-mutation', label: 'Mutasi Guru', visible: canAccessModule('teacher') },
       { to: '/teacher-appreciation', label: 'Apresiasi Guru', visible: canAccessModule('teacher_appreciation') || canAccessModule('teacher_violation_report') },
       { to: '/guru-piket', label: 'Guru Piket', visible: canAccessPiket() },
       { to: '/lesson-schedule', label: 'Jadwal Pelajaran', visible: canAccessModule('schedule') },
-      { to: '/teaching-journal', label: 'Jurnal Mengajar', visible: canAccessModule('teaching_journal') },
-      { to: '/grade-book', label: 'Buku Nilai', visible: canAccessModule('grade_book') },
-      { to: '/raport', label: 'Raport Siswa', visible: canAccessModule('grade_book') }
+      { to: '/teaching-journal', label: 'Jurnal Mengajar', visible: canAccessModule('teaching_journal') && showGenericJournalGrade },
+      { to: '/grade-book', label: 'Buku Nilai', visible: canAccessModule('grade_book') && showGenericJournalGrade },
+      { to: '/raport', label: 'Raport Siswa', visible: showRaportInAkademik }
     ]}),
     addVisible({ type: 'group', key: 'kesiswaan', label: 'Kesiswaan', icon: IconStudents, children: [
       { to: '/student', label: 'Data Siswa', visible: canAccessModule('student') },
@@ -549,7 +697,7 @@ const menuEntries = computed(() => {
     addVisible({ type: 'group', key: 'bk', label: 'Bimbingan Konseling', icon: IconCounseling, children: [
       { to: '/violation', label: 'Pelanggaran', visible: canAccessModule('violation') },
       { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
-      { to: '/laporan-bk', label: 'Laporan BK', visible: canAccessModule('violation') || canAccessModule('counseling') || canAccessModule('bk_report') }
+      { to: '/laporan-bk', label: 'Laporan BK', visible: showBkReportInBkGroup }
     ]}),
     addVisible({ type: 'group', key: 'correspondence', label: 'Persuratan', icon: IconCorrespondence, children: [
       { to: '/correspondence', label: 'Buat Surat', visible: canAccessModule('correspondence'), exact: true },
@@ -558,13 +706,17 @@ const menuEntries = computed(() => {
       { to: '/correspondence/kop', label: 'KOP', visible: canAccessModule('correspondence') },
       { to: '/correspondence/tanda-tangan', label: 'TTD & Stempel', visible: canAccessModule('correspondence') }
     ]}),
-    ...(canAccessExtracurricular()
+    // Flat ekskul hanya jika bukan pembina (atau koordinator tanpa daftar supervised — canAccessExtracurricular)
+    ...(!hasSupervisedEkskul && canAccessExtracurricular()
       ? [{ type: 'link', key: 'extracurricular', to: '/extracurricular', label: 'Ekstrakurikuler', icon: IconStudents }]
       : []),
-    addVisible({ type: 'group', key: 'laboratorium', label: 'Laboratorium', icon: IconLab, children: [
-      { to: '/lab', label: canAccessModule('facility') ? 'Manajemen Lab' : 'Lab Saya', visible: canAccessLabManagement() },
-      { to: '/lab-booking', label: 'Booking Lab', visible: role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility') }
-    ]}),
+    // Grup lab generik hanya jika bukan kepala lab (atau admin facility tanpa managed list)
+    ...(!hasManagedLabs
+      ? [addVisible({ type: 'group', key: 'laboratorium', label: 'Laboratorium', icon: IconLab, children: [
+          { to: '/lab', label: canAccessModule('facility') ? 'Manajemen Lab' : 'Lab Saya', visible: canAccessLabManagement() },
+          { to: '/lab-booking', label: 'Booking Lab', visible: role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility') }
+        ]})]
+      : []),
     ...(canAccessModule('library')
       ? [{ type: 'link', key: 'perpustakaan', to: '/library', label: 'Perpustakaan', icon: IconLibrary }]
       : []),
@@ -582,9 +734,11 @@ const menuEntries = computed(() => {
       { to: '/ujian-online/sesi?fokus=kontrol', label: 'Kontrol Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/bank-soal', label: 'Bank Soal', visible: canAccessModule('online_exam') }
     ]}),
-    addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, maturity: 'beta', children: [
+    addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, children: [
       { to: '/attendance/student', label: 'Absensi Siswa', visible: canAccessModule('teaching_journal') },
-      { to: '/attendance/employee', label: 'Absensi Guru & Staff', visible: canAccessModule('attendance') }
+      { to: '/attendance/employee', label: 'Absensi Guru & Staff', visible: canAccessModule('attendance') },
+      { to: '/qr-attendance/scan', label: 'Scan QR Absensi', visible: canAccessModule('attendance') },
+      { to: '/qr-attendance/generate', label: 'Generate QR', visible: canAccessModule('attendance') },
     ]}),
     addVisible({ type: 'group', key: 'layanan', label: 'Layanan', icon: IconLayanan, maturity: 'beta', children: [
       { to: '/student-change-requests', label: 'Permintaan Perubahan Siswa', visible: canAccessModule('student') },
@@ -718,6 +872,9 @@ const pageTitle = computed(() => {
     Dashboard: 'Dashboard',
     TeacherDashboard: 'Dashboard Guru',
     TeacherMyPoints: 'Poin & Prestasi Saya',
+    TeacherWali: 'Wali Kelas',
+    TeacherMapel: 'Mata Pelajaran',
+    TeacherToday: 'Jam Mengajar Hari Ini',
     TeacherAppreciation: 'Apresiasi Guru',
     GuruPiket: 'Guru Piket',
     StudentDashboard: 'Dashboard Siswa',
@@ -756,6 +913,7 @@ const pageTitle = computed(() => {
     StudentChangeRequestsAdmin: 'Permintaan Perubahan Siswa',
     ModuleAccess: 'Akses Modul',
     StudentMutation: 'Mutasi Siswa',
+    TeacherMutation: 'Mutasi Guru',
     Notifications: 'Notifikasi',
     AccountSettings: 'Pengaturan Akun',
     AuditLog: 'Audit Log',
@@ -772,6 +930,8 @@ const pageTitle = computed(() => {
     TeachingJournal: 'Jurnal Mengajar',
     AttendanceStudent: 'Absensi Siswa',
     AttendanceEmployee: 'Absensi Guru & Staff',
+    QrAttendanceScan: 'Scan QR Absensi',
+    QrCodeGenerate: 'Generate QR',
     GradeBook: 'Buku Nilai',
     Raport: 'Raport Siswa',
     OnlineExamList: 'Ujian Online',
@@ -800,7 +960,7 @@ const showNotificationBell = computed(() => {
   const role = authStore.user?.role
   if (role === 'super_admin') return false
   if (role === 'student') return !!authStore.user?.student_profile
-  return !!authStore.user?.institution_id
+  return !!(authStore.activeInstitutionId || authStore.user?.institution_id)
 })
 
 const unreadNotificationCount = ref(0)
@@ -970,9 +1130,15 @@ const handleLogout = async () => {
   padding: 18px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.logo-brand {
+  display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
 }
 
 .logo-icon {
@@ -995,13 +1161,13 @@ const handleLogout = async () => {
   letter-spacing: -0.5px;
 }
 
-.logo-text p {
-  font-size: 11px;
-  color: #94a3b8;
+.logo-period {
   margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #94a3b8;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
 }
 
 .nav-menu {
@@ -1767,7 +1933,7 @@ const handleLogout = async () => {
     font-size: 18px;
   }
 
-  .logo-text p {
+  .logo-period {
     font-size: 10px;
   }
 }

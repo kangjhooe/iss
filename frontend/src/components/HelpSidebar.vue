@@ -129,6 +129,13 @@
               </div>
             </div>
             <div class="help-card">
+              <span class="help-card-icon help-card-icon--amber">↔️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Mutasi Guru</div>
+                <p class="help-card-desc">Pindah masuk/keluar guru berdasarkan NUPTK. Tidak ada batasan jenjang.</p>
+              </div>
+            </div>
+            <div class="help-card">
               <span class="help-card-icon help-card-icon--lime">📅</span>
               <div class="help-card-body">
                 <div class="help-card-title">Jadwal Pelajaran</div>

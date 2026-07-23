@@ -13,6 +13,16 @@ class Institution extends Model
 
     protected $table = 'institution';
 
+    public const TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY = 'guru_only';
+    public const TEACHER_APPRECIATION_LEADERBOARD_COMBINED = 'combined';
+    public const TEACHER_APPRECIATION_LEADERBOARD_SEPARATED = 'separated';
+
+    public const TEACHER_APPRECIATION_LEADERBOARD_MODES = [
+        self::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY,
+        self::TEACHER_APPRECIATION_LEADERBOARD_COMBINED,
+        self::TEACHER_APPRECIATION_LEADERBOARD_SEPARATED,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -49,6 +59,7 @@ class Institution extends Model
         'latitude',
         'longitude',
         'location_radius',
+        'teacher_appreciation_leaderboard_mode',
     ];
 
     /**
@@ -560,6 +571,22 @@ class Institution extends Model
     public function getPrincipalTitleAttribute(): string
     {
         return self::principalTitleForLevel($this->level);
+    }
+
+    /**
+     * Label nomor statistik: madrasah → NSM, selain itu → NSS.
+     */
+    public static function nssLabelForLevel(?string $level): string
+    {
+        return self::isMadrasahLevel($level) ? 'NSM' : 'NSS';
+    }
+
+    /**
+     * Label nomor statistik untuk institusi ini.
+     */
+    public function getNssLabelAttribute(): string
+    {
+        return self::nssLabelForLevel($this->level);
     }
 
     /**

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCounselingTypeRequest;
 use App\Http\Requests\UpdateCounselingTypeRequest;
 use App\Http\Resources\CounselingTypeResource;
 use App\Models\CounselingType;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -14,14 +16,15 @@ use Illuminate\Support\Facades\Log;
 
 class CounselingTypeController extends Controller
 {
+    use ResolvesInstitution;
+
     /**
      * List counseling types for current institution.
      */
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -48,8 +51,7 @@ class CounselingTypeController extends Controller
     public function store(StoreCounselingTypeRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -76,7 +78,7 @@ class CounselingTypeController extends Controller
     public function show(Request $request, CounselingType $counseling_type): CounselingTypeResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $counseling_type->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $counseling_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         return new CounselingTypeResource($counseling_type);
@@ -89,7 +91,7 @@ class CounselingTypeController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $counseling_type->institution_id && !$user->isSuperAdmin()) {
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $counseling_type->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -110,7 +112,7 @@ class CounselingTypeController extends Controller
     public function destroy(Request $request, CounselingType $counseling_type): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $counseling_type->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $counseling_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

@@ -131,6 +131,10 @@ export const useAuthStore = defineStore('auth', {
       if (!user) throw new Error('Data user tidak ditemukan')
       this.user = user
       syncActiveInstitutionGlobal(this.user)
+      // Pastikan header request berikutnya memakai sekolah baru sebelum reload
+      if (typeof window !== 'undefined' && user.active_institution_id) {
+        window.__ISS_ACTIVE_INSTITUTION_ID__ = user.active_institution_id
+      }
       return user
     },
 

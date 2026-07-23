@@ -60,11 +60,20 @@ export const extracurricularApi = {
   saveAttendances(id, sessionId, data) {
     return api.put(`/v1/extracurriculars/${id}/sessions/${sessionId}/attendances`, data)
   },
+  getSessionGrades(id, sessionId) {
+    return api.get(`/v1/extracurriculars/${id}/sessions/${sessionId}/grades`)
+  },
+  saveSessionGrades(id, sessionId, data) {
+    return api.put(`/v1/extracurriculars/${id}/sessions/${sessionId}/grades`, data)
+  },
   getGrades(id, params) {
     return api.get(`/v1/extracurriculars/${id}/grades`, { params })
   },
   saveGrades(id, data) {
     return api.put(`/v1/extracurriculars/${id}/grades`, data)
+  },
+  getMyGrades(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/my-grades`, { params })
   },
   getReport(id, params) {
     return api.get(`/v1/extracurriculars/${id}/report`, { params })

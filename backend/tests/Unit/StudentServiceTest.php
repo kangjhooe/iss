@@ -185,4 +185,84 @@ class StudentServiceTest extends TestCase
 
         $this->assertCount(100, $result->items());
     }
+
+    public function test_list_filters_students_without_class(): void
+    {
+        $institution = Institution::factory()->create();
+
+        Student::factory()->count(2)->create([
+            'institution_id' => $institution->id,
+            'class_id' => null,
+            'class' => null,
+        ]);
+        Student::factory()->count(3)->create([
+            'institution_id' => $institution->id,
+            'class' => '7A',
+        ]);
+
+        $result = $this->studentService->list(
+            ['class_id' => '__none__'],
+            $institution->id,
+            15
+        );
+
+        $this->assertEquals(2, $result->total());
+    }
+
+    public function test_list_filters_students_without_tingkat(): void
+    {
+        $institution = Institution::factory()->create();
+
+        Student::factory()->count(2)->create([
+            'institution_id' => $institution->id,
+            'tingkat' => null,
+        ]);
+        Student::factory()->count(3)->create([
+            'institution_id' => $institution->id,
+            'tingkat' => 7,
+        ]);
+
+        $result = $this->studentService->list(
+            ['tingkat' => '__none__'],
+            $institution->id,
+            15
+        );
+
+        $this->assertEquals(2, $result->total());
+    }
+
+    public function test_list_sorts_by_name_asc(): void
+    {
+        $institution = Institution::factory()->create();
+
+        Student::factory()->create([
+            'institution_id' => $institution->id,
+            'name' => 'Zaid',
+        ]);
+        Student::factory()->create([
+            'institution_id' => $institution->id,
+            'name' => 'Ahmad',
+        ]);
+
+        $result = $this->studentService->list(
+            ['sort_by' => 'name', 'sort_dir' => 'asc'],
+            $institution->id,
+            15
+        );
+
+        $names = collect($result->items())->pluck('name')->all();
+        $this->assertSame(['Ahmad', 'Zaid'], $names);
+    }
+
+    public function test_list_for_export_returns_all_rows(): void
+    {
+        $institution = Institution::factory()->create();
+        Student::factory()->count(12)->create([
+            'institution_id' => $institution->id,
+        ]);
+
+        $result = $this->studentService->listForExport([], $institution->id);
+
+        $this->assertCount(12, $result);
+    }
 }

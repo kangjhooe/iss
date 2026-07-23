@@ -106,6 +106,13 @@
             </svg>
             <span>Ekstrakurikuler</span>
           </router-link>
+          <router-link to="/student/ebooks" class="quick-action-card">
+            <svg class="quick-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Perpustakaan Digital</span>
+          </router-link>
         </div>
       </div>
 
@@ -157,12 +164,20 @@
               <tr>
                 <th>Mata Pelajaran</th>
                 <th>Nilai</th>
+                <th>KKM</th>
+                <th>Predikat</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="g in grades" :key="g.id || g.subject_id">
                 <td>{{ g.subject?.name || '-' }}</td>
-                <td>{{ g.nilai_akhir ?? g.value ?? '-' }}</td>
+                <td>
+                  <strong :class="{ 'score-warn': g.is_tuntas === false, 'score-ok': g.is_tuntas === true }">
+                    {{ g.nilai_akhir ?? g.value ?? '-' }}
+                  </strong>
+                </td>
+                <td>{{ g.kkm ?? '—' }}</td>
+                <td>{{ g.predicate || '—' }}</td>
               </tr>
             </tbody>
           </table>
@@ -790,6 +805,9 @@ async function loadUpcomingEvents() {
   font-size: 14px;
   color: #0f172a;
 }
+
+.score-ok { color: #059669; }
+.score-warn { color: #dc2626; }
 
 .violations-list {
   display: flex;

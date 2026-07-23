@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('subject_id')->constrained('subjects')->onDelete('cascade');
             $table->foreignId('employee_id')->constrained('employee')->onDelete('cascade');
             $table->foreignId('room_id')->nullable()->constrained('room')->onDelete('set null');
-            $table->unsignedTinyInteger('day_of_week')->comment('1=Senin, 2=Selasa, ..., 5=Jumat');
+            $table->unsignedTinyInteger('day_of_week')->comment('1=Senin .. 7=Minggu');
             $table->unsignedSmallInteger('period')->comment('Jam ke (1, 2, 3, ...)');
             $table->time('start_time')->nullable();
             $table->time('end_time')->nullable();

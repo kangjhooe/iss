@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Services\BukuIndukService;
 use App\Services\StudentService;
+use App\Support\InstitutionContext;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,7 @@ class BukuIndukController extends Controller
         try {
             $student = $this->studentService->find($id);
 
-            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -36,14 +37,14 @@ class BukuIndukController extends Controller
                     'student' => $data['student']->toArray(),
                     'institution' => $data['institution'] ? $data['institution']->toArray() : null,
                     'class_history' => $data['class_history']->toArray(),
-                    'mutations' => $data['mutations']->toArray(),
+                    'mutations' => $data['mutations']->values()->all(),
                     'achievements' => $data['achievements']->toArray(),
                     'violations' => $data['violations']->toArray(),
                     'counseling_sessions' => $data['counseling_sessions']->toArray(),
                     'document_pickups' => $data['document_pickups']->toArray(),
                     'attendance_summary' => $data['attendance_summary'],
                     'grades_summary' => $data['grades_summary'],
-                    'extracurriculars' => $data['extracurriculars']->toArray(),
+                    'extracurriculars' => $data['extracurriculars']->values()->all(),
                     'alumni_destinations' => $data['alumni_destinations']->toArray(),
                     'library_loans_summary' => $data['library_loans_summary'],
                     'health_records' => $data['health_records'],
@@ -69,7 +70,7 @@ class BukuIndukController extends Controller
         try {
             $student = $this->studentService->find($id);
 
-            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -89,5 +90,21 @@ class BukuIndukController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    private function userCanAccessStudent(Request $request, $student): bool
+    {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
+            return true;
+        }
+
+        $institutionId = InstitutionContext::resolveForUser(
+            $user,
+            $request,
+            $request->get('institution_id')
+        );
+
+        return $this->studentService->canAccess($student, $institutionId, false);
     }
 }

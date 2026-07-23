@@ -153,8 +153,14 @@ return new class extends Migration
         $mapDutyPerm($dutyId, $piketPermId);
         $mapDutyPerm($dutyId, $reportPermId);
 
-        // KS / Waka / Operator: akses + kelola
-        $manageDutyKeys = ['kepala_sekolah', 'waka_kesiswaan', 'operator_sekolah'];
+        // KS: lihat hub piket (pengawasan), tanpa kelola jadwal
+        $ksDutyId = DB::table('additional_duties')->where('key', 'kepala_sekolah')->value('id');
+        if ($ksDutyId) {
+            $mapDutyPerm((int) $ksDutyId, $piketPermId);
+        }
+
+        // Waka / Operator: akses + kelola
+        $manageDutyKeys = ['waka_kesiswaan', 'operator_sekolah'];
         $manageDutyIds = DB::table('additional_duties')->whereIn('key', $manageDutyKeys)->pluck('id');
         foreach ($manageDutyIds as $manageDutyId) {
             $mapDutyPerm((int) $manageDutyId, $piketPermId);
@@ -162,7 +168,7 @@ return new class extends Migration
         }
 
         // Backfill user_permissions untuk pemegang duty terkait
-        $allDutyIds = collect([$dutyId])->merge($manageDutyIds)->filter()->unique()->values();
+        $allDutyIds = collect([$dutyId, $ksDutyId])->merge($manageDutyIds)->filter()->unique()->values();
         $employeeIds = DB::table('employee_additional_duties')
             ->whereIn('additional_duty_id', $allDutyIds->all())
             ->pluck('employee_id')
@@ -184,7 +190,8 @@ return new class extends Migration
                     ->pluck('additional_duty_id');
 
                 $grant = [];
-                if ($userDutyIds->contains($dutyId) || $userDutyIds->intersect($manageDutyIds)->isNotEmpty()) {
+                $hasKs = $ksDutyId && $userDutyIds->contains($ksDutyId);
+                if ($userDutyIds->contains($dutyId) || $userDutyIds->intersect($manageDutyIds)->isNotEmpty() || $hasKs) {
                     $grant[] = $piketPermId;
                 }
                 if ($userDutyIds->intersect($manageDutyIds)->isNotEmpty()) {

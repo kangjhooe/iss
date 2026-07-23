@@ -6,19 +6,25 @@ use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Support\TeacherAccess;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Memberikan akses modul otomatis kepada guru yang diangkat sebagai wali kelas.
+ *
+ * Akses mengajar (nilai, jurnal, jadwal) ada di {@see TeacherAccess} dan
+ * tidak dicabut saat guru berhenti jadi wali.
  */
 class WaliKelasPermissionService
 {
     /**
-     * Permission keys yang otomatis diberikan ke wali kelas.
+     * Permission keys khusus wali kelas (bukan paket mengajar umum).
      * - bk_report: laporan BK read-only untuk siswa di kelasnya saja
-     * - grade_book: buku nilai
-     * - teaching_journal: jurnal mengajar
-     * - report: laporan
+     * - report: laporan umum sekolah
+     *
+     * Modul `grade_book` / `teaching_journal` / `schedule` milik semua guru mapel
+     * (lihat TeacherAccess), sengaja tidak masuk daftar ini agar tidak dicabut
+     * saat status wali berakhir.
      *
      * Modul `class` / `student` sengaja tidak diberikan:
      * manajemen kelas & data siswa penuh milik admin/TU.
@@ -29,8 +35,6 @@ class WaliKelasPermissionService
     {
         return [
             'bk_report',
-            'grade_book',
-            'teaching_journal',
             'report',
         ];
     }
@@ -50,8 +54,8 @@ class WaliKelasPermissionService
 
     /**
      * Sync privilege wali kelas untuk akun guru.
-     * - Jika masih wali: grant keys wali + cabut keys yang tidak boleh (kecuali dari tugas tambahan).
-     * - Jika tidak lagi wali: cabut keys yang hanya dari paket wali (kecuali tugas tambahan / keys non-wali).
+     * - Jika masih wali: grant keys wali + pastikan paket mengajar + cabut keys terlarang.
+     * - Jika tidak lagi wali: cabut keys khusus wali saja (bukan grade_book/teaching_journal).
      */
     public function syncWaliKelasPermissionsForEmployee(int $employeeId): void
     {
@@ -83,6 +87,7 @@ class WaliKelasPermissionService
 
     /**
      * Berikan privilege akses wali kelas ke akun guru (merge dengan permission yang sudah ada).
+     * Juga memastikan paket mengajar (nilai/jurnal) tetap ada.
      * Mencabut student/violation/counseling/class kecuali berasal dari tugas tambahan aktif.
      */
     public function grantWaliKelasPermissionsToEmployee(int $employeeId): void
@@ -103,7 +108,11 @@ class WaliKelasPermissionService
 
         $existingKeys = $user->permissions()->pluck('key')->toArray();
         $waliKeys = static::waliKelasPermissionKeys();
-        $mergedKeys = array_values(array_unique(array_merge($existingKeys, $waliKeys)));
+        $mergedKeys = array_values(array_unique(array_merge(
+            $existingKeys,
+            TeacherAccess::defaultPermissionKeys(),
+            $waliKeys
+        )));
 
         $dutyKeys = $this->activeDutyPermissionKeys($employee);
         $toRevoke = [];
@@ -128,9 +137,8 @@ class WaliKelasPermissionService
     }
 
     /**
-     * Cabut permission paket wali dari guru yang sudah tidak menjadi wali kelas.
-     * Keys di waliKelasPermissionKeys dicabut kecuali masih ada di tugas tambahan.
-     * Keys di revoked list juga dipastikan dicabut (kecuali tugas tambahan).
+     * Cabut permission khusus wali dari guru yang sudah tidak menjadi wali kelas.
+     * Tidak mencabut paket mengajar (grade_book, teaching_journal, schedule, correspondence).
      */
     public function revokeWaliOnlyPermissionsFromEmployee(int $employeeId): void
     {
@@ -157,7 +165,9 @@ class WaliKelasPermissionService
             fn (string $key) => !in_array($key, $dutyKeys, true)
         ));
 
-        $remainingKeys = array_values(array_diff($existingKeys, $toRevoke));
+        $remainingKeys = TeacherAccess::mergeTeachingDefaults(
+            array_values(array_diff($existingKeys, $toRevoke))
+        );
         $permissionIds = Permission::whereIn('key', $remainingKeys)->pluck('id')->all();
         $user->permissions()->sync($permissionIds);
 

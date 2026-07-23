@@ -53,21 +53,41 @@ class ExtracurricularGrade extends Model
         return $this->belongsTo(Employee::class, 'recorded_by');
     }
 
-    public static function predicateFromScore(?float $score): ?string
+    /**
+     * Predikat dari skor berdasarkan KKM.
+     * Di bawah KKM = D; rentang KKM–100 dibagi 3 untuk C, B, A.
+     */
+    public static function predicateFromScore(?float $score, float|int|string|null $kkm = 75): ?string
     {
         if ($score === null) {
             return null;
         }
-        if ($score >= 90) {
-            return 'A';
+
+        $kkmValue = $kkm !== null ? (float) $kkm : 75.0;
+        if ($kkmValue < 0) {
+            $kkmValue = 0;
         }
-        if ($score >= 80) {
-            return 'B';
-        }
-        if ($score >= 70) {
-            return 'C';
+        if ($kkmValue > 100) {
+            $kkmValue = 100;
         }
 
-        return 'D';
+        if ($score < $kkmValue) {
+            return 'D';
+        }
+
+        $band = (100 - $kkmValue) / 3;
+        if ($band <= 0) {
+            return 'A';
+        }
+
+        if ($score >= $kkmValue + (2 * $band)) {
+            return 'A';
+        }
+        if ($score >= $kkmValue + $band) {
+            return 'B';
+        }
+
+        return 'C';
     }
 }
+

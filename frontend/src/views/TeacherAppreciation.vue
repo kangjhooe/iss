@@ -267,24 +267,66 @@
 
       <!-- Leaderboard / Peringkat -->
       <template v-else-if="tab === 'leaderboard'">
+        <div class="leaderboard-settings">
+          <div class="filter-group">
+            <label for="leaderboard-mode">Mode peringkat</label>
+            <select
+              id="leaderboard-mode"
+              v-model="leaderboardModeDraft"
+              class="filter-select"
+              :disabled="savingLeaderboardMode"
+              @change="saveLeaderboardMode"
+            >
+              <option value="guru_only">Hanya Guru</option>
+              <option value="combined">Guru &amp; Staff digabung</option>
+              <option value="separated">Guru &amp; Staff dipisah</option>
+            </select>
+          </div>
+          <p class="muted leaderboard-mode-hint">{{ leaderboardModeHint }}</p>
+        </div>
+
+        <div
+          v-if="leaderboardMode === 'separated'"
+          class="leaderboard-group-tabs"
+          role="tablist"
+          aria-label="Grup peringkat"
+        >
+          <button
+            type="button"
+            class="nav-tab"
+            :class="{ active: leaderboardGroup === 'guru' }"
+            @click="leaderboardGroup = 'guru'"
+          >
+            Guru
+          </button>
+          <button
+            type="button"
+            class="nav-tab"
+            :class="{ active: leaderboardGroup === 'staff' }"
+            @click="leaderboardGroup = 'staff'"
+          >
+            Staff / Non-Guru
+          </button>
+        </div>
+
         <div v-if="loading" class="state">Memuat peringkat...</div>
-        <div v-else-if="!leaderboardRows.length" class="state empty">
+        <div v-else-if="!activeLeaderboardRows.length" class="state empty">
           <h3 class="empty-title">Belum ada ranking</h3>
-          <p class="empty-desc">Belum ada skor neto pada periode ini. Catat prestasi atau pelanggaran yang disetujui untuk mengisi leaderboard.</p>
+          <p class="empty-desc">Belum ada pegawai aktif untuk ditampilkan pada mode/periode ini.</p>
         </div>
         <div v-else class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
                 <th class="col-number">No.</th>
-                <th>Guru</th>
+                <th>{{ leaderboardPersonLabel }}</th>
                 <th>Prestasi</th>
                 <th>Pelanggaran</th>
                 <th>Neto</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in leaderboardRows" :key="row.employee_id">
+              <tr v-for="row in activeLeaderboardRows" :key="row.employee_id">
                 <td><strong>{{ row.rank }}</strong></td>
                 <td>
                   <strong>{{ row.employee?.name }}</strong>
@@ -444,20 +486,44 @@
           </div>
 
           <div class="panel" style="grid-column: 1 / -1">
-            <h3>Top 10 Guru (neto)</h3>
-            <ol v-if="report.leaderboard?.length" class="leaderboard">
-              <li v-for="row in report.leaderboard" :key="row.employee_id">
-                <span>#{{ row.rank }} {{ row.employee?.name }}
-                  <em class="muted">(+{{ row.achievement_points || 0 }} / −{{ row.violation_points || 0 }})</em>
-                </span>
-                <strong>{{ row.total_points }} poin</strong>
-              </li>
-            </ol>
-            <p v-else class="muted">Belum ada ranking.</p>
+            <h3>{{ reportLeaderboardTitle }}</h3>
+            <template v-if="report.leaderboard?.mode === 'separated'">
+              <h4 class="report-subheading">Guru</h4>
+              <ol v-if="report.leaderboard?.guru?.length" class="leaderboard">
+                <li v-for="row in report.leaderboard.guru" :key="'g-'+row.employee_id">
+                  <span>#{{ row.rank }} {{ row.employee?.name }}
+                    <em class="muted">(+{{ row.achievement_points || 0 }} / −{{ row.violation_points || 0 }})</em>
+                  </span>
+                  <strong>{{ row.total_points }} poin</strong>
+                </li>
+              </ol>
+              <p v-else class="muted">Belum ada ranking guru.</p>
+              <h4 class="report-subheading">Staff / Non-Guru</h4>
+              <ol v-if="report.leaderboard?.staff?.length" class="leaderboard">
+                <li v-for="row in report.leaderboard.staff" :key="'s-'+row.employee_id">
+                  <span>#{{ row.rank }} {{ row.employee?.name }}
+                    <em class="muted">(+{{ row.achievement_points || 0 }} / −{{ row.violation_points || 0 }})</em>
+                  </span>
+                  <strong>{{ row.total_points }} poin</strong>
+                </li>
+              </ol>
+              <p v-else class="muted">Belum ada ranking staff.</p>
+            </template>
+            <template v-else>
+              <ol v-if="reportLeaderboardRows.length" class="leaderboard">
+                <li v-for="row in reportLeaderboardRows" :key="row.employee_id">
+                  <span>#{{ row.rank }} {{ row.employee?.name }}
+                    <em class="muted">(+{{ row.achievement_points || 0 }} / −{{ row.violation_points || 0 }})</em>
+                  </span>
+                  <strong>{{ row.total_points }} poin</strong>
+                </li>
+              </ol>
+              <p v-else class="muted">Belum ada ranking.</p>
+            </template>
           </div>
 
           <div class="panel report-wide">
-            <h3>Rekap Semua Guru</h3>
+            <h3>{{ reportRecapTitle }}</h3>
             <div class="report-table-wrap">
               <table class="report-table">
                 <thead>
@@ -474,7 +540,7 @@
                     <td>{{ index + 1 }}</td>
                     <td>
                       <strong>{{ row.name }}</strong>
-                      <span class="report-subtext">{{ row.nip || row.nuptk || 'Tanpa NIP/NUPTK' }}</span>
+                      <span class="report-subtext">{{ row.nip || row.nuptk || 'Tanpa NIP/NUPTK' }}{{ row.type ? ` · ${row.type}` : '' }}</span>
                     </td>
                     <td class="num">+{{ row.achievement_points }} ({{ row.achievements_count }})</td>
                     <td class="num">−{{ row.violation_points }} ({{ row.violations_count }})</td>
@@ -788,7 +854,7 @@ import {
   teacherViolationApi,
   teacherViolationTypeApi,
 } from '@/api/teacherAppreciation'
-import { getPrincipalTitle } from '@/utils/institution'
+import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
 
 const authStore = useAuthStore()
 const canManageFull = computed(() => {
@@ -818,6 +884,12 @@ const achievements = ref([])
 const violations = ref([])
 const pointRows = ref([])
 const leaderboardRows = ref([])
+const leaderboardMode = ref('guru_only')
+const leaderboardModeDraft = ref('guru_only')
+const leaderboardGroup = ref('guru')
+const leaderboardGuruRows = ref([])
+const leaderboardStaffRows = ref([])
+const savingLeaderboardMode = ref(false)
 const report = ref(null)
 const institution = ref(null)
 const meta = reactive({ current_page: 1, last_page: 1, per_page: 15, total: 0, from: 0, to: 0 })
@@ -904,6 +976,45 @@ let debounceTimer = null
 
 const activeTypes = computed(() => types.value.filter((t) => t.is_active !== false))
 const activeViolationTypes = computed(() => violationTypes.value.filter((t) => t.is_active !== false))
+const activeLeaderboardRows = computed(() => {
+  if (leaderboardMode.value === 'separated') {
+    return leaderboardGroup.value === 'staff'
+      ? leaderboardStaffRows.value
+      : leaderboardGuruRows.value
+  }
+  return leaderboardRows.value
+})
+const leaderboardPersonLabel = computed(() => {
+  if (leaderboardMode.value === 'combined') return 'Pegawai'
+  if (leaderboardMode.value === 'separated' && leaderboardGroup.value === 'staff') return 'Staff / Non-Guru'
+  return 'Guru'
+})
+const leaderboardModeHint = computed(() => {
+  if (leaderboardMode.value === 'combined') {
+    return 'Semua pegawai aktif (guru dan staff) masuk satu ranking berdasarkan skor neto.'
+  }
+  if (leaderboardMode.value === 'separated') {
+    return 'Ranking dipisah: Guru dan Staff/Non-Guru punya peringkat masing-masing.'
+  }
+  return 'Hanya guru aktif yang masuk ranking (default).'
+})
+const reportLeaderboardRows = computed(() => {
+  const lb = report.value?.leaderboard
+  if (!lb) return []
+  if (Array.isArray(lb)) return lb
+  return lb.rows || []
+})
+const reportLeaderboardTitle = computed(() => {
+  const mode = report.value?.leaderboard_mode || report.value?.leaderboard?.mode || 'guru_only'
+  if (mode === 'combined') return 'Top 10 Pegawai (neto)'
+  if (mode === 'separated') return 'Top 10 Peringkat (dipisah)'
+  return 'Top 10 Guru (neto)'
+})
+const reportRecapTitle = computed(() => {
+  const mode = report.value?.leaderboard_mode || report.value?.leaderboard?.mode || 'guru_only'
+  if (mode === 'guru_only') return 'Rekap Semua Guru'
+  return 'Rekap Semua Pegawai'
+})
 const paginationPages = computed(() => {
   const total = Math.max(1, Number(meta.last_page) || 1)
   const current = Math.min(Math.max(1, Number(meta.current_page) || 1), total)
@@ -1176,16 +1287,66 @@ async function loadPoints(page = 1) {
 async function loadLeaderboard() {
   loading.value = true
   try {
+    await ensureInstitutionLoaded()
+    const mode = institution.value?.teacher_appreciation_leaderboard_mode || 'guru_only'
+    leaderboardMode.value = mode
+    leaderboardModeDraft.value = mode
+
     const res = await teacherPointApi.getLeaderboard({
       ...periodParams(),
       limit: 100,
     })
-    leaderboardRows.value = res.data?.data || []
+    const payload = res.data?.data
+    if (Array.isArray(payload)) {
+      leaderboardRows.value = payload
+      leaderboardGuruRows.value = []
+      leaderboardStaffRows.value = []
+      leaderboardMode.value = res.data?.meta?.mode || mode
+    } else {
+      leaderboardMode.value = payload?.mode || mode
+      leaderboardModeDraft.value = leaderboardMode.value
+      leaderboardRows.value = payload?.rows || []
+      leaderboardGuruRows.value = payload?.guru || []
+      leaderboardStaffRows.value = payload?.staff || []
+    }
   } catch (e) {
     leaderboardRows.value = []
+    leaderboardGuruRows.value = []
+    leaderboardStaffRows.value = []
     flash(e.formattedMessage || 'Gagal memuat peringkat', true)
   } finally {
     loading.value = false
+  }
+}
+
+async function saveLeaderboardMode() {
+  if (!institution.value?.id) {
+    await ensureInstitutionLoaded()
+  }
+  if (!institution.value?.id) {
+    flash('Institusi tidak ditemukan.', true)
+    leaderboardModeDraft.value = leaderboardMode.value
+    return
+  }
+  if (leaderboardModeDraft.value === leaderboardMode.value) return
+
+  savingLeaderboardMode.value = true
+  try {
+    const res = await institutionApi.update(institution.value.id, {
+      teacher_appreciation_leaderboard_mode: leaderboardModeDraft.value,
+    })
+    institution.value = res.data?.data || {
+      ...institution.value,
+      teacher_appreciation_leaderboard_mode: leaderboardModeDraft.value,
+    }
+    leaderboardMode.value = leaderboardModeDraft.value
+    flash('Mode peringkat disimpan.')
+    await loadLeaderboard()
+  } catch (e) {
+    leaderboardModeDraft.value = leaderboardMode.value
+    flash(e.formattedMessage || 'Gagal menyimpan mode peringkat', true)
+  } finally {
+    savingLeaderboardMode.value = false
   }
 }
 
@@ -1262,12 +1423,14 @@ function buildReportPrintBody() {
     </tr>
   `).join('') || '<tr><td colspan="3">Belum ada data</td></tr>'
 
-  const leaderboard = (r.leaderboard || []).map((row) => `
+  const lb = r.leaderboard
+  const mode = r.leaderboard_mode || lb?.mode || 'guru_only'
+  const renderLeaderboardRows = (rows) => (rows || []).map((row) => `
     <tr>
       <td class="num">${escapeHtml(row.rank)}</td>
       <td>
         ${escapeHtml(row.employee?.name || '-')}
-        <div class="cell-note">${escapeHtml(row.employee?.nip || row.employee?.nuptk || 'Tanpa NIP/NUPTK')}</div>
+        <div class="cell-note">${escapeHtml(row.employee?.nip || row.employee?.nuptk || 'Tanpa NIP/NUPTK')}${row.employee?.type ? ` · ${escapeHtml(row.employee.type)}` : ''}</div>
       </td>
       <td class="num">+${escapeHtml(row.achievement_points || 0)}</td>
       <td class="num">−${escapeHtml(row.violation_points || 0)}</td>
@@ -1275,12 +1438,61 @@ function buildReportPrintBody() {
     </tr>
   `).join('') || '<tr><td colspan="5">Belum ada ranking</td></tr>'
 
+  const leaderboardRowsPrint = Array.isArray(lb) ? lb : (lb?.rows || [])
+  let leaderboardSectionHtml = ''
+  if (mode === 'separated') {
+    leaderboardSectionHtml = `
+    <h2>3. Top 10 Peringkat (Dipisah)</h2>
+    <h3>Guru</h3>
+    <table>
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>Nama</th>
+          <th class="num">Prestasi</th>
+          <th class="num">Pelanggaran</th>
+          <th class="num">Neto</th>
+        </tr>
+      </thead>
+      <tbody>${renderLeaderboardRows(lb?.guru)}</tbody>
+    </table>
+    <h3>Staff / Non-Guru</h3>
+    <table>
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>Nama</th>
+          <th class="num">Prestasi</th>
+          <th class="num">Pelanggaran</th>
+          <th class="num">Neto</th>
+        </tr>
+      </thead>
+      <tbody>${renderLeaderboardRows(lb?.staff)}</tbody>
+    </table>`
+  } else {
+    const title = mode === 'combined' ? '3. Top 10 Pegawai (Poin Neto)' : '3. Top 10 Guru (Poin Neto)'
+    leaderboardSectionHtml = `
+    <h2>${title}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>Nama</th>
+          <th class="num">Prestasi</th>
+          <th class="num">Pelanggaran</th>
+          <th class="num">Neto</th>
+        </tr>
+      </thead>
+      <tbody>${renderLeaderboardRows(leaderboardRowsPrint)}</tbody>
+    </table>`
+  }
+
   const teacherRecap = (r.teacher_recap || []).map((row, index) => `
     <tr>
       <td class="num">${index + 1}</td>
       <td>
         ${escapeHtml(row.name || '-')}
-        <div class="cell-note">${escapeHtml(row.nip || row.nuptk || 'Tanpa NIP/NUPTK')}</div>
+        <div class="cell-note">${escapeHtml(row.nip || row.nuptk || 'Tanpa NIP/NUPTK')}${row.type ? ` · ${escapeHtml(row.type)}` : ''}</div>
       </td>
       <td class="num">${escapeHtml(row.achievements_count || 0)}</td>
       <td class="num">+${escapeHtml(row.achievement_points || 0)}</td>
@@ -1288,7 +1500,9 @@ function buildReportPrintBody() {
       <td class="num">−${escapeHtml(row.violation_points || 0)}</td>
       <td class="num"><strong>${escapeHtml(row.total_points ?? 0)}</strong></td>
     </tr>
-  `).join('') || '<tr><td colspan="7">Belum ada data guru aktif</td></tr>'
+  `).join('') || '<tr><td colspan="7">Belum ada data aktif</td></tr>'
+
+  const recapTitle = mode === 'guru_only' ? '4. Rekap Semua Guru Aktif' : '4. Rekap Semua Pegawai Aktif'
 
   const achievementDetails = (r.achievement_details || []).map((item, index) => `
     <tr>
@@ -1361,26 +1575,14 @@ function buildReportPrintBody() {
       <thead><tr><th>Kategori</th><th class="num">Jumlah</th><th class="num">Poin</th></tr></thead>
       <tbody>${vioCats}</tbody>
     </table>
-    <h2>3. Top 10 Guru (Poin Neto)</h2>
-    <table>
-      <thead>
-        <tr>
-          <th class="num">#</th>
-          <th>Nama Guru</th>
-          <th class="num">Prestasi</th>
-          <th class="num">Pelanggaran</th>
-          <th class="num">Neto</th>
-        </tr>
-      </thead>
-      <tbody>${leaderboard}</tbody>
-    </table>
+    ${leaderboardSectionHtml}
     <section class="report-section page-break">
-      <h2>4. Rekap Semua Guru Aktif</h2>
+      <h2>${recapTitle}</h2>
       <table class="compact">
         <thead>
           <tr>
             <th class="num">No.</th>
-            <th>Nama Guru</th>
+            <th>Nama</th>
             <th class="num">Jml Prestasi</th>
             <th class="num">Poin Prestasi</th>
             <th class="num">Jml Pelanggaran</th>
@@ -1511,7 +1713,7 @@ async function printReportPdf() {
         <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
         <div class="school-info">
           NPSN: ${escapeHtml(inst.npsn || '-')}
-          ${inst.nss ? ` · NSS: ${escapeHtml(inst.nss)}` : ''}
+          ${inst.nss ? ` · ${getNssLabel(inst.level)}: ${escapeHtml(inst.nss)}` : ''}
           ${inst.phone ? ` · Telp: ${escapeHtml(inst.phone)}` : ''}
           ${inst.email ? ` · Email: ${escapeHtml(inst.email)}` : ''}
           ${inst.website ? ` · ${escapeHtml(inst.website)}` : ''}
@@ -2202,6 +2404,28 @@ onMounted(async () => {
 .report-subtext { display: block; margin-top: 2px; color: #64748b; font-size: 11px; font-weight: 400; }
 .leaderboard { margin: 0; padding-left: 18px; }
 .leaderboard li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+.leaderboard-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.leaderboard-mode-hint { margin: 0; max-width: 520px; }
+.leaderboard-group-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.report-subheading {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  color: #475569;
+}
 .pagination {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   margin-top: 14px; padding: 0 2px;

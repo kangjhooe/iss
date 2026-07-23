@@ -50,21 +50,38 @@
             <thead>
               <tr>
                 <th>Mata Pelajaran</th>
-                <th>UH</th>
+                <th>Rata Penilaian</th>
                 <th>UTS</th>
                 <th>UAS</th>
-                <th>Tugas</th>
                 <th>Nilai Akhir</th>
+                <th>KKM</th>
+                <th>Predikat</th>
+                <th>Ketuntasan</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="row in raportRows" :key="row.subject_id">
-                <td>{{ displayValue(row.subject?.name) }}</td>
-                <td>{{ row.uh ?? 'Belum ada data' }}</td>
+                <td>
+                  {{ displayValue(row.subject?.name) }}
+                  <div v-if="penilaianDetail(row)" class="penilaian-detail">{{ penilaianDetail(row) }}</div>
+                </td>
+                <td>{{ row.rata_penilaian ?? 'Belum ada data' }}</td>
                 <td>{{ row.uts ?? 'Belum ada data' }}</td>
                 <td>{{ row.uas ?? 'Belum ada data' }}</td>
-                <td>{{ row.tugas ?? 'Belum ada data' }}</td>
                 <td>{{ row.nilai_akhir ?? 'Belum ada data' }}</td>
+                <td>{{ row.kkm ?? '—' }}</td>
+                <td>
+                  <span v-if="row.predicate" class="pred-chip" :class="`pred-${row.predicate}`">{{ row.predicate }}</span>
+                  <span v-else>—</span>
+                </td>
+                <td>
+                  <span
+                    v-if="row.tuntas_label"
+                    class="tuntas-chip"
+                    :class="row.is_tuntas ? 'tuntas' : 'belum'"
+                  >{{ row.tuntas_label }}</span>
+                  <span v-else>—</span>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -76,13 +93,18 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import { gradeBookApi } from '@/api/gradeBook'
 import { studentApi } from '@/api/student'
 import { semesterApi } from '@/api/semester'
+import { teacherApi } from '@/api/teacher'
+import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
+const route = useRoute()
+const authStore = useAuthStore()
 const loading = ref(false)
 const exporting = ref(false)
 const raportRows = ref([])
@@ -94,11 +116,30 @@ const filters = ref({
   semester_id: '',
 })
 
+const classFilterId = computed(() => route.query.class_id ? String(route.query.class_id) : '')
+const canAccessStudentModule = computed(() => (authStore.user?.permissions || []).includes('student'))
+const homeroomClassIds = computed(() => (authStore.user?.homeroom_class_ids || []).map(Number))
+
 const hasSelection = computed(() => filters.value.student_id && filters.value.semester_id)
 
 function displayValue(v) {
   if (v === null || v === undefined || v === '') return 'Belum ada data'
   return String(v).trim() || 'Belum ada data'
+}
+
+function penilaianDetail(row) {
+  const src = row?.penilaian
+  if (!src || typeof src !== 'object') return ''
+  const parts = Object.keys(src)
+    .map((k) => Number(k))
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b)
+    .map((n) => {
+      const v = src[n] ?? src[String(n)]
+      return v == null || v === '' ? null : `P${n}: ${v}`
+    })
+    .filter(Boolean)
+  return parts.length ? parts.join(' · ') : ''
 }
 
 function onFilterChange() {
@@ -147,7 +188,26 @@ async function exportRaport() {
 
 async function loadStudents() {
   try {
-    const res = await studentApi.getAll({ per_page: 500 })
+    const classId = classFilterId.value
+    const isHomeroomClass = classId && homeroomClassIds.value.includes(Number(classId))
+
+    if (classId && isHomeroomClass) {
+      const res = await teacherApi.getHomeroomClassStudents(classId, {
+        per_page: 100,
+        status: 'Aktif',
+      })
+      students.value = res.data?.data || []
+      return
+    }
+
+    if (!canAccessStudentModule.value) {
+      students.value = []
+      return
+    }
+
+    const params = { per_page: 500, status: 'Aktif' }
+    if (classId) params.class_id = classId
+    const res = await studentApi.getAll(params)
     students.value = res.data.data || []
   } catch {
     students.value = []
@@ -165,6 +225,14 @@ async function loadSemesters() {
 
 onMounted(async () => {
   await Promise.all([loadStudents(), loadSemesters()])
+  if (route.query.semester_id) {
+    filters.value.semester_id = String(route.query.semester_id)
+  } else if (semesters.value.length) {
+    filters.value.semester_id = String(semesters.value[0].id)
+  }
+  if (route.query.student_id) {
+    filters.value.student_id = String(route.query.student_id)
+  }
 })
 </script>
 
@@ -242,6 +310,36 @@ onMounted(async () => {
   border-collapse: collapse;
   font-size: 0.9rem;
 }
+.penilaian-detail {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+.pred-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #334155;
+}
+.pred-chip.pred-A { background: #d1fae5; color: #065f46; }
+.pred-chip.pred-B { background: #dbeafe; color: #1e40af; }
+.pred-chip.pred-C { background: #fef3c7; color: #92400e; }
+.pred-chip.pred-D { background: #fee2e2; color: #991b1b; }
+.tuntas-chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tuntas-chip.tuntas { background: #d1fae5; color: #065f46; }
+.tuntas-chip.belum { background: #fee2e2; color: #991b1b; }
 .data-table th,
 .data-table td {
   padding: 0.75rem;

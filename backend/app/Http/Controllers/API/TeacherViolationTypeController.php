@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTeacherViolationTypeRequest;
 use App\Http\Requests\UpdateTeacherViolationTypeRequest;
 use App\Http\Resources\TeacherViolationTypeResource;
 use App\Models\TeacherViolationType;
 use App\Services\TeacherPointService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -15,6 +17,8 @@ use Illuminate\Support\Facades\Log;
 
 class TeacherViolationTypeController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected TeacherPointService $pointService
     ) {}
@@ -22,7 +26,7 @@ class TeacherViolationTypeController extends Controller
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -51,7 +55,7 @@ class TeacherViolationTypeController extends Controller
     public function store(StoreTeacherViolationTypeRequest $request): JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -72,7 +76,8 @@ class TeacherViolationTypeController extends Controller
 
     public function show(Request $request, TeacherViolationType $teacher_violation_type): TeacherViolationTypeResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_violation_type->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_violation_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -81,7 +86,8 @@ class TeacherViolationTypeController extends Controller
 
     public function update(UpdateTeacherViolationTypeRequest $request, TeacherViolationType $teacher_violation_type): TeacherViolationTypeResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_violation_type->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_violation_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -92,7 +98,8 @@ class TeacherViolationTypeController extends Controller
 
     public function destroy(Request $request, TeacherViolationType $teacher_violation_type): JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_violation_type->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_violation_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

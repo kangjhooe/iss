@@ -31,7 +31,9 @@ class StudentPointService
      */
     public function getAchievementPoints(int $studentId, int $institutionId, ?int $academicYearId = null, ?int $semesterId = null): int
     {
-        $query = Achievement::forInstitution($institutionId)->forStudent($studentId);
+        $query = Achievement::forInstitution($institutionId)
+            ->forStudent($studentId)
+            ->countingPoints();
         $this->applyPeriodFilters($query, null, $academicYearId, $semesterId);
 
         return (int) $query->sum('point_value');

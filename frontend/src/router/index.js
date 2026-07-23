@@ -37,6 +37,16 @@ const router = createRouter({
       component: () => import('@/views/PpdbPublicRegister.vue')
     },
     {
+      path: '/:npsn/ebooks',
+      name: 'PublicEbooks',
+      component: () => import('@/views/PublicEbooks.vue')
+    },
+    {
+      path: '/:npsn/buku-tamu',
+      name: 'PublicGuestBook',
+      component: () => import('@/views/PublicGuestBook.vue')
+    },
+    {
       path: '/cek-hasil-ppdb',
       name: 'PpdbCheckResult',
       component: () => import('@/views/PpdbCheckResult.vue')
@@ -68,6 +78,24 @@ const router = createRouter({
       path: '/teacher/poin',
       name: 'TeacherMyPoints',
       component: () => import('@/views/TeacherMyPoints.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true }
+    },
+    {
+      path: '/teacher/wali',
+      name: 'TeacherWali',
+      component: () => import('@/views/TeacherWali.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true }
+    },
+    {
+      path: '/teacher/mapel',
+      name: 'TeacherMapel',
+      component: () => import('@/views/TeacherMapel.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true }
+    },
+    {
+      path: '/teacher/today',
+      name: 'TeacherToday',
+      component: () => import('@/views/TeacherToday.vue'),
       meta: { requiresAuth: true, requiresTeacher: true }
     },
     {
@@ -203,6 +231,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresStudent: true }
     },
     {
+      path: '/student/ebooks',
+      name: 'StudentEbooks',
+      component: () => import('@/views/StudentEbooks.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
       path: '/institution',
       name: 'Institution',
       component: () => import('@/views/Institution.vue'),
@@ -329,9 +363,21 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'grade_book' }
     },
     {
+      path: '/raport-kelas',
+      name: 'RaportKelas',
+      component: () => import('@/views/RaportKelas.vue'),
+      meta: { requiresAuth: true, requiresModule: 'grade_book' }
+    },
+    {
       path: '/teacher',
       name: 'Teacher',
       component: () => import('@/views/Teacher.vue'),
+      meta: { requiresAuth: true, requiresModule: 'teacher' }
+    },
+    {
+      path: '/teacher-mutation',
+      name: 'TeacherMutation',
+      component: () => import('@/views/TeacherMutation.vue'),
       meta: { requiresAuth: true, requiresModule: 'teacher' }
     },
     {

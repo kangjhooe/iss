@@ -14,7 +14,7 @@ class StudentMutationNotification extends Notification implements ShouldQueue
     /**
      * Create a new notification instance.
      *
-     * @param string $action 'requested' | 'approved' | 'rejected'
+     * @param string $action 'requested' | 'approved' | 'rejected' | 'cancelled' | 'cancel_requested' | 'cancel_rejected'
      */
     public function __construct(
         public StudentMutation $mutation,
@@ -52,6 +52,9 @@ class StudentMutationNotification extends Notification implements ShouldQueue
                 : "Permohonan tarik siswa: {$studentName} dari {$originName} ke sekolah Anda. Diajukan oleh {$requesterName}.",
             'approved' => "Permohonan mutasi siswa {$studentName} telah disetujui. Data siswa telah dipindahkan ke {$targetName}.",
             'rejected' => "Permohonan mutasi siswa {$studentName} telah ditolak.",
+            'cancelled' => "Permohonan mutasi siswa {$studentName} telah dibatalkan.",
+            'cancel_requested' => "Permohonan pembatalan mutasi: {$studentName} dari {$originName}. Menunggu persetujuan sekolah tujuan.",
+            'cancel_rejected' => "Permohonan pembatalan mutasi siswa {$studentName} ditolak oleh sekolah tujuan. Mutasi tetap berlaku.",
             default => 'Ada perubahan pada permohonan mutasi.',
         };
 

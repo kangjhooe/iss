@@ -25,13 +25,23 @@ class StudentMutationResource extends JsonResource
             'student_id' => $this->student_id,
             'student_grade' => $this->student_grade,
             'student_gender' => $this->student_gender,
+            'previous_class_id' => $this->previous_class_id,
+            'previous_nis' => $this->previous_nis,
+            'previous_class_name' => $this->previous_class_name,
             'initiated_by' => $this->initiated_by,
+            'source' => $this->source ?? 'admin',
+            'is_from_wali' => $this->isFromWali(),
             'status' => $this->status,
             'rejection_reason' => $this->rejection_reason,
             'approved_at' => $this->approved_at?->toIso8601String(),
             'notes' => $this->notes,
+            'cancel_reason' => $this->cancel_reason,
+            'cancel_requested_at' => $this->cancel_requested_at?->toIso8601String(),
+            'cancel_rejection_reason' => $this->cancel_rejection_reason,
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
+            'can_request_cancel' => $request->user() ? $this->canRequestCancelBy($request->user()) : false,
+            'can_decide_cancel' => $request->user() ? $this->canDecideCancelBy($request->user()) : false,
             // Relations
             'origin_institution' => $this->whenLoaded('originInstitution', fn () => $this->originInstitution ? [
                 'id' => $this->originInstitution->id,
@@ -64,6 +74,10 @@ class StudentMutationResource extends JsonResource
                 'id' => $this->approver->id,
                 'name' => $this->approver->name,
             ]),
+            'cancel_requester' => $this->whenLoaded('cancelRequester', fn () => $this->cancelRequester ? [
+                'id' => $this->cancelRequester->id,
+                'name' => $this->cancelRequester->name,
+            ] : null),
         ];
     }
 }

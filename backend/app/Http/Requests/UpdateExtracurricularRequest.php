@@ -18,6 +18,7 @@ class UpdateExtracurricularRequest extends FormRequest
             'description' => 'nullable|string',
             'supervisor_employee_id' => 'nullable|exists:employee,id',
             'capacity' => 'nullable|integer|min:1',
+            'kkm' => 'nullable|numeric|min:0|max:100',
             'status' => 'sometimes|string|in:Aktif,Nonaktif',
             'days_of_week' => 'nullable|array',
             'days_of_week.*' => 'integer|min:1|max:6',

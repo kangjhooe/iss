@@ -20,24 +20,33 @@ export function useStudentList() {
     class_id: '',
     tingkat: '',
     status: '',
-    only_trashed: false
+    only_trashed: false,
+    sort_by: 'created_at',
+    sort_dir: 'desc'
   })
+
+  const buildListParams = (page = pagination.value.current_page) => {
+    const params = {
+      page,
+      per_page: pagination.value.per_page
+    }
+    if (filters.value.search) params.search = filters.value.search
+    if (filters.value.class_id) params.class_id = filters.value.class_id
+    if (filters.value.tingkat !== '' && filters.value.tingkat !== null) {
+      params.tingkat = filters.value.tingkat
+    }
+    if (filters.value.status) params.status = filters.value.status
+    if (filters.value.only_trashed) params.only_trashed = true
+    if (filters.value.sort_by) params.sort_by = filters.value.sort_by
+    if (filters.value.sort_dir) params.sort_dir = filters.value.sort_dir
+    return params
+  }
 
   const loadStudents = async (page = pagination.value.current_page) => {
     loading.value = true
     error.value = ''
     try {
-      const params = {
-        page,
-        per_page: pagination.value.per_page
-      }
-      if (filters.value.search) params.search = filters.value.search
-      if (filters.value.class_id) params.class_id = filters.value.class_id
-      if (filters.value.tingkat) params.tingkat = filters.value.tingkat
-      if (filters.value.status) params.status = filters.value.status
-      if (filters.value.only_trashed) params.only_trashed = true
-
-      const response = await studentApi.getAll(params)
+      const response = await studentApi.getAll(buildListParams(page))
       students.value = response.data?.data ?? []
       const meta = response.data?.meta ?? {}
       pagination.value = {
@@ -52,6 +61,17 @@ export function useStudentList() {
     } finally {
       loading.value = false
     }
+  }
+
+  const setSort = (column) => {
+    if (!column) return
+    if (filters.value.sort_by === column) {
+      filters.value.sort_dir = filters.value.sort_dir === 'asc' ? 'desc' : 'asc'
+    } else {
+      filters.value.sort_by = column
+      filters.value.sort_dir = 'asc'
+    }
+    loadStudents(1)
   }
 
   const goToPage = (page) => {
@@ -80,6 +100,8 @@ export function useStudentList() {
     filters,
     pagination,
     loadStudents,
+    buildListParams,
+    setSort,
     goToPage,
     getStatusClass
   }

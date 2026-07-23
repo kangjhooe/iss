@@ -13,6 +13,7 @@ use App\Models\EmployeeDocument;
 use App\Models\Permission;
 use App\Models\User;
 use App\Support\InstitutionContext;
+use App\Support\TeacherAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -1004,7 +1005,10 @@ class EmployeeController extends Controller
                     'role' => $role,
                 ]);
                 if ($permissionKeys !== null) {
-                    $this->syncPermissionsForUser($existingUser, $permissionKeys);
+                    $this->syncPermissionsForUser(
+                        $existingUser,
+                        $this->resolvePermissionKeysForRole($employee, $role, $permissionKeys)
+                    );
                 }
                 $result['user_updated'] = true;
             } else {
@@ -1027,7 +1031,10 @@ class EmployeeController extends Controller
                     'role' => $role,
                 ]);
                 if ($permissionKeys !== null) {
-                    $this->syncPermissionsForUser($previousUser, $permissionKeys);
+                    $this->syncPermissionsForUser(
+                        $previousUser,
+                        $this->resolvePermissionKeysForRole($employee, $role, $permissionKeys)
+                    );
                 }
                 $result['user_updated'] = true;
                 return $result;
@@ -1052,7 +1059,11 @@ class EmployeeController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        $keysToAssign = $permissionKeys ?? $this->getDefaultTeacherPermissions();
+        $keysToAssign = $this->resolvePermissionKeysForRole(
+            $employee,
+            $role,
+            $permissionKeys ?? TeacherAccess::defaultPermissionKeys()
+        );
         $this->syncPermissionsForUser($user, $keysToAssign);
 
         Log::info('Employee user account created', [
@@ -1073,7 +1084,22 @@ class EmployeeController extends Controller
      */
     protected function getDefaultTeacherPermissions(): array
     {
-        return ['correspondence', 'teaching_journal', 'grade_book', 'schedule'];
+        return TeacherAccess::defaultPermissionKeys();
+    }
+
+    /**
+     * Guru / role teacher selalu mendapat paket mengajar (nilai, jurnal, jadwal).
+     *
+     * @param  list<string>  $permissionKeys
+     * @return list<string>
+     */
+    protected function resolvePermissionKeysForRole(Employee $employee, string $role, array $permissionKeys): array
+    {
+        if ($role === 'teacher' || $employee->type === 'Guru') {
+            return TeacherAccess::mergeTeachingDefaults($permissionKeys);
+        }
+
+        return array_values(array_unique(array_filter($permissionKeys)));
     }
 
     /**
@@ -1098,10 +1124,14 @@ class EmployeeController extends Controller
     /**
      * Effective permission keys for employee: manual permission_keys merged with
      * permissions granted by all assigned additional duties (tugas tambahan).
+     * Untuk guru, paket mengajar selalu digabung.
      */
     protected function getEffectivePermissionKeys(Employee $employee, ?array $manualKeys): array
     {
         $manual = $manualKeys ?? [];
+        if ($employee->type === 'Guru') {
+            $manual = TeacherAccess::mergeTeachingDefaults($manual);
+        }
         $employee->load('additionalDuties.permissions');
         $fromDuties = $employee->additionalDuties->flatMap(fn ($d) => $d->permissions->pluck('key'))->unique()->values()->all();
 

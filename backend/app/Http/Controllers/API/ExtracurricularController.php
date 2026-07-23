@@ -11,6 +11,9 @@ use App\Http\Resources\ExtracurricularResource;
 use App\Http\Resources\ExtracurricularStudentResource;
 use App\Http\Resources\StudentResource;
 use App\Models\Extracurricular;
+use App\Models\ExtracurricularGrade;
+use App\Models\ExtracurricularSession;
+use App\Models\ExtracurricularSessionGrade;
 use App\Models\ExtracurricularStudent;
 use App\Models\Institution;
 use App\Models\SchoolClass;
@@ -107,6 +110,8 @@ class ExtracurricularController extends Controller
             }
 
             $data = $request->validated();
+            // KKM hanya diisi pembina, bukan saat admin membuat katalog
+            unset($data['kkm']);
             $data['institution_id'] = $institutionId;
             if (!isset($data['status'])) {
                 $data['status'] = 'Aktif';
@@ -171,6 +176,7 @@ class ExtracurricularController extends Controller
             'meta_access' => [
                 'can_manage_all' => ExtracurricularAccess::canManageAll($user),
                 'can_mutate_catalog' => ExtracurricularAccess::canMutateCatalog($user),
+                'can_set_kkm' => ExtracurricularAccess::canSetKkm($user, $extracurricular),
             ],
         ]);
     }
@@ -190,6 +196,12 @@ class ExtracurricularController extends Controller
             if (!ExtracurricularAccess::canMutateCatalog($user)) {
                 unset($data['supervisor_employee_id'], $data['status']);
             }
+            // KKM hanya boleh diubah oleh pembina ekskul ini
+            if (array_key_exists('kkm', $data) && !ExtracurricularAccess::canSetKkm($user, $extracurricular)) {
+                return response()->json([
+                    'message' => 'Hanya pembina ekstrakurikuler ini yang boleh mengubah KKM.',
+                ], 403);
+            }
             if (isset($data['days_of_week']) && is_array($data['days_of_week'])) {
                 $data['days_of_week'] = array_values(array_unique(array_map('intval', $data['days_of_week'])));
                 sort($data['days_of_week']);
@@ -204,6 +216,9 @@ class ExtracurricularController extends Controller
             $extracurricular->update($data);
             if (array_key_exists('supervisor_employee_id', $data)) {
                 ExtracurricularAccess::grantAccessForEmployee($extracurricular->supervisor_employee_id);
+            }
+            if (array_key_exists('kkm', $data)) {
+                $this->recalculatePredicatesForKkm($extracurricular);
             }
             return new ExtracurricularResource($extracurricular->fresh(['supervisor', 'academicYear', 'semester', 'room']));
         } catch (\Exception $e) {
@@ -432,7 +447,12 @@ class ExtracurricularController extends Controller
             }
 
             $enrollments = ExtracurricularStudent::where('student_id', $studentId)
-                ->with(['extracurricular:id,name,institution_id', 'semester:id,name', 'academicYear:id,name'])
+                ->with([
+                    'extracurricular:id,name,institution_id,kkm,supervisor_employee_id',
+                    'extracurricular.supervisor:id,name',
+                    'semester:id,name',
+                    'academicYear:id,name',
+                ])
                 ->orderByDesc('joined_at')
                 ->limit(100)
                 ->get();
@@ -529,6 +549,35 @@ class ExtracurricularController extends Controller
         $institution = Institution::find($institutionId);
 
         return $institution?->active_semester_id;
+    }
+
+    /**
+     * Recalculate predicates for all session + final grades when KKM changes.
+     */
+    private function recalculatePredicatesForKkm(Extracurricular $extracurricular): void
+    {
+        $kkm = $extracurricular->kkm_value;
+        $sessionIds = ExtracurricularSession::where('extracurricular_id', $extracurricular->id)->pluck('id');
+
+        if ($sessionIds->isNotEmpty()) {
+            $rows = ExtracurricularSessionGrade::whereIn('session_id', $sessionIds)->get();
+            foreach ($rows as $row) {
+                $row->predicate = ExtracurricularGrade::predicateFromScore(
+                    $row->score !== null ? (float) $row->score : null,
+                    $kkm
+                );
+                $row->save();
+            }
+        }
+
+        $finals = ExtracurricularGrade::where('extracurricular_id', $extracurricular->id)->get();
+        foreach ($finals as $final) {
+            $final->predicate = ExtracurricularGrade::predicateFromScore(
+                $final->score !== null ? (float) $final->score : null,
+                $kkm
+            );
+            $final->save();
+        }
     }
 
     /**

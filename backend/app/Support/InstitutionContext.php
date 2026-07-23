@@ -14,6 +14,29 @@ class InstitutionContext
     public const COOKIE_ACTIVE_INSTITUTION = 'active_institution_id';
     public const HEADER_ACTIVE_INSTITUTION = 'X-Institution-Id';
 
+    /**
+     * Modul yang boleh dibawa ke sekolah non-induk (peran guru/staf pengajar).
+     * Jabatan tambahan (Kepala Sekolah, Waka, dll.) hanya berlaku di sekolah induk.
+     */
+    public const NON_INDUK_TEACHING_PERMISSIONS = [
+        'correspondence',
+        'teaching_journal',
+        'grade_book',
+        'schedule',
+        'online_exam',
+        'attendance',
+    ];
+
+    /**
+     * Default akses operasional guru di sekolah non-induk.
+     */
+    public const NON_INDUK_DEFAULT_PERMISSIONS = [
+        'correspondence',
+        'teaching_journal',
+        'grade_book',
+        'schedule',
+    ];
+
     public static function employeeFor(User $user): ?Employee
     {
         return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
@@ -113,12 +136,21 @@ class InstitutionContext
     }
 
     /**
-     * Resolve active institution for request (header > cookie > home).
+     * Resolve active institution for request.
+     * Forced attribute (switch) > header > cookie > home.
      */
     public static function resolveActiveInstitutionId(User $user, ?Request $request = null): ?int
     {
         $request = $request ?? request();
         $candidates = [];
+
+        // Explicit force (e.g. switch-institution) must win over stale header/cookie.
+        if ($request?->attributes->get('force_institution_id')) {
+            $forced = (int) $request->attributes->get('current_institution_id');
+            if ($forced > 0 && self::canAccessInstitution($user, $forced)) {
+                return $forced;
+            }
+        }
 
         $header = $request?->header(self::HEADER_ACTIVE_INSTITUTION);
         if ($header !== null && $header !== '') {
@@ -142,6 +174,99 @@ class InstitutionContext
         }
 
         return $user->institution_id ? (int) $user->institution_id : null;
+    }
+
+    /**
+     * Force active institution on the current request (used by switch-institution).
+     */
+    public static function forceActiveInstitution(Request $request, User $user, int $institutionId): void
+    {
+        if (!self::canAccessInstitution($user, $institutionId)) {
+            return;
+        }
+
+        $request->attributes->set('force_institution_id', true);
+        $request->attributes->set('current_institution_id', $institutionId);
+        $request->attributes->set(
+            'current_affiliation',
+            self::affiliationFor($user, $institutionId)
+        );
+        $request->headers->set(self::HEADER_ACTIVE_INSTITUTION, (string) $institutionId);
+        $request->attributes->remove('effective_permission_keys');
+    }
+
+    public static function isHomeInstitution(User $user, ?int $institutionId): bool
+    {
+        if (!$institutionId || !$user->institution_id) {
+            return false;
+        }
+
+        return (int) $user->institution_id === (int) $institutionId;
+    }
+
+    /**
+     * Permission keys stored on the user (not scoped).
+     *
+     * @return array<int, string>
+     */
+    public static function storedPermissionKeys(User $user): array
+    {
+        if ($user->relationLoaded('permissions')) {
+            return $user->permissions->pluck('key')->filter()->values()->all();
+        }
+
+        return $user->permissions()->pluck('permissions.key')->filter()->values()->all();
+    }
+
+    /**
+     * Effective module permissions for the active institution.
+     * At non-induk schools, elevated duty permissions (Kepala Sekolah, Waka, …) are stripped.
+     *
+     * @return array<int, string>
+     */
+    public static function effectivePermissionKeys(User $user, ?int $institutionId = null, ?Request $request = null): array
+    {
+        $request = $request ?? request();
+        $institutionId = $institutionId
+            ?? ($request?->attributes->get('current_institution_id') !== null
+                ? (int) $request->attributes->get('current_institution_id')
+                : null)
+            ?? self::resolveActiveInstitutionId($user, $request);
+
+        $cacheKey = 'effective_permission_keys';
+        $cacheFor = $institutionId ?: 0;
+        $cached = $request?->attributes->get($cacheKey);
+        if (is_array($cached) && ($cached['_for'] ?? null) === $cacheFor) {
+            return $cached['keys'];
+        }
+
+        $stored = self::storedPermissionKeys($user);
+
+        if ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
+            $keys = $stored;
+        } elseif (!$institutionId || self::isHomeInstitution($user, $institutionId)) {
+            $keys = $stored;
+        } else {
+            $keys = array_values(array_intersect($stored, self::NON_INDUK_TEACHING_PERMISSIONS));
+
+            // Guru/staf di sekolah non-induk tetap butuh akses operasional mengajar,
+            // meski permission tersimpan hanya dari jabatan di sekolah induk.
+            if (in_array($user->role, ['teacher', 'staff'], true)) {
+                $keys = array_values(array_unique(array_merge(
+                    $keys,
+                    self::NON_INDUK_DEFAULT_PERMISSIONS
+                )));
+            }
+        }
+
+        $request?->attributes->set($cacheKey, ['_for' => $cacheFor, 'keys' => $keys]);
+
+        return $keys;
+    }
+
+    public static function hasEffectivePermission(User $user, string $moduleKey, ?int $institutionId = null, ?Request $request = null): bool
+    {
+        return in_array($moduleKey, self::effectivePermissionKeys($user, $institutionId, $request), true);
     }
 
     /**

@@ -22,7 +22,7 @@
               <span class="nav-tab-hint">Catat pelanggaran</span>
             </button>
             <button :class="['nav-tab', { active: activeTab === 'pending' }]" @click="switchTab('pending')">
-              <span class="nav-tab-label">Usulan Piket</span>
+              <span class="nav-tab-label">Usulan</span>
               <span class="nav-tab-hint">
                 Menunggu BK
                 <template v-if="pendingProposalCount"> ({{ pendingProposalCount }})</template>
@@ -60,7 +60,7 @@
       <!-- Tab: Daftar Pelanggaran / Usulan Piket -->
       <template v-if="activeTab === 'list' || activeTab === 'pending'">
         <div v-if="activeTab === 'pending'" class="pending-banner">
-          Usulan dari guru piket. Setujui agar poin masuk ke skor siswa, atau tolak jika tidak sesuai.
+          Usulan dari guru piket atau wali kelas. Setujui agar poin masuk ke skor siswa, atau tolak jika tidak sesuai.
         </div>
         <div class="filters filters-inline">
           <input
@@ -417,6 +417,12 @@
             class="search-input"
             @input="debounceLoadAchievements"
           />
+          <select v-model="achievementFilters.status" class="filter-select" @change="onAchievementFilterChange">
+            <option value="">Semua status</option>
+            <option value="pending">Menunggu</option>
+            <option value="dicatat">Dicatat</option>
+            <option value="ditolak">Ditolak</option>
+          </select>
           <select v-model="achievementFilters.achievement_type_id" class="filter-select" @change="onAchievementFilterChange">
             <option value="">Semua jenis</option>
             <option v-for="t in achievementTypes" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
@@ -452,6 +458,7 @@
                 <th>Siswa</th>
                 <th>Jenis Prestasi</th>
                 <th>Poin</th>
+                <th>Status</th>
                 <th>Pemberi</th>
                 <th>Aksi</th>
               </tr>
@@ -465,10 +472,17 @@
                 </td>
                 <td>{{ a.achievement_type?.name }}</td>
                 <td class="num-sub">+{{ a.point_value }}</td>
+                <td><span class="status-badge" :class="`status-${a.status || 'dicatat'}`">{{ a.status || 'dicatat' }}</span></td>
                 <td>{{ a.giver?.name }}</td>
                 <td>
-                  <button @click="openEditPrestasiModal(a)" class="btn-action btn-edit">Edit</button>
-                  <button @click="confirmDeleteAchievement(a)" class="btn-action btn-delete">Hapus</button>
+                  <template v-if="a.status === 'pending'">
+                    <button type="button" class="btn-action btn-edit" @click="approveAchievement(a)">Setujui</button>
+                    <button type="button" class="btn-action btn-delete" @click="openRejectAchievement(a)">Tolak</button>
+                  </template>
+                  <template v-else>
+                    <button @click="openEditPrestasiModal(a)" class="btn-action btn-edit">Edit</button>
+                    <button @click="confirmDeleteAchievement(a)" class="btn-action btn-delete">Hapus</button>
+                  </template>
                 </td>
               </tr>
             </tbody>
@@ -542,11 +556,11 @@
       </template>
       </main>
 
-      <!-- Modal: Tolak usulan piket -->
+      <!-- Modal: Tolak usulan pelanggaran -->
       <div v-if="showRejectModal" class="modal-overlay" @click="showRejectModal = false">
         <div class="modal-content form-modal" @click.stop>
           <div class="modal-header">
-            <h3>Tolak Usulan Piket</h3>
+            <h3>Tolak Usulan</h3>
             <button @click="showRejectModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitReject" class="modal-body">
@@ -555,13 +569,39 @@
             </p>
             <div class="form-group">
               <label>Alasan penolakan *</label>
-              <textarea v-model="rejectNotes" rows="3" required placeholder="Jelaskan alasan penolakan untuk guru piket"></textarea>
+              <textarea v-model="rejectNotes" rows="3" required placeholder="Jelaskan alasan penolakan"></textarea>
             </div>
             <div v-if="formError" class="error-message">{{ formError }}</div>
             <div class="modal-footer">
               <button type="button" @click="showRejectModal = false" class="btn-secondary">Batal</button>
               <button type="submit" :disabled="formSubmitting" class="btn-primary">
                 {{ formSubmitting ? 'Menolak...' : 'Tolak Usulan' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Tolak usulan prestasi -->
+      <div v-if="showRejectAchievementModal" class="modal-overlay" @click="showRejectAchievementModal = false">
+        <div class="modal-content form-modal" @click.stop>
+          <div class="modal-header">
+            <h3>Tolak Usulan Prestasi</h3>
+            <button @click="showRejectAchievementModal = false" class="btn-close">×</button>
+          </div>
+          <form @submit.prevent="submitRejectAchievement" class="modal-body">
+            <p class="reject-hint">
+              {{ rejectAchievementTarget?.student?.name }} — {{ rejectAchievementTarget?.achievement_type?.name }}
+            </p>
+            <div class="form-group">
+              <label>Alasan penolakan *</label>
+              <textarea v-model="rejectAchievementNotes" rows="3" required placeholder="Jelaskan alasan penolakan untuk wali kelas"></textarea>
+            </div>
+            <div v-if="rejectAchievementError" class="error-message">{{ rejectAchievementError }}</div>
+            <div class="modal-footer">
+              <button type="button" @click="showRejectAchievementModal = false" class="btn-secondary">Batal</button>
+              <button type="submit" :disabled="rejectAchievementSubmitting" class="btn-primary">
+                {{ rejectAchievementSubmitting ? 'Menolak...' : 'Tolak Usulan' }}
               </button>
             </div>
           </form>
@@ -1100,6 +1140,7 @@ const achievementsLoading = ref(false)
 const achievementsPagination = ref({ current_page: 1, last_page: 1 })
 const achievementFilters = ref({
   search: '',
+  status: '',
   achievement_type_id: '',
   academic_year_id: '',
   semester_id: '',
@@ -1111,6 +1152,11 @@ const editingPrestasi = ref(null)
 const prestasiForm = ref({ student_id: '', achievement_type_id: '', achievement_date: '', notes: '' })
 const prestasiFormError = ref('')
 const prestasiFormSubmitting = ref(false)
+const rejectAchievementTarget = ref(null)
+const showRejectAchievementModal = ref(false)
+const rejectAchievementNotes = ref('')
+const rejectAchievementSubmitting = ref(false)
+const rejectAchievementError = ref('')
 const showAchievementTypeModal = ref(false)
 const editingAchievementType = ref(null)
 const achievementTypeForm = ref({ name: '', point_value: 10, category: '' })
@@ -1512,6 +1558,7 @@ async function loadAchievements() {
       page: achievementsPagination.value.current_page,
       per_page: 15,
       search: achievementFilters.value.search || undefined,
+      status: achievementFilters.value.status || undefined,
       achievement_type_id: achievementFilters.value.achievement_type_id || undefined,
       academic_year_id: achievementFilters.value.academic_year_id,
       semester_id: achievementFilters.value.semester_id,
@@ -1529,6 +1576,41 @@ async function loadAchievements() {
 function goToAchievementsPage(page) {
   achievementsPagination.value.current_page = page
   loadAchievements()
+}
+
+async function approveAchievement(a) {
+  try {
+    await achievementApi.approve(a.id)
+    toast.success('Usulan prestasi disetujui')
+    await loadAchievements()
+  } catch (e) {
+    toast.error('Gagal menyetujui', e.formattedMessage || e.response?.data?.message || 'Coba lagi.')
+  }
+}
+
+function openRejectAchievement(a) {
+  rejectAchievementTarget.value = a
+  rejectAchievementNotes.value = ''
+  rejectAchievementError.value = ''
+  showRejectAchievementModal.value = true
+}
+
+async function submitRejectAchievement() {
+  if (!rejectAchievementTarget.value) return
+  rejectAchievementSubmitting.value = true
+  rejectAchievementError.value = ''
+  try {
+    await achievementApi.reject(rejectAchievementTarget.value.id, {
+      review_notes: rejectAchievementNotes.value,
+    })
+    toast.success('Usulan prestasi ditolak')
+    showRejectAchievementModal.value = false
+    await loadAchievements()
+  } catch (e) {
+    rejectAchievementError.value = e.formattedMessage || e.response?.data?.message || 'Gagal menolak usulan.'
+  } finally {
+    rejectAchievementSubmitting.value = false
+  }
 }
 
 async function loadAchievementTypes() {

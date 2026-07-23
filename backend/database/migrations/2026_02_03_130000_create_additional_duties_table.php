@@ -22,7 +22,7 @@ return new class extends Migration
         });
 
         $duties = [
-            ['key' => 'kepala_sekolah', 'label' => 'Kepala Sekolah', 'description' => 'Pimpinan sekolah', 'sort_order' => 1],
+            ['key' => 'kepala_sekolah', 'label' => 'Kepala Sekolah', 'description' => 'Pimpinan sekolah: pengawasan, laporan, dan penandatanganan (bukan pengelolaan operasional harian)', 'sort_order' => 1],
             ['key' => 'waka_kurikulum', 'label' => 'Wakil Kepala Sekolah Kurikulum', 'description' => 'Urusan kurikulum, jadwal, pembelajaran', 'sort_order' => 2],
             ['key' => 'waka_kesiswaan', 'label' => 'Wakil Kepala Sekolah Kesiswaan', 'description' => 'Urusan siswa, OSIS, disiplin, ekstrakurikuler', 'sort_order' => 3],
             ['key' => 'waka_sarpras', 'label' => 'Wakil Kepala Sekolah Sarana Prasarana', 'description' => 'Sarana, prasarana, inventaris, pemeliharaan', 'sort_order' => 4],

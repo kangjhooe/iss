@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreLibraryBookCategoryRequest;
 use App\Http\Requests\UpdateLibraryBookCategoryRequest;
 use App\Http\Resources\LibraryBookCategoryResource;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Log;
 
 class LibraryBookCategoryController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         private LibraryBookService $service
     ) {}
@@ -23,7 +26,7 @@ class LibraryBookCategoryController extends Controller
         try {
             $institutionId = $this->resolveInstitutionId($request);
             $filters = $request->only(['search', 'is_active']);
-            $perPage = min($request->get('per_page', 15), 100);
+            $perPage = min((int) $request->get('per_page', 15), 100);
             $items = $this->service->listCategories($filters, $institutionId, $perPage);
             return LibraryBookCategoryResource::collection($items);
         } catch (\Exception $e) {
@@ -91,13 +94,5 @@ class LibraryBookCategoryController extends Controller
             Log::error('Library category destroy', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal menghapus kategori.'], 500);
         }
-    }
-
-    private function resolveInstitutionId(Request $request): ?int
-    {
-        if (!$request->user()->isAdminOrSuperAdmin()) {
-            return $request->user()->institution_id;
-        }
-        return $request->input('institution_id');
     }
 }

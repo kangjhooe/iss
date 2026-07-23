@@ -28,6 +28,7 @@ class SchoolClass extends Model
         'academic_year',
         'academic_year_id',
         'semester_id',
+        'lesson_schedule_template_id',
         'capacity',
         'status',
         'description',
@@ -102,6 +103,14 @@ class SchoolClass extends Model
     public function semester()
     {
         return $this->belongsTo(Semester::class, 'semester_id');
+    }
+
+    /**
+     * Template jadwal pelajaran yang dipakai kelas ini.
+     */
+    public function lessonScheduleTemplate()
+    {
+        return $this->belongsTo(LessonScheduleTemplate::class, 'lesson_schedule_template_id');
     }
 
     /**

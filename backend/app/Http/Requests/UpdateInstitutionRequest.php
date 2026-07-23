@@ -114,6 +114,11 @@ class UpdateInstitutionRequest extends FormRequest
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'location_radius' => 'nullable|integer|min:10|max:5000',
+            'teacher_appreciation_leaderboard_mode' => [
+                'sometimes',
+                'nullable',
+                Rule::in(\App\Models\Institution::TEACHER_APPRECIATION_LEADERBOARD_MODES),
+            ],
         ];
         
         return array_merge($rules, $baseRules);

@@ -88,7 +88,7 @@
         <div class="standard-signature-right">
             @include('partials.print-signature', [
                 'institution' => $institution,
-                'date' => \Carbon\Carbon::parse($printed_at)->locale('id')->translatedFormat('d F Y'),
+                'date' => now()->locale('id')->translatedFormat('d F Y'),
             ])
         </div>
     </div>

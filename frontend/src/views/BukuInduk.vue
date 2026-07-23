@@ -35,7 +35,7 @@
             <div class="data-item"><span class="label">NISN</span><span class="value">{{ data.student.nisn || '-' }}</span></div>
             <div class="data-item"><span class="label">NIK</span><span class="value">{{ data.student.nik || '-' }}</span></div>
             <div class="data-item"><span class="label">Nama Lengkap</span><span class="value">{{ data.student.name || '-' }}</span></div>
-            <div class="data-item"><span class="label">Jenis Kelamin</span><span class="value">{{ data.student.gender === 'L' ? 'Laki-laki' : data.student.gender === 'P' ? 'Perempuan' : '-' }}</span></div>
+            <div class="data-item"><span class="label">Jenis Kelamin</span><span class="value">{{ genderLabel(data.student.gender) }}</span></div>
             <div class="data-item"><span class="label">Tempat, Tanggal Lahir</span><span class="value">{{ data.student.birth_place || '-' }}, {{ formatDate(data.student.birth_date) }}</span></div>
             <div class="data-item"><span class="label">Agama</span><span class="value">{{ data.student.religion || '-' }}</span></div>
             <div class="data-item"><span class="label">No. KK</span><span class="value">{{ data.student.no_kk || '-' }}</span></div>
@@ -43,28 +43,51 @@
             <div class="data-item"><span class="label">Telepon / Email</span><span class="value">{{ data.student.phone || '-' }} / {{ data.student.email || '-' }}</span></div>
             <div class="data-item"><span class="label">Tinggi / Berat</span><span class="value">{{ data.student.height ?? '-' }} cm / {{ data.student.weight ?? '-' }} kg</span></div>
             <div class="data-item"><span class="label">Sekolah Asal</span><span class="value">{{ data.student.previous_school || '-' }}</span></div>
+            <div class="data-item"><span class="label">NPSN Sekolah Asal</span><span class="value">{{ data.student.previous_school_npsn || '-' }}</span></div>
+            <div class="data-item"><span class="label">Alamat Sekolah Asal</span><span class="value">{{ data.student.previous_school_address || '-' }}</span></div>
+            <div class="data-item"><span class="label">Tingkat</span><span class="value">{{ data.student.tingkat ?? '-' }}</span></div>
             <div class="data-item"><span class="label">Kelas / Tahun Ajaran</span><span class="value">{{ classDisplay }} / {{ academicYearDisplay }}</span></div>
+            <div class="data-item"><span class="label">Semester</span><span class="value">{{ semesterDisplay }}</span></div>
             <div class="data-item"><span class="label">Status</span><span class="value">{{ data.student.status || '-' }}</span></div>
             <div v-if="data.student.graduation_year" class="data-item"><span class="label">Tahun Lulus</span><span class="value">{{ data.student.graduation_year }}</span></div>
-            <div v-if="data.student.disability" class="data-item"><span class="label">Kebutuhan Khusus</span><span class="value">{{ data.student.disability }}</span></div>
-            <div v-if="data.student.aspiration" class="data-item"><span class="label">Cita-cita</span><span class="value">{{ data.student.aspiration }}</span></div>
-            <div v-if="data.student.hobby" class="data-item"><span class="label">Hobi</span><span class="value">{{ data.student.hobby }}</span></div>
-            <div v-if="data.student.residence_type" class="data-item"><span class="label">Jenis Tempat Tinggal</span><span class="value">{{ data.student.residence_type }}</span></div>
+            <div class="data-item"><span class="label">Kebutuhan Khusus</span><span class="value">{{ data.student.disability || '-' }}</span></div>
+            <div class="data-item"><span class="label">Cita-cita</span><span class="value">{{ data.student.aspiration || '-' }}</span></div>
+            <div class="data-item"><span class="label">Hobi</span><span class="value">{{ data.student.hobby || '-' }}</span></div>
+            <div class="data-item"><span class="label">Jenis Tempat Tinggal</span><span class="value">{{ formatResidenceType(data.student.residence_type) }}</span></div>
           </div>
         </section>
 
         <!-- Data Orang Tua / Wali -->
         <section class="buku-section">
           <h2 class="section-title">B. Data Orang Tua / Wali</h2>
+          <h3 class="sub-title">Ayah</h3>
           <div class="data-grid">
+            <div class="data-item"><span class="label">Status</span><span class="value">{{ formatParentStatus(data.student.father_status) }}</span></div>
             <div class="data-item"><span class="label">Nama Ayah</span><span class="value">{{ data.student.father_name || '-' }}</span></div>
             <div class="data-item"><span class="label">NIK Ayah</span><span class="value">{{ data.student.father_nik || '-' }}</span></div>
-            <div class="data-item"><span class="label">Pendidikan / Pekerjaan Ayah</span><span class="value">{{ data.student.father_education || '-' }} / {{ data.student.father_occupation || '-' }}</span></div>
+            <div class="data-item"><span class="label">TTL Ayah</span><span class="value">{{ data.student.father_birth_place || '-' }}, {{ formatDate(data.student.father_birth_date) }}</span></div>
+            <div class="data-item"><span class="label">Pendidikan / Pekerjaan</span><span class="value">{{ data.student.father_education || '-' }} / {{ data.student.father_occupation || '-' }}</span></div>
+            <div class="data-item"><span class="label">Penghasilan</span><span class="value">{{ formatCurrency(data.student.father_income) }}</span></div>
+          </div>
+          <h3 class="sub-title">Ibu</h3>
+          <div class="data-grid">
+            <div class="data-item"><span class="label">Status</span><span class="value">{{ formatParentStatus(data.student.mother_status) }}</span></div>
             <div class="data-item"><span class="label">Nama Ibu</span><span class="value">{{ data.student.mother_name || '-' }}</span></div>
             <div class="data-item"><span class="label">NIK Ibu</span><span class="value">{{ data.student.mother_nik || '-' }}</span></div>
-            <div class="data-item"><span class="label">Pendidikan / Pekerjaan Ibu</span><span class="value">{{ data.student.mother_education || '-' }} / {{ data.student.mother_occupation || '-' }}</span></div>
-            <div v-if="data.student.guardian_name" class="data-item"><span class="label">Nama Wali</span><span class="value">{{ data.student.guardian_name }}</span></div>
-            <div v-if="data.student.guardian_name" class="data-item"><span class="label">Telepon Wali</span><span class="value">{{ data.student.guardian_phone || '-' }}</span></div>
+            <div class="data-item"><span class="label">TTL Ibu</span><span class="value">{{ data.student.mother_birth_place || '-' }}, {{ formatDate(data.student.mother_birth_date) }}</span></div>
+            <div class="data-item"><span class="label">Pendidikan / Pekerjaan</span><span class="value">{{ data.student.mother_education || '-' }} / {{ data.student.mother_occupation || '-' }}</span></div>
+            <div class="data-item"><span class="label">Penghasilan</span><span class="value">{{ formatCurrency(data.student.mother_income) }}</span></div>
+          </div>
+          <h3 class="sub-title">Wali</h3>
+          <div class="data-grid">
+            <div class="data-item"><span class="label">Jenis Wali</span><span class="value">{{ formatGuardianType(data.student.guardian_type) }}</span></div>
+            <div class="data-item"><span class="label">Status</span><span class="value">{{ formatParentStatus(data.student.guardian_status) }}</span></div>
+            <div class="data-item"><span class="label">Nama Wali</span><span class="value">{{ data.student.guardian_name || '-' }}</span></div>
+            <div class="data-item"><span class="label">NIK Wali</span><span class="value">{{ data.student.guardian_nik || '-' }}</span></div>
+            <div class="data-item"><span class="label">Telepon Wali</span><span class="value">{{ data.student.guardian_phone || '-' }}</span></div>
+            <div class="data-item"><span class="label">TTL Wali</span><span class="value">{{ data.student.guardian_birth_place || '-' }}, {{ formatDate(data.student.guardian_birth_date) }}</span></div>
+            <div class="data-item"><span class="label">Pendidikan / Pekerjaan</span><span class="value">{{ data.student.guardian_education || '-' }} / {{ data.student.guardian_occupation || '-' }}</span></div>
+            <div class="data-item"><span class="label">Penghasilan</span><span class="value">{{ formatCurrency(data.student.guardian_income) }}</span></div>
           </div>
         </section>
 
@@ -105,17 +128,21 @@
             <thead>
               <tr>
                 <th>No</th>
-                <th>Asal</th>
-                <th>Tujuan</th>
+                <th>Tanggal</th>
+                <th>Asal (NPSN)</th>
+                <th>Tujuan (NPSN)</th>
                 <th>Status</th>
+                <th>Keterangan</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(m, idx) in data.mutations" :key="m.id || idx">
                 <td>{{ idx + 1 }}</td>
-                <td>{{ m.origin_institution?.name || m.origin_school_name || '-' }}</td>
-                <td>{{ m.target_institution?.name || m.target_school_name || '-' }}</td>
-                <td>{{ m.status || '-' }}</td>
+                <td>{{ formatDate(m.approved_at || m.created_at) }}</td>
+                <td>{{ mutationSchool(m, 'origin') }}</td>
+                <td>{{ mutationSchool(m, 'target') }}</td>
+                <td>{{ m.status_label || mutationStatusLabel(m.status) }}</td>
+                <td>{{ mutationNotes(m) }}</td>
               </tr>
             </tbody>
           </table>
@@ -237,12 +264,18 @@
                   <tr>
                     <th>Mata Pelajaran</th>
                     <th>Nilai</th>
+                    <th>KKM</th>
+                    <th>Predikat</th>
+                    <th>Ketuntasan</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="(s, sIdx) in period.subjects" :key="sIdx">
                     <td>{{ s.subject_name }}</td>
                     <td>{{ s.value != null ? s.value : '-' }}</td>
+                    <td>{{ s.kkm != null ? s.kkm : '-' }}</td>
+                    <td>{{ s.predicate || '-' }}</td>
+                    <td>{{ s.tuntas_label || '-' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -264,6 +297,9 @@
                 <th>Bergabung</th>
                 <th>Keluar</th>
                 <th>Status</th>
+                <th>Nilai</th>
+                <th>KKM</th>
+                <th>Predikat</th>
               </tr>
             </thead>
             <tbody>
@@ -275,6 +311,9 @@
                 <td>{{ formatDate(e.joined_at) }}</td>
                 <td>{{ formatDate(e.left_at) }}</td>
                 <td>{{ e.status || '-' }}</td>
+                <td>{{ e.score != null ? e.score : '-' }}</td>
+                <td>{{ e.kkm != null ? e.kkm : '-' }}</td>
+                <td>{{ e.predicate || '-' }}</td>
               </tr>
             </tbody>
           </table>
@@ -416,6 +455,13 @@ const academicYearDisplay = computed(() => {
   return ay || data.value.student.academic_year_detail?.name || '-'
 })
 
+const semesterDisplay = computed(() => {
+  if (!data.value?.student) return '-'
+  const sem = data.value.student.semester
+  if (sem && typeof sem === 'object' && sem.name) return sem.name
+  return data.value.student.semester_detail?.name || '-'
+})
+
 const DESTINATION_TYPES = {
   Sekolah: 'Lanjut Sekolah (SMA/SMK/dll)',
   Perguruan_Tinggi: 'Perguruan Tinggi',
@@ -424,11 +470,82 @@ const DESTINATION_TYPES = {
   Lainnya: 'Lainnya',
 }
 
+const MUTATION_STATUS_LABELS = {
+  pending: 'Menunggu',
+  approved: 'Disetujui',
+  rejected: 'Ditolak',
+  cancelled: 'Dibatalkan',
+  cancel_pending: 'Menunggu batal',
+}
+
 function formatDate(val) {
   if (!val) return '-'
   const d = new Date(val)
   if (isNaN(d.getTime())) return '-'
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function genderLabel(g) {
+  if (g === 'L') return 'Laki-laki'
+  if (g === 'P') return 'Perempuan'
+  return g || '-'
+}
+
+function formatCurrency(amount) {
+  if (amount == null || amount === '') return '-'
+  return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount)
+}
+
+function formatParentStatus(status) {
+  const map = {
+    masih_hidup: 'Masih Hidup',
+    meninggal_dunia: 'Meninggal Dunia',
+    tidak_diketahui: 'Tidak Diketahui',
+  }
+  return status ? (map[status] || status) : '-'
+}
+
+function formatResidenceType(type) {
+  const map = {
+    asrama: 'Asrama',
+    kost_kontrak: 'Kost/Kontrak',
+    tinggal_dengan_orang_tua: 'Tinggal dengan Orang Tua',
+    lainnya: 'Lainnya',
+  }
+  return type ? (map[type] || type) : '-'
+}
+
+function formatGuardianType(type) {
+  const map = {
+    sama_dengan_ayah: 'Sama dengan Ayah Kandung',
+    sama_dengan_ibu: 'Sama dengan Ibu Kandung',
+    lainnya: 'Lainnya',
+  }
+  return type ? (map[type] || type) : '-'
+}
+
+function mutationStatusLabel(status) {
+  return status ? (MUTATION_STATUS_LABELS[status] || status) : '-'
+}
+
+function mutationSchool(m, side) {
+  const name = side === 'origin'
+    ? (m.origin_institution?.name || m.origin_school_name)
+    : (m.target_institution?.name || m.target_school_name)
+  const npsn = side === 'origin'
+    ? (m.origin_npsn || m.origin_institution?.npsn)
+    : (m.target_npsn || m.target_institution?.npsn)
+  if (!name && !npsn) return '-'
+  return npsn ? `${name || '-'} (${npsn})` : (name || '-')
+}
+
+function mutationNotes(m) {
+  const parts = []
+  if (m.notes) parts.push(m.notes)
+  if (m.rejection_reason) parts.push('Tolak: ' + m.rejection_reason)
+  if (m.cancel_reason) parts.push('Batal: ' + m.cancel_reason)
+  if (m.cancel_rejection_reason) parts.push('Tolak batal: ' + m.cancel_rejection_reason)
+  return parts.length ? parts.join(' | ') : '-'
 }
 
 function destinationTypeLabel(type) {
@@ -585,6 +702,12 @@ onMounted(() => load())
   margin: 0 0 12px 0;
   padding-bottom: 6px;
   border-bottom: 2px solid #e2e8f0;
+}
+.sub-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 14px 0 8px;
+  color: #334155;
 }
 .data-grid {
   display: grid;

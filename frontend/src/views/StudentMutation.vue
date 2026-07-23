@@ -85,12 +85,37 @@
             </template>
             <div class="form-group">
               <label>NISN Siswa *</label>
-              <input
-                v-model="form.nisn"
-                type="text"
-                placeholder="NISN siswa yang akan dimutasikan"
-                required
-              />
+              <div class="nisn-search-row">
+                <input
+                  v-model="form.nisn"
+                  type="text"
+                  placeholder="NISN siswa yang akan dimutasikan"
+                  required
+                  @input="onFormNisnInput"
+                  @keydown.enter.prevent="lookupFormStudent"
+                />
+                <button
+                  type="button"
+                  class="btn-secondary btn-lookup"
+                  :disabled="formLookupLoading || !form.nisn?.trim()"
+                  @click="lookupFormStudent"
+                >
+                  {{ formLookupLoading ? 'Mencari...' : 'Cari Siswa' }}
+                </button>
+              </div>
+              <p v-if="formLookupError" class="text-error-inline">{{ formLookupError }}</p>
+            </div>
+            <div v-if="formStudentPreview" class="student-preview-card">
+              <div class="student-preview-title">Konfirmasi data siswa</div>
+              <div class="student-preview-grid">
+                <div><span class="label">Nama</span><span class="value">{{ formStudentPreview.name }}</span></div>
+                <div><span class="label">NISN</span><span class="value">{{ formStudentPreview.nisn }}</span></div>
+                <div><span class="label">NIS</span><span class="value">{{ formStudentPreview.nis || '–' }}</span></div>
+                <div><span class="label">JK</span><span class="value">{{ formatGender(formStudentPreview.gender) }}</span></div>
+                <div><span class="label">Kelas</span><span class="value">{{ formStudentPreview.class_name || formStudentPreview.tingkat || '–' }}</span></div>
+                <div><span class="label">Status</span><span class="value">{{ formStudentPreview.status }}</span></div>
+              </div>
+              <p class="student-preview-hint">Pastikan data benar sebelum mengajukan mutasi.</p>
             </div>
             <div class="form-group">
               <label>Catatan (opsional)</label>
@@ -99,7 +124,7 @@
             <div v-if="formError" class="error-message">{{ formError }}</div>
             <div class="modal-footer">
               <button type="button" @click="showFormModal = false" class="btn-secondary">Batal</button>
-              <button type="submit" :disabled="formSubmitting" class="btn-primary">
+              <button type="submit" :disabled="formSubmitting || !formStudentPreview" class="btn-primary">
                 {{ formSubmitting ? 'Mengirim...' : 'Ajukan Mutasi' }}
               </button>
             </div>
@@ -180,12 +205,41 @@
               </div>
               <div class="form-group">
                 <label>NISN Siswa *</label>
-                <input
-                  v-model="pullForm.nisn"
-                  type="text"
-                  placeholder="NISN siswa di sekolah asal"
-                  required
-                />
+                <div class="nisn-search-row">
+                  <input
+                    v-model="pullForm.nisn"
+                    type="text"
+                    placeholder="NISN siswa di sekolah asal"
+                    required
+                    @input="onPullNisnInput"
+                    @keydown.enter.prevent="lookupPullStudent"
+                  />
+                  <button
+                    type="button"
+                    class="btn-secondary btn-lookup"
+                    :disabled="pullLookupLoading || !pullForm.nisn?.trim() || pullForm.origin_npsn.length !== 8"
+                    @click="lookupPullStudent"
+                  >
+                    {{ pullLookupLoading ? 'Mencari...' : 'Cari Siswa' }}
+                  </button>
+                </div>
+                <p v-if="pullLookupError" class="text-error-inline">{{ pullLookupError }}</p>
+              </div>
+              <div v-if="pullStudentPreview" class="student-preview-card">
+                <div class="student-preview-title">Konfirmasi data siswa</div>
+                <div class="student-preview-grid">
+                  <div><span class="label">Nama</span><span class="value">{{ pullStudentPreview.name }}</span></div>
+                  <div><span class="label">NISN</span><span class="value">{{ pullStudentPreview.nisn }}</span></div>
+                  <div><span class="label">NIS</span><span class="value">{{ pullStudentPreview.nis || '–' }}</span></div>
+                  <div><span class="label">JK</span><span class="value">{{ formatGender(pullStudentPreview.gender) }}</span></div>
+                  <div><span class="label">Kelas</span><span class="value">{{ pullStudentPreview.class_name || pullStudentPreview.tingkat || '–' }}</span></div>
+                  <div><span class="label">Status</span><span class="value">{{ pullStudentPreview.status }}</span></div>
+                  <div v-if="pullStudentPreview.institution" class="span-2">
+                    <span class="label">Sekolah asal</span>
+                    <span class="value">{{ pullStudentPreview.institution.name }} ({{ pullStudentPreview.institution.npsn }})</span>
+                  </div>
+                </div>
+                <p class="student-preview-hint">Pastikan data benar sebelum menarik siswa.</p>
               </div>
             </template>
             <div class="form-group">
@@ -195,7 +249,11 @@
             <div v-if="pullFormError" class="error-message">{{ pullFormError }}</div>
             <div class="modal-footer">
               <button type="button" @click="showPullModal = false" class="btn-secondary">Batal</button>
-              <button type="submit" :disabled="pullFormSubmitting" class="btn-primary">
+              <button
+                type="submit"
+                :disabled="pullFormSubmitting || (!pullForm.external && !pullStudentPreview)"
+                class="btn-primary"
+              >
                 {{ pullFormSubmitting ? 'Mengirim...' : 'Ajukan Tarik Siswa' }}
               </button>
             </div>
@@ -291,6 +349,7 @@
         <div v-for="m in mutations" :key="m.id" class="mutation-card">
           <div class="card-header">
             <span :class="['status-badge', `status-${m.status}`]">{{ getStatusLabel(m.status) }}</span>
+            <span v-if="m.is_from_wali" class="badge-wali">Usulan wali</span>
             <span class="initiated-label">{{ m.initiated_by === 'origin' ? 'Sekolah asal mengajukan' : 'Sekolah tujuan menarik' }}</span>
           </div>
           <div class="card-flow">
@@ -327,19 +386,44 @@
               <span class="label">Alasan penolakan</span>
               <span class="value rejection-reason">{{ m.rejection_reason }}</span>
             </div>
+            <div v-if="m.cancel_reason" class="detail-row">
+              <span class="label">Alasan pembatalan</span>
+              <span class="value">{{ m.cancel_reason }}</span>
+            </div>
+            <div v-if="m.cancel_rejection_reason" class="detail-row rejection-row">
+              <span class="label">Penolakan batal</span>
+              <span class="value rejection-reason">{{ m.cancel_rejection_reason }}</span>
+            </div>
           </div>
-          <div v-if="m.status === 'pending' && canApprove(m)" class="card-actions">
-            <button @click="openApproveModal(m)" class="btn-approve">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Setujui
-            </button>
-            <button @click="openRejectModal(m)" class="btn-reject">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Tolak
+          <div v-if="showMutationActions(m)" class="card-actions">
+            <template v-if="m.status === 'pending' && canApprove(m)">
+              <button @click="openApproveModal(m)" class="btn-approve">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Setujui
+              </button>
+              <button @click="openRejectModal(m)" class="btn-reject">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Tolak
+              </button>
+            </template>
+            <template v-if="m.status === 'cancel_pending' && (m.can_decide_cancel || canDecideCancel(m))">
+              <button @click="openApproveCancelModal(m)" class="btn-approve">
+                Setujui Batal
+              </button>
+              <button @click="openRejectCancelModal(m)" class="btn-reject">
+                Tolak Batal
+              </button>
+            </template>
+            <button
+              v-if="m.can_request_cancel || canRequestCancel(m)"
+              @click="openCancelModal(m)"
+              class="btn-cancel-mutation"
+            >
+              Batal Mutasi
             </button>
           </div>
         </div>
@@ -375,7 +459,33 @@
       <!-- Section: Laporan -->
       <template v-if="activeTabMain === 'laporan'">
         <div class="report-section">
-          <form @submit.prevent="loadReport" class="report-form">
+          <form @submit.prevent="loadReport(1)" class="report-form card-form">
+            <div class="report-form-top">
+              <div>
+                <h3 class="report-panel-title">Buku Mutasi Siswa</h3>
+                <p class="report-panel-desc">Filter periode, lihat ringkasan, lalu preview PDF atau unduh CSV.</p>
+              </div>
+              <div class="report-export-actions">
+                <button type="button" @click="exportBukuMutasi('pdf')" :disabled="exportingBukuMutasi || reportLoading" class="btn-export-pdf" title="Preview Buku Mutasi (PDF)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>{{ exportingBukuMutasi ? 'Menyiapkan...' : 'Preview PDF' }}</span>
+                </button>
+                <button type="button" @click="exportBukuMutasi('csv')" :disabled="exportingBukuMutasi || reportLoading" class="btn-export-csv" title="Export Buku Mutasi (CSV)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 13H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>Export CSV</span>
+                </button>
+              </div>
+            </div>
+
             <div class="form-row report-filters">
               <div class="form-group">
                 <label>Dari tanggal</label>
@@ -385,67 +495,204 @@
                 <label>Sampai tanggal</label>
                 <input v-model="reportTo" type="date" />
               </div>
-              <div class="form-group">
-                <label>Tipe</label>
-                <select v-model="reportType">
-                  <option value="all">Semua</option>
-                  <option value="out">Mutasi keluar</option>
-                  <option value="in">Mutasi masuk</option>
-                </select>
+              <div class="form-group form-group-type">
+                <label>Jenis mutasi</label>
+                <div class="filter-tabs report-type-tabs">
+                  <button
+                    v-for="t in reportTypeOptions"
+                    :key="'rtype-' + t.value"
+                    type="button"
+                    :class="['tab', 'tab-role', { active: reportType === t.value }]"
+                    @click="reportType = t.value"
+                  >
+                    {{ t.label }}
+                  </button>
+                </div>
               </div>
-              <button type="submit" class="btn-primary" :disabled="reportLoading">Tampilkan</button>
-              <div class="report-export-actions">
-                <button type="button" @click="exportBukuMutasi('pdf')" :disabled="exportingBukuMutasi || reportLoading" class="btn-export-pdf" title="Cetak Buku Mutasi (PDF)">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M10 9H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <span>{{ exportingBukuMutasi ? 'Mengunduh...' : 'Cetak Buku Mutasi (PDF)' }}</span>
-                </button>
-                <button type="button" @click="exportBukuMutasi('csv')" :disabled="exportingBukuMutasi || reportLoading" class="btn-export-csv" title="Export Buku Mutasi (CSV)">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M8 13H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M8 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <span>Export CSV</span>
-                </button>
-              </div>
+              <button type="submit" class="btn-primary btn-search" :disabled="reportLoading">
+                <svg v-if="!reportLoading" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 17V7M15 17V12M21 21H3V3H21V21ZM5 19H19V5H5V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span v-else class="mini-spinner"></span>
+                {{ reportLoading ? 'Memuat...' : 'Tampilkan' }}
+              </button>
             </div>
           </form>
+
           <div v-if="reportSummary" class="report-summary-cards">
             <div class="stat-card stat-out">
-              <span class="stat-value">{{ reportSummary.mutasi_keluar }}</span>
-              <span class="stat-label">Mutasi keluar</span>
+              <div class="stat-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 8L21 12L17 16M3 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <span class="stat-value">{{ reportSummary.mutasi_keluar }}</span>
+                <span class="stat-label">Mutasi keluar</span>
+              </div>
             </div>
             <div class="stat-card stat-in">
-              <span class="stat-value">{{ reportSummary.mutasi_masuk }}</span>
-              <span class="stat-label">Mutasi masuk</span>
+              <div class="stat-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 16L3 12L7 8M21 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <span class="stat-value">{{ reportSummary.mutasi_masuk }}</span>
+                <span class="stat-label">Mutasi masuk</span>
+              </div>
+            </div>
+            <div class="stat-card stat-total">
+              <div class="stat-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <span class="stat-value">{{ reportSummaryTotal }}</span>
+                <span class="stat-label">Total periode</span>
+              </div>
             </div>
           </div>
-          <div v-if="reportLoading" class="loading-state"><p>Memuat laporan...</p></div>
-          <div v-else-if="reportData.length > 0" class="mutations-list">
-            <div v-for="m in reportData" :key="m.id" class="mutation-card">
-              <div class="card-header">
-                <span class="initiated-label">{{ m.origin_institution?.name ?? m.origin_school_name ?? '–' }} → {{ m.target_institution?.name ?? m.target_school_name ?? '–' }}</span>
-                <span v-if="m.is_external_target" class="badge-external">Luar sistem</span>
-                <span v-if="m.is_external_origin" class="badge-external">Masuk dari luar</span>
-              </div>
-              <div class="card-body">
-                <div class="detail-row"><span class="label">Siswa:</span> <span class="value">{{ m.student?.name }} ({{ m.student?.nisn }})</span></div>
-                <div class="detail-row" v-if="m.student_grade || m.student_gender">
-                  <span class="label">Kelas / JK:</span>
-                  <span class="value">{{ m.student_grade ?? '-' }} / {{ m.student_gender ?? m.student?.gender ?? '-' }}</span>
+
+          <div v-if="reportLoaded && reportPeriodLabel" class="report-toolbar">
+            <span class="report-period">{{ reportPeriodLabel }}</span>
+            <span class="report-count">{{ reportPagination.total }} catatan</span>
+          </div>
+
+          <div v-if="reportLoading" class="loading-wrap">
+            <LoadingSkeleton type="table" :rows="6" :columns="8" :cell-widths="['48px', '100px', '100px', '1fr', '72px', '90px', '1fr', '1fr']" />
+          </div>
+
+          <template v-else-if="reportData.length > 0">
+            <div class="table-container report-table-desktop">
+              <table class="data-table report-table">
+                <thead>
+                  <tr>
+                    <th class="col-no">No</th>
+                    <th>Tanggal</th>
+                    <th>NISN</th>
+                    <th>Nama Siswa</th>
+                    <th class="col-jk">JK</th>
+                    <th>Kelas</th>
+                    <th>Jenis</th>
+                    <th>Sekolah Asal</th>
+                    <th>Sekolah Tujuan</th>
+                    <th>Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(m, idx) in reportData" :key="m.id">
+                    <td class="col-no">{{ reportRowNumber(idx) }}</td>
+                    <td class="col-date">{{ formatDateShort(m.approved_at || m.created_at) }}</td>
+                    <td>{{ m.student?.nisn || '–' }}</td>
+                    <td class="col-name">{{ m.student?.name || '–' }}</td>
+                    <td class="col-jk">{{ m.student_gender || m.student?.gender || '–' }}</td>
+                    <td>{{ m.student_grade || '–' }}</td>
+                    <td>
+                      <span :class="['jenis-badge', isMutationOut(m) ? 'jenis-out' : 'jenis-in']">
+                        {{ isMutationOut(m) ? 'Keluar' : 'Masuk' }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="school-cell">
+                        <span>{{ schoolOriginName(m) }}</span>
+                        <span class="school-npsn">{{ schoolOriginNpsn(m) }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="school-cell">
+                        <span>{{ schoolTargetName(m) }}</span>
+                        <span class="school-npsn">{{ schoolTargetNpsn(m) }}</span>
+                      </div>
+                    </td>
+                    <td class="col-notes">{{ m.notes || '–' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="mutations-list report-cards-mobile">
+              <div v-for="m in reportData" :key="'m-' + m.id" class="mutation-card">
+                <div class="card-header">
+                  <span :class="['jenis-badge', isMutationOut(m) ? 'jenis-out' : 'jenis-in']">
+                    {{ isMutationOut(m) ? 'Keluar' : 'Masuk' }}
+                  </span>
+                  <span class="card-date">{{ formatDateShort(m.approved_at || m.created_at) }}</span>
+                  <span v-if="m.is_external_target" class="badge-external">Luar sistem</span>
+                  <span v-if="m.is_external_origin" class="badge-external">Masuk dari luar</span>
                 </div>
-                <div class="detail-row"><span class="label">Disetujui:</span> <span class="value">{{ formatDate(m.approved_at) }}</span></div>
+                <div class="card-body">
+                  <div class="detail-row">
+                    <span class="label">Siswa:</span>
+                    <span class="value">{{ m.student?.name || '–' }} <span class="value-muted">({{ m.student?.nisn || '–' }})</span></span>
+                  </div>
+                  <div class="detail-row" v-if="m.student_grade || m.student_gender || m.student?.gender">
+                    <span class="label">Kelas / JK:</span>
+                    <span class="value">{{ m.student_grade || '–' }} / {{ m.student_gender || m.student?.gender || '–' }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="label">Asal:</span>
+                    <span class="value">{{ schoolOriginName(m) }} <span class="value-muted">({{ schoolOriginNpsn(m) }})</span></span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="label">Tujuan:</span>
+                    <span class="value">{{ schoolTargetName(m) }} <span class="value-muted">({{ schoolTargetNpsn(m) }})</span></span>
+                  </div>
+                  <div v-if="m.notes" class="detail-row">
+                    <span class="label">Keterangan:</span>
+                    <span class="value">{{ m.notes }}</span>
+                  </div>
+                </div>
               </div>
             </div>
+
+            <div v-if="reportPagination.last_page > 1" class="pagination-bar">
+              <div class="pagination-info">
+                Halaman {{ reportPagination.current_page }} dari {{ reportPagination.last_page }}
+                ({{ reportPagination.total }} data)
+              </div>
+              <div class="pagination-buttons">
+                <button
+                  type="button"
+                  class="btn-page"
+                  :disabled="reportPagination.current_page <= 1 || reportLoading"
+                  @click="loadReport(reportPagination.current_page - 1)"
+                >
+                  Sebelumnya
+                </button>
+                <button
+                  type="button"
+                  class="btn-page"
+                  :disabled="reportPagination.current_page >= reportPagination.last_page || reportLoading"
+                  @click="loadReport(reportPagination.current_page + 1)"
+                >
+                  Berikutnya
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <div v-else-if="reportLoaded" class="empty-state report-empty">
+            <div class="empty-icon">
+              <svg width="72" height="72" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 17V7M15 17V12M21 21H3V3H21V21ZM5 19H19V5H5V19Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="empty-title">Tidak ada data mutasi</h3>
+            <p class="empty-desc">Tidak ada mutasi disetujui pada periode atau filter yang dipilih. Sesuaikan tanggal/jenis lalu tampilkan lagi.</p>
           </div>
-          <p v-else-if="reportLoaded && reportData.length === 0" class="text-muted">Tidak ada data mutasi dalam periode ini.</p>
+
+          <div v-else class="empty-state report-empty">
+            <div class="empty-icon">
+              <svg width="72" height="72" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="empty-title">Siap menampilkan laporan</h3>
+            <p class="empty-desc">Pilih periode (opsional) dan jenis mutasi, lalu klik Tampilkan untuk melihat Buku Mutasi sekolah Anda.</p>
+          </div>
         </div>
       </template>
 
@@ -537,9 +784,97 @@
             </div>
             <div v-if="rejectError" class="error-message">{{ rejectError }}</div>
             <div class="modal-footer">
-              <button type="button" @click="showRejectModal = false" class="btn-secondary">Batal</button>
+              <button type="button" @click="showRejectModal = false" class="btn-secondary">Tutup</button>
               <button type="submit" :disabled="processing" class="btn-reject">
                 {{ processing ? 'Memproses...' : 'Tolak' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Cancel Mutation Modal -->
+      <div v-if="showCancelModal" class="modal-overlay" @click="showCancelModal = false">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Batal Mutasi</h3>
+            <button @click="showCancelModal = false" class="btn-close">×</button>
+          </div>
+          <form @submit.prevent="handleCancel" class="modal-body">
+            <p v-if="selectedMutation?.status === 'approved' && !selectedMutation?.is_external_target && !selectedMutation?.is_external_origin">
+              Mutasi sudah diterima sekolah tujuan. Pembatalan akan dikirim untuk <strong>persetujuan admin sekolah tujuan</strong>.
+            </p>
+            <p v-else>
+              Permohonan mutasi akan dibatalkan. Lanjutkan?
+            </p>
+            <div v-if="selectedMutation" class="approval-details">
+              <div class="detail-row">
+                <span class="label">Siswa:</span>
+                <span class="value">{{ selectedMutation.student?.name }} ({{ selectedMutation.student?.nisn }})</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Alasan pembatalan (opsional)</label>
+              <textarea v-model="cancelReason" rows="3" placeholder="Alasan membatalkan mutasi..."></textarea>
+            </div>
+            <div v-if="cancelError" class="error-message">{{ cancelError }}</div>
+            <div class="modal-footer">
+              <button type="button" @click="showCancelModal = false" class="btn-secondary">Tutup</button>
+              <button type="submit" :disabled="processing" class="btn-cancel-mutation">
+                {{ processing ? 'Memproses...' : 'Ya, Batalkan' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Approve Cancel Modal -->
+      <div v-if="showApproveCancelModal" class="modal-overlay" @click="showApproveCancelModal = false">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Setujui Pembatalan Mutasi</h3>
+            <button @click="showApproveCancelModal = false" class="btn-close">×</button>
+          </div>
+          <div class="modal-body">
+            <p>Siswa akan dikembalikan ke sekolah asal. Lanjutkan?</p>
+            <div v-if="selectedMutation" class="approval-details">
+              <div class="detail-row">
+                <span class="label">Siswa:</span>
+                <span class="value">{{ selectedMutation.student?.name }} ({{ selectedMutation.student?.nisn }})</span>
+              </div>
+              <div class="detail-row" v-if="selectedMutation.cancel_reason">
+                <span class="label">Alasan batal:</span>
+                <span class="value">{{ selectedMutation.cancel_reason }}</span>
+              </div>
+            </div>
+            <div v-if="approveCancelError" class="error-message">{{ approveCancelError }}</div>
+            <div class="modal-footer">
+              <button type="button" @click="showApproveCancelModal = false" class="btn-secondary">Tutup</button>
+              <button @click="handleApproveCancel" :disabled="processing" class="btn-approve">
+                {{ processing ? 'Memproses...' : 'Setujui Batal' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reject Cancel Modal -->
+      <div v-if="showRejectCancelModal" class="modal-overlay" @click="showRejectCancelModal = false">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Tolak Pembatalan Mutasi</h3>
+            <button @click="showRejectCancelModal = false" class="btn-close">×</button>
+          </div>
+          <form @submit.prevent="handleRejectCancel" class="modal-body">
+            <div class="form-group">
+              <label>Alasan penolakan *</label>
+              <textarea v-model="cancelRejectionReason" rows="3" required placeholder="Mengapa pembatalan ditolak..."></textarea>
+            </div>
+            <div v-if="rejectCancelError" class="error-message">{{ rejectCancelError }}</div>
+            <div class="modal-footer">
+              <button type="button" @click="showRejectCancelModal = false" class="btn-secondary">Tutup</button>
+              <button type="submit" :disabled="processing" class="btn-reject">
+                {{ processing ? 'Memproses...' : 'Tolak Batal' }}
               </button>
             </div>
           </form>
@@ -575,6 +910,9 @@ const targetInstitution = ref(null)
 const npsnSearchDone = ref(false)
 const formSubmitting = ref(false)
 const formError = ref('')
+const formStudentPreview = ref(null)
+const formLookupLoading = ref(false)
+const formLookupError = ref('')
 
 const showPullModal = ref(false)
 const pullForm = ref({
@@ -591,10 +929,15 @@ const originInstitution = ref(null)
 const originNpsnSearchDone = ref(false)
 const pullFormSubmitting = ref(false)
 const pullFormError = ref('')
+const pullStudentPreview = ref(null)
+const pullLookupLoading = ref(false)
+const pullLookupError = ref('')
 
 const statusOptions = [
   { value: 'pending', label: 'Menunggu' },
   { value: 'approved', label: 'Disetujui' },
+  { value: 'cancel_pending', label: 'Menunggu batal' },
+  { value: 'cancelled', label: 'Dibatalkan' },
   { value: 'rejected', label: 'Ditolak' },
   { value: '', label: 'Semua' }
 ]
@@ -611,11 +954,38 @@ const roleOptions = [
 const reportFrom = ref('')
 const reportTo = ref('')
 const reportType = ref('all')
+const reportTypeOptions = [
+  { value: 'all', label: 'Semua' },
+  { value: 'out', label: 'Keluar' },
+  { value: 'in', label: 'Masuk' }
+]
 const reportLoading = ref(false)
 const reportLoaded = ref(false)
 const reportSummary = ref(null)
 const reportData = ref([])
+const reportPagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0,
+  per_page: 15
+})
 const exportingBukuMutasi = ref(false)
+
+const reportSummaryTotal = computed(() => {
+  if (!reportSummary.value) return 0
+  return (reportSummary.value.mutasi_keluar || 0) + (reportSummary.value.mutasi_masuk || 0)
+})
+
+const reportPeriodLabel = computed(() => {
+  if (!reportLoaded.value) return ''
+  const from = reportFrom.value
+  const to = reportTo.value
+  const typeLabel = reportTypeOptions.find((t) => t.value === reportType.value)?.label || 'Semua'
+  if (from && to) return `Periode ${formatDateShort(from)} – ${formatDateShort(to)} · ${typeLabel}`
+  if (from) return `Dari ${formatDateShort(from)} · ${typeLabel}`
+  if (to) return `Sampai ${formatDateShort(to)} · ${typeLabel}`
+  return `Semua periode · ${typeLabel}`
+})
 
 const historyNisn = ref('')
 const historyLoading = ref(false)
@@ -632,13 +1002,25 @@ const pagination = ref({
 
 const showApproveModal = ref(false)
 const showRejectModal = ref(false)
+const showCancelModal = ref(false)
+const showApproveCancelModal = ref(false)
+const showRejectCancelModal = ref(false)
 const selectedMutation = ref(null)
 const rejectionReason = ref('')
+const cancelReason = ref('')
+const cancelRejectionReason = ref('')
 const processing = ref(false)
 const approveError = ref('')
 const rejectError = ref('')
+const cancelError = ref('')
+const approveCancelError = ref('')
+const rejectCancelError = ref('')
 
-const myInstitutionId = computed(() => authStore.user?.institution_id)
+const myInstitutionId = computed(() => authStore.activeInstitutionId || authStore.user?.institution_id)
+const isInstAdmin = computed(() => {
+  const role = authStore.user?.role
+  return role === 'admin' || role === 'institution_admin'
+})
 
 function canApprove(m) {
   if (!myInstitutionId.value) return false
@@ -646,6 +1028,36 @@ function canApprove(m) {
     return m.target_institution_id === myInstitutionId.value
   }
   return m.origin_institution_id === myInstitutionId.value
+}
+
+function canRequestCancel(m) {
+  if (!m || !['pending', 'approved'].includes(m.status)) return false
+  if (m.can_request_cancel === true) return true
+  if (!myInstitutionId.value) return false
+  const isRequester = m.requester?.id === authStore.user?.id || m.requested_by === authStore.user?.id
+  if (m.status === 'pending') {
+    if (isRequester) return true
+    if (!isInstAdmin.value) return false
+    if (m.initiated_by === 'origin') return m.origin_institution_id === myInstitutionId.value
+    return m.target_institution_id === myInstitutionId.value
+  }
+  if (!isInstAdmin.value) return false
+  if (m.is_external_target) return m.origin_institution_id === myInstitutionId.value
+  if (m.is_external_origin) return m.target_institution_id === myInstitutionId.value
+  return m.origin_institution_id === myInstitutionId.value
+}
+
+function canDecideCancel(m) {
+  if (!m || m.status !== 'cancel_pending') return false
+  if (m.can_decide_cancel === true) return true
+  if (!isInstAdmin.value || !myInstitutionId.value) return false
+  return m.target_institution_id === myInstitutionId.value
+}
+
+function showMutationActions(m) {
+  return (m.status === 'pending' && canApprove(m))
+    || (m.status === 'cancel_pending' && canDecideCancel(m))
+    || canRequestCancel(m)
 }
 
 async function loadTargetByNpsn() {
@@ -677,6 +1089,33 @@ function onNpsnInput() {
   }
 }
 
+function onFormNisnInput() {
+  formStudentPreview.value = null
+  formLookupError.value = ''
+}
+
+async function lookupFormStudent() {
+  formLookupError.value = ''
+  formStudentPreview.value = null
+  const nisn = form.value.nisn?.trim()
+  if (!nisn) {
+    formLookupError.value = 'Masukkan NISN terlebih dahulu.'
+    return
+  }
+  formLookupLoading.value = true
+  try {
+    const res = await studentMutationApi.lookupStudent(nisn)
+    formStudentPreview.value = res.data?.data ?? null
+    if (!formStudentPreview.value) {
+      formLookupError.value = 'Data siswa tidak ditemukan.'
+    }
+  } catch (err) {
+    formLookupError.value = err.response?.data?.message || err.formattedMessage || 'Gagal mencari siswa'
+  } finally {
+    formLookupLoading.value = false
+  }
+}
+
 async function loadOriginByNpsn() {
   const npsn = pullForm.value.origin_npsn?.trim()
   if (npsn.length !== 8) {
@@ -699,11 +1138,70 @@ async function loadOriginByNpsn() {
 function onOriginNpsnInput() {
   pullForm.value.origin_npsn = pullForm.value.origin_npsn.replace(/\D/g, '').slice(0, 8)
   originInstitution.value = null
+  pullStudentPreview.value = null
+  pullLookupError.value = ''
   if (pullForm.value.origin_npsn.length === 8) {
     loadOriginByNpsn()
   } else {
     originNpsnSearchDone.value = false
   }
+}
+
+function onPullNisnInput() {
+  pullStudentPreview.value = null
+  pullLookupError.value = ''
+}
+
+async function lookupPullStudent() {
+  pullLookupError.value = ''
+  pullStudentPreview.value = null
+  const npsn = pullForm.value.origin_npsn?.trim()
+  const nisn = pullForm.value.nisn?.trim()
+  if (!npsn || npsn.length !== 8) {
+    pullLookupError.value = 'NPSN sekolah asal harus 8 digit terlebih dahulu.'
+    return
+  }
+  if (!nisn) {
+    pullLookupError.value = 'Masukkan NISN terlebih dahulu.'
+    return
+  }
+  pullLookupLoading.value = true
+  try {
+    const res = await studentMutationApi.lookupStudentAtOrigin(npsn, nisn)
+    pullStudentPreview.value = res.data?.data ?? null
+    if (!pullStudentPreview.value) {
+      pullLookupError.value = 'Data siswa tidak ditemukan.'
+    }
+  } catch (err) {
+    pullLookupError.value = err.response?.data?.message || err.formattedMessage || 'Gagal mencari siswa'
+  } finally {
+    pullLookupLoading.value = false
+  }
+}
+
+function formatGender(gender) {
+  if (!gender) return '–'
+  if (/^(L|l|Laki|Male)/i.test(String(gender))) return 'Laki-laki'
+  if (/^(P|p|Perem|Female)/i.test(String(gender))) return 'Perempuan'
+  return String(gender)
+}
+
+function resetFormModal() {
+  form.value = { external: false, target_npsn: '', target_school_name: '', nisn: '', notes: '' }
+  targetInstitution.value = null
+  formStudentPreview.value = null
+  formLookupError.value = ''
+  formError.value = ''
+  npsnSearchDone.value = false
+}
+
+function resetPullModal() {
+  pullForm.value = { external: false, origin_npsn: '', origin_school_name: '', nisn: '', student_name: '', student_gender: '', student_grade: '', notes: '' }
+  originInstitution.value = null
+  pullStudentPreview.value = null
+  pullLookupError.value = ''
+  pullFormError.value = ''
+  originNpsnSearchDone.value = false
 }
 
 async function submitPull() {
@@ -729,6 +1227,9 @@ async function submitPull() {
       pullFormError.value = 'Jenis kelamin siswa wajib diisi.'
       return
     }
+  } else if (!pullStudentPreview.value) {
+    pullFormError.value = 'Cari dan konfirmasi data siswa terlebih dahulu sebelum mengajukan.'
+    return
   }
   pullFormSubmitting.value = true
   try {
@@ -744,12 +1245,19 @@ async function submitPull() {
       payload.student_gender = pullForm.value.student_gender
       payload.student_grade = pullForm.value.student_grade?.trim() || undefined
     }
+    const wasExternal = !!pullForm.value.external
     await studentMutationApi.createPull(payload)
-    toast.success('Berhasil', pullForm.value.external ? 'Mutasi masuk dari sekolah luar telah dicatat. Data siswa telah ditambahkan.' : 'Permohonan tarik siswa telah dikirim. Menunggu persetujuan sekolah asal.')
+    toast.success('Berhasil', wasExternal ? 'Mutasi masuk dari sekolah luar telah dicatat. Data siswa telah ditambahkan.' : 'Permohonan tarik siswa telah dikirim. Menunggu persetujuan sekolah asal.')
     showPullModal.value = false
-    pullForm.value = { external: false, origin_npsn: '', origin_school_name: '', nisn: '', student_name: '', student_gender: '', student_grade: '', notes: '' }
-    originInstitution.value = null
-    await loadMutations()
+    resetPullModal()
+    if (wasExternal) {
+      const alreadyApproved = filterStatus.value === 'approved'
+      filterStatus.value = 'approved'
+      activeTabMain.value = 'permohonan'
+      if (alreadyApproved) await loadMutations()
+    } else {
+      await loadMutations()
+    }
   } catch (err) {
     pullFormError.value = err.response?.data?.message || err.formattedMessage || 'Gagal mengajukan tarik siswa'
     toast.error('Gagal', pullFormError.value)
@@ -788,25 +1296,72 @@ function goToPage(page) {
   loadMutations(page)
 }
 
-async function loadReport() {
+async function loadReport(page = 1) {
   reportLoading.value = true
-  reportLoaded.value = false
   try {
-    const params = { type: reportType.value }
+    const params = {
+      type: reportType.value,
+      page,
+      per_page: reportPagination.value.per_page || 15
+    }
     if (reportFrom.value) params.from = reportFrom.value
     if (reportTo.value) params.to = reportTo.value
     const res = await studentMutationApi.getReport(params)
     reportSummary.value = res.data?.summary ?? { mutasi_keluar: 0, mutasi_masuk: 0 }
     const raw = res.data?.data
     reportData.value = Array.isArray(raw) ? raw : (raw?.data ?? [])
+    const meta = res.data?.meta
+    if (meta) {
+      reportPagination.value = {
+        current_page: meta.current_page ?? page,
+        last_page: meta.last_page ?? 1,
+        total: meta.total ?? reportData.value.length,
+        per_page: meta.per_page ?? 15
+      }
+    } else {
+      reportPagination.value = {
+        current_page: page,
+        last_page: 1,
+        total: reportData.value.length,
+        per_page: 15
+      }
+    }
     reportLoaded.value = true
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || 'Gagal memuat laporan')
     reportSummary.value = null
     reportData.value = []
+    reportLoaded.value = false
   } finally {
     reportLoading.value = false
   }
+}
+
+function isMutationOut(m) {
+  if (!myInstitutionId.value) return !!m.origin_institution_id
+  return m.origin_institution_id === myInstitutionId.value
+}
+
+function schoolOriginName(m) {
+  return m.origin_institution?.name || m.origin_school_name || '–'
+}
+
+function schoolTargetName(m) {
+  return m.target_institution?.name || m.target_school_name || '–'
+}
+
+function schoolOriginNpsn(m) {
+  return m.origin_institution?.npsn || m.origin_npsn || '–'
+}
+
+function schoolTargetNpsn(m) {
+  return m.target_institution?.npsn || m.target_npsn || '–'
+}
+
+function reportRowNumber(idx) {
+  const page = reportPagination.value.current_page || 1
+  const perPage = reportPagination.value.per_page || 15
+  return (page - 1) * perPage + idx + 1
 }
 
 async function exportBukuMutasi(format) {
@@ -823,16 +1378,50 @@ async function exportBukuMutasi(format) {
       throw new Error(json.message || 'Gagal mengekspor Buku Mutasi.')
     }
     const blob = res.data instanceof Blob ? res.data : new Blob([res.data])
-    const mime = format === 'csv' ? 'text/csv;charset=utf-8' : 'application/pdf'
-    const url = URL.createObjectURL(new Blob([blob], { type: mime }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Buku_Mutasi_${reportFrom.value || ''}_${reportTo.value || ''}.${format === 'csv' ? 'csv' : 'pdf'}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast.success('Berhasil', format === 'csv' ? 'Buku Mutasi (CSV) diunduh.' : 'Buku Mutasi (PDF) diunduh.')
+
+    if (format === 'csv') {
+      const url = URL.createObjectURL(new Blob([blob], { type: 'text/csv;charset=utf-8' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Buku_Mutasi_${reportFrom.value || ''}_${reportTo.value || ''}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('Berhasil', 'Buku Mutasi (CSV) diunduh.')
+      return
+    }
+
+    const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      URL.revokeObjectURL(url)
+      return
+    }
+    const title = `Preview Buku Mutasi ${reportFrom.value || ''} - ${reportTo.value || ''}`
+    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+      <style>
+        body{margin:0;font-family:system-ui,sans-serif;background:#0f172a}
+        .toolbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#f8fafc;border-bottom:1px solid #1e293b}
+        .toolbar h1{margin:0;font-size:14px;font-weight:600}
+        .actions button{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+        .btn-print{background:#059669;color:#fff}
+        .btn-close{background:#334155;color:#e2e8f0;margin-left:8px}
+        iframe{width:100%;height:calc(100vh - 52px);border:0;background:#525659}
+      </style></head><body>
+      <div class="toolbar">
+        <h1>Preview Buku Mutasi Siswa</h1>
+        <div class="actions">
+          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus();document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
+          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
+        </div>
+      </div>
+      <iframe id="pdfFrame" src="${url}"></iframe>
+    </body></html>`)
+    win.document.close()
+    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    toast.success('Berhasil', 'Preview PDF Buku Mutasi dibuka.')
   } catch (err) {
     toast.error('Gagal', err.message || err.response?.data?.message || err.formattedMessage || 'Gagal mengekspor Buku Mutasi.')
   } finally {
@@ -871,8 +1460,13 @@ async function submitMutation() {
     formError.value = 'NISN siswa wajib diisi.'
     return
   }
+  if (!formStudentPreview.value) {
+    formError.value = 'Cari dan konfirmasi data siswa terlebih dahulu sebelum mengajukan.'
+    return
+  }
   formSubmitting.value = true
   try {
+    const wasExternal = !!form.value.external
     await studentMutationApi.create({
       external: form.value.external || undefined,
       target_npsn: form.value.target_npsn,
@@ -880,11 +1474,17 @@ async function submitMutation() {
       nisn: form.value.nisn.trim(),
       notes: form.value.notes?.trim() || undefined
     })
-    toast.success('Berhasil', form.value.external ? 'Mutasi keluar ke sekolah luar sistem telah dicatat. Status siswa: Pindah.' : 'Permohonan mutasi telah dikirim. Menunggu persetujuan sekolah tujuan.')
+    toast.success('Berhasil', wasExternal ? 'Mutasi keluar ke sekolah luar sistem telah dicatat. Status siswa: Pindah.' : 'Permohonan mutasi telah dikirim. Menunggu persetujuan sekolah tujuan.')
     showFormModal.value = false
-    form.value = { external: false, target_npsn: '', target_school_name: '', nisn: '', notes: '' }
-    targetInstitution.value = null
-    await loadMutations()
+    resetFormModal()
+    if (wasExternal) {
+      const alreadyApproved = filterStatus.value === 'approved'
+      filterStatus.value = 'approved'
+      activeTabMain.value = 'permohonan'
+      if (alreadyApproved) await loadMutations()
+    } else {
+      await loadMutations()
+    }
   } catch (err) {
     formError.value = err.response?.data?.message || err.formattedMessage || 'Gagal mengajukan mutasi'
     toast.error('Gagal', formError.value)
@@ -904,6 +1504,26 @@ function openRejectModal(m) {
   rejectionReason.value = ''
   rejectError.value = ''
   showRejectModal.value = true
+}
+
+function openCancelModal(m) {
+  selectedMutation.value = m
+  cancelReason.value = ''
+  cancelError.value = ''
+  showCancelModal.value = true
+}
+
+function openApproveCancelModal(m) {
+  selectedMutation.value = m
+  approveCancelError.value = ''
+  showApproveCancelModal.value = true
+}
+
+function openRejectCancelModal(m) {
+  selectedMutation.value = m
+  cancelRejectionReason.value = ''
+  rejectCancelError.value = ''
+  showRejectCancelModal.value = true
 }
 
 async function handleApprove() {
@@ -945,8 +1565,79 @@ async function handleReject() {
   }
 }
 
+async function handleCancel() {
+  cancelError.value = ''
+  processing.value = true
+  try {
+    const res = await studentMutationApi.cancel(selectedMutation.value.id, {
+      reason: cancelReason.value?.trim() || null
+    })
+    toast.success('Berhasil', res.data?.message || 'Mutasi dibatalkan.')
+    showCancelModal.value = false
+    const status = res.data?.data?.status
+    if (status === 'cancel_pending') {
+      filterStatus.value = 'cancel_pending'
+    } else if (status === 'cancelled') {
+      filterStatus.value = 'cancelled'
+    }
+    await loadMutations()
+  } catch (err) {
+    cancelError.value = err.response?.data?.message || err.formattedMessage || 'Gagal membatalkan mutasi'
+    toast.error('Gagal', cancelError.value)
+  } finally {
+    processing.value = false
+  }
+}
+
+async function handleApproveCancel() {
+  approveCancelError.value = ''
+  processing.value = true
+  try {
+    await studentMutationApi.decideCancel(selectedMutation.value.id, { action: 'approve' })
+    toast.success('Berhasil', 'Pembatalan mutasi disetujui. Siswa dikembalikan ke sekolah asal.')
+    showApproveCancelModal.value = false
+    filterStatus.value = 'cancelled'
+    await loadMutations()
+  } catch (err) {
+    approveCancelError.value = err.response?.data?.message || err.formattedMessage || 'Gagal menyetujui pembatalan'
+    toast.error('Gagal', approveCancelError.value)
+  } finally {
+    processing.value = false
+  }
+}
+
+async function handleRejectCancel() {
+  if (!cancelRejectionReason.value?.trim()) {
+    rejectCancelError.value = 'Alasan penolakan wajib diisi.'
+    return
+  }
+  rejectCancelError.value = ''
+  processing.value = true
+  try {
+    await studentMutationApi.decideCancel(selectedMutation.value.id, {
+      action: 'reject',
+      rejection_reason: cancelRejectionReason.value.trim()
+    })
+    toast.success('Berhasil', 'Permohonan pembatalan ditolak. Mutasi tetap berlaku.')
+    showRejectCancelModal.value = false
+    filterStatus.value = 'approved'
+    await loadMutations()
+  } catch (err) {
+    rejectCancelError.value = err.response?.data?.message || err.formattedMessage || 'Gagal menolak pembatalan'
+    toast.error('Gagal', rejectCancelError.value)
+  } finally {
+    processing.value = false
+  }
+}
+
 function getStatusLabel(status) {
-  const map = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' }
+  const map = {
+    pending: 'Menunggu',
+    approved: 'Disetujui',
+    rejected: 'Ditolak',
+    cancelled: 'Dibatalkan',
+    cancel_pending: 'Menunggu batal'
+  }
   return map[status] || status
 }
 
@@ -961,8 +1652,51 @@ function formatDate(dateString) {
   })
 }
 
+function formatDateShort(dateString) {
+  if (!dateString) return '–'
+  // date-only (YYYY-MM-DD) parse as local to avoid timezone shift
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [y, m, d] = dateString.split('-').map(Number)
+    return new Date(y, m - 1, d).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+  }
+  return new Date(dateString).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
 watch(filterStatus, () => loadMutations(1))
 watch(filterRole, () => loadMutations(1))
+watch(activeTabMain, (tab) => {
+  if (tab === 'laporan' && !reportLoaded.value && !reportLoading.value) {
+    loadReport(1)
+  }
+})
+
+watch(() => pullForm.value.external, (isExternal) => {
+  pullStudentPreview.value = null
+  pullLookupError.value = ''
+  if (isExternal) {
+    originInstitution.value = null
+  }
+})
+
+watch(showFormModal, (open) => {
+  if (open) {
+    resetFormModal()
+  }
+})
+
+watch(showPullModal, (open) => {
+  if (open) {
+    resetPullModal()
+  }
+})
 
 onMounted(async () => {
   await authStore.fetchUser()
@@ -1056,6 +1790,80 @@ onMounted(async () => {
   color: #94a3b8;
 }
 
+.text-error-inline {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.nisn-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.nisn-search-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-lookup {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 10px 14px;
+}
+
+.student-preview-card {
+  margin: 4px 0 16px;
+  padding: 14px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+}
+
+.student-preview-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #047857;
+  margin-bottom: 10px;
+}
+
+.student-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+
+.student-preview-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.student-preview-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+.student-preview-grid .label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.student-preview-grid .value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.student-preview-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #047857;
+}
+
 .form-group-checkbox {
   margin-bottom: 12px;
 }
@@ -1081,6 +1889,16 @@ onMounted(async () => {
   font-weight: 600;
   color: #b45309;
   background: #fef3c7;
+  border-radius: 6px;
+}
+.badge-wali {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #065f46;
+  background: #d1fae5;
   border-radius: 6px;
 }
 
@@ -1125,28 +1943,71 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 16px;
   align-items: flex-end;
-  margin-bottom: 20px;
+  margin-bottom: 0;
+}
+.report-form-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.report-panel-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.report-panel-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.45;
+  max-width: 42rem;
+}
+.form-group-type {
+  min-width: 220px;
+}
+.report-type-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .report-summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 .stat-card {
-  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
   border-radius: 12px;
-  text-align: center;
+  text-align: left;
   border: 1px solid transparent;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
+.stat-card .stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
 .stat-card .stat-value {
   display: block;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   color: #0f172a;
   line-height: 1.2;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .stat-card .stat-label {
   font-size: 13px;
@@ -1157,9 +2018,143 @@ onMounted(async () => {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   border-color: #fcd34d;
 }
+.stat-card.stat-out .stat-icon {
+  background: rgba(217, 119, 6, 0.15);
+  color: #b45309;
+}
 .stat-card.stat-in {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
   border-color: #6ee7b7;
+}
+.stat-card.stat-in .stat-icon {
+  background: rgba(5, 150, 105, 0.15);
+  color: #047857;
+}
+.stat-card.stat-total {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-color: #cbd5e1;
+}
+.stat-card.stat-total .stat-icon {
+  background: rgba(71, 85, 105, 0.12);
+  color: #475569;
+}
+.report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.report-period {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.report-count {
+  font-size: 13px;
+  color: #64748b;
+}
+.report-empty {
+  margin-top: 8px;
+}
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table thead {
+  background: #f8fafc;
+}
+.data-table th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: top;
+}
+.data-table tbody tr:hover {
+  background: #f8fafc;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.data-table .col-no {
+  width: 48px;
+  text-align: center;
+  color: #64748b;
+}
+.data-table .col-jk {
+  width: 48px;
+  text-align: center;
+}
+.data-table .col-date {
+  white-space: nowrap;
+}
+.data-table .col-name {
+  font-weight: 600;
+  min-width: 140px;
+}
+.data-table .col-notes {
+  max-width: 180px;
+  color: #64748b;
+}
+.school-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.school-npsn {
+  font-size: 11px;
+  color: #94a3b8;
+}
+.jenis-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.jenis-badge.jenis-out {
+  background: #fef3c7;
+  color: #b45309;
+}
+.jenis-badge.jenis-in {
+  background: #d1fae5;
+  color: #047857;
+}
+.report-table-desktop {
+  display: block;
+}
+.report-cards-mobile {
+  display: none;
+}
+.card-date {
+  margin-left: auto;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .card-form {
@@ -1444,6 +2439,16 @@ onMounted(async () => {
   color: #dc2626;
 }
 
+.status-cancelled {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.status-cancel_pending {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
 .initiated-label {
   font-size: 12px;
   color: #64748b;
@@ -1527,6 +2532,26 @@ onMounted(async () => {
 .btn-reject:hover {
   background: #fef2f2;
   color: #b91c1c;
+}
+
+.btn-cancel-mutation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 2px solid #94a3b8;
+  background: #fff;
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.btn-cancel-mutation:hover {
+  background: #f1f5f9;
+  border-color: #64748b;
+  color: #334155;
 }
 
 .modal-overlay {
@@ -1779,6 +2804,15 @@ onMounted(async () => {
   .main-tab { white-space: nowrap; padding: 8px 14px; font-size: 13px; }
   .mutations-list {
     grid-template-columns: 1fr;
+  }
+  .report-table-desktop {
+    display: none;
+  }
+  .report-cards-mobile {
+    display: grid;
+  }
+  .report-form-top {
+    flex-direction: column;
   }
   .pagination-bar {
     flex-direction: column;

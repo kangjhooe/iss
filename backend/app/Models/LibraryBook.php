@@ -26,16 +26,36 @@ class LibraryBook extends Model
         'shelf_code',
         'description',
         'cover_path',
+        'ebook_path',
+        'is_public_ebook',
+        'ebook_view_count',
         'created_by',
         'updated_by',
     ];
+
+    public function hasEbook(): bool
+    {
+        return !empty($this->ebook_path);
+    }
+
+    public function isPublicEbook(): bool
+    {
+        return $this->hasEbook() && (bool) $this->is_public_ebook;
+    }
 
     protected function casts(): array
     {
         return [
             'year' => 'integer',
             'pages' => 'integer',
+            'is_public_ebook' => 'boolean',
+            'ebook_view_count' => 'integer',
         ];
+    }
+
+    public function ebookViews()
+    {
+        return $this->hasMany(LibraryEbookView::class, 'book_id');
     }
 
     public function institution()

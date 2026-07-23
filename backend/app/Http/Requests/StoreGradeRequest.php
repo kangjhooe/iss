@@ -19,7 +19,7 @@ class StoreGradeRequest extends FormRequest
             'subject_id' => 'required|exists:subjects,id',
             'student_id' => 'required|exists:student,id',
             'employee_id' => 'nullable|exists:employee,id',
-            'grade_type' => 'required|in:uh,uts,uas,tugas,nilai_akhir',
+            'grade_type' => ['required', 'string', 'max:30', 'regex:/^(uts|uas|nilai_akhir|penilaian_[1-9]\d*)$/'],
             'value' => 'required|numeric|min:0|max:100',
             'notes' => 'nullable|string|max:1000',
         ];
@@ -33,7 +33,7 @@ class StoreGradeRequest extends FormRequest
             'subject_id.required' => 'Mata pelajaran wajib dipilih.',
             'student_id.required' => 'Siswa wajib dipilih.',
             'grade_type.required' => 'Jenis nilai wajib dipilih.',
-            'grade_type.in' => 'Jenis nilai tidak valid.',
+            'grade_type.regex' => 'Jenis nilai tidak valid.',
             'value.required' => 'Nilai wajib diisi.',
             'value.min' => 'Nilai minimal 0.',
             'value.max' => 'Nilai maksimal 100.',

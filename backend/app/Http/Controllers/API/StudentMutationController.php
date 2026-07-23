@@ -4,12 +4,15 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApproveStudentMutationRequest;
+use App\Http\Requests\CancelStudentMutationRequest;
+use App\Http\Requests\DecideCancelStudentMutationRequest;
 use App\Http\Requests\StoreStudentMutationPullRequest;
 use App\Http\Requests\StoreStudentMutationRequest;
 use App\Http\Resources\StudentMutationResource;
 use App\Models\Institution;
 use App\Models\StudentMutation;
 use App\Services\StudentMutationService;
+use App\Support\InstitutionContext;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Http\StreamedResponse;
@@ -23,13 +26,25 @@ class StudentMutationController extends Controller
     ) {}
 
     /**
+     * Resolve active institution (header/cookie/home) for mutation APIs.
+     */
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        $user = $request->user();
+        if (!$user) {
+            return null;
+        }
+
+        return InstitutionContext::resolveForUser($user, $request);
+    }
+
+    /**
      * List mutation requests (as origin, as target, or both).
      */
     public function index(Request $request)
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -56,7 +71,10 @@ class StudentMutationController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
             $external = $request->validated('external', false);
 
             if ($external) {
@@ -93,6 +111,8 @@ class StudentMutationController extends Controller
             return (new StudentMutationResource($mutation))
                 ->response()
                 ->setStatusCode(201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             Log::error('Student mutation store failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -110,7 +130,10 @@ class StudentMutationController extends Controller
     {
         try {
             $user = $request->user();
-            $targetInstitutionId = $user->institution_id;
+            $targetInstitutionId = $this->resolveInstitutionId($request);
+            if (!$targetInstitutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
             $external = $request->validated('external', false);
 
             if ($external) {
@@ -167,9 +190,13 @@ class StudentMutationController extends Controller
     public function show(Request $request, StudentMutation $student_mutation)
     {
         $user = $request->user();
-        $instId = $user->institution_id;
+        $instId = $this->resolveInstitutionId($request);
         $m = $student_mutation;
-        if ($instId !== $m->origin_institution_id && $instId !== $m->target_institution_id && !$user->isSuperAdmin()) {
+        if (
+            !$user->isSuperAdmin()
+            && (int) $instId !== (int) $m->origin_institution_id
+            && (int) $instId !== (int) $m->target_institution_id
+        ) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -226,26 +253,166 @@ class StudentMutationController extends Controller
     }
 
     /**
+     * Batalkan mutasi (langsung jika pending/eksternal, atau ajukan batal jika sudah approved).
+     */
+    public function cancel(CancelStudentMutationRequest $request, StudentMutation $student_mutation)
+    {
+        try {
+            $mutation = $this->mutationService->requestCancel(
+                $student_mutation,
+                $request->user(),
+                $request->validated('reason')
+            );
+
+            $message = $mutation->status === 'cancel_pending'
+                ? 'Permohonan pembatalan dikirim. Menunggu persetujuan admin sekolah tujuan.'
+                : 'Permohonan mutasi berhasil dibatalkan.';
+
+            return response()->json([
+                'message' => $message,
+                'data' => new StudentMutationResource($mutation),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Student mutation cancel failed', [
+                'id' => $student_mutation->id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => 'Gagal membatalkan permohonan mutasi.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Setujui atau tolak permohonan pembatalan mutasi (admin sekolah tujuan).
+     */
+    public function decideCancel(DecideCancelStudentMutationRequest $request, StudentMutation $student_mutation)
+    {
+        try {
+            $user = $request->user();
+            $action = $request->validated('action');
+
+            if ($action === 'approve') {
+                $mutation = $this->mutationService->approveCancel(
+                    $student_mutation,
+                    $user,
+                    $request->validated('notes')
+                );
+                $message = 'Pembatalan mutasi disetujui. Data siswa dikembalikan ke sekolah asal.';
+            } else {
+                $mutation = $this->mutationService->rejectCancel(
+                    $student_mutation,
+                    $user,
+                    $request->validated('rejection_reason')
+                );
+                $message = 'Permohonan pembatalan mutasi ditolak. Mutasi tetap berlaku.';
+            }
+
+            return response()->json([
+                'message' => $message,
+                'data' => new StudentMutationResource($mutation),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Student mutation decide-cancel failed', [
+                'id' => $student_mutation->id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => 'Gagal memproses pembatalan mutasi.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Lookup student by NISN at current institution (preview before submitting mutation out).
+     */
+    public function lookupStudent(Request $request)
+    {
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $nisn = trim((string) $request->get('nisn', ''));
+            if ($nisn === '') {
+                return response()->json(['message' => 'NISN wajib diisi.'], 422);
+            }
+
+            $student = $this->mutationService->lookupStudentByNisn($institutionId, $nisn);
+
+            return response()->json(['data' => $student]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        } catch (\Exception $e) {
+            Log::error('Student mutation lookup failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal mencari data siswa.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Lookup student at origin school by NPSN + NISN (preview before pull).
+     */
+    public function lookupStudentAtOrigin(Request $request)
+    {
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $originNpsn = trim((string) $request->get('origin_npsn', ''));
+            $nisn = trim((string) $request->get('nisn', ''));
+            if (strlen($originNpsn) !== 8) {
+                return response()->json(['message' => 'NPSN sekolah asal harus 8 digit.'], 422);
+            }
+            if ($nisn === '') {
+                return response()->json(['message' => 'NISN wajib diisi.'], 422);
+            }
+
+            $student = $this->mutationService->lookupStudentAtOriginByNpsn($originNpsn, $nisn, $institutionId);
+
+            return response()->json(['data' => $student]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        } catch (\Exception $e) {
+            Log::error('Student mutation lookup at origin failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal mencari data siswa di sekolah asal.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Get institutions by NPSN search (for dropdown/autocomplete, same jenjang only).
      */
     public function searchTargetInstitutions(Request $request)
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
-        $origin = \App\Models\Institution::find($institutionId);
+        $origin = Institution::find($institutionId);
         if (!$origin) {
             return response()->json(['message' => 'Sekolah asal tidak ditemukan.'], 404);
         }
 
         $search = $request->get('q', '');
-        $query = \App\Models\Institution::where('id', '!=', $institutionId)
+        $query = Institution::where('id', '!=', $institutionId)
             ->where('is_active', true)
             ->where(function ($q) use ($origin) {
-                $group = \App\Models\Institution::getMutasiLevelGroup($origin->level);
+                $group = Institution::getMutasiLevelGroup($origin->level);
                 if ($group) {
                     $levels = match ($group) {
                         'dasar' => ['SD', 'MI'],
@@ -279,22 +446,21 @@ class StudentMutationController extends Controller
      */
     public function searchOriginInstitutions(Request $request)
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
-        $target = \App\Models\Institution::find($institutionId);
+        $target = Institution::find($institutionId);
         if (!$target) {
             return response()->json(['message' => 'Sekolah Anda tidak ditemukan.'], 404);
         }
 
         $search = $request->get('q', '');
-        $query = \App\Models\Institution::where('id', '!=', $institutionId)
+        $query = Institution::where('id', '!=', $institutionId)
             ->where('is_active', true)
             ->where(function ($q) use ($target) {
-                $group = \App\Models\Institution::getMutasiLevelGroup($target->level);
+                $group = Institution::getMutasiLevelGroup($target->level);
                 if ($group) {
                     $levels = match ($group) {
                         'dasar' => ['SD', 'MI'],
@@ -328,8 +494,7 @@ class StudentMutationController extends Controller
     public function report(Request $request)
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -369,8 +534,7 @@ class StudentMutationController extends Controller
     public function export(Request $request): Response|StreamedResponse|\Illuminate\Http\JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -399,7 +563,7 @@ class StudentMutationController extends Controller
                         'Sekolah Tujuan', 'NPSN Tujuan', 'Alasan/Keterangan', 'Disetujui oleh',
                     ]);
                     foreach ($mutations as $idx => $m) {
-                        $isOut = $m->origin_institution_id === $institutionId;
+                        $isOut = (int) $m->origin_institution_id === (int) $institutionId;
                         $jenis = $isOut ? 'Keluar' : 'Masuk';
                         $tanggal = $m->approved_at ? $m->approved_at->format('Y-m-d') : ($m->created_at ? $m->created_at->format('Y-m-d') : '');
                         $targetName = $m->targetInstitution?->name ?? $m->target_school_name ?? '';
@@ -437,7 +601,8 @@ class StudentMutationController extends Controller
             ];
             $pdf = DomPDF::loadView('buku_mutasi.print', $data);
             $pdfFilename = 'Buku_Mutasi_' . date('Y-m-d_His') . '.pdf';
-            return $pdf->download($pdfFilename);
+            // Inline stream agar frontend bisa preview di tab baru (bukan force-download).
+            return $pdf->stream($pdfFilename, ['Attachment' => false]);
         } catch (\Exception $e) {
             Log::error('Student mutation export failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -453,8 +618,7 @@ class StudentMutationController extends Controller
     public function historyByStudent(Request $request, int $student_id)
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -479,8 +643,7 @@ class StudentMutationController extends Controller
     public function historyByNisn(Request $request)
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }

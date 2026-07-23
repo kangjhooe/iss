@@ -28,6 +28,7 @@ use App\Http\Controllers\API\AlumniController;
 use App\Http\Controllers\API\AlumniDestinationController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\StudentMutationController;
+use App\Http\Controllers\API\TeacherMutationController;
 use App\Http\Controllers\API\ViolationController;
 use App\Http\Controllers\API\ViolationTypeController;
 use App\Http\Controllers\API\CounselingController;
@@ -56,6 +57,7 @@ use App\Http\Controllers\API\InventoryMaintenanceController;
 use App\Http\Controllers\API\InventoryLoanController;
 use App\Http\Controllers\API\InventoryReportController;
 use App\Http\Controllers\API\TeacherDashboardController;
+use App\Http\Controllers\API\WaliKelasController;
 use App\Http\Controllers\API\SuperAdminDashboardController;
 use App\Http\Controllers\API\InstitutionAdminController;
 use App\Http\Controllers\API\SuperAdminAdoptionController;
@@ -69,8 +71,10 @@ use App\Http\Controllers\API\AdditionalDutyController;
 use App\Http\Controllers\API\AuditLogController;
 use App\Http\Controllers\API\SubjectController;
 use App\Http\Controllers\API\LessonScheduleController;
+use App\Http\Controllers\API\LessonScheduleTemplateController;
 use App\Http\Controllers\API\TeachingJournalController;
 use App\Http\Controllers\API\GradeController;
+use App\Http\Controllers\API\GradeRemedialController;
 use App\Http\Controllers\API\DigitalArchiveController;
 use App\Http\Controllers\API\StudentAttendanceController;
 use App\Http\Controllers\API\EmployeeAttendanceController;
@@ -90,6 +94,7 @@ use App\Http\Controllers\API\PpdbPeriodController;
 use App\Http\Controllers\API\PpdbChannelController;
 use App\Http\Controllers\API\PpdbApplicantController;
 use App\Http\Controllers\API\PublicPpdbController;
+use App\Http\Controllers\API\PublicLibraryController;
 use App\Http\Controllers\API\PublicSchoolController;
 use App\Http\Controllers\API\AppBrandingController;
 use App\Http\Controllers\API\ExamController;
@@ -131,6 +136,7 @@ Route::get('/', function () {
                 'PUT /api/v1/institution/{id}' => 'Update institution',
                 'DELETE /api/v1/institution/{id}' => 'Delete institution',
                 'GET /api/v1/student' => 'List students',
+                'GET /api/v1/student/export' => 'Export students (full rows for Excel)',
                 'GET /api/v1/student/{id}' => 'Get student detail',
                 'POST /api/v1/student' => 'Create student',
                 'PUT /api/v1/student/{id}' => 'Update student',
@@ -184,6 +190,14 @@ Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])
 Route::middleware('throttle:30,1')->get('/public/npsn-lookup', [PublicSchoolController::class, 'lookupNpsnReferensi'])->name('public.npsn-lookup');
 Route::middleware('throttle:5,1')->post('/public/guest-visit', [PublicSchoolController::class, 'storeGuestVisit'])->name('public.guest-visit.store');
 
+// Public perpustakaan digital (ebook publik by NPSN, tanpa login)
+Route::middleware('throttle:60,1')->prefix('public/library')->group(function () {
+    Route::get('ebooks', [PublicLibraryController::class, 'ebooks'])->name('public.library.ebooks');
+    Route::get('ebooks/categories', [PublicLibraryController::class, 'categories'])->name('public.library.ebooks.categories');
+    Route::get('books/{book}/viewer', [PublicLibraryController::class, 'issueViewer'])->name('public.library.books.viewer');
+    Route::middleware('throttle:120,1')->get('books/{book}/ebook', [PublicLibraryController::class, 'streamEbook'])->name('public.library.books.ebook');
+});
+
 // Public landing stats & recent institutions (untuk halaman awal)
 Route::middleware('throttle:30,1')->get('/public/stats', [PublicSchoolController::class, 'stats'])->name('public.stats');
 Route::middleware('throttle:30,1')->get('/public/institutions/recent', [PublicSchoolController::class, 'recentInstitutions'])->name('public.institutions.recent');
@@ -227,10 +241,12 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     // Student routes (list tanpa cache agar tambah/edit/import langsung muncul)
     Route::middleware('module:student')->group(function () {
         Route::get('/student', [StudentController::class, 'index']);
+        Route::get('/student/export', [StudentController::class, 'export'])->name('student.export');
         Route::post('/student', [StudentController::class, 'store']);
         Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
         Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
         Route::post('/student/graduate-bulk', [AlumniController::class, 'graduateBulk']);
+        Route::post('/student/revoke-graduation-bulk', [AlumniController::class, 'revokeGraduationBulk']);
         Route::get('/alumni', [AlumniController::class, 'index']);
         Route::get('/alumni/graduation-years', [AlumniController::class, 'graduationYears']);
         Route::get('/student/{id}', [StudentController::class, 'show']);
@@ -240,6 +256,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::delete('/student/{id}', [StudentController::class, 'destroy']);
         Route::post('/student/{id}/restore', [StudentController::class, 'restore']);
         Route::post('/student/{id}/graduate', [AlumniController::class, 'graduate']);
+        Route::post('/student/{id}/revoke-graduation', [AlumniController::class, 'revokeGraduation']);
         Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
         Route::delete('/student/{id}/documents/{documentId}', [StudentController::class, 'deleteDocument'])->name('student.delete-document');
         Route::get('/student/{id}/documents/{documentId}/download', [StudentController::class, 'downloadDocument'])->name('student.download-document');
@@ -252,8 +269,12 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         // Student mutation (mutasi siswa)
         Route::get('/student-mutations/target-institutions', [StudentMutationController::class, 'searchTargetInstitutions'])->name('student-mutations.target-institutions');
         Route::get('/student-mutations/origin-institutions', [StudentMutationController::class, 'searchOriginInstitutions'])->name('student-mutations.origin-institutions');
+        Route::get('/student-mutations/lookup-student', [StudentMutationController::class, 'lookupStudent'])->name('student-mutations.lookup-student');
+        Route::get('/student-mutations/lookup-student-at-origin', [StudentMutationController::class, 'lookupStudentAtOrigin'])->name('student-mutations.lookup-student-at-origin');
         Route::post('/student-mutations/pull', [StudentMutationController::class, 'pull'])->name('student-mutations.pull');
         Route::post('/student-mutations/{student_mutation}/approve', [StudentMutationController::class, 'approve'])->name('student-mutations.approve');
+        Route::post('/student-mutations/{student_mutation}/cancel', [StudentMutationController::class, 'cancel'])->name('student-mutations.cancel');
+        Route::post('/student-mutations/{student_mutation}/cancel-decision', [StudentMutationController::class, 'decideCancel'])->name('student-mutations.cancel-decision');
         Route::get('/student-mutations', [StudentMutationController::class, 'index']);
         Route::get('/student-mutations/report', [StudentMutationController::class, 'report'])->name('student-mutations.report');
         Route::get('/student-mutations/export', [StudentMutationController::class, 'export'])->name('student-mutations.export');
@@ -282,6 +303,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::get('/achievements', [AchievementController::class, 'index']);
         Route::post('/achievements', [AchievementController::class, 'store']);
         Route::get('/achievements/by-student/{studentId}', [AchievementController::class, 'byStudent']);
+        Route::post('/achievements/{achievement}/approve', [AchievementController::class, 'approve']);
+        Route::post('/achievements/{achievement}/reject', [AchievementController::class, 'reject']);
         Route::get('/achievements/{achievement}', [AchievementController::class, 'show']);
         Route::put('/achievements/{achievement}', [AchievementController::class, 'update']);
         Route::delete('/achievements/{achievement}', [AchievementController::class, 'destroy']);
@@ -423,7 +446,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::post('/piket/scan/teacher-lateness', [PiketController::class, 'scanTeacherLateness']);
         Route::post('/piket/scan', [PiketController::class, 'scanAll']);
 
+        Route::get('/piket/report', [PiketController::class, 'report']);
         Route::get('/piket/weekly-report', [PiketController::class, 'weeklyReport']);
+        Route::get('/piket/report-pdf', [PiketController::class, 'weeklyReport']);
     });
 
     // Self-service apresiasi guru (tanpa wajib modul)
@@ -437,6 +462,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
 
     // Jurnal Mengajar (Teaching Journal) + Absensi Siswa per jam
     Route::middleware('module:teaching_journal')->group(function () {
+        Route::get('/teaching-journals/export', [TeachingJournalController::class, 'export'])->name('teaching-journals.export');
         Route::get('/teaching-journals', [TeachingJournalController::class, 'index'])->name('teaching-journals.index');
         Route::post('/teaching-journals', [TeachingJournalController::class, 'store'])->name('teaching-journals.store');
         Route::get('/teaching-journals/{teaching_journal}', [TeachingJournalController::class, 'show'])->name('teaching-journals.show');
@@ -444,15 +470,22 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::delete('/teaching-journals/{teaching_journal}', [TeachingJournalController::class, 'destroy'])->name('teaching-journals.destroy');
         Route::get('/teaching-journals/{teachingJournalId}/attendances', [StudentAttendanceController::class, 'index'])->name('teaching-journals.attendances.index');
         Route::post('/teaching-journals/attendances', [StudentAttendanceController::class, 'store'])->name('teaching-journals.attendances.store');
+        Route::get('/student-attendances/prepare-from-schedule', [StudentAttendanceController::class, 'prepareFromSchedule'])->name('student-attendances.prepare-from-schedule');
+        Route::post('/student-attendances/from-schedule', [StudentAttendanceController::class, 'storeFromSchedule'])->name('student-attendances.from-schedule');
         Route::put('/student-attendances/{student_attendance}', [StudentAttendanceController::class, 'update'])->name('student-attendances.update');
+        Route::get('/student-attendances/rekap', [StudentAttendanceController::class, 'rekap'])->name('student-attendances.rekap');
+        Route::get('/student-attendances/export-rekap', [StudentAttendanceController::class, 'exportRekap'])->name('student-attendances.export-rekap');
     });
 
     // Student attendance self history (for portal siswa)
     Route::get('/student-attendances/my', [StudentAttendanceController::class, 'my'])->name('student-attendances.my');
+    Route::get('/student-attendances/my/export', [StudentAttendanceController::class, 'exportMy'])->name('student-attendances.my.export');
 
     // Absensi (Guru & Staff per hari)
     Route::middleware('module:attendance')->group(function () {
         Route::get('/employee-attendances/status-options', [EmployeeAttendanceController::class, 'statusOptions'])->name('employee-attendances.status-options');
+        Route::get('/employee-attendances/rekap', [EmployeeAttendanceController::class, 'rekap'])->name('employee-attendances.rekap');
+        Route::get('/employee-attendances/export-rekap', [EmployeeAttendanceController::class, 'exportRekap'])->name('employee-attendances.export-rekap');
         Route::post('/employee-attendances/bulk', [EmployeeAttendanceController::class, 'bulkStore'])->name('employee-attendances.bulk');
         Route::get('/employee-attendances', [EmployeeAttendanceController::class, 'index'])->name('employee-attendances.index');
         Route::post('/employee-attendances', [EmployeeAttendanceController::class, 'store'])->name('employee-attendances.store');
@@ -470,10 +503,22 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     Route::middleware('module:grade_book')->group(function () {
         Route::get('/grades', [GradeController::class, 'index'])->name('grades.index');
         Route::get('/grades/by-class-subject-semester', [GradeController::class, 'getByClassSubjectSemester'])->name('grades.by-class-subject-semester');
+        Route::get('/grades/by-class-semester', [GradeController::class, 'getByClassSemester'])->name('grades.by-class-semester');
         Route::get('/grades/by-student-semester', [GradeController::class, 'getByStudentSemester'])->name('grades.by-student-semester');
+        Route::get('/grades/completeness', [GradeController::class, 'completeness'])->name('grades.completeness');
         Route::get('/grades/export', [GradeController::class, 'export'])->name('grades.export');
+        Route::get('/grades/export-pdf', [GradeController::class, 'exportPdf'])->name('grades.export-pdf');
         Route::get('/grades/export-student-raport', [GradeController::class, 'exportStudentRaport'])->name('grades.export-student-raport');
+        Route::get('/grades/export-class-raport', [GradeController::class, 'exportClassRaport'])->name('grades.export-class-raport');
+        Route::get('/grades/export-class-raport-pdf', [GradeController::class, 'exportClassRaportPdf'])->name('grades.export-class-raport-pdf');
         Route::post('/grades/bulk', [GradeController::class, 'bulkUpsert'])->name('grades.bulk');
+        Route::post('/grades/kkm', [GradeController::class, 'upsertSubjectKkm'])->name('grades.kkm.upsert');
+        Route::post('/grades/weights', [GradeController::class, 'upsertGradeWeight'])->name('grades.weights.upsert');
+        Route::get('/grades/remedials/below-kkm', [GradeRemedialController::class, 'belowKkm'])->name('grades.remedials.below-kkm');
+        Route::get('/grades/remedials', [GradeRemedialController::class, 'index'])->name('grades.remedials.index');
+        Route::post('/grades/remedials', [GradeRemedialController::class, 'store'])->name('grades.remedials.store');
+        Route::post('/grades/remedials/{gradeRemedial}/complete', [GradeRemedialController::class, 'complete'])->name('grades.remedials.complete');
+        Route::post('/grades/remedials/{gradeRemedial}/cancel', [GradeRemedialController::class, 'cancel'])->name('grades.remedials.cancel');
         Route::post('/grades', [GradeController::class, 'store'])->name('grades.store');
         Route::get('/grades/{grade}', [GradeController::class, 'show'])->name('grades.show');
         Route::put('/grades/{grade}', [GradeController::class, 'update'])->name('grades.update');
@@ -482,6 +527,22 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
 
     // Employee routes (tanpa cache list agar tambah/edit/hapus selalu dapat data segar)
     Route::middleware('module:teacher')->group(function () {
+        Route::get('/teacher-mutations/target-institutions', [TeacherMutationController::class, 'searchTargetInstitutions'])->name('teacher-mutations.target-institutions');
+        Route::get('/teacher-mutations/origin-institutions', [TeacherMutationController::class, 'searchOriginInstitutions'])->name('teacher-mutations.origin-institutions');
+        Route::get('/teacher-mutations/lookup-teacher', [TeacherMutationController::class, 'lookupTeacher'])->name('teacher-mutations.lookup-teacher');
+        Route::get('/teacher-mutations/lookup-teacher-at-origin', [TeacherMutationController::class, 'lookupTeacherAtOrigin'])->name('teacher-mutations.lookup-teacher-at-origin');
+        Route::post('/teacher-mutations/pull', [TeacherMutationController::class, 'pull'])->name('teacher-mutations.pull');
+        Route::post('/teacher-mutations/{teacher_mutation}/approve', [TeacherMutationController::class, 'approve'])->name('teacher-mutations.approve');
+        Route::post('/teacher-mutations/{teacher_mutation}/cancel', [TeacherMutationController::class, 'cancel'])->name('teacher-mutations.cancel');
+        Route::post('/teacher-mutations/{teacher_mutation}/cancel-decision', [TeacherMutationController::class, 'decideCancel'])->name('teacher-mutations.cancel-decision');
+        Route::get('/teacher-mutations', [TeacherMutationController::class, 'index']);
+        Route::get('/teacher-mutations/report', [TeacherMutationController::class, 'report'])->name('teacher-mutations.report');
+        Route::get('/teacher-mutations/export', [TeacherMutationController::class, 'export'])->name('teacher-mutations.export');
+        Route::get('/teacher-mutations/by-employee/{employee_id}', [TeacherMutationController::class, 'historyByEmployee'])->name('teacher-mutations.by-employee');
+        Route::get('/teacher-mutations/history-by-nuptk', [TeacherMutationController::class, 'historyByNuptk'])->name('teacher-mutations.history-by-nuptk');
+        Route::post('/teacher-mutations', [TeacherMutationController::class, 'store']);
+        Route::get('/teacher-mutations/{teacher_mutation}', [TeacherMutationController::class, 'show']);
+
         Route::get('/employee', [EmployeeController::class, 'index']);
         Route::get('/employee/search', [EmployeeController::class, 'searchByNik']);
         Route::get('/employee/{id}', [EmployeeController::class, 'show']);
@@ -527,6 +588,16 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     // Jadwal Pelajaran (Schedule) routes
     Route::middleware('module:schedule')->group(function () {
         Route::apiResource('subjects', SubjectController::class);
+        Route::get('/lesson-schedule-templates', [LessonScheduleTemplateController::class, 'index'])->name('lesson-schedule-templates.index');
+        Route::get('/lesson-schedule-templates/default', [LessonScheduleTemplateController::class, 'show'])->name('lesson-schedule-templates.show');
+        Route::post('/lesson-schedule-templates', [LessonScheduleTemplateController::class, 'store'])->name('lesson-schedule-templates.store');
+        Route::put('/lesson-schedule-templates/{id}', [LessonScheduleTemplateController::class, 'update'])->name('lesson-schedule-templates.update');
+        Route::delete('/lesson-schedule-templates/{id}', [LessonScheduleTemplateController::class, 'destroy'])->name('lesson-schedule-templates.destroy');
+        Route::put('/lesson-schedule-templates', [LessonScheduleTemplateController::class, 'upsert'])->name('lesson-schedule-templates.upsert');
+        Route::put('/lesson-schedules/by-class/{classId}/template', [LessonScheduleTemplateController::class, 'assignToClass'])->name('lesson-schedules.by-class.template');
+        Route::get('/lesson-schedules/by-class/{classId}/template/preview', [LessonScheduleTemplateController::class, 'previewAssignToClass'])->name('lesson-schedules.by-class.template.preview');
+        Route::get('/lesson-schedules/export-pdf', [LessonScheduleController::class, 'exportPdf'])->name('lesson-schedules.export-pdf');
+        Route::get('/lesson-schedules/my-teaching-load', [LessonScheduleController::class, 'myTeachingLoad'])->name('lesson-schedules.my-teaching-load');
         Route::get('/lesson-schedules/by-class/{classId}', [LessonScheduleController::class, 'byClass'])->name('lesson-schedules.by-class');
         Route::get('/lesson-schedules/by-teacher/{employeeId}', [LessonScheduleController::class, 'byTeacher'])->name('lesson-schedules.by-teacher');
         Route::get('/lesson-schedules/by-room/{roomId}', [LessonScheduleController::class, 'byRoom'])->name('lesson-schedules.by-room');
@@ -535,6 +606,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::delete('/lesson-schedules/by-semester/{semesterId}', [LessonScheduleController::class, 'deleteBySemester'])->name('lesson-schedules.delete-by-semester');
         Route::apiResource('lesson-schedules', LessonScheduleController::class);
     });
+
+    // Teaching load for teacher/staff (tanpa wajib modul schedule — dipakai Buku Nilai & Jurnal)
+    Route::get('/teacher/teaching-load', [LessonScheduleController::class, 'myTeachingLoad'])->name('teacher.teaching-load');
 
     // Academic Year routes
     // Index route accessible to all authenticated users (for selecting academic years)
@@ -682,8 +756,32 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
 
     // Teacher dashboard
     Route::get('/teacher/dashboard', [TeacherDashboardController::class, 'index'])->name('teacher.dashboard');
+    Route::get('/teacher/today-sessions', [TeacherDashboardController::class, 'todaySessions'])->name('teacher.today-sessions');
     Route::get('/teacher/dashboard/classes/{id}/students', [TeacherDashboardController::class, 'classStudents'])
         ->name('teacher.dashboard.class-students');
+
+    // Wali kelas hub (scoped by homeroom ownership, no extra module grant)
+    Route::prefix('teacher/wali')->group(function () {
+        Route::get('/classes/{classId}/students/{studentId}', [WaliKelasController::class, 'showStudent']);
+        Route::get('/classes/{classId}/dashboard', [WaliKelasController::class, 'dashboard']);
+        Route::get('/classes/{classId}/students/{studentId}/notes', [WaliKelasController::class, 'indexNotes']);
+        Route::post('/classes/{classId}/students/{studentId}/notes', [WaliKelasController::class, 'storeNote']);
+        Route::put('/classes/{classId}/students/{studentId}/notes/{noteId}', [WaliKelasController::class, 'updateNote']);
+        Route::delete('/classes/{classId}/students/{studentId}/notes/{noteId}', [WaliKelasController::class, 'destroyNote']);
+        Route::get('/classes/{classId}/schedule', [WaliKelasController::class, 'schedule']);
+        Route::get('/classes/{classId}/schedule/export-pdf', [WaliKelasController::class, 'exportSchedulePdf']);
+        Route::get('/violations', [WaliKelasController::class, 'indexViolations']);
+        Route::post('/violations', [WaliKelasController::class, 'storeViolation']);
+        Route::get('/violation-types', [WaliKelasController::class, 'violationTypes']);
+        Route::get('/achievements', [WaliKelasController::class, 'indexAchievements']);
+        Route::post('/achievements', [WaliKelasController::class, 'storeAchievement']);
+        Route::get('/achievement-types', [WaliKelasController::class, 'achievementTypes']);
+        Route::get('/mutations', [WaliKelasController::class, 'indexMutations']);
+        Route::post('/mutations', [WaliKelasController::class, 'storeMutation']);
+        Route::get('/classes/{classId}/export/roster', [WaliKelasController::class, 'exportRoster']);
+        Route::get('/classes/{classId}/export/contacts', [WaliKelasController::class, 'exportContacts']);
+        Route::get('/classes/{classId}/export/attendance', [WaliKelasController::class, 'exportAttendance']);
+    });
 
     // Super admin dashboard & institution status
     Route::get('/super-admin/dashboard', [SuperAdminDashboardController::class, 'index'])->name('super-admin.dashboard');
@@ -796,10 +894,22 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::apiResource('document-pickups', DocumentPickupController::class);
     });
 
-    // Perpustakaan (Library)
+    // Perpustakaan — ebook baca (siswa & staf institusi, tanpa module library)
+    Route::prefix('library')->group(function () {
+        Route::get('ebooks', [LibraryBookController::class, 'ebooks'])->name('library.ebooks.index');
+        Route::get('ebooks/categories', [LibraryBookCategoryController::class, 'index'])->name('library.ebooks.categories');
+        Route::get('books/{book}/ebook', [LibraryBookController::class, 'streamEbook'])->name('library.books.ebook');
+    });
+
+    // Perpustakaan (Library) — kelola staf
     Route::prefix('library')->middleware('module:library')->group(function () {
         Route::apiResource('categories', LibraryBookCategoryController::class);
+        Route::get('books/import/template', [LibraryBookController::class, 'importTemplate'])->name('library.books.import.template');
+        Route::post('books/import', [LibraryBookController::class, 'import'])->name('library.books.import');
+        Route::get('books/export/csv', [LibraryBookController::class, 'exportCsv'])->name('library.books.export.csv');
+        Route::get('books/export/pdf', [LibraryBookController::class, 'exportPdf'])->name('library.books.export.pdf');
         Route::apiResource('books', LibraryBookController::class);
+        Route::post('books/{book}', [LibraryBookController::class, 'update'])->name('library.books.update.post'); // FormData + _method
         Route::apiResource('copies', LibraryBookCopyController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
         Route::get('loans', [LibraryLoanController::class, 'index'])->name('library.loans.index');
         Route::post('loans', [LibraryLoanController::class, 'store'])->name('library.loans.store');
@@ -812,14 +922,21 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::prefix('reports')->group(function () {
             Route::get('statistics', [LibraryReportController::class, 'statistics'])->name('library.reports.statistics');
             Route::get('top-books', [LibraryReportController::class, 'topBooks'])->name('library.reports.top-books');
+            Route::get('top-ebooks', [LibraryReportController::class, 'topEbooks'])->name('library.reports.top-ebooks');
             Route::get('loans-by-month', [LibraryReportController::class, 'loansByMonth'])->name('library.reports.loans-by-month');
+            Route::get('ebook-views-by-month', [LibraryReportController::class, 'ebookViewsByMonth'])->name('library.reports.ebook-views-by-month');
             Route::get('export/loans-pdf', [LibraryReportController::class, 'exportLoansPdf'])->name('library.reports.export.loans-pdf');
+            Route::get('export/fines-pdf', [LibraryReportController::class, 'exportFinesPdf'])->name('library.reports.export.fines-pdf');
         });
     });
 
+    // Portal siswa: daftar ekskul & rekap nilai (auth saja; controller membatasi data sendiri)
+    // Harus sebelum route {extracurricular} agar "by-student" tidak tertangkap sebagai ID.
+    Route::get('extracurriculars/by-student/{studentId}', [ExtracurricularController::class, 'getByStudent'])->name('extracurriculars.by-student');
+    Route::get('extracurriculars/{extracurricular}/my-grades', [ExtracurricularActivityController::class, 'myGrades'])->name('extracurriculars.my-grades');
+
     // Ekstrakurikuler
     Route::middleware('module:extracurricular')->group(function () {
-        Route::get('extracurriculars/by-student/{studentId}', [ExtracurricularController::class, 'getByStudent'])->name('extracurriculars.by-student');
         Route::get('extracurriculars', [ExtracurricularController::class, 'index'])->name('extracurriculars.index');
         Route::post('extracurriculars', [ExtracurricularController::class, 'store'])->name('extracurriculars.store');
         Route::get('extracurriculars/{extracurricular}', [ExtracurricularController::class, 'show'])->name('extracurriculars.show');
@@ -838,6 +955,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::delete('extracurriculars/{extracurricular}/sessions/{extracurricularSession}', [ExtracurricularActivityController::class, 'destroySession'])->name('extracurriculars.sessions.destroy');
         Route::get('extracurriculars/{extracurricular}/sessions/{extracurricularSession}/attendances', [ExtracurricularActivityController::class, 'getAttendances'])->name('extracurriculars.attendances.index');
         Route::put('extracurriculars/{extracurricular}/sessions/{extracurricularSession}/attendances', [ExtracurricularActivityController::class, 'saveAttendances'])->name('extracurriculars.attendances.save');
+        Route::get('extracurriculars/{extracurricular}/sessions/{extracurricularSession}/grades', [ExtracurricularActivityController::class, 'getSessionGrades'])->name('extracurriculars.session-grades.index');
+        Route::put('extracurriculars/{extracurricular}/sessions/{extracurricularSession}/grades', [ExtracurricularActivityController::class, 'saveSessionGrades'])->name('extracurriculars.session-grades.save');
         Route::get('extracurriculars/{extracurricular}/grades', [ExtracurricularActivityController::class, 'listGrades'])->name('extracurriculars.grades.index');
         Route::put('extracurriculars/{extracurricular}/grades', [ExtracurricularActivityController::class, 'saveGrades'])->name('extracurriculars.grades.save');
         Route::get('extracurriculars/{extracurricular}/report', [ExtracurricularActivityController::class, 'report'])->name('extracurriculars.report');

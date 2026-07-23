@@ -13,11 +13,25 @@ export const studentMutationApi = {
   approve(id, data) {
     return api.post(`/v1/student-mutations/${id}/approve`, data)
   },
+  cancel(id, data = {}) {
+    return api.post(`/v1/student-mutations/${id}/cancel`, data)
+  },
+  decideCancel(id, data) {
+    return api.post(`/v1/student-mutations/${id}/cancel-decision`, data)
+  },
   searchTargetInstitutions(q) {
     return api.get('/v1/student-mutations/target-institutions', { params: { q } })
   },
   searchOriginInstitutions(q) {
     return api.get('/v1/student-mutations/origin-institutions', { params: { q } })
+  },
+  lookupStudent(nisn) {
+    return api.get('/v1/student-mutations/lookup-student', { params: { nisn } })
+  },
+  lookupStudentAtOrigin(originNpsn, nisn) {
+    return api.get('/v1/student-mutations/lookup-student-at-origin', {
+      params: { origin_npsn: originNpsn, nisn }
+    })
   },
   createPull(data) {
     return api.post('/v1/student-mutations/pull', data)
@@ -33,7 +47,7 @@ export const studentMutationApi = {
   },
   /**
    * Export Buku Mutasi (PDF atau CSV). Params: from, to, type ('all'|'in'|'out'), format ('pdf'|'csv').
-   * Returns blob; gunakan responseType: 'blob' dan trigger download di frontend.
+   * Returns blob; PDF sebaiknya di-preview di tab baru, CSV di-download.
    */
   exportBukuMutasi(params = {}) {
     return api.get('/v1/student-mutations/export', { params, responseType: 'blob' })

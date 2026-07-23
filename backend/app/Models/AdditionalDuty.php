@@ -50,4 +50,21 @@ class AdditionalDuty extends Model
     {
         return $this->permissions()->pluck('key')->toArray();
     }
+
+    /**
+     * Pegawai aktif di institusi yang sedang memegang tugas tambahan (belum berakhir).
+     */
+    public static function resolveActiveHolder(string $dutyKey, int $institutionId): ?\App\Models\Employee
+    {
+        return \App\Models\Employee::forInstitution($institutionId)
+            ->whereHas('additionalDuties', function ($query) use ($dutyKey) {
+                $query->where('additional_duties.key', $dutyKey)
+                    ->where(function ($active) {
+                        $active->whereNull('employee_additional_duties.ended_at')
+                            ->orWhere('employee_additional_duties.ended_at', '>', now());
+                    });
+            })
+            ->orderBy('name')
+            ->first(['id', 'name', 'nip']);
+    }
 }

@@ -434,6 +434,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
 import Layout from '@/components/Layout.vue'
@@ -443,12 +444,13 @@ import { classApi } from '@/api/class'
 import { semesterApi } from '@/api/semester'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { useAuthStore } from '@/stores/auth'
-import { getPrincipalTitle } from '@/utils/institution'
+import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend)
 
 const toast = useToast()
+const route = useRoute()
 const referenceStore = useReferenceDataStore()
 const authStore = useAuthStore()
 
@@ -949,7 +951,7 @@ function printPdf() {
         <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
         <div class="school-info">
           NPSN: ${escapeHtml(inst.npsn || '-')}
-          ${inst.nss ? ` · NSS: ${escapeHtml(inst.nss)}` : ''}
+          ${inst.nss ? ` · ${getNssLabel(inst.level)}: ${escapeHtml(inst.nss)}` : ''}
           ${inst.phone ? ` · Telp: ${escapeHtml(inst.phone)}` : ''}
           ${inst.email ? ` · Email: ${escapeHtml(inst.email)}` : ''}
           ${inst.website ? ` · ${escapeHtml(inst.website)}` : ''}
@@ -1057,7 +1059,15 @@ onMounted(async () => {
     loadSemesters(),
   ])
   await loadClasses()
-  await loadSummary()
+  const qClassId = route.query.class_id ? String(route.query.class_id) : ''
+  if (qClassId && classes.value.some((c) => String(c.id) === qClassId)) {
+    filters.value.class_id = qClassId
+  }
+  if (route.query.tab === 'detail') {
+    await switchMode('detail')
+  } else {
+    await loadSummary()
+  }
 })
 </script>
 

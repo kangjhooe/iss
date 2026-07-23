@@ -7,6 +7,7 @@ use App\Models\Institution;
 use App\Models\LibraryBook;
 use App\Models\LibraryBookCategory;
 use App\Models\LibraryBookCopy;
+use App\Models\LibraryEbookView;
 use App\Models\LibraryLoan;
 use App\Models\LibraryFinePayment;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
@@ -19,12 +20,7 @@ class LibraryReportController extends Controller
     public function statistics(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['data' => [
                     'total_books' => 0,
@@ -35,6 +31,9 @@ class LibraryReportController extends Controller
                     'overdue_count' => 0,
                     'total_loans' => 0,
                     'total_fines_collected' => 0,
+                    'total_ebooks' => 0,
+                    'total_ebook_views' => 0,
+                    'ebook_views_this_month' => 0,
                 ]]);
             }
 
@@ -48,6 +47,12 @@ class LibraryReportController extends Controller
             $overdueCount = LibraryLoan::where('institution_id', $institutionId)->where('status', 'Terlambat')->whereNull('returned_at')->count();
             $totalLoans = LibraryLoan::where('institution_id', $institutionId)->count();
             $totalFinesCollected = LibraryFinePayment::whereHas('loan', fn ($q) => $q->where('institution_id', $institutionId))->sum('amount');
+            $totalEbooks = LibraryBook::where('institution_id', $institutionId)->whereNotNull('ebook_path')->count();
+            $totalEbookViews = (int) LibraryBook::where('institution_id', $institutionId)->sum('ebook_view_count');
+            $ebookViewsThisMonth = LibraryEbookView::where('institution_id', $institutionId)
+                ->whereYear('viewed_at', now()->year)
+                ->whereMonth('viewed_at', now()->month)
+                ->count();
 
             return response()->json(['data' => [
                 'total_books' => $totalBooks,
@@ -58,6 +63,9 @@ class LibraryReportController extends Controller
                 'overdue_count' => $overdueCount,
                 'total_loans' => $totalLoans,
                 'total_fines_collected' => (float) $totalFinesCollected,
+                'total_ebooks' => $totalEbooks,
+                'total_ebook_views' => $totalEbookViews,
+                'ebook_views_this_month' => $ebookViewsThisMonth,
             ]]);
         } catch (\Exception $e) {
             Log::error('Library report statistics', ['error' => $e->getMessage()]);
@@ -68,12 +76,7 @@ class LibraryReportController extends Controller
     public function topBooks(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['data' => []]);
             }
@@ -94,15 +97,59 @@ class LibraryReportController extends Controller
         }
     }
 
+    /**
+     * Ebook paling sering dibuka.
+     */
+    public function topEbooks(Request $request)
+    {
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['data' => []]);
+            }
+            $limit = min((int) $request->get('limit', 10), 50);
+
+            $top = LibraryBook::query()
+                ->where('institution_id', $institutionId)
+                ->whereNotNull('ebook_path')
+                ->where('ebook_view_count', '>', 0)
+                ->orderByDesc('ebook_view_count')
+                ->limit($limit)
+                ->get(['id', 'title', 'author', 'ebook_view_count', 'is_public_ebook']);
+
+            $bookIds = $top->pluck('id');
+            $bySource = LibraryEbookView::query()
+                ->whereIn('book_id', $bookIds)
+                ->select('book_id', 'source', DB::raw('count(*) as cnt'))
+                ->groupBy('book_id', 'source')
+                ->get()
+                ->groupBy('book_id');
+
+            $data = $top->map(function ($book) use ($bySource) {
+                $sources = $bySource->get($book->id, collect());
+                return [
+                    'id' => $book->id,
+                    'title' => $book->title,
+                    'author' => $book->author,
+                    'ebook_view_count' => (int) $book->ebook_view_count,
+                    'is_public_ebook' => (bool) $book->is_public_ebook,
+                    'views_student' => (int) ($sources->firstWhere('source', 'student')?->cnt ?? 0),
+                    'views_staff' => (int) ($sources->firstWhere('source', 'staff')?->cnt ?? 0),
+                    'views_public' => (int) ($sources->firstWhere('source', 'public')?->cnt ?? 0),
+                ];
+            });
+
+            return response()->json(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('Library report top ebooks', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal mengambil data ebook.'], 500);
+        }
+    }
+
     public function loansByMonth(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['data' => []]);
             }
@@ -121,17 +168,36 @@ class LibraryReportController extends Controller
     }
 
     /**
+     * Bacaan ebook per bulan.
+     */
+    public function ebookViewsByMonth(Request $request)
+    {
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['data' => []]);
+            }
+            $year = (int) $request->get('year', date('Y'));
+            $rows = LibraryEbookView::where('institution_id', $institutionId)
+                ->whereYear('viewed_at', $year)
+                ->select(DB::raw('MONTH(viewed_at) as month'), DB::raw('count(*) as count'))
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get();
+            return response()->json(['data' => $rows]);
+        } catch (\Exception $e) {
+            Log::error('Library report ebook views by month', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal mengambil data.'], 500);
+        }
+    }
+
+    /**
      * Export laporan peminjaman buku sebagai PDF (dengan statistik).
      */
     public function exportLoansPdf(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 400);
             }
@@ -185,5 +251,68 @@ class LibraryReportController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Export laporan pembayaran denda sebagai PDF.
+     */
+    public function exportFinesPdf(Request $request)
+    {
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 400);
+            }
+
+            $dateFrom = $request->get('date_from');
+            $dateTo = $request->get('date_to');
+
+            $query = LibraryFinePayment::query()
+                ->whereHas('loan', fn ($q) => $q->where('institution_id', $institutionId))
+                ->with(['loan.copy.book']);
+
+            if ($dateFrom) {
+                $query->whereDate('paid_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate('paid_at', '<=', $dateTo);
+            }
+
+            $payments = $query->orderBy('paid_at', 'desc')->orderBy('id', 'desc')->limit(2000)->get();
+            $totalAmount = (float) $payments->sum('amount');
+
+            $institution = Institution::find($institutionId);
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+
+            $pdf = DomPDF::loadView('library.laporan_denda', [
+                'institution' => $institution,
+                'payments' => $payments,
+                'total_amount' => $totalAmount,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'printed_at' => $printedAt,
+                'kepala_perpustakaan' => \App\Models\AdditionalDuty::resolveActiveHolder('ketua_perpus', (int) $institutionId),
+            ]);
+
+            $filename = 'Laporan_Denda_Perpustakaan_' . date('Y-m-d_His') . '.pdf';
+            return $pdf->download($filename);
+        } catch (\Exception $e) {
+            Log::error('Library export fines PDF failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal mencetak laporan denda.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function resolveInstitutionId(Request $request): ?int
+    {
+        if (!$request->user()->isAdminOrSuperAdmin()) {
+            return $request->user()->institution_id ? (int) $request->user()->institution_id : null;
+        }
+        if ($request->filled('institution_id')) {
+            return (int) $request->institution_id;
+        }
+        return $request->user()->institution_id ? (int) $request->user()->institution_id : null;
     }
 }

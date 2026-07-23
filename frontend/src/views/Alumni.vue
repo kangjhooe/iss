@@ -106,6 +106,15 @@
                     <button type="button" class="btn-action btn-dest" @click="openDestinations(item)" title="Kelola destinasi">
                       Destinasi
                     </button>
+                    <button
+                      type="button"
+                      class="btn-action btn-revoke"
+                      :disabled="revokingId === item.id"
+                      title="Batalkan kelulusan"
+                      @click="revokeGraduation(item)"
+                    >
+                      {{ revokingId === item.id ? '...' : 'Batal Lulus' }}
+                    </button>
                     <router-link
                       :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }"
                       class="btn-action btn-view"
@@ -139,6 +148,14 @@
             </div>
             <div class="alumni-card-actions">
               <button type="button" class="btn-action btn-dest" @click="openDestinations(item)">Destinasi</button>
+              <button
+                type="button"
+                class="btn-action btn-revoke"
+                :disabled="revokingId === item.id"
+                @click="revokeGraduation(item)"
+              >
+                {{ revokingId === item.id ? '...' : 'Batal Lulus' }}
+              </button>
               <router-link
                 :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }"
                 class="btn-action btn-view"
@@ -256,6 +273,21 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :show="confirmDialog.show"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :warning="confirmDialog.warning"
+      :confirm-text="confirmDialog.confirmText"
+      :cancel-text="confirmDialog.cancelText"
+      :loading-text="confirmDialog.loadingText"
+      :confirm-variant="confirmDialog.confirmVariant"
+      :loading="confirmDialog.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+      @update:show="confirmDialog.show = $event"
+    />
   </Layout>
 </template>
 
@@ -263,14 +295,18 @@
 import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { alumniApi } from '@/api/alumni'
 import { institutionApi } from '@/api/institution'
-import { getPrincipalTitle } from '@/utils/institution'
+import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDelete } from '@/composables/useConfirmDelete'
 
 const toast = useToast()
+const { confirmDialog, showConfirm, handleConfirm, handleCancel } = useConfirmDelete()
 const loading = ref(true)
 const printing = ref(false)
+const revokingId = ref(null)
 const institution = ref(null)
 const alumni = ref([])
 const graduationYears = ref([])
@@ -337,6 +373,47 @@ async function openDestinations(item) {
   showDestModal.value = true
   resetDestForm()
   await loadDestinations()
+}
+
+async function revokeGraduation(item) {
+  if (!item?.id || revokingId.value) return
+
+  if (item.current_alumni_destination) {
+    toast.error(
+      'Tidak dapat dibatalkan',
+      'Hapus destinasi alumni terlebih dahulu, lalu coba batalkan kelulusan lagi.'
+    )
+    return
+  }
+
+  const name = item.name || 'siswa ini'
+  const confirmed = await showConfirm({
+    title: 'Batalkan Kelulusan',
+    message: `Kembalikan ${name} ke status Aktif?`,
+    warning: 'Siswa akan hilang dari daftar Alumni dan muncul lagi sebagai siswa Aktif. Riwayat kelas Lulus akan dibuka kembali.',
+    confirmText: 'Ya, Batalkan Lulus',
+    cancelText: 'Batal',
+    loadingText: 'Memproses...',
+    confirmVariant: 'danger'
+  })
+
+  if (!confirmed) return
+
+  revokingId.value = item.id
+  try {
+    await alumniApi.revokeGraduation(item.id)
+    toast.success('Berhasil', 'Kelulusan dibatalkan. Siswa kembali berstatus Aktif.')
+    if (showDestModal.value && selectedAlumni.value?.id === item.id) {
+      closeDestModal()
+    }
+    await loadAlumni()
+    loadGraduationYears()
+  } catch (e) {
+    const msg = e.response?.data?.message || e.formattedMessage || 'Gagal membatalkan kelulusan.'
+    toast.error('Gagal membatalkan kelulusan', msg)
+  } finally {
+    revokingId.value = null
+  }
 }
 
 function closeDestModal() {
@@ -631,7 +708,7 @@ async function printPdf() {
         <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
         <div class="school-info">
           NPSN: ${escapeHtml(inst.npsn || '-')}
-          ${inst.nss ? ` · NSS: ${escapeHtml(inst.nss)}` : ''}
+          ${inst.nss ? ` · ${getNssLabel(inst.level)}: ${escapeHtml(inst.nss)}` : ''}
           ${inst.phone ? ` · Telp: ${escapeHtml(inst.phone)}` : ''}
           ${inst.email ? ` · Email: ${escapeHtml(inst.email)}` : ''}
           ${inst.website ? ` · ${escapeHtml(inst.website)}` : ''}
@@ -961,6 +1038,21 @@ onMounted(() => {
 
 .btn-action:hover {
   background: #d1fae5;
+}
+
+.btn-revoke {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.btn-revoke:hover:not(:disabled) {
+  background: #fef3c7;
+}
+
+.btn-revoke:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .dest-badge {

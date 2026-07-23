@@ -445,13 +445,13 @@ onMounted(async () => {
     ])
 
     let instData = instRes.data?.data ?? instRes.data ?? null
-    if (!instData && authStore.user?.institution_id) {
+    if (!instData && (authStore.activeInstitutionId || authStore.user?.institution_id)) {
       try {
-        const byId = await institutionApi.get(authStore.user.institution_id)
+        const byId = await institutionApi.get(authStore.activeInstitutionId || authStore.user.institution_id)
         instData = byId.data?.data ?? byId.data ?? null
       } catch (_) {}
     }
-    institution.value = instData ?? authStore.user?.institution ?? null
+    institution.value = instData ?? authStore.activeInstitution ?? authStore.user?.institution ?? null
 
     studentCount.value = studentRes.data?.meta?.total ?? studentRes.data?.data?.length ?? 0
     teacherCount.value = teacherRes.data?.meta?.total ?? teacherRes.data?.data?.length ?? 0

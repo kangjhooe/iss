@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Support\InstitutionContext;
+use App\Support\TeacherMenuContext;
 use App\Support\WaliKelasAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -16,6 +18,10 @@ class UserResource extends JsonResource
     public function toArray(Request $request): array
     {
         $homeroomClassIds = [];
+        $homeroomClasses = [];
+        $teachingAssignments = [];
+        $supervisedExtracurriculars = [];
+        $managedLabs = [];
         $bkScopeMode = 'all';
         try {
             $homeroomClassIds = WaliKelasAccess::homeroomClassIds($this->resource)->all();
@@ -23,6 +29,22 @@ class UserResource extends JsonResource
         } catch (\Throwable $e) {
             // ignore — jangan gagalkan payload user
         }
+
+        try {
+            if (in_array($this->role, ['teacher', 'staff'], true)) {
+                $homeroomClasses = TeacherMenuContext::homeroomClasses($this->resource, $request)->all();
+                $teachingAssignments = TeacherMenuContext::teachingAssignments($this->resource, $request)->all();
+                $supervisedExtracurriculars = TeacherMenuContext::supervisedExtracurriculars($this->resource, $request)->all();
+                $managedLabs = TeacherMenuContext::managedLabs($this->resource, $request)->all();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        $activeInstitutionId = $request->attributes->get('current_institution_id');
+        $activeInstitutionId = $activeInstitutionId !== null && $activeInstitutionId !== ''
+            ? (int) $activeInstitutionId
+            : null;
 
         return [
             'id' => $this->id,
@@ -32,9 +54,15 @@ class UserResource extends JsonResource
             'role' => $this->role,
             'permissions' => $this->when(
                 $this->relationLoaded('permissions'),
-                function () {
+                function () use ($request, $activeInstitutionId) {
                     try {
-                        return $this->permissions->pluck('key')->values();
+                        return collect(
+                            InstitutionContext::effectivePermissionKeys(
+                                $this->resource,
+                                $activeInstitutionId,
+                                $request
+                            )
+                        )->values();
                     } catch (\Exception $e) {
                         return [];
                     }
@@ -42,38 +70,40 @@ class UserResource extends JsonResource
                 []
             ),
             'homeroom_class_ids' => $homeroomClassIds,
+            'homeroom_classes' => $homeroomClasses,
+            'teaching_assignments' => $teachingAssignments,
+            'supervised_extracurriculars' => $supervisedExtracurriculars,
+            'managed_labs' => $managedLabs,
             'bk_scope' => $bkScopeMode,
-            'is_lab_responsible' => (function () {
+            'is_lab_responsible' => (function () use ($activeInstitutionId) {
                 try {
-                    return $this->resource->isLabResponsible();
+                    return $this->resource->isLabResponsible($activeInstitutionId);
                 } catch (\Throwable $e) {
                     return false;
                 }
             })(),
-            'is_extracurricular_supervisor' => (function () {
+            'is_extracurricular_supervisor' => (function () use ($activeInstitutionId) {
                 try {
-                    return $this->resource->isExtracurricularSupervisor();
+                    return $this->resource->isExtracurricularSupervisor($activeInstitutionId);
                 } catch (\Throwable $e) {
                     return false;
                 }
             })(),
-            'is_piket_scheduled' => (function () use ($request) {
+            'is_piket_scheduled' => (function () use ($activeInstitutionId) {
                 try {
-                    $institutionId = $request->attributes->get('current_institution_id');
                     return \App\Support\PiketAccess::isScheduled(
                         $this->resource,
-                        $institutionId ? (int) $institutionId : null
+                        $activeInstitutionId
                     );
                 } catch (\Throwable $e) {
                     return false;
                 }
             })(),
-            'is_piket_on_duty' => (function () use ($request) {
+            'is_piket_on_duty' => (function () use ($activeInstitutionId) {
                 try {
-                    $institutionId = $request->attributes->get('current_institution_id');
                     return \App\Support\PiketAccess::isOnDutyToday(
                         $this->resource,
-                        $institutionId ? (int) $institutionId : null
+                        $activeInstitutionId
                     );
                 } catch (\Throwable $e) {
                     return false;

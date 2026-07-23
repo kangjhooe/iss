@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTeacherRewardLogRequest;
 use App\Http\Resources\TeacherRewardLogResource;
@@ -9,6 +10,7 @@ use App\Models\Employee;
 use App\Models\TeacherPointReward;
 use App\Models\TeacherRewardLog;
 use App\Services\TeacherPointService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -16,6 +18,8 @@ use Illuminate\Support\Facades\Log;
 
 class TeacherRewardLogController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected TeacherPointService $pointService
     ) {}
@@ -23,7 +27,7 @@ class TeacherRewardLogController extends Controller
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -64,7 +68,7 @@ class TeacherRewardLogController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -118,7 +122,8 @@ class TeacherRewardLogController extends Controller
 
     public function destroy(Request $request, TeacherRewardLog $teacher_reward_log): JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_reward_log->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $teacher_reward_log->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -130,7 +135,7 @@ class TeacherRewardLogController extends Controller
     public function byEmployee(Request $request, int $employeeId): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }

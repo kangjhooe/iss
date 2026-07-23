@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\InstitutionContext;
+use App\Support\PiketAccess;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -20,6 +22,8 @@ class EnsureModuleAccess
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        $activeInstitutionId = InstitutionContext::resolveActiveInstitutionId($user, $request);
+
         // Support multiple modules separated by | (user needs access to any one)
         $keys = array_map('trim', explode('|', $moduleKey));
         $hasAccess = false;
@@ -32,25 +36,27 @@ class EnsureModuleAccess
 
         // Kepala Lab (penanggung jawab) may use facility/inventory/schedule APIs
         // for managing their assigned labs without full module grants.
+        // Scoped to active institution so duties at school A don't unlock APIs at school B.
         if (!$hasAccess) {
             $labModules = ['facility', 'inventory', 'schedule'];
             $needsLabBypass = count(array_intersect($keys, $labModules)) > 0;
-            if ($needsLabBypass && $user->isLabResponsible()) {
+            if ($needsLabBypass && $user->isLabResponsible($activeInstitutionId)) {
                 $hasAccess = true;
             }
         }
 
         // Pembina ekskul may use extracurricular APIs for supervised clubs
         // even before permission sync / re-login.
-        if (!$hasAccess && in_array('extracurricular', $keys, true) && $user->isExtracurricularSupervisor()) {
+        if (!$hasAccess && in_array('extracurricular', $keys, true)
+            && $user->isExtracurricularSupervisor($activeInstitutionId)) {
             $hasAccess = true;
         }
 
         // Guru terjadwal piket boleh akses API modul (lapor kejadian / log)
-        // meskipun permission belum tersync ke session.
+        // meskipun permission belum tersync ke session — hanya di sekolah aktif.
         if (!$hasAccess) {
             $needsPiketBypass = count(array_intersect($keys, ['guru_piket', 'guru_piket_manage'])) > 0;
-            if ($needsPiketBypass && \App\Support\PiketAccess::canAccess($user)) {
+            if ($needsPiketBypass && PiketAccess::isScheduled($user, $activeInstitutionId)) {
                 $hasAccess = true;
             }
         }

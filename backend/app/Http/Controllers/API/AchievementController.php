@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAchievementRequest;
 use App\Http\Requests\UpdateAchievementRequest;
@@ -10,17 +11,22 @@ use App\Models\Achievement;
 use App\Models\AchievementType;
 use App\Models\Institution;
 use App\Models\Student;
+use App\Services\AchievementService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class AchievementController extends Controller
 {
+    use ResolvesInstitution;
+
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -42,8 +48,9 @@ class AchievementController extends Controller
                 $semesterId = $institution->active_semester_id;
             }
 
-            $query = Achievement::with(['student:id,name,nis,nisn', 'achievementType:id,name,point_value', 'giver:id,name', 'academicYear:id,name,code', 'semester:id,name'])
+            $query = Achievement::with(['student:id,name,nis,nisn', 'achievementType:id,name,point_value', 'giver:id,name', 'reviewer:id,name', 'academicYear:id,name,code', 'semester:id,name'])
                 ->forInstitution($institutionId)
+                ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
                 ->orderBy('achievement_date', 'desc');
 
             if ($academicYearId) {
@@ -57,6 +64,9 @@ class AchievementController extends Controller
             }
             if ($request->filled('achievement_type_id')) {
                 $query->where('achievement_type_id', $request->achievement_type_id);
+            }
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
             }
             if ($request->filled('search')) {
                 $search = $request->search;
@@ -73,9 +83,15 @@ class AchievementController extends Controller
                 $query->whereDate('achievement_date', '<=', $request->date_to);
             }
 
+            $pendingCount = Achievement::forInstitution($institutionId)
+                ->where('status', Achievement::STATUS_PENDING)
+                ->count();
+
             $perPage = min($request->get('per_page', 15), 100);
             $items = $query->paginate($perPage);
-            return AchievementResource::collection($items);
+            return AchievementResource::collection($items)->additional([
+                'meta_extra' => ['pending_count' => $pendingCount],
+            ]);
         } catch (\Exception $e) {
             Log::error('Achievement index failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal mengambil data prestasi.'], 500);
@@ -86,32 +102,18 @@ class AchievementController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $student = Student::where('id', $request->student_id)->where('institution_id', $institutionId)->firstOrFail();
-            $type = AchievementType::where('id', $request->achievement_type_id)->where('institution_id', $institutionId)->where('is_active', true)->firstOrFail();
+            $achievement = $this->achievementService()->create(
+                $institutionId,
+                $request->validated(),
+                $user->id,
+                false
+            );
 
-            $pointValue = $request->input('point_value', $type->point_value);
-            $institution = Institution::find($institutionId);
-            $academicYearId = $student->academic_year_id ?: $institution?->active_academic_year_id;
-            $semesterId = $student->semester_id ?: $institution?->active_semester_id;
-
-            $achievement = Achievement::create([
-                'institution_id' => $institutionId,
-                'student_id' => $student->id,
-                'achievement_type_id' => $type->id,
-                'given_by' => $user->id,
-                'achievement_date' => $request->achievement_date,
-                'point_value' => $pointValue,
-                'notes' => $request->notes,
-                'academic_year_id' => $academicYearId,
-                'semester_id' => $semesterId,
-            ]);
-
-            $achievement->load(['student', 'achievementType', 'giver', 'academicYear:id,name,code', 'semester:id,name']);
             return (new AchievementResource($achievement))->response()->setStatusCode(201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Siswa atau jenis prestasi tidak ditemukan.'], 404);
@@ -121,9 +123,60 @@ class AchievementController extends Controller
         }
     }
 
+    public function approve(Request $request, Achievement $achievement): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement->institution_id)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $data = $request->validate([
+                'review_notes' => ['nullable', 'string', 'max:2000'],
+                'point_value' => ['nullable', 'integer', 'min:0'],
+            ]);
+            $updated = $this->achievementService()->approve($achievement, $user, $data);
+
+            return (new AchievementResource($updated))->response();
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Achievement approve failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal menyetujui usulan prestasi.'], 500);
+        }
+    }
+
+    public function reject(Request $request, Achievement $achievement): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement->institution_id)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $data = $request->validate([
+                'review_notes' => ['required', 'string', 'max:2000'],
+            ]);
+            $updated = $this->achievementService()->reject($achievement, $user, $data['review_notes']);
+
+            return (new AchievementResource($updated))->response();
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Achievement reject failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Gagal menolak usulan prestasi.'], 500);
+        }
+    }
+
+    protected function achievementService(): AchievementService
+    {
+        return app(AchievementService::class);
+    }
+
     public function show(Request $request, Achievement $achievement): AchievementResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $achievement->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $achievement->load(['student', 'achievementType', 'giver', 'academicYear:id,name,code', 'semester:id,name']);
@@ -133,11 +186,38 @@ class AchievementController extends Controller
     public function update(UpdateAchievementRequest $request, Achievement $achievement): AchievementResource|JsonResponse
     {
         try {
-            if ($request->user()->institution_id !== $achievement->institution_id && !$request->user()->isSuperAdmin()) {
+            $user = $request->user();
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $institutionId = $request->user()->institution_id;
+            if ($achievement->status !== Achievement::STATUS_PENDING) {
+                $incomingType = (int) $request->achievement_type_id;
+                $incomingDate = (string) $request->achievement_date;
+                $incomingPoints = $request->input('point_value');
+                $currentDate = optional($achievement->achievement_date)?->format('Y-m-d');
+                $materialChanged = $incomingType !== (int) $achievement->achievement_type_id
+                    || $incomingDate !== (string) $currentDate
+                    || ($incomingPoints !== null && (float) $incomingPoints !== (float) $achievement->point_value);
+
+                $reviewedByOther = $achievement->reviewed_by
+                    && (int) $achievement->reviewed_by !== (int) $achievement->given_by;
+
+                // Usulan yang sudah disetujui/ditolak reviewer lain tidak boleh diubah substansinya.
+                if ($materialChanged && ($achievement->status === Achievement::STATUS_DITOLAK || $reviewedByOther)) {
+                    return response()->json([
+                        'message' => 'Prestasi yang sudah ditinjau tidak dapat diubah. Hapus lalu buat ulang, atau ajukan usulan baru.',
+                    ], 422);
+                }
+
+                if ($materialChanged === false && $achievement->status !== Achievement::STATUS_PENDING) {
+                    $achievement->update(['notes' => $request->notes]);
+                    $achievement->load(['student', 'achievementType', 'giver', 'reviewer', 'academicYear:id,name,code', 'semester:id,name']);
+                    return new AchievementResource($achievement);
+                }
+            }
+
+            $institutionId = $this->resolveInstitutionId($request) ?: (int) $achievement->institution_id;
             $type = AchievementType::where('id', $request->achievement_type_id)->where('institution_id', $institutionId)->where('is_active', true)->firstOrFail();
 
             $pointValue = $request->input('point_value', $type->point_value);
@@ -163,7 +243,7 @@ class AchievementController extends Controller
 
             $achievement->update($payload);
 
-            $achievement->load(['student', 'achievementType', 'giver', 'academicYear:id,name,code', 'semester:id,name']);
+            $achievement->load(['student', 'achievementType', 'giver', 'reviewer', 'academicYear:id,name,code', 'semester:id,name']);
             return new AchievementResource($achievement);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Jenis prestasi tidak ditemukan.'], 404);
@@ -175,7 +255,8 @@ class AchievementController extends Controller
 
     public function destroy(Request $request, Achievement $achievement): JsonResponse
     {
-        if ($request->user()->institution_id !== $achievement->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $achievement->delete();
@@ -186,7 +267,7 @@ class AchievementController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if ($user->isStudent()) {
                 $profile = $user->studentProfile;
                 if (!$profile || (int) $profile->id !== $studentId) {

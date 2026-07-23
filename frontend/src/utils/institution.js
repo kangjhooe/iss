@@ -26,6 +26,15 @@ export function getPrincipalTitle(level) {
 }
 
 /**
+ * Label nomor statistik: madrasah → NSM, selain itu → NSS.
+ * @param {string} level
+ * @returns {string}
+ */
+export function getNssLabel(level) {
+  return isMadrasahLevel(level) ? 'NSM' : 'NSS'
+}
+
+/**
  * Mendapatkan label jenis instansi berdasarkan level
  * @param {string} level - Level jenjang (SD, SMP, SMA, SMK, MI, MTs, MA, MAK, dll)
  * @returns {string} - "Sekolah" atau "Madrasah"

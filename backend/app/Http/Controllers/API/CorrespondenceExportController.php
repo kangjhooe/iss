@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Services\CorrespondenceExportService;
 use App\Models\Institution;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -23,15 +24,13 @@ class CorrespondenceExportController extends Controller
         try {
             $filters = $request->only([
                 'type', 'status', 'priority', 'category_id', 'letter_type_code', 'search',
-                'date_from', 'date_to'
+                'date_from', 'date_to', 'academic_year_id'
             ]);
 
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $user = $request->user();
+            $institutionId = $user->isAdminOrSuperAdmin()
+                ? ($request->filled('institution_id') ? (int) $request->get('institution_id') : null)
+                : InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
 
             $filePath = $this->service->exportToExcel($filters, $institutionId);
 
@@ -86,19 +85,14 @@ class CorrespondenceExportController extends Controller
         try {
             $filters = $request->only([
                 'type', 'status', 'priority', 'category_id', 'letter_type_code', 'search',
-                'date_from', 'date_to'
+                'date_from', 'date_to', 'academic_year_id'
             ]);
 
-            $institutionId = null;
-            $institution = null;
-            
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-                $institution = Institution::find($institutionId);
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-                $institution = Institution::find($institutionId);
-            }
+            $user = $request->user();
+            $institutionId = $user->isAdminOrSuperAdmin()
+                ? ($request->filled('institution_id') ? (int) $request->get('institution_id') : null)
+                : InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+            $institution = $institutionId ? Institution::find($institutionId) : null;
 
             $filePath = $this->service->exportToPdf($filters, $institutionId, $institution);
 

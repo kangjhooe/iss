@@ -88,4 +88,10 @@ export const piketApi = {
   weeklyReport(params) {
     return api.get('/v1/piket/weekly-report', { params, responseType: 'blob' })
   },
+  report(params) {
+    return api.get('/v1/piket/report', { params })
+  },
+  reportPdf(params) {
+    return api.get('/v1/piket/report-pdf', { params, responseType: 'blob' })
+  },
 }

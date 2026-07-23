@@ -12,17 +12,17 @@ class Grade extends Model
 
     protected $table = 'grades';
 
-    public const TYPE_UH = 'uh';
     public const TYPE_UTS = 'uts';
     public const TYPE_UAS = 'uas';
-    public const TYPE_TUGAS = 'tugas';
     public const TYPE_NILAI_AKHIR = 'nilai_akhir';
 
+    /** Legacy (setelah migrasi diganti penilaian_*) */
+    public const TYPE_UH = 'uh';
+    public const TYPE_TUGAS = 'tugas';
+
     public const TYPES = [
-        self::TYPE_UH => 'UH',
         self::TYPE_UTS => 'UTS',
         self::TYPE_UAS => 'UAS',
-        self::TYPE_TUGAS => 'Tugas',
         self::TYPE_NILAI_AKHIR => 'Nilai Akhir',
     ];
 
@@ -44,6 +44,42 @@ class Grade extends Model
         return [
             'value' => 'decimal:2',
         ];
+    }
+
+    public static function penilaianType(int $n): string
+    {
+        return 'penilaian_' . max(1, $n);
+    }
+
+    public static function isPenilaianType(string $type): bool
+    {
+        return (bool) preg_match('/^penilaian_[1-9]\d*$/', $type);
+    }
+
+    public static function penilaianIndex(string $type): ?int
+    {
+        if (!preg_match('/^penilaian_([1-9]\d*)$/', $type, $m)) {
+            return null;
+        }
+
+        return (int) $m[1];
+    }
+
+    public static function isValidType(string $type): bool
+    {
+        return in_array($type, [self::TYPE_UTS, self::TYPE_UAS, self::TYPE_NILAI_AKHIR], true)
+            || self::isPenilaianType($type);
+    }
+
+    public static function getTypeLabel(string $type): string
+    {
+        if (self::isPenilaianType($type)) {
+            $n = self::penilaianIndex($type);
+
+            return 'Penilaian ' . $n;
+        }
+
+        return self::TYPES[$type] ?? $type;
     }
 
     public function institution()
@@ -104,10 +140,5 @@ class Grade extends Model
     public function scopeForStudent($query, int $studentId)
     {
         return $query->where('student_id', $studentId);
-    }
-
-    public static function getTypeLabel(string $type): string
-    {
-        return self::TYPES[$type] ?? $type;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PointThresholdResource;
 use App\Models\Institution;
@@ -14,6 +15,8 @@ use Illuminate\Support\Collection;
 
 class StudentPointController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected StudentPointService $pointService
     ) {}
@@ -24,7 +27,7 @@ class StudentPointController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $institutionId = $request->user()->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
@@ -257,7 +260,7 @@ class StudentPointController extends Controller
     public function summary(Request $request, int $studentId): JsonResponse
     {
         $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if ($user->isStudent()) {
             $profile = $user->studentProfile;
             if (!$profile || (int) $profile->id !== $studentId) {

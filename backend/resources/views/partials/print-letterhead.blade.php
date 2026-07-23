@@ -34,7 +34,9 @@
     $standardInfo = $standardInstitution
         ? collect([
             'NPSN: ' . ($standardInstitution->npsn ?: '-'),
-            $standardInstitution->nss ? 'NSS: ' . $standardInstitution->nss : null,
+            $standardInstitution->nss
+                ? \App\Models\Institution::nssLabelForLevel($standardInstitution->level) . ': ' . $standardInstitution->nss
+                : null,
             $standardInstitution->phone ? 'Telp: ' . $standardInstitution->phone : null,
             $standardInstitution->email ? 'Email: ' . $standardInstitution->email : null,
             $standardInstitution->website ?: null,
@@ -58,7 +60,6 @@
                 <p class="standard-kop-address">{{ $standardAddress ?: '-' }}</p>
                 <p class="standard-kop-info">{{ $standardInfo }}</p>
             </td>
-            <td class="standard-kop-logo-cell"></td>
         </tr>
     </table>
 </header>

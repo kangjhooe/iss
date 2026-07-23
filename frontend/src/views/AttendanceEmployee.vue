@@ -15,6 +15,12 @@
             <p class="page-subtitle">Kehadiran pegawai per hari</p>
           </div>
           <div class="header-actions">
+            <button type="button" class="btn-secondary btn-compact" :disabled="exporting" @click="exportRekap('csv')">
+              {{ exporting === 'csv' ? 'Mengekspor...' : 'Export CSV' }}
+            </button>
+            <button type="button" class="btn-secondary btn-compact" :disabled="exporting" @click="exportRekap('pdf')">
+              {{ exporting === 'pdf' ? 'Mengekspor...' : 'Cetak Rekap PDF' }}
+            </button>
             <button @click="openBulkModal" class="btn-primary btn-compact">Input Absensi per Tanggal</button>
             <button @click="openAddModal" class="btn-secondary btn-compact">Tambah Satu</button>
           </div>
@@ -22,18 +28,24 @@
       </div>
 
       <div class="filters filters-inline">
-        <input v-model="filters.date_from" type="date" class="filter-select" @change="loadAttendances" />
-        <input v-model="filters.date_to" type="date" class="filter-select" @change="loadAttendances" />
-        <select v-model="filters.employee_id" @change="loadAttendances" class="filter-select">
+        <input v-model="filters.date_from" type="date" class="filter-select" @change="onFilterChange" />
+        <input v-model="filters.date_to" type="date" class="filter-select" @change="onFilterChange" />
+        <select v-model="filters.employee_id" @change="onFilterChange" class="filter-select">
           <option value="">Semua Pegawai</option>
           <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }} ({{ e.type }})</option>
         </select>
-        <select v-model="filters.status" @change="loadAttendances" class="filter-select">
+        <select v-model="filters.status" @change="onFilterChange" class="filter-select">
           <option value="">Semua Status</option>
           <option v-for="(label, val) in statusOptions" :key="val" :value="val">{{ label }}</option>
         </select>
       </div>
 
+      <div class="section-tabs" role="tablist">
+        <button type="button" role="tab" :class="['sec-btn', { active: activeTab === 'isi' }]" @click="activeTab = 'isi'">Daftar Absensi</button>
+        <button type="button" role="tab" :class="['sec-btn', { active: activeTab === 'rekap' }]" @click="switchToRekap">Rekap & Laporan</button>
+      </div>
+
+      <template v-if="activeTab === 'isi'">
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="8" :columns="7" />
       </div>
@@ -81,6 +93,66 @@
           </div>
         </div>
       </div>
+      </template>
+
+      <template v-else>
+        <div v-if="rekapLoading" class="loading-wrap">
+          <LoadingSkeleton type="table" :rows="8" :columns="8" />
+        </div>
+        <div v-else>
+          <div v-if="rekapMeta" class="rekap-stats">
+            <span>Pegawai: <strong>{{ rekapMeta.employee_count ?? rekapRows.length }}</strong></span>
+            <span>Tercatat: <strong>{{ rekapTotals.tercatat ?? 0 }}</strong></span>
+            <span>Hadir: <strong>{{ rekapTotals.hadir ?? 0 }}</strong></span>
+            <span>Alpha: <strong>{{ rekapTotals.alpha ?? 0 }}</strong></span>
+            <span>Izin: <strong>{{ rekapTotals.izin ?? 0 }}</strong></span>
+            <span>Sakit: <strong>{{ rekapTotals.sakit ?? 0 }}</strong></span>
+            <span>% Hadir: <strong>{{ rekapTotals.persentase_hadir ?? 0 }}%</strong></span>
+          </div>
+          <div v-if="rekapRows.length === 0" class="empty-state">
+            <h3 class="empty-title">Belum ada data rekap</h3>
+            <p class="empty-desc">Sesuaikan filter tanggal/pegawai, lalu pastikan absensi sudah diisi.</p>
+          </div>
+          <div v-else class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>NIP</th>
+                  <th>Nama</th>
+                  <th>Tipe</th>
+                  <th>Hadir</th>
+                  <th>Alpha</th>
+                  <th>Izin</th>
+                  <th>Sakit</th>
+                  <th>Cuti</th>
+                  <th>Dinas Luar</th>
+                  <th>WFH</th>
+                  <th>Tercatat</th>
+                  <th>% Hadir</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in rekapRows" :key="row.employee_id">
+                  <td>{{ idx + 1 }}</td>
+                  <td>{{ row.nip || '-' }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.type || '-' }}</td>
+                  <td>{{ row.counts?.hadir ?? 0 }}</td>
+                  <td>{{ row.counts?.alpha ?? 0 }}</td>
+                  <td>{{ row.counts?.izin ?? 0 }}</td>
+                  <td>{{ row.counts?.sakit ?? 0 }}</td>
+                  <td>{{ row.counts?.cuti ?? 0 }}</td>
+                  <td>{{ row.counts?.dinas_luar ?? 0 }}</td>
+                  <td>{{ row.counts?.wfh ?? 0 }}</td>
+                  <td>{{ row.tercatat ?? 0 }}</td>
+                  <td>{{ row.persentase_hadir ?? 0 }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
 
       <!-- Modal: Tambah/Edit satu absensi -->
       <div v-if="showFormModal" class="modal-overlay" @click="showFormModal = false">
@@ -206,6 +278,8 @@ const { syncPendingItems } = useOfflineSync()
 
 const isOffline = ref(!isOnline())
 const offlineIndicator = ref(false)
+const activeTab = ref('isi')
+const exporting = ref('')
 
 onNetworkStatusChange((online) => {
   isOffline.value = !online
@@ -226,6 +300,12 @@ const filters = ref({
   employee_id: '',
   status: '',
 })
+
+const rekapRows = ref([])
+const rekapTotals = ref({})
+const rekapMeta = ref(null)
+const rekapLoading = ref(false)
+const rekapLoaded = ref(false)
 
 const showFormModal = ref(false)
 const showBulkModal = ref(false)
@@ -252,6 +332,16 @@ function formatDate(d) {
   return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function cleanParams(extra = {}) {
+  const params = { ...filters.value, ...extra }
+  Object.keys(params).forEach((key) => {
+    if (params[key] === '' || params[key] === null || params[key] === undefined) {
+      delete params[key]
+    }
+  })
+  return params
+}
+
 async function loadStatusOptions() {
   try {
     const res = await employeeAttendanceApi.getStatusOptions()
@@ -276,12 +366,8 @@ async function loadAttendances() {
     const params = {
       page: pagination.value.current_page,
       per_page: 15,
-      ...filters.value,
+      ...cleanParams(),
     }
-    if (!params.date_from) delete params.date_from
-    if (!params.date_to) delete params.date_to
-    if (!params.employee_id) delete params.employee_id
-    if (!params.status) delete params.status
     const res = await employeeAttendanceApi.getAll(params)
     attendances.value = res.data.data || []
     const meta = res.data.meta || {}
@@ -298,9 +384,64 @@ async function loadAttendances() {
   }
 }
 
+async function loadRekap() {
+  rekapLoading.value = true
+  try {
+    const res = await employeeAttendanceApi.getRekap(cleanParams())
+    rekapRows.value = res.data.data || []
+    rekapTotals.value = res.data.totals || {}
+    rekapMeta.value = res.data.meta || null
+    rekapLoaded.value = true
+  } catch (e) {
+    toast.error('Gagal memuat rekap', e.formattedMessage || 'Rekap absensi tidak dapat dimuat.')
+    rekapRows.value = []
+    rekapTotals.value = {}
+    rekapMeta.value = null
+  } finally {
+    rekapLoading.value = false
+  }
+}
+
+function onFilterChange() {
+  pagination.value.current_page = 1
+  loadAttendances()
+  if (activeTab.value === 'rekap' || rekapLoaded.value) {
+    loadRekap()
+  }
+}
+
+function switchToRekap() {
+  activeTab.value = 'rekap'
+  if (!rekapLoaded.value) {
+    loadRekap()
+  }
+}
+
 function goToPage(page) {
   pagination.value.current_page = page
   loadAttendances()
+}
+
+async function exportRekap(format) {
+  exporting.value = format
+  try {
+    const res = await employeeAttendanceApi.exportRekap(cleanParams({ format }))
+    const mime = format === 'csv' ? 'text/csv;charset=utf-8' : 'application/pdf'
+    const blob = new Blob([res.data], { type: mime })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Rekap_Absensi_Pegawai_${new Date().toISOString().slice(0, 10)}.${format}`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    toast.success('Berhasil', format === 'pdf' ? 'Rekap PDF berhasil diunduh' : 'Rekap CSV berhasil diunduh')
+  } catch (e) {
+    toast.error('Gagal mengekspor', e.formattedMessage || 'Rekap tidak dapat diekspor. Periksa koneksi dan coba lagi.')
+  } finally {
+    exporting.value = ''
+  }
 }
 
 function openAddModal() {
@@ -364,12 +505,14 @@ async function submitForm() {
         }
         showFormModal.value = false
         loadAttendances()
+        rekapLoaded.value = false
       } catch (e) {
         // If online save fails, save offline
         await employeeAttendanceStorage.save(form.date, [payload])
         toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
         showFormModal.value = false
         loadAttendances()
+        rekapLoaded.value = false
       }
     }
   } catch (e) {
@@ -445,12 +588,14 @@ async function submitBulk() {
         toast.success('Absensi pegawai berhasil disimpan')
         showBulkModal.value = false
         loadAttendances()
+        rekapLoaded.value = false
       } catch (e) {
         // If online save fails, save offline
         await employeeAttendanceStorage.save(bulkDate.value, attendancesList)
         toast.success('Absensi disimpan secara offline. Akan disinkronkan saat online.')
         showBulkModal.value = false
         loadAttendances()
+        rekapLoaded.value = false
       }
     }
   } catch (e) {
@@ -475,9 +620,36 @@ onMounted(async () => {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex; align-items: center; justify-content: center; color: #fff;
 }
-.header-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+.header-actions { margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .page-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem 0; }
 .page-subtitle { color: #64748b; margin: 0; font-size: 0.9rem; }
+.section-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.sec-btn {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.sec-btn.active {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
+}
+.rekap-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  padding: 0.75rem 1rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #065f46;
+}
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
 .filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; }
 .loading-wrap { width: 100%; margin: 1rem 0; }

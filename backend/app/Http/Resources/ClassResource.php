@@ -48,11 +48,18 @@ class ClassResource extends JsonResource
                 return $this->academicYear->code ?? $this->academic_year;
             }, $this->academic_year),
             'semester_id' => $this->semester_id,
+            'lesson_schedule_template_id' => $this->lesson_schedule_template_id,
             'semester' => $this->whenLoaded('semester', function () {
                 return [
                     'id' => $this->semester->id,
                     'name' => $this->semester->name,
                     'academic_year_id' => $this->semester->academic_year_id,
+                ];
+            }),
+            'lesson_schedule_template' => $this->whenLoaded('lessonScheduleTemplate', function () {
+                return [
+                    'id' => $this->lessonScheduleTemplate->id,
+                    'name' => $this->lessonScheduleTemplate->name,
                 ];
             }),
             'capacity' => $this->capacity,

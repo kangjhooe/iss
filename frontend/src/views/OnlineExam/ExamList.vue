@@ -85,11 +85,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
 
 const { toast } = useToast()
+const route = useRoute()
 const exams = ref([])
 const loading = ref(true)
 const pagination = ref(null)
@@ -97,7 +99,9 @@ const pagination = ref(null)
 async function fetchExams(page = 1) {
   loading.value = true
   try {
-    const res = await examApi.listExams({ page, per_page: 15 })
+    const params = { page, per_page: 15 }
+    if (route.query.subject_id) params.subject_id = String(route.query.subject_id)
+    const res = await examApi.listExams(params)
     const data = res.data
     exams.value = data?.data ?? data ?? []
     pagination.value = data?.meta ? { ...data.meta, ...data.links } : null

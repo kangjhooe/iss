@@ -318,13 +318,129 @@ class TeacherPointService
     /**
      * Leaderboard by net points (prestasi − pelanggaran).
      *
+     * Modes (per institution):
+     * - guru_only: hanya Guru
+     * - combined: semua pegawai aktif digabung
+     * - separated: gunakan $group = guru|staff
+     *
+     * @param  'guru'|'staff'|null  $group
      * @return Collection<int, array<string, mixed>>
      */
     public function getLeaderboard(
         int $institutionId,
         ?int $academicYearId = null,
         ?int $semesterId = null,
+        int $limit = 20,
+        ?string $group = null
+    ): Collection {
+        $mode = $this->getLeaderboardMode($institutionId);
+        $typeFilter = $this->resolveLeaderboardTypeFilter($mode, $group);
+
+        return $this->fetchLeaderboardRows(
+            $institutionId,
+            $academicYearId,
+            $semesterId,
+            $limit,
+            $typeFilter
+        );
+    }
+
+    public function getLeaderboardMode(int $institutionId): string
+    {
+        $mode = Institution::query()
+            ->where('id', $institutionId)
+            ->value('teacher_appreciation_leaderboard_mode');
+
+        if (in_array($mode, Institution::TEACHER_APPRECIATION_LEADERBOARD_MODES, true)) {
+            return $mode;
+        }
+
+        return Institution::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY;
+    }
+
+    /**
+     * Payload siap pakai untuk API leaderboard.
+     *
+     * @return array{mode: string, rows: array<int, array<string, mixed>>, guru: array<int, array<string, mixed>>, staff: array<int, array<string, mixed>>}
+     */
+    public function getLeaderboardBundle(
+        int $institutionId,
+        ?int $academicYearId = null,
+        ?int $semesterId = null,
         int $limit = 20
+    ): array {
+        $mode = $this->getLeaderboardMode($institutionId);
+
+        if ($mode === Institution::TEACHER_APPRECIATION_LEADERBOARD_SEPARATED) {
+            return [
+                'mode' => $mode,
+                'rows' => [],
+                'guru' => $this->getLeaderboard($institutionId, $academicYearId, $semesterId, $limit, 'guru')->all(),
+                'staff' => $this->getLeaderboard($institutionId, $academicYearId, $semesterId, $limit, 'staff')->all(),
+            ];
+        }
+
+        return [
+            'mode' => $mode,
+            'rows' => $this->getLeaderboard($institutionId, $academicYearId, $semesterId, $limit)->all(),
+            'guru' => [],
+            'staff' => [],
+        ];
+    }
+
+    public function findEmployeeRank(
+        int $employeeId,
+        int $institutionId,
+        ?int $academicYearId = null,
+        ?int $semesterId = null,
+        ?string $employeeType = null
+    ): ?int {
+        $mode = $this->getLeaderboardMode($institutionId);
+        $type = $employeeType;
+        if ($type === null) {
+            $type = Employee::query()->where('id', $employeeId)->value('type');
+        }
+
+        $group = null;
+        if ($mode === Institution::TEACHER_APPRECIATION_LEADERBOARD_SEPARATED) {
+            $group = $type === 'Guru' ? 'guru' : 'staff';
+        } elseif ($mode === Institution::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY && $type !== 'Guru') {
+            return null;
+        }
+
+        $found = $this->getLeaderboard($institutionId, $academicYearId, $semesterId, 500, $group)
+            ->firstWhere('employee_id', $employeeId);
+
+        return $found['rank'] ?? null;
+    }
+
+    /**
+     * @param  'guru'|'staff'|null  $group
+     * @return 'guru'|'non_guru'|null
+     */
+    protected function resolveLeaderboardTypeFilter(string $mode, ?string $group): ?string
+    {
+        if ($mode === Institution::TEACHER_APPRECIATION_LEADERBOARD_COMBINED) {
+            return null;
+        }
+
+        if ($mode === Institution::TEACHER_APPRECIATION_LEADERBOARD_SEPARATED) {
+            return ($group === 'staff') ? 'non_guru' : 'guru';
+        }
+
+        return 'guru';
+    }
+
+    /**
+     * @param  'guru'|'non_guru'|null  $typeFilter
+     * @return Collection<int, array<string, mixed>>
+     */
+    protected function fetchLeaderboardRows(
+        int $institutionId,
+        ?int $academicYearId,
+        ?int $semesterId,
+        int $limit,
+        ?string $typeFilter
     ): Collection {
         $achSub = TeacherAchievement::query()
             ->select('employee_id', DB::raw('SUM(point_value) as achievement_points'), DB::raw('COUNT(*) as achievements_count'))
@@ -350,16 +466,20 @@ class TeacherPointService
         }
         $vioSub->groupBy('employee_id');
 
-        $rows = Employee::query()
+        $query = Employee::query()
             ->from('employee')
             ->where('employee.institution_id', $institutionId)
             ->where('employee.status', 'Aktif')
             ->leftJoinSub($achSub, 'ach', 'ach.employee_id', '=', 'employee.id')
-            ->leftJoinSub($vioSub, 'vio', 'vio.employee_id', '=', 'employee.id')
-            ->where(function ($q) {
-                $q->whereNotNull('ach.achievement_points')
-                    ->orWhereNotNull('vio.violation_points');
-            })
+            ->leftJoinSub($vioSub, 'vio', 'vio.employee_id', '=', 'employee.id');
+
+        if ($typeFilter === 'guru') {
+            $query->where('employee.type', 'Guru');
+        } elseif ($typeFilter === 'non_guru') {
+            $query->where('employee.type', '!=', 'Guru');
+        }
+
+        $rows = $query
             ->select(
                 'employee.id as employee_id',
                 'employee.name',
@@ -504,7 +624,10 @@ class TeacherPointService
             ->from('employee')
             ->where('employee.institution_id', $institutionId)
             ->where('employee.status', 'Aktif')
-            ->where('employee.type', 'Guru')
+            ->when(
+                $this->getLeaderboardMode($institutionId) === Institution::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY,
+                fn ($q) => $q->where('employee.type', 'Guru')
+            )
             ->leftJoinSub($achievementSub, 'report_achievements', 'report_achievements.employee_id', '=', 'employee.id')
             ->leftJoinSub($violationSub, 'report_violations', 'report_violations.employee_id', '=', 'employee.id')
             ->select(
@@ -512,6 +635,7 @@ class TeacherPointService
                 'employee.name',
                 'employee.nip',
                 'employee.nuptk',
+                'employee.type',
                 'employee.subject',
                 DB::raw('COALESCE(report_achievements.achievement_points, 0) as achievement_points'),
                 DB::raw('COALESCE(report_violations.violation_points, 0) as violation_points'),
@@ -526,6 +650,7 @@ class TeacherPointService
                 'name' => $row->name,
                 'nip' => $row->nip,
                 'nuptk' => $row->nuptk,
+                'type' => $row->type,
                 'subject' => $row->subject,
                 'achievements_count' => (int) $row->achievements_count,
                 'achievement_points' => (int) $row->achievement_points,
@@ -607,7 +732,8 @@ class TeacherPointService
                 'points' => (int) $r->points,
                 'count' => (int) $r->count,
             ])->values()->all(),
-            'leaderboard' => $this->getLeaderboard($institutionId, $academicYearId, $semesterId, 10)->all(),
+            'leaderboard' => $this->getLeaderboardBundle($institutionId, $academicYearId, $semesterId, 10),
+            'leaderboard_mode' => $this->getLeaderboardMode($institutionId),
             'teacher_recap' => $teacherRecap,
             'achievement_details' => $achievementDetails,
             'violation_details' => $violationDetails,

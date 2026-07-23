@@ -111,6 +111,8 @@ class TeachingJournalController extends Controller
             return (new TeachingJournalResource($journal))
                 ->response()
                 ->setStatusCode(201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Semester, kelas, mata pelajaran, atau guru tidak ditemukan.'], 404);
         } catch (\Exception $e) {
@@ -167,6 +169,8 @@ class TeachingJournalController extends Controller
 
             $journal = $this->teachingJournalService->update($teaching_journal, $data);
             return new TeachingJournalResource($journal);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             Log::error('TeachingJournal update failed', ['error' => $e->getMessage()]);
             return response()->json([

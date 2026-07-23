@@ -14,7 +14,9 @@ use App\Models\PiketLog;
 use App\Models\PiketSchedule;
 use App\Models\SchoolClass;
 use App\Models\TeachingJournal;
+use App\Services\TeacherTodaySessionService;
 use App\Support\InstitutionContext;
+use App\Support\WaliKelasAccess;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -35,7 +37,7 @@ class TeacherDashboardController extends Controller
             }
 
             $user->load(['teacherProfile', 'employeeProfile']);
-            $teacher = $user->teacherProfile ?? $user->employeeProfile;
+            $teacher = WaliKelasAccess::employeeFor($user);
 
             if (!$teacher) {
                 return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);
@@ -150,9 +152,23 @@ class TeacherDashboardController extends Controller
 
             $piketToday = $this->resolvePiketToday($teacher->id, $institutionId);
 
+            $activeInstitution = $institutionId
+                ? Institution::query()->select('id', 'name', 'npsn')->find($institutionId)
+                : null;
+
+            $teacherPayload = (new EmployeeResource($teacher->load('institution')))->resolve();
+            if ($activeInstitution) {
+                $teacherPayload['institution'] = [
+                    'id' => $activeInstitution->id,
+                    'name' => $activeInstitution->name,
+                    'npsn' => $activeInstitution->npsn,
+                ];
+                $teacherPayload['institution_id'] = $activeInstitution->id;
+            }
+
             return response()->json([
                 'data' => [
-                    'teacher' => new EmployeeResource($teacher->load('institution')),
+                    'teacher' => $teacherPayload,
                     'summary' => [
                         'total_classes' => $taughtCount,
                         'total_students' => $totalStudents,
@@ -163,6 +179,11 @@ class TeacherDashboardController extends Controller
                         'id' => $activeAcademicYear->id,
                         'name' => $activeAcademicYear->name,
                         'code' => $activeAcademicYear->code,
+                    ] : null,
+                    'active_institution' => $activeInstitution ? [
+                        'id' => $activeInstitution->id,
+                        'name' => $activeInstitution->name,
+                        'npsn' => $activeInstitution->npsn,
                     ] : null,
                     'jurnal_this_week_count' => $jurnalThisWeekCount,
                     'grades_pending' => $gradesPending,
@@ -183,6 +204,64 @@ class TeacherDashboardController extends Controller
     }
 
     /**
+     * Jam mengajar hari ini (atau tanggal tertentu) + status absen/jurnal.
+     */
+    public function todaySessions(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            if (!$user || !$user->isTeacherOrStaff()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $teacher = WaliKelasAccess::employeeFor($user);
+            if (!$teacher) {
+                return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);
+            }
+
+            $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            $semesterId = (int) ($request->get('semester_id') ?: $institution?->active_semester_id);
+            if (!$semesterId) {
+                return response()->json(['message' => 'Semester aktif tidak ditemukan.'], 422);
+            }
+
+            $date = $request->get('date');
+            if ($date) {
+                try {
+                    Carbon::parse($date);
+                } catch (\Exception $e) {
+                    return response()->json(['message' => 'Format tanggal tidak valid.'], 422);
+                }
+            }
+
+            $payload = app(TeacherTodaySessionService::class)->forTeacher(
+                $institutionId,
+                (int) $teacher->id,
+                $semesterId,
+                $date
+            );
+
+            return response()->json(['data' => $payload]);
+        } catch (\Exception $e) {
+            Log::error('Failed to load teacher today sessions', [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memuat jadwal hari ini',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Daftar siswa kelas wali (hanya kelas di mana guru adalah wali kelas).
      */
     public function classStudents(Request $request, int $id)
@@ -193,8 +272,7 @@ class TeacherDashboardController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $user->load(['teacherProfile', 'employeeProfile']);
-        $teacher = $user->teacherProfile ?? $user->employeeProfile;
+        $teacher = WaliKelasAccess::employeeFor($user);
 
         if (!$teacher) {
             return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);
@@ -212,13 +290,55 @@ class TeacherDashboardController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $perPage = min((int) $request->get('per_page', 100), 200);
-        $query = $class->students()->orderBy('name', 'asc');
+        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+        $query = $class->students();
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->get('status'));
-        } else {
-            $query->where('status', 'active');
+        $status = $this->normalizeStudentStatus($request->get('status', 'Aktif'));
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->get('search'));
+            if ($search !== '') {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('nis', 'like', "%{$search}%")
+                        ->orWhere('nisn', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%");
+                });
+            }
+        }
+
+        $allowedSorts = ['name', 'nis', 'nisn', 'nik', 'gender', 'status'];
+        $sortBy = (string) $request->get('sort_by', 'name');
+        if (!in_array($sortBy, $allowedSorts, true)) {
+            $sortBy = 'name';
+        }
+        $sortDir = strtolower((string) $request->get('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        $query->orderByRaw("CASE WHEN `{$sortBy}` IS NULL OR `{$sortBy}` = '' THEN 1 ELSE 0 END")
+            ->orderBy($sortBy, $sortDir)
+            ->orderBy('id', 'asc');
+
+        $summaryQuery = $class->students();
+        if ($status !== null) {
+            $summaryQuery->where('status', $status);
+        }
+        $genderRows = (clone $summaryQuery)
+            ->selectRaw('gender, COUNT(*) as total')
+            ->groupBy('gender')
+            ->pluck('total', 'gender');
+
+        $male = 0;
+        $female = 0;
+        foreach ($genderRows as $gender => $total) {
+            $g = strtolower((string) $gender);
+            if (in_array($g, ['l', 'male', 'laki-laki'], true)) {
+                $male += (int) $total;
+            } elseif (in_array($g, ['p', 'female', 'perempuan'], true)) {
+                $female += (int) $total;
+            }
         }
 
         $students = $query->paginate($perPage);
@@ -230,7 +350,34 @@ class TeacherDashboardController extends Controller
                 'grade' => $class->grade,
                 'academic_year' => $class->academic_year,
             ],
+            'summary' => [
+                'total' => (int) $summaryQuery->count(),
+                'male' => $male,
+                'female' => $female,
+            ],
         ]);
+    }
+
+    /**
+     * Normalisasi status siswa: frontend lama kirim "active", DB memakai "Aktif".
+     */
+    protected function normalizeStudentStatus(mixed $status): ?string
+    {
+        if ($status === null || $status === '' || $status === 'all') {
+            return null;
+        }
+
+        $raw = trim((string) $status);
+        $key = strtolower($raw);
+
+        return match ($key) {
+            'active', 'aktif' => 'Aktif',
+            'inactive', 'tidak aktif', 'tidak_aktif' => 'Tidak Aktif',
+            'graduated', 'lulus' => 'Lulus',
+            'transfer', 'pindah' => 'Pindah',
+            'drop_out', 'drop out', 'do' => 'Drop Out',
+            default => $raw,
+        };
     }
 
     /**

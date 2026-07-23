@@ -12,6 +12,7 @@ use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Institution;
 use App\Models\User;
 use App\Support\InstitutionContext;
 use App\Notifications\ResetPasswordNotification;
@@ -499,11 +500,7 @@ class AuthController extends Controller
                 ], 403);
             }
 
-            $request->attributes->set('current_institution_id', $institutionId);
-            $request->attributes->set(
-                'current_affiliation',
-                InstitutionContext::affiliationFor($user, $institutionId)
-            );
+            InstitutionContext::forceActiveInstitution($request, $user, $institutionId);
 
             $loads = ['institution', 'permissions'];
             if ($user->role === 'teacher' || $user->role === 'staff') {
@@ -545,6 +542,28 @@ class AuthController extends Controller
         $activeId = InstitutionContext::resolveActiveInstitutionId($user, $request);
         $active = $available->firstWhere('id', $activeId);
 
+        $activeAcademicYear = null;
+        $activeSemester = null;
+        if ($activeId) {
+            $institution = Institution::query()
+                ->with(['activeAcademicYear:id,code,name', 'activeSemester:id,name,order,academic_year_id'])
+                ->find($activeId);
+            if ($institution?->activeAcademicYear) {
+                $activeAcademicYear = [
+                    'id' => $institution->activeAcademicYear->id,
+                    'code' => $institution->activeAcademicYear->code,
+                    'name' => $institution->activeAcademicYear->name,
+                ];
+            }
+            if ($institution?->activeSemester) {
+                $activeSemester = [
+                    'id' => $institution->activeSemester->id,
+                    'name' => $institution->activeSemester->name,
+                    'order' => $institution->activeSemester->order,
+                ];
+            }
+        }
+
         return [
             'available_institutions' => $available->values()->all(),
             'active_institution_id' => $activeId,
@@ -554,6 +573,10 @@ class AuthController extends Controller
                 'name' => $active['name'],
                 'npsn' => $active['npsn'] ?? null,
                 'affiliation' => $active['affiliation'],
+                'active_academic_year_id' => $activeAcademicYear['id'] ?? null,
+                'active_semester_id' => $activeSemester['id'] ?? null,
+                'active_academic_year' => $activeAcademicYear,
+                'active_semester' => $activeSemester,
             ] : null,
         ];
     }

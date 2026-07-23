@@ -6,14 +6,54 @@
         <thead>
           <tr>
             <th class="col-no">No</th>
-            <th>NIK</th>
-            <th>NIS</th>
-            <th>NISN</th>
-            <th>Nama</th>
-            <th>Jenis Kelamin</th>
-            <th>Tingkat</th>
-            <th>Kelas</th>
-            <th>Status</th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'nik')">
+                NIK
+                <span class="sort-icon" :class="sortClass('nik')" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'nis')">
+                NIS
+                <span class="sort-icon" :class="sortClass('nis')" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'nisn')">
+                NISN
+                <span class="sort-icon" :class="sortClass('nisn')" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'name')">
+                Nama
+                <span class="sort-icon" :class="sortClass('name')" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'gender')">
+                Jenis Kelamin
+                <span class="sort-icon" :class="sortClass('gender')" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'tingkat')">
+                Tingkat
+                <span class="sort-icon" :class="sortClass('tingkat')" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'class')">
+                Kelas
+                <span class="sort-icon" :class="sortClass('class')" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="th-sort" @click="$emit('sort', 'status')">
+                Status
+                <span class="sort-icon" :class="sortClass('status')" aria-hidden="true"></span>
+              </button>
+            </th>
             <th>Aksi</th>
           </tr>
         </thead>
@@ -145,7 +185,7 @@ function displayValue(v) {
   return String(v).trim() || 'Belum ada data'
 }
 
-defineProps({
+const props = defineProps({
   students: {
     type: Array,
     default: () => []
@@ -161,10 +201,23 @@ defineProps({
   getStatusClass: {
     type: Function,
     default: () => () => ''
+  },
+  sortBy: {
+    type: String,
+    default: 'created_at'
+  },
+  sortDir: {
+    type: String,
+    default: 'desc'
   }
 })
 
-defineEmits(['view', 'edit', 'delete', 'add', 'restore'])
+defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'sort'])
+
+function sortClass(column) {
+  if (props.sortBy !== column) return 'is-idle'
+  return props.sortDir === 'asc' ? 'is-asc' : 'is-desc'
+}
 </script>
 
 <style scoped>
@@ -194,6 +247,50 @@ defineEmits(['view', 'edit', 'delete', 'add', 'restore'])
   font-weight: 600;
   color: #065f46;
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.th-sort:hover {
+  color: #047857;
+}
+
+.sort-icon {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  opacity: 0.35;
+  border-bottom: 5px solid currentColor;
+}
+
+.sort-icon.is-idle {
+  opacity: 0.25;
+}
+
+.sort-icon.is-asc {
+  opacity: 1;
+  border-bottom: 5px solid currentColor;
+  border-top: 0;
+}
+
+.sort-icon.is-desc {
+  opacity: 1;
+  border-bottom: 0;
+  border-top: 5px solid currentColor;
 }
 
 .data-table .col-no {

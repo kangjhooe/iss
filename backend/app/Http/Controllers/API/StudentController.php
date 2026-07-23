@@ -10,6 +10,7 @@ use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Services\StudentService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +24,36 @@ class StudentController extends Controller
     public function __construct(StudentService $studentService)
     {
         $this->studentService = $studentService;
+    }
+
+    /**
+     * Resolve institution for student APIs.
+     * Admin/super admin may omit institution_id (list all) or pass one; others use active context.
+     */
+    private function resolveStudentInstitutionId(Request $request): ?int
+    {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
+            return $request->filled('institution_id') ? (int) $request->get('institution_id') : null;
+        }
+
+        return InstitutionContext::resolveForUser(
+            $user,
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
+    private function userCanAccessStudent(Request $request, Student $student): bool
+    {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
+            return true;
+        }
+
+        $institutionId = $this->resolveStudentInstitutionId($request);
+
+        return $this->studentService->canAccess($student, $institutionId, false);
     }
 
     /**
@@ -55,33 +86,10 @@ class StudentController extends Controller
     public function index(Request $request)
     {
         try {
-            // Determine institution ID
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveStudentInstitutionId($request);
 
-            // Get filters
-            $filters = $request->only(['search', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'gender', 'tingkat']);
-            $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
-            $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
+            $filters = $this->resolveListFilters($request, $institutionId);
 
-            // Semester aktif hanya sebagai default daftar umum.
-            // Jangan paksa jika class_id / academic_year_id sudah dipilih (fitur naik kelas & luluskan).
-            if (
-                !isset($filters['semester_id'])
-                && !isset($filters['class_id'])
-                && !isset($filters['academic_year_id'])
-                && $institutionId
-            ) {
-                $institution = \App\Models\Institution::find($institutionId);
-                if ($institution && $institution->active_semester_id) {
-                    $filters['semester_id'] = $institution->active_semester_id;
-                }
-            }
-            
             // Get per page
             $perPage = min($request->get('per_page', 15), 100);
 
@@ -99,6 +107,73 @@ class StudentController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Export daftar siswa (semua baris sesuai filter, field lengkap untuk Excel).
+     */
+    public function export(Request $request)
+    {
+        try {
+            $institutionId = $this->resolveStudentInstitutionId($request);
+
+            $filters = $this->resolveListFilters($request, $institutionId);
+            $students = $this->studentService->listForExport($filters, $institutionId);
+
+            return StudentResource::collection($students);
+        } catch (\Exception $e) {
+            Log::error('Failed to export students', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengekspor data siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Build list/export filters from request (shared).
+     */
+    protected function resolveListFilters(Request $request, ?int $institutionId): array
+    {
+        $filters = $request->only([
+            'search',
+            'class',
+            'class_id',
+            'academic_year',
+            'academic_year_id',
+            'semester_id',
+            'status',
+            'gender',
+            'tingkat',
+            'sort_by',
+            'sort_dir',
+        ]);
+        $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
+        $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
+
+        $hasUnassignedClass = isset($filters['class_id']) && StudentService::isUnassignedFilter($filters['class_id']);
+        $hasUnassignedTingkat = isset($filters['tingkat']) && StudentService::isUnassignedFilter($filters['tingkat']);
+
+        // Semester aktif hanya sebagai default daftar umum.
+        // Jangan paksa jika class_id / academic_year_id sudah dipilih, atau filter "tanpa kelas/tingkat".
+        if (
+            !isset($filters['semester_id'])
+            && !isset($filters['class_id'])
+            && !isset($filters['academic_year_id'])
+            && !$hasUnassignedClass
+            && !$hasUnassignedTingkat
+            && $institutionId
+        ) {
+            $institution = \App\Models\Institution::find($institutionId);
+            if ($institution && $institution->active_semester_id) {
+                $filters['semester_id'] = $institution->active_semester_id;
+            }
+        }
+
+        return $filters;
     }
 
     /**
@@ -134,9 +209,7 @@ class StudentController extends Controller
     public function store(StoreStudentRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? $request->institution_id 
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveStudentInstitutionId($request);
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -201,7 +274,7 @@ class StudentController extends Controller
             $student = $this->studentService->find($id, ['institution', 'documents', 'class', 'academicYear', 'classHistory']);
 
             // Check authorization
-            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -248,7 +321,7 @@ class StudentController extends Controller
             $student = $this->studentService->find($id);
 
             // Check authorization
-            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -292,7 +365,7 @@ class StudentController extends Controller
 
             $institutionId = $request->user()->isAdminOrSuperAdmin()
                 ? ((int) ($request->input('institution_id') ?: ($sourceClass?->institution_id ?? 0)))
-                : $request->user()->institution_id;
+                : $this->resolveStudentInstitutionId($request);
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 400);
@@ -359,7 +432,7 @@ class StudentController extends Controller
             $student = $this->studentService->find($id);
 
             // Check authorization
-            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -399,7 +472,7 @@ class StudentController extends Controller
         try {
             $student = Student::withTrashed()->findOrFail($id);
 
-            if (!$this->studentService->canAccess($student, $request->user()->institution_id, $request->user()->isAdminOrSuperAdmin())) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -442,9 +515,7 @@ class StudentController extends Controller
                 ], 400);
             }
 
-            $institutionId = $request->user()->isAdminOrSuperAdmin()
-                ? $request->input('institution_id')
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveStudentInstitutionId($request);
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -563,7 +634,7 @@ class StudentController extends Controller
             $student = Student::findOrFail($id);
 
             // Jika bukan admin/super admin, hanya bisa upload dokumen siswa dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -656,7 +727,7 @@ class StudentController extends Controller
             }
 
             // Jika bukan admin/super admin, hanya bisa hapus dokumen siswa dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -709,7 +780,7 @@ class StudentController extends Controller
             }
 
             // Jika bukan admin/super admin, hanya bisa download dokumen siswa dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $student->institution_id) {
+            if (!$this->userCanAccessStudent($request, $student)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 

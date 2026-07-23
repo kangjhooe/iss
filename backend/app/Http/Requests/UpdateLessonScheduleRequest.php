@@ -19,11 +19,12 @@ class UpdateLessonScheduleRequest extends FormRequest
             'subject_id' => 'sometimes|exists:subjects,id',
             'employee_id' => 'sometimes|exists:employee,id',
             'room_id' => 'nullable|exists:room,id',
-            'day_of_week' => 'sometimes|integer|min:1|max:5',
+            'day_of_week' => 'sometimes|integer|min:1|max:7',
             'period' => 'sometimes|integer|min:1|max:20',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i|after_or_equal:start_time',
             'notes' => 'nullable|string',
+            'allow_teacher_conflict' => 'nullable|boolean',
         ];
     }
 }

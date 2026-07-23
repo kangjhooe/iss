@@ -42,21 +42,38 @@
             <thead>
               <tr>
                 <th>Mata Pelajaran</th>
-                <th>UH</th>
+                <th>Rata Penilaian</th>
                 <th>UTS</th>
                 <th>UAS</th>
-                <th>Tugas</th>
                 <th>Nilai Akhir</th>
+                <th>KKM</th>
+                <th>Predikat</th>
+                <th>Ketuntasan</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="g in grades" :key="g.subject_id">
-                <td class="subject-name">{{ g.subject?.name || '-' }}</td>
-                <td>{{ g.uh ?? '-' }}</td>
+                <td class="subject-name">
+                  {{ g.subject?.name || '-' }}
+                  <div v-if="penilaianDetail(g)" class="penilaian-detail">{{ penilaianDetail(g) }}</div>
+                </td>
+                <td>{{ g.rata_penilaian ?? '-' }}</td>
                 <td>{{ g.uts ?? '-' }}</td>
                 <td>{{ g.uas ?? '-' }}</td>
-                <td>{{ g.tugas ?? '-' }}</td>
                 <td class="nilai-akhir">{{ g.nilai_akhir ?? '-' }}</td>
+                <td>{{ g.kkm ?? '-' }}</td>
+                <td>
+                  <span v-if="g.predicate" class="pred-chip" :class="`pred-${g.predicate}`">{{ g.predicate }}</span>
+                  <span v-else>-</span>
+                </td>
+                <td>
+                  <span
+                    v-if="g.tuntas_label"
+                    class="tuntas-chip"
+                    :class="g.is_tuntas ? 'tuntas' : 'belum'"
+                  >{{ g.tuntas_label }}</span>
+                  <span v-else>-</span>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -128,6 +145,21 @@ async function loadGrades() {
 }
 
 watch(selectedSemesterId, () => loadGrades(), { immediate: true })
+
+function penilaianDetail(g) {
+  const src = g?.penilaian
+  if (!src || typeof src !== 'object') return ''
+  const parts = Object.keys(src)
+    .map((k) => Number(k))
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b)
+    .map((n) => {
+      const v = src[n] ?? src[String(n)]
+      return v == null || v === '' ? null : `P${n}: ${v}`
+    })
+    .filter(Boolean)
+  return parts.length ? parts.join(' · ') : ''
+}
 
 async function downloadRaport() {
   if (!studentId.value || !selectedSemesterId.value) return
@@ -308,10 +340,44 @@ async function downloadRaport() {
   font-weight: 600;
 }
 
+.penilaian-detail {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
 .nilai-akhir {
   font-weight: 700;
   color: #059669;
 }
+
+.pred-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #334155;
+}
+.pred-chip.pred-A { background: #d1fae5; color: #065f46; }
+.pred-chip.pred-B { background: #dbeafe; color: #1e40af; }
+.pred-chip.pred-C { background: #fef3c7; color: #92400e; }
+.pred-chip.pred-D { background: #fee2e2; color: #991b1b; }
+
+.tuntas-chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tuntas-chip.tuntas { background: #d1fae5; color: #065f46; }
+.tuntas-chip.belum { background: #fee2e2; color: #991b1b; }
 
 @media (max-width: 768px) {
   .page-header {

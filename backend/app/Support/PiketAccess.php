@@ -28,6 +28,43 @@ class PiketAccess
         return $user->hasModuleAccess('guru_piket_manage');
     }
 
+    /**
+     * Laporan piket: hanya admin, kepala sekolah, dan wakil kepala sekolah.
+     */
+    public static function canViewReport(User $user): bool
+    {
+        if ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
+            return true;
+        }
+
+        return self::hasAnyDuty($user, [
+            'kepala_sekolah',
+            'waka_kurikulum',
+            'waka_kesiswaan',
+            'waka_sarpras',
+            'waka_humas',
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $dutyKeys
+     */
+    public static function hasAnyDuty(User $user, array $dutyKeys): bool
+    {
+        $employee = self::employeeFor($user);
+        if (!$employee || $dutyKeys === []) {
+            return false;
+        }
+
+        return $employee->additionalDuties()
+            ->whereIn('additional_duties.key', $dutyKeys)
+            ->where(function ($q) {
+                $q->whereNull('employee_additional_duties.ended_at')
+                    ->orWhere('employee_additional_duties.ended_at', '>', now());
+            })
+            ->exists();
+    }
+
     public static function canAccess(User $user): bool
     {
         if (self::canManage($user)) {
@@ -44,14 +81,7 @@ class PiketAccess
 
     public static function hasDuty(User $user): bool
     {
-        $employee = self::employeeFor($user);
-        if (!$employee) {
-            return false;
-        }
-
-        return $employee->additionalDuties()
-            ->where('additional_duties.key', 'guru_piket')
-            ->exists();
+        return self::hasAnyDuty($user, ['guru_piket']);
     }
 
     public static function isScheduled(User $user, ?int $institutionId = null): bool

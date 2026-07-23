@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Institution;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -45,6 +46,8 @@ class InstitutionResource extends JsonResource
             'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
             'longitude' => $this->longitude !== null ? (float) $this->longitude : null,
             'location_radius' => $this->location_radius !== null ? (int) $this->location_radius : null,
+            'teacher_appreciation_leaderboard_mode' => $this->teacher_appreciation_leaderboard_mode
+                ?: Institution::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY,
             'users_count' => $this->whenLoaded('users', function () {
                 return $this->users->count();
             }),

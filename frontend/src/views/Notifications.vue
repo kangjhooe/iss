@@ -75,6 +75,8 @@
             <p class="notification-message">{{ n.message || 'Notifikasi' }}</p>
             <span class="notification-time">{{ formatDate(n.created_at) }}</span>
             <router-link v-if="n.type === 'ppdb_registration'" to="/ppdb" class="notification-link">Buka PPDB →</router-link>
+            <router-link v-else-if="n.type === 'teacher_mutation'" to="/teacher-mutation" class="notification-link">Buka Mutasi Guru →</router-link>
+            <router-link v-else-if="n.type === 'student_mutation'" to="/student-mutation" class="notification-link">Buka Mutasi Siswa →</router-link>
             <span v-else-if="n.type === 'broadcast'" class="notification-badge">Pengumuman sistem</span>
           </div>
           <button

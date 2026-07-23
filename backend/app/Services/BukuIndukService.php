@@ -2,12 +2,23 @@
 
 namespace App\Services;
 
+use App\Models\ExtracurricularGrade;
 use App\Models\Grade;
+use App\Models\SchoolClass;
 use App\Models\StudentAttendance;
-use Illuminate\Support\Facades\Log;
+use App\Models\SubjectKkm;
+use Illuminate\Support\Collection;
 
 class BukuIndukService
 {
+    private const MUTATION_STATUS_LABELS = [
+        'pending' => 'Menunggu',
+        'approved' => 'Disetujui',
+        'rejected' => 'Ditolak',
+        'cancelled' => 'Dibatalkan',
+        'cancel_pending' => 'Menunggu batal',
+    ];
+
     public function __construct(
         private StudentService $studentService
     ) {}
@@ -37,23 +48,22 @@ class BukuIndukService
             'extracurricularEnrollments.academicYear',
             'extracurricularEnrollments.semester',
             'alumniDestinations',
+            'libraryLoans',
         ];
 
         $student = $this->studentService->find($studentId, $with);
 
         $attendanceSummary = $this->buildAttendanceSummary($student->id);
-        $gradesSummary = $this->buildGradesSummary($student->id);
+        $gradesSummary = $this->buildGradesSummary($student);
         $librarySummary = $this->buildLibrarySummary($student);
-
-        $extracurriculars = $student->extracurricularEnrollments
-            ->sortByDesc('joined_at')
-            ->values();
+        $extracurriculars = $this->buildExtracurricularSummary($student);
+        $mutations = $this->buildMutationsSummary($student->studentMutations);
 
         return [
             'student' => $student,
             'institution' => $student->institution,
             'class_history' => $student->classHistory->sortBy('start_date')->values(),
-            'mutations' => $student->studentMutations->sortByDesc('created_at')->values(),
+            'mutations' => $mutations,
             'achievements' => $student->achievements->sortByDesc('achievement_date')->values(),
             'violations' => $student->violations->sortByDesc('violation_date')->values(),
             'counseling_sessions' => $student->counselingSessions->sortByDesc('session_date')->values(),
@@ -109,18 +119,29 @@ class BukuIndukService
     }
 
     /**
-     * Build grades summary (nilai akhir per mapel per semester).
+     * Build grades summary (nilai akhir + KKM/predikat per mapel per semester).
      */
-    protected function buildGradesSummary(int $studentId): array
+    protected function buildGradesSummary($student): array
     {
-        $grades = Grade::where('student_id', $studentId)
+        $grades = Grade::where('student_id', $student->id)
             ->where('grade_type', Grade::TYPE_NILAI_AKHIR)
-            ->with(['subject', 'academicYear', 'semester'])
+            ->with(['subject', 'academicYear', 'semester', 'schoolClass:id,grade'])
             ->orderBy('academic_year_id')
             ->orderBy('semester_id')
             ->get();
 
+        if ($grades->isEmpty()) {
+            return [];
+        }
+
+        $classIds = $grades->pluck('class_id')->filter()->unique()->values();
+        $classGradeById = SchoolClass::query()
+            ->whereIn('id', $classIds)
+            ->pluck('grade', 'id');
+
+        $kkmCache = [];
         $byPeriod = [];
+
         foreach ($grades as $g) {
             $key = ($g->academic_year_id ?? 0) . '_' . ($g->semester_id ?? 0);
             if (!isset($byPeriod[$key])) {
@@ -132,14 +153,162 @@ class BukuIndukService
                     'subjects' => [],
                 ];
             }
+
+            $value = $g->value !== null ? (float) $g->value : null;
+            $gradeLevel = (int) (
+                $classGradeById[$g->class_id] ??
+                $g->schoolClass?->grade ??
+                $student->tingkat ??
+                0
+            );
+            $kkm = $this->resolveKkm(
+                $kkmCache,
+                (int) ($g->institution_id ?? $student->institution_id),
+                (int) ($g->semester_id ?? 0),
+                $gradeLevel,
+                (int) ($g->subject_id ?? 0)
+            );
+            $tuntas = SubjectKkm::isTuntas($value, $kkm);
+
             $byPeriod[$key]['subjects'][] = [
                 'subject_name' => $g->subject?->name ?? '-',
                 'subject_code' => $g->subject?->code ?? null,
-                'value' => $g->value !== null ? (float) $g->value : null,
+                'value' => $value,
+                'kkm' => $kkm,
+                'predicate' => SubjectKkm::predicateFromScore($value, $kkm),
+                'is_tuntas' => $tuntas,
+                'tuntas_label' => $tuntas === null ? null : ($tuntas ? 'Tuntas' : 'Belum tuntas'),
             ];
         }
 
         return array_values($byPeriod);
+    }
+
+    /**
+     * @param  array<string, float|null>  $kkmCache
+     */
+    protected function resolveKkm(array &$kkmCache, int $institutionId, int $semesterId, int $gradeLevel, int $subjectId): ?float
+    {
+        if ($institutionId <= 0 || $semesterId <= 0 || $gradeLevel <= 0 || $subjectId <= 0) {
+            return null;
+        }
+
+        $cacheKey = "{$institutionId}_{$semesterId}_{$gradeLevel}_{$subjectId}";
+        if (array_key_exists($cacheKey, $kkmCache)) {
+            return $kkmCache[$cacheKey];
+        }
+
+        $kkm = SubjectKkm::query()
+            ->where('institution_id', $institutionId)
+            ->where('semester_id', $semesterId)
+            ->where('grade', $gradeLevel)
+            ->where('subject_id', $subjectId)
+            ->value('kkm');
+
+        $kkmCache[$cacheKey] = $kkm !== null ? (float) $kkm : null;
+
+        return $kkmCache[$cacheKey];
+    }
+
+    /**
+     * Normalize mutation rows for UI/PDF (status label, cancel flow, NPSN).
+     */
+    protected function buildMutationsSummary(Collection $mutations): Collection
+    {
+        return $mutations
+            ->sortByDesc('created_at')
+            ->values()
+            ->map(function ($m) {
+                $originName = $m->originInstitution?->name ?? $m->origin_school_name;
+                $targetName = $m->targetInstitution?->name ?? $m->target_school_name;
+                $originNpsn = $m->originInstitution?->npsn ?? $m->origin_npsn;
+                $targetNpsn = $m->targetInstitution?->npsn ?? $m->target_npsn;
+                $status = $m->status ?? '-';
+
+                return [
+                    'id' => $m->id,
+                    'origin_school_name' => $originName,
+                    'origin_npsn' => $originNpsn,
+                    'target_school_name' => $targetName,
+                    'target_npsn' => $targetNpsn,
+                    'origin_institution' => $m->originInstitution ? [
+                        'id' => $m->originInstitution->id,
+                        'name' => $m->originInstitution->name,
+                        'npsn' => $m->originInstitution->npsn,
+                    ] : null,
+                    'target_institution' => $m->targetInstitution ? [
+                        'id' => $m->targetInstitution->id,
+                        'name' => $m->targetInstitution->name,
+                        'npsn' => $m->targetInstitution->npsn,
+                    ] : null,
+                    'status' => $status,
+                    'status_label' => self::MUTATION_STATUS_LABELS[$status] ?? $status,
+                    'student_grade' => $m->student_grade,
+                    'notes' => $m->notes,
+                    'rejection_reason' => $m->rejection_reason,
+                    'cancel_reason' => $m->cancel_reason,
+                    'cancel_rejection_reason' => $m->cancel_rejection_reason,
+                    'approved_at' => $m->approved_at?->toIso8601String(),
+                    'cancel_requested_at' => $m->cancel_requested_at?->toIso8601String(),
+                    'created_at' => $m->created_at?->toIso8601String(),
+                ];
+            });
+    }
+
+    /**
+     * Enrollment + nilai akhir ekskul (KKM/predikat).
+     */
+    protected function buildExtracurricularSummary($student): Collection
+    {
+        $enrollments = $student->extracurricularEnrollments
+            ->sortByDesc('joined_at')
+            ->values();
+
+        if ($enrollments->isEmpty()) {
+            return collect();
+        }
+
+        $finalGrades = ExtracurricularGrade::query()
+            ->where('student_id', $student->id)
+            ->whereIn('extracurricular_id', $enrollments->pluck('extracurricular_id')->filter()->unique())
+            ->get()
+            ->keyBy(fn ($g) => $g->extracurricular_id . '_' . ($g->semester_id ?? 0));
+
+        return $enrollments->map(function ($e) use ($finalGrades) {
+            $ekskul = $e->extracurricular;
+            $kkm = $ekskul?->kkm_value ?? 75.0;
+            $key = $e->extracurricular_id . '_' . ($e->semester_id ?? 0);
+            $final = $finalGrades->get($key)
+                ?? $finalGrades->first(fn ($g) => (int) $g->extracurricular_id === (int) $e->extracurricular_id);
+
+            $score = $final?->score !== null ? (float) $final->score : null;
+            $predicate = $final?->predicate
+                ?? ExtracurricularGrade::predicateFromScore($score, $kkm);
+
+            return [
+                'id' => $e->id,
+                'extracurricular' => $ekskul ? [
+                    'id' => $ekskul->id,
+                    'name' => $ekskul->name,
+                    'kkm' => $kkm,
+                ] : null,
+                'academic_year' => $e->academicYear ? [
+                    'id' => $e->academicYear->id,
+                    'name' => $e->academicYear->name,
+                ] : null,
+                'semester' => $e->semester ? [
+                    'id' => $e->semester->id,
+                    'name' => $e->semester->name,
+                ] : null,
+                'joined_at' => $e->joined_at?->toIso8601String(),
+                'left_at' => $e->left_at?->toIso8601String(),
+                'status' => $e->status,
+                'kkm' => $kkm,
+                'score' => $score,
+                'predicate' => $predicate,
+                'grade_notes' => $final?->notes,
+            ];
+        });
     }
 
     /**

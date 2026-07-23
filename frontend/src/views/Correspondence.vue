@@ -118,15 +118,15 @@
         <div class="search-row">
           <div class="form-group">
             <label>Tanggal Dari</label>
-            <input v-model="filters.date_from" type="date" class="form-input" @change="loadCorrespondence" />
+            <input v-model="filters.date_from" type="date" class="form-input" @change="onFilterChange" />
           </div>
           <div class="form-group">
             <label>Tanggal Sampai</label>
-            <input v-model="filters.date_to" type="date" class="form-input" @change="loadCorrespondence" />
+            <input v-model="filters.date_to" type="date" class="form-input" @change="onFilterChange" />
           </div>
           <div class="form-group">
             <label>Jenis Surat</label>
-            <select v-model="filters.letter_type_code" @change="loadCorrespondence" class="form-input">
+            <select v-model="filters.letter_type_code" @change="onFilterChange" class="form-input">
               <option value="">Semua Jenis</option>
               <option v-for="lt in letterTypes" :key="lt.code" :value="lt.code">
                 {{ lt.code }} - {{ lt.abbr }} ({{ lt.name }})
@@ -135,7 +135,7 @@
           </div>
           <div class="form-group">
             <label>Kategori</label>
-            <select v-model="filters.category_id" @change="loadCorrespondence" class="form-input">
+            <select v-model="filters.category_id" @change="onFilterChange" class="form-input">
               <option value="">Semua Kategori</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
             </select>
@@ -145,19 +145,25 @@
       </div>
 
       <div class="filters filters-inline">
+        <select v-model="filters.academic_year_id" @change="onAcademicYearChange" class="filter-select filter-select-year">
+          <option value="">Semua Tahun Pelajaran</option>
+          <option v-for="year in academicYears" :key="year.id" :value="String(year.id)">
+            {{ year.code }}{{ year.name ? ` — ${year.name}` : '' }}
+          </option>
+        </select>
         <input 
           v-model="filters.search" 
           @input="debounceSearch" 
           placeholder="Cari nomor surat, perihal, atau pengirim..."
           class="search-input"
         />
-        <select v-model="filters.type" @change="loadCorrespondence" class="filter-select">
+        <select v-model="filters.type" @change="onFilterChange" class="filter-select">
           <option value="">Semua Tipe</option>
           <option value="masuk">Surat Masuk</option>
           <option value="keluar">Surat Keluar</option>
           <option value="internal">Surat Internal</option>
         </select>
-        <select v-model="filters.status" @change="loadCorrespondence" class="filter-select">
+        <select v-model="filters.status" @change="onFilterChange" class="filter-select">
           <option value="">Semua Status</option>
           <option value="draft">Draft</option>
           <option value="pending">Menunggu Persetujuan</option>
@@ -165,7 +171,7 @@
           <option value="sent">Terkirim</option>
           <option value="archived">Diarsipkan</option>
         </select>
-        <select v-model="filters.priority" @change="loadCorrespondence" class="filter-select">
+        <select v-model="filters.priority" @change="onFilterChange" class="filter-select">
           <option value="">Semua Prioritas</option>
           <option value="biasa">Biasa</option>
           <option value="penting">Penting</option>
@@ -299,17 +305,17 @@
         </div>
 
         <!-- Pagination -->
-        <div v-if="correspondence.length > 0 && correspondenceList.last_page > 1" class="pagination">
+        <div v-if="correspondence.length > 0" class="pagination">
           <button 
             @click="loadCorrespondence(correspondenceList.current_page - 1)" 
-            :disabled="correspondenceList.current_page === 1"
+            :disabled="correspondenceList.current_page <= 1"
             class="pagination-btn"
           >
             Sebelumnya
           </button>
           <span class="pagination-info">
             Halaman {{ correspondenceList.current_page }} dari {{ correspondenceList.last_page }}
-            (Total: {{ correspondenceList.total }} surat)
+            · {{ correspondenceRangeLabel }}
           </span>
           <button 
             @click="loadCorrespondence(correspondenceList.current_page + 1)" 
@@ -326,7 +332,7 @@
             <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <h3>Tidak ada surat</h3>
-          <p>Belum ada surat yang terdaftar</p>
+          <p>{{ filters.academic_year_id ? 'Tidak ada surat pada tahun pelajaran yang dipilih' : 'Belum ada surat yang terdaftar' }}</p>
         </div>
       </div>
 
@@ -910,17 +916,22 @@ import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import correspondenceApi from '@/api/correspondence'
+import { institutionApi } from '@/api/institution'
 import api from '@/api'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import { useReferenceDataStore } from '@/stores/referenceData'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const toast = useToast()
+const referenceData = useReferenceDataStore()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const correspondence = ref([])
 const categories = ref([])
 const letterTypes = ref([])
+const academicYears = ref([])
+const activeAcademicYearId = ref('')
 const users = ref([])
 const dispositions = ref([])
 const attachments = ref([])
@@ -952,10 +963,25 @@ const searchTimeout = ref(null)
 const pdfExportType = ref('')
 
 const filters = ref({
+  academic_year_id: '',
   search: '',
   type: '',
   status: '',
-  priority: ''
+  priority: '',
+  date_from: '',
+  date_to: '',
+  letter_type_code: '',
+  category_id: ''
+})
+
+const correspondenceRangeLabel = computed(() => {
+  const total = correspondenceList.value.total || 0
+  if (!total) return '0 surat'
+  const page = correspondenceList.value.current_page || 1
+  const perPage = correspondenceList.value.per_page || 15
+  const from = (page - 1) * perPage + 1
+  const to = Math.min(page * perPage, total)
+  return `${from}–${to} dari ${total} surat`
 })
 
 const form = ref({
@@ -989,17 +1015,27 @@ const correspondenceList = ref({
   total: 0
 })
 
+const buildListParams = (page = 1) => {
+  const params = {
+    page,
+    per_page: 15
+  }
+  if (filters.value.academic_year_id) params.academic_year_id = filters.value.academic_year_id
+  if (filters.value.search) params.search = filters.value.search
+  if (filters.value.type) params.type = filters.value.type
+  if (filters.value.status) params.status = filters.value.status
+  if (filters.value.priority) params.priority = filters.value.priority
+  if (filters.value.date_from) params.date_from = filters.value.date_from
+  if (filters.value.date_to) params.date_to = filters.value.date_to
+  if (filters.value.letter_type_code) params.letter_type_code = filters.value.letter_type_code
+  if (filters.value.category_id) params.category_id = filters.value.category_id
+  return params
+}
+
 const loadCorrespondence = async (page = 1) => {
   loading.value = true
   try {
-    const params = {
-      page,
-      per_page: 15
-    }
-    if (filters.value.search) params.search = filters.value.search
-    if (filters.value.type) params.type = filters.value.type
-    if (filters.value.status) params.status = filters.value.status
-    if (filters.value.priority) params.priority = filters.value.priority
+    const params = buildListParams(page)
 
     const response = await correspondenceApi.list(params)
     
@@ -1428,11 +1464,24 @@ const formatFileSize = (bytes) => {
 
 const loadStatistics = async () => {
   try {
-    const response = await correspondenceApi.getStatistics()
+    const params = {}
+    if (filters.value.academic_year_id) {
+      params.academic_year_id = filters.value.academic_year_id
+    }
+    const response = await correspondenceApi.getStatistics(params)
     statistics.value = response.data.data || response.data
   } catch (error) {
     if (import.meta.env.DEV) console.error('Failed to load statistics:', error)
   }
+}
+
+const onAcademicYearChange = () => {
+  loadCorrespondence(1)
+  loadStatistics()
+}
+
+const onFilterChange = () => {
+  loadCorrespondence(1)
 }
 
 const debounceSearch = () => {
@@ -1440,12 +1489,13 @@ const debounceSearch = () => {
     clearTimeout(searchTimeout.value)
   }
   searchTimeout.value = setTimeout(() => {
-    loadCorrespondence()
+    loadCorrespondence(1)
   }, 500)
 }
 
 const resetFilters = () => {
   filters.value = {
+    academic_year_id: activeAcademicYearId.value || '',
     search: '',
     type: '',
     status: '',
@@ -1455,13 +1505,39 @@ const resetFilters = () => {
     letter_type_code: '',
     category_id: ''
   }
-  loadCorrespondence()
+  loadCorrespondence(1)
+  loadStatistics()
+}
+
+const loadAcademicYearsAndDefaults = async () => {
+  try {
+    academicYears.value = await referenceData.getAcademicYears()
+  } catch {
+    academicYears.value = []
+  }
+
+  try {
+    const res = await institutionApi.getMy()
+    const institution = res.data?.data ?? res.data ?? null
+    if (institution?.active_academic_year_id) {
+      activeAcademicYearId.value = String(institution.active_academic_year_id)
+      filters.value.academic_year_id = activeAcademicYearId.value
+    }
+  } catch {
+    // Fallback: tahun ajaran berstatus Aktif
+    const active = academicYears.value.find((y) => y.status === 'Aktif')
+    if (active?.id) {
+      activeAcademicYearId.value = String(active.id)
+      filters.value.academic_year_id = activeAcademicYearId.value
+    }
+  }
 }
 
 const exportData = async (format, type = null) => {
   exporting.value = true
   try {
     const params = {}
+    if (filters.value.academic_year_id) params.academic_year_id = filters.value.academic_year_id
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.priority) params.priority = filters.value.priority
@@ -1868,6 +1944,8 @@ const getTypeLabel = (type) => {
 }
 
 onMounted(async () => {
+  await loadAcademicYearsAndDefaults()
+
   await Promise.all([
     loadCorrespondence(1),
     loadCategories(),
@@ -1995,6 +2073,11 @@ onMounted(async () => {
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
+}
+
+.filters-inline .filter-select-year {
+  min-width: 200px;
+  max-width: 280px;
 }
 
 .search-input {

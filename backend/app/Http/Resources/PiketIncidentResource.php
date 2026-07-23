@@ -28,54 +28,80 @@ class PiketIncidentResource extends JsonResource
             'source' => $this->source,
             'status' => $this->status,
             'status_label' => \App\Models\PiketIncident::STATUSES[$this->status] ?? $this->status,
-            'school_class' => $this->when($this->relationLoaded('schoolClass') && $this->schoolClass, [
-                'id' => $this->schoolClass->id,
-                'name' => $this->schoolClass->name,
-                'grade' => $this->schoolClass->grade,
-            ]),
-            'subject' => $this->when($this->relationLoaded('subject') && $this->subject, [
-                'id' => $this->subject->id,
-                'name' => $this->subject->name,
-            ]),
-            'employee' => $this->when($this->relationLoaded('employee') && $this->employee, [
-                'id' => $this->employee->id,
-                'name' => $this->employee->name,
-                'nip' => $this->employee->nip,
-            ]),
-            'student' => $this->when($this->relationLoaded('student') && $this->student, [
-                'id' => $this->student->id,
-                'name' => $this->student->name,
-                'nis' => $this->student->nis,
-            ]),
-            'violation' => $this->when($this->relationLoaded('violation') && $this->violation, [
-                'id' => $this->violation->id,
-                'status' => $this->violation->status,
-                'violation_type' => $this->violation->relationLoaded('violationType') && $this->violation->violationType
-                    ? [
-                        'id' => $this->violation->violationType->id,
-                        'name' => $this->violation->violationType->name,
-                        'point_weight' => $this->violation->violationType->point_weight,
-                    ]
-                    : null,
-            ]),
-            'teacher_violation' => $this->when($this->relationLoaded('teacherViolation') && $this->teacherViolation, [
-                'id' => $this->teacherViolation->id,
-                'status' => $this->teacherViolation->status,
-                'point_value' => $this->teacherViolation->point_value,
-                'violation_type' => $this->teacherViolation->relationLoaded('violationType') && $this->teacherViolation->violationType
-                    ? [
-                        'id' => $this->teacherViolation->violationType->id,
-                        'name' => $this->teacherViolation->violationType->name,
-                        'point_weight' => $this->teacherViolation->violationType->point_weight,
-                        'code' => $this->teacherViolation->violationType->code,
-                    ]
-                    : null,
-            ]),
+            'school_class' => $this->when(
+                $this->relationLoaded('schoolClass') && $this->schoolClass,
+                fn () => [
+                    'id' => $this->schoolClass->id,
+                    'name' => $this->schoolClass->name,
+                    'grade' => $this->schoolClass->grade,
+                ]
+            ),
+            'subject' => $this->when(
+                $this->relationLoaded('subject') && $this->subject,
+                fn () => [
+                    'id' => $this->subject->id,
+                    'name' => $this->subject->name,
+                ]
+            ),
+            'employee' => $this->when(
+                $this->relationLoaded('employee') && $this->employee,
+                fn () => [
+                    'id' => $this->employee->id,
+                    'name' => $this->employee->name,
+                    'nip' => $this->employee->nip,
+                ]
+            ),
+            'student' => $this->when(
+                $this->relationLoaded('student') && $this->student,
+                fn () => [
+                    'id' => $this->student->id,
+                    'name' => $this->student->name,
+                    'nis' => $this->student->nis,
+                ]
+            ),
+            'violation' => $this->when(
+                $this->relationLoaded('violation') && $this->violation,
+                function () {
+                    $type = $this->violation->relationLoaded('violationType')
+                        ? $this->violation->violationType
+                        : null;
+
+                    return [
+                        'id' => $this->violation->id,
+                        'status' => $this->violation->status,
+                        'violation_type' => $type ? [
+                            'id' => $type->id,
+                            'name' => $type->name,
+                            'point_weight' => $type->point_weight,
+                        ] : null,
+                    ];
+                }
+            ),
+            'teacher_violation' => $this->when(
+                $this->relationLoaded('teacherViolation') && $this->teacherViolation,
+                function () {
+                    $type = $this->teacherViolation->relationLoaded('violationType')
+                        ? $this->teacherViolation->violationType
+                        : null;
+
+                    return [
+                        'id' => $this->teacherViolation->id,
+                        'status' => $this->teacherViolation->status,
+                        'point_value' => $this->teacherViolation->point_value,
+                        'violation_type' => $type ? [
+                            'id' => $type->id,
+                            'name' => $type->name,
+                            'point_weight' => $type->point_weight,
+                            'code' => $type->code,
+                        ] : null,
+                    ];
+                }
+            ),
             'can_propose_violation' => $this->when(
                 $this->relationLoaded('violation'),
                 fn () => (bool) $this->student_id
                     && (
-                        !$this->violation
+                        ! $this->violation
                         || $this->violation->status === \App\Models\Violation::STATUS_DITOLAK
                     )
             ),
@@ -84,7 +110,7 @@ class PiketIncidentResource extends JsonResource
                 fn () => $this->isTeacherRelated()
                     && (bool) $this->employee_id
                     && (
-                        !$this->teacherViolation
+                        ! $this->teacherViolation
                         || $this->teacherViolation->status === \App\Models\TeacherViolation::STATUS_REJECTED
                     )
             ),

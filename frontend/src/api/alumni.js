@@ -13,6 +13,12 @@ export const alumniApi = {
   graduateBulk(data) {
     return api.post('/v1/student/graduate-bulk', data)
   },
+  revokeGraduation(id, data = {}) {
+    return api.post(`/v1/student/${id}/revoke-graduation`, data)
+  },
+  revokeGraduationBulk(data) {
+    return api.post('/v1/student/revoke-graduation-bulk', data)
+  },
   // Tracking destinasi alumni (lanjut sekolah/kuliah/kerja/dll)
   getDestinationTypes() {
     return api.get('/v1/alumni/destination-types')

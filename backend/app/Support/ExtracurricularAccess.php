@@ -24,6 +24,16 @@ class ExtracurricularAccess
             return true;
         }
 
+        $activeId = request()->attributes->get('current_institution_id');
+        $activeId = $activeId !== null && $activeId !== ''
+            ? (int) $activeId
+            : ($user->institution_id ? (int) $user->institution_id : null);
+
+        // Jabatan koordinator hanya berlaku di sekolah induk.
+        if ($activeId && InstitutionContext::affiliationFor($user, $activeId) === 'non_induk') {
+            return false;
+        }
+
         return self::hasDuty($user, 'koordinator_ekstrakurikuler');
     }
 
@@ -41,8 +51,9 @@ class ExtracurricularAccess
 
     /**
      * Whether the user is pembina (supervisor) of at least one ekstrakurikuler.
+     * When $institutionId is set, only clubs at that school count.
      */
-    public static function isSupervisor(User $user): bool
+    public static function isSupervisor(User $user, ?int $institutionId = null): bool
     {
         if ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
             return false;
@@ -53,9 +64,14 @@ class ExtracurricularAccess
             return false;
         }
 
-        return Extracurricular::query()
-            ->where('supervisor_employee_id', $employee->id)
-            ->exists();
+        $query = Extracurricular::query()
+            ->where('supervisor_employee_id', $employee->id);
+
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
+        }
+
+        return $query->exists();
     }
 
     public static function canAccess(User $user, Extracurricular $extracurricular): bool
@@ -80,6 +96,23 @@ class ExtracurricularAccess
     public static function canMutateCatalog(User $user): bool
     {
         return self::canManageAll($user);
+    }
+
+    /**
+     * KKM diisi pembina ekskul yang bersangkutan (bukan admin/koordinator katalog).
+     */
+    public static function canSetKkm(User $user, Extracurricular $extracurricular): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $employee = self::employeeFor($user);
+        if (!$employee) {
+            return false;
+        }
+
+        return (int) $extracurricular->supervisor_employee_id === (int) $employee->id;
     }
 
     /**

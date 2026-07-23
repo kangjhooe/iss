@@ -149,6 +149,16 @@
       </div>
       
       <div v-else-if="institution" class="institution-card">
+        <div class="institution-card-header">
+          <button @click="openEditModal" class="btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Edit Profil</span>
+          </button>
+        </div>
+
         <div class="info-section">
           <h3>Informasi Umum</h3>
           <div class="info-grid">
@@ -207,7 +217,7 @@
               </div>
             </div>
             <div class="info-item">
-              <label>Nomor Statistik</label>
+              <label>{{ nssLabel }}</label>
               <p :class="{ 'text-empty': !institution.nss || !String(institution.nss).trim() }">{{ displayValue(institution.nss) }}</p>
             </div>
             <div class="info-item">
@@ -415,15 +425,6 @@
           </div>
         </div>
 
-        <div class="institution-card-footer">
-          <button @click="openEditModal" class="btn-primary">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Edit Profil</span>
-          </button>
-        </div>
       </div>
       </template>
 
@@ -466,7 +467,7 @@
                 </small>
               </div>
               <div class="form-group">
-                <label>Nomor Statistik</label>
+                <label>{{ formNssLabel }}</label>
                 <input v-model="form.nss" />
               </div>
             </div>
@@ -741,7 +742,7 @@
                 <input v-model="form.npsn" maxlength="8" />
               </div>
               <div class="form-group">
-                <label>Nomor Statistik</label>
+                <label>{{ formNssLabel }}</label>
                 <input v-model="form.nss" />
               </div>
             </div>
@@ -984,7 +985,7 @@ import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
 import { validators, validateForm } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { getInstitutionTypeLabel } from '@/utils/institution'
+import { getInstitutionTypeLabel, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -1026,6 +1027,9 @@ const institutionTypeLabel = computed(() => {
   if (isSuperAdmin.value) return 'Instansi'
   return getInstitutionTypeLabel(institution.value?.level)
 })
+
+const nssLabel = computed(() => getNssLabel(institution.value?.level))
+const formNssLabel = computed(() => getNssLabel(form.value.level))
 
 const displayValue = (val) => (val && String(val).trim() !== '') ? val : 'Belum ada data'
 
@@ -1951,15 +1955,15 @@ watch(() => route.query.is_active, async () => {
   border: 1px solid #e5e7eb;
 }
 
-.institution-card-footer {
-  margin-top: 8px;
-  padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
+.institution-card-header {
+  margin-bottom: 8px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: flex-end;
 }
 
-.institution-card-footer .btn-primary {
+.institution-card-header .btn-primary {
   margin: 0;
 }
 
@@ -2632,11 +2636,11 @@ watch(() => route.query.is_active, async () => {
     margin: 0;
   }
 
-  .institution-card-footer {
+  .institution-card-header {
     justify-content: stretch;
   }
 
-  .institution-card-footer .btn-primary {
+  .institution-card-header .btn-primary {
     width: 100%;
     justify-content: center;
   }

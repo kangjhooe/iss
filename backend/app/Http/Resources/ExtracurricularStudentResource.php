@@ -38,6 +38,13 @@ class ExtracurricularStudentResource extends JsonResource
             'extracurricular' => $this->whenLoaded('extracurricular', fn () => $this->extracurricular ? [
                 'id' => $this->extracurricular->id,
                 'name' => $this->extracurricular->name,
+                'kkm' => $this->extracurricular->kkm !== null ? (float) $this->extracurricular->kkm : 75.0,
+                'supervisor' => $this->extracurricular->relationLoaded('supervisor') && $this->extracurricular->supervisor
+                    ? [
+                        'id' => $this->extracurricular->supervisor->id,
+                        'name' => $this->extracurricular->supervisor->name,
+                    ]
+                    : null,
             ] : null),
             'semester' => $this->whenLoaded('semester', fn () => $this->semester ? [
                 'id' => $this->semester->id,

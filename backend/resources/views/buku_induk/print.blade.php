@@ -17,18 +17,44 @@
         .section-title { font-weight: bold; font-size: 12pt; margin: 14px 0 8px 0; text-decoration: underline; }
         table.data { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 12px; }
         table.data td { padding: 4px 8px; vertical-align: top; }
-        table.data td.label { width: 140px; font-weight: bold; }
+        table.data td.label { width: 160px; font-weight: bold; }
         table.data tr.border td { border-bottom: 1px solid #ddd; }
         table.list { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; font-size: 10pt; margin-bottom: 10px; }
         table.list th, table.list td { border: 1px solid #333; padding: 5px 6px; text-align: left; }
         table.list th { background: #f0f0f0; font-weight: bold; }
         .footer { margin-top: 20px; font-size: 9pt; text-align: center; color: #666; }
         .no-data { color: #666; font-style: italic; }
+        .sub-head { font-weight: bold; margin: 10px 0 4px 0; font-size: 10.5pt; }
         @include('partials.print-letterhead-styles')
         @include('partials.print-signature-styles')
     </style>
 </head>
 <body>
+    @php
+        $genderLabel = match ($student->gender ?? null) {
+            'L' => 'Laki-laki',
+            'P' => 'Perempuan',
+            default => $student->gender ?? '-',
+        };
+        $parentStatus = [
+            'masih_hidup' => 'Masih Hidup',
+            'meninggal_dunia' => 'Meninggal Dunia',
+            'tidak_diketahui' => 'Tidak Diketahui',
+        ];
+        $residenceLabels = [
+            'asrama' => 'Asrama',
+            'kost_kontrak' => 'Kost/Kontrak',
+            'tinggal_dengan_orang_tua' => 'Tinggal dengan Orang Tua',
+            'lainnya' => 'Lainnya',
+        ];
+        $guardianTypeLabels = [
+            'sama_dengan_ayah' => 'Sama dengan Ayah Kandung',
+            'sama_dengan_ibu' => 'Sama dengan Ibu Kandung',
+            'lainnya' => 'Lainnya',
+        ];
+        $fmtDate = fn ($v) => $v ? \Carbon\Carbon::parse($v)->locale('id')->isoFormat('D MMMM YYYY') : '-';
+        $fmtMoney = fn ($v) => $v !== null && $v !== '' ? 'Rp ' . number_format((float) $v, 0, ',', '.') : '-';
+    @endphp
     @include('partials.print-letterhead', ['institution' => $institution])
     <div class="section-title">BUKU INDUK SISWA</div>
 
@@ -39,8 +65,8 @@
         <tr class="border"><td class="label">NISN</td><td>{{ $student->nisn ?? '-' }}</td></tr>
         <tr class="border"><td class="label">NIK</td><td>{{ $student->nik ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Nama Lengkap</td><td>{{ $student->name ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Jenis Kelamin</td><td>{{ $student->gender ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Tempat, Tanggal Lahir</td><td>{{ $student->birth_place ?? '-' }}, {{ $student->birth_date ? \Carbon\Carbon::parse($student->birth_date)->locale('id')->isoFormat('D MMMM YYYY') : '-' }}</td></tr>
+        <tr class="border"><td class="label">Jenis Kelamin</td><td>{{ $genderLabel }}</td></tr>
+        <tr class="border"><td class="label">Tempat, Tanggal Lahir</td><td>{{ $student->birth_place ?? '-' }}, {{ $fmtDate($student->birth_date) }}</td></tr>
         <tr class="border"><td class="label">Agama</td><td>{{ $student->religion ?? '-' }}</td></tr>
         <tr class="border"><td class="label">No. KK</td><td>{{ $student->no_kk ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Alamat</td><td>{{ $student->address ?? '-' }}</td></tr>
@@ -48,38 +74,51 @@
         <tr class="border"><td class="label">Email</td><td>{{ $student->email ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Tinggi / Berat</td><td>{{ $student->height ?? '-' }} cm / {{ $student->weight ?? '-' }} kg</td></tr>
         <tr class="border"><td class="label">Sekolah Asal</td><td>{{ $student->previous_school ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">NPSN Sekolah Asal</td><td>{{ $student->previous_school_npsn ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">Alamat Sekolah Asal</td><td>{{ $student->previous_school_address ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">Tingkat</td><td>{{ $student->tingkat ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Kelas / Tahun Ajaran</td><td>{{ ($student->relationLoaded('class') && $student->class ? $student->class->name : ($student->getRawOriginal('class') ?? '-')) }} / {{ $student->academic_year ?? ($student->academicYear->name ?? '-') }}</td></tr>
+        <tr class="border"><td class="label">Semester</td><td>{{ $student->relationLoaded('semester') && $student->semester ? $student->semester->name : '-' }}</td></tr>
         <tr class="border"><td class="label">Status</td><td>{{ $student->status ?? '-' }}</td></tr>
         @if($student->graduation_year)
         <tr class="border"><td class="label">Tahun Lulus</td><td>{{ $student->graduation_year }}</td></tr>
         @endif
-        @if($student->disability)
-        <tr class="border"><td class="label">Kebutuhan Khusus</td><td>{{ $student->disability }}</td></tr>
-        @endif
-        @if($student->aspiration)
-        <tr class="border"><td class="label">Cita-cita</td><td>{{ $student->aspiration }}</td></tr>
-        @endif
-        @if($student->hobby)
-        <tr class="border"><td class="label">Hobi</td><td>{{ $student->hobby }}</td></tr>
-        @endif
-        @if($student->residence_type)
-        <tr class="border"><td class="label">Jenis Tempat Tinggal</td><td>{{ $student->residence_type }}</td></tr>
-        @endif
+        <tr class="border"><td class="label">Kebutuhan Khusus</td><td>{{ $student->disability ?: '-' }}</td></tr>
+        <tr class="border"><td class="label">Cita-cita</td><td>{{ $student->aspiration ?: '-' }}</td></tr>
+        <tr class="border"><td class="label">Hobi</td><td>{{ $student->hobby ?: '-' }}</td></tr>
+        <tr class="border"><td class="label">Jenis Tempat Tinggal</td><td>{{ $residenceLabels[$student->residence_type] ?? ($student->residence_type ?: '-') }}</td></tr>
     </table>
 
     <!-- Data Orang Tua / Wali -->
     <div class="section-title" style="font-size: 11pt;">B. Data Orang Tua / Wali</div>
+    <p class="sub-head">Ayah</p>
     <table class="data">
+        <tr class="border"><td class="label">Status</td><td>{{ $parentStatus[$student->father_status] ?? ($student->father_status ?: '-') }}</td></tr>
         <tr class="border"><td class="label">Nama Ayah</td><td>{{ $student->father_name ?? '-' }}</td></tr>
         <tr class="border"><td class="label">NIK Ayah</td><td>{{ $student->father_nik ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Pendidikan / Pekerjaan Ayah</td><td>{{ $student->father_education ?? '-' }} / {{ $student->father_occupation ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">TTL Ayah</td><td>{{ $student->father_birth_place ?? '-' }}, {{ $fmtDate($student->father_birth_date) }}</td></tr>
+        <tr class="border"><td class="label">Pendidikan / Pekerjaan</td><td>{{ $student->father_education ?? '-' }} / {{ $student->father_occupation ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">Penghasilan</td><td>{{ $fmtMoney($student->father_income) }}</td></tr>
+    </table>
+    <p class="sub-head">Ibu</p>
+    <table class="data">
+        <tr class="border"><td class="label">Status</td><td>{{ $parentStatus[$student->mother_status] ?? ($student->mother_status ?: '-') }}</td></tr>
         <tr class="border"><td class="label">Nama Ibu</td><td>{{ $student->mother_name ?? '-' }}</td></tr>
         <tr class="border"><td class="label">NIK Ibu</td><td>{{ $student->mother_nik ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Pendidikan / Pekerjaan Ibu</td><td>{{ $student->mother_education ?? '-' }} / {{ $student->mother_occupation ?? '-' }}</td></tr>
-        @if($student->guardian_name)
-        <tr class="border"><td class="label">Nama Wali</td><td>{{ $student->guardian_name }}</td></tr>
+        <tr class="border"><td class="label">TTL Ibu</td><td>{{ $student->mother_birth_place ?? '-' }}, {{ $fmtDate($student->mother_birth_date) }}</td></tr>
+        <tr class="border"><td class="label">Pendidikan / Pekerjaan</td><td>{{ $student->mother_education ?? '-' }} / {{ $student->mother_occupation ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">Penghasilan</td><td>{{ $fmtMoney($student->mother_income) }}</td></tr>
+    </table>
+    <p class="sub-head">Wali</p>
+    <table class="data">
+        <tr class="border"><td class="label">Jenis Wali</td><td>{{ $guardianTypeLabels[$student->guardian_type] ?? ($student->guardian_type ?: '-') }}</td></tr>
+        <tr class="border"><td class="label">Status</td><td>{{ $parentStatus[$student->guardian_status] ?? ($student->guardian_status ?: '-') }}</td></tr>
+        <tr class="border"><td class="label">Nama Wali</td><td>{{ $student->guardian_name ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">NIK Wali</td><td>{{ $student->guardian_nik ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Telepon Wali</td><td>{{ $student->guardian_phone ?? '-' }}</td></tr>
-        @endif
+        <tr class="border"><td class="label">TTL Wali</td><td>{{ $student->guardian_birth_place ?? '-' }}, {{ $fmtDate($student->guardian_birth_date) }}</td></tr>
+        <tr class="border"><td class="label">Pendidikan / Pekerjaan</td><td>{{ $student->guardian_education ?? '-' }} / {{ $student->guardian_occupation ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">Penghasilan</td><td>{{ $fmtMoney($student->guardian_income) }}</td></tr>
     </table>
 
     <!-- Riwayat Kelas -->
@@ -117,25 +156,41 @@
 
     <!-- Mutasi -->
     <div class="section-title" style="font-size: 11pt;">D. Riwayat Mutasi</div>
-    @if($mutations && $mutations->isNotEmpty())
+    @if($mutations && count($mutations) > 0)
     <table class="list">
         <thead>
             <tr>
                 <th>No</th>
-                <th>Asal</th>
-                <th>Tujuan</th>
-                <th>Status</th>
                 <th>Tanggal</th>
+                <th>Asal (NPSN)</th>
+                <th>Tujuan (NPSN)</th>
+                <th>Status</th>
+                <th>Keterangan</th>
             </tr>
         </thead>
         <tbody>
             @foreach($mutations as $idx => $m)
+            @php
+                $m = is_array($m) ? $m : (array) $m;
+                $origin = $m['origin_school_name'] ?? ($m['origin_institution']['name'] ?? '-');
+                $target = $m['target_school_name'] ?? ($m['target_institution']['name'] ?? '-');
+                $originNpsn = $m['origin_npsn'] ?? ($m['origin_institution']['npsn'] ?? null);
+                $targetNpsn = $m['target_npsn'] ?? ($m['target_institution']['npsn'] ?? null);
+                $dateRaw = $m['approved_at'] ?? $m['created_at'] ?? null;
+                $notesParts = array_filter([
+                    $m['notes'] ?? null,
+                    !empty($m['rejection_reason']) ? 'Tolak: '.$m['rejection_reason'] : null,
+                    !empty($m['cancel_reason']) ? 'Batal: '.$m['cancel_reason'] : null,
+                    !empty($m['cancel_rejection_reason']) ? 'Tolak batal: '.$m['cancel_rejection_reason'] : null,
+                ]);
+            @endphp
             <tr>
                 <td>{{ $idx + 1 }}</td>
-                <td>{{ $m->originInstitution?->name ?? $m->origin_school_name ?? '-' }}</td>
-                <td>{{ $m->targetInstitution?->name ?? $m->target_school_name ?? '-' }}</td>
-                <td>{{ $m->status ?? '-' }}</td>
-                <td>{{ $m->created_at ? $m->created_at->format('d/m/Y') : '-' }}</td>
+                <td>{{ $dateRaw ? \Carbon\Carbon::parse($dateRaw)->format('d/m/Y') : '-' }}</td>
+                <td>{{ $origin }}{{ $originNpsn ? ' ('.$originNpsn.')' : '' }}</td>
+                <td>{{ $target }}{{ $targetNpsn ? ' ('.$targetNpsn.')' : '' }}</td>
+                <td>{{ $m['status_label'] ?? ($m['status'] ?? '-') }}</td>
+                <td>{{ $notesParts ? implode(' | ', $notesParts) : '-' }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -270,13 +325,19 @@
             <tr>
                 <th>Mata Pelajaran</th>
                 <th>Nilai</th>
+                <th>KKM</th>
+                <th>Predikat</th>
+                <th>Ketuntasan</th>
             </tr>
         </thead>
         <tbody>
             @foreach($period['subjects'] ?? [] as $s)
             <tr>
                 <td>{{ $s['subject_name'] ?? '-' }}</td>
-                <td>{{ isset($s['value']) ? $s['value'] : '-' }}</td>
+                <td>{{ isset($s['value']) && $s['value'] !== null ? $s['value'] : '-' }}</td>
+                <td>{{ isset($s['kkm']) && $s['kkm'] !== null ? $s['kkm'] : '-' }}</td>
+                <td>{{ $s['predicate'] ?? '-' }}</td>
+                <td>{{ $s['tuntas_label'] ?? '-' }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -288,7 +349,7 @@
 
     <!-- J. Ekstrakurikuler -->
     <div class="section-title" style="font-size: 11pt;">J. Ekstrakurikuler</div>
-    @if(isset($extracurriculars) && $extracurriculars->isNotEmpty())
+    @if(isset($extracurriculars) && count($extracurriculars) > 0)
     <table class="list">
         <thead>
             <tr>
@@ -299,18 +360,25 @@
                 <th>Bergabung</th>
                 <th>Keluar</th>
                 <th>Status</th>
+                <th>Nilai</th>
+                <th>KKM</th>
+                <th>Predikat</th>
             </tr>
         </thead>
         <tbody>
             @foreach($extracurriculars as $idx => $e)
+            @php $e = is_array($e) ? $e : (array) $e; @endphp
             <tr>
                 <td>{{ $idx + 1 }}</td>
-                <td>{{ $e->extracurricular->name ?? '-' }}</td>
-                <td>{{ $e->academicYear->name ?? '-' }}</td>
-                <td>{{ $e->semester->name ?? '-' }}</td>
-                <td>{{ $e->joined_at ? $e->joined_at->format('d/m/Y') : '-' }}</td>
-                <td>{{ $e->left_at ? $e->left_at->format('d/m/Y') : '-' }}</td>
-                <td>{{ $e->status ?? '-' }}</td>
+                <td>{{ $e['extracurricular']['name'] ?? '-' }}</td>
+                <td>{{ $e['academic_year']['name'] ?? '-' }}</td>
+                <td>{{ $e['semester']['name'] ?? '-' }}</td>
+                <td>{{ !empty($e['joined_at']) ? \Carbon\Carbon::parse($e['joined_at'])->format('d/m/Y') : '-' }}</td>
+                <td>{{ !empty($e['left_at']) ? \Carbon\Carbon::parse($e['left_at'])->format('d/m/Y') : '-' }}</td>
+                <td>{{ $e['status'] ?? '-' }}</td>
+                <td>{{ isset($e['score']) && $e['score'] !== null ? $e['score'] : '-' }}</td>
+                <td>{{ isset($e['kkm']) && $e['kkm'] !== null ? $e['kkm'] : '-' }}</td>
+                <td>{{ $e['predicate'] ?? '-' }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -443,7 +511,7 @@
         <div class="standard-signature-right">
             @include('partials.print-signature', [
                 'institution' => $institution,
-                'date' => \Carbon\Carbon::parse($printed_at)->locale('id')->translatedFormat('d F Y'),
+                'date' => now()->locale('id')->translatedFormat('d F Y'),
             ])
         </div>
     </div>

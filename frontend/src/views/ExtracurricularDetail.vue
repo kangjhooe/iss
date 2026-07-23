@@ -33,6 +33,27 @@
               <span v-if="locationText" class="meta-chip">{{ locationText }}</span>
               <span class="meta-chip">{{ participants.length }} peserta</span>
             </div>
+            <div v-if="canSetKkm" class="kkm-box">
+              <label class="kkm-label">KKM</label>
+              <input
+                v-model.number="kkmDraft"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                class="form-input form-input-sm input-score"
+              />
+              <button
+                type="button"
+                class="btn-primary btn-sm"
+                :disabled="savingKkm || kkmDraft === '' || kkmDraft == null"
+                @click="saveKkm"
+              >{{ savingKkm ? 'Menyimpan...' : 'Simpan KKM' }}</button>
+              <span class="muted kkm-hint">Di bawah KKM = D; di atas dibagi C, B, A. Predikat dihitung ulang setelah disimpan.</span>
+            </div>
+            <div v-else class="meta-chips" style="margin-top:8px">
+              <span class="meta-chip">KKM {{ item?.kkm ?? '—' }} <span class="muted">(diisi pembina)</span></span>
+            </div>
           </div>
         </div>
 
@@ -174,7 +195,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(s, i) in sessions" :key="s.id" :class="{ 'row-active': attendanceSession?.id === s.id }">
+                <tr v-for="(s, i) in sessions" :key="s.id" :class="{ 'row-active': attendanceSession?.id === s.id || gradingSession?.id === s.id }">
                   <td class="col-no">{{ i + 1 }}</td>
                   <td>
                     <div class="cell-strong">{{ formatDate(s.session_date) }}</div>
@@ -184,6 +205,7 @@
                   <td>{{ s.attendances_count ?? 0 }} siswa</td>
                   <td class="col-aksi">
                     <button type="button" class="btn-link" @click="openAttendance(s)">Kehadiran</button>
+                    <button type="button" class="btn-link" @click="openGrading(s)">Penilaian</button>
                     <button type="button" class="btn-link danger" @click="deleteSession(s)">Hapus</button>
                   </td>
                 </tr>
@@ -228,48 +250,110 @@
               </button>
             </template>
           </div>
+
+          <div v-if="gradingSession" class="add-box attendance-box">
+            <div class="panel-toolbar">
+              <strong>
+                Penilaian — {{ formatDate(gradingSession.session_date) }}{{ gradingSession.topic ? ` · ${gradingSession.topic}` : '' }}
+                <span class="meta-chip" style="margin-left:8px">KKM {{ gradingKkm }}</span>
+              </strong>
+              <button type="button" class="btn-secondary btn-sm" @click="gradingSession = null">Tutup</button>
+            </div>
+            <p class="muted pad-sm" style="padding-top:0">Siswa alpha otomatis tanpa nilai. Predikat dihitung dari KKM.</p>
+            <div v-if="gradingLoading" class="muted">Memuat nilai...</div>
+            <template v-else>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th class="col-no">No</th>
+                      <th>Nama</th>
+                      <th>Kelas</th>
+                      <th>Kehadiran</th>
+                      <th>Nilai</th>
+                      <th>Predikat</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(g, i) in sessionGrades" :key="g.student_id">
+                      <td class="col-no">{{ i + 1 }}</td>
+                      <td class="cell-strong">{{ g.student?.name }}</td>
+                      <td>{{ g.student?.class?.name || '—' }}</td>
+                      <td>{{ statusLabel(g.attendance_status) || '—' }}</td>
+                      <td>
+                        <input
+                          v-model.number="g.score"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          class="form-input form-input-sm input-score"
+                          :disabled="g.score_locked"
+                          :placeholder="g.score_locked ? 'Alpha' : ''"
+                          @input="onSessionScoreInput(g)"
+                        />
+                      </td>
+                      <td>{{ g.predicate || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" class="btn-primary btn-sm" :disabled="savingSessionGrades" @click="saveSessionGrades">
+                {{ savingSessionGrades ? 'Menyimpan...' : 'Simpan penilaian' }}
+              </button>
+            </template>
+          </div>
         </div>
 
-        <!-- NILAI -->
+        <!-- NILAI / REKAP -->
         <div v-show="tab === 'nilai'" class="panel">
           <div class="panel-toolbar">
-            <h2 class="panel-title">Nilai Peserta</h2>
-            <button type="button" class="btn-primary btn-sm" :disabled="savingGrades || !grades.length" @click="saveGrades">
-              {{ savingGrades ? 'Menyimpan...' : 'Simpan nilai' }}
+            <h2 class="panel-title">Rekap Nilai Peserta</h2>
+            <button type="button" class="btn-secondary btn-sm" :disabled="savingGrades || gradesLoading" @click="recalcGrades">
+              {{ savingGrades ? 'Menghitung...' : 'Hitung ulang nilai akhir' }}
             </button>
           </div>
-          <div v-if="gradesLoading" class="muted pad-sm">Memuat nilai...</div>
+          <p class="muted pad-sm" style="padding-top:0">
+            Nilai akhir = rata-rata skor pertemuan yang terisi.
+            KKM {{ gradesKkm ?? item?.kkm ?? '—' }} · Predikat: &lt;KKM = D; di atas KKM dibagi C, B, A.
+          </p>
+          <div v-if="gradesLoading" class="muted pad-sm">Memuat rekap nilai...</div>
           <div v-else-if="grades.length" class="table-scroll">
-            <table class="data-table">
+            <table class="data-table matrix-table">
               <thead>
                 <tr>
-                  <th class="col-no">No</th>
-                  <th>Nama</th>
+                  <th class="col-no sticky-col">No</th>
+                  <th class="sticky-col sticky-name">Nama</th>
                   <th>Kelas</th>
-                  <th>Nilai</th>
-                  <th>Predikat</th>
-                  <th>Catatan</th>
+                  <th
+                    v-for="s in gradeSessions"
+                    :key="s.id"
+                    class="col-center"
+                    :title="sessionColTitle(s)"
+                  >{{ formatDateShort(s.session_date) }}</th>
+                  <th class="col-center">Jml</th>
+                  <th class="col-center">Rata-rata</th>
+                  <th class="col-center">Akhir</th>
+                  <th class="col-center">Predikat</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(g, i) in grades" :key="g.student_id">
-                  <td class="col-no">{{ i + 1 }}</td>
-                  <td class="cell-strong">{{ g.student?.name }}</td>
+                  <td class="col-no sticky-col">{{ i + 1 }}</td>
+                  <td class="cell-strong sticky-col sticky-name">{{ g.student?.name }}</td>
                   <td>{{ g.student?.class?.name || '—' }}</td>
-                  <td>
-                    <input v-model.number="g.score" type="number" min="0" max="100" step="0.01" class="form-input form-input-sm input-score" @input="onScoreInput(g)" />
+                  <td v-for="s in gradeSessions" :key="s.id" class="col-center">
+                    {{ g.scores?.[String(s.id)] != null ? g.scores[String(s.id)] : '—' }}
                   </td>
-                  <td>
-                    <input v-model="g.predicate" type="text" maxlength="5" class="form-input form-input-sm input-pred" />
-                  </td>
-                  <td>
-                    <input v-model="g.notes" type="text" class="form-input form-input-sm" placeholder="Opsional" />
-                  </td>
+                  <td class="col-center">{{ g.graded_sessions ?? 0 }}</td>
+                  <td class="col-center">{{ g.average != null ? g.average : '—' }}</td>
+                  <td class="col-center">{{ g.final_score != null ? g.final_score : '—' }}</td>
+                  <td class="col-center">{{ g.predicate || '—' }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <div v-else class="empty-inline">Belum ada peserta aktif untuk dinilai.</div>
+          <div v-else class="empty-inline">Belum ada peserta aktif. Tambah pertemuan lalu isi penilaian untuk melihat rekap.</div>
         </div>
 
         <!-- LAPORAN -->
@@ -438,6 +522,49 @@
               <p v-else class="muted">Belum ada pertemuan/peserta untuk ditampilkan dalam matriks kehadiran.</p>
             </div>
 
+            <div class="report-section">
+              <h3 class="report-section-title">
+                Rekap Nilai per Pertemuan
+                <span v-if="report.kkm != null" class="muted"> · KKM {{ report.kkm }}</span>
+              </h3>
+              <div v-if="report.grade_matrix?.sessions?.length && report.grade_matrix?.rows?.length" class="table-scroll">
+                <table class="data-table matrix-table">
+                  <thead>
+                    <tr>
+                      <th class="col-no">No</th>
+                      <th>Nama</th>
+                      <th>Kelas</th>
+                      <th
+                        v-for="s in report.grade_matrix.sessions"
+                        :key="s.id"
+                        class="col-center"
+                        :title="sessionColTitle(s)"
+                      >{{ s.label || formatDateShort(s.session_date) }}</th>
+                      <th class="col-center">Jml</th>
+                      <th class="col-center">Rata</th>
+                      <th class="col-center">Akhir</th>
+                      <th class="col-center">Pred.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(r, i) in report.grade_matrix.rows" :key="r.student_id">
+                      <td class="col-no">{{ i + 1 }}</td>
+                      <td class="cell-strong">{{ r.name }}</td>
+                      <td>{{ r.class?.name || '—' }}</td>
+                      <td v-for="s in report.grade_matrix.sessions" :key="s.id" class="col-center">
+                        {{ r.scores?.[String(s.id)] != null ? r.scores[String(s.id)] : '—' }}
+                      </td>
+                      <td class="col-center">{{ r.graded_sessions ?? 0 }}</td>
+                      <td class="col-center">{{ r.average != null ? r.average : '—' }}</td>
+                      <td class="col-center">{{ r.score != null ? r.score : '—' }}</td>
+                      <td class="col-center">{{ r.predicate || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p v-else class="muted">Belum ada nilai pertemuan untuk ditampilkan.</p>
+            </div>
+
             <div v-if="report.period?.type !== 'month'" class="report-section">
               <h3 class="report-section-title">Rekap Ringkas per Siswa ({{ report.per_student?.length || 0 }})</h3>
               <div v-if="report.per_student?.length" class="table-scroll">
@@ -510,7 +637,7 @@ const id = computed(() => Number(route.params.id))
 const tabs = [
   { key: 'peserta', label: 'Peserta' },
   { key: 'pertemuan', label: 'Pertemuan' },
-  { key: 'nilai', label: 'Nilai' },
+  { key: 'nilai', label: 'Rekap Nilai' },
   { key: 'laporan', label: 'Laporan' },
 ]
 const tab = ref('peserta')
@@ -518,6 +645,9 @@ const tab = ref('peserta')
 const item = ref(null)
 const loading = ref(true)
 const loadError = ref('')
+const canSetKkm = ref(false)
+const kkmDraft = ref(75)
+const savingKkm = ref(false)
 
 const DAYS = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu' }
 const scheduleText = computed(() => {
@@ -568,7 +698,15 @@ const attendanceStatuses = ref(['hadir', 'izin', 'sakit', 'alpha'])
 const attendanceLoading = ref(false)
 const savingAttendance = ref(false)
 
+const gradingSession = ref(null)
+const sessionGrades = ref([])
+const gradingKkm = ref(75)
+const gradingLoading = ref(false)
+const savingSessionGrades = ref(false)
+
 const grades = ref([])
+const gradeSessions = ref([])
+const gradesKkm = ref(null)
 const gradesLoading = ref(false)
 const savingGrades = ref(false)
 
@@ -649,20 +787,33 @@ function sessionColTitle(s) {
   const date = formatDate(s.session_date)
   return s.topic ? `${date} · ${s.topic}` : date
 }
-function predicateFromScore(score) {
+function formatDateShort(d) {
+  if (!d) return '—'
+  return new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+}
+function predicateFromScore(score, kkm = 75) {
   if (score == null || score === '') return ''
   const n = Number(score)
-  if (n >= 90) return 'A'
-  if (n >= 80) return 'B'
-  if (n >= 70) return 'C'
-  return 'D'
+  const k = Number(kkm)
+  if (Number.isNaN(n)) return ''
+  if (n < k) return 'D'
+  const band = (100 - k) / 3
+  if (band <= 0) return 'A'
+  if (n >= k + 2 * band) return 'A'
+  if (n >= k + band) return 'B'
+  return 'C'
 }
-function onScoreInput(g) {
+function onSessionScoreInput(g) {
+  if (g.score_locked) {
+    g.score = null
+    g.predicate = ''
+    return
+  }
   if (g.score === '' || g.score == null) {
     g.predicate = ''
     return
   }
-  g.predicate = predicateFromScore(g.score)
+  g.predicate = predicateFromScore(g.score, gradingKkm.value)
 }
 
 async function loadItem() {
@@ -671,10 +822,35 @@ async function loadItem() {
   try {
     const res = await extracurricularApi.get(id.value)
     item.value = res.data.data || res.data
+    canSetKkm.value = !!res.data.meta_access?.can_set_kkm
+    kkmDraft.value = item.value?.kkm != null ? Number(item.value.kkm) : 75
   } catch (e) {
     loadError.value = e.formattedMessage || 'Gagal memuat data'
   } finally {
     loading.value = false
+  }
+}
+
+async function saveKkm() {
+  if (!canSetKkm.value) return
+  const value = kkmDraft.value
+  if (value === '' || value == null || Number(value) < 0 || Number(value) > 100) {
+    toast.error('Gagal', 'KKM harus antara 0–100')
+    return
+  }
+  savingKkm.value = true
+  try {
+    const res = await extracurricularApi.update(id.value, { kkm: Number(value) })
+    item.value = res.data.data || res.data
+    kkmDraft.value = item.value?.kkm != null ? Number(item.value.kkm) : Number(value)
+    gradingKkm.value = kkmDraft.value
+    gradesKkm.value = kkmDraft.value
+    toast.success('Berhasil', 'KKM disimpan. Predikat dihitung ulang.')
+    if (tab.value === 'nilai') await loadGrades()
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal menyimpan KKM')
+  } finally {
+    savingKkm.value = false
   }
 }
 
@@ -838,6 +1014,7 @@ function deleteSession(s) {
       await extracurricularApi.deleteSession(id.value, s.id)
       toast.success('Berhasil', 'Pertemuan dihapus')
       if (attendanceSession.value?.id === s.id) attendanceSession.value = null
+      if (gradingSession.value?.id === s.id) gradingSession.value = null
       await loadSessions()
     } catch (e) {
       toast.error('Gagal', e.formattedMessage || 'Gagal menghapus')
@@ -848,6 +1025,7 @@ function deleteSession(s) {
 }
 
 async function openAttendance(s) {
+  gradingSession.value = null
   attendanceSession.value = s
   attendanceLoading.value = true
   try {
@@ -881,34 +1059,66 @@ async function saveAttendance() {
   }
 }
 
+async function openGrading(s) {
+  attendanceSession.value = null
+  gradingSession.value = s
+  gradingLoading.value = true
+  try {
+    const res = await extracurricularApi.getSessionGrades(id.value, s.id)
+    sessionGrades.value = (res.data.data || []).map((g) => ({ ...g }))
+    gradingKkm.value = res.data.kkm != null ? Number(res.data.kkm) : 75
+  } catch (e) {
+    sessionGrades.value = []
+    toast.error('Gagal', e.formattedMessage || 'Gagal memuat penilaian')
+  } finally {
+    gradingLoading.value = false
+  }
+}
+
+async function saveSessionGrades() {
+  savingSessionGrades.value = true
+  try {
+    await extracurricularApi.saveSessionGrades(id.value, gradingSession.value.id, {
+      grades: sessionGrades.value.map((g) => ({
+        student_id: g.student_id,
+        score: g.score_locked || g.score === '' || g.score == null ? null : g.score,
+        notes: g.notes || null,
+      })),
+    })
+    toast.success('Berhasil', 'Penilaian disimpan')
+    await loadSessions()
+    if (tab.value === 'nilai') await loadGrades()
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal menyimpan penilaian')
+  } finally {
+    savingSessionGrades.value = false
+  }
+}
+
 async function loadGrades() {
   gradesLoading.value = true
   try {
     const res = await extracurricularApi.getGrades(id.value)
     grades.value = (res.data.data || []).map((g) => ({ ...g }))
+    gradeSessions.value = res.data.sessions || []
+    gradesKkm.value = res.data.kkm != null ? Number(res.data.kkm) : null
   } catch (e) {
     grades.value = []
-    toast.error('Gagal', e.formattedMessage || 'Gagal memuat nilai')
+    gradeSessions.value = []
+    toast.error('Gagal', e.formattedMessage || 'Gagal memuat rekap nilai')
   } finally {
     gradesLoading.value = false
   }
 }
 
-async function saveGrades() {
+async function recalcGrades() {
   savingGrades.value = true
   try {
-    await extracurricularApi.saveGrades(id.value, {
-      grades: grades.value.map((g) => ({
-        student_id: g.student_id,
-        score: g.score === '' || g.score == null ? null : g.score,
-        predicate: g.predicate || null,
-        notes: g.notes || null,
-      })),
-    })
-    toast.success('Berhasil', 'Nilai disimpan')
+    await extracurricularApi.saveGrades(id.value, {})
+    toast.success('Berhasil', 'Nilai akhir dihitung ulang dari rata-rata pertemuan')
     await loadGrades()
   } catch (e) {
-    toast.error('Gagal', e.formattedMessage || 'Gagal menyimpan nilai')
+    toast.error('Gagal', e.formattedMessage || 'Gagal menghitung ulang nilai')
   } finally {
     savingGrades.value = false
   }
@@ -1089,6 +1299,27 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+.kkm-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.kkm-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.kkm-hint {
+  flex: 1 1 100%;
+  font-size: 12px;
+}
+
 .status-badge {
   display: inline-block;
   padding: 4px 12px;
@@ -1195,7 +1426,7 @@ onMounted(async () => {
 .row-active { background: #ecfdf5 !important; }
 
 .col-no { width: 48px; text-align: center; color: #94a3b8; }
-.col-aksi { width: 130px; text-align: right; white-space: nowrap; }
+.col-aksi { width: 200px; text-align: right; white-space: nowrap; }
 .col-center { text-align: center; }
 .cell-strong { font-weight: 600; color: #0f172a; }
 .cell-sub { font-size: 12px; color: #94a3b8; }

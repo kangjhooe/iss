@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\AcademicYear;
 use App\Models\Correspondence;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -64,6 +65,15 @@ class CorrespondenceRepository extends BaseRepository
                   ->orWhere('to', 'like', '%' . $search . '%')
                   ->orWhere('description', 'like', '%' . $search . '%');
             });
+        }
+
+        // Filter by academic year date range (tahun pelajaran)
+        if (!empty($filters['academic_year_id'])) {
+            $academicYear = AcademicYear::find($filters['academic_year_id']);
+            if ($academicYear?->start_date && $academicYear?->end_date) {
+                $query->whereDate('date', '>=', $academicYear->start_date->toDateString())
+                    ->whereDate('date', '<=', $academicYear->end_date->toDateString());
+            }
         }
 
         if (isset($filters['date_from'])) {

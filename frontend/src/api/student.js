@@ -4,6 +4,9 @@ export const studentApi = {
   getAll(params) {
     return api.get('/v1/student', { params })
   },
+  export(params) {
+    return api.get('/v1/student/export', { params })
+  },
   get(id) {
     return api.get(`/v1/student/${id}`)
   },

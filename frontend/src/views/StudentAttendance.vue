@@ -7,8 +7,20 @@
       </div>
 
       <div class="page-header">
-        <h1>Absensi Saya</h1>
-        <p class="page-subtitle">Riwayat kehadiran berdasarkan jurnal mengajar</p>
+        <div class="page-header-row">
+          <div>
+            <h1>Absensi Saya</h1>
+            <p class="page-subtitle">Riwayat kehadiran berdasarkan jurnal mengajar</p>
+          </div>
+          <button
+            type="button"
+            class="btn-export"
+            :disabled="exporting || loading || !attendances.length"
+            @click="exportPdf"
+          >
+            {{ exporting ? 'Mengekspor...' : 'Cetak PDF' }}
+          </button>
+        </div>
       </div>
 
       <div class="filters">
@@ -101,15 +113,18 @@
 import { computed, onMounted, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import { semesterApi } from '@/api/semester'
 import { studentAttendanceApi } from '@/api/attendance'
 
 const authStore = useAuthStore()
+const toast = useToast()
 
 const studentId = computed(() => authStore.user?.student_profile?.id)
 
 const loading = ref(false)
 const loadError = ref(false)
+const exporting = ref(false)
 const attendances = ref([])
 const semesters = ref([])
 
@@ -124,6 +139,14 @@ function formatDate(val) {
   const d = new Date(val)
   if (Number.isNaN(d.getTime())) return val
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function cleanParams() {
+  const params = {}
+  if (filters.value.semester_id) params.semester_id = filters.value.semester_id
+  if (filters.value.date_from) params.date_from = filters.value.date_from
+  if (filters.value.date_to) params.date_to = filters.value.date_to
+  return params
 }
 
 async function loadSemesters() {
@@ -144,11 +167,7 @@ async function loadAttendances() {
   loading.value = true
   try {
     loadError.value = false
-    const params = {}
-    if (filters.value.semester_id) params.semester_id = filters.value.semester_id
-    if (filters.value.date_from) params.date_from = filters.value.date_from
-    if (filters.value.date_to) params.date_to = filters.value.date_to
-    const res = await studentAttendanceApi.getMy(params)
+    const res = await studentAttendanceApi.getMy(cleanParams())
     const list = res.data?.data ?? res.data ?? []
     attendances.value = Array.isArray(list) ? list : (list?.data ?? [])
   } catch {
@@ -156,6 +175,27 @@ async function loadAttendances() {
     attendances.value = []
   } finally {
     loading.value = false
+  }
+}
+
+async function exportPdf() {
+  exporting.value = true
+  try {
+    const res = await studentAttendanceApi.exportMy(cleanParams())
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Riwayat_Absensi_${new Date().toISOString().slice(0, 10)}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    toast.success('Berhasil', 'Riwayat absensi PDF berhasil diunduh')
+  } catch (e) {
+    toast.error('Gagal mengekspor', e.formattedMessage || 'Riwayat absensi tidak dapat diekspor.')
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -177,6 +217,14 @@ onMounted(async () => {
   margin-bottom: 20px;
 }
 
+.page-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .page-header h1 {
   font-size: 22px;
   font-weight: 700;
@@ -188,6 +236,22 @@ onMounted(async () => {
   font-size: 14px;
   color: #64748b;
   margin: 0;
+}
+
+.btn-export {
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .filters {

@@ -302,7 +302,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import { examApi } from '@/api/exam'
 import { subjectApi } from '@/api/subject'
@@ -310,6 +310,7 @@ import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 const banks = ref([])
 const subjects = ref([])
 const loading = ref(false)
@@ -544,6 +545,9 @@ async function submitRestore() {
 }
 
 onMounted(() => {
+  if (route.query.subject_id) {
+    filterSubjectId.value = String(route.query.subject_id)
+  }
   loadSubjects()
   fetchBanks()
 })

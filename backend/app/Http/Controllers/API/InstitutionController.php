@@ -7,6 +7,7 @@ use App\Http\Requests\StoreInstitutionRequest;
 use App\Http\Requests\UpdateInstitutionRequest;
 use App\Http\Resources\InstitutionResource;
 use App\Models\Institution;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -126,8 +127,9 @@ class InstitutionController extends Controller
             
             $institution = Institution::with($with)->findOrFail($id);
 
-            // Jika bukan admin/super admin, hanya bisa melihat institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $institution->id) {
+            // Admin/super admin: any; others: home or assigned (multi-institusi)
+            $user = $request->user();
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $institution->id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -362,7 +364,13 @@ class InstitutionController extends Controller
     {
         try {
             $user = $request->user();
-            $institution = $user->institution;
+            $activeId = InstitutionContext::resolveActiveInstitutionId($user, $request);
+            $institution = $activeId ? Institution::find($activeId) : null;
+
+            // Fallback ke home institution jika konteks aktif kosong
+            if (!$institution) {
+                $institution = $user->institution;
+            }
 
             // Jika relasi null tapi user punya institution_id, coba load langsung (mis. relasi belum diload)
             if (!$institution && $user->institution_id) {

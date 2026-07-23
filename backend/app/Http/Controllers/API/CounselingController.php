@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCounselingSessionRequest;
 use App\Http\Requests\UpdateCounselingSessionRequest;
@@ -10,6 +11,7 @@ use App\Models\CounselingSession;
 use App\Models\Institution;
 use App\Models\User;
 use App\Services\CounselingService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +20,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CounselingController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected CounselingService $counselingService
     ) {}
@@ -28,8 +32,7 @@ class CounselingController extends Controller
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -67,7 +70,7 @@ class CounselingController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -98,7 +101,7 @@ class CounselingController extends Controller
     public function show(Request $request, CounselingSession $counseling_session): CounselingSessionResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $counseling_session->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $counseling_session->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -113,7 +116,7 @@ class CounselingController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $counseling_session->institution_id && !$user->isSuperAdmin()) {
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $counseling_session->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -134,7 +137,7 @@ class CounselingController extends Controller
     public function destroy(Request $request, CounselingSession $counseling_session): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $counseling_session->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $counseling_session->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -148,8 +151,7 @@ class CounselingController extends Controller
     public function counselors(Request $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -176,8 +178,7 @@ class CounselingController extends Controller
     public function export(Request $request): StreamedResponse|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -230,7 +231,7 @@ class CounselingController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if ($user->isStudent()) {
                 $profile = $user->studentProfile;
                 if (!$profile || (int) $profile->id !== $studentId) {
@@ -259,8 +260,7 @@ class CounselingController extends Controller
     public function stats(Request $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -283,8 +283,7 @@ class CounselingController extends Controller
     public function upcoming(Request $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }

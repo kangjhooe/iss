@@ -77,6 +77,14 @@ class Employee extends Model
     }
 
     /**
+     * Get the mutation records (mutasi guru) for this employee.
+     */
+    public function mutations()
+    {
+        return $this->hasMany(TeacherMutation::class, 'employee_id');
+    }
+
+    /**
      * Get the change requests (perubahan data) for this employee.
      */
     public function teacherChangeRequests()

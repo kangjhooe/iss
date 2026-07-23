@@ -64,6 +64,15 @@ class PiketController extends Controller
         return $institutionId instanceof JsonResponse ? $institutionId : null;
     }
 
+    protected function failIfCannotViewReport(Request $request): ?JsonResponse
+    {
+        if (PiketAccess::canViewReport($request->user())) {
+            return null;
+        }
+
+        return response()->json(['message' => 'Anda tidak memiliki akses untuk melihat laporan guru piket'], 403);
+    }
+
     public function employeesLite(Request $request)
     {
         $institutionId = $this->requireInstitution($request);
@@ -178,6 +187,7 @@ class PiketController extends Controller
                 'data' => $this->service->dashboard($institutionId, $request->get('date')),
                 'meta' => [
                     'can_manage' => PiketAccess::canManage($request->user()),
+                    'can_view_report' => PiketAccess::canViewReport($request->user()),
                     'days' => PiketSchedule::DAYS,
                     'shifts' => PiketSchedule::SHIFTS,
                     'incident_types' => PiketIncident::TYPES,
@@ -749,13 +759,13 @@ class PiketController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Insiden dicatat',
+                'message' => 'Kejadian dicatat',
                 'data' => new PiketIncidentResource($incident),
             ], 201);
         } catch (\Exception $e) {
             Log::error('Piket incident store failed', ['error' => $e->getMessage()]);
 
-            return response()->json(['message' => 'Gagal mencatat insiden'], 500);
+            return response()->json(['message' => 'Gagal mencatat kejadian'], 500);
         }
     }
 
@@ -1047,37 +1057,86 @@ class PiketController extends Controller
         }
     }
 
-    // ── Weekly PDF ─────────────────────────────────────────────────
+    // ── Report (JSON preview + PDF) ────────────────────────────────
 
-    public function weeklyReport(Request $request)
+    public function report(Request $request)
     {
         try {
+            if ($deny = $this->failIfCannotViewReport($request)) {
+                return $deny;
+            }
+
             $institutionId = $this->requireInstitution($request);
             if ($fail = $this->failIfNoInstitution($institutionId)) {
                 return $fail;
             }
 
-            $data = $request->validate([
-                'week_start' => 'nullable|date',
-            ]);
-            $weekStart = $data['week_start'] ?? now()->startOfWeek(Carbon::MONDAY)->toDateString();
+            [$period, $anchor] = $this->resolveReportPeriod($request);
+            $payload = $this->service->reportPayload($institutionId, $period, $anchor);
 
-            $report = $this->service->weeklyReportData($institutionId, $weekStart);
+            return response()->json(['data' => $payload]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Piket report failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Gagal memuat laporan'], 500);
+        }
+    }
+
+    public function weeklyReport(Request $request)
+    {
+        try {
+            if ($deny = $this->failIfCannotViewReport($request)) {
+                return $deny;
+            }
+
+            $institutionId = $this->requireInstitution($request);
+            if ($fail = $this->failIfNoInstitution($institutionId)) {
+                return $fail;
+            }
+
+            [$period, $anchor] = $this->resolveReportPeriod($request);
+            $report = $this->service->reportData($institutionId, $period, $anchor);
 
             $pdf = DomPDF::loadView('piket.weekly_report', $report)
                 ->setPaper('a4', 'portrait');
 
-            $filename = 'laporan_piket_'.$report['week_start'].'_'.$report['week_end'].'.pdf';
+            $filename = 'laporan_piket_'.$report['period'].'_'.$report['period_start'].'_'.$report['period_end'].'.pdf';
 
             if ($request->boolean('stream')) {
                 return $pdf->stream($filename, ['Attachment' => false]);
             }
 
             return $pdf->download($filename);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            Log::error('Piket weekly report failed', ['error' => $e->getMessage()]);
+            Log::error('Piket report PDF failed', ['error' => $e->getMessage()]);
 
-            return response()->json(['message' => 'Gagal membuat laporan mingguan'], 500);
+            return response()->json(['message' => 'Gagal membuat laporan'], 500);
         }
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    protected function resolveReportPeriod(Request $request): array
+    {
+        $data = $request->validate([
+            'period' => ['nullable', Rule::in(['weekly', 'monthly'])],
+            'week_start' => 'nullable|date',
+            'month' => ['nullable', 'regex:/^\d{4}-\d{2}$/'],
+        ]);
+
+        $period = ($data['period'] ?? 'weekly') === 'monthly' ? 'monthly' : 'weekly';
+
+        if ($period === 'monthly') {
+            $anchor = $data['month'] ?? now()->format('Y-m');
+        } else {
+            $anchor = $data['week_start'] ?? now()->startOfWeek(Carbon::MONDAY)->toDateString();
+        }
+
+        return [$period, $anchor];
     }
 }

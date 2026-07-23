@@ -168,12 +168,14 @@
                     <div class="cell-note">{{ $supervisorNip ?: 'Tanpa NIP/NUPTK' }}</div>
                 @endif
             </td>
-            <td class="lbl">Status</td>
-            <td>{{ $ekskul['status'] ?? '—' }}</td>
+            <td class="lbl">KKM</td>
+            <td>{{ $data['kkm'] ?? $ekskul['kkm'] ?? '—' }}</td>
         </tr>
         <tr>
+            <td class="lbl">Status</td>
+            <td>{{ $ekskul['status'] ?? '—' }}</td>
             <td class="lbl">Dicetak</td>
-            <td colspan="3">{{ $printedAt }}@if(!empty($printedBy)) · {{ $printedBy }}@endif</td>
+            <td>{{ $printedAt }}@if(!empty($printedBy)) · {{ $printedBy }}@endif</td>
         </tr>
     </table>
 
@@ -283,8 +285,55 @@
         <p class="muted">Kolom tanggal = tanggal pertemuan. H=Hadir, I=Izin, S=Sakit, A=Alpha, -=belum dicatat.</p>
     @endif
 
+    @php
+        $gradeMatrix = $data['grade_matrix'] ?? ['sessions' => [], 'rows' => []];
+        $gradeSessions = $gradeMatrix['sessions'] ?? [];
+        $gradeRows = $gradeMatrix['rows'] ?? [];
+    @endphp
+    <div class="section-title">3. Rekap Nilai per Pertemuan ({{ count($gradeRows) }} peserta × {{ count($gradeSessions) }} pertemuan)</div>
+    @if(count($gradeSessions) === 0 || count($gradeRows) === 0)
+        <p class="muted">Belum ada data nilai pertemuan pada periode ini.</p>
+    @else
+        <table class="data matrix">
+            <thead>
+                <tr>
+                    <th class="num" style="width:22px">No</th>
+                    <th>Nama</th>
+                    <th style="width:48px">Kelas</th>
+                    @foreach($gradeSessions as $s)
+                        <th class="num" style="width:28px" title="{{ $s['session_date'] ?? '' }}{{ !empty($s['topic']) ? ' · '.$s['topic'] : '' }}">
+                            {{ $s['label'] ?? '' }}
+                        </th>
+                    @endforeach
+                    <th class="num">Jml</th>
+                    <th class="num">Rata</th>
+                    <th class="num">Akhir</th>
+                    <th class="num">Pred.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($gradeRows as $i => $r)
+                    <tr>
+                        <td class="num">{{ $i + 1 }}</td>
+                        <td>{{ $r['name'] ?? '—' }}</td>
+                        <td>{{ $r['class']['name'] ?? '—' }}</td>
+                        @foreach($gradeSessions as $s)
+                            @php $sc = $r['scores'][(string) $s['id']] ?? null; @endphp
+                            <td class="num">{{ $sc !== null ? $sc : '-' }}</td>
+                        @endforeach
+                        <td class="num">{{ $r['graded_sessions'] ?? 0 }}</td>
+                        <td class="num">{{ $r['average'] ?? '—' }}</td>
+                        <td class="num">{{ $r['score'] ?? '—' }}</td>
+                        <td class="num">{{ $r['predicate'] ?? '—' }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        <p class="muted">Nilai akhir = rata-rata skor pertemuan yang terisi. Predikat berdasarkan KKM {{ $data['kkm'] ?? '—' }}. Alpha / kosong tidak dihitung.</p>
+    @endif
+
     @if(($period['type'] ?? '') !== 'month')
-    <div class="section-title">3. Rekap Ringkas per Siswa ({{ count($perStudent) }})</div>
+    <div class="section-title">4. Rekap Ringkas per Siswa ({{ count($perStudent) }})</div>
     @if(count($perStudent) === 0)
         <p class="muted">Belum ada data kehadiran untuk direkap.</p>
     @else

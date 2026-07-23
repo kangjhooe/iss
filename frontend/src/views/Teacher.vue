@@ -505,7 +505,7 @@
                         <span>{{ module.label }}</span>
                       </label>
                     </div>
-                    <p class="form-hint">Hanya modul yang dicentang dapat diakses oleh akun ini.</p>
+                    <p class="form-hint">Guru mapel default mendapat Jurnal, Buku Nilai, dan Jadwal agar bisa mengisi nilai, jurnal, dan absensi. Modul lain dicentang sesuai kebutuhan.</p>
                   </div>
                 </div>
               </fieldset>
@@ -1332,7 +1332,7 @@ import { employeeApi } from '@/api/teacher'
 import { institutionApi } from '@/api/institution'
 import { permissionApi } from '@/api/permissions'
 import { useReferenceDataStore } from '@/stores/referenceData'
-import { getInstitutionTypeLabel, getPrincipalTitle } from '@/utils/institution'
+import { getInstitutionTypeLabel, getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
@@ -1411,7 +1411,7 @@ const form = ref({
   certification_number: '',
   certification_issuing_authority: '',
   user_role: '',
-  permission_keys: ['correspondence'],
+  permission_keys: ['correspondence', 'teaching_journal', 'grade_book', 'schedule'],
   additional_duty_ids: [],
   affiliation: null,
   current_assignment: null,
@@ -1464,7 +1464,7 @@ const formatUserRole = (role) => {
 }
 
 const isSameInstitution = (employee) => {
-  return employee?.institution?.id === authStore.user?.institution_id
+  return employee?.institution?.id === (authStore.activeInstitutionId || authStore.user?.institution_id)
 }
 
 const openAssignmentRequestModal = () => {
@@ -1635,7 +1635,7 @@ const rejectAssignment = async (assignment) => {
 const canEndAssignment = (assignment) => {
   return assignment?.status === 'approved'
     && isInstitutionAdmin.value
-    && viewingTeacher.value?.institution_id === authStore.user?.institution_id
+    && viewingTeacher.value?.institution_id === (authStore.activeInstitutionId || authStore.user?.institution_id)
 }
 
 const endAssignment = async (assignment) => {
@@ -1695,7 +1695,9 @@ const editTeacher = async (teacher) => {
     form.value.user_role = (fullData.user_account?.role && ['teacher', 'staff'].includes(fullData.user_account.role))
       ? fullData.user_account.role
       : ''
-    form.value.permission_keys = fullData.user_account?.permissions || ['correspondence']
+    form.value.permission_keys = fullData.user_account?.permissions?.length
+      ? fullData.user_account.permissions
+      : ['correspondence', 'teaching_journal', 'grade_book', 'schedule']
     form.value.additional_duty_ids = (fullData.additional_duties || []).map(d => d.id)
     if (fullData.birth_date) {
       form.value.birth_date = fullData.birth_date.split('T')[0]
@@ -1947,7 +1949,7 @@ const closeModal = () => {
     certification_number: '',
     certification_issuing_authority: '',
     user_role: '',
-    permission_keys: ['correspondence'],
+    permission_keys: ['correspondence', 'teaching_journal', 'grade_book', 'schedule'],
     additional_duty_ids: [],
     affiliation: null,
     current_assignment: null,
@@ -2095,7 +2097,7 @@ const printPDF = async () => {
         <div class="school-address">${fullAddress || '-'}</div>
         <div class="school-info">
           NPSN: ${institution.npsn || '-'}
-          ${institution.nss ? ` · NSS: ${institution.nss}` : ''}
+          ${institution.nss ? ` · ${getNssLabel(institution.level)}: ${institution.nss}` : ''}
           ${institution.phone ? ` · Telp: ${institution.phone}` : ''}
           ${institution.email ? ` · Email: ${institution.email}` : ''}
           ${institution.website ? ` · ${institution.website}` : ''}

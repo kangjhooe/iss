@@ -12,7 +12,7 @@ return new class extends Migration
             return;
         }
         $dutyIds = DB::table('additional_duties')
-            ->whereIn('key', ['kepala_sekolah', 'waka_kurikulum'])
+            ->whereIn('key', ['waka_kurikulum'])
             ->pluck('id');
         $now = now();
         foreach ($dutyIds as $dutyId) {

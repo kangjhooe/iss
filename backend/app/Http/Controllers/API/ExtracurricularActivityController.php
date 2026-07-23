@@ -7,6 +7,7 @@ use App\Models\Extracurricular;
 use App\Models\ExtracurricularAttendance;
 use App\Models\ExtracurricularGrade;
 use App\Models\ExtracurricularSession;
+use App\Models\ExtracurricularSessionGrade;
 use App\Models\ExtracurricularStudent;
 use App\Models\Institution;
 use App\Models\SchoolClass;
@@ -57,6 +58,18 @@ class ExtracurricularActivityController extends Controller
         }
 
         return ['id' => $related->id, 'name' => $related->name];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function enrolledStudentIds(int $extracurricularId, ?int $semesterId)
+    {
+        return ExtracurricularStudent::where('extracurricular_id', $extracurricularId)
+            ->where('status', 'aktif')
+            ->when($semesterId, fn ($q) => $q->where('semester_id', $semesterId))
+            ->pluck('student_id')
+            ->map(fn ($id) => (int) $id);
     }
 
     // ─── Sessions ─────────────────────────────────────────────
@@ -185,7 +198,7 @@ class ExtracurricularActivityController extends Controller
         $v = Validator::make($input, [
             'session_date' => 'sometimes|date',
             'start_time' => 'nullable|date_format:H:i',
-            'end_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i|after:start_time',
             'topic' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);
@@ -294,9 +307,20 @@ class ExtracurricularActivityController extends Controller
             return response()->json(['message' => $v->errors()->first(), 'errors' => $v->errors()], 422);
         }
 
+        $semesterId = $extracurricularSession->semester_id
+            ?? $this->activeSemesterId($extracurricular->institution_id);
+        $enrolledIds = $this->enrolledStudentIds($extracurricular->id, $semesterId);
+
         foreach ($v->validated()['attendances'] as $row) {
+            $studentId = (int) $row['student_id'];
+            if (!$enrolledIds->contains($studentId)) {
+                return response()->json([
+                    'message' => 'Siswa tidak terdaftar sebagai peserta aktif ekstrakurikuler ini.',
+                ], 422);
+            }
+
             ExtracurricularAttendance::updateOrCreate(
-                ['session_id' => $extracurricularSession->id, 'student_id' => $row['student_id']],
+                ['session_id' => $extracurricularSession->id, 'student_id' => $studentId],
                 ['status' => $row['status'], 'notes' => $row['notes'] ?? null]
             );
         }
@@ -304,7 +328,212 @@ class ExtracurricularActivityController extends Controller
         return response()->json(['message' => 'Kehadiran berhasil disimpan.']);
     }
 
-    // ─── Grades ───────────────────────────────────────────────
+    // ─── Session Grades ───────────────────────────────────────
+
+    public function getSessionGrades(Request $request, Extracurricular $extracurricular, ExtracurricularSession $extracurricularSession): JsonResponse
+    {
+        if ($resp = $this->denyUnlessCanAccess($request, $extracurricular)) {
+            return $resp;
+        }
+        if ((int) $extracurricularSession->extracurricular_id !== (int) $extracurricular->id) {
+            return response()->json(['message' => 'Pertemuan tidak ditemukan.'], 404);
+        }
+
+        $kkm = $extracurricular->kkm_value;
+        $semesterId = $extracurricularSession->semester_id
+            ?? $this->activeSemesterId($extracurricular->institution_id);
+
+        $enrollments = ExtracurricularStudent::where('extracurricular_id', $extracurricular->id)
+            ->where('status', 'aktif')
+            ->when($semesterId, fn ($q) => $q->where('semester_id', $semesterId))
+            ->with(['student' => fn ($q) => $q->with('class')])
+            ->get();
+
+        $attendanceMap = ExtracurricularAttendance::where('session_id', $extracurricularSession->id)
+            ->get()
+            ->keyBy('student_id');
+
+        $gradeMap = ExtracurricularSessionGrade::where('session_id', $extracurricularSession->id)
+            ->get()
+            ->keyBy('student_id');
+
+        $data = $enrollments->map(function (ExtracurricularStudent $en) use ($attendanceMap, $gradeMap) {
+            $att = $attendanceMap->get($en->student_id);
+            $g = $gradeMap->get($en->student_id);
+            $status = $att?->status;
+            $isAlpha = $status === 'alpha';
+
+            return [
+                'student_id' => $en->student_id,
+                'student' => $en->student ? [
+                    'id' => $en->student->id,
+                    'name' => $en->student->name,
+                    'nis' => $en->student->nis,
+                    'class' => $this->classPayload($en->student),
+                ] : null,
+                'attendance_status' => $status,
+                'score_locked' => $isAlpha,
+                'grade_id' => $g?->id,
+                'score' => $isAlpha ? null : ($g?->score !== null ? (float) $g->score : null),
+                'predicate' => $isAlpha ? null : $g?->predicate,
+                'notes' => $g?->notes,
+            ];
+        })->sortBy(fn ($r) => $r['student']['name'] ?? '')->values();
+
+        return response()->json([
+            'data' => $data,
+            'kkm' => $kkm,
+            'session' => [
+                'id' => $extracurricularSession->id,
+                'session_date' => $extracurricularSession->session_date?->format('Y-m-d'),
+                'topic' => $extracurricularSession->topic,
+            ],
+        ]);
+    }
+
+    public function saveSessionGrades(Request $request, Extracurricular $extracurricular, ExtracurricularSession $extracurricularSession): JsonResponse
+    {
+        if ($resp = $this->denyUnlessCanAccess($request, $extracurricular)) {
+            return $resp;
+        }
+        if ((int) $extracurricularSession->extracurricular_id !== (int) $extracurricular->id) {
+            return response()->json(['message' => 'Pertemuan tidak ditemukan.'], 404);
+        }
+
+        $v = Validator::make($request->all(), [
+            'grades' => 'required|array|min:1',
+            'grades.*.student_id' => 'required|integer|exists:student,id',
+            'grades.*.score' => 'nullable|numeric|min:0|max:100',
+            'grades.*.notes' => 'nullable|string',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['message' => $v->errors()->first(), 'errors' => $v->errors()], 422);
+        }
+
+        $kkm = $extracurricular->kkm_value;
+        $employee = ExtracurricularAccess::employeeFor($request->user());
+        $semesterId = $extracurricularSession->semester_id
+            ?? $this->activeSemesterId($extracurricular->institution_id);
+        $academicYearId = $this->activeAcademicYearId($extracurricular->institution_id)
+            ?? $extracurricular->academic_year_id;
+        $enrolledIds = $this->enrolledStudentIds($extracurricular->id, $semesterId);
+
+        $attendanceMap = ExtracurricularAttendance::where('session_id', $extracurricularSession->id)
+            ->get()
+            ->keyBy('student_id');
+
+        $touchedStudentIds = [];
+
+        foreach ($v->validated()['grades'] as $row) {
+            $studentId = (int) $row['student_id'];
+            if (!$enrolledIds->contains($studentId)) {
+                return response()->json([
+                    'message' => 'Siswa tidak terdaftar sebagai peserta aktif ekstrakurikuler ini.',
+                ], 422);
+            }
+            $attStatus = $attendanceMap->get($studentId)?->status;
+            $isAlpha = $attStatus === 'alpha';
+
+            $score = $isAlpha
+                ? null
+                : (array_key_exists('score', $row) ? $row['score'] : null);
+            if ($score === '') {
+                $score = null;
+            }
+
+            $predicate = ExtracurricularGrade::predicateFromScore(
+                $score !== null ? (float) $score : null,
+                $kkm
+            );
+
+            ExtracurricularSessionGrade::updateOrCreate(
+                [
+                    'session_id' => $extracurricularSession->id,
+                    'student_id' => $studentId,
+                ],
+                [
+                    'score' => $score,
+                    'predicate' => $predicate,
+                    'notes' => $row['notes'] ?? null,
+                    'recorded_by' => $employee?->id,
+                ]
+            );
+            $touchedStudentIds[] = $studentId;
+        }
+
+        foreach (array_unique($touchedStudentIds) as $studentId) {
+            $this->recalculateFinalGrade(
+                $extracurricular,
+                (int) $studentId,
+                $semesterId,
+                $academicYearId,
+                $employee?->id
+            );
+        }
+
+        return response()->json(['message' => 'Nilai pertemuan berhasil disimpan.']);
+    }
+
+    /**
+     * Recalculate semester final grade = AVG of non-null session scores.
+     */
+    private function recalculateFinalGrade(
+        Extracurricular $extracurricular,
+        int $studentId,
+        ?int $semesterId,
+        ?int $academicYearId,
+        ?int $recordedBy
+    ): void {
+        if (!$semesterId) {
+            return;
+        }
+
+        $sessionIds = ExtracurricularSession::where('extracurricular_id', $extracurricular->id)
+            ->where('semester_id', $semesterId)
+            ->pluck('id');
+
+        $avg = null;
+        if ($sessionIds->isNotEmpty()) {
+            $avg = ExtracurricularSessionGrade::whereIn('session_id', $sessionIds)
+                ->where('student_id', $studentId)
+                ->whereNotNull('score')
+                ->avg('score');
+        }
+
+        $score = $avg !== null ? round((float) $avg, 2) : null;
+        $predicate = ExtracurricularGrade::predicateFromScore($score, $extracurricular->kkm_value);
+
+        if ($score === null) {
+            ExtracurricularGrade::where([
+                'extracurricular_id' => $extracurricular->id,
+                'student_id' => $studentId,
+                'semester_id' => $semesterId,
+            ])->update([
+                'score' => null,
+                'predicate' => null,
+                'recorded_by' => $recordedBy,
+            ]);
+
+            return;
+        }
+
+        ExtracurricularGrade::updateOrCreate(
+            [
+                'extracurricular_id' => $extracurricular->id,
+                'student_id' => $studentId,
+                'semester_id' => $semesterId,
+            ],
+            [
+                'institution_id' => $extracurricular->institution_id,
+                'academic_year_id' => $academicYearId,
+                'score' => $score,
+                'predicate' => $predicate,
+                'recorded_by' => $recordedBy,
+            ]
+        );
+    }
+
+    // ─── Grades (recap) ───────────────────────────────────────
 
     public function listGrades(Request $request, Extracurricular $extracurricular): JsonResponse
     {
@@ -317,19 +546,80 @@ class ExtracurricularActivityController extends Controller
             return response()->json(['message' => 'Semester aktif tidak ditemukan.'], 400);
         }
 
+        $kkm = $extracurricular->kkm_value;
+
+        $sessions = ExtracurricularSession::where('extracurricular_id', $extracurricular->id)
+            ->where('semester_id', $semesterId)
+            ->orderBy('session_date')
+            ->orderBy('id')
+            ->get();
+
+        $sessionIds = $sessions->pluck('id');
+
         $enrollments = ExtracurricularStudent::where('extracurricular_id', $extracurricular->id)
             ->where('semester_id', $semesterId)
             ->where('status', 'aktif')
             ->with(['student' => fn ($q) => $q->with('class')])
             ->get();
 
-        $grades = ExtracurricularGrade::where('extracurricular_id', $extracurricular->id)
+        $sessionGradeRows = $sessionIds->isEmpty()
+            ? collect()
+            : ExtracurricularSessionGrade::whereIn('session_id', $sessionIds)->get();
+
+        $cells = [];
+        foreach ($sessionGradeRows as $row) {
+            $cells[(int) $row->student_id][(int) $row->session_id] = [
+                'score' => $row->score !== null ? (float) $row->score : null,
+                'predicate' => $row->predicate,
+            ];
+        }
+
+        $finalGrades = ExtracurricularGrade::where('extracurricular_id', $extracurricular->id)
             ->where('semester_id', $semesterId)
             ->get()
             ->keyBy('student_id');
 
-        $data = $enrollments->map(function (ExtracurricularStudent $en) use ($grades) {
-            $g = $grades->get($en->student_id);
+        $gradedSessionIds = $sessionGradeRows
+            ->filter(fn ($r) => $r->score !== null)
+            ->pluck('session_id')
+            ->unique()
+            ->values();
+
+        $sessionList = $sessions
+            ->filter(fn ($s) => $gradedSessionIds->contains($s->id) || $sessionGradeRows->where('session_id', $s->id)->isNotEmpty())
+            ->values()
+            ->map(fn (ExtracurricularSession $s) => [
+                'id' => $s->id,
+                'session_date' => $s->session_date?->format('Y-m-d'),
+                'topic' => $s->topic,
+            ]);
+
+        // Show all sessions in semester for matrix columns (even if not yet graded)
+        $allSessionList = $sessions->map(fn (ExtracurricularSession $s) => [
+            'id' => $s->id,
+            'session_date' => $s->session_date?->format('Y-m-d'),
+            'topic' => $s->topic,
+            'has_grades' => $sessionGradeRows->where('session_id', $s->id)->whereNotNull('score')->isNotEmpty(),
+        ])->values();
+
+        $rows = $enrollments->map(function (ExtracurricularStudent $en) use ($allSessionList, $cells, $finalGrades, $kkm) {
+            $scores = [];
+            $sum = 0.0;
+            $count = 0;
+            foreach ($allSessionList as $s) {
+                $cell = $cells[(int) $en->student_id][(int) $s['id']] ?? null;
+                $score = $cell['score'] ?? null;
+                $scores[(string) $s['id']] = $score;
+                if ($score !== null) {
+                    $sum += $score;
+                    $count++;
+                }
+            }
+            $average = $count > 0 ? round($sum / $count, 2) : null;
+            $final = $finalGrades->get($en->student_id);
+            $finalScore = $final?->score !== null ? (float) $final->score : $average;
+            $predicate = $final?->predicate
+                ?? ExtracurricularGrade::predicateFromScore($finalScore, $kkm);
 
             return [
                 'student_id' => $en->student_id,
@@ -339,16 +629,30 @@ class ExtracurricularActivityController extends Controller
                     'nis' => $en->student->nis,
                     'class' => $this->classPayload($en->student),
                 ] : null,
-                'grade_id' => $g?->id,
-                'score' => $g?->score !== null ? (float) $g->score : null,
-                'predicate' => $g?->predicate,
-                'notes' => $g?->notes,
+                'scores' => $scores,
+                'graded_sessions' => $count,
+                'average' => $average,
+                'final_score' => $finalScore,
+                'predicate' => $predicate,
+                'notes' => $final?->notes,
+                // Backward-compatible flat fields
+                'grade_id' => $final?->id,
+                'score' => $finalScore,
             ];
         })->sortBy(fn ($r) => $r['student']['name'] ?? '')->values();
 
-        return response()->json(['data' => $data, 'semester_id' => (int) $semesterId]);
+        return response()->json([
+            'data' => $rows,
+            'sessions' => $allSessionList,
+            'kkm' => $kkm,
+            'semester_id' => (int) $semesterId,
+        ]);
     }
 
+    /**
+     * Recalculate all final grades for semester from session averages.
+     * Manual score override is no longer supported.
+     */
     public function saveGrades(Request $request, Extracurricular $extracurricular): JsonResponse
     {
         if ($resp = $this->denyUnlessCanAccess($request, $extracurricular)) {
@@ -357,49 +661,150 @@ class ExtracurricularActivityController extends Controller
 
         $v = Validator::make($request->all(), [
             'semester_id' => 'nullable|integer|exists:semesters,id',
-            'grades' => 'required|array|min:1',
-            'grades.*.student_id' => 'required|integer|exists:student,id',
-            'grades.*.score' => 'nullable|numeric|min:0|max:100',
-            'grades.*.predicate' => 'nullable|string|max:10',
-            'grades.*.notes' => 'nullable|string',
         ]);
         if ($v->fails()) {
             return response()->json(['message' => $v->errors()->first(), 'errors' => $v->errors()], 422);
         }
 
-        $data = $v->validated();
-        $semesterId = $data['semester_id'] ?? $this->activeSemesterId($extracurricular->institution_id);
+        $semesterId = $v->validated()['semester_id'] ?? $this->activeSemesterId($extracurricular->institution_id);
         if (!$semesterId) {
             return response()->json(['message' => 'Semester aktif tidak ditemukan.'], 400);
         }
+
         $academicYearId = $this->activeAcademicYearId($extracurricular->institution_id)
             ?? $extracurricular->academic_year_id;
         $employee = ExtracurricularAccess::employeeFor($request->user());
 
-        foreach ($data['grades'] as $row) {
-            $score = array_key_exists('score', $row) ? $row['score'] : null;
-            $predicate = $row['predicate'] ?? ExtracurricularGrade::predicateFromScore(
-                $score !== null ? (float) $score : null
-            );
+        $studentIds = ExtracurricularStudent::where('extracurricular_id', $extracurricular->id)
+            ->where('semester_id', $semesterId)
+            ->where('status', 'aktif')
+            ->pluck('student_id');
 
-            ExtracurricularGrade::updateOrCreate(
-                [
-                    'extracurricular_id' => $extracurricular->id,
-                    'student_id' => $row['student_id'],
-                    'semester_id' => $semesterId,
-                ],
-                [
-                    'institution_id' => $extracurricular->institution_id,
-                    'academic_year_id' => $academicYearId,
-                    'score' => $score,
-                    'predicate' => $predicate,
-                    'notes' => $row['notes'] ?? null,
-                    'recorded_by' => $employee?->id,
-                ]
+        foreach ($studentIds as $studentId) {
+            $this->recalculateFinalGrade(
+                $extracurricular,
+                (int) $studentId,
+                (int) $semesterId,
+                $academicYearId,
+                $employee?->id
             );
         }
 
-        return response()->json(['message' => 'Nilai berhasil disimpan.']);
+        return response()->json(['message' => 'Nilai akhir dihitung ulang dari rata-rata pertemuan.']);
+    }
+
+    /**
+     * Student view: per-session grades + final for an extracurricular they are enrolled in.
+     */
+    public function myGrades(Request $request, Extracurricular $extracurricular): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isStudent()) {
+            return response()->json(['message' => 'Hanya siswa yang dapat mengakses endpoint ini.'], 403);
+        }
+
+        $student = $user->studentProfile;
+        if (!$student) {
+            return response()->json(['message' => 'Profil siswa tidak ditemukan.'], 404);
+        }
+
+        $semesterId = $request->get('semester_id') ?? $this->activeSemesterId($extracurricular->institution_id);
+
+        $enrolled = ExtracurricularStudent::where('extracurricular_id', $extracurricular->id)
+            ->where('student_id', $student->id)
+            ->when($semesterId, fn ($q) => $q->where('semester_id', $semesterId))
+            ->where('status', 'aktif')
+            ->exists();
+
+        if (!$enrolled) {
+            // Allow viewing history even if left, as long as enrollment exists
+            $anyEnrollment = ExtracurricularStudent::where('extracurricular_id', $extracurricular->id)
+                ->where('student_id', $student->id)
+                ->when($semesterId, fn ($q) => $q->where('semester_id', $semesterId))
+                ->exists();
+            if (!$anyEnrollment) {
+                return response()->json(['message' => 'Anda tidak terdaftar di ekstrakurikuler ini.'], 403);
+            }
+        }
+
+        $extracurricular->loadMissing(['supervisor:id,name']);
+        $kkm = $extracurricular->kkm_value;
+
+        $sessionsQuery = ExtracurricularSession::where('extracurricular_id', $extracurricular->id)
+            ->orderBy('session_date')
+            ->orderBy('id');
+        if ($semesterId) {
+            $sessionsQuery->where('semester_id', $semesterId);
+        }
+        $sessions = $sessionsQuery->get();
+        $sessionIds = $sessions->pluck('id');
+
+        $attendanceMap = $sessionIds->isEmpty()
+            ? collect()
+            : ExtracurricularAttendance::whereIn('session_id', $sessionIds)
+                ->where('student_id', $student->id)
+                ->get()
+                ->keyBy('session_id');
+
+        $gradeMap = $sessionIds->isEmpty()
+            ? collect()
+            : ExtracurricularSessionGrade::whereIn('session_id', $sessionIds)
+                ->where('student_id', $student->id)
+                ->get()
+                ->keyBy('session_id');
+
+        $sessionRows = [];
+        $sum = 0.0;
+        $count = 0;
+        foreach ($sessions as $s) {
+            $att = $attendanceMap->get($s->id);
+            $g = $gradeMap->get($s->id);
+            $score = $g?->score !== null ? (float) $g->score : null;
+            if ($score !== null) {
+                $sum += $score;
+                $count++;
+            }
+            $sessionRows[] = [
+                'session_id' => $s->id,
+                'session_date' => $s->session_date?->format('Y-m-d'),
+                'topic' => $s->topic,
+                'attendance_status' => $att?->status,
+                'score' => $score,
+                'predicate' => $g?->predicate,
+                'notes' => $g?->notes,
+            ];
+        }
+
+        $average = $count > 0 ? round($sum / $count, 2) : null;
+        $final = null;
+        if ($semesterId) {
+            $final = ExtracurricularGrade::where('extracurricular_id', $extracurricular->id)
+                ->where('student_id', $student->id)
+                ->where('semester_id', $semesterId)
+                ->first();
+        }
+        $finalScore = $final?->score !== null ? (float) $final->score : $average;
+        $predicate = $final?->predicate
+            ?? ExtracurricularGrade::predicateFromScore($finalScore, $kkm);
+
+        return response()->json([
+            'data' => [
+                'extracurricular' => [
+                    'id' => $extracurricular->id,
+                    'name' => $extracurricular->name,
+                    'kkm' => $kkm,
+                    'supervisor' => $extracurricular->supervisor
+                        ? ['id' => $extracurricular->supervisor->id, 'name' => $extracurricular->supervisor->name]
+                        : null,
+                ],
+                'semester_id' => $semesterId ? (int) $semesterId : null,
+                'sessions' => $sessionRows,
+                'graded_sessions' => $count,
+                'average' => $average,
+                'final_score' => $finalScore,
+                'predicate' => $predicate,
+            ],
+        ]);
     }
 
     // ─── Report ───────────────────────────────────────────────
@@ -552,6 +957,20 @@ class ExtracurricularActivityController extends Controller
         }
         $gradeMap = $gradeMapQuery->get()->keyBy('student_id');
 
+        $kkm = $extracurricular->kkm_value;
+
+        // Session grade cells: [student_id][session_id] => score
+        $gradeCells = [];
+        if ($sessionIds->isNotEmpty()) {
+            $gradeCellRows = ExtracurricularSessionGrade::whereIn('session_id', $sessionIds)->get();
+            foreach ($gradeCellRows as $cell) {
+                $gradeCells[(int) $cell->student_id][(int) $cell->session_id] = [
+                    'score' => $cell->score !== null ? (float) $cell->score : null,
+                    'predicate' => $cell->predicate,
+                ];
+            }
+        }
+
         // Raw attendance cells: [student_id][session_id] => status
         $attendanceCells = [];
         if ($sessionIds->isNotEmpty()) {
@@ -662,6 +1081,55 @@ class ExtracurricularActivityController extends Controller
         }
         usort($matrixRows, fn ($a, $b) => strcmp($a['name'] ?? '', $b['name'] ?? ''));
 
+        // Grade matrix: peserta × pertemuan (skor per tanggal)
+        $gradeMatrixSessions = $sessions->map(function (ExtracurricularSession $s) {
+            $date = $s->session_date;
+
+            return [
+                'id' => $s->id,
+                'session_date' => $date?->format('Y-m-d'),
+                'label' => $date ? $date->format('j') : (string) $s->id,
+                'label_short' => $date ? $date->locale('id')->isoFormat('D MMM') : '—',
+                'topic' => $s->topic,
+            ];
+        })->values()->all();
+
+        $gradeMatrixRows = [];
+        foreach ($matrixStudentIds as $studentId) {
+            $student = $matrixStudents->get($studentId);
+            if (!$student) {
+                continue;
+            }
+            $scores = [];
+            $sum = 0.0;
+            $count = 0;
+            foreach ($sessions as $s) {
+                $cell = $gradeCells[(int) $studentId][(int) $s->id] ?? null;
+                $score = $cell['score'] ?? null;
+                $scores[(string) $s->id] = $score;
+                if ($score !== null) {
+                    $sum += $score;
+                    $count++;
+                }
+            }
+            $average = $count > 0 ? round($sum / $count, 2) : null;
+            $g = $gradeMap->get($studentId);
+            $finalScore = $g?->score !== null ? (float) $g->score : $average;
+            $gradeMatrixRows[] = [
+                'student_id' => (int) $studentId,
+                'name' => $student->name,
+                'nis' => $student->nis,
+                'class' => $this->classPayload($student),
+                'scores' => $scores,
+                'graded_sessions' => $count,
+                'average' => $average,
+                'score' => $finalScore,
+                'predicate' => $g?->predicate
+                    ?? ExtracurricularGrade::predicateFromScore($finalScore, $kkm),
+            ];
+        }
+        usort($gradeMatrixRows, fn ($a, $b) => strcmp($a['name'] ?? '', $b['name'] ?? ''));
+
         $extracurricular->loadMissing(['supervisor:id,name,nip,nuptk', 'institution', 'room:id,name']);
 
         return [
@@ -669,6 +1137,7 @@ class ExtracurricularActivityController extends Controller
                 'id' => $extracurricular->id,
                 'name' => $extracurricular->name,
                 'description' => $extracurricular->description,
+                'kkm' => $kkm,
                 'supervisor' => $extracurricular->supervisor
                     ? [
                         'id' => $extracurricular->supervisor->id,
@@ -688,6 +1157,7 @@ class ExtracurricularActivityController extends Controller
             ],
             'participants_count' => $participantCount,
             'sessions_count' => $sessionCount,
+            'kkm' => $kkm,
             'attendance' => $attendanceStats,
             'grades' => [
                 'graded_count' => $gradedCount,
@@ -698,6 +1168,10 @@ class ExtracurricularActivityController extends Controller
             'attendance_matrix' => [
                 'sessions' => $matrixSessions,
                 'rows' => $matrixRows,
+            ],
+            'grade_matrix' => [
+                'sessions' => $gradeMatrixSessions,
+                'rows' => $gradeMatrixRows,
             ],
             'semester_id' => $period['semester_id'],
         ];
@@ -733,14 +1207,19 @@ class ExtracurricularActivityController extends Controller
         $matrix = $data['attendance_matrix'] ?? ['sessions' => [], 'rows' => []];
         $matrixSessions = $matrix['sessions'] ?? [];
         $matrixRows = $matrix['rows'] ?? [];
+        $gradeMatrix = $data['grade_matrix'] ?? ['sessions' => [], 'rows' => []];
+        $gradeSessions = $gradeMatrix['sessions'] ?? [];
+        $gradeRows = $gradeMatrix['rows'] ?? [];
+        $kkm = $data['kkm'] ?? null;
 
         $filename = 'laporan-ekskul-' . preg_replace('/\s+/', '-', strtolower($extracurricular->name)) . '-' . date('Y-m-d') . '.csv';
 
-        return response()->streamDownload(function () use ($rows, $periodLabel, $data, $matrixSessions, $matrixRows) {
+        return response()->streamDownload(function () use ($rows, $periodLabel, $data, $matrixSessions, $matrixRows, $gradeSessions, $gradeRows, $kkm) {
             $out = fopen('php://output', 'w');
             fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($out, ['Laporan Ekstrakurikuler', $data['extracurricular']['name'] ?? '']);
             fputcsv($out, ['Periode', $periodLabel]);
+            fputcsv($out, ['KKM', $kkm ?? '']);
             fputcsv($out, ['Peserta', $data['participants_count'] ?? 0]);
             fputcsv($out, ['Pertemuan', $data['sessions_count'] ?? 0]);
             fputcsv($out, []);
@@ -779,6 +1258,40 @@ class ExtracurricularActivityController extends Controller
                 }
                 fputcsv($out, []);
                 fputcsv($out, ['Keterangan: H=Hadir, I=Izin, S=Sakit, A=Alpha, -=Tidak ada data']);
+                fputcsv($out, []);
+            }
+
+            if (!empty($gradeSessions) && !empty($gradeRows)) {
+                fputcsv($out, ['REKAP NILAI PER PERTEMUAN']);
+                $header = ['No', 'Nama', 'NIS', 'Kelas'];
+                foreach ($gradeSessions as $s) {
+                    $header[] = $s['label_short'] ?? $s['session_date'] ?? '';
+                }
+                $header[] = 'Jml Dinilai';
+                $header[] = 'Rata-rata';
+                $header[] = 'Nilai Akhir';
+                $header[] = 'Predikat';
+                fputcsv($out, $header);
+                $i = 1;
+                foreach ($gradeRows as $r) {
+                    $line = [
+                        $i++,
+                        $r['name'] ?? '',
+                        $r['nis'] ?? '',
+                        $r['class']['name'] ?? '',
+                    ];
+                    foreach ($gradeSessions as $s) {
+                        $sc = $r['scores'][(string) $s['id']] ?? null;
+                        $line[] = $sc !== null ? $sc : '-';
+                    }
+                    $line[] = $r['graded_sessions'] ?? 0;
+                    $line[] = $r['average'] ?? '';
+                    $line[] = $r['score'] ?? '';
+                    $line[] = $r['predicate'] ?? '';
+                    fputcsv($out, $line);
+                }
+                fputcsv($out, []);
+                fputcsv($out, ['Keterangan: Nilai akhir = rata-rata skor pertemuan yang terisi. Predikat berdasarkan KKM.']);
                 fputcsv($out, []);
             }
 

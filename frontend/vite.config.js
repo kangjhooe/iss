@@ -82,6 +82,7 @@ export default defineConfig(({ mode }) => {
             if (id.includes('quill') || id.includes('@vueup/vue-quill')) return 'quill'
             if (id.includes('chart.js') || id.includes('vue-chartjs')) return 'chart'
             if (id.includes('axios')) return 'axios'
+            if (id.includes('pdfjs-dist')) return 'pdfjs'
           }
         }
       }

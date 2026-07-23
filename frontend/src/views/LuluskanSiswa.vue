@@ -173,7 +173,7 @@ const selectedClass = computed(() =>
 
 function institutionParams() {
   const params = {}
-  const fromUser = authStore.user?.institution_id
+  const fromUser = authStore.activeInstitutionId || authStore.user?.institution_id
   const fromClass = selectedClass.value?.institution_id
   if (fromUser) params.institution_id = fromUser
   else if (fromClass) params.institution_id = fromClass

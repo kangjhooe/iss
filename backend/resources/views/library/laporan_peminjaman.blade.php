@@ -90,14 +90,9 @@
     <div class="footer">
         Dicetak pada {{ $printed_at }} &mdash; {{ $loans->count() }} catatan
     </div>
-    <div class="standard-signature-wrap">
-        <div class="standard-signature-left"></div>
-        <div class="standard-signature-right">
-            @include('partials.print-signature', [
-                'institution' => $institution,
-                'date' => \Carbon\Carbon::parse($printed_at)->locale('id')->translatedFormat('d F Y'),
-            ])
-        </div>
-    </div>
+    @include('library.partials.signature', [
+        'institution' => $institution,
+        'kepala_perpustakaan' => $kepala_perpustakaan ?? null,
+    ])
 </body>
 </html>

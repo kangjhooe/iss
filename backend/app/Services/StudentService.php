@@ -5,14 +5,76 @@ namespace App\Services;
 use App\Models\Student;
 use App\Models\ClassStudentHistory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class StudentService
 {
+    /** Sentinel values for "tanpa kelas / tanpa tingkat" filters. */
+    public const UNASSIGNED_VALUES = ['__none__', 'unassigned', 'none'];
+
+    private const ALLOWED_SORTS = [
+        'name',
+        'nik',
+        'nis',
+        'nisn',
+        'gender',
+        'tingkat',
+        'class',
+        'status',
+        'created_at',
+    ];
+
+    public static function isUnassignedFilter(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return false;
+        }
+
+        return in_array(strtolower((string) $value), self::UNASSIGNED_VALUES, true);
+    }
+
     /**
      * Get list of students with filters.
      */
     public function list(array $filters, ?int $institutionId = null, int $perPage = 15): LengthAwarePaginator
+    {
+        $query = $this->buildListQuery($filters, $institutionId);
+
+        $perPage = min($perPage, 100); // Max 100 per page
+
+        // Include graduation_year for list
+        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'tingkat', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'graduation_year', 'created_at'])
+            ->with([
+                'institution:id,name,npsn',
+                'class:id,name,grade,academic_year_id',
+                'academicYear:id,name,code',
+                'semester:id,name,academic_year_id'
+            ])
+            ->paginate($perPage);
+    }
+
+    /**
+     * Full student rows for Excel export (no pagination, full columns).
+     */
+    public function listForExport(array $filters, ?int $institutionId = null, int $limit = 20000): Collection
+    {
+        $query = $this->buildListQuery($filters, $institutionId);
+
+        return $query
+            ->with([
+                'institution:id,name,npsn',
+                'class:id,name,grade,academic_year_id',
+                'academicYear:id,name,code',
+                'semester:id,name,academic_year_id',
+            ])
+            ->limit(max(1, min($limit, 50000)))
+            ->get();
+    }
+
+    protected function buildListQuery(array $filters, ?int $institutionId = null): Builder
     {
         $query = Student::query();
 
@@ -22,15 +84,21 @@ class StudentService
             $query->withTrashed();
         }
 
-        // Filter by institution if provided
         if ($institutionId) {
             $query->where('institution_id', $institutionId);
         }
 
-        // Apply filters
-        if (isset($filters['search'])) {
+        $this->applyListFilters($query, $filters);
+        $this->applyListSorting($query, $filters);
+
+        return $query;
+    }
+
+    protected function applyListFilters(Builder $query, array $filters): void
+    {
+        if (isset($filters['search']) && $filters['search'] !== '') {
             $search = $filters['search'];
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
                   ->orWhere('nik', 'like', '%' . $search . '%')
                   ->orWhere('nis', 'like', '%' . $search . '%')
@@ -38,12 +106,19 @@ class StudentService
             });
         }
 
-        if (isset($filters['class'])) {
+        if (isset($filters['class']) && $filters['class'] !== '' && !self::isUnassignedFilter($filters['class'])) {
             $query->where('class', $filters['class']);
         }
 
-        if (isset($filters['class_id'])) {
-            $query->where('class_id', $filters['class_id']);
+        if (array_key_exists('class_id', $filters) && $filters['class_id'] !== '' && $filters['class_id'] !== null) {
+            if (self::isUnassignedFilter($filters['class_id'])) {
+                $query->where(function ($q) {
+                    $q->whereNull('class_id')
+                      ->orWhere('class_id', 0);
+                });
+            } else {
+                $query->where('class_id', $filters['class_id']);
+            }
         }
 
         if (!empty($filters['class_ids']) && is_array($filters['class_ids'])) {
@@ -58,34 +133,42 @@ class StudentService
             $query->where('academic_year_id', $filters['academic_year_id']);
         }
 
-        if (isset($filters['semester_id'])) {
+        if (isset($filters['semester_id']) && $filters['semester_id'] !== '' && $filters['semester_id'] !== null) {
             $query->where('semester_id', $filters['semester_id']);
         }
 
-        if (isset($filters['status'])) {
+        if (isset($filters['status']) && $filters['status'] !== '') {
             $query->where('status', $filters['status']);
         }
 
-        if (isset($filters['gender'])) {
+        if (isset($filters['gender']) && $filters['gender'] !== '') {
             $query->where('gender', $filters['gender']);
         }
 
-        if (isset($filters['tingkat'])) {
-            $query->where('tingkat', $filters['tingkat']);
+        if (array_key_exists('tingkat', $filters) && $filters['tingkat'] !== '' && $filters['tingkat'] !== null) {
+            if (self::isUnassignedFilter($filters['tingkat'])) {
+                $query->whereNull('tingkat');
+            } else {
+                $query->where('tingkat', $filters['tingkat']);
+            }
+        }
+    }
+
+    protected function applyListSorting(Builder $query, array $filters): void
+    {
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDir = strtolower((string) ($filters['sort_dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        if (!in_array($sortBy, self::ALLOWED_SORTS, true)) {
+            $sortBy = 'created_at';
         }
 
-        $perPage = min($perPage, 100); // Max 100 per page
+        // Keep nulls at the end so "tanpa data" tidak mengacaukan urutan A–Z.
+        if (in_array($sortBy, ['name', 'nik', 'nis', 'nisn', 'tingkat', 'class', 'status', 'gender'], true)) {
+            $query->orderByRaw("CASE WHEN `{$sortBy}` IS NULL OR `{$sortBy}` = '' THEN 1 ELSE 0 END");
+        }
 
-        // Include graduation_year for list
-        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'tingkat', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'graduation_year', 'created_at'])
-            ->with([
-                'institution:id,name,npsn',
-                'class:id,name,grade,academic_year_id',
-                'academicYear:id,name,code',
-                'semester:id,name,academic_year_id'
-            ])
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        $query->orderBy($sortBy, $sortDir)->orderBy('id', 'asc');
     }
 
     /**
@@ -421,6 +504,133 @@ class StudentService
         }
 
         return ['success' => $success, 'failed' => $failed];
+    }
+
+    /**
+     * Batalkan kelulusan: kembalikan status Aktif dan pulihkan riwayat kelas.
+     */
+    public function revokeGraduation(Student $student, ?string $reason = null): Student
+    {
+        if ($student->status !== 'Lulus') {
+            throw new \InvalidArgumentException('Hanya siswa berstatus Lulus yang dapat dibatalkan kelulusannya.');
+        }
+
+        if ($student->alumniDestinations()->exists()) {
+            throw new \InvalidArgumentException(
+                'Tidak dapat membatalkan kelulusan: masih ada data destinasi alumni. Hapus destinasi terlebih dahulu.'
+            );
+        }
+
+        if ($student->documentPickups()->exists()) {
+            throw new \InvalidArgumentException(
+                'Tidak dapat membatalkan kelulusan: sudah ada catatan pengambilan ijazah/dokumen.'
+            );
+        }
+
+        return DB::transaction(function () use ($student, $reason) {
+            $this->restoreClassHistoryAfterRevoke($student);
+
+            $student->update([
+                'status' => 'Aktif',
+                'graduation_year' => null,
+            ]);
+
+            Log::info('Student graduation revoked', [
+                'student_id' => $student->id,
+                'class_id' => $student->class_id,
+                'reason' => $reason,
+            ]);
+
+            return $student->fresh(['institution', 'class', 'academicYear', 'semester']);
+        });
+    }
+
+    /**
+     * Batalkan kelulusan banyak siswa sekaligus.
+     *
+     * @param array<int> $studentIds
+     * @return array{success: int, failed: array<array{id: int, reason: string}>}
+     */
+    public function revokeGraduationBulk(array $studentIds, ?string $reason = null): array
+    {
+        $success = 0;
+        $failed = [];
+
+        foreach ($studentIds as $id) {
+            $student = Student::find($id);
+            if (!$student) {
+                $failed[] = ['id' => $id, 'reason' => 'Siswa tidak ditemukan.'];
+                continue;
+            }
+            try {
+                $this->revokeGraduation($student, $reason);
+                $success++;
+            } catch (\Throwable $e) {
+                $failed[] = ['id' => $id, 'reason' => $e->getMessage()];
+            }
+        }
+
+        return ['success' => $success, 'failed' => $failed];
+    }
+
+    /**
+     * Hapus baris history status Lulus dan buka kembali history aktif sebelumnya.
+     */
+    protected function restoreClassHistoryAfterRevoke(Student $student): void
+    {
+        $classId = $student->class_id ? (int) $student->class_id : null;
+        $academicYearId = $student->academic_year_id ? (int) $student->academic_year_id : null;
+
+        $lulusQuery = ClassStudentHistory::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'Lulus');
+
+        if ($classId) {
+            $lulusQuery->where('class_id', $classId);
+        }
+        if ($academicYearId) {
+            $lulusQuery->where('academic_year_id', $academicYearId);
+        }
+
+        $lulusRows = $lulusQuery->orderByDesc('id')->get();
+        if ($lulusRows->isEmpty()) {
+            // Fallback: hapus history Lulus terbaru siswa (jika class/year tidak sinkron)
+            $fallback = ClassStudentHistory::query()
+                ->where('student_id', $student->id)
+                ->where('status', 'Lulus')
+                ->orderByDesc('id')
+                ->first();
+            if ($fallback) {
+                $classId = (int) $fallback->class_id;
+                $academicYearId = (int) $fallback->academic_year_id;
+                $fallback->delete();
+            }
+        } else {
+            foreach ($lulusRows as $row) {
+                $row->delete();
+            }
+        }
+
+        if (!$classId || !$academicYearId) {
+            return;
+        }
+
+        $previous = ClassStudentHistory::query()
+            ->where('student_id', $student->id)
+            ->where('class_id', $classId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNotNull('end_date')
+            ->orderByDesc('end_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($previous) {
+            $previous->update([
+                'end_date' => null,
+                'status' => 'Aktif',
+                'notes' => trim(($previous->notes ? $previous->notes . ' | ' : '') . 'Dibuka kembali setelah batal lulus'),
+            ]);
+        }
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StorePiketIncidentRequest extends FormRequest
 {
@@ -28,5 +29,33 @@ class StorePiketIncidentRequest extends FormRequest
             'description' => 'nullable|string|max:5000',
             'status' => 'nullable|in:open,confirmed,resolved,dismissed',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $type = $this->input('incident_type');
+
+            if ($type === 'terlambat_siswa' && ! $this->filled('student_id')) {
+                $validator->errors()->add('student_id', 'Pilih siswa yang terlambat.');
+            }
+
+            if ($type === 'kelas_kosong') {
+                if (! $this->filled('class_id')) {
+                    $validator->errors()->add('class_id', 'Pilih kelas yang kosong.');
+                }
+                if (! $this->filled('employee_id')) {
+                    $validator->errors()->add('employee_id', 'Pilih guru yang seharusnya mengajar.');
+                }
+            }
+
+            if ($type === 'terlambat_guru' && ! $this->filled('employee_id')) {
+                $validator->errors()->add('employee_id', 'Pilih guru yang terlambat.');
+            }
+
+            if ($type === 'lainnya' && ! $this->filled('description')) {
+                $validator->errors()->add('description', 'Isi keterangan kejadian.');
+            }
+        });
     }
 }

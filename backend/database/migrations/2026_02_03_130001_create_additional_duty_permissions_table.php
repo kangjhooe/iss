@@ -27,10 +27,11 @@ return new class extends Migration
 
         // duty_key => [permission_keys]
         $mapping = [
+            // KS: pengawasan & penandatanganan (bukan CRUD operasional).
+            // Modul operasional → Waka / TU / Operator. Migrasi 2026_07_18_083500 menambah
+            // teacher_appreciation, guru_piket, bk_report setelah permission tersebut ada.
             'kepala_sekolah' => [
-                'institution', 'student', 'teacher', 'facility', 'inventory', 'class', 'correspondence',
-                'report', 'violation', 'schedule', 'counseling', 'teaching_journal', 'grade_book',
-                'digital_archive', 'attendance', 'guest_book',
+                'institution', 'correspondence', 'report',
             ],
             'waka_kurikulum' => ['schedule', 'class', 'teaching_journal', 'grade_book', 'report'],
             'waka_kesiswaan' => ['student', 'violation', 'counseling', 'class', 'report'],

@@ -160,7 +160,7 @@
                   <div class="print-kop-address">{{ result.institution?.address || '-' }}</div>
                   <div class="print-kop-info">
                     NPSN: {{ result.institution?.npsn || '-' }}
-                    <template v-if="result.institution?.nss"> · NSS: {{ result.institution.nss }}</template>
+                    <template v-if="result.institution?.nss"> · {{ getNssLabel(result.institution.level) }}: {{ result.institution.nss }}</template>
                     <template v-if="result.institution?.phone"> · Telp: {{ result.institution.phone }}</template>
                     <template v-if="result.institution?.email"> · Email: {{ result.institution.email }}</template>
                     <template v-if="result.institution?.website"> · {{ result.institution.website }}</template>
@@ -216,6 +216,7 @@
 import { ref, computed } from 'vue'
 import { ppdbPublicApi } from '@/api/ppdbPublic'
 import { useToast } from '@/composables/useToast'
+import { getNssLabel } from '@/utils/institution'
 
 const toast = useToast()
 const searchQuery = ref('')

@@ -27,10 +27,12 @@
           />
           <select v-model="filters.class_id" @change="loadStudents(1)" class="filter-select">
             <option value="">Semua Kelas</option>
+            <option value="__none__">Tanpa Kelas</option>
             <option v-for="c in filterClassList" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
           <select v-if="availableStudentGrades.length" v-model="filters.tingkat" @change="loadStudents(1)" class="filter-select">
             <option value="">Semua Tingkat</option>
+            <option value="__none__">Tanpa Tingkat</option>
             <option v-for="grade in availableStudentGrades" :key="grade" :value="grade">
               Tingkat {{ grade }}
             </option>
@@ -110,6 +112,9 @@
           :trash-mode="filters.only_trashed"
           :start-index="(pagination.current_page - 1) * pagination.per_page"
           :get-status-class="getStatusClass"
+          :sort-by="filters.sort_by"
+          :sort-dir="filters.sort_dir"
+          @sort="setSort"
           @view="viewStudent"
           @edit="editStudent"
           @delete="deleteStudent"
@@ -1146,6 +1151,15 @@
             >
               {{ graduatingStudent ? 'Memproses...' : 'Luluskan Siswa' }}
             </button>
+            <button
+              v-if="viewingStudent?.status === 'Lulus'"
+              type="button"
+              class="btn-danger"
+              :disabled="graduatingStudent"
+              @click="revokeGraduationFromView"
+            >
+              {{ graduatingStudent ? 'Memproses...' : 'Batal Lulus' }}
+            </button>
             <button type="button" @click="closeViewModal" class="btn-secondary">Tutup</button>
           </div>
         </div>
@@ -1186,7 +1200,7 @@ import { counselingApi } from '@/api/counseling'
 import { extracurricularApi } from '@/api/extracurricular'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
-import { getInstitutionTypeLabel, getPrincipalTitle } from '@/utils/institution'
+import { getInstitutionTypeLabel, getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import * as XLSX from 'xlsx'
@@ -1202,6 +1216,7 @@ const {
   filters,
   pagination,
   loadStudents,
+  setSort,
   goToPage,
   getStatusClass
 } = useStudentList()
@@ -1713,6 +1728,32 @@ const graduateFromView = async () => {
   }
 }
 
+const revokeGraduationFromView = async () => {
+  if (!viewingStudent.value?.id || viewingStudent.value.status !== 'Lulus') return
+  const name = viewingStudent.value.name || 'siswa ini'
+  const confirmed = await showConfirm({
+    title: 'Batalkan Kelulusan',
+    message: `Kembalikan ${name} ke status Aktif?`,
+    warning: 'Siswa akan hilang dari daftar Alumni. Jika masih ada destinasi atau pengambilan ijazah, pembatalan akan ditolak.',
+    confirmText: 'Ya, Batalkan Lulus',
+    loadingText: 'Memproses...',
+    confirmVariant: 'danger'
+  })
+  if (!confirmed) return
+
+  graduatingStudent.value = true
+  try {
+    await alumniApi.revokeGraduation(viewingStudent.value.id)
+    toast.success('Berhasil', 'Kelulusan dibatalkan. Siswa kembali berstatus Aktif.')
+    closeViewModal()
+    await loadStudents()
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || err.formattedMessage || 'Gagal membatalkan kelulusan')
+  } finally {
+    graduatingStudent.value = false
+  }
+}
+
 async function loadStudentCounseling(studentId) {
   studentCounselingLoading.value = true
   studentCounselingSessions.value = []
@@ -1791,14 +1832,17 @@ const formatGuardianType = (type) => {
 const exportToExcel = async () => {
   try {
     loading.value = true
-    // Ambil semua data siswa tanpa pagination
-    const params = { per_page: 10000 }
+    const params = {}
     if (filters.value.search) params.search = filters.value.search
-    if (filters.value.class) params.class = filters.value.class
-    if (filters.value.tingkat) params.tingkat = filters.value.tingkat
+    if (filters.value.class_id) params.class_id = filters.value.class_id
+    if (filters.value.tingkat !== '' && filters.value.tingkat !== null) {
+      params.tingkat = filters.value.tingkat
+    }
     if (filters.value.status) params.status = filters.value.status
-    
-    const response = await studentApi.getAll(params)
+    if (filters.value.sort_by) params.sort_by = filters.value.sort_by
+    if (filters.value.sort_dir) params.sort_dir = filters.value.sort_dir
+
+    const response = await studentApi.export(params)
     const allStudents = response.data.data || []
     
     // Siapkan data untuk Excel
@@ -1881,7 +1925,7 @@ const exportToExcel = async () => {
     const fileName = `Data_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`
     XLSX.writeFile(wb, fileName)
     
-    toast.success('Berhasil', 'Data berhasil diekspor ke Excel')
+    toast.success('Berhasil', `Data berhasil diekspor ke Excel (${allStudents.length} siswa)`)
   } catch (err) {
     console.error(err)
     toast.error('Gagal', 'Gagal mengekspor data ke Excel')
@@ -2330,7 +2374,7 @@ const printPDF = async () => {
               <div class="school-address">${fullAddress || '-'}</div>
               <div class="school-info">
                 NPSN: ${institution.npsn || '-'}
-                ${institution.nss ? ` · NSS: ${institution.nss}` : ''}
+                ${institution.nss ? ` · ${getNssLabel(institution.level)}: ${institution.nss}` : ''}
                 ${institution.phone ? ` · Telp: ${institution.phone}` : ''}
                 ${institution.email ? ` · Email: ${institution.email}` : ''}
                 ${institution.website ? ` · ${institution.website}` : ''}

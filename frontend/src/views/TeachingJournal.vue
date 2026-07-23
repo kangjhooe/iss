@@ -17,7 +17,7 @@
           </select>
           <select v-model="filters.subject_id" @change="loadJournals" class="filter-select">
             <option value="">Semua Mapel</option>
-            <option v-for="sub in subjects" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
+            <option v-for="sub in filterSubjects" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
           </select>
           <input v-model="filters.date_from" type="date" class="filter-select" @change="loadJournals" />
           <input v-model="filters.date_to" type="date" class="filter-select" @change="loadJournals" />
@@ -116,16 +116,25 @@
             </div>
             <div class="form-group">
               <label>Kelas *</label>
-              <select v-model="form.class_id" required class="form-select">
+              <select v-model="form.class_id" required class="form-select" @change="onFormClassChange">
                 <option value="">Pilih kelas</option>
                 <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
             </div>
             <div class="form-group">
               <label>Mata Pelajaran *</label>
-              <select v-model="form.subject_id" required class="form-select">
+              <select v-model="form.subject_id" required class="form-select" @change="onFormSubjectChange">
                 <option value="">Pilih mapel</option>
-                <option v-for="sub in subjects" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
+                <option v-for="sub in formSubjects" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
+              </select>
+            </div>
+            <div v-if="formScheduleSlots.length" class="form-group">
+              <label>Slot jadwal (opsional)</label>
+              <select v-model="form.lesson_schedule_id" class="form-select" @change="onFormScheduleChange">
+                <option value="">Otomatis dari kelas + mapel</option>
+                <option v-for="slot in formScheduleSlots" :key="slot.id" :value="slot.id">
+                  {{ slot.day_name || ('Hari ' + slot.day_of_week) }} · jam ke-{{ slot.period }}
+                </option>
               </select>
             </div>
             <div v-if="!isTeacher" class="form-group">
@@ -180,7 +189,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
@@ -194,6 +204,7 @@ import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 const authStore = useAuthStore()
+const route = useRoute()
 
 const isTeacher = computed(() => {
   const role = authStore.user?.role
@@ -208,6 +219,8 @@ const classes = ref([])
 const subjects = ref([])
 const employees = ref([])
 const currentTeacherId = ref(null)
+const teachingPairs = ref([])
+const teachingSchedules = ref([])
 
 const filters = ref({
   semester_id: '',
@@ -225,6 +238,7 @@ const form = ref({
   class_id: '',
   subject_id: '',
   employee_id: '',
+  lesson_schedule_id: '',
   journal_date: new Date().toISOString().slice(0, 10),
   period: 1,
   material_taught: '',
@@ -235,6 +249,35 @@ const formSubmitting = ref(false)
 const formError = ref('')
 const deleteTarget = ref(null)
 const exporting = ref(false)
+
+const formSubjects = computed(() => {
+  if (!isTeacher.value || !form.value.class_id) return subjects.value
+  const allowed = new Set(
+    teachingPairs.value
+      .filter((p) => String(p.class_id) === String(form.value.class_id))
+      .map((p) => String(p.subject_id))
+  )
+  return subjects.value.filter((s) => allowed.has(String(s.id)))
+})
+
+const filterSubjects = computed(() => {
+  if (!isTeacher.value || !filters.value.class_id) return subjects.value
+  const allowed = new Set(
+    teachingPairs.value
+      .filter((p) => String(p.class_id) === String(filters.value.class_id))
+      .map((p) => String(p.subject_id))
+  )
+  return subjects.value.filter((s) => allowed.has(String(s.id)))
+})
+
+const formScheduleSlots = computed(() => {
+  if (!form.value.class_id || !form.value.subject_id) return []
+  return teachingSchedules.value.filter(
+    (s) =>
+      String(s.class_id || s.school_class?.id) === String(form.value.class_id) &&
+      String(s.subject_id || s.subject?.id) === String(form.value.subject_id)
+  )
+})
 
 const deleteMessage = computed(() => {
   if (!deleteTarget.value) return ''
@@ -300,6 +343,7 @@ async function loadSemesters() {
 }
 
 async function loadClasses() {
+  if (isTeacher.value) return
   try {
     const res = await classApi.getAll({ per_page: 200 })
     classes.value = res.data.data || []
@@ -309,12 +353,56 @@ async function loadClasses() {
 }
 
 async function loadSubjects() {
+  if (isTeacher.value) return
   try {
     const res = await subjectApi.getAll({ per_page: 200 })
     subjects.value = res.data.data || []
   } catch {
     subjects.value = []
   }
+}
+
+async function loadTeachingLoad(semesterId) {
+  if (!isTeacher.value || !semesterId) {
+    teachingPairs.value = []
+    teachingSchedules.value = []
+    return
+  }
+  try {
+    const res = await employeeApi.getTeachingLoad({ semester_id: semesterId })
+    const data = res.data?.data ?? res.data ?? {}
+    teachingPairs.value = Array.isArray(data.pairs) ? data.pairs : []
+    teachingSchedules.value = Array.isArray(data.schedules)
+      ? data.schedules.map((s) => s?.data ?? s)
+      : []
+    classes.value = Array.isArray(data.classes) ? data.classes : []
+    subjects.value = Array.isArray(data.subjects) ? data.subjects : []
+    if (data.employee_id) currentTeacherId.value = data.employee_id
+  } catch {
+    teachingPairs.value = []
+    teachingSchedules.value = []
+    classes.value = []
+    subjects.value = []
+  }
+}
+
+function onFormClassChange() {
+  form.value.subject_id = ''
+  form.value.lesson_schedule_id = ''
+}
+
+function onFormSubjectChange() {
+  form.value.lesson_schedule_id = ''
+  const slots = formScheduleSlots.value
+  if (slots.length === 1) {
+    form.value.lesson_schedule_id = slots[0].id
+    form.value.period = slots[0].period || form.value.period
+  }
+}
+
+function onFormScheduleChange() {
+  const slot = formScheduleSlots.value.find((s) => String(s.id) === String(form.value.lesson_schedule_id))
+  if (slot?.period) form.value.period = slot.period
 }
 
 async function loadEmployees() {
@@ -376,6 +464,7 @@ function openAddModal() {
     class_id: filters.value.class_id || '',
     subject_id: filters.value.subject_id || '',
     employee_id: isTeacher.value ? (currentTeacherId.value || '') : '',
+    lesson_schedule_id: '',
     journal_date: new Date().toISOString().slice(0, 10),
     period: 1,
     material_taught: '',
@@ -384,6 +473,7 @@ function openAddModal() {
   }
   formError.value = ''
   showFormModal.value = true
+  if (isTeacher.value && form.value.semester_id) loadTeachingLoad(form.value.semester_id)
 }
 
 function openEditModal(j) {
@@ -393,6 +483,7 @@ function openEditModal(j) {
     class_id: j.class_id,
     subject_id: j.subject_id,
     employee_id: j.employee_id,
+    lesson_schedule_id: j.lesson_schedule_id || '',
     journal_date: j.journal_date,
     period: j.period ?? 1,
     material_taught: j.material_taught || '',
@@ -401,6 +492,7 @@ function openEditModal(j) {
   }
   formError.value = ''
   showFormModal.value = true
+  if (isTeacher.value && form.value.semester_id) loadTeachingLoad(form.value.semester_id)
 }
 
 async function submitForm() {
@@ -416,6 +508,9 @@ async function submitForm() {
       material_taught: form.value.material_taught || null,
       attendance_notes: form.value.attendance_notes || null,
       notes: form.value.notes || null,
+    }
+    if (form.value.lesson_schedule_id) {
+      payload.lesson_schedule_id = form.value.lesson_schedule_id
     }
     if (!isTeacher.value) {
       payload.employee_id = form.value.employee_id || null
@@ -452,10 +547,50 @@ async function doDelete() {
   }
 }
 
+watch(
+  () => filters.value.semester_id,
+  async (semesterId) => {
+    if (isTeacher.value) {
+      await loadTeachingLoad(semesterId)
+      loadJournals()
+    }
+  }
+)
+
+watch(
+  () => form.value.semester_id,
+  async (semesterId) => {
+    if (isTeacher.value && showFormModal.value) {
+      await loadTeachingLoad(semesterId)
+    }
+  }
+)
+
 onMounted(async () => {
   await loadCurrentTeacher()
-  await Promise.all([loadSemesters(), loadClasses(), loadSubjects(), loadEmployees()])
-  loadJournals()
+  await loadSemesters()
+  const q = route.query
+  if (q.semester_id) filters.value.semester_id = String(q.semester_id)
+  if (isTeacher.value) {
+    if (!filters.value.semester_id && semesters.value.length) {
+      filters.value.semester_id = String(semesters.value[0].id)
+    }
+    await loadTeachingLoad(filters.value.semester_id)
+  } else {
+    await Promise.all([loadClasses(), loadSubjects(), loadEmployees()])
+  }
+  if (q.class_id) filters.value.class_id = String(q.class_id)
+  if (q.subject_id) filters.value.subject_id = String(q.subject_id)
+  await loadJournals()
+
+  if (q.lesson_schedule_id) {
+    openAddModal()
+    form.value.lesson_schedule_id = String(q.lesson_schedule_id)
+    if (q.period) form.value.period = Number(q.period) || form.value.period
+    if (q.class_id) form.value.class_id = String(q.class_id)
+    if (q.subject_id) form.value.subject_id = String(q.subject_id)
+    if (q.semester_id) form.value.semester_id = String(q.semester_id)
+  }
 })
 </script>
 

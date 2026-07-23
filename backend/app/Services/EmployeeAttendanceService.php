@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Employee;
 use App\Models\EmployeeAttendance;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -99,5 +100,106 @@ class EmployeeAttendanceService
     {
         $attendance->update($data);
         return $attendance->fresh(['employee:id,institution_id,nip,name,type,gender']);
+    }
+
+    /**
+     * Aggregate employee attendance rekap for reports.
+     *
+     * @param  array{employee_id?:int|string,date_from?:string,date_to?:string,status?:string}  $filters
+     * @return array{rows: array<int, array>, totals: array<string, int|float>, meta: array}
+     */
+    public function buildRekap(int $institutionId, array $filters = []): array
+    {
+        $statusKeys = array_keys(EmployeeAttendance::STATUSES);
+
+        $query = EmployeeAttendance::query()
+            ->with(['employee:id,institution_id,nip,name,type,gender'])
+            ->forInstitution($institutionId);
+
+        if (!empty($filters['employee_id'])) {
+            $query->forEmployee((int) $filters['employee_id']);
+        }
+        if (!empty($filters['date_from'])) {
+            $query->dateFrom($filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $query->dateTo($filters['date_to']);
+        }
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        $records = $query->orderBy('employee_id')->orderBy('date')->get();
+        $byEmployee = $records->groupBy('employee_id');
+
+        if (!empty($filters['employee_id'])) {
+            $employees = Employee::query()
+                ->where('institution_id', $institutionId)
+                ->where('id', (int) $filters['employee_id'])
+                ->orderBy('name')
+                ->get(['id', 'nip', 'name', 'type']);
+        } elseif ($byEmployee->isNotEmpty()) {
+            $employees = Employee::query()
+                ->where('institution_id', $institutionId)
+                ->whereIn('id', $byEmployee->keys())
+                ->orderBy('name')
+                ->get(['id', 'nip', 'name', 'type']);
+        } else {
+            $employees = collect();
+        }
+
+        $totals = array_fill_keys($statusKeys, 0);
+        $totals['tercatat'] = 0;
+
+        $rows = $employees->map(function (Employee $employee) use ($byEmployee, $statusKeys, &$totals) {
+            $atts = $byEmployee->get($employee->id, collect());
+            $counts = array_fill_keys($statusKeys, 0);
+            foreach ($atts as $att) {
+                $status = $att->status;
+                if (isset($counts[$status])) {
+                    $counts[$status]++;
+                }
+            }
+            $tercatat = (int) $atts->count();
+            $hadir = $counts['hadir'] ?? 0;
+            $persen = $tercatat > 0 ? round(($hadir / $tercatat) * 100, 1) : 0.0;
+
+            foreach ($statusKeys as $key) {
+                $totals[$key] += $counts[$key];
+            }
+            $totals['tercatat'] += $tercatat;
+
+            return [
+                'employee_id' => $employee->id,
+                'nip' => $employee->nip,
+                'name' => $employee->name,
+                'type' => $employee->type,
+                'counts' => $counts,
+                'tercatat' => $tercatat,
+                'persentase_hadir' => $persen,
+            ];
+        })->values()->all();
+
+        $totals['persentase_hadir'] = $totals['tercatat'] > 0
+            ? round(($totals['hadir'] / $totals['tercatat']) * 100, 1)
+            : 0.0;
+
+        $employeeName = null;
+        if (!empty($filters['employee_id'])) {
+            $employeeName = Employee::where('id', (int) $filters['employee_id'])->value('name');
+        }
+
+        return [
+            'rows' => $rows,
+            'totals' => $totals,
+            'meta' => [
+                'employee_count' => count($rows),
+                'employee_name' => $employeeName,
+                'date_from' => $filters['date_from'] ?? null,
+                'date_to' => $filters['date_to'] ?? null,
+                'status_filter' => $filters['status'] ?? null,
+                'status_labels' => EmployeeAttendance::STATUSES,
+            ],
+        ];
     }
 }

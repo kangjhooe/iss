@@ -112,7 +112,7 @@
                   <div class="print-kop-address">{{ institution?.address || '-' }}</div>
                   <div class="print-kop-info">
                     NPSN: {{ institution?.npsn || '-' }}
-                    <template v-if="institution?.nss"> · NSS: {{ institution.nss }}</template>
+                    <template v-if="institution?.nss"> · {{ getNssLabel(institution.level) }}: {{ institution.nss }}</template>
                     <template v-if="institution?.phone"> · Telp: {{ institution.phone }}</template>
                     <template v-if="institution?.email"> · Email: {{ institution.email }}</template>
                     <template v-if="institution?.website"> · {{ institution.website }}</template>
@@ -383,6 +383,7 @@ import { useRoute } from 'vue-router'
 import { ppdbPublicApi } from '@/api/ppdbPublic'
 import { schoolPublicApi } from '@/api/schoolPublic'
 import { useToast } from '@/composables/useToast'
+import { getNssLabel } from '@/utils/institution'
 
 const toast = useToast()
 const route = useRoute()

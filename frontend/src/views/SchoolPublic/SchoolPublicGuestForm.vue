@@ -1,8 +1,16 @@
 <template>
-  <section id="buku-tamu" ref="sectionRef" class="section buku-tamu-section reveal-section">
+  <section
+    id="buku-tamu"
+    ref="sectionRef"
+    class="section buku-tamu-section"
+    :class="{ 'reveal-section': !standalone, 'buku-tamu-section--standalone': standalone }"
+  >
     <div class="section-inner">
-      <h2 class="section-title"><span class="section-title-text">Buku Tamu</span></h2>
-      <p class="section-subtitle">Isi form di bawah untuk mencatat kunjungan Anda.</p>
+      <header class="section-header">
+        <p class="section-eyebrow">Kunjungan</p>
+        <h2 class="section-title">Buku Tamu</h2>
+        <p class="section-subtitle">Isi form di bawah untuk mencatat kunjungan Anda.</p>
+      </header>
 
       <div v-if="guestSubmitted" class="state-wrap state-success card">
         <div class="success-icon-wrap">
@@ -12,6 +20,9 @@
         </div>
         <h2>Terima kasih</h2>
         <p>Data kunjungan Anda telah dicatat.</p>
+        <router-link v-if="standalone && npsn" :to="`/${npsn}`" class="success-back">
+          ← Kembali ke beranda sekolah
+        </router-link>
       </div>
 
       <form v-else class="guest-form card card--hover guest-form-modal" @submit.prevent="submitGuest">
@@ -109,7 +120,9 @@ import { schoolPublicApi } from '@/api/schoolPublic'
 const TUJUAN_OPTIONS = ['Rapat', 'Urusan siswa', 'Dinas', 'Kunjungan', 'Lainnya']
 
 const props = defineProps({
-  npsn: { type: String, default: '' }
+  npsn: { type: String, default: '' },
+  /** Halaman khusus /:npsn/buku-tamu — tanpa animasi reveal, tampilkan link kembali */
+  standalone: { type: Boolean, default: false }
 })
 
 const sectionRef = ref(null)
@@ -256,15 +269,23 @@ defineExpose({ sectionRef })
 </script>
 
 <style scoped>
-.section { padding: 56px 24px; position: relative; z-index: 1; }
-.section-inner { max-width: 720px; margin: 0 auto; }
-.section-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; text-align: center; margin-bottom: 24px; letter-spacing: -0.02em; }
-.section-title-text { display: inline-block; padding-bottom: 8px; border-bottom: 3px solid #059669; border-radius: 0 0 2px 0; }
-.section-subtitle { font-size: 0.9375rem; color: #64748b; text-align: center; margin-bottom: 28px; line-height: 1.5; }
+.section { padding: 72px 24px; position: relative; z-index: 1; }
+.section-inner { max-width: 640px; margin: 0 auto; }
+.section-header { text-align: center; margin-bottom: 0; }
+.section-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #059669;
+}
+.section-title { font-size: clamp(1.5rem, 3vw, 1.875rem); font-weight: 700; color: #0f172a; text-align: center; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
+.section-subtitle { font-size: 0.975rem; color: #64748b; text-align: center; margin: 0 0 2rem; line-height: 1.55; }
 .buku-tamu-section { background: #fff; }
-.card { background: #fff; border-radius: 16px; padding: 2rem 1.75rem; box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04); border: 1px solid rgba(226, 232, 240, 0.8); transition: transform 0.3s ease, box-shadow 0.3s ease; }
-.card--hover:hover { transform: translateY(-4px); box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.12); }
-.guest-form { padding: 2rem; }
+.card { background: #fff; border-radius: 14px; padding: 2rem 1.75rem; box-shadow: none; border: 1px solid #e2e8f0; }
+.card--hover:hover { transform: none; box-shadow: none; }
+.guest-form { padding: 1.75rem; }
 .guest-form-modal .form-section { margin-bottom: 1.25rem; }
 .form-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0 0 0.75rem 0; }
 .form-section-title .required { color: #b91c1c; }
@@ -309,13 +330,26 @@ defineExpose({ sectionRef })
 .success-icon { width: 36px; height: 36px; color: #fff; }
 .state-success h2 { margin: 0 0 0.5rem; font-size: 1.35rem; color: #1e293b; }
 .state-success p { margin: 0; color: #64748b; }
+.success-back {
+  display: inline-block;
+  margin-top: 1.25rem;
+  color: #059669;
+  font-weight: 600;
+  text-decoration: none;
+}
+.success-back:hover { color: #047857; text-decoration: underline; }
+.buku-tamu-section--standalone { background: transparent; padding-top: 40px; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.reveal-section .section-title,
-.reveal-section .card {
+.reveal-section {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+.reveal-section.is-visible {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 0.5s ease, transform 0.5s ease;
 }
-.reveal-section.is-visible .section-title { opacity: 1; transform: translateY(0); transition-delay: 0.1s; }
-.reveal-section.is-visible .card { opacity: 1; transform: translateY(0); transition-delay: 0.2s; }
+@media (max-width: 640px) {
+  .section { padding: 56px 20px; }
+}
 </style>

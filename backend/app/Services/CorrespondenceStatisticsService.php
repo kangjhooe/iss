@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AcademicYear;
 use App\Models\Correspondence;
 use App\Models\CorrespondenceDisposition;
 use Illuminate\Support\Facades\DB;
@@ -11,7 +12,12 @@ class CorrespondenceStatisticsService
     /**
      * Get statistics for correspondence dashboard.
      */
-    public function getStatistics(?int $institutionId = null, ?string $year = null, ?string $month = null): array
+    public function getStatistics(
+        ?int $institutionId = null,
+        ?string $year = null,
+        ?string $month = null,
+        ?int $academicYearId = null
+    ): array
     {
         $query = Correspondence::query();
 
@@ -19,7 +25,13 @@ class CorrespondenceStatisticsService
             $query->where('institution_id', $institutionId);
         }
 
-        if ($year) {
+        if ($academicYearId) {
+            $academicYear = AcademicYear::find($academicYearId);
+            if ($academicYear?->start_date && $academicYear?->end_date) {
+                $query->whereDate('date', '>=', $academicYear->start_date->toDateString())
+                    ->whereDate('date', '<=', $academicYear->end_date->toDateString());
+            }
+        } elseif ($year) {
             $query->whereYear('date', $year);
         }
 
@@ -48,15 +60,20 @@ class CorrespondenceStatisticsService
             ->pluck('total', 'priority')
             ->toArray();
 
-        // Monthly trend (last 12 months)
-        $monthlyTrend = (clone $query)
+        // Monthly trend (within academic year if set, otherwise last 12 months)
+        $monthlyTrendQuery = (clone $query)
             ->select(
                 DB::raw('YEAR(date) as year'),
                 DB::raw('MONTH(date) as month'),
                 DB::raw('type'),
                 DB::raw('count(*) as total')
-            )
-            ->where('date', '>=', now()->subMonths(12))
+            );
+
+        if (!$academicYearId) {
+            $monthlyTrendQuery->where('date', '>=', now()->subMonths(12));
+        }
+
+        $monthlyTrend = $monthlyTrendQuery
             ->groupBy('year', 'month', 'type')
             ->orderBy('year')
             ->orderBy('month')

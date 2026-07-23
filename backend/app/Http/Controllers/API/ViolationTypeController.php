@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreViolationTypeRequest;
 use App\Http\Requests\UpdateViolationTypeRequest;
 use App\Http\Resources\ViolationTypeResource;
 use App\Models\ViolationType;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -14,14 +16,15 @@ use Illuminate\Support\Facades\Log;
 
 class ViolationTypeController extends Controller
 {
+    use ResolvesInstitution;
+
     /**
      * List violation types for current institution.
      */
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -49,8 +52,7 @@ class ViolationTypeController extends Controller
     public function store(StoreViolationTypeRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -78,7 +80,7 @@ class ViolationTypeController extends Controller
     public function show(Request $request, ViolationType $violation_type): ViolationTypeResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $violation_type->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         return new ViolationTypeResource($violation_type);
@@ -91,7 +93,7 @@ class ViolationTypeController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $violation_type->institution_id && !$user->isSuperAdmin()) {
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation_type->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -112,7 +114,7 @@ class ViolationTypeController extends Controller
     public function destroy(Request $request, ViolationType $violation_type): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $violation_type->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

@@ -23,6 +23,9 @@ class LibraryBookResource extends JsonResource
             'shelf_code' => $this->shelf_code,
             'description' => $this->description,
             'cover_url' => $this->cover_path ? asset('storage/' . $this->cover_path) : null,
+            'has_ebook' => $this->hasEbook(),
+            'is_public_ebook' => (bool) $this->is_public_ebook && $this->hasEbook(),
+            'ebook_view_count' => (int) ($this->ebook_view_count ?? 0),
             'available_copies_count' => $this->when(isset($this->available_copies_count), fn () => $this->available_copies_count, $this->getAvailableCopiesCount()),
             'copies_count' => $this->whenLoaded('copies', fn () => $this->copies->count()),
             'category' => $this->when($this->relationLoaded('category'), function () {

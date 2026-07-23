@@ -136,8 +136,8 @@
           <section class="panel leaderboard-panel">
             <div class="panel-head">
               <div>
-                <h2>Leaderboard Guru</h2>
-                <p class="panel-sub">Skor neto · Top {{ leaderboard.length || 50 }}</p>
+                <h2>{{ leaderboardTitle }}</h2>
+                <p class="panel-sub">{{ leaderboardSubtitle }}</p>
               </div>
             </div>
 
@@ -380,7 +380,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { academicYearApi } from '@/api/academicYear'
 import { semesterApi } from '@/api/semester'
@@ -395,6 +395,8 @@ const achievements = ref([])
 const myViolations = ref([])
 const leaderboard = ref([])
 const leaderboardLoading = ref(false)
+const leaderboardMode = ref('guru_only')
+const leaderboardGroup = ref(null)
 const myEmployeeId = ref(null)
 const types = ref([])
 const academicYears = ref([])
@@ -413,6 +415,24 @@ const form = reactive({
   level: '',
   point_value: 0,
   notes: '',
+})
+
+const leaderboardTitle = computed(() => {
+  if (leaderboardMode.value === 'combined') return 'Leaderboard Pegawai'
+  if (leaderboardMode.value === 'separated') {
+    return leaderboardGroup.value === 'staff' ? 'Leaderboard Staff' : 'Leaderboard Guru'
+  }
+  return 'Leaderboard Guru'
+})
+const leaderboardSubtitle = computed(() => {
+  const top = `Skor neto · Top ${leaderboard.value.length || 50}`
+  if (leaderboardMode.value === 'separated') {
+    return `${top} · ranking terpisah`
+  }
+  if (leaderboardMode.value === 'combined') {
+    return `${top} · guru & staff digabung`
+  }
+  return top
 })
 
 function categoryLabel(c) {
@@ -487,6 +507,8 @@ async function loadLeaderboard() {
       limit: 50,
     })
     leaderboard.value = res.data?.data || []
+    leaderboardMode.value = res.data?.meta?.mode || 'guru_only'
+    leaderboardGroup.value = res.data?.meta?.group || null
     if (res.data?.meta?.my_employee_id) {
       myEmployeeId.value = res.data.meta.my_employee_id
     }

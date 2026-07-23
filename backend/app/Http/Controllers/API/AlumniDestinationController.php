@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAlumniDestinationRequest;
 use App\Http\Requests\UpdateAlumniDestinationRequest;
@@ -16,17 +17,11 @@ use Illuminate\Support\Facades\Log;
 
 class AlumniDestinationController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected StudentService $studentService
     ) {}
-
-    protected function getInstitutionId(Request $request): ?int
-    {
-        if ($request->user()->isAdminOrSuperAdmin() && $request->has('institution_id')) {
-            return (int) $request->institution_id;
-        }
-        return $request->user()->institution_id;
-    }
 
     /**
      * Daftar destinasi untuk satu alumni (student_id).
@@ -39,8 +34,9 @@ class AlumniDestinationController extends Controller
                 return response()->json(['message' => 'Hanya alumni (siswa lulus) yang dapat memiliki data destinasi.'], 422);
             }
 
-            $institutionId = $this->getInstitutionId($request);
-            if ($institutionId && $student->institution_id !== $institutionId) {
+            $institutionId = $this->resolveInstitutionId($request);
+            $user = $request->user();
+            if (!$this->studentService->canAccess($student, $institutionId, $user->isAdminOrSuperAdmin())) {
                 return response()->json(['message' => 'Anda tidak berwenang mengakses data alumni ini.'], 403);
             }
 
@@ -65,21 +61,30 @@ class AlumniDestinationController extends Controller
     public function store(StoreAlumniDestinationRequest $request): JsonResponse
     {
         try {
-            $institutionId = $this->getInstitutionId($request);
-            if (!$institutionId) {
-                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
-
+            $user = $request->user();
             $student = Student::findOrFail($request->input('student_id'));
             if ($student->status !== 'Lulus') {
                 return response()->json(['message' => 'Hanya alumni (siswa lulus) yang dapat memiliki data destinasi.'], 422);
             }
-            if ($student->institution_id !== $institutionId) {
+
+            $institutionId = $this->resolveInstitutionId($request);
+
+            // Super/admin tanpa scope institusi: ikuti institusi siswa.
+            if (!$institutionId && $user->isAdminOrSuperAdmin()) {
+                $institutionId = (int) $student->institution_id;
+            }
+
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            if (!$this->studentService->canAccess($student, $institutionId, $user->isAdminOrSuperAdmin())) {
                 return response()->json(['message' => 'Siswa tidak berada di institusi Anda.'], 403);
             }
 
+            // Simpan destinasi di institusi milik siswa (bukan sekadar konteks request).
             $data = $request->validated();
-            $data['institution_id'] = $institutionId;
+            $data['institution_id'] = (int) $student->institution_id;
 
             $destination = AlumniDestination::create($data);
             $destination->load('student');
@@ -103,8 +108,13 @@ class AlumniDestinationController extends Controller
     public function update(UpdateAlumniDestinationRequest $request, AlumniDestination $alumni_destination): JsonResponse
     {
         try {
-            $institutionId = $this->getInstitutionId($request);
-            if ($institutionId && $alumni_destination->institution_id !== $institutionId) {
+            $institutionId = $this->resolveInstitutionId($request);
+            $user = $request->user();
+            if (
+                !$user->isAdminOrSuperAdmin()
+                && $institutionId
+                && (int) $alumni_destination->institution_id !== (int) $institutionId
+            ) {
                 return response()->json(['message' => 'Anda tidak berwenang mengubah data ini.'], 403);
             }
 
@@ -130,8 +140,13 @@ class AlumniDestinationController extends Controller
     public function destroy(Request $request, AlumniDestination $alumni_destination): JsonResponse
     {
         try {
-            $institutionId = $this->getInstitutionId($request);
-            if ($institutionId && $alumni_destination->institution_id !== $institutionId) {
+            $institutionId = $this->resolveInstitutionId($request);
+            $user = $request->user();
+            if (
+                !$user->isAdminOrSuperAdmin()
+                && $institutionId
+                && (int) $alumni_destination->institution_id !== (int) $institutionId
+            ) {
                 return response()->json(['message' => 'Anda tidak berwenang menghapus data ini.'], 403);
             }
 

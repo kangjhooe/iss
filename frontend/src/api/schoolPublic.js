@@ -27,4 +27,18 @@ export const schoolPublicApi = {
   getRecentInstitutions(limit = 10) {
     return api.get('/v1/public/institutions/recent', { params: { limit } })
   },
+
+  /** Katalog ebook publik by NPSN */
+  getPublicEbooks(npsn, params = {}) {
+    return api.get('/v1/public/library/ebooks', { params: { npsn, ...params } })
+  },
+  getPublicEbookCategories(npsn) {
+    return api.get('/v1/public/library/ebooks/categories', { params: { npsn } })
+  },
+  /**
+   * Minta sesi viewer (signed stream path + watermark). Tidak mengunduh PDF utuh ke blob.
+   */
+  issuePublicEbookViewer(npsn, bookId) {
+    return api.get(`/v1/public/library/books/${bookId}/viewer`, { params: { npsn } })
+  },
 }

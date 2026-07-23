@@ -5,9 +5,9 @@
       <div class="welcome-section">
         <div class="welcome-content">
           <h1>{{ greeting }}, {{ teacherName }}!</h1>
-          <template v-if="teacher?.institution?.name">
+          <template v-if="displayInstitutionName">
             <span class="welcome-sep">·</span>
-            <p class="welcome-inst">{{ teacher.institution.name }}</p>
+            <p class="welcome-inst">{{ displayInstitutionName }}</p>
           </template>
           <template v-else-if="loading">
             <span class="welcome-sep">·</span>
@@ -42,8 +42,8 @@
               · {{ piketToday.schedule.start_time }}{{ piketToday.schedule.end_time ? '–' + piketToday.schedule.end_time : '' }}
             </template>
           </p>
-          <p v-if="!piketToday.has_log" class="piket-hint">Belum ada log harian untuk hari ini.</p>
-          <p v-else class="piket-hint ok">Log harian: {{ piketLogStatusLabel }}</p>
+          <p v-if="!piketToday.has_log" class="piket-hint">Belum ada log kegiatan untuk hari ini.</p>
+          <p v-else class="piket-hint ok">Log kegiatan: {{ piketLogStatusLabel }}</p>
         </div>
         <div class="piket-card-actions">
           <router-link
@@ -64,8 +64,9 @@
             v-if="canAccessModule('teacher_violation_report') || canAccessModule('teacher_appreciation')"
             to="/teacher-appreciation"
             class="piket-btn"
+            title="Modul terpisah: poin apresiasi & pelanggaran guru"
           >
-            Lapor Pelanggaran Guru
+            Modul Poin Guru
           </router-link>
         </div>
       </div>
@@ -195,7 +196,7 @@
             <div v-if="homeroomClasses.length" class="classes-subsection">
               <h3 class="subsection-title">
                 <span class="subsection-dot homeroom"></span>
-                Kelas yang Saya Waliki
+                Kelas Wali
                 <span class="subsection-count">{{ homeroomClasses.length }}</span>
               </h3>
               <div class="classes-grid">
@@ -231,7 +232,7 @@
             <div v-if="taughtOnlyClasses.length" class="classes-subsection">
               <h3 class="subsection-title">
                 <span class="subsection-dot taught"></span>
-                Kelas yang Saya Ajar
+                Kelas Ajar
                 <span class="subsection-count">{{ taughtOnlyClasses.length }}</span>
               </h3>
               <div class="classes-grid">
@@ -314,27 +315,27 @@
             <div class="attention-block-head">
               <h3>Lapor kejadian piket</h3>
             </div>
-            <p class="attention-desc">Catat kelas kosong, keterlambatan, atau kejadian lain saat bertugas.</p>
+            <p class="attention-desc">Lapor kelas kosong, keterlambatan, atau kejadian lain saat bertugas.</p>
             <router-link
               to="/guru-piket?tab=monitor&action=new-incident"
               class="attention-cta"
             >
-              Catat kejadian →
+              Lapor kejadian →
             </router-link>
           </div>
 
           <div v-if="piketToday?.is_on_duty && !piketToday.has_log" class="attention-block attention-block-alert">
             <div class="attention-block-head">
-              <h3>Log piket</h3>
+              <h3>Log kegiatan piket</h3>
               <span class="attention-count warn">!</span>
             </div>
-            <p class="attention-desc">Anda piket hari ini tetapi belum mengisi log harian.</p>
+            <p class="attention-desc">Anda piket hari ini tetapi belum mengisi log kegiatan.</p>
             <router-link
               v-if="canAccessPiket"
               to="/guru-piket?tab=logs&action=new-log"
               class="attention-cta"
             >
-              Isi log piket →
+              Isi log kegiatan →
             </router-link>
           </div>
         </aside>
@@ -439,6 +440,12 @@ const activeAcademicYear = computed(() => dashboardData.value.active_academic_ye
 const jurnalThisWeekCount = computed(() => dashboardData.value.jurnal_this_week_count ?? 0)
 const gradesPending = computed(() => dashboardData.value.grades_pending || [])
 const piketToday = computed(() => dashboardData.value.piket_today || null)
+const displayInstitutionName = computed(() =>
+  dashboardData.value.active_institution?.name
+  || teacher.value?.institution?.name
+  || authStore.activeInstitution?.name
+  || ''
+)
 
 const canAccessModule = (moduleKey) => {
   const role = authStore.user?.role
@@ -515,6 +522,15 @@ const actionIconSvg = (name) => {
 
 const quickActions = computed(() => {
   const actions = []
+  if (canAccessModule('teaching_journal') || canAccessModule('grade_book')) {
+    actions.push({
+      to: '/teacher/today',
+      label: 'Jam Mengajar Hari Ini',
+      icon: 'journal',
+      tone: 'primary',
+      badge: 'Absen · Jurnal · Nilai',
+    })
+  }
   if (canAccessModule('teaching_journal')) {
     actions.push({
       to: '/teaching-journal',
@@ -618,8 +634,8 @@ const loadHomeroomStudents = async () => {
   studentsError.value = ''
   try {
     const response = await teacherApi.getHomeroomClassStudents(selectedClass.value.id, {
-      per_page: 200,
-      status: 'active',
+      per_page: 100,
+      status: 'Aktif',
     })
     const payload = response.data
     homeroomStudents.value = payload?.data || []

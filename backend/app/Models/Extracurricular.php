@@ -30,6 +30,7 @@ class Extracurricular extends Model
         'academic_year_id',
         'semester_id',
         'capacity',
+        'kkm',
         'status',
         'days_of_week',
         'start_time',
@@ -43,11 +44,19 @@ class Extracurricular extends Model
     {
         return [
             'capacity' => 'integer',
+            'kkm' => 'decimal:2',
             'days_of_week' => 'array',
             'is_outdoor' => 'boolean',
             'start_time' => 'datetime:H:i',
             'end_time' => 'datetime:H:i',
         ];
+    }
+
+    public function getKkmValueAttribute(): float
+    {
+        $kkm = $this->kkm;
+
+        return $kkm !== null ? (float) $kkm : 75.0;
     }
 
     public function institution()

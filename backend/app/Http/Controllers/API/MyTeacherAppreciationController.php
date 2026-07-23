@@ -43,12 +43,13 @@ class MyTeacherAppreciationController extends Controller
         [$academicYearId, $semesterId] = $this->pointService->resolvePeriodFromRequest($request, $institutionId);
         $summary = $this->pointService->getPointSummary($employee->id, $institutionId, $academicYearId, $semesterId);
 
-        $rank = null;
-        $leaderboard = $this->pointService->getLeaderboard($institutionId, $academicYearId, $semesterId, 500);
-        $found = $leaderboard->firstWhere('employee_id', $employee->id);
-        if ($found) {
-            $rank = $found['rank'];
-        }
+        $rank = $this->pointService->findEmployeeRank(
+            $employee->id,
+            $institutionId,
+            $academicYearId,
+            $semesterId,
+            $employee->type
+        );
 
         return response()->json([
             'data' => array_merge($summary, [
@@ -60,6 +61,7 @@ class MyTeacherAppreciationController extends Controller
                     'subject' => $employee->subject,
                 ],
                 'rank' => $rank,
+                'leaderboard_mode' => $this->pointService->getLeaderboardMode($institutionId),
             ]),
         ]);
     }
@@ -246,16 +248,27 @@ class MyTeacherAppreciationController extends Controller
         $institutionId = (int) $employee->institution_id;
         [$academicYearId, $semesterId] = $this->pointService->resolvePeriodFromRequest($request, $institutionId);
         $limit = min(max((int) $request->get('limit', 50), 1), 100);
+        $bundle = $this->pointService->getLeaderboardBundle($institutionId, $academicYearId, $semesterId, $limit);
+        $mode = $bundle['mode'];
 
-        $rows = $this->pointService->getLeaderboard($institutionId, $academicYearId, $semesterId, $limit);
+        // Untuk tampilan pribadi: jika dipisah, tampilkan grup sesuai tipe pegawai.
+        $rows = $bundle['rows'];
+        $myGroup = null;
+        if ($mode === \App\Models\Institution::TEACHER_APPRECIATION_LEADERBOARD_SEPARATED) {
+            $myGroup = $employee->type === 'Guru' ? 'guru' : 'staff';
+            $rows = $bundle[$myGroup] ?? [];
+        }
 
         return response()->json([
-            'data' => $rows->all(),
+            'data' => $rows,
             'meta' => [
                 'academic_year_id' => $academicYearId,
                 'semester_id' => $semesterId,
                 'my_employee_id' => (int) $employee->id,
                 'limit' => $limit,
+                'mode' => $mode,
+                'group' => $myGroup,
+                'bundle' => $bundle,
             ],
         ]);
     }

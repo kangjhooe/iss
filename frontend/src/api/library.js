@@ -9,6 +9,9 @@ export const libraryApi = {
   getCategories(params = {}) {
     return api.get('/v1/library/categories', { params })
   },
+  getEbookCategories(params = {}) {
+    return api.get('/v1/library/ebooks/categories', { params })
+  },
   getCategory(id) {
     return api.get(`/v1/library/categories/${id}`)
   },
@@ -30,33 +33,41 @@ export const libraryApi = {
     return api.get(`/v1/library/books/${id}`)
   },
   createBook(data) {
-    const formData = new FormData()
-    Object.keys(data || {}).forEach((key) => {
-      const value = data[key]
-      if (value === undefined || value === null || value === '') return
-      if (key === 'cover' && value && value instanceof File) {
-        formData.append('cover', value)
-      } else {
-        formData.append(key, value)
-      }
-    })
+    const formData = buildBookFormData(data)
     return api.post('/v1/library/books', formData)
   },
   updateBook(id, data) {
-    const formData = new FormData()
-    Object.keys(data || {}).forEach((key) => {
-      const value = data[key]
-      if (value === undefined || value === null || value === '') return
-      if (key === 'cover' && value && value instanceof File) {
-        formData.append('cover', value)
-      } else {
-        formData.append(key, value)
-      }
-    })
-    return api.put(`/v1/library/books/${id}`, formData)
+    const formData = buildBookFormData(data)
+    formData.append('_method', 'PUT')
+    return api.post(`/v1/library/books/${id}`, formData)
   },
   deleteBook(id) {
     return api.delete(`/v1/library/books/${id}`)
+  },
+  downloadBooksTemplate() {
+    return api.get('/v1/library/books/import/template')
+  },
+  importBooks(books) {
+    return api.post('/v1/library/books/import', { books })
+  },
+  exportBooksCsv(params = {}) {
+    return api.get('/v1/library/books/export/csv', { params, responseType: 'blob' })
+  },
+  exportBooksPdf(params = {}) {
+    return api.get('/v1/library/books/export/pdf', { params, responseType: 'blob' })
+  },
+
+  // ==================== Ebooks (siswa & staf) ====================
+  getEbooks(params = {}) {
+    return api.get('/v1/library/ebooks', { params })
+  },
+  /**
+   * Ambil blob PDF ebook (untuk viewer). Cookie auth ikut terkirim.
+   */
+  getEbookBlob(bookId) {
+    return api.get(`/v1/library/books/${bookId}/ebook`, {
+      responseType: 'blob'
+    })
   },
 
   // ==================== Copies ====================
@@ -111,10 +122,37 @@ export const libraryApi = {
   getTopBooks(params = {}) {
     return api.get('/v1/library/reports/top-books', { params })
   },
+  getTopEbooks(params = {}) {
+    return api.get('/v1/library/reports/top-ebooks', { params })
+  },
   getLoansByMonth(params = {}) {
     return api.get('/v1/library/reports/loans-by-month', { params })
   },
+  getEbookViewsByMonth(params = {}) {
+    return api.get('/v1/library/reports/ebook-views-by-month', { params })
+  },
   exportLoansPdf(params = {}) {
     return api.get('/v1/library/reports/export/loans-pdf', { params, responseType: 'blob' })
+  },
+  exportFinesPdf(params = {}) {
+    return api.get('/v1/library/reports/export/fines-pdf', { params, responseType: 'blob' })
   }
+}
+
+function buildBookFormData(data) {
+  const formData = new FormData()
+  Object.keys(data || {}).forEach((key) => {
+    const value = data[key]
+    if (value === undefined || value === null || value === '') return
+    if ((key === 'cover' || key === 'ebook') && value instanceof File) {
+      formData.append(key, value)
+    } else if (key === 'remove_ebook') {
+      formData.append(key, value ? '1' : '0')
+    } else if (key === 'is_public_ebook') {
+      formData.append(key, value ? '1' : '0')
+    } else if (key !== 'cover' && key !== 'ebook') {
+      formData.append(key, value)
+    }
+  })
+  return formData
 }

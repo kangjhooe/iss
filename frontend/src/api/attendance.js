@@ -13,6 +13,21 @@ export const studentAttendanceApi = {
       attendances,
     })
   },
+  prepareFromSchedule(params) {
+    const query = { ...params }
+    if (Array.isArray(query.lesson_schedule_ids)) {
+      query.lesson_schedule_ids = query.lesson_schedule_ids.join(',')
+    }
+    return api.get('/v1/student-attendances/prepare-from-schedule', { params: query })
+  },
+  saveFromSchedule(lessonScheduleIds, date, attendances) {
+    const ids = Array.isArray(lessonScheduleIds) ? lessonScheduleIds : [lessonScheduleIds]
+    return api.post('/v1/student-attendances/from-schedule', {
+      lesson_schedule_ids: ids,
+      date,
+      attendances,
+    })
+  },
   update(id, data) {
     return api.put(`/v1/student-attendances/${id}`, data)
   },
@@ -22,6 +37,15 @@ export const studentAttendanceApi = {
    */
   getMy(params) {
     return api.get('/v1/student-attendances/my', { params })
+  },
+  exportMy(params) {
+    return api.get('/v1/student-attendances/my/export', { params, responseType: 'blob' })
+  },
+  getRekap(params) {
+    return api.get('/v1/student-attendances/rekap', { params })
+  },
+  exportRekap(params) {
+    return api.get('/v1/student-attendances/export-rekap', { params, responseType: 'blob' })
   },
 }
 
@@ -43,6 +67,12 @@ export const employeeAttendanceApi = {
   },
   getStatusOptions() {
     return api.get('/v1/employee-attendances/status-options')
+  },
+  getRekap(params) {
+    return api.get('/v1/employee-attendances/rekap', { params })
+  },
+  exportRekap(params) {
+    return api.get('/v1/employee-attendances/export-rekap', { params, responseType: 'blob' })
   },
 }
 

@@ -10,6 +10,7 @@ use App\Http\Resources\CorrespondenceResource;
 use App\Models\Correspondence;
 use App\Models\CorrespondenceCategory;
 use App\Services\CorrespondenceService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -22,6 +23,24 @@ class CorrespondenceController extends Controller
     ) {}
 
     /**
+     * Resolve institution for correspondence APIs.
+     * Admin/super admin may omit institution_id to see all; others use active context.
+     */
+    private function resolveCorrespondenceInstitutionId(Request $request): ?int
+    {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
+            return $request->filled('institution_id') ? (int) $request->get('institution_id') : null;
+        }
+
+        return InstitutionContext::resolveForUser(
+            $user,
+            $request,
+            $request->get('institution_id')
+        );
+    }
+
+    /**
      * Display a listing of correspondence.
      */
     public function index(Request $request)
@@ -29,17 +48,12 @@ class CorrespondenceController extends Controller
         try {
             $filters = $request->only([
                 'type', 'status', 'priority', 'category_id', 'letter_type_code', 'search',
-                'date_from', 'date_to'
+                'date_from', 'date_to', 'academic_year_id'
             ]);
             $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
             $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
 
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveCorrespondenceInstitutionId($request);
 
             $perPage = min($request->get('per_page', 15), 100);
             $correspondence = $this->service->list($filters, $institutionId, $perPage);
@@ -68,9 +82,7 @@ class CorrespondenceController extends Controller
     public function store(StoreCorrespondenceRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? $request->institution_id 
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveCorrespondenceInstitutionId($request);
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -313,9 +325,7 @@ class CorrespondenceController extends Controller
     public function categories(Request $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? ($request->institution_id ?? null)
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveCorrespondenceInstitutionId($request);
 
             $query = CorrespondenceCategory::query();
             
@@ -349,9 +359,8 @@ class CorrespondenceController extends Controller
     public function users(Request $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? ($request->institution_id ?? $request->user()->institution_id)
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveCorrespondenceInstitutionId($request)
+                ?: ($request->user()->institution_id ? (int) $request->user()->institution_id : null);
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);

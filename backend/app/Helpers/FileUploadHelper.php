@@ -12,7 +12,7 @@ class FileUploadHelper
     /**
      * Daftar ekstensi yang diizinkan untuk import (whitelist).
      */
-    public const ALLOWED_IMPORT_EXTENSIONS = ['csv', 'txt'];
+    public const ALLOWED_IMPORT_EXTENSIONS = ['csv', 'txt', 'xlsx', 'xls'];
 
     /**
      * Generate nama file aman untuk disimpan (tanpa path traversal, karakter aneh).

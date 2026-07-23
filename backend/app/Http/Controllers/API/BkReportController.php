@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Models\Institution;
 use App\Services\BkReportService;
@@ -13,6 +14,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BkReportController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected BkReportService $bkReportService
     ) {}
@@ -24,7 +27,7 @@ class BkReportController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user?->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -54,7 +57,7 @@ class BkReportController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user?->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -93,7 +96,7 @@ class BkReportController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user?->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -141,7 +144,7 @@ class BkReportController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user?->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }

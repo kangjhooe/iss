@@ -9,17 +9,20 @@ use App\Http\Requests\CopyLessonScheduleRequest;
 use App\Http\Resources\LessonScheduleResource;
 use App\Models\Institution;
 use App\Models\LessonSchedule;
+use App\Services\LessonScheduleExportService;
 use App\Services\LessonScheduleService;
 use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class LessonScheduleController extends Controller
 {
     public function __construct(
-        protected LessonScheduleService $lessonScheduleService
+        protected LessonScheduleService $lessonScheduleService,
+        protected LessonScheduleExportService $exportService
     ) {}
 
     private function resolveInstitutionId(Request $request): ?int
@@ -72,7 +75,7 @@ class LessonScheduleController extends Controller
     }
 
     /**
-     * Store a new lesson schedule.
+     * Store a new lesson schedule (optionally a multi-JP block via duration).
      */
     public function store(StoreLessonScheduleRequest $request): JsonResponse
     {
@@ -82,7 +85,28 @@ class LessonScheduleController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $schedule = $this->lessonScheduleService->create($institutionId, $request->validated());
+            $data = $request->validated();
+            if (empty($data['semester_id'])) {
+                $institution = Institution::find($institutionId);
+                $data['semester_id'] = $institution?->active_semester_id;
+            }
+            if (empty($data['semester_id'])) {
+                return response()->json(['message' => 'Semester wajib dipilih atau set semester aktif institusi.'], 422);
+            }
+
+            $duration = (int) ($data['duration'] ?? 1);
+            unset($data['duration']);
+
+            if ($duration > 1) {
+                $created = $this->lessonScheduleService->createBlock($institutionId, $data, $duration);
+
+                return response()->json([
+                    'message' => "Berhasil menambah {$created->count()} slot jadwal.",
+                    'data' => LessonScheduleResource::collection($created),
+                ], 201);
+            }
+
+            $schedule = $this->lessonScheduleService->create($institutionId, $data);
             return (new LessonScheduleResource($schedule))
                 ->response()
                 ->setStatusCode(201);
@@ -186,6 +210,96 @@ class LessonScheduleController extends Controller
 
         $schedules = $this->lessonScheduleService->getByTeacher($employeeId, (int) $semesterId, $institutionId);
         return response()->json(['data' => LessonScheduleResource::collection($schedules)]);
+    }
+
+    /**
+     * Teaching load for the logged-in teacher (classes, subjects, pairs, schedules).
+     */
+    public function myTeachingLoad(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Hanya guru/staff yang dapat melihat beban mengajar sendiri.'], 403);
+        }
+
+        $user->loadMissing(['teacherProfile', 'employeeProfile']);
+        $teacher = $user->teacherProfile ?? $user->employeeProfile;
+        if (!$teacher) {
+            return response()->json(['message' => 'Profil guru tidak ditemukan.'], 404);
+        }
+
+        $institutionId = $this->resolveInstitutionId($request);
+        $semesterId = $request->get('semester_id');
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+        if (!$semesterId) {
+            $institution = Institution::find($institutionId);
+            $semesterId = $institution?->active_semester_id;
+        }
+        if (!$semesterId) {
+            return response()->json(['message' => 'Semester wajib dipilih.'], 422);
+        }
+
+        $load = $this->lessonScheduleService->getTeachingLoad(
+            (int) $teacher->id,
+            (int) $semesterId,
+            $institutionId
+        );
+
+        return response()->json([
+            'data' => [
+                'semester_id' => (int) $semesterId,
+                'employee_id' => (int) $teacher->id,
+                'classes' => $load['classes'],
+                'subjects' => $load['subjects'],
+                'pairs' => $load['pairs'],
+                'schedules' => LessonScheduleResource::collection($load['schedules'])->resolve(),
+            ],
+        ]);
+    }
+
+    /**
+     * Export jadwal pelajaran PDF (per kelas / guru / mapel) — preview inline.
+     */
+    public function exportPdf(Request $request): Response|JsonResponse
+    {
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (! $institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $validated = $request->validate([
+                'mode' => 'required|in:class,teacher,subject',
+                'semester_id' => 'required|integer|exists:semesters,id',
+                'class_id' => 'required_if:mode,class|nullable|integer|exists:class,id',
+                'employee_id' => 'required_if:mode,teacher|nullable|integer|exists:employee,id',
+                'subject_id' => 'required_if:mode,subject|nullable|integer|exists:subjects,id',
+            ], [
+                'mode.required' => 'Mode cetak wajib dipilih.',
+                'mode.in' => 'Mode cetak harus class, teacher, atau subject.',
+                'semester_id.required' => 'Semester wajib dipilih.',
+                'class_id.required_if' => 'Kelas wajib dipilih untuk cetak per kelas.',
+                'employee_id.required_if' => 'Guru wajib dipilih untuk cetak per guru.',
+                'subject_id.required_if' => 'Mata pelajaran wajib dipilih untuk cetak per mapel.',
+            ]);
+
+            return $this->exportService->exportPdf($institutionId, $validated);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Data kelas, guru, mapel, atau semester tidak ditemukan.'], 404);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('LessonSchedule exportPdf failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal mencetak jadwal pelajaran.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     /**

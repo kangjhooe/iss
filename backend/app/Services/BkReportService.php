@@ -429,7 +429,8 @@ class BkReportService
     {
         $query = Achievement::query()
             ->from('achievements')
-            ->where('achievements.institution_id', $institutionId);
+            ->where('achievements.institution_id', $institutionId)
+            ->whereIn('achievements.status', Achievement::STATUSES_COUNTING_POINTS);
 
         $this->applyCommonFilters($query, 'achievements', 'achievement_date', $filters, false);
 

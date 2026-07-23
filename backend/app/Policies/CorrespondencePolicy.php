@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Correspondence;
 use App\Models\User;
+use App\Support\InstitutionContext;
 
 class CorrespondencePolicy
 {
@@ -26,8 +27,7 @@ class CorrespondencePolicy
             return true;
         }
 
-        // Regular users can only view correspondences from their institution
-        return $user->institution_id === $correspondence->institution_id;
+        return $this->canAccessCorrespondenceInstitution($user, $correspondence);
     }
 
     /**
@@ -49,8 +49,7 @@ class CorrespondencePolicy
             return true;
         }
 
-        // Regular users can only update correspondences from their institution
-        return $user->institution_id === $correspondence->institution_id;
+        return $this->canAccessCorrespondenceInstitution($user, $correspondence);
     }
 
     /**
@@ -63,8 +62,7 @@ class CorrespondencePolicy
             return true;
         }
 
-        // Regular users can only delete correspondences from their institution
-        return $user->institution_id === $correspondence->institution_id;
+        return $this->canAccessCorrespondenceInstitution($user, $correspondence);
     }
 
     /**
@@ -77,8 +75,7 @@ class CorrespondencePolicy
             return true;
         }
 
-        // Regular users can only restore correspondences from their institution
-        return $user->institution_id === $correspondence->institution_id;
+        return $this->canAccessCorrespondenceInstitution($user, $correspondence);
     }
 
     /**
@@ -100,8 +97,8 @@ class CorrespondencePolicy
             return false;
         }
 
-        // Must be from same institution (unless super admin)
-        if (!$user->isSuperAdmin() && $user->institution_id !== $correspondence->institution_id) {
+        // Must be from an accessible institution (unless super admin)
+        if (!$user->isSuperAdmin() && !$this->canAccessCorrespondenceInstitution($user, $correspondence)) {
             return false;
         }
 
@@ -118,8 +115,8 @@ class CorrespondencePolicy
             return false;
         }
 
-        // Must be from same institution (unless super admin)
-        if (!$user->isSuperAdmin() && $user->institution_id !== $correspondence->institution_id) {
+        // Must be from an accessible institution (unless super admin)
+        if (!$user->isSuperAdmin() && !$this->canAccessCorrespondenceInstitution($user, $correspondence)) {
             return false;
         }
 
@@ -136,7 +133,15 @@ class CorrespondencePolicy
             return true;
         }
 
-        // Regular users can only archive correspondences from their institution
-        return $user->institution_id === $correspondence->institution_id;
+        return $this->canAccessCorrespondenceInstitution($user, $correspondence);
+    }
+
+    /**
+     * User may act on correspondence belonging to an institution they can access
+     * (home or approved non-induk assignment), not only users.institution_id.
+     */
+    private function canAccessCorrespondenceInstitution(User $user, Correspondence $correspondence): bool
+    {
+        return InstitutionContext::canAccessInstitution($user, (int) $correspondence->institution_id);
     }
 }

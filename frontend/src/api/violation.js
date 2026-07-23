@@ -65,6 +65,12 @@ export const achievementApi = {
   getByStudent(studentId, params) {
     return api.get(`/v1/achievements/by-student/${studentId}`, { params })
   },
+  approve(id, data = {}) {
+    return api.post(`/v1/achievements/${id}/approve`, data)
+  },
+  reject(id, data) {
+    return api.post(`/v1/achievements/${id}/reject`, data)
+  },
 }
 
 export const achievementTypeApi = {

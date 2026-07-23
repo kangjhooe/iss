@@ -8,7 +8,9 @@ use App\Http\Requests\UpdateDispositionRequest;
 use App\Http\Resources\DispositionResource;
 use App\Models\Correspondence;
 use App\Models\CorrespondenceDisposition;
+use App\Models\User;
 use App\Services\DispositionService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -26,9 +28,7 @@ class DispositionController extends Controller
         try {
             $correspondence = Correspondence::findOrFail($correspondenceId);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
+            if (!$this->canAccessCorrespondence($request->user(), $correspondence)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -80,9 +80,7 @@ class DispositionController extends Controller
         try {
             $correspondence = Correspondence::findOrFail($correspondenceId);
 
-            // Check authorization
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
+            if (!$this->canAccessCorrespondence($request->user(), $correspondence)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -116,10 +114,8 @@ class DispositionController extends Controller
         try {
             $disposition = CorrespondenceDisposition::findOrFail($id);
 
-            // Check authorization
             $correspondence = $disposition->correspondence;
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
+            if (!$this->canAccessCorrespondence($request->user(), $correspondence)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -153,10 +149,8 @@ class DispositionController extends Controller
         try {
             $disposition = CorrespondenceDisposition::findOrFail($id);
 
-            // Check authorization
             $correspondence = $disposition->correspondence;
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
+            if (!$this->canAccessCorrespondence($request->user(), $correspondence)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -190,10 +184,8 @@ class DispositionController extends Controller
         try {
             $disposition = CorrespondenceDisposition::findOrFail($id);
 
-            // Check authorization
             $correspondence = $disposition->correspondence;
-            if (!$request->user()->isAdminOrSuperAdmin() && 
-                $correspondence->institution_id !== $request->user()->institution_id) {
+            if (!$this->canAccessCorrespondence($request->user(), $correspondence)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -215,5 +207,18 @@ class DispositionController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    private function canAccessCorrespondence(?User $user, ?Correspondence $correspondence): bool
+    {
+        if (!$user || !$correspondence) {
+            return false;
+        }
+
+        if ($user->isAdminOrSuperAdmin()) {
+            return true;
+        }
+
+        return InstitutionContext::canAccessInstitution($user, (int) $correspondence->institution_id);
     }
 }

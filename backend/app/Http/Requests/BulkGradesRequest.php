@@ -17,12 +17,13 @@ class BulkGradesRequest extends FormRequest
             'semester_id' => 'required|exists:semesters,id',
             'class_id' => 'required|exists:class,id',
             'subject_id' => 'required|exists:subjects,id',
+            'assessment_count' => 'nullable|integer|min:1|max:100',
             'grades' => 'required|array',
             'grades.*.student_id' => 'required|exists:student,id',
-            'grades.*.uh' => 'nullable|numeric|min:0|max:100',
+            'grades.*.penilaian' => 'nullable|array',
+            'grades.*.penilaian.*' => 'nullable|numeric|min:0|max:100',
             'grades.*.uts' => 'nullable|numeric|min:0|max:100',
             'grades.*.uas' => 'nullable|numeric|min:0|max:100',
-            'grades.*.tugas' => 'nullable|numeric|min:0|max:100',
             'grades.*.nilai_akhir' => 'nullable|numeric|min:0|max:100',
         ];
     }

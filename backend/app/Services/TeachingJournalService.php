@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\DB;
 
 class TeachingJournalService
 {
+    public function __construct(
+        protected LessonScheduleService $lessonScheduleService
+    ) {}
+
     /**
      * List teaching journals for institution with filters.
      * If employeeId is provided (teacher), filter to that teacher's entries only.
@@ -98,20 +102,22 @@ class TeachingJournalService
     public function create(int $institutionId, array $data): TeachingJournal
     {
         return DB::transaction(function () use ($institutionId, $data) {
+            $resolved = $this->resolveScheduleLink($institutionId, $data);
+
             $journal = new TeachingJournal();
             $journal->institution_id = $institutionId;
-            $journal->semester_id = $data['semester_id'];
-            $journal->lesson_schedule_id = $data['lesson_schedule_id'] ?? null;
-            $journal->class_id = $data['class_id'];
-            $journal->subject_id = $data['subject_id'];
-            $journal->employee_id = $data['employee_id'];
+            $journal->semester_id = $resolved['semester_id'];
+            $journal->lesson_schedule_id = $resolved['lesson_schedule_id'];
+            $journal->class_id = $resolved['class_id'];
+            $journal->subject_id = $resolved['subject_id'];
+            $journal->employee_id = $resolved['employee_id'];
             $journal->journal_date = $data['journal_date'];
-            $journal->period = $data['period'] ?? 1;
+            $journal->period = $resolved['period'];
             $journal->material_taught = $data['material_taught'] ?? null;
             $journal->attendance_notes = $data['attendance_notes'] ?? null;
             $journal->notes = $data['notes'] ?? null;
             $journal->save();
-            return $journal->load(['semester', 'schoolClass', 'subject', 'employee']);
+            return $journal->load(['semester', 'schoolClass', 'subject', 'employee', 'lessonSchedule']);
         });
     }
 
@@ -121,26 +127,28 @@ class TeachingJournalService
     public function update(TeachingJournal $journal, array $data): TeachingJournal
     {
         return DB::transaction(function () use ($journal, $data) {
-            if (isset($data['semester_id'])) {
-                $journal->semester_id = $data['semester_id'];
-            }
-            if (array_key_exists('lesson_schedule_id', $data)) {
-                $journal->lesson_schedule_id = $data['lesson_schedule_id'];
-            }
-            if (isset($data['class_id'])) {
-                $journal->class_id = $data['class_id'];
-            }
-            if (isset($data['subject_id'])) {
-                $journal->subject_id = $data['subject_id'];
-            }
-            if (isset($data['employee_id'])) {
-                $journal->employee_id = $data['employee_id'];
-            }
+            $merged = [
+                'semester_id' => $data['semester_id'] ?? $journal->semester_id,
+                'class_id' => $data['class_id'] ?? $journal->class_id,
+                'subject_id' => $data['subject_id'] ?? $journal->subject_id,
+                'employee_id' => $data['employee_id'] ?? $journal->employee_id,
+                'period' => array_key_exists('period', $data) ? ($data['period'] ?? 1) : $journal->period,
+                'lesson_schedule_id' => array_key_exists('lesson_schedule_id', $data)
+                    ? $data['lesson_schedule_id']
+                    : $journal->lesson_schedule_id,
+            ];
+
+            $resolved = $this->resolveScheduleLink((int) $journal->institution_id, $merged);
+
+            $journal->semester_id = $resolved['semester_id'];
+            $journal->lesson_schedule_id = $resolved['lesson_schedule_id'];
+            $journal->class_id = $resolved['class_id'];
+            $journal->subject_id = $resolved['subject_id'];
+            $journal->employee_id = $resolved['employee_id'];
+            $journal->period = $resolved['period'];
+
             if (isset($data['journal_date'])) {
                 $journal->journal_date = $data['journal_date'];
-            }
-            if (array_key_exists('period', $data)) {
-                $journal->period = $data['period'] ?? 1;
             }
             if (array_key_exists('material_taught', $data)) {
                 $journal->material_taught = $data['material_taught'];
@@ -152,7 +160,76 @@ class TeachingJournalService
                 $journal->notes = $data['notes'];
             }
             $journal->save();
-            return $journal->load(['semester', 'schoolClass', 'subject', 'employee']);
+            return $journal->load(['semester', 'schoolClass', 'subject', 'employee', 'lessonSchedule']);
         });
+    }
+
+    /**
+     * Ensure journal matches a teaching schedule; auto-link lesson_schedule_id.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{semester_id:int,class_id:int,subject_id:int,employee_id:int,period:int,lesson_schedule_id:int}
+     */
+    private function resolveScheduleLink(int $institutionId, array $data): array
+    {
+        $semesterId = (int) $data['semester_id'];
+        $classId = (int) $data['class_id'];
+        $subjectId = (int) $data['subject_id'];
+        $employeeId = (int) $data['employee_id'];
+        $period = isset($data['period']) && $data['period'] !== null && $data['period'] !== ''
+            ? (int) $data['period']
+            : 1;
+
+        if (!empty($data['lesson_schedule_id'])) {
+            $schedule = \App\Models\LessonSchedule::query()
+                ->where('id', (int) $data['lesson_schedule_id'])
+                ->where('institution_id', $institutionId)
+                ->first();
+
+            if (!$schedule) {
+                throw new \InvalidArgumentException('Slot jadwal tidak ditemukan di institusi ini.');
+            }
+
+            if ((int) $schedule->employee_id !== $employeeId
+                || (int) $schedule->semester_id !== $semesterId
+                || (int) $schedule->class_id !== $classId
+                || (int) $schedule->subject_id !== $subjectId
+            ) {
+                throw new \InvalidArgumentException('Slot jadwal tidak cocok dengan kelas, mapel, semester, atau guru.');
+            }
+
+            return [
+                'semester_id' => $semesterId,
+                'class_id' => $classId,
+                'subject_id' => $subjectId,
+                'employee_id' => $employeeId,
+                'period' => $period ?: (int) $schedule->period,
+                'lesson_schedule_id' => (int) $schedule->id,
+            ];
+        }
+
+        $schedule = $this->lessonScheduleService->findMatchingSchedule(
+            $institutionId,
+            $semesterId,
+            $classId,
+            $subjectId,
+            $employeeId,
+            $period
+        );
+
+        if (!$schedule) {
+            throw new \InvalidArgumentException(
+                'Guru tidak dijadwalkan mengajar mapel ini di kelas tersebut pada semester ini. Periksa jadwal pelajaran.'
+            );
+        }
+
+        return [
+            'semester_id' => $semesterId,
+            'class_id' => $classId,
+            'subject_id' => $subjectId,
+            'employee_id' => $employeeId,
+            'period' => $period,
+            'lesson_schedule_id' => (int) $schedule->id,
+        ];
     }
 }

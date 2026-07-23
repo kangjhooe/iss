@@ -112,7 +112,7 @@
               <span class="info-value">{{ reportData.institution.npsn || '-' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">NSS</span>
+              <span class="info-label">{{ getNssLabel(reportData.institution?.level) }}</span>
               <span class="info-value">{{ reportData.institution.nss || '-' }}</span>
             </div>
             <div class="info-item">
@@ -489,7 +489,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
 import { reportApi } from '@/api/report'
-import { getInstitutionTypeLabel, getPrincipalTitle } from '@/utils/institution'
+import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 // Register Chart.js components
@@ -994,15 +994,22 @@ const loadReport = async () => {
   }
 }
 
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+
 const formatAddress = (institution) => {
-  const parts = []
-  if (institution.address) parts.push(institution.address)
-  if (institution.village) parts.push(institution.village)
-  if (institution.sub_district) parts.push(`Kec. ${institution.sub_district}`)
-  if (institution.district) parts.push(institution.district)
-  if (institution.province) parts.push(institution.province)
-  if (institution.postal_code) parts.push(institution.postal_code)
-  return parts.join(', ') || '-'
+  return [
+    institution.address,
+    institution.village ? `Desa/Kel. ${institution.village}` : '',
+    institution.sub_district ? `Kec. ${institution.sub_district}` : '',
+    institution.district,
+    institution.province,
+    institution.postal_code,
+  ].filter(Boolean).join(', ') || '-'
 }
 
 const formatNumber = (num) => {
@@ -1117,20 +1124,21 @@ const exportPDF = async () => {
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Laporan ${institution.name}</title>
+        <title>${escapeHtml(`Laporan ${institution.name || ''}`)}</title>
         <style>
         @media print {
           @page {
-            size: A4;
-            margin: 1.2cm 2cm 2cm 2cm;
+            size: A4 portrait;
+            margin: 10mm 12mm 10mm 10mm;
           }
+          body { margin: 0; }
         }
         body {
-          font-family: 'Times New Roman', serif;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 12px;
           line-height: 1.3;
-          color: #000;
-          max-width: 800px;
-          margin: 0 auto;
+          color: #111;
+          margin: 16px;
           padding: 0;
         }
         .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
@@ -1139,8 +1147,8 @@ const exportPDF = async () => {
         .kop-text { min-width: 0; text-align: center; }
         .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
         .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
-        .school-address { font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; margin-top: 3px; }
-        .school-info { font-family: Arial, Helvetica, sans-serif; font-size: 9px; margin-top: 2px; }
+        .school-address { font-size: 10px; line-height: 1.35; margin-top: 3px; }
+        .school-info { font-size: 9px; margin-top: 2px; }
         .header {
           text-align: center;
           margin-bottom: 20px;
@@ -1268,17 +1276,17 @@ const exportPDF = async () => {
       <body>
         <header class="kop">
           <div class="kop-inner">
-            <div>${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}</div>
+            <div>${institution.logo ? `<img src="${escapeHtml(institution.logo)}" alt="Logo institusi" class="kop-logo" />` : ''}</div>
             <div class="kop-text">
-              ${institution.foundation_name ? `<div class="foundation">${institution.foundation_name}</div>` : ''}
-              <div class="school">${institution.name || 'NAMA LEMBAGA'}</div>
-              <div class="school-address">${fullAddress || '-'}</div>
+              ${institution.foundation_name ? `<div class="foundation">${escapeHtml(institution.foundation_name)}</div>` : ''}
+              <div class="school">${escapeHtml(institution.name || 'NAMA LEMBAGA')}</div>
+              <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
               <div class="school-info">
-                NPSN: ${institution.npsn || '-'}
-                ${institution.nss ? ` · NSS: ${institution.nss}` : ''}
-                ${institution.phone ? ` · Telp: ${institution.phone}` : ''}
-                ${institution.email ? ` · Email: ${institution.email}` : ''}
-                ${institution.website ? ` · ${institution.website}` : ''}
+                NPSN: ${escapeHtml(institution.npsn || '-')}
+                ${institution.nss ? ` · ${getNssLabel(institution.level)}: ${escapeHtml(institution.nss)}` : ''}
+                ${institution.phone ? ` · Telp: ${escapeHtml(institution.phone)}` : ''}
+                ${institution.email ? ` · Email: ${escapeHtml(institution.email)}` : ''}
+                ${institution.website ? ` · ${escapeHtml(institution.website)}` : ''}
               </div>
             </div>
             <div></div>
@@ -1335,7 +1343,7 @@ const exportPDF = async () => {
               <span class="info-value">${institution.npsn || '-'}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">NSS</span>
+              <span class="info-label">${getNssLabel(institution.level)}</span>
               <span class="info-value">${institution.nss || '-'}</span>
             </div>
             <div class="info-item">
@@ -1573,9 +1581,9 @@ const exportPDF = async () => {
               ${institution.district || 'Kota/Kabupaten'}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
             <div class="footer-signature">
-              <div class="footer-signature-label">${principalLabel}</div>
-              <div class="footer-signature-name">${institution.principal_name || '___________________'}</div>
-              <div class="footer-signature-nip">${institution.principal_nip ? 'NIP. ' + institution.principal_nip : 'NIP. ___________________'}</div>
+              <div class="footer-signature-label">${escapeHtml(principalLabel)}</div>
+              <div class="footer-signature-name">${escapeHtml(institution.principal_name || '___________________')}</div>
+              <div class="footer-signature-nip">NIP. ${escapeHtml(institution.principal_nip || '___________________')}</div>
             </div>
           </div>
         </div>

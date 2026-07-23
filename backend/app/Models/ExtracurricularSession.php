@@ -53,4 +53,9 @@ class ExtracurricularSession extends Model
     {
         return $this->hasMany(ExtracurricularAttendance::class, 'session_id');
     }
+
+    public function grades(): HasMany
+    {
+        return $this->hasMany(ExtracurricularSessionGrade::class, 'session_id');
+    }
 }

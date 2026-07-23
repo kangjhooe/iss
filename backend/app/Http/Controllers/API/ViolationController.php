@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreViolationRequest;
 use App\Http\Requests\UpdateViolationRequest;
@@ -9,6 +10,7 @@ use App\Http\Resources\ViolationResource;
 use App\Models\Institution;
 use App\Models\Violation;
 use App\Services\ViolationService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class ViolationController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected ViolationService $violationService
     ) {}
@@ -28,7 +32,7 @@ class ViolationController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -72,7 +76,7 @@ class ViolationController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -109,7 +113,7 @@ class ViolationController extends Controller
     public function show(Request $request, Violation $violation): ViolationResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $violation->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -124,7 +128,7 @@ class ViolationController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $violation->institution_id && !$user->isSuperAdmin()) {
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -147,7 +151,7 @@ class ViolationController extends Controller
     public function destroy(Request $request, Violation $violation): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $violation->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -161,7 +165,7 @@ class ViolationController extends Controller
     public function approve(Request $request, Violation $violation): ViolationResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $violation->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         if (!$this->violationService->canDirectApprove($user)) {
@@ -191,7 +195,7 @@ class ViolationController extends Controller
     public function reject(Request $request, Violation $violation): ViolationResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $violation->institution_id && !$user->isSuperAdmin()) {
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $violation->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         if (!$this->violationService->canDirectApprove($user)) {
@@ -220,7 +224,7 @@ class ViolationController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if ($user->isStudent()) {
                 $profile = $user->studentProfile;
                 if (!$profile || (int) $profile->id !== $studentId) {

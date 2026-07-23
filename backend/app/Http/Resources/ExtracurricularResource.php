@@ -36,6 +36,7 @@ class ExtracurricularResource extends JsonResource
                 'name' => $this->semester->name,
             ] : null),
             'capacity' => $this->capacity,
+            'kkm' => $this->kkm !== null ? (float) $this->kkm : 75.0,
             'status' => $this->status,
             'days_of_week' => $this->days_of_week ?? [],
             'day_labels' => $this->day_labels,

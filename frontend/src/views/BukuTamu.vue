@@ -238,7 +238,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import guestVisitApi from '@/api/guestVisit'
 import { institutionApi } from '@/api/institution'
-import { getPrincipalTitle } from '@/utils/institution'
+import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -458,7 +458,7 @@ async function exportPdf() {
         <div class="school-address">${escapeHtml(fullAddress || '-')}</div>
         <div class="school-info">
           NPSN: ${escapeHtml(institution.npsn || '–')}
-          ${institution.nss ? ` · NSS: ${escapeHtml(institution.nss)}` : ''}
+          ${institution.nss ? ` · ${getNssLabel(institution.level)}: ${escapeHtml(institution.nss)}` : ''}
           ${institution.phone ? ` · Telp: ${escapeHtml(institution.phone)}` : ''}
           ${institution.email ? ` · Email: ${escapeHtml(institution.email)}` : ''}
           ${institution.website ? ` · ${escapeHtml(institution.website)}` : ''}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 
 class AlumniController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected StudentService $studentService
     ) {}
@@ -21,12 +24,7 @@ class AlumniController extends Controller
     public function index(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
 
             $filters = $request->only(['search', 'graduation_year', 'class_id']);
             $perPage = min($request->get('per_page', 15), 100);
@@ -50,13 +48,7 @@ class AlumniController extends Controller
     public function graduationYears(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
-
+            $institutionId = $this->resolveInstitutionId($request);
             $years = $this->studentService->getGraduationYears($institutionId);
 
             return response()->json(['data' => $years]);
@@ -77,11 +69,12 @@ class AlumniController extends Controller
     {
         try {
             $student = Student::findOrFail($id);
-
-            $institutionId = $request->user()->isAdminOrSuperAdmin()
+            $user = $request->user();
+            $institutionId = $user->isAdminOrSuperAdmin()
                 ? null
-                : ($request->user()->institution_id ? (int) $request->user()->institution_id : null);
-            if (!$this->studentService->canAccess($student, $institutionId, $request->user()->isAdminOrSuperAdmin())) {
+                : $this->resolveInstitutionId($request);
+
+            if (!$this->studentService->canAccess($student, $institutionId, $user->isAdminOrSuperAdmin())) {
                 return response()->json(['message' => 'Anda tidak berwenang meluluskan siswa ini.'], 403);
             }
 
@@ -119,14 +112,16 @@ class AlumniController extends Controller
         try {
             $studentIds = $request->input('student_ids');
             $graduationYear = $request->input('graduation_year') ? (int) $request->input('graduation_year') : null;
+            $user = $request->user();
 
-            $institutionId = $request->user()->isAdminOrSuperAdmin()
+            $institutionId = $user->isAdminOrSuperAdmin()
                 ? null
-                : ($request->user()->institution_id ? (int) $request->user()->institution_id : null);
+                : $this->resolveInstitutionId($request);
+
             $filteredIds = [];
             foreach ($studentIds as $id) {
                 $student = Student::find($id);
-                if ($student && $this->studentService->canAccess($student, $institutionId, $request->user()->isAdminOrSuperAdmin())) {
+                if ($student && $this->studentService->canAccess($student, $institutionId, $user->isAdminOrSuperAdmin())) {
                     $filteredIds[] = $id;
                 }
             }
@@ -149,6 +144,98 @@ class AlumniController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat meluluskan siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Batalkan kelulusan satu siswa (kembalikan ke Aktif).
+     */
+    public function revokeGraduation(Request $request, int $id)
+    {
+        $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $student = Student::findOrFail($id);
+            $user = $request->user();
+            $institutionId = $user->isAdminOrSuperAdmin()
+                ? null
+                : $this->resolveInstitutionId($request);
+
+            if (!$this->studentService->canAccess($student, $institutionId, $user->isAdminOrSuperAdmin())) {
+                return response()->json(['message' => 'Anda tidak berwenang membatalkan kelulusan siswa ini.'], 403);
+            }
+
+            $student = $this->studentService->revokeGraduation(
+                $student,
+                $request->input('reason')
+            );
+
+            return response()->json([
+                'message' => 'Kelulusan berhasil dibatalkan. Siswa dikembalikan ke status Aktif.',
+                'data' => new StudentResource($student->load(['institution', 'class', 'academicYear', 'semester', 'documents'])),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to revoke graduation', ['student_id' => $id, 'error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat membatalkan kelulusan',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Batalkan kelulusan banyak siswa sekaligus.
+     */
+    public function revokeGraduationBulk(Request $request)
+    {
+        $request->validate([
+            'student_ids' => 'required|array',
+            'student_ids.*' => 'integer|exists:student,id',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $studentIds = $request->input('student_ids');
+            $reason = $request->input('reason');
+            $user = $request->user();
+
+            $institutionId = $user->isAdminOrSuperAdmin()
+                ? null
+                : $this->resolveInstitutionId($request);
+
+            $filteredIds = [];
+            foreach ($studentIds as $id) {
+                $student = Student::find($id);
+                if ($student && $this->studentService->canAccess($student, $institutionId, $user->isAdminOrSuperAdmin())) {
+                    $filteredIds[] = $id;
+                }
+            }
+
+            if (count($studentIds) > 0 && count($filteredIds) === 0) {
+                return response()->json([
+                    'message' => 'Tidak ada siswa yang dapat dibatalkan kelulusannya. Pastikan siswa berasal dari institusi Anda.',
+                ], 403);
+            }
+
+            $result = $this->studentService->revokeGraduationBulk($filteredIds, $reason);
+
+            return response()->json([
+                'message' => $result['success'] . ' kelulusan berhasil dibatalkan.' . (count($result['failed']) > 0 ? ' ' . count($result['failed']) . ' gagal.' : ''),
+                'success' => $result['success'],
+                'failed' => $result['failed'],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to bulk revoke graduation', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat membatalkan kelulusan',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

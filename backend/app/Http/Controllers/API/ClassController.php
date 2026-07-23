@@ -53,13 +53,18 @@ class ClassController extends Controller
         // Default tahun ajaran/semester aktif hanya jika filter tidak eksplisit.
         // Semester aktif tidak boleh dipaksa jika tahun ajaran yang dipilih beda
         // (menyebabkan dropdown naik kelas/luluskan kosong).
+        // omit_semester=1: hanya filter tahun ajaran (untuk jadwal pelajaran, dll.)
         if ($institutionId) {
             $institution = Institution::find($institutionId);
             if ($institution) {
                 if (!isset($filters['academic_year_id']) && $institution->active_academic_year_id) {
                     $filters['academic_year_id'] = $institution->active_academic_year_id;
                 }
-                if (!isset($filters['semester_id']) && $institution->active_semester_id) {
+                if (
+                    !$request->boolean('omit_semester')
+                    && !isset($filters['semester_id'])
+                    && $institution->active_semester_id
+                ) {
                     $yearId = $filters['academic_year_id'] ?? null;
                     $activeSemester = $institution->activeSemester;
                     if ($activeSemester && $yearId && (int) $activeSemester->academic_year_id === (int) $yearId) {

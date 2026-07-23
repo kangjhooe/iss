@@ -15,6 +15,10 @@
           <span class="stat-num">{{ displayStat(stats.borrowed_copies) }}</span>
           <span class="stat-tag">Dipinjam</span>
         </div>
+        <div class="stat-item" v-if="(stats.total_ebook_views ?? 0) > 0 || (stats.total_ebooks ?? 0) > 0">
+          <span class="stat-num">{{ displayStat(stats.total_ebook_views) }}</span>
+          <span class="stat-tag">Ebook dibuka</span>
+        </div>
         <div class="stat-item stat-warn" v-if="(stats.overdue_count ?? 0) > 0">
           <span class="stat-num">{{ stats.overdue_count }}</span>
           <span class="stat-tag">Terlambat</span>
@@ -52,28 +56,63 @@
                 <option :value="10">10 / halaman</option>
                 <option :value="15">15 / halaman</option>
                 <option :value="25">25 / halaman</option>
-                <option :value="50">50 / halaman</option>
               </select>
             </div>
-            <button @click="openBookModal()" class="btn-primary btn-add"><span>Tambah Buku</span></button>
+            <div class="tab-actions">
+              <button type="button" class="btn-secondary btn-compact" :disabled="exportingBooksCsv" @click="exportBooksCsv">
+                {{ exportingBooksCsv ? '...' : 'Export CSV' }}
+              </button>
+              <button type="button" class="btn-secondary btn-compact" :disabled="exportingBooksPdf" @click="exportBooksPdf">
+                {{ exportingBooksPdf ? '...' : 'Cetak PDF' }}
+              </button>
+              <button type="button" class="btn-secondary btn-compact" @click="showImportModal = true">Import Excel</button>
+              <button @click="openBookModal()" class="btn-primary btn-add"><span>Tambah Buku</span></button>
+            </div>
           </div>
           <div v-if="booksLoading" class="loading-wrap">
-            <LoadingSkeleton type="table" :rows="8" :columns="6" :cell-widths="['22%','18%','14%','12%','8%','26%']" />
+            <LoadingSkeleton type="table" :rows="8" :columns="7" :cell-widths="['6%','22%','16%','14%','12%','8%','10%']" />
           </div>
           <div v-else class="table-container">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Judul</th>
-                <th>Pengarang</th>
-                <th>Kategori</th>
-                <th>ISBN</th>
-                <th>Eksemplar</th>
-                <th>Aksi</th>
+                <th class="col-no">No</th>
+                <th>
+                  <button type="button" class="th-sort" @click="setBookSort('title')">
+                    Judul <span class="sort-icon" :class="bookSortClass('title')" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="th-sort" @click="setBookSort('author')">
+                    Pengarang <span class="sort-icon" :class="bookSortClass('author')" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="th-sort" @click="setBookSort('category')">
+                    Kategori <span class="sort-icon" :class="bookSortClass('category')" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="th-sort" @click="setBookSort('isbn')">
+                    ISBN <span class="sort-icon" :class="bookSortClass('isbn')" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="th-sort" @click="setBookSort('copies_count')">
+                    Eksemplar <span class="sort-icon" :class="bookSortClass('copies_count')" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="th-sort" @click="setBookSort('ebook')">
+                    Ebook <span class="sort-icon" :class="bookSortClass('ebook')" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th class="col-aksi">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="b in books" :key="b.id">
+              <tr v-for="(b, index) in books" :key="b.id">
+                <td class="col-no">{{ bookRowNumber(index) }}</td>
                 <td>
                   <div class="name-cell">
                     <div class="name">{{ displayValue(b.title) }}</div>
@@ -85,10 +124,34 @@
                 <td>{{ displayValue(b.isbn) }}</td>
                 <td>{{ b.copies_count ?? b.available_copies_count ?? 0 }}</td>
                 <td>
+                  <template v-if="b.has_ebook">
+                    <span class="badge badge-ebook">PDF</span>
+                    <span v-if="b.is_public_ebook" class="badge badge-public" title="Tampil di halaman publik">Publik</span>
+                    <span v-if="b.ebook_view_count" class="muted small" style="display:block;margin-top:0.2rem">{{ b.ebook_view_count }}x dibuka</span>
+                  </template>
+                  <span v-else class="muted small">—</span>
+                </td>
+                <td>
                   <div class="action-buttons">
-                    <button @click="openBookModal(b)" class="btn-action btn-edit">Edit</button>
-                    <button @click="openCopyModal(null, b)" class="btn-action btn-secondary">Eksemplar</button>
-                    <button @click="confirmDelete('book', b)" class="btn-action btn-delete">Hapus</button>
+                    <button type="button" @click="openBookModal(b)" class="btn-action btn-edit" title="Edit">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button type="button" @click="openCopyModal(null, b)" class="btn-action btn-secondary" title="Eksemplar">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 7H16M8 11H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                    <button type="button" @click="confirmDelete('book', b)" class="btn-action btn-delete" title="Hapus">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -99,7 +162,7 @@
             <p>Tambahkan kategori lalu tambah buku.</p>
             <button @click="openBookModal()" class="btn-primary">Tambah Buku</button>
           </div>
-          <div v-if="booksMeta.last_page > 1" class="pagination">
+          <div v-if="booksMeta.last_page > 1 || booksMeta.total > 0" class="pagination">
             <button @click="loadBooks(booksMeta.current_page - 1)" :disabled="booksMeta.current_page === 1" class="pagination-btn">Sebelumnya</button>
             <span class="pagination-info">Halaman {{ booksMeta.current_page }} dari {{ booksMeta.last_page }} (Total: {{ booksMeta.total }})</span>
             <button @click="loadBooks(booksMeta.current_page + 1)" :disabled="booksMeta.current_page >= booksMeta.last_page" class="pagination-btn">Selanjutnya</button>
@@ -314,6 +377,9 @@
               <input v-model="fineFilters.loan_id" @input="debounceLoadFinePayments" placeholder="ID peminjaman (opsional)..." class="search-input" />
               <button v-if="fineFilters.loan_id" type="button" class="search-clear" @click="fineFilters.loan_id = ''; loadFinePayments(1)" aria-label="Hapus">×</button>
             </div>
+            <button type="button" class="btn-secondary btn-compact" :disabled="exportingFinesPdf" @click="previewFinesPdf">
+              {{ exportingFinesPdf ? '...' : 'Cetak PDF' }}
+            </button>
           </div>
         </div>
         <div v-if="finePaymentsLoading" class="loading-wrap">
@@ -357,6 +423,10 @@
             <span v-if="exportingPdf">Memuat...</span>
             <span v-else>Preview / Cetak PDF Laporan Peminjaman</span>
           </button>
+          <button type="button" class="btn-secondary" :disabled="exportingFinesPdf" @click="previewFinesPdf">
+            <span v-if="exportingFinesPdf">Memuat...</span>
+            <span v-else>Cetak PDF Laporan Denda</span>
+          </button>
         </div>
         <div class="reports-grid">
           <div class="stat-cards">
@@ -371,7 +441,7 @@
               <Bar :data="loansByMonthData" :options="chartOptionsBar" />
             </div>
             <p v-else class="muted chart-placeholder">Memuat data peminjaman per bulan...</p>
-            <select v-model="reportYear" @change="loadLoansByMonth" class="filter-select chart-year-select">
+            <select v-model="reportYear" @change="onReportYearChange" class="filter-select chart-year-select">
               <option v-for="y in reportYearOptions" :key="y" :value="y">{{ y }}</option>
             </select>
           </div>
@@ -388,6 +458,43 @@
               </tbody>
             </table>
             <p v-if="topBooks.length === 0" class="muted">Belum ada data.</p>
+          </div>
+          <div class="report-section chart-section">
+            <h3>Bacaan Ebook per Bulan ({{ reportYear }})</h3>
+            <div class="chart-wrap" v-if="!ebookViewsByMonthLoading">
+              <Bar :data="ebookViewsByMonthData" :options="chartOptionsBar" />
+            </div>
+            <p v-else class="muted chart-placeholder">Memuat data bacaan ebook...</p>
+          </div>
+          <div class="report-section">
+            <h3>Ebook Paling Sering Dibuka</h3>
+            <p class="muted small" style="margin-bottom:0.75rem">Dihitung saat PDF berhasil dibuka (deduplikasi 30 menit per pengunjung).</p>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Judul</th>
+                  <th>Pengarang</th>
+                  <th>Total</th>
+                  <th>Siswa</th>
+                  <th>Staf</th>
+                  <th>Publik</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(eb, i) in topEbooks" :key="i">
+                  <td>
+                    {{ eb.title }}
+                    <span v-if="eb.is_public_ebook" class="badge badge-public" style="margin-left:0.35rem">Publik</span>
+                  </td>
+                  <td>{{ eb.author || '-' }}</td>
+                  <td>{{ eb.ebook_view_count }}</td>
+                  <td>{{ eb.views_student ?? 0 }}</td>
+                  <td>{{ eb.views_staff ?? 0 }}</td>
+                  <td>{{ eb.views_public ?? 0 }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="topEbooks.length === 0" class="muted">Belum ada data bacaan ebook.</p>
           </div>
         </div>
       </div>
@@ -444,6 +551,30 @@
               <div class="form-group"><label>Rak / Lokasi</label><input v-model="bookForm.shelf_code" maxlength="50" /></div>
               <div class="form-group"><label>Deskripsi</label><textarea v-model="bookForm.description" rows="3"></textarea></div>
               <div class="form-group"><label>Cover (gambar)</label><input type="file" accept="image/*" @change="onBookCoverChange" /></div>
+              <div class="form-group">
+                <label>Ebook PDF (opsional, maks. 20 MB)</label>
+                <input type="file" accept="application/pdf,.pdf" @change="onBookEbookChange" />
+                <p v-if="editingBook?.has_ebook && !removeEbook" class="muted small" style="margin-top:0.35rem">
+                  Ebook sudah terunggah.
+                  <button type="button" class="btn-link" @click="removeEbook = true">Hapus ebook</button>
+                </p>
+                <p v-if="removeEbook" class="muted small" style="margin-top:0.35rem">
+                  Ebook akan dihapus saat disimpan.
+                  <button type="button" class="btn-link" @click="removeEbook = false">Batalkan</button>
+                </p>
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label" :class="{ 'is-disabled': !canSetPublicEbook }">
+                  <input type="checkbox" v-model="bookForm.is_public_ebook" :disabled="!canSetPublicEbook" />
+                  Tampilkan di perpustakaan digital publik (tanpa login)
+                </label>
+                <p v-if="!canSetPublicEbook" class="muted small" style="margin-top:0.25rem">
+                  Unggah file PDF ebook terlebih dahulu agar opsi ini bisa diaktifkan.
+                </p>
+                <p v-else class="muted small" style="margin-top:0.25rem">
+                  Jika dicentang, ebook bisa dibaca tanpa login di halaman Perpustakaan Digital publik sekolah.
+                </p>
+              </div>
               <div class="modal-footer">
                 <button type="button" @click="showBookModal = false" class="btn-secondary">Batal</button>
                 <button type="submit" class="btn-primary" :disabled="saving">Simpan</button>
@@ -534,6 +665,51 @@
         </div>
         </Transition>
       </Teleport>
+
+      <Transition name="modal">
+        <div v-if="showImportModal" class="modal-overlay" @click.self="closeImportModal">
+          <div class="modal-card">
+            <h3>Import Katalog Buku (Excel)</h3>
+            <p class="muted small">
+              Unduh template, isi data, lalu unggah file <strong>.xlsx</strong>.
+              Kolom wajib: <strong>kode_kategori</strong> dan <strong>judul</strong> (kode kategori harus sudah ada di master).
+              Duplikat ISBN atau judul+pengarang akan diperbarui.
+            </p>
+            <div class="form-group" style="margin-top:1rem">
+              <label>File Excel (.xlsx) *</label>
+              <input
+                ref="importFileInput"
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                @change="onImportFileChange"
+              />
+              <p class="muted small" style="margin-top:0.35rem">Maks. 10 MB · Format .xlsx</p>
+            </div>
+            <div class="form-group">
+              <button type="button" class="btn-secondary btn-compact" :disabled="downloadingTemplate" @click="downloadBooksTemplate">
+                {{ downloadingTemplate ? 'Mengunduh...' : 'Unduh Template Excel' }}
+              </button>
+            </div>
+            <div v-if="importResult" class="import-result">
+              <p>
+                Ditambah: <strong>{{ importResult.success }}</strong> ·
+                Diperbarui: <strong>{{ importResult.updated }}</strong> ·
+                Gagal: <strong>{{ importResult.failed }}</strong>
+              </p>
+              <ul v-if="importResult.errors?.length" class="import-errors">
+                <li v-for="(err, i) in importResult.errors.slice(0, 20)" :key="i">{{ err }}</li>
+                <li v-if="importResult.errors.length > 20">… dan {{ importResult.errors.length - 20 }} error lainnya</li>
+              </ul>
+            </div>
+            <div class="modal-footer">
+              <button type="button" @click="closeImportModal" class="btn-secondary">Tutup</button>
+              <button type="button" class="btn-primary" :disabled="importing || !importFile" @click="runImportBooks">
+                {{ importing ? 'Mengimpor...' : 'Import' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
   </Layout>
 </template>
@@ -547,6 +723,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { libraryApi } from '@/api/library'
 import { useToast } from '@/composables/useToast'
+import * as XLSX from 'xlsx'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
@@ -554,7 +731,7 @@ const toast = useToast()
 
 const activeTab = ref('books')
 const saving = ref(false)
-const booksPerPage = ref(15)
+const booksPerPage = ref(25)
 const categoriesPerPage = ref(15)
 const copiesPerPage = ref(15)
 const loansPerPage = ref(15)
@@ -580,13 +757,29 @@ const categoryForm = ref({ code: '', name: '', description: '', is_active: true 
 
 // Books
 const books = ref([])
-const booksMeta = ref({ current_page: 1, last_page: 1, total: 0 })
+const booksMeta = ref({ current_page: 1, last_page: 1, total: 0, per_page: 25 })
 const booksLoading = ref(false)
+const bookSortBy = ref('title')
+const bookSortDir = ref('asc')
 const bookFilters = ref({ search: '', category_id: '' })
 const showBookModal = ref(false)
 const editingBook = ref(null)
-const bookForm = ref({ category_id: '', isbn: '', title: '', author: '', publisher: '', year: null, language: '', pages: null, shelf_code: '', description: '' })
-let bookCoverFile = null
+const bookForm = ref({ category_id: '', isbn: '', title: '', author: '', publisher: '', year: null, language: '', pages: null, shelf_code: '', description: '', is_public_ebook: false })
+const bookCoverFile = ref(null)
+const bookEbookFile = ref(null)
+const removeEbook = ref(false)
+const canSetPublicEbook = computed(() => {
+  if (removeEbook.value) return false
+  return !!(bookEbookFile.value || editingBook.value?.has_ebook)
+})
+const showImportModal = ref(false)
+const importFile = ref(null)
+const importFileInput = ref(null)
+const importing = ref(false)
+const downloadingTemplate = ref(false)
+const exportingBooksCsv = ref(false)
+const exportingBooksPdf = ref(false)
+const importResult = ref(null)
 
 // Copies
 const copies = ref([])
@@ -636,9 +829,11 @@ function displayValue(v) {
 }
 
 const topBooks = ref([])
+const topEbooks = ref([])
 const reportDateFrom = ref('')
 const reportDateTo = ref('')
 const exportingPdf = ref(false)
+const exportingFinesPdf = ref(false)
 const reportYear = ref(new Date().getFullYear())
 const reportYearOptions = computed(() => {
   const y = new Date().getFullYear()
@@ -646,6 +841,8 @@ const reportYearOptions = computed(() => {
 })
 const loansByMonth = ref([])
 const loansByMonthLoading = ref(false)
+const ebookViewsByMonth = ref([])
+const ebookViewsByMonthLoading = ref(false)
 
 // Confirm delete
 const confirmShow = ref(false)
@@ -667,7 +864,10 @@ const reportStatCards = computed(() => [
   { value: stats.value.available_copies ?? 0, label: 'Tersedia' },
   { value: stats.value.borrowed_copies ?? 0, label: 'Dipinjam' },
   { value: stats.value.overdue_count ?? 0, label: 'Terlambat' },
-  { value: 'Rp ' + formatNumber(stats.value.total_fines_collected ?? 0), label: 'Denda Terkumpul' }
+  { value: 'Rp ' + formatNumber(stats.value.total_fines_collected ?? 0), label: 'Denda Terkumpul' },
+  { value: stats.value.total_ebooks ?? 0, label: 'Total Ebook' },
+  { value: stats.value.total_ebook_views ?? 0, label: 'Total Dibuka' },
+  { value: stats.value.ebook_views_this_month ?? 0, label: 'Dibuka Bulan Ini' }
 ])
 
 const chartOptionsBar = {
@@ -681,9 +881,9 @@ const chartOptionsBar = {
   }
 }
 
-const loansByMonthData = computed(() => {
+function monthSeries(rows, label, color) {
   const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
-  const data = loansByMonth.value || []
+  const data = rows || []
   const countByMonth = Array.from({ length: 12 }, (_, i) => {
     const d = data.find(r => (r.month || 0) === i + 1)
     return d ? (d.count ?? d.loan_count ?? 0) : 0
@@ -691,26 +891,42 @@ const loansByMonthData = computed(() => {
   return {
     labels: months,
     datasets: [{
-      label: 'Peminjaman',
+      label,
       data: countByMonth,
-      backgroundColor: 'rgba(5, 150, 105, 0.7)',
-      borderColor: 'rgb(5, 150, 105)',
-      borderWidth: 1
+      backgroundColor: color,
     }]
   }
-})
+}
+
+const loansByMonthData = computed(() => monthSeries(loansByMonth.value, 'Peminjaman', 'rgba(5, 150, 105, 0.7)'))
+const ebookViewsByMonthData = computed(() => monthSeries(ebookViewsByMonth.value, 'Bacaan Ebook', 'rgba(37, 99, 235, 0.7)'))
 
 function formatNumber(n) { return Number(n).toLocaleString('id-ID') }
 function formatDate(d) { return d ? (typeof d === 'string' ? d : d.toISOString().slice(0, 10)) : '-' }
 function getErrorMessage(e) {
-  const msg = e.response?.data?.message
+  const data = e.response?.data
+  // Blob error responses (template/pdf download)
+  if (data instanceof Blob) {
+    return e.message || 'Terjadi kesalahan.'
+  }
+  const msg = data?.message
   if (msg) return msg
-  const errs = e.response?.data?.errors
+  const errs = data?.errors
   if (errs && typeof errs === 'object') {
     const first = Object.values(errs)[0]
     return Array.isArray(first) ? first[0] : first
   }
-  return e.response?.data?.error || e.message || 'Terjadi kesalahan.'
+  return data?.error || e.message || 'Terjadi kesalahan.'
+}
+
+async function parseBlobError(blob) {
+  try {
+    const text = await blob.text()
+    const parsed = JSON.parse(text)
+    return parsed.message || parsed.error || 'Terjadi kesalahan.'
+  } catch {
+    return 'Terjadi kesalahan.'
+  }
 }
 
 function getCopyStatusClass(s) {
@@ -742,15 +958,48 @@ async function loadCategories(page = 1) {
 async function loadBooks(page = 1) {
   booksLoading.value = true
   try {
-    const res = await libraryApi.getBooks({ page, per_page: booksPerPage.value, search: bookFilters.value.search || undefined, category_id: bookFilters.value.category_id || undefined })
+    const res = await libraryApi.getBooks({
+      page,
+      per_page: Math.min(Number(booksPerPage.value) || 25, 25),
+      search: bookFilters.value.search || undefined,
+      category_id: bookFilters.value.category_id || undefined,
+      sort_by: bookSortBy.value,
+      sort_dir: bookSortDir.value
+    })
     books.value = res.data.data ?? []
     const meta = res.data.meta || res.data
-    booksMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1, total: meta.total ?? 0 }
+    booksMeta.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      total: meta.total ?? 0,
+      per_page: meta.per_page ?? booksPerPage.value
+    }
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
   } finally {
     booksLoading.value = false
   }
+}
+
+function bookRowNumber(index) {
+  const page = booksMeta.value.current_page || 1
+  const perPage = booksMeta.value.per_page || booksPerPage.value || 25
+  return (page - 1) * perPage + index + 1
+}
+
+function bookSortClass(column) {
+  if (bookSortBy.value !== column) return 'is-idle'
+  return bookSortDir.value === 'asc' ? 'is-asc' : 'is-desc'
+}
+
+function setBookSort(column) {
+  if (bookSortBy.value === column) {
+    bookSortDir.value = bookSortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    bookSortBy.value = column
+    bookSortDir.value = 'asc'
+  }
+  loadBooks(1)
 }
 async function loadCopies(page = 1) {
   copiesLoading.value = true
@@ -803,6 +1052,14 @@ async function loadTopBooks() {
     topBooks.value = res.data.data || []
   } catch (_) {}
 }
+async function loadTopEbooks() {
+  try {
+    const res = await libraryApi.getTopEbooks({ limit: 10 })
+    topEbooks.value = res.data.data || []
+  } catch (_) {
+    topEbooks.value = []
+  }
+}
 async function loadLoansByMonth() {
   loansByMonthLoading.value = true
   try {
@@ -814,6 +1071,22 @@ async function loadLoansByMonth() {
   } finally {
     loansByMonthLoading.value = false
   }
+}
+async function loadEbookViewsByMonth() {
+  ebookViewsByMonthLoading.value = true
+  try {
+    const res = await libraryApi.getEbookViewsByMonth({ year: reportYear.value })
+    const raw = res.data?.data ?? res.data
+    ebookViewsByMonth.value = Array.isArray(raw) ? raw : []
+  } catch (_) {
+    ebookViewsByMonth.value = []
+  } finally {
+    ebookViewsByMonthLoading.value = false
+  }
+}
+function onReportYearChange() {
+  loadLoansByMonth()
+  loadEbookViewsByMonth()
 }
 async function loadBooksList() {
   try {
@@ -858,6 +1131,7 @@ async function saveCategory() {
     }
     showCategoryModal.value = false
     loadCategories(categoriesMeta.value.current_page)
+    loadCategoriesForSelect()
     loadBooksList()
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
@@ -903,16 +1177,57 @@ async function executeDelete() {
 
 function openBookModal(book = null) {
   editingBook.value = book
-  bookCoverFile = null
-  bookForm.value = book ? { category_id: String(book.category_id), isbn: book.isbn || '', title: book.title, author: book.author || '', publisher: book.publisher || '', year: book.year || null, language: book.language || '', pages: book.pages || null, shelf_code: book.shelf_code || '', description: book.description || '' } : { category_id: '', isbn: '', title: '', author: '', publisher: '', year: null, language: '', pages: null, shelf_code: '', description: '' }
+  bookCoverFile.value = null
+  bookEbookFile.value = null
+  removeEbook.value = false
+  loadCategoriesForSelect()
+  bookForm.value = book
+    ? {
+        category_id: String(book.category_id),
+        isbn: book.isbn || '',
+        title: book.title,
+        author: book.author || '',
+        publisher: book.publisher || '',
+        year: book.year || null,
+        language: book.language || '',
+        pages: book.pages || null,
+        shelf_code: book.shelf_code || '',
+        description: book.description || '',
+        is_public_ebook: !!book.is_public_ebook
+      }
+    : {
+        category_id: '',
+        isbn: '',
+        title: '',
+        author: '',
+        publisher: '',
+        year: null,
+        language: '',
+        pages: null,
+        shelf_code: '',
+        description: '',
+        is_public_ebook: false
+      }
   showBookModal.value = true
 }
-function onBookCoverChange(e) { bookCoverFile = e.target.files?.[0] || null }
+function onBookCoverChange(e) { bookCoverFile.value = e.target.files?.[0] || null }
+function onBookEbookChange(e) {
+  bookEbookFile.value = e.target.files?.[0] || null
+  if (bookEbookFile.value) removeEbook.value = false
+}
 async function saveBook() {
   saving.value = true
   try {
     const payload = { ...bookForm.value }
-    if (bookCoverFile) payload.cover = bookCoverFile
+    if (bookCoverFile.value) payload.cover = bookCoverFile.value
+    if (bookEbookFile.value) payload.ebook = bookEbookFile.value
+    if (removeEbook.value) {
+      payload.remove_ebook = true
+      payload.is_public_ebook = false
+    }
+    if (!canSetPublicEbook.value) {
+      payload.is_public_ebook = false
+    }
     if (editingBook.value) {
       await libraryApi.updateBook(editingBook.value.id, payload)
       toast.success('Berhasil', 'Buku diperbarui')
@@ -1066,13 +1381,220 @@ async function previewLoansPdf() {
   }
 }
 
+async function previewFinesPdf() {
+  exportingFinesPdf.value = true
+  try {
+    const params = {}
+    if (reportDateFrom.value) params.date_from = reportDateFrom.value
+    if (reportDateTo.value) params.date_to = reportDateTo.value
+    const res = await libraryApi.exportFinesPdf(params)
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    toast.success('Berhasil', 'PDF dibuka di tab baru. Anda dapat mencetak atau menyimpan dari sana.')
+  } catch (e) {
+    toast.error('Gagal', getErrorMessage(e))
+  } finally {
+    exportingFinesPdf.value = false
+  }
+}
+
+function bookExportParams() {
+  return {
+    search: bookFilters.value.search || undefined,
+    category_id: bookFilters.value.category_id || undefined
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 30000)
+}
+
+async function exportBooksCsv() {
+  exportingBooksCsv.value = true
+  try {
+    const res = await libraryApi.exportBooksCsv(bookExportParams())
+    downloadBlob(new Blob([res.data], { type: 'text/csv;charset=utf-8' }), `katalog_buku_${Date.now()}.csv`)
+    toast.success('Berhasil', 'CSV katalog diunduh')
+  } catch (e) {
+    toast.error('Gagal', getErrorMessage(e))
+  } finally {
+    exportingBooksCsv.value = false
+  }
+}
+
+async function exportBooksPdf() {
+  exportingBooksPdf.value = true
+  try {
+    const res = await libraryApi.exportBooksPdf(bookExportParams())
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    toast.success('Berhasil', 'PDF katalog dibuka di tab baru')
+  } catch (e) {
+    toast.error('Gagal', getErrorMessage(e))
+  } finally {
+    exportingBooksPdf.value = false
+  }
+}
+
+function closeImportModal() {
+  showImportModal.value = false
+  importFile.value = null
+  importResult.value = null
+  if (importFileInput.value) importFileInput.value.value = ''
+}
+
+function onImportFileChange(e) {
+  importFile.value = e.target.files?.[0] || null
+  importResult.value = null
+}
+
+async function downloadBooksTemplate() {
+  downloadingTemplate.value = true
+  try {
+    let sampleCode = 'FKS'
+    try {
+      const meta = await libraryApi.downloadBooksTemplate()
+      sampleCode = meta.data?.data?.sample_kode_kategori || categoriesForSelect.value?.[0]?.code || 'FKS'
+    } catch {
+      sampleCode = categoriesForSelect.value?.[0]?.code || 'FKS'
+    }
+
+    const templateData = [{
+      kode_kategori: sampleCode,
+      judul: 'Contoh Judul Buku',
+      isbn: '9786020000000',
+      pengarang: 'Nama Pengarang',
+      penerbit: 'Nama Penerbit',
+      tahun: 2024,
+      bahasa: 'Indonesia',
+      halaman: 200,
+      rak: 'R-A-01',
+      deskripsi: 'Deskripsi singkat (opsional)',
+      jumlah_eksemplar: 2
+    }]
+
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(templateData)
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 20 }, { wch: 18 },
+      { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 16 }
+    ]
+    XLSX.utils.book_append_sheet(wb, ws, 'Katalog Buku')
+    XLSX.writeFile(wb, 'template_katalog_buku.xlsx')
+    toast.success('Berhasil', 'Template Excel diunduh')
+  } catch (e) {
+    toast.error('Gagal', getErrorMessage(e) || 'Gagal membuat template Excel')
+  } finally {
+    downloadingTemplate.value = false
+  }
+}
+
+function mapExcelBookRow(row) {
+  const get = (...keys) => {
+    for (const key of keys) {
+      if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+        return row[key]
+      }
+    }
+    // case-insensitive fallback
+    const lowerMap = {}
+    Object.keys(row || {}).forEach((k) => {
+      lowerMap[String(k).toLowerCase().replace(/[\s-]+/g, '_')] = row[k]
+    })
+    for (const key of keys) {
+      const normalized = String(key).toLowerCase().replace(/[\s-]+/g, '_')
+      if (lowerMap[normalized] !== undefined && lowerMap[normalized] !== null && String(lowerMap[normalized]).trim() !== '') {
+        return lowerMap[normalized]
+      }
+    }
+    return null
+  }
+
+  return {
+    kode_kategori: get('kode_kategori', 'Kode Kategori', 'kode kategori'),
+    judul: get('judul', 'Judul'),
+    isbn: get('isbn', 'ISBN'),
+    pengarang: get('pengarang', 'Pengarang', 'author'),
+    penerbit: get('penerbit', 'Penerbit'),
+    tahun: get('tahun', 'Tahun'),
+    bahasa: get('bahasa', 'Bahasa'),
+    halaman: get('halaman', 'Halaman'),
+    rak: get('rak', 'Rak'),
+    deskripsi: get('deskripsi', 'Deskripsi'),
+    jumlah_eksemplar: get('jumlah_eksemplar', 'Jumlah Eksemplar', 'eksemplar')
+  }
+}
+
+async function runImportBooks() {
+  if (!importFile.value) {
+    toast.error('Gagal', 'Pilih file Excel (.xlsx) terlebih dahulu')
+    return
+  }
+  const name = (importFile.value.name || '').toLowerCase()
+  if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+    toast.error('Gagal', 'Format file harus Excel (.xlsx)')
+    return
+  }
+
+  importing.value = true
+  importResult.value = null
+  try {
+    const buffer = await importFile.value.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: 'array' })
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: '' })
+
+    if (!jsonData.length) {
+      toast.error('Gagal', 'File Excel kosong')
+      return
+    }
+
+    const books = jsonData
+      .map(mapExcelBookRow)
+      .filter((row) => row.judul || row.kode_kategori || row.isbn)
+
+    if (!books.length) {
+      toast.error('Gagal', 'Tidak ada baris data yang dapat diimpor')
+      return
+    }
+
+    const res = await libraryApi.importBooks(books)
+    importResult.value = res.data.data || { success: 0, updated: 0, failed: 0, errors: [] }
+    const d = importResult.value
+    toast.success('Import selesai', `+${d.success} · update ${d.updated} · gagal ${d.failed}`)
+    loadBooks(1)
+    loadBooksList()
+    loadStats()
+    loadCategoriesForSelect()
+  } catch (e) {
+    toast.error('Gagal', getErrorMessage(e))
+  } finally {
+    importing.value = false
+  }
+}
+
 watch(activeTab, (tab) => {
   if (tab === 'books') loadBooks(1)
   if (tab === 'categories') loadCategories(1)
   if (tab === 'copies') { loadCopies(1); loadBooksList() }
   if (tab === 'loans') loadLoans(1)
   if (tab === 'fines') loadFinePayments(1)
-  if (tab === 'reports') { loadStats(); loadTopBooks(); loadLoansByMonth() }
+  if (tab === 'reports') {
+    loadStats()
+    loadTopBooks()
+    loadTopEbooks()
+    loadLoansByMonth()
+    loadEbookViewsByMonth()
+  }
 })
 onMounted(() => {
   loadStats()
@@ -1118,6 +1640,12 @@ onMounted(() => {
 @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 .tab-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+.tab-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-left: auto; }
+.btn-compact { padding: 0.45rem 0.75rem; font-size: 0.85rem; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #334155; cursor: pointer; font-weight: 500; }
+.btn-compact:hover:not(:disabled) { background: #f8fafc; }
+.btn-compact:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-secondary.btn-compact { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.btn-secondary.btn-compact:hover:not(:disabled) { background: #d1fae5; }
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .search-wrap { position: relative; display: inline-flex; }
 .search-input { padding: 0.5rem 2rem 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; min-width: 180px; transition: border-color 0.2s, box-shadow 0.2s; }
@@ -1130,6 +1658,8 @@ onMounted(() => {
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-add { display: inline-flex; align-items: center; gap: 0.4rem; }
+.import-result { margin-top: 0.75rem; padding: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+.import-errors { margin: 0.5rem 0 0; padding-left: 1.1rem; color: #b91c1c; font-size: 0.8rem; max-height: 160px; overflow-y: auto; }
 .loading-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; padding: 0.5rem; background: #fff; }
 .table-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .data-table { width: 100%; border-collapse: collapse; }
@@ -1137,19 +1667,60 @@ onMounted(() => {
 .data-table th { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); font-weight: 600; color: #065f46; font-size: 0.8rem; text-transform: uppercase; }
 .data-table tbody tr { transition: background 0.15s ease; }
 .data-table tbody tr:hover { background: #f1f5f9; }
+.col-no { width: 3.25rem; text-align: center; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.col-aksi { width: 7.5rem; }
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.th-sort:hover { color: #047857; }
+.sort-icon {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  opacity: 0.3;
+  border-bottom: 5px solid currentColor;
+}
+.sort-icon.is-idle { opacity: 0.25; }
+.sort-icon.is-asc { opacity: 1; border-bottom: 5px solid currentColor; border-top: 0; }
+.sort-icon.is-desc { opacity: 1; border-bottom: 0; border-top: 5px solid currentColor; }
 .name-cell .name { font-weight: 500; }
 .muted { color: #64748b; font-size: 0.85rem; }
 .small { font-size: 0.8rem; }
-.action-buttons { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.btn-action { padding: 0.35rem 0.65rem; border-radius: 8px; border: none; font-size: 0.8rem; cursor: pointer; font-weight: 500; transition: transform 0.1s ease; }
-.btn-action:hover { transform: scale(1.02); }
+.action-buttons { display: flex; flex-wrap: nowrap; gap: 0.35rem; align-items: center; }
+.btn-action {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+.btn-action:hover { transform: scale(1.05); }
 .btn-edit { background: rgba(5, 150, 105, 0.12); color: #059669; }
 .btn-edit:hover { background: rgba(5, 150, 105, 0.2); }
-.btn-secondary { background: #ecfdf5; color: #047857; }
-.btn-secondary:hover { background: #d1fae5; }
+.btn-secondary.btn-action,
+.btn-action.btn-secondary { background: #ecfdf5; color: #047857; }
+.btn-action.btn-secondary:hover { background: #d1fae5; }
 .btn-delete { background: #fee2e2; color: #b91c1c; }
 .btn-delete:hover { background: #fecaca; }
-.btn-renew { background: #d1fae5; color: #047857; }
+.btn-renew { background: #d1fae5; color: #047857; padding: 0.35rem 0.65rem; width: auto; height: auto; font-size: 0.8rem; font-weight: 500; }
 .btn-renew:hover { background: #a7f3d0; }
 .badge-success { background: #dcfce7; color: #166534; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; }
 .badge-warning { background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; }
@@ -1187,6 +1758,12 @@ onMounted(() => {
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
 .modal-footer .btn-secondary { padding: 0.5rem 1rem; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
 .modal-footer .btn-secondary:hover { background: #e2e8f0; }
+.badge-ebook { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; background: #ecfdf5; color: #047857; font-size: 0.75rem; font-weight: 600; }
+.badge-public { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; background: #eff6ff; color: #1d4ed8; font-size: 0.75rem; font-weight: 600; margin-left: 0.25rem; }
+.checkbox-label { display: flex; align-items: flex-start; gap: 0.5rem; font-weight: 500; color: #334155; cursor: pointer; }
+.checkbox-label input { margin-top: 0.2rem; }
+.checkbox-label.is-disabled { opacity: 0.65; cursor: not-allowed; }
+.btn-link { background: none; border: none; color: #059669; cursor: pointer; padding: 0; font-size: inherit; text-decoration: underline; }
 
 /* Modal transition */
 .modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }

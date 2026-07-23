@@ -13,6 +13,7 @@ use App\Models\Room;
 use App\Models\AcademicYear;
 use App\Models\StudentCountSnapshot;
 use App\Models\StudentMutation;
+use App\Support\InstitutionContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -36,11 +37,11 @@ class ReportController extends Controller
                 }
                 $targetInstitutionId = $institutionId;
             } else {
-                // Use user's institution
+                // Use active institution context (header/cookie), fallback home
                 if ($user->isSuperAdmin()) {
                     return response()->json(['message' => 'Institution ID required for super admin'], 400);
                 }
-                $targetInstitutionId = $user->institution_id;
+                $targetInstitutionId = InstitutionContext::resolveForUser($user, $request);
                 
                 // Check if user has institution
                 if (!$targetInstitutionId) {
@@ -67,10 +68,11 @@ class ReportController extends Controller
             $year = $request->get('year');
             $compareWithPrevious = $request->get('compare_with_previous', false);
 
-            // Get institution data
+            // Get institution data (include kop fields: logo + foundation_name)
             $institutionData = [
                 'id' => $institution->id,
                 'name' => $institution->name,
+                'foundation_name' => $institution->foundation_name,
                 'npsn' => $institution->npsn,
                 'nss' => $institution->nss,
                 'level' => $institution->level,
@@ -86,6 +88,7 @@ class ReportController extends Controller
                 'website' => $institution->website,
                 'principal_name' => $institution->principal_name,
                 'principal_nip' => $institution->principal_nip,
+                'logo' => $institution->logo ? asset('storage/' . $institution->logo) : null,
             ];
 
             // Get students statistics by grade (dynamically based on institution level)

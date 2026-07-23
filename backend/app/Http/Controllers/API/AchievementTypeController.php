@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAchievementTypeRequest;
 use App\Http\Requests\UpdateAchievementTypeRequest;
 use App\Http\Resources\AchievementTypeResource;
 use App\Models\AchievementType;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -14,10 +16,12 @@ use Illuminate\Support\Facades\Log;
 
 class AchievementTypeController extends Controller
 {
+    use ResolvesInstitution;
+
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -37,7 +41,7 @@ class AchievementTypeController extends Controller
     public function store(StoreAchievementTypeRequest $request): JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -53,7 +57,8 @@ class AchievementTypeController extends Controller
 
     public function show(Request $request, AchievementType $achievement_type): AchievementTypeResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $achievement_type->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         return new AchievementTypeResource($achievement_type);
@@ -61,7 +66,8 @@ class AchievementTypeController extends Controller
 
     public function update(UpdateAchievementTypeRequest $request, AchievementType $achievement_type): AchievementTypeResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $achievement_type->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $achievement_type->update($request->validated());
@@ -70,7 +76,8 @@ class AchievementTypeController extends Controller
 
     public function destroy(Request $request, AchievementType $achievement_type): JsonResponse
     {
-        if ($request->user()->institution_id !== $achievement_type->institution_id && !$request->user()->isSuperAdmin()) {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $achievement_type->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         if ($achievement_type->achievements()->exists()) {
