@@ -203,7 +203,7 @@
         <tfoot>
             <tr style="background-color: #e9ecef; font-weight: bold;">
                 <td colspan="6" class="text-right">Total:</td>
-                <td class="text-center">{{ $classes->sum('students_count') }}</td>
+                <td class="text-center">{{ collect($classes)->sum('students_count') }}</td>
                 <td colspan="4"></td>
             </tr>
         </tfoot>

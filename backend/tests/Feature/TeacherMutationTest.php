@@ -78,6 +78,7 @@ class TeacherMutationTest extends TestCase
         $this->teacher = Employee::create([
             'institution_id' => $this->origin->id,
             'type' => 'Guru',
+            'nik' => '3175010101800001',
             'nuptk' => '1234567890123456',
             'nip' => '198001012005011001',
             'name' => 'Guru Mutasi',
@@ -111,17 +112,24 @@ class TeacherMutationTest extends TestCase
 
         $create = $this->postJson('/api/v1/teacher-mutations', [
             'target_npsn' => $this->target->npsn,
-            'nuptk' => $this->teacher->nuptk,
+            'nik' => $this->teacher->nik,
             'notes' => 'Pindah tugas',
         ]);
 
         $create->assertCreated()
             ->assertJsonPath('data.status', 'pending')
-            ->assertJsonPath('data.initiated_by', 'origin');
+            ->assertJsonPath('data.initiated_by', 'origin')
+            ->assertJsonPath('data.can_approve', false);
 
         $mutationId = $create->json('data.id');
 
         Sanctum::actingAs($this->targetAdmin);
+
+        $list = $this->getJson('/api/v1/teacher-mutations?status=pending');
+        $list->assertOk();
+        $pending = collect($list->json('data'))->firstWhere('id', $mutationId);
+        $this->assertNotNull($pending);
+        $this->assertTrue((bool) ($pending['can_approve'] ?? false));
 
         $approve = $this->postJson("/api/v1/teacher-mutations/{$mutationId}/approve", [
             'action' => 'approve',
@@ -153,7 +161,7 @@ class TeacherMutationTest extends TestCase
             'external' => true,
             'target_npsn' => '30303030',
             'target_school_name' => 'SMP Luar Sistem',
-            'nuptk' => $this->teacher->nuptk,
+            'nik' => $this->teacher->nik,
         ]);
 
         $response->assertCreated()
@@ -174,7 +182,7 @@ class TeacherMutationTest extends TestCase
 
         $create = $this->postJson('/api/v1/teacher-mutations/pull', [
             'origin_npsn' => $this->origin->npsn,
-            'nuptk' => $this->teacher->nuptk,
+            'nik' => $this->teacher->nik,
         ]);
 
         $create->assertCreated()
@@ -200,7 +208,7 @@ class TeacherMutationTest extends TestCase
         Sanctum::actingAs($this->originAdmin);
         $create = $this->postJson('/api/v1/teacher-mutations', [
             'target_npsn' => $this->target->npsn,
-            'nuptk' => $this->teacher->nuptk,
+            'nik' => $this->teacher->nik,
         ]);
         $mutationId = $create->json('data.id');
 
@@ -234,7 +242,118 @@ class TeacherMutationTest extends TestCase
         // origin SMP → target SMA (would be blocked for students)
         $this->postJson('/api/v1/teacher-mutations', [
             'target_npsn' => $this->target->npsn,
-            'nuptk' => $this->teacher->nuptk,
+            'nik' => $this->teacher->nik,
         ])->assertCreated();
+    }
+
+    public function test_lookup_uses_nik_not_nuptk(): void
+    {
+        Sanctum::actingAs($this->originAdmin);
+
+        $this->getJson('/api/v1/teacher-mutations/lookup-teacher?nik=' . $this->teacher->nik)
+            ->assertOk()
+            ->assertJsonPath('data.nik', $this->teacher->nik)
+            ->assertJsonPath('data.name', 'Guru Mutasi')
+            ->assertJsonMissingPath('data.email');
+
+        $this->getJson('/api/v1/teacher-mutations/lookup-teacher?nik=' . $this->teacher->nuptk)
+            ->assertNotFound();
+    }
+
+    public function test_history_by_nik_only_not_nuptk_route(): void
+    {
+        Sanctum::actingAs($this->originAdmin);
+
+        $this->getJson('/api/v1/teacher-mutations/history-by-nik?nik=' . $this->teacher->nik)
+            ->assertOk();
+
+        // NUPTK must not be accepted as an alternate identity key.
+        $this->getJson('/api/v1/teacher-mutations/history-by-nik?nik=' . $this->teacher->nuptk)
+            ->assertStatus(403)
+            ->assertJsonPath('message', 'Guru dengan NIK tersebut tidak ditemukan.');
+
+        // Legacy NUPTK history route removed: NIK is the sole teacher identity key.
+        $this->getJson('/api/v1/teacher-mutations/history-by-nuptk?nuptk=' . $this->teacher->nuptk)
+            ->assertNotFound();
+    }
+
+    public function test_target_admin_can_reject_pending_push(): void
+    {
+        Sanctum::actingAs($this->originAdmin);
+        $create = $this->postJson('/api/v1/teacher-mutations', [
+            'target_npsn' => $this->target->npsn,
+            'nik' => $this->teacher->nik,
+        ]);
+        $create->assertCreated();
+        $mutationId = $create->json('data.id');
+
+        Sanctum::actingAs($this->targetAdmin);
+        $reject = $this->postJson("/api/v1/teacher-mutations/{$mutationId}/approve", [
+            'action' => 'reject',
+            'rejection_reason' => 'Kuota penuh',
+        ]);
+
+        $reject->assertOk()
+            ->assertJsonPath('data.status', 'rejected');
+
+        $this->teacher->refresh();
+        $this->assertSame($this->origin->id, (int) $this->teacher->institution_id);
+        $this->assertSame('Aktif', $this->teacher->status);
+        $this->assertDatabaseHas('teacher_mutations', [
+            'id' => $mutationId,
+            'status' => 'rejected',
+            'rejection_reason' => 'Kuota penuh',
+        ]);
+    }
+
+    public function test_wrong_institution_cannot_approve_pending_push(): void
+    {
+        Sanctum::actingAs($this->originAdmin);
+        $create = $this->postJson('/api/v1/teacher-mutations', [
+            'target_npsn' => $this->target->npsn,
+            'nik' => $this->teacher->nik,
+        ]);
+        $mutationId = $create->json('data.id');
+
+        // Origin initiated → only target may approve; origin trying again is forbidden.
+        $this->postJson("/api/v1/teacher-mutations/{$mutationId}/approve", [
+            'action' => 'approve',
+        ])->assertForbidden();
+
+        $this->assertSame('pending', TeacherMutation::find($mutationId)->status);
+    }
+
+    public function test_duplicate_pending_mutation_is_rejected(): void
+    {
+        Sanctum::actingAs($this->originAdmin);
+        $this->postJson('/api/v1/teacher-mutations', [
+            'target_npsn' => $this->target->npsn,
+            'nik' => $this->teacher->nik,
+        ])->assertCreated();
+
+        $second = $this->postJson('/api/v1/teacher-mutations', [
+            'target_npsn' => $this->target->npsn,
+            'nik' => $this->teacher->nik,
+        ]);
+
+        $second->assertStatus(422)
+            ->assertJsonPath('message', 'Validasi gagal')
+            ->assertJsonFragment([
+                'Guru ini masih memiliki permohonan mutasi yang menunggu persetujuan.',
+            ]);
+    }
+
+    public function test_reject_requires_rejection_reason(): void
+    {
+        Sanctum::actingAs($this->originAdmin);
+        $mutationId = $this->postJson('/api/v1/teacher-mutations', [
+            'target_npsn' => $this->target->npsn,
+            'nik' => $this->teacher->nik,
+        ])->json('data.id');
+
+        Sanctum::actingAs($this->targetAdmin);
+        $this->postJson("/api/v1/teacher-mutations/{$mutationId}/approve", [
+            'action' => 'reject',
+        ])->assertStatus(422);
     }
 }

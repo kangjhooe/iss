@@ -25,9 +25,8 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
-        'failed_login_attempts',
-        'locked_until',
         'email_verified_at',
+        // failed_login_attempts / locked_until are set only via forceFill / explicit assignment
     ];
 
     /**

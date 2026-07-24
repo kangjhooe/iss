@@ -440,10 +440,23 @@ const IconAuditLog = () => h('svg', { class: 'nav-icon', width: 20, height: 20, 
 const IconReport = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M18 20V10M12 20V4M6 20V14', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
+const IconFeedback = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
 const IconExam = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 12h6M9 16h6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconPpdb = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('circle', { cx: '9', cy: '7', r: '4', stroke: 'currentColor', 'stroke-width': 2 }),
+  h('path', { d: 'M19 8v6M22 11h-6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconFinance = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('rect', { x: '2', y: '6', width: '20', height: '12', rx: '2', stroke: 'currentColor', 'stroke-width': 2 }),
+  h('path', { d: 'M2 10h20', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }),
+  h('circle', { cx: '12', cy: '14', r: '1.5', fill: 'currentColor' })
 ])
 const IconLibrary = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
@@ -518,7 +531,8 @@ const menuEntries = computed(() => {
         { to: '/academic-year', label: 'Tahun Ajaran', visible: true },
         { to: '/super-admin/app-branding', label: 'Branding Aplikasi', visible: true },
         { to: '/super-admin/system-settings', label: 'Pengaturan Sistem', visible: true },
-        { to: '/institution-change-requests', label: 'Request Perubahan', visible: true }
+        { to: '/institution-change-requests', label: 'Request Perubahan', visible: true },
+        { to: '/feedback', label: 'Feedback Sekolah', visible: true }
       ]}),
       addVisible({ type: 'group', key: 'platform', label: 'Platform', icon: IconReport, children: [
         { to: '/super-admin/adoption', label: 'Monitoring Adopsi', visible: true },
@@ -579,6 +593,16 @@ const menuEntries = computed(() => {
         visible: true,
       })
       waliChildren.push({
+        to: `/teacher/wali${classQs}&panel=absensi`,
+        label: `Absensi · ${classLabel}`,
+        visible: true,
+      })
+      waliChildren.push({
+        to: `/teacher/wali${classQs}&panel=nilai`,
+        label: `Nilai · ${classLabel}`,
+        visible: true,
+      })
+      waliChildren.push({
         to: `/teacher/wali${classQs}&panel=jadwal`,
         label: `Jadwal · ${classLabel}`,
         visible: true,
@@ -586,7 +610,7 @@ const menuEntries = computed(() => {
       if (canAccessModule('teaching_journal')) {
         waliChildren.push({
           to: `/attendance/student${classQs}`,
-          label: `Absen · ${classLabel}`,
+          label: `Input Absen · ${classLabel}`,
           visible: true,
         })
       }
@@ -694,6 +718,13 @@ const menuEntries = computed(() => {
       { to: '/luluskan-siswa', label: 'Luluskan', visible: canAccessModule('student') },
       { to: '/alumni', label: 'Alumni', visible: canAccessModule('student') }
     ]}),
+    addVisible({ type: 'group', key: 'ppdb', label: 'PPDB', icon: IconPpdb, children: [
+      { to: '/ppdb/ringkasan', label: 'Ringkasan', visible: canAccessModule('ppdb') },
+      { to: '/ppdb/konfigurasi', label: 'Konfigurasi', visible: canAccessModule('ppdb') },
+      { to: '/ppdb/pendaftar', label: 'Data Pendaftar', visible: canAccessModule('ppdb') },
+      { to: '/ppdb/statistik', label: 'Statistik', visible: canAccessModule('ppdb') },
+      { to: '/ppdb/pembayaran', label: 'Pembayaran', visible: canAccessModule('ppdb') },
+    ]}),
     addVisible({ type: 'group', key: 'bk', label: 'Bimbingan Konseling', icon: IconCounseling, children: [
       { to: '/violation', label: 'Pelanggaran', visible: canAccessModule('violation') },
       { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
@@ -720,8 +751,16 @@ const menuEntries = computed(() => {
     ...(canAccessModule('library')
       ? [{ type: 'link', key: 'perpustakaan', to: '/library', label: 'Perpustakaan', icon: IconLibrary }]
       : []),
+    addVisible({ type: 'group', key: 'administrasi', label: 'Administrasi', icon: IconAdmin, children: [
+      { to: '/academic-calendar', label: 'Kalender Akademik', visible: canAccessModule('academic_calendar') },
+      { to: '/digital-archive', label: 'Arsip Digital', visible: canAccessModule('digital_archive') },
+      { to: '/buku-tamu', label: 'Buku Tamu', visible: canAccessModule('guest_book') },
+      { to: '/pengambilan-ijazah', label: 'Pengambilan Ijazah', visible: canAccessModule('document_pickup') },
+      { to: '/report', label: 'Laporan', visible: canAccessModule('report') }
+    ]}),
     ...(role === 'institution_admin' || role === 'admin'
       ? [
+          { type: 'link', key: 'feedback', to: '/feedback', label: 'Lapor Bug / Fitur', icon: IconFeedback },
           { type: 'link', key: 'pengaturan', to: '/module-access', label: 'Akses Modul', icon: IconModuleAccess },
           { type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog }
         ]
@@ -734,6 +773,14 @@ const menuEntries = computed(() => {
       { to: '/ujian-online/sesi?fokus=kontrol', label: 'Kontrol Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/bank-soal', label: 'Bank Soal', visible: canAccessModule('online_exam') }
     ]}),
+    addVisible({ type: 'group', key: 'keuangan', label: 'Keuangan', icon: IconFinance, maturity: 'beta', children: [
+      { to: '/keuangan/jenis-biaya', label: 'Jenis Biaya', visible: canAccessModule('finance') },
+      { to: '/keuangan/spp', label: 'SPP', visible: canAccessModule('finance') },
+      { to: '/keuangan/tagihan', label: 'Tagihan', visible: canAccessModule('finance') },
+      { to: '/keuangan/pembayaran', label: 'Pembayaran', visible: canAccessModule('finance') },
+      { to: '/keuangan/tunggakan', label: 'Tunggakan', visible: canAccessModule('finance') },
+      { to: '/keuangan/laporan', label: 'Laporan', visible: canAccessModule('finance') },
+    ]}),
     addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, children: [
       { to: '/attendance/student', label: 'Absensi Siswa', visible: canAccessModule('teaching_journal') },
       { to: '/attendance/employee', label: 'Absensi Guru & Staff', visible: canAccessModule('attendance') },
@@ -743,13 +790,6 @@ const menuEntries = computed(() => {
     addVisible({ type: 'group', key: 'layanan', label: 'Layanan', icon: IconLayanan, maturity: 'beta', children: [
       { to: '/student-change-requests', label: 'Permintaan Perubahan Siswa', visible: canAccessModule('student') },
       { to: '/teacher-change-requests', label: 'Permintaan Perubahan Guru', visible: canAccessModule('teacher') },
-      { to: '/pengambilan-ijazah', label: 'Pengambilan Ijazah', visible: canAccessModule('document_pickup') },
-      { to: '/ppdb', label: 'PPDB', visible: canAccessModule('ppdb') }
-    ]}),
-    addVisible({ type: 'group', key: 'administrasi', label: 'Administrasi', icon: IconAdmin, maturity: 'beta', children: [
-      { to: '/digital-archive', label: 'Arsip Digital', visible: canAccessModule('digital_archive') },
-      { to: '/buku-tamu', label: 'Buku Tamu', visible: canAccessModule('guest_book') },
-      { to: '/report', label: 'Laporan', visible: canAccessModule('report') }
     ]})
   ]
   const visible = entries.filter(e =>
@@ -910,6 +950,7 @@ const pageTitle = computed(() => {
     Report: 'Laporan & Statistik',
     AcademicYear: 'Tahun Ajaran',
     InstitutionChangeRequests: 'Request Perubahan',
+    FeedbackTickets: authStore.user?.role === 'super_admin' ? 'Inbox Feedback' : 'Lapor Bug & Request Fitur',
     StudentChangeRequestsAdmin: 'Permintaan Perubahan Siswa',
     ModuleAccess: 'Akses Modul',
     StudentMutation: 'Mutasi Siswa',
@@ -949,6 +990,7 @@ const pageTitle = computed(() => {
     CorrespondenceTandaTangan: 'Tanda Tangan & Stempel',
     CorrespondenceWorkflow: 'Arsip Persuratan',
     DigitalArchive: 'Arsip Digital',
+    AcademicCalendar: 'Kalender Akademik',
     BukuTamu: 'Buku Tamu',
     DocumentPickup: 'Pengambilan Ijazah',
     Library: 'Perpustakaan'

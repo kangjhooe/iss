@@ -7,6 +7,12 @@ export const waliKelasApi = {
   getDashboard(classId) {
     return api.get(`/v1/teacher/wali/classes/${classId}/dashboard`)
   },
+  getAttendanceSummary(classId, params) {
+    return api.get(`/v1/teacher/wali/classes/${classId}/attendance-summary`, { params })
+  },
+  getGradesOverview(classId) {
+    return api.get(`/v1/teacher/wali/classes/${classId}/grades-overview`)
+  },
   getNotes(classId, studentId) {
     return api.get(`/v1/teacher/wali/classes/${classId}/students/${studentId}/notes`)
   },

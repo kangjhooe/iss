@@ -18,7 +18,12 @@ class QuestionBankResource extends JsonResource
             'type' => $this->type,
             'body' => $this->body,
             'weight' => (float) $this->weight,
+            'sort_order' => (int) ($this->sort_order ?? 0),
             'key_answer' => $this->when($request->user() && !$request->routeIs('exam-attempt.*'), $this->key_answer),
+            'key_answer_aliases' => $this->when(
+                $request->user() && !$request->routeIs('exam-attempt.*') && $this->type === 'isian',
+                fn () => $this->key_answer_aliases ?? []
+            ),
             'matching_data' => $this->when($this->type === 'matching', $this->matching_data),
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),

@@ -435,6 +435,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
+      path: '/feedback',
+      name: 'FeedbackTickets',
+      component: () => import('@/views/FeedbackTickets.vue'),
+      meta: { requiresAuth: true, requiresFeedbackAccess: true }
+    },
+    {
       path: '/student-change-requests',
       name: 'StudentChangeRequestsAdmin',
       component: () => import('@/views/StudentChangeRequestsAdmin.vue'),
@@ -531,6 +537,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/academic-calendar',
+      name: 'AcademicCalendar',
+      component: () => import('@/views/AcademicCalendar.vue'),
+      meta: { requiresAuth: true, requiresModule: 'academic_calendar' }
+    },
+    {
       path: '/notifications',
       name: 'Notifications',
       component: () => import('@/views/Notifications.vue'),
@@ -551,8 +563,84 @@ const router = createRouter({
     {
       path: '/ppdb',
       name: 'Ppdb',
-      component: () => import('@/views/Ppdb.vue'),
+      redirect: { name: 'PpdbRingkasan' }
+    },
+    {
+      path: '/ppdb/ringkasan',
+      name: 'PpdbRingkasan',
+      component: () => import('@/views/Ppdb/Index.vue'),
       meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/ppdb/konfigurasi',
+      name: 'PpdbKonfigurasi',
+      component: () => import('@/views/Ppdb/Konfigurasi.vue'),
+      meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/ppdb/pendaftar',
+      name: 'PpdbPendaftar',
+      component: () => import('@/views/Ppdb/Pendaftar.vue'),
+      meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/ppdb/pendaftar/:id',
+      name: 'PpdbPendaftarDetail',
+      component: () => import('@/views/Ppdb/PendaftarDetail.vue'),
+      meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/ppdb/statistik',
+      name: 'PpdbStatistik',
+      component: () => import('@/views/Ppdb/Statistik.vue'),
+      meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/ppdb/pembayaran',
+      name: 'PpdbPembayaran',
+      component: () => import('@/views/Ppdb/Pembayaran.vue'),
+      meta: { requiresAuth: true, requiresModule: 'ppdb' }
+    },
+    {
+      path: '/keuangan',
+      name: 'Keuangan',
+      redirect: { name: 'KeuanganJenisBiaya' }
+    },
+    {
+      path: '/keuangan/jenis-biaya',
+      name: 'KeuanganJenisBiaya',
+      component: () => import('@/views/Keuangan/JenisBiaya.vue'),
+      meta: { requiresAuth: true, requiresModule: 'finance' }
+    },
+    {
+      path: '/keuangan/spp',
+      name: 'KeuanganSpp',
+      component: () => import('@/views/Keuangan/Spp.vue'),
+      meta: { requiresAuth: true, requiresModule: 'finance' }
+    },
+    {
+      path: '/keuangan/tagihan',
+      name: 'KeuanganTagihan',
+      component: () => import('@/views/Keuangan/Tagihan.vue'),
+      meta: { requiresAuth: true, requiresModule: 'finance' }
+    },
+    {
+      path: '/keuangan/pembayaran',
+      name: 'KeuanganPembayaran',
+      component: () => import('@/views/Keuangan/Pembayaran.vue'),
+      meta: { requiresAuth: true, requiresModule: 'finance' }
+    },
+    {
+      path: '/keuangan/tunggakan',
+      name: 'KeuanganTunggakan',
+      component: () => import('@/views/Keuangan/Tunggakan.vue'),
+      meta: { requiresAuth: true, requiresModule: 'finance' }
+    },
+    {
+      path: '/keuangan/laporan',
+      name: 'KeuanganLaporan',
+      component: () => import('@/views/Keuangan/Laporan.vue'),
+      meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
       path: '/ujian-online',
@@ -740,7 +828,7 @@ router.beforeEach(async (to, from, next) => {
         return
       }
     }
-    
+
     if (authStore.user?.role !== 'super_admin') {
       const defaultRoute = getDefaultRoute(authStore.user?.role)
       if (to.path !== defaultRoute) {
@@ -748,6 +836,25 @@ router.beforeEach(async (to, from, next) => {
       } else {
         next()
       }
+    } else {
+      next()
+    }
+  } else if (to.meta.requiresFeedbackAccess) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next('/login')
+        return
+      }
+    }
+
+    const role = authStore.user?.role
+    const allowed = role === 'super_admin' || role === 'institution_admin' || role === 'admin'
+    if (!allowed) {
+      next(getDefaultRoute(role))
     } else {
       next()
     }

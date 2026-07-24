@@ -68,6 +68,15 @@ export const employeeApi = {
   },
   resetPasswordByAdmin(employeeId, data) {
     return api.post(`/v1/employee/${employeeId}/reset-password`, data)
+  },
+  export(params = {}) {
+    return api.get('/v1/employee/export', { params })
+  },
+  exportPdf(params = {}) {
+    return api.get('/v1/employee/export/pdf', {
+      params,
+      responseType: 'blob'
+    })
   }
 }
 

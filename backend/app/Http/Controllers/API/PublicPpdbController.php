@@ -11,12 +11,14 @@ use App\Models\PpdbApplicantDocument;
 use App\Models\PpdbChannel;
 use App\Models\PpdbPeriod;
 use App\Models\Student;
+use App\Notifications\PpdbApplicantMailNotification;
 use App\Notifications\PpdbRegistrationNotification;
+use App\Support\PpdbDocumentStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Notification;
 
 class PublicPpdbController extends Controller
 {
@@ -71,6 +73,7 @@ class PublicPpdbController extends Controller
                 'email' => $institution->email,
                 'website' => $institution->website,
                 'logo' => $institution->logo ? asset('storage/' . $institution->logo) : null,
+                'admission_label' => $institution->resolvedAdmissionLabel(),
             ];
         }
         return response()->json([
@@ -84,6 +87,8 @@ class PublicPpdbController extends Controller
                 'academic_year' => $p->academicYear ? ['id' => $p->academicYear->id, 'code' => $p->academicYear->code, 'name' => $p->academicYear->name] : null,
             ]),
             'institution' => $institutionData,
+            'admission_label' => $institution?->resolvedAdmissionLabel() ?? \App\Models\Institution::ADMISSION_LABEL_DEFAULT,
+            'admission_open' => $periods->isNotEmpty(),
         ]);
     }
 
@@ -118,6 +123,7 @@ class PublicPpdbController extends Controller
     /**
      * Prefill formulir dari data siswa di sekolah asal (tanpa auth).
      * Query: institution_id (sekolah tujuan), previous_school_npsn, nisn.
+     * Hanya field non-sensitif (tanpa NIK/kontak/alamat rumah/NIK ortu).
      * Rate limit untuk hindari abuse.
      */
     public function prefill(Request $request): JsonResponse
@@ -162,24 +168,17 @@ class PublicPpdbController extends Controller
 
         $data = [
             'name' => $student->name,
-            'nik' => $student->nik,
             'nisn' => $student->nisn,
             'gender' => $student->gender,
             'birth_date' => $student->birth_date?->format('Y-m-d'),
             'birth_place' => $student->birth_place,
-            'address' => $student->address,
-            'phone' => $student->phone,
-            'email' => $student->email,
             'religion' => $student->religion,
             'previous_school' => $originInstitution->name,
             'previous_school_npsn' => $originInstitution->npsn,
             'previous_school_address' => $fullAddress ?: $originInstitution->address,
             'father_name' => $student->father_name,
-            'father_nik' => $student->father_nik,
             'mother_name' => $student->mother_name,
-            'mother_nik' => $student->mother_nik,
             'guardian_name' => $student->guardian_name,
-            'guardian_phone' => $student->guardian_phone,
         ];
 
         return response()->json(['found' => true, 'data' => $data]);
@@ -187,7 +186,9 @@ class PublicPpdbController extends Controller
 
     /**
      * Cek hasil PPDB oleh calon (tanpa auth).
-     * Query: registration_number ATAU nisn (salah satu wajib), optional: institution_id atau npsn (NPSN sekolah).
+     * - registration_number: cukup nomor (bersifat rahasia).
+     * - nisn: wajib birth_date (YYYY-MM-DD) yang cocok.
+     * Optional: institution_id atau npsn (NPSN sekolah).
      */
     public function checkResult(Request $request): JsonResponse
     {
@@ -195,6 +196,13 @@ class PublicPpdbController extends Controller
         $nisn = $request->get('nisn') ? trim((string) $request->nisn) : '';
         if ($registrationNumber === '' && $nisn === '') {
             return response()->json(['message' => 'Isi nomor pendaftaran atau NISN.'], 422);
+        }
+
+        $birthDate = $request->get('birth_date') ? trim((string) $request->birth_date) : '';
+        if ($registrationNumber === '' && $nisn !== '' && $birthDate === '') {
+            return response()->json([
+                'message' => 'Untuk pencarian dengan NISN, tanggal lahir wajib diisi (format YYYY-MM-DD).',
+            ], 422);
         }
 
         $institutionId = $request->get('institution_id') ? (int) $request->institution_id : null;
@@ -206,12 +214,19 @@ class PublicPpdbController extends Controller
         }
 
         $query = PpdbApplicant::query()
-            ->with(['period:id,name,institution_id,open_date,close_date', 'channel:id,name', 'student:id,nis,name']);
+            ->with([
+                'period:id,name,institution_id,open_date,close_date,registration_fee,re_registration_fee',
+                'channel:id,name',
+                'student:id,nis,name',
+            ]);
 
         if ($registrationNumber !== '') {
             $query->where('registration_number', $registrationNumber);
         } else {
             $query->where('nisn', $nisn)->orderByDesc('created_at');
+            if ($birthDate !== '') {
+                $query->whereDate('birth_date', $birthDate);
+            }
         }
 
         if ($institutionId) {
@@ -235,7 +250,15 @@ class PublicPpdbController extends Controller
         $data = [
             'registration_number' => $applicant->registration_number,
             'name' => $applicant->name,
-            'period' => $applicant->period ? ['name' => $applicant->period->name] : null,
+            'period' => $applicant->period ? [
+                'name' => $applicant->period->name,
+                'registration_fee' => $applicant->period->registration_fee !== null
+                    ? (float) $applicant->period->registration_fee
+                    : null,
+                're_registration_fee' => $applicant->period->re_registration_fee !== null
+                    ? (float) $applicant->period->re_registration_fee
+                    : null,
+            ] : null,
             'channel' => $applicant->channel ? ['name' => $applicant->channel->name] : null,
             'status' => $applicant->status,
             'rank' => $applicant->rank,
@@ -243,6 +266,11 @@ class PublicPpdbController extends Controller
             're_registration_deadline' => $applicant->re_registration_deadline?->format('Y-m-d'),
             're_registration_confirmed_at' => $applicant->re_registration_confirmed_at ? true : false,
             'result_notes' => $applicant->result_notes,
+            'payment_status' => $applicant->payment_status ?: 'unpaid',
+            'payment_type' => $applicant->payment_type,
+            'payment_amount' => $applicant->payment_amount !== null ? (float) $applicant->payment_amount : null,
+            'paid_at' => $applicant->paid_at?->format('Y-m-d H:i'),
+            'payment_notes' => $applicant->payment_notes,
             // Full data for printing
             'nik' => $applicant->nik,
             'nisn' => $applicant->nisn,
@@ -351,11 +379,14 @@ class PublicPpdbController extends Controller
         }
 
         // Idempotent: jika sudah dikonfirmasi, tetap kembalikan sukses
-        if (!$applicant->re_registration_confirmed_at) {
+        $wasAlreadyConfirmed = (bool) $applicant->re_registration_confirmed_at;
+        if (!$wasAlreadyConfirmed) {
             $applicant->update([
                 'status' => 're_registration',
                 're_registration_confirmed_at' => now(),
             ]);
+            $applicant->load(['period:id,name,institution_id', 'channel:id,name']);
+            $this->notifyInstitutionAdmins($applicant, 're_registration');
         }
 
         return response()->json([
@@ -437,7 +468,7 @@ class PublicPpdbController extends Controller
             $extension = $file->getClientOriginalExtension();
             $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
             $fileName = time() . '_' . $safeName . '.' . $extension;
-            $filePath = $file->storeAs('ppdb_applicant_documents/' . $applicant->id, $fileName, 'public');
+            $filePath = PpdbDocumentStorage::store($file, (int) $applicant->id, $fileName);
 
             $document = $applicant->documents()->create([
                 'name' => $request->name,
@@ -513,7 +544,8 @@ class PublicPpdbController extends Controller
             $applicant = PpdbApplicant::create($data);
             $applicant->load(['period:id,name', 'channel:id,name']);
 
-            $this->notifyInstitutionAdmins($applicant);
+            $this->notifyInstitutionAdmins($applicant, 'new_registration');
+            $this->notifyApplicantByEmail($applicant, 'registered');
 
             return response()->json([
                 'message' => 'Pendaftaran berhasil. Simpan nomor pendaftaran Anda.',
@@ -556,7 +588,7 @@ class PublicPpdbController extends Controller
         return $prefix . str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
     }
 
-    private function notifyInstitutionAdmins(PpdbApplicant $applicant): void
+    private function notifyInstitutionAdmins(PpdbApplicant $applicant, string $action = 'new_registration'): void
     {
         $period = $applicant->period;
         if (!$period) {
@@ -570,8 +602,19 @@ class PublicPpdbController extends Controller
         foreach ($userIds as $userId) {
             $user = \App\Models\User::find($userId);
             if ($user) {
-                $user->notify(new PpdbRegistrationNotification($applicant));
+                $user->notify(new PpdbRegistrationNotification($applicant, $action));
             }
         }
+    }
+
+    private function notifyApplicantByEmail(PpdbApplicant $applicant, string $action): void
+    {
+        $email = trim((string) ($applicant->email ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        Notification::route('mail', $email)
+            ->notify(new PpdbApplicantMailNotification($applicant, $action));
     }
 }

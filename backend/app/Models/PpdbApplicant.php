@@ -47,6 +47,11 @@ class PpdbApplicant extends Model
         'verification_notes',
         'submitted_at',
         'notes',
+        'payment_status',
+        'payment_amount',
+        'payment_type',
+        'paid_at',
+        'payment_notes',
     ];
 
     protected function casts(): array
@@ -58,6 +63,8 @@ class PpdbApplicant extends Model
             'announcement_at' => 'datetime',
             're_registration_deadline' => 'date',
             're_registration_confirmed_at' => 'datetime',
+            'payment_amount' => 'decimal:2',
+            'paid_at' => 'datetime',
         ];
     }
 

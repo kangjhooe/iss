@@ -49,6 +49,15 @@
         <div class="toolbar-actions">
           <template v-if="!filters.only_trashed">
             <div class="action-buttons-group">
+              <button type="button" @click="exportToPdf" :disabled="exportingPdf" class="btn-secondary btn-compact" title="Preview PDF">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>{{ exportingPdf ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
+              </button>
               <button type="button" @click="exportToExcel" class="btn-secondary btn-compact" title="Export Excel">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1362,6 +1371,7 @@ const showImportResultModal = ref(false)
 const viewingTeacher = ref(null)
 const activeTab = ref(1)
 const saving = ref(false)
+const exportingPdf = ref(false)
 const deleteLoading = ref(false)
 const error = ref('')
 const nikSearch = ref('')
@@ -2320,14 +2330,14 @@ const deleteDocument = async (documentId, index) => {
 const exportToExcel = async () => {
   try {
     loading.value = true
-    // Ambil semua data pegawai tanpa pagination
-    const params = { per_page: 10000 }
+    // Ambil baris lengkap via endpoint export (bukan list terpotong kolom/pagination)
+    const params = {}
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.type) params.type = filters.value.type
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.employment_status) params.employment_status = filters.value.employment_status
     
-    const response = await employeeApi.getAll(params)
+    const response = await employeeApi.export(params)
     const allEmployees = response.data.data || []
     
     // Siapkan data untuk Excel
@@ -2384,6 +2394,74 @@ const exportToExcel = async () => {
     toast.error('Gagal', 'Gagal mengekspor data ke Excel')
   } finally {
     loading.value = false
+  }
+}
+
+const exportToPdf = async () => {
+  exportingPdf.value = true
+  try {
+    const params = {}
+    if (filters.value.search) params.search = filters.value.search
+    if (filters.value.type) params.type = filters.value.type
+    if (filters.value.status) params.status = filters.value.status
+    if (filters.value.employment_status) params.employment_status = filters.value.employment_status
+
+    const res = await employeeApi.exportPdf(params)
+    const contentType = res.headers?.['content-type'] || ''
+    if (res.status !== 200 || contentType.includes('application/json')) {
+      const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
+      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
+      throw new Error(json.message || 'Gagal mencetak data guru.')
+    }
+
+    const blob = res.data instanceof Blob
+      ? res.data
+      : new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    const title = 'Preview Data Guru'
+    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
+        .toolbar {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          padding: 10px 14px; background: #0f172a; color: #f8fafc;
+          border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
+        }
+        .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
+        .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
+        .actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .actions button {
+          border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
+          cursor: pointer; font-size: 13px;
+        }
+        .btn-print { background: #059669; color: #fff; }
+        .btn-close { background: #334155; color: #e2e8f0; }
+        iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
+      </style></head><body>
+      <div class="toolbar">
+        <h1>${title}<span class="hint">Preview cetak</span></h1>
+        <div class="actions">
+          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
+          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
+        </div>
+      </div>
+      <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
+    </body></html>`)
+    win.document.close()
+    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    toast.success('Berhasil', 'Preview PDF Data Guru dibuka.')
+  } catch (err) {
+    toast.error('Gagal', err.message || err.response?.data?.message || err.formattedMessage || 'Gagal mencetak data guru.')
+  } finally {
+    exportingPdf.value = false
   }
 }
 

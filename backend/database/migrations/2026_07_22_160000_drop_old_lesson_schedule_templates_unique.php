@@ -15,8 +15,34 @@ return new class extends Migration
             ->contains(fn ($idx) => $idx->Key_name === 'lesson_schedule_templates_unique');
 
         if ($exists) {
+            $fkNames = collect(DB::select("
+                SELECT DISTINCT CONSTRAINT_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'lesson_schedule_templates'
+                  AND REFERENCED_TABLE_NAME IS NOT NULL
+                  AND COLUMN_NAME IN ('institution_id', 'semester_id')
+            "))->pluck('CONSTRAINT_NAME')->filter()->values();
+
+            foreach ($fkNames as $fkName) {
+                Schema::table('lesson_schedule_templates', function (Blueprint $table) use ($fkName) {
+                    $table->dropForeign($fkName);
+                });
+            }
+
             Schema::table('lesson_schedule_templates', function (Blueprint $table) {
                 $table->dropUnique('lesson_schedule_templates_unique');
+            });
+
+            Schema::table('lesson_schedule_templates', function (Blueprint $table) {
+                $table->foreign('institution_id')
+                    ->references('id')
+                    ->on('institution')
+                    ->cascadeOnDelete();
+                $table->foreign('semester_id')
+                    ->references('id')
+                    ->on('semesters')
+                    ->cascadeOnDelete();
             });
         }
 

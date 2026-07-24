@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ApproveTeacherMutationRequest extends FormRequest
@@ -12,7 +13,22 @@ class ApproveTeacherMutationRequest extends FormRequest
     public function authorize(): bool
     {
         $mutation = $this->route('teacher_mutation');
-        return $mutation && $mutation->canBeApprovedBy($this->user());
+        $user = $this->user();
+        if (!$mutation || !$user) {
+            return false;
+        }
+
+        $action = $this->input('action');
+        if ($action === 'reject') {
+            return $mutation->canBeRejectedBy($user);
+        }
+
+        return $mutation->canBeApprovedBy($user);
+    }
+
+    protected function failedAuthorization()
+    {
+        throw new AuthorizationException('Anda tidak berwenang menyetujui atau menolak permohonan mutasi ini.');
     }
 
     /**

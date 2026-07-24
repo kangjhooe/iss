@@ -32,10 +32,146 @@
           </div>
         </div>
 
+        <!-- Monitoring & laporan: Kontrol Ujian / detail sesi (bukan menu Peserta saja) -->
+        <div
+          v-if="fokus !== 'peserta'"
+          ref="monitorSectionRef"
+          class="content-card monitor-section"
+          :class="{ 'section-focus': fokus === 'kontrol' }"
+        >
+          <div class="monitor-header">
+            <div>
+              <h3>Monitoring peserta</h3>
+              <p class="section-hint">
+                Status live saat ujian berjalan. Koreksi uraian, rilis nilai, dan export laporan ada di sini.
+                <span v-if="autoRefreshActive" class="live-dot" title="Memperbarui otomatis">● Live</span>
+                <span v-else-if="lastMonitorAt" class="monitor-updated">Diperbarui {{ lastMonitorAt }}</span>
+              </p>
+            </div>
+            <div class="monitor-actions">
+              <button type="button" class="btn-secondary" :disabled="monitorLoading" @click="fetchSession(true)">
+                {{ monitorLoading ? 'Memuat...' : 'Refresh' }}
+              </button>
+              <button
+                type="button"
+                class="btn-secondary"
+                :disabled="exportLoading || !participants.length"
+                @click="exportResults"
+              >
+                {{ exportLoading ? 'Mengekspor...' : 'Export Excel' }}
+              </button>
+              <button
+                type="button"
+                class="btn-primary"
+                :disabled="releaseAllLoading || !canReleaseAny"
+                @click="releaseAllScores"
+              >
+                {{ releaseAllLoading ? 'Merilis...' : 'Rilis semua nilai' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="monitor-stats">
+            <div class="monitor-stat">
+              <span class="monitor-stat-value">{{ monitorSummary.total }}</span>
+              <span class="monitor-stat-label">Total</span>
+            </div>
+            <div class="monitor-stat">
+              <span class="monitor-stat-value">{{ monitorSummary.registered }}</span>
+              <span class="monitor-stat-label">Belum masuk</span>
+            </div>
+            <div class="monitor-stat monitor-stat--active">
+              <span class="monitor-stat-value">{{ monitorSummary.started }}</span>
+              <span class="monitor-stat-label">Mengerjakan</span>
+            </div>
+            <div class="monitor-stat monitor-stat--done">
+              <span class="monitor-stat-value">{{ monitorSummary.submitted }}</span>
+              <span class="monitor-stat-label">Selesai</span>
+            </div>
+            <div class="monitor-stat">
+              <span class="monitor-stat-value">{{ monitorSummary.scoreReleased }}</span>
+              <span class="monitor-stat-label">Nilai dirilis</span>
+            </div>
+            <div class="monitor-stat">
+              <span class="monitor-stat-value">{{ monitorSummary.avgScoreLabel }}</span>
+              <span class="monitor-stat-label">Rata-rata nilai</span>
+            </div>
+          </div>
+
+          <div v-if="participants.length === 0" class="monitor-empty">
+            Belum ada peserta.
+            <router-link :to="{ path: `/ujian-online/sesi/${route.params.id}`, query: { fokus: 'peserta' } }">Tambah peserta</router-link>
+          </div>
+          <div v-else class="table-scroll">
+            <table class="data-table monitor-table">
+              <thead>
+                <tr>
+                  <th>No.</th>
+                  <th>Nama</th>
+                  <th>Status</th>
+                  <th>Mulai</th>
+                  <th>Selesai</th>
+                  <th>Nilai</th>
+                  <th>Rilis</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(p, idx) in participants" :key="'mon-' + p.id">
+                  <td>{{ p.participant_order ?? idx + 1 }}</td>
+                  <td>
+                    <strong>{{ p.student?.name || '–' }}</strong>
+                    <div class="cell-meta">{{ p.nomor_peserta || p.student?.nisn || '–' }}</div>
+                  </td>
+                  <td>
+                    <span :class="['status-pill', p.status]">{{ participantStatusLabel(p.status) }}</span>
+                  </td>
+                  <td>{{ formatEntryPinTime(p.started_at) || '–' }}</td>
+                  <td>{{ formatEntryPinTime(p.submitted_at) || '–' }}</td>
+                  <td>
+                    <template v-if="p.score != null">
+                      {{ formatScore(p.score) }}
+                      <span v-if="p.score_max != null" class="score-max">/ {{ formatScore(p.score_max) }}</span>
+                    </template>
+                    <template v-else>–</template>
+                  </td>
+                  <td>{{ p.score_released ? 'Ya' : 'Tidak' }}</td>
+                  <td class="monitor-row-actions">
+                    <button
+                      type="button"
+                      class="btn-action"
+                      :disabled="p.status !== 'submitted'"
+                      @click="openGrading(p)"
+                    >
+                      Koreksi
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-action"
+                      :disabled="p.status !== 'submitted' || p.score == null || p.score_released"
+                      @click="releaseScore(p.id)"
+                    >
+                      Rilis
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-action btn-delete"
+                      :disabled="p.status === 'registered' || resetParticipantLoading === p.id"
+                      @click="resetParticipant(p)"
+                    >
+                      Reset
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Hanya tampil dari menu Peserta Ujian (fokus=peserta) atau dari detail ujian (tanpa fokus) -->
         <div v-if="fokus !== 'kontrol'" ref="pesertaSectionRef" class="content-card section" :class="{ 'section-focus': fokus === 'peserta' }">
           <h3>Peserta ({{ participants.length }})</h3>
-          <p v-if="fokus === 'peserta'" class="section-hint">Untuk mulai/akhiri ujian dan kode ujian, gunakan menu <router-link to="/ujian-online/sesi?fokus=kontrol">Kontrol Ujian</router-link>.</p>
+          <p v-if="fokus === 'peserta'" class="section-hint">Untuk mulai/akhiri ujian, monitoring, dan laporan, gunakan menu <router-link to="/ujian-online/sesi?fokus=kontrol">Kontrol Ujian</router-link>.</p>
           <div class="form-group">
             <p>Tambahkan siswa dari data siswa. Pilih siswa lalu klik Tambah. Urutkan dengan seret baris atau tombol Naik/Turun; nomor peserta mengikuti urutan daftar.</p>
             <div class="button-row">
@@ -212,7 +348,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import { examApi } from '@/api/exam'
@@ -226,9 +362,15 @@ const session = ref(null)
 const participants = ref([])
 const loading = ref(true)
 const controlLoading = ref(false)
+const monitorLoading = ref(false)
+const exportLoading = ref(false)
+const releaseAllLoading = ref(false)
+const resetParticipantLoading = ref(null)
+const lastMonitorAt = ref('')
 const showAddModal = ref(false)
 const controlSectionRef = ref(null)
 const pesertaSectionRef = ref(null)
+const monitorSectionRef = ref(null)
 const availableStudents = ref([])
 const selectedStudentIds = ref([])
 const addLoading = ref(false)
@@ -251,8 +393,32 @@ const generateNumbersLoading = ref(false)
 const reorderLoading = ref(false)
 const dragFromIndex = ref(null)
 const dragOverIndex = ref(null)
+let refreshTimer = null
 
 const fokus = computed(() => route.query.fokus || '')
+
+const monitorSummary = computed(() => {
+  const list = participants.value
+  const submitted = list.filter(p => p.status === 'submitted')
+  const withScore = submitted.filter(p => p.score != null)
+  const avg = withScore.length
+    ? withScore.reduce((sum, p) => sum + Number(p.score), 0) / withScore.length
+    : null
+  return {
+    total: list.length,
+    registered: list.filter(p => p.status === 'registered').length,
+    started: list.filter(p => p.status === 'started').length,
+    submitted: submitted.length,
+    scoreReleased: list.filter(p => p.score_released).length,
+    avgScoreLabel: avg != null ? formatScore(avg) : '–'
+  }
+})
+
+const canReleaseAny = computed(() =>
+  participants.value.some(p => p.status === 'submitted' && p.score != null && !p.score_released)
+)
+
+const autoRefreshActive = computed(() => session.value?.status === 'started')
 
 const filteredAvailableStudents = computed(() => {
   const q = (addParticipantSearch.value || '').trim().toLowerCase()
@@ -269,6 +435,8 @@ const filteredAvailableStudents = computed(() => {
 })
 
 const backLink = computed(() => {
+  if (fokus.value === 'peserta') return { path: '/ujian-online/sesi', query: { fokus: 'peserta' } }
+  if (fokus.value === 'kontrol') return { path: '/ujian-online/sesi', query: { fokus: 'kontrol' } }
   if (session.value?.exam?.code) {
     return { path: `/ujian-online/exams/${encodeURIComponent(session.value.exam.code)}` }
   }
@@ -276,9 +444,9 @@ const backLink = computed(() => {
 })
 
 const backLabel = computed(() => {
-  if (session.value?.exam?.name) return session.value.exam.name
   if (fokus.value === 'peserta') return 'Peserta Ujian'
   if (fokus.value === 'kontrol') return 'Kontrol Ujian'
+  if (session.value?.exam?.name) return session.value.exam.name
   return 'Daftar Ujian'
 })
 
@@ -292,8 +460,15 @@ const printSessionCardsPreviewUrl = computed(() => {
   return base + (base.includes('?') ? '&' : '?') + 'preview=1'
 })
 
+function formatScore(val) {
+  if (val == null || val === '') return '–'
+  const n = Number(val)
+  if (Number.isNaN(n)) return String(val)
+  return Number.isInteger(n) ? String(n) : n.toFixed(2)
+}
+
 function openPrintCardsPreview() {
-  if (!session.value || !participants.length) return
+  if (!session.value || !participants.value.length) return
   window.open(printSessionCardsPreviewUrl.value, '_blank', 'noopener')
 }
 
@@ -324,6 +499,22 @@ function formatEntryPinTime(iso) {
   }
 }
 
+function stopAutoRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh()
+  if (session.value?.status !== 'started') return
+  refreshTimer = setInterval(() => {
+    if (document.visibilityState === 'hidden') return
+    fetchSession(true)
+  }, 10000)
+}
+
 async function regenerateEntryPin() {
   if (!session.value?.id) return
   entryPinLoading.value = true
@@ -343,6 +534,7 @@ async function regenerateEntryPin() {
 
 async function fetchSession(silent = false) {
   if (!silent) loading.value = true
+  else monitorLoading.value = true
   try {
     const [sRes, pRes] = await Promise.all([
       examApi.getSession(route.params.id),
@@ -350,10 +542,70 @@ async function fetchSession(silent = false) {
     ])
     session.value = sRes.data?.data ?? sRes.data
     participants.value = pRes.data?.data ?? pRes.data ?? []
+    lastMonitorAt.value = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    if (session.value?.status === 'started') startAutoRefresh()
+    else stopAutoRefresh()
   } catch (e) {
-    toast.error('Gagal memuat sesi ujian', e.response?.data?.message || 'Data sesi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
+    if (!silent) {
+      toast.error('Gagal memuat sesi ujian', e.response?.data?.message || 'Data sesi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
+    }
   } finally {
     loading.value = false
+    monitorLoading.value = false
+  }
+}
+
+async function exportResults() {
+  if (!session.value?.id) return
+  exportLoading.value = true
+  try {
+    const res = await examApi.exportSessionResults(session.value.id)
+    const blob = new Blob([res.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `hasil-ujian-${session.value.name || session.value.id}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    toast.success('Laporan diekspor.')
+  } catch (e) {
+    toast.error('Gagal export laporan', e.response?.data?.message || 'File laporan tidak dapat diunduh. Coba lagi.')
+  } finally {
+    exportLoading.value = false
+  }
+}
+
+async function releaseAllScores() {
+  if (!session.value?.id || !canReleaseAny.value) return
+  if (!confirm('Rilis semua nilai peserta yang sudah selesai dan punya skor?')) return
+  releaseAllLoading.value = true
+  try {
+    const res = await examApi.releaseAllScores(session.value.id)
+    toast.success(res.data?.message || 'Nilai dirilis.')
+    await fetchSession(true)
+  } catch (e) {
+    toast.error('Gagal merilis nilai', e.response?.data?.message || 'Nilai tidak dapat dirilis. Coba lagi.')
+  } finally {
+    releaseAllLoading.value = false
+  }
+}
+
+async function resetParticipant(p) {
+  if (!p?.id || p.status === 'registered') return
+  if (!confirm(`Reset peserta ${p.student?.name || ''}? Jawaban akan dihapus dan mereka bisa masuk lagi.`)) return
+  resetParticipantLoading.value = p.id
+  try {
+    await examApi.resetParticipant(p.id)
+    toast.success('Peserta direset.')
+    await fetchSession(true)
+  } catch (e) {
+    toast.error('Gagal mereset peserta', e.response?.data?.message || 'Peserta tidak dapat direset. Coba lagi.')
+  } finally {
+    resetParticipantLoading.value = null
   }
 }
 
@@ -663,6 +915,8 @@ async function recomputeGradingParticipant() {
 
 onMounted(() => fetchSession())
 
+onUnmounted(() => stopAutoRefresh())
+
 watch(showAddModal, async (v) => {
   if (v) {
     await loadClasses()
@@ -677,7 +931,11 @@ watch(addParticipantClassId, () => {
 watch([loading, () => route.query.fokus], async ([isLoading, qFokus]) => {
   if (isLoading || !qFokus) return
   await nextTick()
-  const el = qFokus === 'peserta' ? pesertaSectionRef.value : qFokus === 'kontrol' ? controlSectionRef.value : null
+  const el = qFokus === 'peserta'
+    ? pesertaSectionRef.value
+    : qFokus === 'kontrol'
+      ? (monitorSectionRef.value || controlSectionRef.value)
+      : null
   if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 })
 </script>
@@ -711,6 +969,62 @@ watch([loading, () => route.query.fokus], async ([isLoading, qFokus]) => {
 .section-hint { font-size: 0.875rem; color: #64748b; margin: 0 0 0.75rem 0; }
 .section-hint a { color: #059669; text-decoration: none; }
 .section-hint a:hover { text-decoration: underline; }
+.monitor-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.monitor-header h3 { margin: 0 0 0.25rem 0; }
+.monitor-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.monitor-actions .btn-secondary,
+.monitor-actions .btn-primary { margin-right: 0; }
+.live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+.monitor-updated { margin-left: 0.5rem; font-size: 0.8125rem; color: #94a3b8; }
+.monitor-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.monitor-stat {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  text-align: center;
+}
+.monitor-stat--active { background: #eff6ff; border-color: #bfdbfe; }
+.monitor-stat--done { background: #f0fdf4; border-color: #bbf7d0; }
+.monitor-stat-value { display: block; font-size: 1.25rem; font-weight: 700; color: #0f172a; }
+.monitor-stat-label { display: block; font-size: 0.75rem; color: #64748b; margin-top: 0.15rem; }
+.monitor-empty { padding: 1rem 0; color: #64748b; font-size: 0.9375rem; }
+.monitor-empty a { color: #059669; }
+.table-scroll { overflow-x: auto; }
+.monitor-table .cell-meta { font-size: 0.75rem; color: #94a3b8; margin-top: 0.15rem; }
+.monitor-table .score-max { color: #64748b; font-size: 0.8125rem; }
+.monitor-row-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.status-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+}
+.status-pill.registered { background: #f1f5f9; color: #475569; }
+.status-pill.started { background: #dbeafe; color: #1d4ed8; }
+.status-pill.submitted { background: #dcfce7; color: #166534; }
 .button-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
 .button-row .link.disabled { pointer-events: none; opacity: 0.6; }
 .data-table { width: 100%; border-collapse: collapse; }

@@ -10,15 +10,18 @@ use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use App\Models\EmployeeEducation;
 use App\Models\EmployeeDocument;
+use App\Models\Institution;
 use App\Models\Permission;
 use App\Models\User;
 use App\Support\InstitutionContext;
 use App\Support\TeacherAccess;
+use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class EmployeeController extends Controller
 {
@@ -125,6 +128,192 @@ class EmployeeController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat mengambil data pegawai',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Export daftar pegawai (baris lengkap untuk Excel client-side).
+     */
+    public function export(Request $request)
+    {
+        try {
+            $query = Employee::query();
+            $user = $request->user();
+            $institutionId = null;
+
+            if (filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN)) {
+                $query->onlyTrashed();
+            } elseif (filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN)) {
+                $query->withTrashed();
+            }
+
+            if (!$user->isAdminOrSuperAdmin()) {
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+            } elseif ($request->has('institution_id')) {
+                $institutionId = $request->institution_id;
+            }
+
+            if ($institutionId) {
+                $query->where(function ($q) use ($institutionId) {
+                    $q->where('institution_id', $institutionId)
+                        ->orWhereHas('assignments', function ($assignmentQuery) use ($institutionId) {
+                            $assignmentQuery->where('institution_id', $institutionId)
+                                ->where('status', 'approved');
+                        });
+                });
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%')
+                      ->orWhere('nip', 'like', '%' . $search . '%')
+                      ->orWhere('nuptk', 'like', '%' . $search . '%');
+                });
+            }
+
+            if ($request->filled('type')) {
+                $query->where('type', $request->type);
+            }
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('employment_status')) {
+                $query->where('employment_status', $request->employment_status);
+            }
+
+            $relations = ['institution:id,name,npsn'];
+            if ($institutionId) {
+                $relations['assignments'] = function ($assignmentQuery) use ($institutionId) {
+                    $assignmentQuery->where('institution_id', $institutionId)
+                        ->where('status', 'approved');
+                };
+            }
+
+            $limit = (int) $request->get('limit', 5000);
+            $employees = $query
+                ->with($relations)
+                ->orderBy('name')
+                ->limit(max(1, min($limit, 20000)))
+                ->get();
+
+            if ($institutionId) {
+                $request->attributes->set('current_institution_id', $institutionId);
+            }
+
+            return EmployeeResource::collection($employees);
+        } catch (\Exception $e) {
+            Log::error('Failed to export employees', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengekspor data pegawai',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Cetak daftar guru/pegawai sebagai PDF (kop + tanda tangan, inline stream untuk preview).
+     */
+    public function exportPdf(Request $request): Response|\Illuminate\Http\JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $institutionId = null;
+
+            if (!$user->isAdminOrSuperAdmin()) {
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+            } elseif ($request->filled('institution_id')) {
+                $institutionId = (int) $request->institution_id;
+            } else {
+                $institutionId = InstitutionContext::resolveForUser($user, $request, null);
+            }
+
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            if (!$institution) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 404);
+            }
+
+            $query = Employee::query();
+            $query->where(function ($q) use ($institutionId) {
+                $q->where('institution_id', $institutionId)
+                    ->orWhereHas('assignments', function ($assignmentQuery) use ($institutionId) {
+                        $assignmentQuery->where('institution_id', $institutionId)
+                            ->where('status', 'approved');
+                    });
+            });
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('nip', 'like', '%' . $search . '%')
+                        ->orWhere('nuptk', 'like', '%' . $search . '%');
+                });
+            }
+            if ($request->filled('type')) {
+                $query->where('type', $request->type);
+            }
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+            if ($request->filled('employment_status')) {
+                $query->where('employment_status', $request->employment_status);
+            }
+
+            $employees = $query
+                ->select([
+                    'id', 'institution_id', 'type', 'nip', 'nuptk', 'name', 'gender',
+                    'subject', 'status', 'employment_status', 'created_at',
+                ])
+                ->orderBy('name')
+                ->limit(2000)
+                ->get();
+
+            $filterParts = [];
+            if ($request->filled('search')) {
+                $filterParts[] = 'Pencarian: ' . $request->search;
+            }
+            if ($request->filled('type')) {
+                $filterParts[] = 'Tipe: ' . $request->type;
+            }
+            if ($request->filled('status')) {
+                $filterParts[] = 'Status: ' . $request->status;
+            }
+            if ($request->filled('employment_status')) {
+                $filterParts[] = 'Kepegawaian: ' . $request->employment_status;
+            }
+
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $pdf = DomPDF::loadView('employee.print', [
+                'institution' => $institution,
+                'institutionId' => $institutionId,
+                'employees' => $employees,
+                'filter_label' => $filterParts ? implode(' · ', $filterParts) : null,
+                'printed_at' => $printedAt,
+            ])->setPaper('a4', 'landscape');
+
+            $filename = 'Data_Guru_' . date('Y-m-d_His') . '.pdf';
+
+            return $pdf->stream($filename, ['Attachment' => false]);
+        } catch (\Exception $e) {
+            Log::error('Failed to export employees to PDF', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mencetak data guru',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

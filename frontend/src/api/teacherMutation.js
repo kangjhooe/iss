@@ -25,12 +25,12 @@ export const teacherMutationApi = {
   searchOriginInstitutions(q) {
     return api.get('/v1/teacher-mutations/origin-institutions', { params: { q } })
   },
-  lookupTeacher(nuptk) {
-    return api.get('/v1/teacher-mutations/lookup-teacher', { params: { nuptk } })
+  lookupTeacher(nik) {
+    return api.get('/v1/teacher-mutations/lookup-teacher', { params: { nik } })
   },
-  lookupTeacherAtOrigin(originNpsn, nuptk) {
+  lookupTeacherAtOrigin(originNpsn, nik) {
     return api.get('/v1/teacher-mutations/lookup-teacher-at-origin', {
-      params: { origin_npsn: originNpsn, nuptk }
+      params: { origin_npsn: originNpsn, nik }
     })
   },
   createPull(data) {
@@ -42,8 +42,8 @@ export const teacherMutationApi = {
   getHistoryByEmployee(employeeId) {
     return api.get(`/v1/teacher-mutations/by-employee/${employeeId}`)
   },
-  getHistoryByNuptk(nuptk) {
-    return api.get('/v1/teacher-mutations/history-by-nuptk', { params: { nuptk } })
+  getHistoryByNik(nik) {
+    return api.get('/v1/teacher-mutations/history-by-nik', { params: { nik } })
   },
   /**
    * Export Buku Mutasi Guru (PDF atau CSV). Params: from, to, type ('all'|'in'|'out'), format ('pdf'|'csv').

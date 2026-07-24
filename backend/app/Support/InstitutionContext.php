@@ -271,13 +271,14 @@ class InstitutionContext
 
     /**
      * Resolve institution for a user on a request (shared by piket and other modules).
-     * Admins may use explicit request institution_id; teachers/staff only if canAccess.
+     * Platform admins may use any explicit institution_id; school users only if canAccess.
      */
     public static function resolveForUser(User $user, ?Request $request = null, $requestInstitutionId = null): ?int
     {
         $request = $request ?? request();
 
-        if ($user->isSuperAdmin() || $user->isAdmin() || $user->isInstitutionAdmin()) {
+        // Platform-level only — never treat institution_admin as global.
+        if ($user->isAdminOrSuperAdmin()) {
             $id = $requestInstitutionId ?: (
                 $request->attributes->get('current_institution_id')
                 ?: $user->institution_id

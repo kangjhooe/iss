@@ -122,6 +122,9 @@ export const inventoryApi = {
   },
   getReportTransactions(params = {}) {
     return api.get('/v1/inventory/reports/transactions', { params })
+  },
+  exportReportPdf(params = {}) {
+    return api.get('/v1/inventory/reports/export/pdf', { params, responseType: 'blob' })
   }
 }
 

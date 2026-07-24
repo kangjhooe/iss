@@ -1,5 +1,11 @@
 import api from './index'
 
+export const ppdbApi = {
+  getSummary(params) {
+    return api.get('/v1/ppdb/summary', { params })
+  },
+}
+
 export const ppdbPeriodApi = {
   getAll(params) {
     return api.get('/v1/ppdb-periods', { params })
@@ -49,6 +55,9 @@ export const ppdbApplicantApi = {
   bulkVerification(data) {
     return api.post('/v1/ppdb-applicants/bulk-verification', data)
   },
+  bulkResult(data) {
+    return api.post('/v1/ppdb-applicants/bulk-result', data)
+  },
   get(id) {
     return api.get(`/v1/ppdb-applicants/${id}`)
   },
@@ -69,6 +78,9 @@ export const ppdbApplicantApi = {
   },
   setResult(id, data) {
     return api.post(`/v1/ppdb-applicants/${id}/result`, data)
+  },
+  setPayment(id, data) {
+    return api.post(`/v1/ppdb-applicants/${id}/payment`, data)
   },
   confirmReRegistration(id) {
     return api.post(`/v1/ppdb-applicants/${id}/confirm-re-registration`)

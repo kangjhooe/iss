@@ -538,6 +538,26 @@
 
       <!-- REPORTS TAB -->
       <div v-show="activeTab === 'reports'" class="tab-content">
+        <div class="tab-header reports-toolbar">
+          <div>
+            <h2 class="reports-title">Laporan Inventaris</h2>
+            <p class="muted">Ringkasan statistik, kondisi, peminjaman, dan nilai aset</p>
+          </div>
+          <button
+            type="button"
+            class="btn-secondary btn-compact"
+            :disabled="exportingReportPdf"
+            title="Cetak laporan inventaris (PDF)"
+            @click="exportReportPdf"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ exportingReportPdf ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
+          </button>
+        </div>
         <div class="reports-grid">
           <section class="report-card">
             <h3>Statistik Inventaris</h3>
@@ -1940,6 +1960,72 @@ const reportLoaned = ref([])
 const reportLoanedLoading = ref(false)
 const reportAsset = ref([])
 const reportAssetLoading = ref(false)
+const exportingReportPdf = ref(false)
+
+const openPdfPreview = (blob, title) => {
+  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+  const win = window.open('', '_blank')
+  if (!win) {
+    toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+    URL.revokeObjectURL(url)
+    return false
+  }
+  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
+      .toolbar {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 10px 14px; background: #0f172a; color: #f8fafc;
+        border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
+      }
+      .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
+      .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
+      .actions { display: flex; gap: 8px; flex-shrink: 0; }
+      .actions button {
+        border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
+        cursor: pointer; font-size: 13px;
+      }
+      .btn-print { background: #059669; color: #fff; }
+      .btn-close { background: #334155; color: #e2e8f0; }
+      iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
+    </style></head><body>
+    <div class="toolbar">
+      <h1>${title}<span class="hint">Preview cetak</span></h1>
+      <div class="actions">
+        <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
+        <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
+      </div>
+    </div>
+    <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
+  </body></html>`)
+  win.document.close()
+  setTimeout(() => URL.revokeObjectURL(url), 120_000)
+  return true
+}
+
+const exportReportPdf = async () => {
+  exportingReportPdf.value = true
+  try {
+    const response = await inventoryApi.exportReportPdf()
+    const contentType = response.headers?.['content-type'] || ''
+    if (response.status !== 200 || contentType.includes('application/json')) {
+      const text = typeof response.data?.text === 'function' ? await response.data.text() : String(response.data)
+      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
+      throw new Error(json.message || 'Gagal mencetak laporan inventaris.')
+    }
+    const blob = response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: 'application/pdf' })
+    if (openPdfPreview(blob, 'Preview Laporan Inventaris')) {
+      toast.success('Berhasil', 'Preview PDF Inventaris dibuka.')
+    }
+  } catch (err) {
+    toast.error('Gagal', err.message || err.formattedMessage || err.response?.data?.message || 'Gagal mencetak laporan inventaris.')
+  } finally {
+    exportingReportPdf.value = false
+  }
+}
 
 const loadReportStats = async () => {
   reportStatsLoading.value = true
@@ -2327,6 +2413,22 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
+}
+
+.reports-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.reports-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .report-card {

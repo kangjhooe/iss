@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\FeedbackTicket;
 use App\Models\Institution;
 use App\Models\InstitutionChangeRequest;
 use App\Models\Student;
@@ -29,6 +30,7 @@ class SuperAdminDashboardController extends Controller
             $studentCount = Student::where('status', 'Aktif')->count();
             $teacherCount = Employee::where('type', 'Guru')->where('status', 'Aktif')->count();
             $pendingRequestsCount = InstitutionChangeRequest::where('status', 'pending')->count();
+            $openFeedbackCount = FeedbackTicket::open()->count();
 
             $pendingRequests = InstitutionChangeRequest::with([
                     'institution:id,name,npsn',
@@ -52,6 +54,32 @@ class SuperAdminDashboardController extends Controller
                     'requester' => $r->requester ? [
                         'id' => $r->requester->id,
                         'name' => $r->requester->name,
+                    ] : null,
+                ]);
+
+            $openFeedbackTickets = FeedbackTicket::with([
+                    'institution:id,name,npsn',
+                    'submitter:id,name,email',
+                ])
+                ->open()
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'type' => $t->type,
+                    'title' => $t->title,
+                    'priority' => $t->priority,
+                    'status' => $t->status,
+                    'created_at' => $t->created_at?->toIso8601String(),
+                    'institution' => $t->institution ? [
+                        'id' => $t->institution->id,
+                        'name' => $t->institution->name,
+                        'npsn' => $t->institution->npsn,
+                    ] : null,
+                    'submitter' => $t->submitter ? [
+                        'id' => $t->submitter->id,
+                        'name' => $t->submitter->name,
                     ] : null,
                 ]);
 
@@ -106,8 +134,10 @@ class SuperAdminDashboardController extends Controller
                         'students' => $studentCount,
                         'teachers' => $teacherCount,
                         'pending_requests' => $pendingRequestsCount,
+                        'open_feedback' => $openFeedbackCount,
                     ],
                     'pending_requests' => $pendingRequests,
+                    'open_feedback_tickets' => $openFeedbackTickets,
                     'recent_institutions' => $recentInstitutions,
                     'inactive_institutions' => $inactiveInstitutions,
                     'recent_audit_logs' => $recentAuditLogs,

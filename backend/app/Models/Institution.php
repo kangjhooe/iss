@@ -60,7 +60,45 @@ class Institution extends Model
         'longitude',
         'location_radius',
         'teacher_appreciation_leaderboard_mode',
+        'admission_label',
     ];
+
+    public const ADMISSION_LABEL_DEFAULT = 'PPDB';
+
+    public const ADMISSION_LABEL_PRESETS = [
+        'PPDB',
+        'SPMB',
+        'PSB',
+        'PMB',
+    ];
+
+    /**
+     * Label publik untuk penerimaan (PPDB / SPMB / kustom).
+     */
+    public function resolvedAdmissionLabel(): string
+    {
+        $label = trim((string) ($this->admission_label ?? ''));
+        return $label !== '' ? $label : self::ADMISSION_LABEL_DEFAULT;
+    }
+
+    /**
+     * Apakah ada periode PPDB yang sedang dibuka (status open + dalam rentang tanggal).
+     */
+    public function hasOpenAdmissionPeriod(): bool
+    {
+        $today = now()->toDateString();
+
+        return $this->ppdbPeriods()
+            ->where('status', 'open')
+            ->whereDate('open_date', '<=', $today)
+            ->whereDate('close_date', '>=', $today)
+            ->exists();
+    }
+
+    public function ppdbPeriods()
+    {
+        return $this->hasMany(PpdbPeriod::class, 'institution_id');
+    }
 
     /**
      * Get the attributes that should be cast.

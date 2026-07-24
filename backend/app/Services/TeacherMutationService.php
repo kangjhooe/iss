@@ -19,32 +19,32 @@ use Illuminate\Support\Facades\Log;
 class TeacherMutationService
 {
     /**
-     * Lookup active teacher (Guru) by NUPTK at the given institution (for mutation confirmation preview).
+     * Lookup active teacher (Guru) by NIK at the given institution (for mutation confirmation preview).
      *
-     * @return array{id: int, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, email: string|null}
+     * @return array{id: int, nik: string|null, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, email: string|null}
      */
-    public function lookupTeacherByNuptk(int $institutionId, string $nuptk): array
+    public function lookupTeacherByNik(int $institutionId, string $nik): array
     {
-        $employee = Employee::where('nuptk', $nuptk)
+        $employee = Employee::where('nik', $nik)
             ->where('institution_id', $institutionId)
             ->where('type', 'Guru')
             ->where('status', 'Aktif')
             ->first();
 
         if (!$employee) {
-            throw new \InvalidArgumentException('Guru dengan NUPTK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
         }
 
         return $this->formatTeacherLookup($employee);
     }
 
     /**
-     * Lookup active teacher at origin school by NPSN + NUPTK (for pull confirmation preview).
+     * Lookup active teacher at origin school by NPSN + NIK (for pull confirmation preview).
      * Tidak ada batasan jenjang untuk mutasi guru.
      *
-     * @return array{id: int, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, email: string|null, institution: array{id: int, name: string, npsn: string|null, level: string|null}}
+     * @return array{id: int, nik: string|null, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, institution: array{id: int, name: string, npsn: string|null, level: string|null}}
      */
-    public function lookupTeacherAtOriginByNpsn(string $originNpsn, string $nuptk, int $excludeInstitutionId): array
+    public function lookupTeacherAtOriginByNpsn(string $originNpsn, string $nik, int $excludeInstitutionId): array
     {
         $origin = Institution::where('npsn', $originNpsn)->where('is_active', true)->first();
         if (!$origin) {
@@ -54,14 +54,14 @@ class TeacherMutationService
             throw new \InvalidArgumentException('Sekolah asal harus berbeda dengan sekolah Anda.');
         }
 
-        $employee = Employee::where('nuptk', $nuptk)
+        $employee = Employee::where('nik', $nik)
             ->where('institution_id', $origin->id)
             ->where('type', 'Guru')
             ->where('status', 'Aktif')
             ->first();
 
         if (!$employee) {
-            throw new \InvalidArgumentException('Guru dengan NUPTK tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
         }
 
         $data = $this->formatTeacherLookup($employee);
@@ -76,18 +76,20 @@ class TeacherMutationService
     }
 
     /**
-     * @return array{id: int, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, email: string|null}
+     * Minimal confirmation fields only (no email / contact PII).
+     *
+     * @return array{id: int, nik: string|null, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null}
      */
     protected function formatTeacherLookup(Employee $employee): array
     {
         return [
             'id' => $employee->id,
+            'nik' => $employee->nik,
             'nuptk' => $employee->nuptk,
             'nip' => $employee->nip,
             'name' => $employee->name,
             'gender' => $employee->gender,
             'status' => $employee->status,
-            'email' => $employee->email,
         ];
     }
 
@@ -114,20 +116,37 @@ class TeacherMutationService
     }
 
     /**
-     * Create mutation request from origin school (admin asal: pilih NPSN tujuan + NUPTK guru).
+     * Cari guru aktif di institusi berdasarkan NIK.
      */
-    public function createFromOrigin(int $originInstitutionId, string $targetNpsn, string $nuptk, int $requestedBy, ?string $notes = null): TeacherMutation
+    protected function findActiveTeacherByNik(string $nik, int $institutionId): Employee
     {
-        $target = Institution::where('npsn', $targetNpsn)->where('is_active', true)->firstOrFail();
+        $employee = Employee::where('nik', $nik)
+            ->where('institution_id', $institutionId)
+            ->where('type', 'Guru')
+            ->where('status', 'Aktif')
+            ->first();
+
+        if (!$employee) {
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah terkait atau status tidak aktif.');
+        }
+
+        return $employee;
+    }
+
+    /**
+     * Create mutation request from origin school (admin asal: pilih NPSN tujuan + NIK guru).
+     */
+    public function createFromOrigin(int $originInstitutionId, string $targetNpsn, string $nik, int $requestedBy, ?string $notes = null): TeacherMutation
+    {
+        $target = Institution::where('npsn', $targetNpsn)->where('is_active', true)->first();
+        if (!$target) {
+            throw new \InvalidArgumentException('Sekolah tujuan dengan NPSN tersebut tidak ditemukan atau tidak aktif.');
+        }
         if ((int) $target->id === (int) $originInstitutionId) {
             throw new \InvalidArgumentException('Sekolah tujuan harus berbeda dengan sekolah asal.');
         }
 
-        $employee = Employee::where('nuptk', $nuptk)
-            ->where('institution_id', $originInstitutionId)
-            ->where('type', 'Guru')
-            ->where('status', 'Aktif')
-            ->firstOrFail();
+        $employee = $this->findActiveTeacherByNik($nik, $originInstitutionId);
 
         $this->assertNoPendingMutation($employee->id);
 
@@ -153,15 +172,11 @@ class TeacherMutationService
         int $originInstitutionId,
         string $targetNpsn,
         string $targetSchoolName,
-        string $nuptk,
+        string $nik,
         int $requestedBy,
         ?string $notes = null
     ): TeacherMutation {
-        $employee = Employee::where('nuptk', $nuptk)
-            ->where('institution_id', $originInstitutionId)
-            ->where('type', 'Guru')
-            ->where('status', 'Aktif')
-            ->firstOrFail();
+        $employee = $this->findActiveTeacherByNik($nik, $originInstitutionId);
 
         $this->assertNoPendingMutation($employee->id);
 
@@ -213,18 +228,17 @@ class TeacherMutationService
      * Create mutation request from target school (admin tujuan: tarik guru dari sekolah asal).
      * initiated_by = 'target'.
      */
-    public function createFromTarget(int $targetInstitutionId, string $originNpsn, string $nuptk, int $requestedBy, ?string $notes = null): TeacherMutation
+    public function createFromTarget(int $targetInstitutionId, string $originNpsn, string $nik, int $requestedBy, ?string $notes = null): TeacherMutation
     {
-        $origin = Institution::where('npsn', $originNpsn)->where('is_active', true)->firstOrFail();
+        $origin = Institution::where('npsn', $originNpsn)->where('is_active', true)->first();
+        if (!$origin) {
+            throw new \InvalidArgumentException('Sekolah asal dengan NPSN tersebut tidak ditemukan atau tidak aktif.');
+        }
         if ((int) $origin->id === (int) $targetInstitutionId) {
             throw new \InvalidArgumentException('Sekolah asal harus berbeda dengan sekolah tujuan.');
         }
 
-        $employee = Employee::where('nuptk', $nuptk)
-            ->where('institution_id', $origin->id)
-            ->where('type', 'Guru')
-            ->where('status', 'Aktif')
-            ->firstOrFail();
+        $employee = $this->findActiveTeacherByNik($nik, $origin->id);
 
         $this->assertNoPendingMutation($employee->id);
 
@@ -251,16 +265,20 @@ class TeacherMutationService
         string $originNpsn,
         string $originSchoolName,
         string $teacherName,
-        string $nuptk,
+        string $nik,
         string $teacherGender,
         ?string $teacherNip,
+        ?string $teacherNuptk,
         ?string $teacherEmail,
         int $requestedBy,
         ?string $notes = null
     ): TeacherMutation {
         $target = Institution::findOrFail($targetInstitutionId);
 
-        if ($nuptk !== '' && Employee::where('nuptk', $nuptk)->exists()) {
+        if (Employee::where('nik', $nik)->exists()) {
+            throw new \InvalidArgumentException('NIK tersebut sudah digunakan oleh guru lain di sistem.');
+        }
+        if ($teacherNuptk !== null && $teacherNuptk !== '' && Employee::where('nuptk', $teacherNuptk)->exists()) {
             throw new \InvalidArgumentException('NUPTK tersebut sudah digunakan oleh guru lain di sistem.');
         }
 
@@ -271,7 +289,8 @@ class TeacherMutationService
             $employee = Employee::create([
                 'institution_id' => $target->id,
                 'type' => 'Guru',
-                'nuptk' => $nuptk !== '' ? $nuptk : null,
+                'nik' => $nik,
+                'nuptk' => $teacherNuptk !== null && $teacherNuptk !== '' ? $teacherNuptk : null,
                 'nip' => $teacherNip !== null && $teacherNip !== '' ? $teacherNip : null,
                 'name' => $teacherName,
                 'gender' => $gender,
@@ -320,7 +339,7 @@ class TeacherMutationService
         $query = TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nuptk,nip,name,gender,status,email',
+            'employee:id,nik,nuptk,nip,name,gender,status,email',
             'requester:id,name,email',
             'approver:id,name',
             'cancelRequester:id,name',
@@ -747,17 +766,27 @@ class TeacherMutationService
 
     /**
      * Notify all admin/institution_admin users of an institution.
+     * Kegagalan notifikasi tidak boleh menggagalkan transaksi mutasi.
      */
     protected function notifyInstitutionAdmins(?int $institutionId, TeacherMutation $mutation, string $action): void
     {
         if (!$institutionId) {
             return;
         }
-        $users = User::where('institution_id', $institutionId)
-            ->whereIn('role', ['admin', 'institution_admin'])
-            ->get();
-        foreach ($users as $user) {
-            $user->notify(new TeacherMutationNotification($mutation, $action));
+        try {
+            $users = User::where('institution_id', $institutionId)
+                ->whereIn('role', ['admin', 'institution_admin'])
+                ->get();
+            foreach ($users as $user) {
+                $user->notify(new TeacherMutationNotification($mutation, $action));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Teacher mutation notification failed', [
+                'mutation_id' => $mutation->id,
+                'institution_id' => $institutionId,
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -772,7 +801,7 @@ class TeacherMutationService
         $query = TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nuptk,nip,name,gender,status',
+            'employee:id,nik,nuptk,nip,name,gender,status',
             'requester:id,name',
             'approver:id,name',
         ])->activeApproved()->orderBy('approved_at', 'desc');
@@ -822,7 +851,7 @@ class TeacherMutationService
         $query = TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nuptk,nip,name,gender,status',
+            'employee:id,nik,nuptk,nip,name,gender,status',
             'approver:id,name',
         ])->activeApproved()->orderBy('approved_at', 'asc');
 
@@ -873,20 +902,20 @@ class TeacherMutationService
         return TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nuptk,nip,name',
+            'employee:id,nik,nuptk,nip,name',
             'requester:id,name',
             'approver:id,name',
         ])->where('employee_id', $employeeId)->orderBy('created_at', 'desc')->get();
     }
 
     /**
-     * Mutation history by NUPTK (teacher must be in user's institution or in a mutation involving it).
+     * Mutation history by NIK (teacher must be in user's institution or in a mutation involving it).
      */
-    public function historyByNuptk(string $nuptk, int $userInstitutionId): \Illuminate\Database\Eloquent\Collection
+    public function historyByNik(string $nik, int $userInstitutionId): \Illuminate\Database\Eloquent\Collection
     {
-        $employee = Employee::where('nuptk', $nuptk)->where('type', 'Guru')->first();
+        $employee = Employee::where('nik', $nik)->where('type', 'Guru')->first();
         if (!$employee) {
-            throw new \InvalidArgumentException('Guru dengan NUPTK tersebut tidak ditemukan.');
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan.');
         }
         return $this->historyForEmployee($employee->id, $userInstitutionId);
     }

@@ -63,6 +63,7 @@ class TeacherMutationNotification extends Notification implements ShouldQueue
             'action' => $this->action,
             'mutation_id' => $m->id,
             'teacher_name' => $teacherName,
+            'teacher_nik' => $m->relationLoaded('employee') ? $m->employee->nik : null,
             'teacher_nuptk' => $m->relationLoaded('employee') ? $m->employee->nuptk : null,
             'origin_institution_name' => $originName,
             'target_institution_name' => $targetName,

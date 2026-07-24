@@ -22,13 +22,13 @@
           </select>
         </div>
         <div class="toolbar-actions">
-          <button @click="exportPdf" :disabled="exportingPdf" class="btn-secondary btn-compact">
+          <button @click="exportPdf" :disabled="exportingPdf" class="btn-secondary btn-compact" title="Preview PDF">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>{{ exportingPdf ? 'Mengekspor...' : 'Export PDF' }}</span>
+            <span>{{ exportingPdf ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
           </button>
           <button @click="showAddModal = true" class="btn-primary btn-compact">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -794,14 +794,28 @@ const getStatusClass = (status) => {
   return status === 'Aktif' ? 'status-badge status-active' : 'status-badge status-inactive'
 }
 
+const parseBlobErrorMessage = async (err) => {
+  const data = err?.response?.data
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text()
+      const json = JSON.parse(text)
+      return json.message || json.error || null
+    } catch {
+      return null
+    }
+  }
+  if (typeof data === 'object' && data?.message) return data.message
+  return err?.formattedMessage || err?.message || null
+}
+
 const exportPdf = async () => {
   exportingPdf.value = true
   try {
     const params = {
       ...filters.value
     }
-    
-    // Remove empty filters
+
     Object.keys(params).forEach(key => {
       if (params[key] === '' || params[key] === null) {
         delete params[key]
@@ -809,22 +823,61 @@ const exportPdf = async () => {
     })
 
     const response = await classApi.exportPdf(params)
-    
-    // Create blob URL and trigger download
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `Laporan_Data_Kelas_${new Date().toISOString().split('T')[0]}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-    
-    toast.success('Berhasil', 'Laporan PDF berhasil diekspor')
+    const contentType = response.headers?.['content-type'] || ''
+    if (response.status !== 200 || contentType.includes('application/json')) {
+      const text = typeof response.data?.text === 'function' ? await response.data.text() : String(response.data)
+      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
+      throw new Error(json.message || 'Gagal mencetak data kelas.')
+    }
+
+    const blob = response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    const title = 'Preview Data Kelas'
+    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
+        .toolbar {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          padding: 10px 14px; background: #0f172a; color: #f8fafc;
+          border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
+        }
+        .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
+        .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
+        .actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .actions button {
+          border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
+          cursor: pointer; font-size: 13px;
+        }
+        .btn-print { background: #059669; color: #fff; }
+        .btn-close { background: #334155; color: #e2e8f0; }
+        iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
+      </style></head><body>
+      <div class="toolbar">
+        <h1>${title}<span class="hint">Preview cetak</span></h1>
+        <div class="actions">
+          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
+          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
+        </div>
+      </div>
+      <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
+    </body></html>`)
+    win.document.close()
+    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    toast.success('Berhasil', 'Preview PDF Data Kelas dibuka.')
   } catch (err) {
     console.error('Failed to export PDF:', err)
-    toast.error('Gagal mengekspor laporan PDF', 'Laporan PDF tidak dapat diekspor. Periksa koneksi dan coba lagi.')
+    const msg = await parseBlobErrorMessage(err)
+    toast.error('Gagal mencetak data kelas', msg || err.message || 'Laporan PDF tidak dapat dibuka. Silakan coba lagi.')
   } finally {
     exportingPdf.value = false
   }

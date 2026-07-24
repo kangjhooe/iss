@@ -48,6 +48,7 @@ class InstitutionResource extends JsonResource
             'location_radius' => $this->location_radius !== null ? (int) $this->location_radius : null,
             'teacher_appreciation_leaderboard_mode' => $this->teacher_appreciation_leaderboard_mode
                 ?: Institution::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY,
+            'admission_label' => $this->resolvedAdmissionLabel(),
             'users_count' => $this->whenLoaded('users', function () {
                 return $this->users->count();
             }),

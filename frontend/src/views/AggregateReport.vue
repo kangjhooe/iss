@@ -4,7 +4,7 @@
       <div class="page-header">
         <div class="page-header-text">
           <h2>Laporan Agregat</h2>
-          <p>Ringkasan lintas institusi: jenjang, jenis, dan per sekolah</p>
+          <p>Ringkasan lintas institusi: jenjang, jenis, kontak WA, dan per sekolah</p>
         </div>
         <div class="filters-bar">
           <select v-model="filters.level" class="filter-select" @change="loadReport">
@@ -22,7 +22,7 @@
             <option value="0">Dibekukan</option>
           </select>
           <button type="button" class="btn-export" :disabled="exporting" @click="handleExport">
-            {{ exporting ? 'Mengekspor...' : 'Export CSV' }}
+            {{ exporting ? 'Mengekspor...' : 'Export Excel' }}
           </button>
         </div>
       </div>
@@ -116,7 +116,7 @@
         <section class="panel panel-detail">
           <div class="panel-header">
             <h3>Detail Institusi</h3>
-            <input v-model="search" class="search-input" placeholder="Cari institusi..." />
+            <input v-model="search" class="search-input" placeholder="Cari nama, NPSN, WA, email..." />
           </div>
 
           <!-- Desktop / tablet table -->
@@ -129,6 +129,8 @@
                   <th>Jenjang</th>
                   <th>Jenis</th>
                   <th>Provinsi</th>
+                  <th>No HP/WA</th>
+                  <th>Email</th>
                   <th>Siswa</th>
                   <th>Guru</th>
                   <th>Status</th>
@@ -141,6 +143,24 @@
                   <td>{{ inst.level || '—' }}</td>
                   <td>{{ inst.type || '—' }}</td>
                   <td>{{ inst.province || '—' }}</td>
+                  <td>
+                    <a
+                      v-if="inst.phone"
+                      class="contact-link"
+                      :href="waLink(inst.phone)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >{{ inst.phone }}</a>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td>
+                    <a
+                      v-if="inst.email"
+                      class="contact-link"
+                      :href="'mailto:' + inst.email"
+                    >{{ inst.email }}</a>
+                    <span v-else class="text-muted">—</span>
+                  </td>
                   <td>{{ formatNumber(inst.students) }}</td>
                   <td>{{ formatNumber(inst.teachers) }}</td>
                   <td>
@@ -169,6 +189,30 @@
                 <div>
                   <span>Provinsi</span>
                   <strong>{{ inst.province || '—' }}</strong>
+                </div>
+                <div>
+                  <span>No HP/WA</span>
+                  <strong>
+                    <a
+                      v-if="inst.phone"
+                      class="contact-link"
+                      :href="waLink(inst.phone)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >{{ inst.phone }}</a>
+                    <template v-else>—</template>
+                  </strong>
+                </div>
+                <div>
+                  <span>Email</span>
+                  <strong>
+                    <a
+                      v-if="inst.email"
+                      class="contact-link"
+                      :href="'mailto:' + inst.email"
+                    >{{ inst.email }}</a>
+                    <template v-else>—</template>
+                  </strong>
                 </div>
                 <div>
                   <span>Siswa</span>
@@ -213,11 +257,21 @@ const filteredInstitutions = computed(() => {
   if (!q) return institutions.value
   return institutions.value.filter((i) =>
     (i.name || '').toLowerCase().includes(q) ||
-    (i.npsn || '').toLowerCase().includes(q)
+    (i.npsn || '').toLowerCase().includes(q) ||
+    (i.phone || '').toLowerCase().includes(q) ||
+    (i.email || '').toLowerCase().includes(q)
   )
 })
 
 const formatNumber = (n) => new Intl.NumberFormat('id-ID').format(n || 0)
+
+/** Normalize phone to WhatsApp deep link (62… without leading 0). */
+const waLink = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (!digits) return '#'
+  const intl = digits.startsWith('0') ? `62${digits.slice(1)}` : digits
+  return `https://wa.me/${intl}`
+}
 
 const buildParams = () => {
   const params = {}
@@ -248,16 +302,18 @@ const handleExport = async () => {
   exporting.value = true
   try {
     const res = await superAdminPlatformApi.exportAggregateReport(buildParams())
-    const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob([res.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `laporan-agregat-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `laporan-agregat-${new Date().toISOString().slice(0, 10)}.xlsx`
     a.click()
     window.URL.revokeObjectURL(url)
-    toast.success('Berhasil', 'CSV berhasil diunduh')
+    toast.success('Berhasil', 'Excel berhasil diunduh')
   } catch (err) {
-    toast.error('Gagal', err.response?.data?.message || 'Gagal export CSV')
+    toast.error('Gagal', err.response?.data?.message || 'Gagal export Excel')
   } finally {
     exporting.value = false
   }
@@ -454,6 +510,21 @@ onMounted(loadReport)
   white-space: nowrap;
 }
 
+.contact-link {
+  color: #059669;
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.contact-link:hover {
+  text-decoration: underline;
+}
+
+.text-muted {
+  color: #94a3b8;
+}
+
 .badge-active,
 .badge-inactive {
   display: inline-block;
@@ -623,7 +694,7 @@ onMounted(loadReport)
 
   .inst-card-stats {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     padding-top: 10px;
     border-top: 1px solid #e2e8f0;
@@ -667,7 +738,7 @@ onMounted(loadReport)
   }
 
   .inst-card-stats {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

@@ -176,6 +176,13 @@ export const facilityApi = {
   },
 
   /**
+   * Export laporan sarana prasarana (PDF) — tanah, gedung, ruangan.
+   */
+  exportPdf(params = {}) {
+    return api.get('/v1/facility/export/pdf', { params, responseType: 'blob' })
+  },
+
+  /**
    * Laporan khusus lab: ringkasan dan daftar lab dengan jumlah inventaris & jadwal.
    */
   getLabReport(params = {}) {

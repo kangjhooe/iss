@@ -33,7 +33,12 @@
           <a href="#layanan" class="nav-link" @click="menuOpen = false">Layanan</a>
           <a href="#kontak" class="nav-link" @click="menuOpen = false">Lokasi</a>
           <router-link :to="`/${npsn}/buku-tamu`" class="nav-link" @click="menuOpen = false">Buku Tamu</router-link>
-          <router-link :to="`/${npsn}/daftar-ppdb`" class="nav-link" @click="menuOpen = false">PPDB</router-link>
+          <router-link
+            v-if="admissionOpen"
+            :to="`/${npsn}/daftar-ppdb`"
+            class="nav-link"
+            @click="menuOpen = false"
+          >{{ admissionLabel }}</router-link>
           <router-link to="/login" class="btn btn-primary" @click="menuOpen = false">Masuk</router-link>
         </div>
       </div>
@@ -60,13 +65,26 @@
         ref="heroRef"
         :institution="institution"
         :npsn="npsn"
+        :admission-open="admissionOpen"
+        :admission-label="admissionLabel"
       />
 
       <SchoolPublicAbout ref="aboutRef" :institution="institution" />
-      <SchoolPublicServices ref="servicesRef" :npsn="npsn" />
+      <SchoolPublicServices
+        ref="servicesRef"
+        :npsn="npsn"
+        :admission-open="admissionOpen"
+        :admission-label="admissionLabel"
+      />
       <SchoolPublicIdentity ref="identityRef" :institution="institution" />
       <SchoolPublicContact ref="contactRef" :institution="institution" />
-      <SchoolPublicFooter ref="footerRef" :institution="institution" :npsn="npsn" />
+      <SchoolPublicFooter
+        ref="footerRef"
+        :institution="institution"
+        :npsn="npsn"
+        :admission-open="admissionOpen"
+        :admission-label="admissionLabel"
+      />
     </template>
   </div>
 </template>
@@ -92,6 +110,9 @@ const institution = ref(null)
 const loading = ref(true)
 const error = ref('')
 const menuOpen = ref(false)
+
+const admissionOpen = computed(() => !!institution.value?.admission_open)
+const admissionLabel = computed(() => institution.value?.admission_label || 'PPDB')
 
 const heroRef = ref(null)
 const aboutRef = ref(null)

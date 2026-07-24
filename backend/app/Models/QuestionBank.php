@@ -27,7 +27,9 @@ class QuestionBank extends Model
         'type',
         'body',
         'weight',
+        'sort_order',
         'key_answer',
+        'key_answer_aliases',
         'matching_data',
     ];
 
@@ -35,7 +37,9 @@ class QuestionBank extends Model
     {
         return [
             'weight' => 'decimal:2',
+            'sort_order' => 'integer',
             'matching_data' => 'array',
+            'key_answer_aliases' => 'array',
         ];
     }
 
@@ -77,5 +81,26 @@ class QuestionBank extends Model
     public function scopeForSubject($query, int $subjectId)
     {
         return $query->where('subject_id', $subjectId);
+    }
+
+    /**
+     * Accepted answers for isian (primary key + aliases), normalized lowercase trim.
+     *
+     * @return list<string>
+     */
+    public function acceptedIsianAnswers(): array
+    {
+        $keys = [];
+        if ($this->key_answer !== null && trim((string) $this->key_answer) !== '') {
+            $keys[] = trim(mb_strtolower((string) $this->key_answer));
+        }
+        foreach ($this->key_answer_aliases ?? [] as $alias) {
+            $t = trim(mb_strtolower((string) $alias));
+            if ($t !== '') {
+                $keys[] = $t;
+            }
+        }
+
+        return array_values(array_unique($keys));
     }
 }

@@ -948,6 +948,79 @@ class FacilityController extends Controller
     }
 
     /**
+     * Export laporan sarana prasarana (PDF) — tanah, gedung, ruangan.
+     */
+    public function exportPdf(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            if (!$institution) {
+                return response()->json(['message' => 'Institusi tidak ditemukan'], 404);
+            }
+
+            $lands = Land::where('institution_id', $institutionId)
+                ->orderBy('name')
+                ->limit(2000)
+                ->get();
+
+            $buildings = Building::with('land:id,name')
+                ->where('institution_id', $institutionId)
+                ->orderBy('name')
+                ->limit(2000)
+                ->get();
+
+            $rooms = Room::with(['building:id,name', 'responsibleEmployee:id,name,nip'])
+                ->where('institution_id', $institutionId)
+                ->orderBy('name')
+                ->limit(2000)
+                ->get();
+
+            $roomsByType = $rooms->groupBy(fn ($r) => $r->type ?: 'Lainnya')
+                ->map->count()
+                ->toArray();
+
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+
+            $pdf = DomPDF::loadView('facility.report', [
+                'institution' => $institution,
+                'lands' => $lands,
+                'buildings' => $buildings,
+                'rooms' => $rooms,
+                'rooms_by_type' => $roomsByType,
+                'summary' => [
+                    'land_count' => $lands->count(),
+                    'land_area' => (float) $lands->sum('area'),
+                    'building_count' => $buildings->count(),
+                    'building_area' => (float) $buildings->sum('building_area'),
+                    'room_count' => $rooms->count(),
+                ],
+                'printed_at' => $printedAt,
+                'printed_by' => $user->name,
+            ])->setPaper('a4', 'landscape');
+
+            $filename = 'Laporan_Sarana_Prasarana_' . now()->format('Ymd_His') . '.pdf';
+
+            return $pdf->stream($filename, ['Attachment' => false]);
+        } catch (\Exception $e) {
+            Log::error('Failed to export facility PDF', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Gagal mengekspor laporan sarana prasarana',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Export laporan lab (PDF).
      */
     public function exportLabReport(Request $request, $id = null)

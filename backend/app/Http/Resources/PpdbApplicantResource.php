@@ -48,6 +48,11 @@ class PpdbApplicantResource extends JsonResource
             'verification_notes' => $this->verification_notes,
             'submitted_at' => $this->submitted_at?->toIso8601String(),
             'notes' => $this->notes,
+            'payment_status' => $this->payment_status ?? 'unpaid',
+            'payment_amount' => $this->payment_amount !== null ? (float) $this->payment_amount : null,
+            'payment_type' => $this->payment_type,
+            'paid_at' => $this->paid_at?->toIso8601String(),
+            'payment_notes' => $this->payment_notes,
             'documents' => $this->whenLoaded('documents', fn () => $this->documents->map(fn ($d) => [
                 'id' => $d->id,
                 'name' => $d->name,

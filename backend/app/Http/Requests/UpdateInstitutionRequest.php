@@ -37,6 +37,7 @@ class UpdateInstitutionRequest extends FormRequest
             'principal_name', 'principal_nip', 'description', 'vision', 'mission',
             'active_academic_year_id', 'active_semester_id', 'latitude', 'longitude', 'location_radius',
             'npsn', 'name', 'foundation_name', 'type',
+            'admission_label',
         ];
 
         $merged = [];
@@ -119,6 +120,7 @@ class UpdateInstitutionRequest extends FormRequest
                 'nullable',
                 Rule::in(\App\Models\Institution::TEACHER_APPRECIATION_LEADERBOARD_MODES),
             ],
+            'admission_label' => 'sometimes|nullable|string|max:50',
         ];
         
         return array_merge($rules, $baseRules);

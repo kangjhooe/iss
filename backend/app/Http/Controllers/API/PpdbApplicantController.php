@@ -17,12 +17,14 @@ use App\Models\Semester;
 use App\Models\SchoolClass;
 use App\Helpers\FileUploadRules;
 use App\Services\StudentService;
+use App\Notifications\PpdbApplicantMailNotification;
+use App\Support\PpdbDocumentStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Excel as ExcelManager;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -57,6 +59,9 @@ class PpdbApplicantController extends Controller
                 $query->whereIn('status', ['submitted', 'verification']);
             } elseif ($request->filled('needs_result') && $request->boolean('needs_result')) {
                 $query->where('status', 'verified');
+            }
+            if ($request->filled('payment_status')) {
+                $query->where('payment_status', $request->payment_status);
             }
             if ($request->filled('search')) {
                 $term = '%' . $request->search . '%';
@@ -155,9 +160,7 @@ class PpdbApplicantController extends Controller
         }
 
         foreach ($ppdb_applicant->documents as $doc) {
-            if (Storage::disk('public')->exists($doc->file_path)) {
-                Storage::disk('public')->delete($doc->file_path);
-            }
+            PpdbDocumentStorage::delete($doc->file_path);
         }
         $ppdb_applicant->delete();
         return response()->json(['message' => 'Calon peserta didik berhasil dihapus.']);
@@ -245,6 +248,162 @@ class PpdbApplicantController extends Controller
         ]);
     }
 
+    /**
+     * Bulk set hasil seleksi (passed / reserve / failed).
+     */
+    public function bulkResult(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $institutionId = $user->institution_id;
+        if ($user->isSuperAdmin() && $request->filled('institution_id')) {
+            $institutionId = (int) $request->institution_id;
+        }
+        if (!$institutionId && !$user->isSuperAdmin()) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $request->validate([
+            'applicant_ids' => 'required|array|min:1',
+            'applicant_ids.*' => 'integer|exists:ppdb_applicants,id',
+            'status' => 'required|in:passed,reserve,failed',
+            'result_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $ids = array_unique(array_map('intval', $request->applicant_ids));
+        $applicants = PpdbApplicant::query()
+            ->with(['period', 'channel'])
+            ->whereIn('id', $ids)
+            ->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId))
+            ->get();
+
+        if ($applicants->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada calon yang valid.'], 422);
+        }
+
+        $status = $request->status;
+        $updated = 0;
+        $skipped = [];
+
+        if ($status === 'passed') {
+            $byChannel = $applicants->groupBy('ppdb_channel_id');
+            foreach ($byChannel as $channelId => $group) {
+                $channel = $group->first()->channel;
+                if (!$channel || $channel->quota === null || (int) $channel->quota <= 0) {
+                    continue;
+                }
+                $periodId = $group->first()->ppdb_period_id;
+                $alreadyPassed = PpdbApplicant::query()
+                    ->where('ppdb_period_id', $periodId)
+                    ->where('ppdb_channel_id', $channelId)
+                    ->where('status', 'passed')
+                    ->whereNotIn('id', $group->pluck('id'))
+                    ->count();
+                $newPassers = $group->filter(fn ($a) => $a->status !== 'passed')->count();
+                if ($alreadyPassed + $newPassers > (int) $channel->quota) {
+                    return response()->json([
+                        'message' => 'Kuota jalur "' . $channel->name . '" tidak cukup untuk ' . $newPassers . ' calon (kuota ' . (int) $channel->quota . ', sudah terisi ' . $alreadyPassed . ').',
+                    ], 422);
+                }
+            }
+        }
+
+        foreach ($applicants as $applicant) {
+            if (!in_array($applicant->status, ['verified', 'submitted', 'verification', 'passed', 'reserve', 'failed'], true)) {
+                $skipped[] = $applicant->registration_number;
+                continue;
+            }
+
+            $oldStatus = $applicant->status;
+            $period = $applicant->period;
+            $updates = [
+                'status' => $status,
+                'result_notes' => $request->result_notes,
+                'announcement_at' => now(),
+            ];
+            if (in_array($status, ['passed', 'reserve'], true) && $period?->re_registration_deadline) {
+                $updates['re_registration_deadline'] = $period->re_registration_deadline;
+            }
+
+            $applicant->update($updates);
+            AuditLog::logManual($request, 'ppdb_applicant_bulk_result', PpdbApplicant::class, $applicant->id, [
+                'status' => $oldStatus,
+            ], [
+                'status' => $status,
+            ], $institutionId);
+            $updated++;
+        }
+
+        return response()->json([
+            'message' => $updated . ' calon berhasil diperbarui.',
+            'updated_count' => $updated,
+            'skipped' => $skipped,
+        ]);
+    }
+
+    /**
+     * Update status pembayaran calon.
+     */
+    public function setPayment(Request $request, PpdbApplicant $ppdb_applicant): PpdbApplicantResource|JsonResponse
+    {
+        $user = $request->user();
+        $period = $ppdb_applicant->period;
+        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'payment_status' => 'required|in:unpaid,pending,paid,waived',
+            'payment_type' => 'nullable|in:registration,re_registration',
+            'payment_amount' => 'nullable|numeric|min:0',
+            'payment_notes' => 'nullable|string|max:1000',
+            'paid_at' => 'nullable|date',
+        ]);
+
+        $paymentType = $data['payment_type'] ?? (
+            in_array($ppdb_applicant->status, ['passed', 'reserve', 're_registration'], true)
+                ? 're_registration'
+                : 'registration'
+        );
+
+        $amount = $data['payment_amount'] ?? null;
+        if ($amount === null) {
+            $amount = $paymentType === 're_registration'
+                ? $period->re_registration_fee
+                : $period->registration_fee;
+        }
+
+        $old = [
+            'payment_status' => $ppdb_applicant->payment_status,
+            'payment_amount' => $ppdb_applicant->payment_amount,
+        ];
+
+        $updates = [
+            'payment_status' => $data['payment_status'],
+            'payment_type' => $paymentType,
+            'payment_amount' => $amount,
+            'payment_notes' => $data['payment_notes'] ?? $ppdb_applicant->payment_notes,
+        ];
+
+        if ($data['payment_status'] === 'paid') {
+            $updates['paid_at'] = isset($data['paid_at']) ? $data['paid_at'] : ($ppdb_applicant->paid_at ?? now());
+        } elseif (in_array($data['payment_status'], ['unpaid', 'waived', 'pending'], true)) {
+            // Clear paid_at for non-paid statuses (waived/pending must not keep a prior paid timestamp).
+            $updates['paid_at'] = null;
+        } elseif (isset($data['paid_at'])) {
+            $updates['paid_at'] = $data['paid_at'];
+        }
+
+        $ppdb_applicant->update($updates);
+        AuditLog::logManual($request, 'ppdb_applicant_payment', PpdbApplicant::class, $ppdb_applicant->id, $old, [
+            'payment_status' => $updates['payment_status'],
+            'payment_amount' => $updates['payment_amount'],
+            'payment_type' => $updates['payment_type'],
+        ], $period->institution_id);
+
+        $ppdb_applicant->load(['period', 'channel', 'documents']);
+        return new PpdbApplicantResource($ppdb_applicant);
+    }
+
     public function submit(Request $request, PpdbApplicant $ppdb_applicant): PpdbApplicantResource|JsonResponse
     {
         $user = $request->user();
@@ -299,6 +458,9 @@ class PpdbApplicantController extends Controller
             } elseif ($request->filled('needs_result') && $request->boolean('needs_result')) {
                 $query->where('status', 'verified');
             }
+            if ($request->filled('payment_status')) {
+                $query->where('payment_status', $request->payment_status);
+            }
             if ($request->filled('search')) {
                 $term = '%' . $request->search . '%';
                 $query->where(function ($q) use ($term) {
@@ -341,6 +503,8 @@ class PpdbApplicantController extends Controller
                 'guardian_name' => 'Wali',
                 'created_at' => 'Tgl Daftar',
                 'documents_verified' => 'Berkas Verifikasi',
+                'payment_status' => 'Status Bayar',
+                'payment_amount' => 'Nominal Bayar',
                 'notes' => 'Catatan',
             ];
             $cols = $requestedColumns
@@ -435,7 +599,14 @@ class PpdbApplicantController extends Controller
             'status' => $updates['status'],
             'rank' => $updates['rank'] ?? null,
         ], $period->institution_id);
-        $ppdb_applicant->load(['period', 'channel', 'documents']);
+        $ppdb_applicant->load(['period.institution', 'channel', 'documents']);
+
+        $email = trim((string) ($ppdb_applicant->email ?? ''));
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Notification::route('mail', $email)
+                ->notify(new PpdbApplicantMailNotification($ppdb_applicant, 'result'));
+        }
+
         return new PpdbApplicantResource($ppdb_applicant);
     }
 
@@ -539,8 +710,7 @@ class PpdbApplicantController extends Controller
 
         foreach ($ppdb_applicant->documents as $doc) {
             $destPath = 'student_documents/' . $student->id . '/' . basename($doc->file_path);
-            if (Storage::disk('public')->exists($doc->file_path)) {
-                Storage::disk('public')->copy($doc->file_path, $destPath);
+            if (PpdbDocumentStorage::copyToStudentDocuments($doc->file_path, $destPath)) {
                 StudentDocument::create([
                     'student_id' => $student->id,
                     'name' => $doc->name,
@@ -612,7 +782,7 @@ class PpdbApplicantController extends Controller
             $extension = $file->getClientOriginalExtension();
             $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
             $fileName = time() . '_' . $safeName . '.' . $extension;
-            $filePath = $file->storeAs('ppdb_applicant_documents/' . $ppdb_applicant->id, $fileName, 'public');
+            $filePath = PpdbDocumentStorage::store($file, (int) $ppdb_applicant->id, $fileName);
 
             $document = $ppdb_applicant->documents()->create([
                 'name' => $request->name,
@@ -654,9 +824,7 @@ class PpdbApplicantController extends Controller
             }
 
             $document = PpdbApplicantDocument::where('ppdb_applicant_id', $ppdb_applicant->id)->findOrFail($documentId);
-            if (Storage::disk('public')->exists($document->file_path)) {
-                Storage::disk('public')->delete($document->file_path);
-            }
+            PpdbDocumentStorage::delete($document->file_path);
             $document->delete();
             return response()->json(['message' => 'Dokumen berhasil dihapus.']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -680,10 +848,10 @@ class PpdbApplicantController extends Controller
             }
 
             $document = PpdbApplicantDocument::where('ppdb_applicant_id', $ppdb_applicant->id)->findOrFail($documentId);
-            if (!Storage::disk('public')->exists($document->file_path)) {
+            if (!PpdbDocumentStorage::exists($document->file_path)) {
                 return response()->json(['message' => 'File dokumen tidak ditemukan.'], 404);
             }
-            return Storage::disk('public')->download($document->file_path, $document->file_name);
+            return PpdbDocumentStorage::download($document->file_path, $document->file_name);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Dokumen tidak ditemukan.'], 404);
         } catch (\Exception $e) {
@@ -723,6 +891,8 @@ class PpdbApplicantController extends Controller
             'guardian_name' => $a->guardian_name ?? '',
             'created_at' => $a->created_at?->format('Y-m-d H:i') ?? '',
             'documents_verified' => $a->documents_verified ? 'Ya' : 'Tidak',
+            'payment_status' => $a->payment_status ?? 'unpaid',
+            'payment_amount' => $a->payment_amount ?? '',
             'notes' => $a->notes ?? '',
         ];
         $row = [];

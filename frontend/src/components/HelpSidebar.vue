@@ -92,7 +92,7 @@
               <span class="help-card-icon help-card-icon--teal">🏢</span>
               <div class="help-card-body">
                 <div class="help-card-title">Sarana Prasarana & Lab</div>
-                <p class="help-card-desc">Ruang, gedung, fasilitas, dan manajemen lab (peminjaman, jadwal).</p>
+                <p class="help-card-desc">Ruang, gedung, fasilitas, lab, dan booking lab oleh guru (approve oleh pengelola).</p>
               </div>
             </div>
             <div class="help-card">
@@ -125,21 +125,21 @@
               <span class="help-card-icon help-card-icon--green">👨‍🏫</span>
               <div class="help-card-body">
                 <div class="help-card-title">Data Guru</div>
-                <p class="help-card-desc">NIP, nama, mapel, status kepegawaian, tugas tambahan.</p>
+                <p class="help-card-desc">NIP, nama, mapel, status kepegawaian, tugas tambahan. Bisa export Excel atau cetak PDF (kop + TTD, preview tab baru).</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--amber">↔️</span>
               <div class="help-card-body">
                 <div class="help-card-title">Mutasi Guru</div>
-                <p class="help-card-desc">Pindah masuk/keluar guru berdasarkan NUPTK. Tidak ada batasan jenjang.</p>
+                <p class="help-card-desc">Push (sekolah asal) atau pull (sekolah tujuan) berdasarkan NIK. Setujui/tolak, batalkan, lihat riwayat & laporan. Tidak ada batasan jenjang.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--lime">📅</span>
               <div class="help-card-body">
                 <div class="help-card-title">Jadwal Pelajaran</div>
-                <p class="help-card-desc">Hari, jam, mata pelajaran, guru pengampu per kelas.</p>
+                <p class="help-card-desc">Hari, jam, mapel, guru per kelas. Tab Template: buat beberapa pola jam (mis. 8 JP / 9 JP), set default, lalu assign ke kelas.</p>
               </div>
             </div>
             <div class="help-card">
@@ -153,7 +153,35 @@
               <span class="help-card-icon help-card-icon--green">📋</span>
               <div class="help-card-body">
                 <div class="help-card-title">Buku Nilai & Raport</div>
-                <p class="help-card-desc">Input nilai per mapel, cetak raport siswa.</p>
+                <p class="help-card-desc">Input nilai per mapel, atur KKM & bobot (penilaian/UTS/UAS), remidi/pengayaan untuk di bawah KKM, cetak raport.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--teal">🏠</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Wali Kelas (Hub)</div>
+                <p class="help-card-desc">Dashboard terpadu untuk wali: roster siswa, rekap absensi 7/30 hari, monitoring nilai/KKM, skor BK, usulan pelanggaran/prestasi/mutasi, jadwal, dan profil siswa 360°. Menu muncul otomatis setelah ditunjuk sebagai wali kelas.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">🛡️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Guru Piket</div>
+                <p class="help-card-desc">Jadwal piket, log harian, catat insiden (bisa diusulkan jadi pelanggaran siswa/guru), scan kelas kosong/keterlambatan, laporan mingguan.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--violet">⭐</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Apresiasi Guru</div>
+                <p class="help-card-desc">Poin prestasi & pelanggaran guru, leaderboard, reward. Guru bisa lihat poin sendiri dan ajukan prestasi.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--indigo">💻</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Ujian Online</div>
+                <p class="help-card-desc">4 menu: Daftar Ujian, Bank Soal (cari/filter, preview, duplikat, urutan, import Excel, alias isian, 1 stimulus multi-soal), Peserta Ujian, Kontrol Ujian (monitoring live, koreksi, rilis nilai, export). Status Beta.</p>
               </div>
             </div>
           </div>
@@ -180,6 +208,13 @@
               <div class="help-card-body">
                 <div class="help-card-title">Absensi Guru & Staff</div>
                 <p class="help-card-desc">Kehadiran pegawai: check-in/out, rekap per periode.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--indigo">📱</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Absensi QR</div>
+                <p class="help-card-desc">Generate QR per siswa/pegawai, scan untuk mencatat kehadiran.</p>
               </div>
             </div>
           </div>
@@ -288,11 +323,106 @@
                 <p class="help-card-desc">Daftar ekskul, pembina, dan pendaftaran siswa.</p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- Keuangan (Beta) -->
+        <section class="help-section help-section--admin">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--sky">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M2 10h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="14" r="1.5" fill="currentColor"/></svg>
+            </span>
+            Keuangan
+            <span class="help-beta-badge">Beta</span>
+          </h3>
+          <div class="help-cards">
             <div class="help-card">
-              <span class="help-card-icon help-card-icon--emerald">📝</span>
+              <span class="help-card-icon help-card-icon--sky">📋</span>
               <div class="help-card-body">
-                <div class="help-card-title">PPDB</div>
-                <p class="help-card-desc">Penerimaan peserta didik baru: pendaftaran, seleksi, dan status.</p>
+                <div class="help-card-title">Jenis Biaya</div>
+                <p class="help-card-desc">Katalog biaya: SPP bulanan, iuran sekali, kas kelas sesekali, dll.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">💳</span>
+              <div class="help-card-body">
+                <div class="help-card-title">SPP</div>
+                <p class="help-card-desc">Generate tagihan SPP bulanan untuk siswa aktif / per kelas.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">🧾</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Tagihan</div>
+                <p class="help-card-desc">Buat tagihan non-rutin (iuran, kas kelas, seragam, kegiatan) ke kelas atau semua siswa.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">💰</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Pembayaran</div>
+                <p class="help-card-desc">Catat pembayaran tunai/transfer atas tagihan.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">⚠️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Tunggakan</div>
+                <p class="help-card-desc">Pantau tagihan belum lunas dan bayar cepat.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">📊</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Laporan</div>
+                <p class="help-card-desc">Rekap ditagih, terkumpul, tunggakan, per jenis biaya.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PPDB -->
+        <section class="help-section help-section--student">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--emerald">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M19 8v6M22 11h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            PPDB
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">📊</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Ringkasan</div>
+                <p class="help-card-desc">Dashboard singkat: periode aktif, antrean verifikasi, salin link daftar publik.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">⚙️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Konfigurasi</div>
+                <p class="help-card-desc">Atur label publik (PPDB/SPMB), periode (gelombang), dan jalur pendaftaran.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">👤</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Data Pendaftar</div>
+                <p class="help-card-desc">Daftar calon, verifikasi berkas, set hasil seleksi, export CSV/XLSX (termasuk status bayar), konversi ke siswa. Calon menerima email saat daftar sukses & hasil diumumkan (jika email diisi).</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">📈</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Statistik</div>
+                <p class="help-card-desc">Rekap per status dan jalur, termasuk isi kuota.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">💳</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Pembayaran</div>
+                <p class="help-card-desc">Atur biaya periode, tandai lunas/belum bayar per calon.</p>
               </div>
             </div>
           </div>
@@ -315,6 +445,13 @@
               </div>
             </div>
             <div class="help-card">
+              <span class="help-card-icon help-card-icon--amber">📅</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Kalender Akademik</div>
+                <p class="help-card-desc">Event, libur, ujian, dan kegiatan sekolah. Tampilan daftar atau bulan; siswa melihat event mendatang di dashboard.</p>
+              </div>
+            </div>
+            <div class="help-card">
               <span class="help-card-icon help-card-icon--indigo">📁</span>
               <div class="help-card-body">
                 <div class="help-card-title">Arsip Digital</div>
@@ -325,7 +462,7 @@
               <span class="help-card-icon help-card-icon--blue">📚</span>
               <div class="help-card-body">
                 <div class="help-card-title">Perpustakaan</div>
-                <p class="help-card-desc">Katalog buku, kategori, peminjaman, pengembalian, denda.</p>
+                <p class="help-card-desc">Katalog buku fisik, peminjaman, denda. Upload ebook PDF; tandai publik agar bisa dibaca di /:npsn/ebooks tanpa login. Siswa: menu Ebook di portal.</p>
               </div>
             </div>
             <div class="help-card">
@@ -382,6 +519,20 @@
                 <p class="help-card-desc">Riwayat aktivitas sistem. Untuk admin & super admin.</p>
               </div>
             </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--slate">✏️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Permintaan Ubah Data</div>
+                <p class="help-card-desc">Siswa/guru ajukan perubahan profil; admin setujui di menu permintaan terkait.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--slate">💬</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Feedback (API)</div>
+                <p class="help-card-desc">Admin sekolah bisa kirim tiket bug/request fitur ke Super Admin lewat API feedback-tickets; Super Admin kelola status di dashboard.</p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -433,7 +584,12 @@
           </div>
           <div class="help-cta">
             <span class="help-cta-icon">📞</span>
-            <p class="help-cta-text">Butuh bantuan lebih? Hubungi administrator atau tim support instansi Anda.</p>
+            <div class="help-cta-body">
+              <p class="help-cta-text">Butuh bantuan lebih? Hubungi administrator atau tim support instansi Anda.</p>
+              <router-link v-if="canSubmitFeedback" to="/feedback" class="help-cta-link">
+                Lapor bug / request fitur ke platform →
+              </router-link>
+            </div>
           </div>
         </section>
       </div>
@@ -442,7 +598,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const canSubmitFeedback = computed(() => {
+  const role = authStore.user?.role
+  return role === 'super_admin' || role === 'institution_admin' || role === 'admin'
+})
 
 const STORAGE_KEY = 'helpSidebarOpen'
 const isOpen = ref(false)
@@ -670,6 +833,17 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding-left: 2px;
+}
+
+.help-beta-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .help-section-icon {
@@ -905,6 +1079,24 @@ onUnmounted(() => {
   color: #991b1b;
   line-height: 1.5;
   font-weight: 500;
+}
+
+.help-cta-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.help-cta-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b91c1c;
+  text-decoration: underline;
+}
+
+.help-cta-link:hover {
+  color: #7f1d1d;
 }
 
 /* Mobile overlay */

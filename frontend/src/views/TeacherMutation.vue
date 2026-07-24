@@ -31,7 +31,7 @@
         </div>
       </div>
 
-      <!-- Form: NPSN tujuan + NUPTK (sekolah asal mengajukan) -->
+      <!-- Form: NPSN tujuan + NIK (sekolah asal mengajukan) -->
       <div v-if="showFormModal" class="modal-overlay" @click="showFormModal = false">
         <div class="modal-content form-modal" @click.stop>
           <div class="modal-header">
@@ -39,7 +39,7 @@
             <button @click="showFormModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitMutation" class="modal-body">
-            <p class="form-hint">Pilih sekolah tujuan (NPSN) atau catat mutasi ke sekolah yang belum terdaftar di aplikasi. Tidak ada batasan jenjang untuk mutasi guru (guru boleh lintas jenjang).</p>
+            <p class="form-hint">Pilih sekolah tujuan (NPSN) atau catat mutasi ke sekolah yang belum terdaftar di aplikasi. Cari guru dengan NIK. Tidak ada batasan jenjang untuk mutasi guru (guru boleh lintas jenjang).</p>
             <div class="form-group form-group-checkbox">
               <label class="checkbox-label">
                 <input v-model="form.external" type="checkbox" />
@@ -84,20 +84,21 @@
               </div>
             </template>
             <div class="form-group">
-              <label>NUPTK Guru *</label>
+              <label>NIK Guru *</label>
               <div class="nisn-search-row">
                 <input
-                  v-model="form.nuptk"
+                  v-model="form.nik"
                   type="text"
-                  placeholder="NUPTK guru yang akan dimutasikan"
+                  placeholder="16 digit NIK guru yang akan dimutasikan"
+                  maxlength="16"
                   required
-                  @input="onFormNuptkInput"
+                  @input="onFormNikInput"
                   @keydown.enter.prevent="lookupFormTeacher"
                 />
                 <button
                   type="button"
                   class="btn-secondary btn-lookup"
-                  :disabled="formLookupLoading || !form.nuptk?.trim()"
+                  :disabled="formLookupLoading || form.nik?.replace(/\D/g, '').length !== 16"
                   @click="lookupFormTeacher"
                 >
                   {{ formLookupLoading ? 'Mencari...' : 'Cari Guru' }}
@@ -109,7 +110,8 @@
               <div class="student-preview-title">Konfirmasi data guru</div>
               <div class="student-preview-grid">
                 <div><span class="label">Nama</span><span class="value">{{ formTeacherPreview.name }}</span></div>
-                <div><span class="label">NUPTK</span><span class="value">{{ formTeacherPreview.nuptk }}</span></div>
+                <div><span class="label">NIK</span><span class="value">{{ formTeacherPreview.nik }}</span></div>
+                <div><span class="label">NUPTK</span><span class="value">{{ formTeacherPreview.nuptk || '–' }}</span></div>
                 <div><span class="label">NIP</span><span class="value">{{ formTeacherPreview.nip || '–' }}</span></div>
                 <div><span class="label">JK</span><span class="value">{{ formatGender(formTeacherPreview.gender) }}</span></div>
                 <div><span class="label">Status</span><span class="value">{{ formTeacherPreview.status || '–' }}</span></div>
@@ -140,7 +142,7 @@
             <button @click="showPullModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitPull" class="modal-body">
-            <p class="form-hint">Masukkan NPSN sekolah asal dan NUPTK guru, atau catat mutasi masuk dari sekolah yang belum terdaftar (input manual + data guru). Tidak ada batasan jenjang untuk mutasi guru.</p>
+            <p class="form-hint">Masukkan NPSN sekolah asal dan NIK guru, atau catat mutasi masuk dari sekolah yang belum terdaftar (input manual + data guru). Tidak ada batasan jenjang untuk mutasi guru.</p>
             <div class="form-group form-group-checkbox">
               <label class="checkbox-label">
                 <input v-model="pullForm.external" type="checkbox" />
@@ -173,8 +175,15 @@
                 <input v-model="pullForm.employee_name" type="text" placeholder="Nama lengkap guru" required />
               </div>
               <div class="form-group">
-                <label>NUPTK Guru *</label>
-                <input v-model="pullForm.nuptk" type="text" placeholder="NUPTK guru" required />
+                <label>NIK Guru *</label>
+                <input
+                  v-model="pullForm.nik"
+                  type="text"
+                  placeholder="16 digit NIK guru"
+                  maxlength="16"
+                  required
+                  @input="pullForm.nik = pullForm.nik.replace(/\D/g, '').slice(0, 16)"
+                />
               </div>
               <div class="form-group">
                 <label>Jenis Kelamin *</label>
@@ -183,6 +192,10 @@
                   <option value="L">Laki-laki</option>
                   <option value="P">Perempuan</option>
                 </select>
+              </div>
+              <div class="form-group">
+                <label>NUPTK (opsional)</label>
+                <input v-model="pullForm.employee_nuptk" type="text" placeholder="NUPTK guru (jika ada)" />
               </div>
               <div class="form-group">
                 <label>NIP (opsional)</label>
@@ -204,20 +217,21 @@
                 <p v-else-if="pullForm.origin_npsn.length === 8 && !originInstitution && originNpsnSearchDone" class="text-muted">Sekolah tidak ditemukan</p>
               </div>
               <div class="form-group">
-                <label>NUPTK Guru *</label>
+                <label>NIK Guru *</label>
                 <div class="nisn-search-row">
                   <input
-                    v-model="pullForm.nuptk"
+                    v-model="pullForm.nik"
                     type="text"
-                    placeholder="NUPTK guru di sekolah asal"
+                    placeholder="16 digit NIK guru di sekolah asal"
+                    maxlength="16"
                     required
-                    @input="onPullNuptkInput"
+                    @input="onPullNikInput"
                     @keydown.enter.prevent="lookupPullTeacher"
                   />
                   <button
                     type="button"
                     class="btn-secondary btn-lookup"
-                    :disabled="pullLookupLoading || !pullForm.nuptk?.trim() || pullForm.origin_npsn.length !== 8"
+                    :disabled="pullLookupLoading || pullForm.nik?.replace(/\D/g, '').length !== 16 || pullForm.origin_npsn.length !== 8"
                     @click="lookupPullTeacher"
                   >
                     {{ pullLookupLoading ? 'Mencari...' : 'Cari Guru' }}
@@ -229,7 +243,8 @@
                 <div class="student-preview-title">Konfirmasi data guru</div>
                 <div class="student-preview-grid">
                   <div><span class="label">Nama</span><span class="value">{{ pullTeacherPreview.name }}</span></div>
-                  <div><span class="label">NUPTK</span><span class="value">{{ pullTeacherPreview.nuptk }}</span></div>
+                  <div><span class="label">NIK</span><span class="value">{{ pullTeacherPreview.nik }}</span></div>
+                  <div><span class="label">NUPTK</span><span class="value">{{ pullTeacherPreview.nuptk || '–' }}</span></div>
                   <div><span class="label">NIP</span><span class="value">{{ pullTeacherPreview.nip || '–' }}</span></div>
                   <div><span class="label">JK</span><span class="value">{{ formatGender(pullTeacherPreview.gender) }}</span></div>
                   <div><span class="label">Status</span><span class="value">{{ pullTeacherPreview.status || '–' }}</span></div>
@@ -362,7 +377,7 @@
           <div class="card-body">
             <div class="detail-row detail-highlight">
               <span class="label">Guru</span>
-              <span class="value">{{ m.employee?.name }} <span class="value-muted">(NUPTK: {{ m.employee?.nuptk }})</span></span>
+              <span class="value">{{ m.employee?.name }} <span class="value-muted">(NIK: {{ m.employee?.nik || '–' }})</span></span>
             </div>
             <div class="detail-row">
               <span class="label">Sekolah asal</span>
@@ -569,6 +584,7 @@
                   <tr>
                     <th class="col-no">No</th>
                     <th>Tanggal</th>
+                    <th>NIK</th>
                     <th>NUPTK</th>
                     <th>NIP</th>
                     <th>Nama Guru</th>
@@ -583,6 +599,7 @@
                   <tr v-for="(m, idx) in reportData" :key="m.id">
                     <td class="col-no">{{ reportRowNumber(idx) }}</td>
                     <td class="col-date">{{ formatDateShort(m.approved_at || m.created_at) }}</td>
+                    <td>{{ m.employee?.nik || '–' }}</td>
                     <td>{{ m.employee?.nuptk || m.employee_nuptk || '–' }}</td>
                     <td>{{ m.employee?.nip || m.employee_nip || '–' }}</td>
                     <td class="col-name">{{ m.employee?.name || '–' }}</td>
@@ -623,7 +640,7 @@
                 <div class="card-body">
                   <div class="detail-row">
                     <span class="label">Guru:</span>
-                    <span class="value">{{ m.employee?.name || '–' }} <span class="value-muted">({{ m.employee?.nuptk || m.employee_nuptk || '–' }})</span></span>
+                    <span class="value">{{ m.employee?.name || '–' }} <span class="value-muted">(NIK: {{ m.employee?.nik || '–' }})</span></span>
                   </div>
                   <div class="detail-row" v-if="m.employee?.nip || m.employee_nip || m.employee_gender || m.employee?.gender">
                     <span class="label">NIP / JK:</span>
@@ -697,11 +714,19 @@
       <!-- Section: Riwayat per guru -->
       <template v-if="activeTabMain === 'riwayat'">
         <div class="history-section">
-          <form @submit.prevent="loadHistoryByNuptk" class="history-form card-form">
+          <form @submit.prevent="loadHistoryByNik" class="history-form card-form">
             <div class="form-row history-search-row">
               <div class="form-group form-group-flex">
-                <label>NUPTK Guru</label>
-                <input v-model="historyNuptk" type="text" placeholder="Masukkan NUPTK guru..." required class="input-with-icon" />
+                <label>NIK Guru</label>
+                <input
+                  v-model="historyNik"
+                  type="text"
+                  placeholder="Masukkan 16 digit NIK guru..."
+                  maxlength="16"
+                  required
+                  class="input-with-icon"
+                  @input="historyNik = historyNik.replace(/\D/g, '').slice(0, 16)"
+                />
               </div>
               <button type="submit" class="btn-primary btn-search" :disabled="historyLoading">
                 <svg v-if="!historyLoading" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -724,7 +749,7 @@
                 <span v-if="m.is_external_origin" class="badge-external">Masuk dari luar</span>
               </div>
               <div class="card-body">
-                <div class="detail-row"><span class="label">Guru:</span> <span class="value">{{ m.employee?.name }} ({{ m.employee?.nuptk }})</span></div>
+                <div class="detail-row"><span class="label">Guru:</span> <span class="value">{{ m.employee?.name }} (NIK: {{ m.employee?.nik || '–' }})</span></div>
                 <div class="detail-row" v-if="m.employee?.nip || m.employee_gender">
                   <span class="label">NIP / JK:</span>
                   <span class="value">{{ m.employee?.nip ?? '-' }} / {{ m.employee_gender ?? m.employee?.gender ?? '-' }}</span>
@@ -734,7 +759,7 @@
               </div>
             </div>
           </div>
-          <p v-else-if="historyLoaded && historyList.length === 0" class="text-muted">Tidak ada riwayat mutasi untuk NUPTK ini.</p>
+          <p v-else-if="historyLoaded && historyList.length === 0" class="text-muted">Tidak ada riwayat mutasi untuk NIK ini.</p>
         </div>
       </template>
 
@@ -750,7 +775,7 @@
             <div v-if="selectedMutation" class="approval-details">
               <div class="detail-row">
                 <span class="label">Guru:</span>
-                <span class="value">{{ selectedMutation.employee?.name }} ({{ selectedMutation.employee?.nuptk }})</span>
+                <span class="value">{{ selectedMutation.employee?.name }} (NIK: {{ selectedMutation.employee?.nik || '–' }})</span>
               </div>
               <div class="detail-row">
                 <span class="label">Sekolah tujuan:</span>
@@ -808,7 +833,7 @@
             <div v-if="selectedMutation" class="approval-details">
               <div class="detail-row">
                 <span class="label">Guru:</span>
-                <span class="value">{{ selectedMutation.employee?.name }} ({{ selectedMutation.employee?.nuptk }})</span>
+                <span class="value">{{ selectedMutation.employee?.name }} (NIK: {{ selectedMutation.employee?.nik || '–' }})</span>
               </div>
             </div>
             <div class="form-group">
@@ -838,7 +863,7 @@
             <div v-if="selectedMutation" class="approval-details">
               <div class="detail-row">
                 <span class="label">Guru:</span>
-                <span class="value">{{ selectedMutation.employee?.name }} ({{ selectedMutation.employee?.nuptk }})</span>
+                <span class="value">{{ selectedMutation.employee?.name }} (NIK: {{ selectedMutation.employee?.nik || '–' }})</span>
               </div>
               <div class="detail-row" v-if="selectedMutation.cancel_reason">
                 <span class="label">Alasan batal:</span>
@@ -901,7 +926,7 @@ const form = ref({
   external: false,
   target_npsn: '',
   target_school_name: '',
-  nuptk: '',
+  nik: '',
   notes: ''
 })
 const targetInstitution = ref(null)
@@ -917,10 +942,11 @@ const pullForm = ref({
   external: false,
   origin_npsn: '',
   origin_school_name: '',
-  nuptk: '',
+  nik: '',
   employee_name: '',
   employee_gender: '',
   employee_nip: '',
+  employee_nuptk: '',
   notes: ''
 })
 const originInstitution = ref(null)
@@ -985,7 +1011,7 @@ const reportPeriodLabel = computed(() => {
   return `Semua periode · ${typeLabel}`
 })
 
-const historyNuptk = ref('')
+const historyNik = ref('')
 const historyLoading = ref(false)
 const historyLoaded = ref(false)
 const historyList = ref([])
@@ -1014,18 +1040,30 @@ const cancelError = ref('')
 const approveCancelError = ref('')
 const rejectCancelError = ref('')
 
-const myInstitutionId = computed(() => authStore.activeInstitutionId || authStore.user?.institution_id)
+const myInstitutionId = computed(() => {
+  const raw = authStore.activeInstitutionId || authStore.user?.institution_id
+  const id = Number(raw)
+  return Number.isFinite(id) && id > 0 ? id : null
+})
 const isInstAdmin = computed(() => {
   const role = authStore.user?.role
   return role === 'admin' || role === 'institution_admin'
 })
 
+function sameInstitution(a, b) {
+  const left = Number(a)
+  const right = Number(b)
+  return Number.isFinite(left) && Number.isFinite(right) && left > 0 && left === right
+}
+
 function canApprove(m) {
-  if (!myInstitutionId.value) return false
+  if (!m || m.status !== 'pending') return false
+  if (m.can_approve === true || m.can_reject === true) return true
+  if (!isInstAdmin.value || !myInstitutionId.value) return false
   if (m.initiated_by === 'origin') {
-    return m.target_institution_id === myInstitutionId.value
+    return sameInstitution(m.target_institution_id, myInstitutionId.value)
   }
-  return m.origin_institution_id === myInstitutionId.value
+  return sameInstitution(m.origin_institution_id, myInstitutionId.value)
 }
 
 function canRequestCancel(m) {
@@ -1036,20 +1074,20 @@ function canRequestCancel(m) {
   if (m.status === 'pending') {
     if (isRequester) return true
     if (!isInstAdmin.value) return false
-    if (m.initiated_by === 'origin') return m.origin_institution_id === myInstitutionId.value
-    return m.target_institution_id === myInstitutionId.value
+    if (m.initiated_by === 'origin') return sameInstitution(m.origin_institution_id, myInstitutionId.value)
+    return sameInstitution(m.target_institution_id, myInstitutionId.value)
   }
   if (!isInstAdmin.value) return false
-  if (m.is_external_target) return m.origin_institution_id === myInstitutionId.value
-  if (m.is_external_origin) return m.target_institution_id === myInstitutionId.value
-  return m.origin_institution_id === myInstitutionId.value
+  if (m.is_external_target) return sameInstitution(m.origin_institution_id, myInstitutionId.value)
+  if (m.is_external_origin) return sameInstitution(m.target_institution_id, myInstitutionId.value)
+  return sameInstitution(m.origin_institution_id, myInstitutionId.value)
 }
 
 function canDecideCancel(m) {
   if (!m || m.status !== 'cancel_pending') return false
   if (m.can_decide_cancel === true) return true
   if (!isInstAdmin.value || !myInstitutionId.value) return false
-  return m.target_institution_id === myInstitutionId.value
+  return sameInstitution(m.target_institution_id, myInstitutionId.value)
 }
 
 function showMutationActions(m) {
@@ -1087,7 +1125,8 @@ function onNpsnInput() {
   }
 }
 
-function onFormNuptkInput() {
+function onFormNikInput() {
+  form.value.nik = form.value.nik.replace(/\D/g, '').slice(0, 16)
   formTeacherPreview.value = null
   formLookupError.value = ''
 }
@@ -1095,14 +1134,14 @@ function onFormNuptkInput() {
 async function lookupFormTeacher() {
   formLookupError.value = ''
   formTeacherPreview.value = null
-  const nuptk = form.value.nuptk?.trim()
-  if (!nuptk) {
-    formLookupError.value = 'Masukkan NUPTK terlebih dahulu.'
+  const nik = form.value.nik?.replace(/\D/g, '') || ''
+  if (nik.length !== 16) {
+    formLookupError.value = 'Masukkan NIK 16 digit terlebih dahulu.'
     return
   }
   formLookupLoading.value = true
   try {
-    const res = await teacherMutationApi.lookupTeacher(nuptk)
+    const res = await teacherMutationApi.lookupTeacher(nik)
     formTeacherPreview.value = res.data?.data ?? null
     if (!formTeacherPreview.value) {
       formLookupError.value = 'Data guru tidak ditemukan.'
@@ -1145,7 +1184,8 @@ function onOriginNpsnInput() {
   }
 }
 
-function onPullNuptkInput() {
+function onPullNikInput() {
+  pullForm.value.nik = pullForm.value.nik.replace(/\D/g, '').slice(0, 16)
   pullTeacherPreview.value = null
   pullLookupError.value = ''
 }
@@ -1154,18 +1194,18 @@ async function lookupPullTeacher() {
   pullLookupError.value = ''
   pullTeacherPreview.value = null
   const npsn = pullForm.value.origin_npsn?.trim()
-  const nuptk = pullForm.value.nuptk?.trim()
+  const nik = pullForm.value.nik?.replace(/\D/g, '') || ''
   if (!npsn || npsn.length !== 8) {
     pullLookupError.value = 'NPSN sekolah asal harus 8 digit terlebih dahulu.'
     return
   }
-  if (!nuptk) {
-    pullLookupError.value = 'Masukkan NUPTK terlebih dahulu.'
+  if (nik.length !== 16) {
+    pullLookupError.value = 'Masukkan NIK 16 digit terlebih dahulu.'
     return
   }
   pullLookupLoading.value = true
   try {
-    const res = await teacherMutationApi.lookupTeacherAtOrigin(npsn, nuptk)
+    const res = await teacherMutationApi.lookupTeacherAtOrigin(npsn, nik)
     pullTeacherPreview.value = res.data?.data ?? null
     if (!pullTeacherPreview.value) {
       pullLookupError.value = 'Data guru tidak ditemukan.'
@@ -1185,7 +1225,7 @@ function formatGender(gender) {
 }
 
 function resetFormModal() {
-  form.value = { external: false, target_npsn: '', target_school_name: '', nuptk: '', notes: '' }
+  form.value = { external: false, target_npsn: '', target_school_name: '', nik: '', notes: '' }
   targetInstitution.value = null
   formTeacherPreview.value = null
   formLookupError.value = ''
@@ -1194,7 +1234,7 @@ function resetFormModal() {
 }
 
 function resetPullModal() {
-  pullForm.value = { external: false, origin_npsn: '', origin_school_name: '', nuptk: '', employee_name: '', employee_gender: '', employee_nip: '', notes: '' }
+  pullForm.value = { external: false, origin_npsn: '', origin_school_name: '', nik: '', employee_name: '', employee_gender: '', employee_nip: '', employee_nuptk: '', notes: '' }
   originInstitution.value = null
   pullTeacherPreview.value = null
   pullLookupError.value = ''
@@ -1208,8 +1248,8 @@ async function submitPull() {
     pullFormError.value = 'NPSN sekolah asal harus 8 digit.'
     return
   }
-  if (!pullForm.value.nuptk?.trim()) {
-    pullFormError.value = 'NUPTK guru wajib diisi.'
+  if (!pullForm.value.nik?.replace(/\D/g, '') || pullForm.value.nik.replace(/\D/g, '').length !== 16) {
+    pullFormError.value = 'NIK guru wajib diisi (16 digit).'
     return
   }
   if (pullForm.value.external) {
@@ -1233,7 +1273,7 @@ async function submitPull() {
   try {
     const payload = {
       origin_npsn: pullForm.value.origin_npsn,
-      nuptk: pullForm.value.nuptk.trim(),
+      nik: pullForm.value.nik.replace(/\D/g, ''),
       notes: pullForm.value.notes?.trim() || undefined
     }
     if (pullForm.value.external) {
@@ -1242,6 +1282,7 @@ async function submitPull() {
       payload.employee_name = pullForm.value.employee_name?.trim()
       payload.employee_gender = pullForm.value.employee_gender
       payload.employee_nip = pullForm.value.employee_nip?.trim() || undefined
+      payload.employee_nuptk = pullForm.value.employee_nuptk?.trim() || undefined
     }
     const wasExternal = !!pullForm.value.external
     await teacherMutationApi.createPull(payload)
@@ -1337,7 +1378,7 @@ async function loadReport(page = 1) {
 
 function isMutationOut(m) {
   if (!myInstitutionId.value) return !!m.origin_institution_id
-  return m.origin_institution_id === myInstitutionId.value
+  return sameInstitution(m.origin_institution_id, myInstitutionId.value)
 }
 
 function schoolOriginName(m) {
@@ -1427,13 +1468,17 @@ async function exportBukuMutasi(format) {
   }
 }
 
-async function loadHistoryByNuptk() {
-  if (!historyNuptk.value?.trim()) return
+async function loadHistoryByNik() {
+  const nik = historyNik.value?.replace(/\D/g, '') || ''
+  if (nik.length !== 16) {
+    historyError.value = 'Masukkan NIK 16 digit.'
+    return
+  }
   historyLoading.value = true
   historyError.value = ''
   historyLoaded.value = false
   try {
-    const res = await teacherMutationApi.getHistoryByNuptk(historyNuptk.value.trim())
+    const res = await teacherMutationApi.getHistoryByNik(nik)
     historyList.value = res.data?.data ?? res.data ?? []
     historyLoaded.value = true
   } catch (err) {
@@ -1454,8 +1499,9 @@ async function submitMutation() {
     formError.value = 'Nama sekolah tujuan wajib diisi untuk mutasi ke sekolah luar sistem.'
     return
   }
-  if (!form.value.nuptk?.trim()) {
-    formError.value = 'NUPTK guru wajib diisi.'
+  const nik = form.value.nik?.replace(/\D/g, '') || ''
+  if (nik.length !== 16) {
+    formError.value = 'NIK guru wajib diisi (16 digit).'
     return
   }
   if (!formTeacherPreview.value) {
@@ -1469,19 +1515,23 @@ async function submitMutation() {
       external: form.value.external || undefined,
       target_npsn: form.value.target_npsn,
       target_school_name: form.value.external ? form.value.target_school_name?.trim() : undefined,
-      nuptk: form.value.nuptk.trim(),
+      nik,
       notes: form.value.notes?.trim() || undefined
     })
     toast.success('Berhasil', wasExternal ? 'Mutasi keluar ke sekolah luar sistem telah dicatat. Status guru: Pindah.' : 'Permohonan mutasi telah dikirim. Menunggu persetujuan sekolah tujuan.')
     showFormModal.value = false
     resetFormModal()
-    if (wasExternal) {
-      const alreadyApproved = filterStatus.value === 'approved'
-      filterStatus.value = 'approved'
-      activeTabMain.value = 'permohonan'
-      if (alreadyApproved) await loadMutations()
-    } else {
-      await loadMutations()
+    try {
+      if (wasExternal) {
+        const alreadyApproved = filterStatus.value === 'approved'
+        filterStatus.value = 'approved'
+        activeTabMain.value = 'permohonan'
+        if (alreadyApproved) await loadMutations()
+      } else {
+        await loadMutations()
+      }
+    } catch {
+      // mutasi sudah tersimpan; gagal reload tidak boleh tampil sebagai gagal ajukan
     }
   } catch (err) {
     formError.value = err.response?.data?.message || err.formattedMessage || 'Gagal mengajukan mutasi'

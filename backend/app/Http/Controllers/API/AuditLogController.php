@@ -5,11 +5,32 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditLogController extends Controller
 {
+    /**
+     * Only institution/platform admins may read audit logs.
+     */
+    private function authorizeAuditAccess(Request $request): ?JsonResponse
+    {
+        $user = $request->user();
+        if (
+            !$user
+            || (
+                !$user->isSuperAdmin()
+                && !$user->isAdmin()
+                && !$user->isInstitutionAdmin()
+            )
+        ) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        return null;
+    }
+
     /**
      * Base query scope: institution for admin, all for super_admin.
      */
@@ -51,6 +72,10 @@ class AuditLogController extends Controller
      */
     public function index(Request $request)
     {
+        if ($denied = $this->authorizeAuditAccess($request)) {
+            return $denied;
+        }
+
         $perPage = min((int) $request->get('per_page', 15), 100);
         $query = $this->baseQuery($request);
         $this->applyFilters($query, $request);
@@ -86,6 +111,10 @@ class AuditLogController extends Controller
      */
     public function filterOptions(Request $request)
     {
+        if ($denied = $this->authorizeAuditAccess($request)) {
+            return $denied;
+        }
+
         $query = $this->baseQuery($request)->select('user_id', 'auditable_type', 'action');
 
         $users = (clone $query)
@@ -109,8 +138,12 @@ class AuditLogController extends Controller
     /**
      * Export audit logs as CSV (same filters as index).
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): StreamedResponse|JsonResponse
     {
+        if ($denied = $this->authorizeAuditAccess($request)) {
+            return $denied;
+        }
+
         $query = $this->baseQuery($request);
         $this->applyFilters($query, $request);
         $query->with('user:id,name');

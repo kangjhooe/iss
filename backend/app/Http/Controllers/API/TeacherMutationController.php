@@ -35,7 +35,8 @@ class TeacherMutationController extends Controller
             return null;
         }
 
-        return InstitutionContext::resolveForUser($user, $request);
+        return InstitutionContext::resolveActiveInstitutionId($user, $request)
+            ?? ($user->institution_id ? (int) $user->institution_id : null);
     }
 
     /**
@@ -64,7 +65,7 @@ class TeacherMutationController extends Controller
     }
 
     /**
-     * Create mutation request from origin school (NPSN tujuan + NUPTK guru).
+     * Create mutation request from origin school (NPSN tujuan + NIK guru).
      * Jika external=true: sekolah tujuan belum terdaftar, NPSN + nama dicatat manual, status langsung approved.
      */
     public function store(StoreTeacherMutationRequest $request)
@@ -82,13 +83,13 @@ class TeacherMutationController extends Controller
                     $institutionId,
                     $request->validated('target_npsn'),
                     $request->validated('target_school_name'),
-                    $request->validated('nuptk'),
+                    $request->validated('nik'),
                     $user->id,
                     $request->validated('notes')
                 );
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
-                    'employee:id,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email',
                     'requester:id,name,email',
                     'approver:id,name',
                 ]);
@@ -96,14 +97,14 @@ class TeacherMutationController extends Controller
                 $mutation = $this->mutationService->createFromOrigin(
                     $institutionId,
                     $request->validated('target_npsn'),
-                    $request->validated('nuptk'),
+                    $request->validated('nik'),
                     $user->id,
                     $request->validated('notes')
                 );
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
                     'targetInstitution:id,name,npsn,level',
-                    'employee:id,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email',
                     'requester:id,name,email',
                 ]);
             }
@@ -142,16 +143,17 @@ class TeacherMutationController extends Controller
                     $request->validated('origin_npsn'),
                     $request->validated('origin_school_name'),
                     $request->validated('employee_name'),
-                    $request->validated('nuptk'),
+                    $request->validated('nik'),
                     $request->validated('employee_gender'),
                     $request->validated('employee_nip'),
+                    $request->validated('employee_nuptk'),
                     $request->validated('employee_email'),
                     $user->id,
                     $request->validated('notes')
                 );
                 $mutation->load([
                     'targetInstitution:id,name,npsn,level',
-                    'employee:id,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email',
                     'requester:id,name,email',
                     'approver:id,name',
                 ]);
@@ -159,14 +161,14 @@ class TeacherMutationController extends Controller
                 $mutation = $this->mutationService->createFromTarget(
                     $targetInstitutionId,
                     $request->validated('origin_npsn'),
-                    $request->validated('nuptk'),
+                    $request->validated('nik'),
                     $user->id,
                     $request->validated('notes')
                 );
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
                     'targetInstitution:id,name,npsn,level',
-                    'employee:id,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email',
                     'requester:id,name,email',
                 ]);
             }
@@ -204,7 +206,7 @@ class TeacherMutationController extends Controller
         $teacher_mutation->load([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nuptk,nip,name,gender,status,email,institution_id',
+            'employee:id,nik,nuptk,nip,name,gender,status,email,institution_id',
             'requester:id,name,email',
             'approver:id,name',
         ]);
@@ -331,7 +333,7 @@ class TeacherMutationController extends Controller
     }
 
     /**
-     * Lookup teacher by NUPTK at current institution (preview before submitting mutation out).
+     * Lookup teacher by NIK at current institution (preview before submitting mutation out).
      */
     public function lookupTeacher(Request $request)
     {
@@ -341,12 +343,12 @@ class TeacherMutationController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $nuptk = trim((string) $request->get('nuptk', ''));
-            if ($nuptk === '') {
-                return response()->json(['message' => 'NUPTK wajib diisi.'], 422);
+            $nik = trim((string) $request->get('nik', ''));
+            if ($nik === '' || !preg_match('/^[0-9]{16}$/', $nik)) {
+                return response()->json(['message' => 'NIK wajib diisi (16 digit angka).'], 422);
             }
 
-            $teacher = $this->mutationService->lookupTeacherByNuptk($institutionId, $nuptk);
+            $teacher = $this->mutationService->lookupTeacherByNik($institutionId, $nik);
 
             return response()->json(['data' => $teacher]);
         } catch (\InvalidArgumentException $e) {
@@ -361,7 +363,7 @@ class TeacherMutationController extends Controller
     }
 
     /**
-     * Lookup teacher at origin school by NPSN + NUPTK (preview before pull).
+     * Lookup teacher at origin school by NPSN + NIK (preview before pull).
      */
     public function lookupTeacherAtOrigin(Request $request)
     {
@@ -372,15 +374,15 @@ class TeacherMutationController extends Controller
             }
 
             $originNpsn = trim((string) $request->get('origin_npsn', ''));
-            $nuptk = trim((string) $request->get('nuptk', ''));
+            $nik = trim((string) $request->get('nik', ''));
             if (strlen($originNpsn) !== 8) {
                 return response()->json(['message' => 'NPSN sekolah asal harus 8 digit.'], 422);
             }
-            if ($nuptk === '') {
-                return response()->json(['message' => 'NUPTK wajib diisi.'], 422);
+            if ($nik === '' || !preg_match('/^[0-9]{16}$/', $nik)) {
+                return response()->json(['message' => 'NIK wajib diisi (16 digit angka).'], 422);
             }
 
-            $teacher = $this->mutationService->lookupTeacherAtOriginByNpsn($originNpsn, $nuptk, $institutionId);
+            $teacher = $this->mutationService->lookupTeacherAtOriginByNpsn($originNpsn, $nik, $institutionId);
 
             return response()->json(['data' => $teacher]);
         } catch (\InvalidArgumentException $e) {
@@ -524,7 +526,7 @@ class TeacherMutationController extends Controller
                     $out = fopen('php://output', 'w');
                     fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
                     fputcsv($out, [
-                        'No', 'Tanggal', 'NUPTK', 'NIP', 'Nama Guru', 'JK', 'Jenis', 'Sekolah Asal', 'NPSN Asal',
+                        'No', 'Tanggal', 'NIK', 'NUPTK', 'NIP', 'Nama Guru', 'JK', 'Jenis', 'Sekolah Asal', 'NPSN Asal',
                         'Sekolah Tujuan', 'NPSN Tujuan', 'Keterangan', 'Disetujui oleh',
                     ]);
                     foreach ($mutations as $idx => $m) {
@@ -536,6 +538,7 @@ class TeacherMutationController extends Controller
                         fputcsv($out, [
                             $idx + 1,
                             $tanggal,
+                            $m->employee?->nik ?? '',
                             $m->employee_nuptk ?? $m->employee?->nuptk ?? '',
                             $m->employee_nip ?? $m->employee?->nip ?? '',
                             $m->employee?->name ?? '',
@@ -603,25 +606,25 @@ class TeacherMutationController extends Controller
     }
 
     /**
-     * Riwayat mutasi per guru by NUPTK.
+     * Riwayat mutasi per guru by NIK.
      */
-    public function historyByNuptk(Request $request)
+    public function historyByNik(Request $request)
     {
         try {
             $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
-            $nuptk = $request->get('nuptk');
-            if (!$nuptk || !is_string($nuptk)) {
-                return response()->json(['message' => 'NUPTK wajib diisi.'], 422);
+            $nik = $request->get('nik');
+            if (!$nik || !is_string($nik) || !preg_match('/^[0-9]{16}$/', trim($nik))) {
+                return response()->json(['message' => 'NIK wajib diisi (16 digit angka).'], 422);
             }
-            $list = $this->mutationService->historyByNuptk(trim($nuptk), $institutionId);
+            $list = $this->mutationService->historyByNik(trim($nik), $institutionId);
             return TeacherMutationResource::collection($list);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
-            Log::error('Teacher mutation history by NUPTK failed', ['error' => $e->getMessage()]);
+            Log::error('Teacher mutation history by NIK failed', ['error' => $e->getMessage()]);
             return response()->json([
                 'message' => 'Gagal mengambil riwayat mutasi guru.',
                 'error' => config('app.debug') ? $e->getMessage() : null,

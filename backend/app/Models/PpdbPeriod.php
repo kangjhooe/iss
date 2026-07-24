@@ -20,6 +20,8 @@ class PpdbPeriod extends Model
         're_registration_deadline',
         'status',
         'description',
+        'registration_fee',
+        're_registration_fee',
     ];
 
     protected function casts(): array
@@ -28,6 +30,8 @@ class PpdbPeriod extends Model
             'open_date' => 'date',
             'close_date' => 'date',
             're_registration_deadline' => 'date',
+            'registration_fee' => 'decimal:2',
+            're_registration_fee' => 'decimal:2',
         ];
     }
 

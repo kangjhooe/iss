@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesQuestionBankPayload;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreQuestionBankRequest extends FormRequest
 {
+    use ValidatesQuestionBankPayload;
+
     public function authorize(): bool
     {
         return true;
@@ -21,6 +25,8 @@ class StoreQuestionBankRequest extends FormRequest
             'body' => 'required|string|max:50000',
             'weight' => 'numeric|min:0|max:100',
             'key_answer' => 'nullable|string|max:500',
+            'key_answer_aliases' => 'nullable|array|max:20',
+            'key_answer_aliases.*' => 'string|max:500',
             'options' => 'array',
             'options.*.option_key' => 'required_with:options|string|max:5',
             'options.*.body' => 'required_with:options|string|max:20000',
@@ -37,5 +43,10 @@ class StoreQuestionBankRequest extends FormRequest
             'matching_data.correct.*.left_id' => 'nullable|string',
             'matching_data.correct.*.right_id' => 'nullable|string',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->addQuestionBankTypeRules($validator);
     }
 }

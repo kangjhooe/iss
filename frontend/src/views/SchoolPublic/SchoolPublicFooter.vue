@@ -20,7 +20,7 @@
           <a href="#layanan">Layanan</a>
           <a href="#kontak">Lokasi</a>
           <router-link :to="`/${npsn}/buku-tamu`">Buku Tamu</router-link>
-          <router-link :to="`/${npsn}/daftar-ppdb`">PPDB</router-link>
+          <router-link v-if="admissionOpen" :to="`/${npsn}/daftar-ppdb`">{{ admissionLabel }}</router-link>
           <router-link to="/login">Masuk</router-link>
         </nav>
       </div>
@@ -38,7 +38,9 @@ import { computed, ref } from 'vue'
 
 defineProps({
   institution: { type: Object, default: null },
-  npsn: { type: String, default: '' }
+  npsn: { type: String, default: '' },
+  admissionOpen: { type: Boolean, default: false },
+  admissionLabel: { type: String, default: 'PPDB' },
 })
 
 const currentYear = computed(() => new Date().getFullYear())

@@ -16,6 +16,11 @@ use App\Http\Controllers\API\AsetTandaTanganController;
 use App\Http\Controllers\API\FacilityController;
 use App\Http\Controllers\API\LabBookingController;
 use App\Http\Controllers\API\LabUsageJournalController;
+use App\Http\Controllers\API\FeedbackTicketController;
+use App\Http\Controllers\API\FinanceDashboardController;
+use App\Http\Controllers\API\FinanceFeeTypeController;
+use App\Http\Controllers\API\FinanceInvoiceController;
+use App\Http\Controllers\API\FinancePaymentController;
 use App\Http\Controllers\API\InstitutionChangeRequestController;
 use App\Http\Controllers\API\StudentChangeRequestController;
 use App\Http\Controllers\API\TeacherChangeRequestController;
@@ -65,6 +70,7 @@ use App\Http\Controllers\API\SuperAdminBroadcastController;
 use App\Http\Controllers\API\SuperAdminReleaseController;
 use App\Http\Controllers\API\PublicReleaseController;
 use App\Http\Controllers\API\SuperAdminReportController;
+use App\Http\Controllers\API\SuperAdminDatabaseBackupController;
 use App\Http\Controllers\API\SuperAdminImpersonationController;
 use App\Http\Controllers\API\PermissionController;
 use App\Http\Controllers\API\AdditionalDutyController;
@@ -93,6 +99,7 @@ use App\Http\Controllers\API\AcademicCalendarController;
 use App\Http\Controllers\API\PpdbPeriodController;
 use App\Http\Controllers\API\PpdbChannelController;
 use App\Http\Controllers\API\PpdbApplicantController;
+use App\Http\Controllers\API\PpdbDashboardController;
 use App\Http\Controllers\API\PublicPpdbController;
 use App\Http\Controllers\API\PublicLibraryController;
 use App\Http\Controllers\API\PublicSchoolController;
@@ -142,6 +149,8 @@ Route::get('/', function () {
                 'PUT /api/v1/student/{id}' => 'Update student',
                 'DELETE /api/v1/student/{id}' => 'Delete student',
                 'GET /api/v1/employee' => 'List employees',
+                'GET /api/v1/employee/export' => 'Export employees (full rows for Excel)',
+                'GET /api/v1/employee/export/pdf' => 'Export employees PDF',
                 'GET /api/v1/employee/{id}' => 'Get employee detail',
                 'POST /api/v1/employee' => 'Create employee',
                 'PUT /api/v1/employee/{id}' => 'Update employee',
@@ -172,7 +181,7 @@ Route::middleware('throttle:5,1')->group(function () {
 Route::get('/public/ppdb/periods', [PublicPpdbController::class, 'openPeriods'])->name('public.ppdb.periods');
 Route::get('/public/ppdb/channels', [PublicPpdbController::class, 'openChannels'])->name('public.ppdb.channels');
 Route::middleware('throttle:15,1')->get('/public/ppdb/prefill', [PublicPpdbController::class, 'prefill'])->name('public.ppdb.prefill');
-Route::get('/public/ppdb/check-result', [PublicPpdbController::class, 'checkResult'])->name('public.ppdb.check-result');
+    Route::middleware('throttle:10,1')->get('/public/ppdb/check-result', [PublicPpdbController::class, 'checkResult'])->name('public.ppdb.check-result');
 Route::middleware('throttle:10,1')->post('/public/ppdb/confirm-re-registration', [PublicPpdbController::class, 'confirmReRegistration'])->name('public.ppdb.confirm-re-registration');
 Route::middleware('throttle:10,1')->post('/public/ppdb/documents', [PublicPpdbController::class, 'uploadDocument'])->name('public.ppdb.upload-document');
 Route::middleware('throttle:10,1')->post('/public/ppdb/register', [PublicPpdbController::class, 'register'])->name('public.ppdb.register');
@@ -539,12 +548,15 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::get('/teacher-mutations/report', [TeacherMutationController::class, 'report'])->name('teacher-mutations.report');
         Route::get('/teacher-mutations/export', [TeacherMutationController::class, 'export'])->name('teacher-mutations.export');
         Route::get('/teacher-mutations/by-employee/{employee_id}', [TeacherMutationController::class, 'historyByEmployee'])->name('teacher-mutations.by-employee');
-        Route::get('/teacher-mutations/history-by-nuptk', [TeacherMutationController::class, 'historyByNuptk'])->name('teacher-mutations.history-by-nuptk');
+        // Identitas guru untuk riwayat mutasi: NIK (banyak guru tidak punya NUPTK).
+        Route::get('/teacher-mutations/history-by-nik', [TeacherMutationController::class, 'historyByNik'])->name('teacher-mutations.history-by-nik');
         Route::post('/teacher-mutations', [TeacherMutationController::class, 'store']);
         Route::get('/teacher-mutations/{teacher_mutation}', [TeacherMutationController::class, 'show']);
 
         Route::get('/employee', [EmployeeController::class, 'index']);
         Route::get('/employee/search', [EmployeeController::class, 'searchByNik']);
+        Route::get('/employee/export', [EmployeeController::class, 'export'])->name('employee.export');
+        Route::get('/employee/export/pdf', [EmployeeController::class, 'exportPdf'])->name('employee.export.pdf');
         Route::get('/employee/{id}', [EmployeeController::class, 'show']);
         Route::post('/employee', [EmployeeController::class, 'store']);
         Route::put('/employee/{id}', [EmployeeController::class, 'update']);
@@ -651,6 +663,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     Route::post('/institution-change-requests/{id}/approve', [InstitutionChangeRequestController::class, 'approve'])->name('institution-change-requests.approve');
     Route::apiResource('institution-change-requests', InstitutionChangeRequestController::class)->except(['update', 'destroy']);
 
+    // Feedback tickets (lapor bug / request fitur admin sekolah → super admin)
+    Route::get('/feedback-tickets/open-count', [FeedbackTicketController::class, 'openCount'])->name('feedback-tickets.open-count');
+    Route::apiResource('feedback-tickets', FeedbackTicketController::class)->only(['index', 'store', 'show', 'update']);
+
     // Student change requests (siswa lengkapi data, admin setujui)
     Route::get('/student-change-requests/allowed-fields', [StudentChangeRequestController::class, 'allowedFields'])->name('student-change-requests.allowed-fields');
     Route::get('/student-change-requests/pending-count', [StudentChangeRequestController::class, 'pendingCount'])->name('student-change-requests.pending-count');
@@ -683,6 +699,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::post('/rooms', [FacilityController::class, 'createRoom']);
         Route::put('/rooms/{id}', [FacilityController::class, 'updateRoom']);
         Route::delete('/rooms/{id}', [FacilityController::class, 'deleteRoom']);
+        Route::get('/export/pdf', [FacilityController::class, 'exportPdf']);
         Route::get('/lab-report', [FacilityController::class, 'getLabReport']);
         Route::get('/lab-report/export', [FacilityController::class, 'exportLabReport']);
         Route::get('/labs/{id}/export', [FacilityController::class, 'exportLabReport']);
@@ -746,6 +763,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
             Route::get('/asset-value', [InventoryReportController::class, 'assetValue'])->name('inventory.reports.asset-value');
             Route::get('/maintenance', [InventoryReportController::class, 'maintenance'])->name('inventory.reports.maintenance');
             Route::get('/transactions', [InventoryReportController::class, 'transactions'])->name('inventory.reports.transactions');
+            Route::get('/export/pdf', [InventoryReportController::class, 'exportPdf'])->name('inventory.reports.export.pdf');
         });
     });
 
@@ -764,6 +782,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     Route::prefix('teacher/wali')->group(function () {
         Route::get('/classes/{classId}/students/{studentId}', [WaliKelasController::class, 'showStudent']);
         Route::get('/classes/{classId}/dashboard', [WaliKelasController::class, 'dashboard']);
+        Route::get('/classes/{classId}/attendance-summary', [WaliKelasController::class, 'attendanceSummary']);
+        Route::get('/classes/{classId}/grades-overview', [WaliKelasController::class, 'gradesOverview']);
         Route::get('/classes/{classId}/students/{studentId}/notes', [WaliKelasController::class, 'indexNotes']);
         Route::post('/classes/{classId}/students/{studentId}/notes', [WaliKelasController::class, 'storeNote']);
         Route::put('/classes/{classId}/students/{studentId}/notes/{noteId}', [WaliKelasController::class, 'updateNote']);
@@ -809,6 +829,18 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     Route::get('/super-admin/reports/aggregate/export', [SuperAdminReportController::class, 'export'])->name('super-admin.reports.aggregate.export');
     Route::post('/super-admin/institution-admins/{id}/impersonate', [SuperAdminImpersonationController::class, 'start'])->name('super-admin.impersonate.start');
     Route::post('/super-admin/impersonate/stop', [SuperAdminImpersonationController::class, 'stop'])->name('super-admin.impersonate.stop');
+
+    // Super admin: database backup (mysqldump → .sql.gz)
+    Route::middleware(\App\Http\Middleware\EnsureSuperAdmin::class)->prefix('super-admin/database-backups')->group(function () {
+        Route::get('/', [SuperAdminDatabaseBackupController::class, 'index'])->name('super-admin.database-backups.index');
+        Route::post('/', [SuperAdminDatabaseBackupController::class, 'store'])->name('super-admin.database-backups.store');
+        Route::get('/{filename}/download', [SuperAdminDatabaseBackupController::class, 'download'])
+            ->where('filename', 'iss-db-\d{8}-\d{6}\.sql(?:\.gz)?')
+            ->name('super-admin.database-backups.download');
+        Route::delete('/{filename}', [SuperAdminDatabaseBackupController::class, 'destroy'])
+            ->where('filename', 'iss-db-\d{8}-\d{6}\.sql(?:\.gz)?')
+            ->name('super-admin.database-backups.destroy');
+    });
 
     // Correspondence routes (Persuratan)
     Route::prefix('correspondence')->middleware('module:correspondence')->group(function () {
@@ -966,12 +998,14 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
 
     // PPDB (Penerimaan Peserta Didik Baru)
     Route::middleware('module:ppdb')->group(function () {
+        Route::get('ppdb/summary', [PpdbDashboardController::class, 'summary'])->name('ppdb.summary');
         Route::get('ppdb-periods/{ppdb_period}/statistics', [PpdbPeriodController::class, 'statistics'])->name('ppdb-periods.statistics');
         Route::apiResource('ppdb-periods', PpdbPeriodController::class);
         Route::apiResource('ppdb-channels', PpdbChannelController::class);
         Route::get('ppdb-applicants', [PpdbApplicantController::class, 'index'])->name('ppdb-applicants.index');
         Route::get('ppdb-applicants/export', [PpdbApplicantController::class, 'export'])->name('ppdb-applicants.export');
         Route::post('ppdb-applicants/bulk-verification', [PpdbApplicantController::class, 'bulkVerification'])->name('ppdb-applicants.bulk-verification');
+        Route::post('ppdb-applicants/bulk-result', [PpdbApplicantController::class, 'bulkResult'])->name('ppdb-applicants.bulk-result');
         Route::post('ppdb-applicants', [PpdbApplicantController::class, 'store'])->name('ppdb-applicants.store');
         Route::get('ppdb-applicants/{ppdb_applicant}', [PpdbApplicantController::class, 'show'])->name('ppdb-applicants.show');
         Route::put('ppdb-applicants/{ppdb_applicant}', [PpdbApplicantController::class, 'update'])->name('ppdb-applicants.update');
@@ -979,11 +1013,30 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::post('ppdb-applicants/{ppdb_applicant}/verification', [PpdbApplicantController::class, 'setVerification'])->name('ppdb-applicants.verification');
         Route::post('ppdb-applicants/{ppdb_applicant}/submit', [PpdbApplicantController::class, 'submit'])->name('ppdb-applicants.submit');
         Route::post('ppdb-applicants/{ppdb_applicant}/result', [PpdbApplicantController::class, 'setResult'])->name('ppdb-applicants.result');
+        Route::post('ppdb-applicants/{ppdb_applicant}/payment', [PpdbApplicantController::class, 'setPayment'])->name('ppdb-applicants.payment');
         Route::post('ppdb-applicants/{ppdb_applicant}/confirm-re-registration', [PpdbApplicantController::class, 'confirmReRegistration'])->name('ppdb-applicants.confirm-re-registration');
         Route::post('ppdb-applicants/{ppdb_applicant}/convert-to-student', [PpdbApplicantController::class, 'convertToStudent'])->name('ppdb-applicants.convert-to-student');
         Route::post('ppdb-applicants/{ppdb_applicant}/documents', [PpdbApplicantController::class, 'uploadDocument'])->name('ppdb-applicants.upload-document');
         Route::delete('ppdb-applicants/{ppdb_applicant}/documents/{documentId}', [PpdbApplicantController::class, 'deleteDocument'])->name('ppdb-applicants.delete-document');
         Route::get('ppdb-applicants/{ppdb_applicant}/documents/{documentId}/download', [PpdbApplicantController::class, 'downloadDocument'])->name('ppdb-applicants.download-document');
+    });
+
+    // Keuangan sekolah (SPP, tagihan, pembayaran, tunggakan, laporan)
+    Route::middleware('module:finance')->prefix('finance')->group(function () {
+        Route::get('summary', [FinanceDashboardController::class, 'summary'])->name('finance.summary');
+        Route::apiResource('fee-types', FinanceFeeTypeController::class)->parameters(['fee-types' => 'fee_type']);
+        Route::get('invoices/export', [FinanceInvoiceController::class, 'export'])->name('finance.invoices.export');
+        Route::get('invoices', [FinanceInvoiceController::class, 'index'])->name('finance.invoices.index');
+        Route::post('invoices/generate', [FinanceInvoiceController::class, 'generate'])->name('finance.invoices.generate');
+        Route::get('invoices/{invoice}', [FinanceInvoiceController::class, 'show'])->name('finance.invoices.show');
+        Route::put('invoices/{invoice}', [FinanceInvoiceController::class, 'update'])->name('finance.invoices.update');
+        Route::delete('invoices/{invoice}', [FinanceInvoiceController::class, 'destroy'])->name('finance.invoices.destroy');
+        Route::get('payments/export', [FinancePaymentController::class, 'export'])->name('finance.payments.export');
+        Route::get('payments', [FinancePaymentController::class, 'index'])->name('finance.payments.index');
+        Route::post('payments', [FinancePaymentController::class, 'store'])->name('finance.payments.store');
+        Route::get('payments/{payment}/receipt', [FinancePaymentController::class, 'receipt'])->name('finance.payments.receipt');
+        Route::get('payments/{payment}', [FinancePaymentController::class, 'show'])->name('finance.payments.show');
+        Route::delete('payments/{payment}', [FinancePaymentController::class, 'destroy'])->name('finance.payments.destroy');
     });
 
     // Ujian Online (admin/guru: exam, session, bank soal, peserta, kendali)
@@ -1001,6 +1054,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::post('sessions/{exam_session}/end', [ExamControlController::class, 'endSession'])->name('exam.sessions.end');
         Route::post('sessions/{exam_session}/reset', [ExamControlController::class, 'resetSession'])->name('exam.sessions.reset');
         Route::post('sessions/{exam_session}/compute-scores', [ExamControlController::class, 'computeScores'])->name('exam.sessions.compute-scores');
+        Route::get('sessions/{exam_session}/monitor', [ExamControlController::class, 'monitor'])->name('exam.sessions.monitor');
+        Route::get('sessions/{exam_session}/export-results', [ExamControlController::class, 'exportResults'])->name('exam.sessions.export-results');
+        Route::post('sessions/{exam_session}/release-scores', [ExamControlController::class, 'releaseAllScores'])->name('exam.sessions.release-scores');
         Route::get('sessions/{exam_session}/participants', [ExamParticipantController::class, 'index'])->name('exam.sessions.participants.index');
         Route::post('sessions/{exam_session}/participants', [ExamParticipantController::class, 'store'])->name('exam.sessions.participants.store');
         Route::post('sessions/{exam_session}/participants/generate-numbers', [ExamParticipantController::class, 'generateNumbers'])->name('exam.sessions.participants.generate-numbers');
@@ -1010,6 +1066,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::put('participants/{exam_participant}', [ExamParticipantController::class, 'update'])->name('exam.participants.update');
         Route::get('participants/{exam_participant}/answers', [ExamParticipantController::class, 'answers'])->name('exam.participants.answers');
         Route::post('participants/{exam_participant}/recompute', [ExamControlController::class, 'recomputeParticipant'])->name('exam.participants.recompute');
+        Route::post('participants/{exam_participant}/reset', [ExamControlController::class, 'resetParticipant'])->name('exam.participants.reset');
         Route::put('answers/{exam_answer}/score', [ExamControlController::class, 'updateAnswerScore'])->name('exam.answers.update-score');
         Route::post('participants/{exam_participant}/regenerate-token', [ExamParticipantController::class, 'regenerateToken'])->name('exam.participants.regenerate-token');
         Route::get('participants/{exam_participant}/print-card', [ExamParticipantController::class, 'printCard'])->name('exam.participants.print-card');
@@ -1030,6 +1087,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::post('banks/{bank_soal}/share', [BankSoalController::class, 'invite'])->name('exam.banks.share.invite');
         Route::delete('banks/{bank_soal}/share/{user_id}', [BankSoalController::class, 'revoke'])->name('exam.banks.share.revoke');
         Route::post('question-assets/upload', [QuestionAssetController::class, 'uploadImage'])->name('exam.question-assets.upload');
+        Route::post('question-bank/reorder', [QuestionBankController::class, 'reorder'])->name('exam.question-bank.reorder');
+        Route::get('question-bank/import-template', [QuestionBankController::class, 'importTemplate'])->name('exam.question-bank.import-template');
+        Route::post('question-bank/import', [QuestionBankController::class, 'import'])->name('exam.question-bank.import');
+        Route::post('question-bank/{question_bank}/duplicate', [QuestionBankController::class, 'duplicate'])->name('exam.question-bank.duplicate');
         Route::apiResource('question-bank', QuestionBankController::class);
     });
 });

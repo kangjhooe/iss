@@ -40,13 +40,24 @@
             />
           </div>
         </div>
+        <div v-if="needsBirthDate" class="form-group">
+          <label class="form-label">Tanggal Lahir <span class="required">*</span></label>
+          <p class="form-hint">Wajib saat pencarian dengan NISN (verifikasi identitas).</p>
+          <input
+            v-model="birthDate"
+            type="date"
+            class="form-input"
+            required
+            @input="error = ''"
+          />
+        </div>
         <div v-if="error" class="error-banner">
           <svg class="error-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
           </svg>
           {{ error }}
         </div>
-        <button type="submit" class="btn-submit" :disabled="loading || !searchQuery.trim()">
+        <button type="submit" class="btn-submit" :disabled="loading || !searchQuery.trim() || (needsBirthDate && !birthDate)">
           <span v-if="loading" class="btn-spinner"></span>
           <template v-else>
             <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -102,6 +113,33 @@
               <dd>{{ formatDateId(result.re_registration_deadline) }}</dd>
             </div>
           </template>
+          <div class="result-row result-row-payment">
+            <dt>Status pembayaran</dt>
+            <dd>
+              <span :class="['pay-badge', 'pay-' + (result.payment_status || 'unpaid')]">
+                {{ paymentStatusLabel(result.payment_status) }}
+              </span>
+            </dd>
+          </div>
+          <div v-if="paymentTypeLabel(result.payment_type)" class="result-row">
+            <dt>Jenis biaya</dt>
+            <dd>{{ paymentTypeLabel(result.payment_type) }}</dd>
+          </div>
+          <div class="result-row">
+            <dt>Nominal</dt>
+            <dd>
+              <strong>{{ formatCurrency(displayedPaymentAmount) }}</strong>
+              <span v-if="feeHint" class="muted-hint"> {{ feeHint }}</span>
+            </dd>
+          </div>
+          <div v-if="result.paid_at" class="result-row">
+            <dt>Tanggal bayar</dt>
+            <dd>{{ formatDateId(result.paid_at) }}</dd>
+          </div>
+          <div v-if="result.payment_notes" class="result-row">
+            <dt>Catatan bayar</dt>
+            <dd>{{ result.payment_notes }}</dd>
+          </div>
           <template v-if="result.student">
             <div class="result-row result-row-highlight">
               <dt>NIS (Siswa)</dt>
@@ -191,6 +229,10 @@
                 <tr v-if="result.notes"><td class="print-label">Catatan</td><td>{{ result.notes }}</td></tr>
                 <tr v-if="result.submitted_at"><td class="print-label">Tanggal Pendaftaran</td><td>{{ formatDateId(result.submitted_at) }}</td></tr>
                 <tr v-if="result.status"><td class="print-label">Status</td><td>{{ statusLabel(result.status) }}</td></tr>
+                <tr><td class="print-label">Status Pembayaran</td><td>{{ paymentStatusLabel(result.payment_status) }}</td></tr>
+                <tr v-if="paymentTypeLabel(result.payment_type)"><td class="print-label">Jenis Biaya</td><td>{{ paymentTypeLabel(result.payment_type) }}</td></tr>
+                <tr><td class="print-label">Nominal</td><td>{{ formatCurrency(displayedPaymentAmount) }}</td></tr>
+                <tr v-if="result.paid_at"><td class="print-label">Tanggal Bayar</td><td>{{ formatDateId(result.paid_at) }}</td></tr>
               </tbody>
             </table>
             <div class="print-signatures">
@@ -217,15 +259,22 @@ import { ref, computed } from 'vue'
 import { ppdbPublicApi } from '@/api/ppdbPublic'
 import { useToast } from '@/composables/useToast'
 import { getNssLabel } from '@/utils/institution'
+import { paymentStatusLabels, formatCurrency } from '@/views/Ppdb/ppdbConstants'
 
 const toast = useToast()
 const searchQuery = ref('')
+const birthDate = ref('')
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
 const printAreaRef = ref(null)
 const confirmReRegLoading = ref(false)
 const confirmReRegSuccess = ref(false)
+
+const needsBirthDate = computed(() => {
+  const q = searchQuery.value.trim()
+  return /^\d{10}$/.test(q)
+})
 
 const statusLabels = {
   draft: 'Draft',
@@ -244,6 +293,41 @@ const statusLabels = {
 function statusLabel(s) {
   return statusLabels[s] || s
 }
+
+function paymentStatusLabel(s) {
+  return paymentStatusLabels[s] || paymentStatusLabels.unpaid
+}
+
+function paymentTypeLabel(t) {
+  if (t === 'registration') return 'Biaya pendaftaran'
+  if (t === 're_registration') return 'Biaya daftar ulang'
+  return ''
+}
+
+const expectedFee = computed(() => {
+  const r = result.value
+  if (!r?.period) return null
+  const useReReg = ['passed', 'reserve', 're_registration', 'converted'].includes(r.status)
+    || r.payment_type === 're_registration'
+  const fee = useReReg ? r.period.re_registration_fee : r.period.registration_fee
+  return fee != null ? Number(fee) : null
+})
+
+const displayedPaymentAmount = computed(() => {
+  const r = result.value
+  if (!r) return null
+  if (r.payment_amount != null && r.payment_amount !== '') return r.payment_amount
+  return expectedFee.value
+})
+
+const feeHint = computed(() => {
+  const r = result.value
+  if (!r) return ''
+  if (r.payment_amount != null && r.payment_amount !== '') return ''
+  if (expectedFee.value == null) return ''
+  if ((r.payment_status || 'unpaid') === 'paid' || r.payment_status === 'waived') return ''
+  return '(tarif periode)'
+})
 
 const canConfirmReReg = computed(() => {
   const r = result.value
@@ -309,8 +393,14 @@ async function check() {
       // Format nomor pendaftaran: NPSN-period_id-seq (contoh: 10648387-1-00001)
       params.registration_number = query
     } else if (/^\d{10}$/.test(query)) {
-      // NISN adalah 10 digit angka
+      // NISN adalah 10 digit angka — wajib tanggal lahir
+      if (!birthDate.value) {
+        error.value = 'Untuk pencarian dengan NISN, isi tanggal lahir.'
+        loading.value = false
+        return
+      }
       params.nisn = query
+      params.birth_date = birthDate.value
     } else {
       // Coba sebagai nomor pendaftaran dulu
       params.registration_number = query
@@ -318,19 +408,7 @@ async function check() {
     const res = await ppdbPublicApi.checkResult(params)
     result.value = res.data?.data || res.data
   } catch (e) {
-    // Jika pencarian dengan registration_number gagal dan input adalah 10 digit, coba sebagai NISN
-    if (e.response?.status === 404 && !query.includes('-') && /^\d{10}$/.test(query)) {
-      try {
-        const params = { nisn: query }
-        const res = await ppdbPublicApi.checkResult(params)
-        result.value = res.data?.data || res.data
-        error.value = ''
-      } catch (e2) {
-        error.value = e2.response?.data?.message || e2.formattedMessage || 'Data tidak ditemukan.'
-      }
-    } else {
-      error.value = e.response?.data?.message || e.formattedMessage || 'Data tidak ditemukan.'
-    }
+    error.value = e.response?.data?.message || e.formattedMessage || 'Data tidak ditemukan.'
   } finally {
     loading.value = false
   }
@@ -488,6 +566,19 @@ function printFormulir() {
 .result-row dt { font-size: 0.8125rem; color: #64748b; font-weight: 500; margin: 0; }
 .result-row dd { margin: 0; font-size: 0.9375rem; color: #1e293b; }
 .text-success { color: #059669; font-weight: 600; }
+.muted-hint { color: #94a3b8; font-size: 0.8125rem; font-weight: 400; }
+.pay-badge {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.pay-unpaid { background: #fee2e2; color: #991b1b; }
+.pay-pending { background: #fef3c7; color: #92400e; }
+.pay-paid { background: #d1fae5; color: #065f46; }
+.pay-waived { background: #e2e8f0; color: #475569; }
+.result-row-payment dd { display: flex; align-items: center; }
 .status-badge {
   display: inline-block;
   padding: 0.35rem 0.75rem;
@@ -644,6 +735,9 @@ function printFormulir() {
   font-weight: 600;
   font-size: 0.9rem;
   color: #334155;
+}
+.form-label .required {
+  color: #b91c1c;
 }
 .form-hint {
   font-size: 0.8125rem;

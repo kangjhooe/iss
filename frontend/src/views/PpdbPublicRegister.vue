@@ -8,13 +8,13 @@
 
     <nav class="top-bar">
       <router-link to="/" class="top-bar-link">← Beranda</router-link>
-      <span class="top-bar-brand">PPDB</span>
+      <span class="top-bar-brand">{{ admissionLabel }}</span>
     </nav>
 
     <header class="hero" v-if="institution || npsn">
       <div class="hero-inner">
         <h1 class="hero-title">Formulir Pendaftaran</h1>
-        <p class="hero-subtitle">Penerimaan Peserta Didik Baru</p>
+        <p class="hero-subtitle">{{ admissionLabel }} — Penerimaan Peserta Didik Baru</p>
         <p v-if="institution" class="hero-school">{{ institution.name }}</p>
       </div>
     </header>
@@ -121,7 +121,7 @@
                 <div></div>
               </div>
             </header>
-            <h2 class="print-title">Formulir Pendaftaran PPDB</h2>
+            <h2 class="print-title">Formulir Pendaftaran {{ admissionLabel }}</h2>
             <p class="print-reg-number"><strong>Nomor Pendaftaran:</strong> {{ submittedData?.registration_number }}</p>
             <p class="print-meta">{{ submittedData?.period }} — {{ submittedData?.channel }}</p>
             <table class="print-table">
@@ -145,7 +145,7 @@
             </table>
             <div class="print-signatures">
               <div class="print-sig-block">
-                <p class="print-sig-label">Panitia PPDB</p>
+                <p class="print-sig-label">Panitia {{ admissionLabel }}</p>
                 <div class="print-sig-line"></div>
                 <p class="print-sig-name">(_______________________)</p>
               </div>
@@ -175,7 +175,7 @@
             <h3 class="section-title">Periode & Jalur Pendaftaran</h3>
             <div class="form-grid">
               <div class="form-group">
-                <label>Periode PPDB <span class="required">*</span></label>
+                <label>Periode {{ admissionLabel }} <span class="required">*</span></label>
                 <select v-model="form.ppdb_period_id" required class="form-input" @change="form.ppdb_channel_id = ''">
                   <option value="">Pilih periode</option>
                   <option v-for="p in periods" :key="p.id" :value="p.id">{{ p.name }} ({{ p.open_date }} s/d {{ p.close_date }})</option>
@@ -259,7 +259,7 @@
                 </button>
               </div>
               <p v-if="prefillError" class="field-error">{{ prefillError }}</p>
-              <p v-else-if="prefillFound" class="field-success">Data ditemukan. Formulir terisi otomatis dari sekolah asal. Periksa dan sunting jika perlu.</p>
+              <p v-else-if="prefillFound" class="field-success">Data dasar ditemukan. Lengkapi NIK, alamat, dan kontak secara manual.</p>
             </div>
             <div class="form-group">
               <label>Nama Lengkap <span class="required">*</span></label>
@@ -395,6 +395,10 @@ const error = ref('')
 const periods = ref([])
 const channels = ref([])
 const institution = ref(null)
+const admissionLabel = computed(() =>
+  institution.value?.admission_label
+  || 'PPDB'
+)
 const schoolLookupLoading = ref(false)
 const schoolLookupError = ref('')
 const prefillLoading = ref(false)
@@ -466,6 +470,9 @@ async function loadData() {
     ])
     periods.value = periodsRes.data?.data || []
     institution.value = periodsRes.data?.institution || null
+    if (periodsRes.data?.admission_label && institution.value) {
+      institution.value = { ...institution.value, admission_label: periodsRes.data.admission_label }
+    }
     channels.value = channelsRes.data?.data || []
   } catch (e) {
     error.value = e.response?.data?.message || e.formattedMessage || 'Gagal memuat data. Periksa institution_id atau NPSN.'
@@ -558,24 +565,17 @@ async function tryPrefillByNisn() {
     if (res.data?.found && res.data?.data) {
       const d = res.data.data
       form.value.name = d.name ?? form.value.name
-      form.value.nik = d.nik ?? form.value.nik
       form.value.nisn = d.nisn ?? form.value.nisn
       form.value.gender = d.gender ?? form.value.gender
       form.value.birth_date = d.birth_date ?? form.value.birth_date
       form.value.birth_place = d.birth_place ?? form.value.birth_place
-      form.value.address = d.address ?? form.value.address
-      form.value.phone = d.phone ?? form.value.phone
-      form.value.email = d.email ?? form.value.email
       form.value.religion = d.religion ?? form.value.religion
       form.value.previous_school = d.previous_school ?? form.value.previous_school
       form.value.previous_school_npsn = d.previous_school_npsn ?? form.value.previous_school_npsn
       form.value.previous_school_address = d.previous_school_address ?? form.value.previous_school_address
       form.value.father_name = d.father_name ?? form.value.father_name
-      form.value.father_nik = d.father_nik ?? form.value.father_nik
       form.value.mother_name = d.mother_name ?? form.value.mother_name
-      form.value.mother_nik = d.mother_nik ?? form.value.mother_nik
       form.value.guardian_name = d.guardian_name ?? form.value.guardian_name
-      form.value.guardian_phone = d.guardian_phone ?? form.value.guardian_phone
       prefillFound.value = true
     } else {
       prefillError.value = 'Data siswa tidak ditemukan di sekolah asal. Isi formulir secara manual.'
@@ -631,7 +631,7 @@ function printFormulir() {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Formulir Pendaftaran PPDB - ${(submittedData.value?.registration_number || '').replace(/</g, '&lt;')}</title>
+      <title>Formulir Pendaftaran ${admissionLabel.value} - ${(submittedData.value?.registration_number || '').replace(/</g, '&lt;')}</title>
       <style>
         body { font-family: 'Times New Roman', serif; font-size: 12px; padding: 20px; max-width: 210mm; margin: 0 auto; }
         .print-kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }

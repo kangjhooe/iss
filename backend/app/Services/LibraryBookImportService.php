@@ -272,13 +272,23 @@ class LibraryBookImportService
         if ($value === null) {
             return null;
         }
-        if (is_float($value) || is_int($value)) {
-            if (is_float($value) && floor($value) == $value) {
-                $value = (int) $value;
-            }
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        if (is_int($value)) {
             $value = (string) $value;
+        } elseif (is_float($value)) {
+            // Hindari (int) cast overflow & scientific notation untuk ISBN panjang
+            $value = sprintf('%.0f', $value);
         }
         $v = trim((string) $value);
+        // "9.78602E+12" dari Excel teks
+        if (preg_match('/^\d+(\.\d+)?[eE][+-]?\d+$/', $v)) {
+            $asFloat = (float) $v;
+            if (is_finite($asFloat)) {
+                $v = sprintf('%.0f', $asFloat);
+            }
+        }
         return $v === '' ? null : $v;
     }
 

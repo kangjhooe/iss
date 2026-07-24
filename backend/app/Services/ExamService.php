@@ -189,10 +189,10 @@ class ExamService
                     'score' => $score,
                     'saved_at' => $answer->saved_at ?? now(),
                 ]);
-            } elseif ($q->type === QuestionBank::TYPE_ISIAN && $q->key_answer !== null) {
-                $trimKey = trim(mb_strtolower($q->key_answer));
+            } elseif ($q->type === QuestionBank::TYPE_ISIAN) {
+                $accepted = $q->acceptedIsianAnswers();
                 $trimAnswer = trim(mb_strtolower($answer->answer_text ?? ''));
-                $correct = $trimKey === $trimAnswer;
+                $correct = $trimAnswer !== '' && in_array($trimAnswer, $accepted, true);
                 $total += $correct ? (float) $q->weight : 0;
                 $answer->update([
                     'score' => $correct ? $q->weight : 0,
@@ -227,6 +227,49 @@ class ExamService
             'score_released_at' => now(),
         ]);
         return $participant->fresh();
+    }
+
+    /**
+     * Release scores for all submitted participants in a session that already have a score.
+     */
+    public function releaseAllScores(ExamSession $session): int
+    {
+        $participants = $session->participants()
+            ->where('status', ExamParticipant::STATUS_SUBMITTED)
+            ->where('score_released', false)
+            ->whereNotNull('score')
+            ->get();
+
+        $count = 0;
+        foreach ($participants as $participant) {
+            $this->releaseScore($participant);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Live monitoring counts for a session (registered / in progress / submitted).
+     *
+     * @return array{total:int,registered:int,started:int,submitted:int,score_released:int,avg_score:float|null}
+     */
+    public function monitorSummary(ExamSession $session): array
+    {
+        $participants = $session->participants()->get(['status', 'score', 'score_max', 'score_released']);
+        $submitted = $participants->where('status', ExamParticipant::STATUS_SUBMITTED);
+        $withScore = $submitted->whereNotNull('score');
+
+        return [
+            'total' => $participants->count(),
+            'registered' => $participants->where('status', ExamParticipant::STATUS_REGISTERED)->count(),
+            'started' => $participants->where('status', ExamParticipant::STATUS_STARTED)->count(),
+            'submitted' => $submitted->count(),
+            'score_released' => $participants->where('score_released', true)->count(),
+            'avg_score' => $withScore->count() > 0
+                ? round((float) $withScore->avg('score'), 2)
+                : null,
+        ];
     }
 
     /**

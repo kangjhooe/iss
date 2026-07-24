@@ -160,6 +160,34 @@ class WaliKelasHubTest extends TestCase
         $dash = $this->getJson("/api/v1/teacher/wali/classes/{$this->class->id}/dashboard");
         $dash->assertOk();
         $dash->assertJsonPath('data.students.total', 1);
+        $dash->assertJsonStructure([
+            'data' => [
+                'grades_incomplete',
+                'grades_incomplete_students',
+                'bk_high_scores' => ['count', 'threshold', 'top', 'students'],
+            ],
+        ]);
+
+        $attendance = $this->getJson("/api/v1/teacher/wali/classes/{$this->class->id}/attendance-summary?period=week");
+        $attendance->assertOk();
+        $attendance->assertJsonPath('data.period', 'week');
+        $attendance->assertJsonStructure([
+            'data' => ['totals', 'repeat_alpha', 'rows', 'alpha_threshold'],
+        ]);
+
+        $grades = $this->getJson("/api/v1/teacher/wali/classes/{$this->class->id}/grades-overview");
+        $grades->assertOk();
+        $grades->assertJsonStructure([
+            'data' => ['summary', 'rows', 'subjects'],
+        ]);
+
+        $profile = $this->getJson("/api/v1/teacher/wali/classes/{$this->class->id}/students/{$this->student->id}");
+        $profile->assertOk();
+        $profile->assertJsonStructure([
+            'data' => [
+                'snapshot' => ['attendance', 'bk', 'grades', 'recent_violations', 'recent_achievements', 'mutations'],
+            ],
+        ]);
 
         $create = $this->postJson(
             "/api/v1/teacher/wali/classes/{$this->class->id}/students/{$this->student->id}/notes",

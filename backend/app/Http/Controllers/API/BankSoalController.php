@@ -99,7 +99,14 @@ class BankSoalController extends Controller
 
         $query->orderBy('code');
         $perPage = min($request->get('per_page', 15), 100);
-        $items = $query->withCount('questions')->paginate($perPage);
+        $items = $query->withCount([
+            'questions',
+            'questions as pg_count' => fn ($q) => $q->where('type', 'pg'),
+            'questions as pg_kompleks_count' => fn ($q) => $q->where('type', 'pg_kompleks'),
+            'questions as matching_count' => fn ($q) => $q->where('type', 'matching'),
+            'questions as isian_count' => fn ($q) => $q->where('type', 'isian'),
+            'questions as uraian_count' => fn ($q) => $q->where('type', 'uraian'),
+        ])->paginate($perPage);
 
         return BankSoalResource::collection($items);
     }

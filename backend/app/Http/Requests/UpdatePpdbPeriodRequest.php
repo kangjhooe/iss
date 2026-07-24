@@ -22,6 +22,8 @@ class UpdatePpdbPeriodRequest extends FormRequest
             're_registration_deadline' => 'nullable|date',
             'status' => 'nullable|in:draft,open,closed,finished',
             'description' => 'nullable|string',
+            'registration_fee' => 'nullable|numeric|min:0',
+            're_registration_fee' => 'nullable|numeric|min:0',
         ];
     }
 }

@@ -133,29 +133,25 @@ class LibraryBookController extends Controller
     }
 
     /**
-     * Import katalog dari array baris (Excel diparse di frontend).
+     * Import katalog dari array baris (Excel diparse di frontend, sama seperti import siswa).
+     * Tidak memvalidasi nested field sebagai string ketat — Excel sering kirim ISBN/tahun sebagai angka.
      */
     public function import(Request $request)
     {
         try {
-            $request->validate([
-                'books' => 'required|array|min:1|max:2000',
-                'books.*.kode_kategori' => 'nullable|string|max:50',
-                'books.*.judul' => 'nullable|string|max:500',
-                'books.*.isbn' => 'nullable|string|max:50',
-                'books.*.pengarang' => 'nullable|string|max:255',
-                'books.*.penerbit' => 'nullable|string|max:255',
-                'books.*.tahun' => 'nullable',
-                'books.*.bahasa' => 'nullable|string|max:100',
-                'books.*.halaman' => 'nullable',
-                'books.*.rak' => 'nullable|string|max:100',
-                'books.*.deskripsi' => 'nullable|string|max:5000',
-                'books.*.jumlah_eksemplar' => 'nullable',
-            ], [
-                'books.required' => 'Data buku wajib dikirim',
-                'books.min' => 'Minimal 1 baris data buku',
-                'books.max' => 'Maksimal 2000 baris per import',
-            ]);
+            $books = $request->input('books', []);
+
+            if (!is_array($books) || $books === []) {
+                return response()->json([
+                    'message' => 'Data buku tidak valid. Pastikan frontend mengirim array books (bukan unggah file mentah).',
+                ], 400);
+            }
+
+            if (count($books) > 2000) {
+                return response()->json([
+                    'message' => 'Maksimal 2000 baris per permintaan. Pecah file atau gunakan batch otomatis di UI.',
+                ], 422);
+            }
 
             $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
@@ -163,7 +159,7 @@ class LibraryBookController extends Controller
             }
 
             $results = $this->importService->importFromRows(
-                $request->input('books', []),
+                $books,
                 (int) $institutionId,
                 $request->user()->id
             );
@@ -172,11 +168,6 @@ class LibraryBookController extends Controller
                 'message' => 'Import selesai',
                 'data' => $results,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Validasi gagal',
-                'errors' => $e->errors(),
-            ], 422);
         } catch (\Exception $e) {
             Log::error('Library books import', ['error' => $e->getMessage()]);
             return response()->json([

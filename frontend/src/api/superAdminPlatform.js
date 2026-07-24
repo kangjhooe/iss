@@ -1,7 +1,7 @@
 import api from './index'
 
 export const superAdminPlatformApi = {
-  getAdoption(params) {
+  getAdoption(params = {}) {
     return api.get('/v1/super-admin/adoption', { params })
   },
   getBroadcasts(params) {
@@ -36,5 +36,20 @@ export const superAdminPlatformApi = {
       params,
       responseType: 'blob'
     })
+  },
+  listDatabaseBackups() {
+    return api.get('/v1/super-admin/database-backups')
+  },
+  createDatabaseBackup() {
+    return api.post('/v1/super-admin/database-backups', null, { timeout: 600000 })
+  },
+  downloadDatabaseBackup(filename) {
+    return api.get(`/v1/super-admin/database-backups/${encodeURIComponent(filename)}/download`, {
+      responseType: 'blob',
+      timeout: 600000
+    })
+  },
+  deleteDatabaseBackup(filename) {
+    return api.delete(`/v1/super-admin/database-backups/${encodeURIComponent(filename)}`)
   }
 }

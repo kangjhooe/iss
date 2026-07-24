@@ -80,7 +80,7 @@
         </div>
 
         <section class="metrics-grid" aria-label="Ringkasan kelas">
-          <div class="metric-card tone-teal">
+          <button type="button" class="metric-card tone-teal metric-clickable" @click="setPanel('absensi')">
             <span class="metric-label">Absen hari ini</span>
             <div class="metric-row">
               <span><strong>{{ att.hadir }}</strong> hadir</span>
@@ -88,34 +88,36 @@
               <span><strong>{{ att.sakit }}</strong> sakit</span>
               <span><strong>{{ att.alpha }}</strong> alpa</span>
             </div>
-            <span class="metric-hint">{{ att.students_recorded || 0 }} siswa tercatat</span>
-          </div>
-          <div class="metric-card tone-amber">
+            <span class="metric-hint">{{ att.students_recorded || 0 }} siswa tercatat · lihat rekap →</span>
+          </button>
+          <button type="button" class="metric-card tone-amber metric-clickable" @click="focusBkHigh">
             <span class="metric-label">Skor BK tinggi</span>
             <span class="metric-value">{{ dashboard?.bk_high_scores?.count ?? 0 }}</span>
-            <span class="metric-hint">≥ {{ dashboard?.bk_high_scores?.threshold ?? 20 }} poin</span>
+            <span class="metric-hint">≥ {{ dashboard?.bk_high_scores?.threshold ?? 20 }} poin · filter siswa →</span>
             <ul v-if="dashboard?.bk_high_scores?.top?.length" class="metric-list">
               <li v-for="s in dashboard.bk_high_scores.top" :key="s.student_id">{{ s.name }} · {{ s.score }}</li>
             </ul>
-          </div>
-          <div class="metric-card tone-sky">
+          </button>
+          <button type="button" class="metric-card tone-sky metric-clickable" @click="focusGradesIncomplete">
             <span class="metric-label">Nilai belum lengkap</span>
             <span class="metric-value">{{ dashboard?.grades_incomplete ?? 0 }}</span>
-            <span class="metric-hint">siswa tanpa nilai semester aktif</span>
-          </div>
-          <div class="metric-card tone-violet">
+            <span class="metric-hint">siswa tanpa nilai · buka panel nilai →</span>
+          </button>
+          <button type="button" class="metric-card tone-violet metric-clickable" @click="setPanel('usulan')">
             <span class="metric-label">Usulan menunggu</span>
             <div class="metric-row">
               <span><strong>{{ pending.violations }}</strong> langgar</span>
               <span><strong>{{ pending.achievements }}</strong> prestasi</span>
               <span><strong>{{ pending.mutations }}</strong> mutasi</span>
             </div>
-            <button type="button" class="metric-link" @click="setPanel('usulan')">Kelola usulan →</button>
-          </div>
+            <span class="metric-hint">Kelola usulan →</span>
+          </button>
         </section>
 
         <nav class="panel-tabs" role="tablist" aria-label="Panel wali">
           <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'siswa' }" @click="setPanel('siswa')">Data Siswa</button>
+          <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'absensi' }" @click="setPanel('absensi')">Absensi</button>
+          <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'nilai' }" @click="setPanel('nilai')">Nilai</button>
           <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'usulan' }" @click="setPanel('usulan')">Usulan</button>
           <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'jadwal' }" @click="setPanel('jadwal')">Jadwal</button>
         </nav>
@@ -150,14 +152,20 @@
             <div class="section-header students-header">
               <div>
                 <h2>Data Siswa</h2>
-                <p class="section-hint">Klik baris untuk melihat profil, kontak, dan catatan wali</p>
+                <p class="section-hint">Klik baris untuk melihat profil 360° (absensi, BK, nilai, usulan)</p>
               </div>
               <div class="students-toolbar">
                 <div class="search-wrap">
                   <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                   <input v-model="studentQuery" type="search" class="search-input" placeholder="Cari nama, NIS, atau NISN…" @input="onSearchInput">
                 </div>
-                <span v-if="!studentsLoading" class="section-meta">{{ pagination.total }} siswa</span>
+                <button
+                  v-if="listFilter"
+                  type="button"
+                  class="filter-chip"
+                  @click="clearListFilter"
+                >Filter: {{ listFilterLabel }} ×</button>
+                <span v-if="!studentsLoading" class="section-meta">{{ filteredStudents.length }}{{ listFilter ? '' : ` / ${pagination.total}` }} siswa</span>
               </div>
             </div>
 
@@ -167,9 +175,10 @@
               <p>{{ studentsError }}</p>
               <button type="button" class="btn-primary" @click="loadStudents()">Coba lagi</button>
             </div>
-            <div v-else-if="!students.length" class="state-card empty soft">
-              <h3>{{ studentQuery.trim() ? 'Tidak ada hasil' : 'Belum ada siswa aktif' }}</h3>
+            <div v-else-if="!filteredStudents.length" class="state-card empty soft">
+              <h3>{{ studentQuery.trim() || listFilter ? 'Tidak ada hasil' : 'Belum ada siswa aktif' }}</h3>
               <p v-if="studentQuery.trim()">Tidak ada siswa yang cocok dengan “{{ studentQuery.trim() }}”.</p>
+              <p v-else-if="listFilter">Tidak ada siswa pada filter ini. <button type="button" class="chip-link" @click="clearListFilter">Hapus filter</button></p>
             </div>
             <template v-else>
               <div class="table-wrap">
@@ -185,7 +194,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(student, index) in students" :key="student.id" class="row-click" @click="openProfile(student)">
+                    <tr v-for="(student, index) in filteredStudents" :key="student.id" class="row-click" @click="openProfile(student)">
                       <td class="col-num">{{ startIndex + index + 1 }}</td>
                       <td>
                         <div class="student-cell">
@@ -206,7 +215,7 @@
                   </tbody>
                 </table>
               </div>
-              <div v-if="pagination.last_page > 1" class="pagination-bar">
+              <div v-if="!listFilter && pagination.last_page > 1" class="pagination-bar">
                 <span class="pagination-info">Menampilkan {{ startIndex + 1 }}–{{ Math.min(startIndex + students.length, pagination.total) }} dari {{ pagination.total }}</span>
                 <div class="pagination-buttons">
                   <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
@@ -217,6 +226,113 @@
             </template>
           </section>
         </template>
+
+        <!-- Panel: Absensi -->
+        <section v-else-if="panel === 'absensi'" class="panel-card">
+          <div class="section-header">
+            <div>
+              <h2>Rekap Absensi Kelas</h2>
+              <p class="section-hint">Monitoring kehadiran — input absen tetap lewat Jurnal / Absensi Siswa</p>
+            </div>
+            <div class="period-switch">
+              <button type="button" class="period-chip" :class="{ active: attendancePeriod === 'week' }" @click="setAttendancePeriod('week')">7 hari</button>
+              <button type="button" class="period-chip" :class="{ active: attendancePeriod === 'month' }" @click="setAttendancePeriod('month')">30 hari</button>
+              <router-link v-if="canAccessModule('teaching_journal')" :to="`/attendance/student?class_id=${selectedClassId}`" class="btn-secondary link-btn-sm">Buka absensi →</router-link>
+            </div>
+          </div>
+          <div v-if="attendanceLoading" class="state-card soft"><p>Memuat rekap absensi…</p></div>
+          <div v-else-if="attendanceError" class="state-card empty soft"><h3>Gagal memuat</h3><p>{{ attendanceError }}</p></div>
+          <template v-else-if="attendanceSummary">
+            <div class="overview-stats">
+              <div class="ov-stat"><strong>{{ attendanceSummary.totals?.hadir || 0 }}</strong><span>Hadir</span></div>
+              <div class="ov-stat"><strong>{{ attendanceSummary.totals?.izin || 0 }}</strong><span>Izin</span></div>
+              <div class="ov-stat"><strong>{{ attendanceSummary.totals?.sakit || 0 }}</strong><span>Sakit</span></div>
+              <div class="ov-stat warn"><strong>{{ attendanceSummary.totals?.alpha || 0 }}</strong><span>Alpa</span></div>
+            </div>
+            <div v-if="attendanceSummary.repeat_alpha?.length" class="alert-box">
+              <h3>Alpa berulang (≥ {{ attendanceSummary.alpha_threshold }} sesi)</h3>
+              <ul>
+                <li v-for="s in attendanceSummary.repeat_alpha" :key="s.student_id">
+                  <button type="button" class="chip-link" @click="openProfileById(s.student_id, s.name)">{{ s.name }}</button>
+                  · {{ s.alpha }} alpa
+                </li>
+              </ul>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Hadir</th>
+                    <th>Izin</th>
+                    <th>Sakit</th>
+                    <th>Alpa</th>
+                    <th>Tercatat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in attendanceSummary.rows" :key="r.student_id" class="row-click" @click="openProfileById(r.student_id, r.name)">
+                    <td>{{ r.name }}</td>
+                    <td>{{ r.counts?.hadir || 0 }}</td>
+                    <td>{{ r.counts?.izin || 0 }}</td>
+                    <td>{{ r.counts?.sakit || 0 }}</td>
+                    <td :class="{ 'cell-warn': (r.counts?.alpha || 0) >= (attendanceSummary.alpha_threshold || 2) }">{{ r.counts?.alpha || 0 }}</td>
+                    <td>{{ r.recorded || 0 }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </section>
+
+        <!-- Panel: Nilai -->
+        <section v-else-if="panel === 'nilai'" class="panel-card">
+          <div class="section-header">
+            <div>
+              <h2>Monitoring Nilai Kelas</h2>
+              <p class="section-hint">Mapel kosong & di bawah KKM — input nilai lewat Buku Nilai / Raport</p>
+            </div>
+            <div class="period-switch">
+              <router-link v-if="canAccessModule('grade_book')" :to="`/raport-kelas?class_id=${selectedClassId}`" class="btn-secondary link-btn-sm">Rekap nilai →</router-link>
+            </div>
+          </div>
+          <div v-if="gradesLoading" class="state-card soft"><p>Memuat ringkasan nilai…</p></div>
+          <div v-else-if="gradesError" class="state-card empty soft"><h3>Gagal memuat</h3><p>{{ gradesError }}</p></div>
+          <template v-else-if="gradesOverview">
+            <div class="overview-stats">
+              <div class="ov-stat"><strong>{{ gradesOverview.summary?.subject_count || 0 }}</strong><span>Mapel</span></div>
+              <div class="ov-stat warn"><strong>{{ gradesOverview.summary?.missing_any || 0 }}</strong><span>Tanpa nilai</span></div>
+              <div class="ov-stat warn"><strong>{{ gradesOverview.summary?.below_kkm_any || 0 }}</strong><span>Di bawah KKM</span></div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Rata-rata</th>
+                    <th>Kosong</th>
+                    <th>Di bawah KKM</th>
+                    <th>Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in gradesOverview.rows" :key="r.student_id" class="row-click" @click="openProfileById(r.student_id, r.name)">
+                    <td>{{ r.name }}</td>
+                    <td>{{ r.average != null ? r.average : '—' }}</td>
+                    <td :class="{ 'cell-warn': r.missing_count > 0 }">{{ r.missing_count }}</td>
+                    <td :class="{ 'cell-warn': r.below_kkm_count > 0 }">{{ r.below_kkm_count }}</td>
+                    <td class="detail-cell">
+                      <span v-for="m in r.missing.slice(0, 3)" :key="'m'+m.subject_id" class="tag tag-miss">{{ m.subject_name }}</span>
+                      <span v-for="b in r.below_kkm.slice(0, 3)" :key="'b'+b.subject_id" class="tag tag-kkm">{{ b.subject_name }} {{ b.nilai_akhir }}</span>
+                      <span v-if="(r.missing_count + r.below_kkm_count) > 6" class="muted">…</span>
+                      <span v-if="!r.missing_count && !r.below_kkm_count" class="muted">Lengkap</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </section>
 
         <!-- Panel: Usulan -->
         <section v-else-if="panel === 'usulan'" class="panel-card">
@@ -426,6 +542,55 @@
             </div>
           </div>
 
+          <div v-if="snapshot" class="snapshot-grid">
+            <div class="info-block">
+              <h4>Absensi (7 hari)</h4>
+              <div class="metric-row">
+                <span><strong>{{ snapshot.attendance?.week?.hadir || 0 }}</strong> hadir</span>
+                <span><strong>{{ snapshot.attendance?.week?.izin || 0 }}</strong> izin</span>
+                <span><strong>{{ snapshot.attendance?.week?.sakit || 0 }}</strong> sakit</span>
+                <span><strong>{{ snapshot.attendance?.week?.alpha || 0 }}</strong> alpa</span>
+              </div>
+              <p class="metric-hint">30 hari: {{ snapshot.attendance?.month?.alpha || 0 }} alpa · {{ snapshot.attendance?.month?.recorded || 0 }} sesi tercatat</p>
+            </div>
+            <div class="info-block">
+              <h4>Poin BK</h4>
+              <p class="snap-score">Skor {{ snapshot.bk?.total_points ?? 0 }}</p>
+              <p class="metric-hint">Langgar {{ snapshot.bk?.violation_points ?? 0 }} · Prestasi {{ snapshot.bk?.achievement_points ?? 0 }}</p>
+            </div>
+            <div class="info-block">
+              <h4>Nilai semester</h4>
+              <p class="snap-score">Rata-rata {{ snapshot.grades?.average != null ? snapshot.grades.average : '—' }}</p>
+              <p class="metric-hint">{{ snapshot.grades?.missing_count || 0 }} kosong · {{ snapshot.grades?.below_kkm_count || 0 }} di bawah KKM</p>
+              <div v-if="snapshot.grades?.subjects?.length" class="tag-wrap">
+                <span v-for="s in snapshot.grades.subjects.slice(0, 6)" :key="s.subject_id + s.status" class="tag" :class="s.status === 'missing' ? 'tag-miss' : 'tag-kkm'">
+                  {{ s.subject_name }}<template v-if="s.nilai_akhir != null"> {{ s.nilai_akhir }}</template>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="snapshot?.recent_violations?.length || snapshot?.recent_achievements?.length || snapshot?.mutations?.length" class="snapshot-lists">
+            <div v-if="snapshot.recent_violations?.length" class="info-block">
+              <h4>Pelanggaran terkini</h4>
+              <ul class="mini-list">
+                <li v-for="v in snapshot.recent_violations" :key="'v'+v.id">{{ v.type || '—' }} · {{ v.date }} <span class="status-pill" :class="`st-${v.status}`">{{ v.status }}</span></li>
+              </ul>
+            </div>
+            <div v-if="snapshot.recent_achievements?.length" class="info-block">
+              <h4>Prestasi terkini</h4>
+              <ul class="mini-list">
+                <li v-for="a in snapshot.recent_achievements" :key="'a'+a.id">{{ a.type || '—' }} · {{ a.date }} <span class="status-pill" :class="`st-${a.status}`">{{ a.status }}</span></li>
+              </ul>
+            </div>
+            <div v-if="snapshot.mutations?.length" class="info-block">
+              <h4>Riwayat mutasi</h4>
+              <ul class="mini-list">
+                <li v-for="m in snapshot.mutations" :key="'m'+m.id">{{ m.target || '—' }} <span class="status-pill" :class="`st-${m.status}`">{{ m.status }}</span></li>
+              </ul>
+            </div>
+          </div>
+
           <div class="notes-block">
             <h4>Catatan wali kelas</h4>
             <form class="note-form" @submit.prevent="saveNote">
@@ -481,15 +646,26 @@ const summary = ref({ total: 0, male: 0, female: 0 })
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const dashboard = ref(null)
 const dashLoading = ref(false)
+const listFilter = ref(null) // 'bk_high' | 'grades_incomplete' | null
 
 const profileOpen = ref(false)
 const profileLoading = ref(false)
 const profile = ref(null)
+const snapshot = ref(null)
 const notes = ref([])
 const notesLoading = ref(false)
 const noteBody = ref('')
 const noteSaving = ref(false)
 const editingNoteId = ref(null)
+
+const attendancePeriod = ref('week')
+const attendanceSummary = ref(null)
+const attendanceLoading = ref(false)
+const attendanceError = ref('')
+
+const gradesOverview = ref(null)
+const gradesLoading = ref(false)
+const gradesError = ref('')
 
 const usulanTab = ref('violation')
 const usulanSubmitting = ref(false)
@@ -535,20 +711,38 @@ const canAccessBk = computed(() => canAccessModule('bk_report') || canAccessModu
 const att = computed(() => dashboard.value?.attendance_today || { hadir: 0, izin: 0, sakit: 0, alpha: 0, students_recorded: 0 })
 const pending = computed(() => dashboard.value?.pending || { violations: 0, achievements: 0, mutations: 0 })
 const scheduleMaxPeriods = computed(() => Math.max(1, Number(schedule.value?.template?.max_periods || 0)))
+const listFilterLabel = computed(() => {
+  if (listFilter.value === 'bk_high') return 'Skor BK tinggi'
+  if (listFilter.value === 'grades_incomplete') return 'Nilai belum lengkap'
+  return ''
+})
+const filteredStudents = computed(() => {
+  if (!listFilter.value) return students.value
+  if (listFilter.value === 'bk_high') {
+    const ids = new Set(
+      (dashboard.value?.bk_high_scores?.students || dashboard.value?.bk_high_scores?.top || [])
+        .map((s) => Number(s.student_id))
+    )
+    return students.value.filter((s) => ids.has(Number(s.id)))
+  }
+  if (listFilter.value === 'grades_incomplete') {
+    const ids = new Set((dashboard.value?.grades_incomplete_students || []).map((s) => Number(s.student_id)))
+    return students.value.filter((s) => ids.has(Number(s.id)))
+  }
+  return students.value
+})
 
 const visibleActions = computed(() => {
   const items = []
   const q = selectedClassId.value ? `?class_id=${selectedClassId.value}` : ''
-  if (canAccessModule('teaching_journal')) {
-    items.push({ title: 'Rekap Absen', desc: 'Lihat absensi siswa kelas wali', to: `/attendance/student${q}`, tone: 'teal', icon: icons.attendance })
-  }
+  items.push({ title: 'Monitoring Absen', desc: 'Rekap 7/30 hari & alpa berulang', to: `/teacher/wali${q}${q ? '&' : '?'}panel=absensi`, tone: 'teal', icon: icons.attendance })
   if (canAccessBk.value) {
     items.push({ title: 'Rekap Pelanggaran', desc: 'Laporan BK siswa kelas wali', to: `/laporan-bk${q}`, tone: 'amber', icon: icons.violation })
     items.push({ title: 'Poin & Prestasi', desc: 'Skor pelanggaran dan prestasi siswa', to: `/laporan-bk${q}${q ? '&' : '?'}tab=detail`, tone: 'violet', icon: icons.points })
   }
+  items.push({ title: 'Monitoring Nilai', desc: 'Mapel kosong & di bawah KKM', to: `/teacher/wali${q}${q ? '&' : '?'}panel=nilai`, tone: 'sky', icon: icons.rekap })
   if (canAccessModule('grade_book')) {
     items.push({ title: 'Raport Siswa', desc: 'Lihat raport per siswa kelas wali', to: `/raport${q}`, tone: 'emerald', icon: icons.raport })
-    items.push({ title: 'Rekap Nilai Kelas', desc: 'Nilai akhir semua mapel dalam satu tabel', to: `/raport-kelas${q}`, tone: 'sky', icon: icons.rekap })
   }
   return items
 })
@@ -591,7 +785,7 @@ function syncFromRoute() {
   else selectedClassId.value = ''
 
   const p = String(route.query.panel || 'siswa')
-  panel.value = ['siswa', 'usulan', 'jadwal'].includes(p) ? p : 'siswa'
+  panel.value = ['siswa', 'absensi', 'nilai', 'usulan', 'jadwal'].includes(p) ? p : 'siswa'
 }
 
 function replaceQuery(extra = {}) {
@@ -604,6 +798,7 @@ function replaceQuery(extra = {}) {
 function selectClass(id) {
   selectedClassId.value = String(id)
   studentQuery.value = ''
+  listFilter.value = null
   replaceQuery({ class_id: String(id) })
   refreshClassData()
 }
@@ -613,6 +808,48 @@ function setPanel(next) {
   replaceQuery({ panel: next })
   if (next === 'usulan') loadUsulanData()
   if (next === 'jadwal') loadSchedule()
+  if (next === 'absensi') loadAttendanceSummary()
+  if (next === 'nilai') loadGradesOverview()
+}
+
+function focusBkHigh() {
+  listFilter.value = 'bk_high'
+  setPanel('siswa')
+  // Load all active students so filter can match beyond current page
+  loadStudentsForFilter()
+}
+
+function focusGradesIncomplete() {
+  listFilter.value = 'grades_incomplete'
+  setPanel('nilai')
+  loadGradesOverview()
+}
+
+function clearListFilter() {
+  listFilter.value = null
+}
+
+async function loadStudentsForFilter() {
+  if (!selectedClassId.value) return
+  try {
+    const response = await teacherApi.getHomeroomClassStudents(selectedClassId.value, {
+      per_page: 100,
+      status: 'Aktif',
+      sort_by: 'name',
+      sort_dir: 'asc',
+    })
+    const payload = response.data || {}
+    students.value = payload.data || []
+    const meta = payload.meta || {}
+    pagination.value = {
+      current_page: 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? 100,
+      total: meta.total ?? students.value.length,
+    }
+  } catch {
+    /* keep existing list */
+  }
 }
 
 function setSort(column) {
@@ -701,6 +938,7 @@ async function openProfile(student) {
   profileOpen.value = true
   profileLoading.value = true
   profile.value = student
+  snapshot.value = null
   notes.value = []
   noteBody.value = ''
   editingNoteId.value = null
@@ -709,7 +947,9 @@ async function openProfile(student) {
       waliKelasApi.getStudent(selectedClassId.value, student.id),
       waliKelasApi.getNotes(selectedClassId.value, student.id),
     ])
-    profile.value = stuRes.data?.data || stuRes.data || student
+    const data = stuRes.data?.data || stuRes.data || student
+    profile.value = data
+    snapshot.value = data.snapshot || null
     notes.value = notesRes.data?.data || []
   } catch (e) {
     toast.error('Gagal memuat profil', e.formattedMessage || e.message)
@@ -719,9 +959,14 @@ async function openProfile(student) {
   }
 }
 
+function openProfileById(studentId, name) {
+  openProfile({ id: studentId, name: name || 'Siswa' })
+}
+
 function closeProfile() {
   profileOpen.value = false
   profile.value = null
+  snapshot.value = null
 }
 
 async function copyText(text) {
@@ -909,6 +1154,41 @@ async function loadSchedule() {
   }
 }
 
+function setAttendancePeriod(period) {
+  attendancePeriod.value = period
+  loadAttendanceSummary()
+}
+
+async function loadAttendanceSummary() {
+  if (!selectedClassId.value) return
+  attendanceLoading.value = true
+  attendanceError.value = ''
+  try {
+    const res = await waliKelasApi.getAttendanceSummary(selectedClassId.value, { period: attendancePeriod.value })
+    attendanceSummary.value = res.data?.data || null
+  } catch (e) {
+    attendanceSummary.value = null
+    attendanceError.value = e.formattedMessage || e.response?.data?.message || e.message
+  } finally {
+    attendanceLoading.value = false
+  }
+}
+
+async function loadGradesOverview() {
+  if (!selectedClassId.value) return
+  gradesLoading.value = true
+  gradesError.value = ''
+  try {
+    const res = await waliKelasApi.getGradesOverview(selectedClassId.value)
+    gradesOverview.value = res.data?.data || null
+  } catch (e) {
+    gradesOverview.value = null
+    gradesError.value = e.formattedMessage || e.response?.data?.message || e.message
+  } finally {
+    gradesLoading.value = false
+  }
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -961,6 +1241,8 @@ function refreshClassData() {
   loadDashboard()
   if (panel.value === 'usulan') loadUsulanData()
   if (panel.value === 'jadwal') loadSchedule()
+  if (panel.value === 'absensi') loadAttendanceSummary()
+  if (panel.value === 'nilai') loadGradesOverview()
 }
 
 function onDocClick(e) {
@@ -970,7 +1252,17 @@ function onDocClick(e) {
 }
 
 watch(() => route.query, () => {
+  const prevPanel = panel.value
+  const prevClass = selectedClassId.value
   syncFromRoute()
+  if (selectedClassId.value !== prevClass) {
+    refreshClassData()
+  } else if (panel.value !== prevPanel) {
+    if (panel.value === 'usulan') loadUsulanData()
+    if (panel.value === 'jadwal') loadSchedule()
+    if (panel.value === 'absensi') loadAttendanceSummary()
+    if (panel.value === 'nilai') loadGradesOverview()
+  }
 }, { deep: true })
 
 watch(homeroomClasses, () => {
@@ -1043,6 +1335,8 @@ onBeforeUnmount(() => {
 
 .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin-bottom: 1rem; }
 .metric-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .35rem; }
+.metric-clickable { cursor: pointer; text-align: left; font: inherit; width: 100%; transition: box-shadow .15s, transform .15s; }
+.metric-clickable:hover { box-shadow: 0 8px 20px rgba(15,23,42,.08); transform: translateY(-1px); }
 .metric-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
 .metric-value { font-size: 1.6rem; font-weight: 750; color: #0f172a; line-height: 1; }
 .metric-hint { font-size: .78rem; color: #94a3b8; }
@@ -1195,9 +1489,53 @@ onBeforeUnmount(() => {
 .notes-list p { margin: 0; white-space: pre-wrap; color: #334155; }
 .note-actions { margin-top: .45rem; display: flex; gap: .4rem; }
 
+.filter-chip {
+  border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; border-radius: 999px;
+  padding: .35rem .75rem; font-size: .8rem; font-weight: 650; cursor: pointer;
+}
+.period-switch { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.period-chip {
+  border: 1px solid #e2e8f0; background: #fff; color: #475569; padding: .4rem .75rem;
+  border-radius: 999px; font-weight: 650; cursor: pointer; font-size: .82rem;
+}
+.period-chip.active { background: #059669; border-color: #059669; color: #fff; }
+.link-btn-sm {
+  display: inline-flex; align-items: center; padding: .4rem .75rem; border-radius: 8px;
+  border: 1px solid #e2e8f0; background: #fff; color: #334155; text-decoration: none; font-size: .82rem;
+}
+.link-btn-sm:hover { border-color: #34d399; color: #065f46; background: #ecfdf5; }
+.overview-stats { display: flex; flex-wrap: wrap; gap: .65rem; margin-bottom: 1rem; }
+.ov-stat {
+  min-width: 88px; padding: .65rem .85rem; border-radius: 12px; background: #f8fafc;
+  border: 1px solid #e2e8f0; text-align: center;
+}
+.ov-stat strong { display: block; font-size: 1.25rem; color: #0f172a; }
+.ov-stat span { font-size: .75rem; color: #64748b; }
+.ov-stat.warn { background: #fffbeb; border-color: #fcd34d; }
+.ov-stat.warn strong { color: #b45309; }
+.alert-box {
+  margin-bottom: 1rem; padding: .85rem 1rem; border-radius: 12px;
+  background: #fef2f2; border: 1px solid #fecaca;
+}
+.alert-box h3 { margin: 0 0 .45rem; font-size: .9rem; color: #991b1b; }
+.alert-box ul { margin: 0; padding-left: 1.1rem; color: #7f1d1d; font-size: .88rem; }
+.cell-warn { color: #b45309; font-weight: 700; }
+.detail-cell { display: flex; flex-wrap: wrap; gap: .3rem; max-width: 320px; }
+.tag {
+  display: inline-flex; padding: .12rem .4rem; border-radius: 6px; font-size: .72rem; font-weight: 650;
+}
+.tag-miss { background: #f1f5f9; color: #475569; }
+.tag-kkm { background: #fff7ed; color: #c2410c; }
+.tag-wrap { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
+.snapshot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; margin-bottom: 1rem; }
+.snapshot-lists { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; margin-bottom: 1rem; }
+.snap-score { margin: 0 0 .25rem; font-size: 1.15rem; font-weight: 750; color: #0f172a; }
+.mini-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; font-size: .82rem; color: #334155; }
+.mini-list li { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+
 @media (max-width: 980px) {
   .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .usulan-grid, .profile-grid { grid-template-columns: 1fr; }
+  .usulan-grid, .profile-grid, .snapshot-grid, .snapshot-lists { grid-template-columns: 1fr; }
   .note-form { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {

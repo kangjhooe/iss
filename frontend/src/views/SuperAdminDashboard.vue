@@ -90,6 +90,20 @@
             <span class="stat-label">Perlu review</span>
           </div>
         </router-link>
+
+        <router-link to="/feedback" class="stat-card stat-card-warning">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <h3 class="stat-title">Feedback Aktif</h3>
+            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
+            <p v-else class="stat-value">{{ formatNumber(counts.open_feedback) }}</p>
+            <span class="stat-label">Bug & request fitur</span>
+          </div>
+        </router-link>
       </div>
 
       <div class="panels-grid">
@@ -110,6 +124,27 @@
                 <span class="panel-meta">Ubah {{ fieldLabel(req.field_name) }} → {{ req.new_value }}</span>
               </div>
               <span class="panel-time">{{ formatRelative(req.created_at) }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Feedback Aktif</h2>
+              <p>Laporan bug & request fitur dari sekolah</p>
+            </div>
+            <router-link to="/feedback" class="panel-link">Lihat semua</router-link>
+          </div>
+          <div v-if="loading" class="panel-empty">Memuat...</div>
+          <div v-else-if="openFeedbackTickets.length === 0" class="panel-empty">Tidak ada feedback aktif</div>
+          <ul v-else class="panel-list">
+            <li v-for="ticket in openFeedbackTickets" :key="ticket.id">
+              <div class="panel-item-main">
+                <strong>{{ ticket.title }}</strong>
+                <span class="panel-meta">{{ ticket.institution?.name || 'Institusi' }} · {{ ticket.type === 'bug' ? 'Bug' : 'Fitur' }}</span>
+              </div>
+              <span class="panel-time">{{ formatRelative(ticket.created_at) }}</span>
             </li>
           </ul>
         </section>
@@ -212,6 +247,23 @@
             <div class="action-content">
               <h4>Review Permintaan</h4>
               <p>Tinjau perubahan data institusi</p>
+            </div>
+            <div class="action-arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </router-link>
+
+          <router-link to="/feedback" class="action-card">
+            <div class="action-icon action-icon-warn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="action-content">
+              <h4>Inbox Feedback</h4>
+              <p>Tinjau bug & request fitur sekolah</p>
             </div>
             <div class="action-arrow">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -422,9 +474,11 @@ const counts = ref({
   inactive_institutions: 0,
   students: 0,
   teachers: 0,
-  pending_requests: 0
+  pending_requests: 0,
+  open_feedback: 0
 })
 const pendingRequests = ref([])
+const openFeedbackTickets = ref([])
 const recentInstitutions = ref([])
 const inactiveInstitutions = ref([])
 const recentAuditLogs = ref([])
@@ -462,9 +516,11 @@ onMounted(async () => {
       inactive_institutions: data.counts?.inactive_institutions || 0,
       students: data.counts?.students || 0,
       teachers: data.counts?.teachers || 0,
-      pending_requests: data.counts?.pending_requests || 0
+      pending_requests: data.counts?.pending_requests || 0,
+      open_feedback: data.counts?.open_feedback || 0
     }
     pendingRequests.value = data.pending_requests || []
+    openFeedbackTickets.value = data.open_feedback_tickets || []
     recentInstitutions.value = data.recent_institutions || []
     inactiveInstitutions.value = data.inactive_institutions || []
     recentAuditLogs.value = data.recent_audit_logs || []

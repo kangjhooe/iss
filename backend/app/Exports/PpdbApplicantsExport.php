@@ -50,6 +50,8 @@ class PpdbApplicantsExport implements FromCollection, WithHeadings
             'guardian_name' => $a->guardian_name ?? '',
             'created_at' => $a->created_at?->format('Y-m-d H:i') ?? '',
             'documents_verified' => $a->documents_verified ? 'Ya' : 'Tidak',
+            'payment_status' => $a->payment_status ?? 'unpaid',
+            'payment_amount' => $a->payment_amount ?? '',
             'notes' => $a->notes ?? '',
         ];
         $row = [];

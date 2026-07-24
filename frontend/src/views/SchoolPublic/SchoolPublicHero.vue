@@ -33,13 +33,21 @@
       </p>
 
       <div class="hero-actions">
-        <router-link :to="`/${npsn}/daftar-ppdb`" class="btn btn-primary btn-cta">
-          Daftar PPDB
+        <router-link
+          v-if="admissionOpen"
+          :to="`/${npsn}/daftar-ppdb`"
+          class="btn btn-primary btn-cta"
+        >
+          Daftar {{ admissionLabel }}
         </router-link>
         <div class="hero-links">
           <router-link :to="`/${npsn}/ebooks`" class="hero-text-link">Perpustakaan Digital</router-link>
-          <router-link :to="{ path: '/cek-hasil-ppdb', query: { npsn } }" class="hero-text-link">
-            Cek Hasil PPDB
+          <router-link
+            v-if="admissionOpen"
+            :to="{ path: '/cek-hasil-ppdb', query: { npsn } }"
+            class="hero-text-link"
+          >
+            Cek Hasil {{ admissionLabel }}
           </router-link>
         </div>
       </div>
@@ -52,7 +60,9 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   institution: { type: Object, default: null },
-  npsn: { type: String, default: '' }
+  npsn: { type: String, default: '' },
+  admissionOpen: { type: Boolean, default: false },
+  admissionLabel: { type: String, default: 'PPDB' },
 })
 
 const heroRef = ref(null)

@@ -43,7 +43,12 @@ class QuestionBankController extends Controller
                 $query->where('subject_id', $request->get('subject_id'));
             }
             if ($request->filled('stimulus_id')) {
-                $query->where('stimulus_id', $request->get('stimulus_id'));
+                $stimulusId = $request->get('stimulus_id');
+                if ($stimulusId === 'none' || $stimulusId === 'null') {
+                    $query->whereNull('stimulus_id');
+                } else {
+                    $query->where('stimulus_id', $stimulusId);
+                }
             }
             if ($request->filled('type')) {
                 $query->where('type', $request->get('type'));
@@ -53,7 +58,7 @@ class QuestionBankController extends Controller
                 $query->where('body', 'like', '%' . $search . '%');
             }
 
-            $query->orderByDesc('created_at');
+            $query->orderBy('sort_order')->orderBy('id');
             $perPage = min($request->get('per_page', 15), 100);
             $items = $query->paginate($perPage);
 
@@ -100,11 +105,22 @@ class QuestionBankController extends Controller
                 $data['matching_data'] = $this->normalizeMatchingData($matchingData);
             }
 
+            if (array_key_exists('key_answer_aliases', $data)) {
+                $data['key_answer_aliases'] = $this->normalizeAliases($data['key_answer_aliases'] ?? []);
+            }
+
             $data['body'] = $this->sanitizeQuestionHtml($data['body'] ?? '');
             if (!empty($options)) {
                 foreach ($options as $i => $opt) {
                     $options[$i]['body'] = $this->sanitizeQuestionHtml($opt['body'] ?? '');
                 }
+            }
+
+            if (!empty($data['bank_soal_id'])) {
+                $maxOrder = (int) QuestionBank::query()->where('bank_soal_id', $data['bank_soal_id'])->max('sort_order');
+                $data['sort_order'] = $maxOrder > 0 ? $maxOrder + 1 : 1;
+            } else {
+                $data['sort_order'] = 0;
             }
 
             $question = QuestionBank::create($data);
@@ -172,6 +188,10 @@ class QuestionBankController extends Controller
             $data['matching_data'] = $this->normalizeMatchingData($matchingData);
         }
 
+        if (array_key_exists('key_answer_aliases', $data)) {
+            $data['key_answer_aliases'] = $this->normalizeAliases($data['key_answer_aliases'] ?? []);
+        }
+
         $data['body'] = $this->sanitizeQuestionHtml($data['body'] ?? '');
         if ($options !== null && in_array($question_bank->type, ['pg', 'pg_kompleks'], true)) {
             foreach ($options as $i => $opt) {
@@ -220,6 +240,125 @@ class QuestionBankController extends Controller
         return ['left' => $left, 'right' => $right, 'correct' => $correct];
     }
 
+    /**
+     * @param  mixed  $aliases
+     * @return list<string>|null
+     */
+    private function normalizeAliases(mixed $aliases): ?array
+    {
+        if (! is_array($aliases)) {
+            return null;
+        }
+        $out = [];
+        foreach ($aliases as $a) {
+            $t = trim((string) $a);
+            if ($t !== '') {
+                $out[] = $t;
+            }
+        }
+        $out = array_values(array_unique($out));
+
+        return $out === [] ? null : $out;
+    }
+
+    /**
+     * Reorder questions inside a bank.
+     */
+    public function reorder(Request $request): JsonResponse
+    {
+        $request->validate([
+            'bank_soal_id' => 'required|exists:bank_soal,id',
+            'question_ids' => 'required|array|min:1',
+            'question_ids.*' => 'integer|exists:question_bank,id',
+        ]);
+
+        $bank = BankSoal::accessibleBy($request)->find($request->input('bank_soal_id'));
+        if (! $bank) {
+            return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
+        }
+
+        $ids = array_map('intval', $request->input('question_ids'));
+        $owned = QuestionBank::query()
+            ->where('bank_soal_id', $bank->id)
+            ->whereIn('id', $ids)
+            ->pluck('id')
+            ->all();
+        if (count($owned) !== count($ids)) {
+            return response()->json(['message' => 'Beberapa soal tidak berada di bank ini.'], 422);
+        }
+
+        foreach ($ids as $i => $id) {
+            QuestionBank::where('id', $id)->update(['sort_order' => $i + 1]);
+        }
+
+        return response()->json(['message' => 'Urutan soal diperbarui.']);
+    }
+
+    /**
+     * Import questions from Excel/CSV into a bank.
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate([
+            'bank_soal_id' => 'required|exists:bank_soal,id',
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:10240',
+        ]);
+
+        $bank = BankSoal::accessibleBy($request)->find($request->input('bank_soal_id'));
+        if (! $bank) {
+            return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
+        }
+
+        try {
+            $service = app(\App\Services\QuestionBankImportService::class);
+            $result = $service->import($request->file('file'), $bank);
+
+            return response()->json([
+                'message' => 'Import selesai.',
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('QuestionBank import failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => $e->getMessage() ?: 'Gagal mengimpor soal.',
+            ], 422);
+        }
+    }
+
+    /**
+     * Download Excel template for import.
+     */
+    public function importTemplate()
+    {
+        $headers = \App\Services\QuestionBankImportService::TEMPLATE_HEADERS;
+        $sample = [
+            ['pg', 'Ibu kota Indonesia adalah…', 1, '', '', 'Jakarta', 'Bandung', 'Surabaya', 'Medan', '', 'A', ''],
+            ['isian', 'Lambang kimia air adalah…', 1, 'H2O', 'h2o|air', '', '', '', '', '', '', ''],
+            ['uraian', 'Jelaskan proses fotosintesis.', 5, '', '', '', '', '', '', '', '', 'Bacaan Fotosintesis'],
+        ];
+
+        $export = new class($headers, $sample) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithTitle {
+            public function __construct(private array $headers, private array $sample) {}
+
+            public function array(): array
+            {
+                return array_merge([$this->headers], $this->sample);
+            }
+
+            public function title(): string
+            {
+                return 'Template Soal';
+            }
+        };
+
+        return app(\Maatwebsite\Excel\Excel::class)->download(
+            $export,
+            'template-import-soal.xlsx',
+            \Maatwebsite\Excel\Excel::XLSX
+        );
+    }
+
     public function destroy(Request $request, QuestionBank $question_bank): JsonResponse
     {
         $institutionId = $this->resolveInstitutionId($request);
@@ -230,6 +369,51 @@ class QuestionBankController extends Controller
         }
         $question_bank->delete();
         return response()->json(['message' => 'Soal dihapus.']);
+    }
+
+    /**
+     * Duplicate a question (same bank, same stimulus if any, copied options/matching).
+     */
+    public function duplicate(Request $request, QuestionBank $question_bank): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        $sameInstitution = $question_bank->institution_id == $institutionId;
+        $bankAccessible = $question_bank->bank_soal_id && BankSoal::accessibleBy($request)->where('id', $question_bank->bank_soal_id)->exists();
+        if (!$sameInstitution && !$bankAccessible) {
+            return response()->json(['message' => 'Soal tidak ditemukan.'], 404);
+        }
+
+        $question_bank->load(['options']);
+
+        $copy = $question_bank->replicate([
+            'created_at',
+            'updated_at',
+        ]);
+        $plain = trim(html_entity_decode(strip_tags((string) $question_bank->body), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $suffix = ' (salinan)';
+        if (! str_ends_with($plain, '(salinan)')) {
+            $copy->body = rtrim((string) $question_bank->body).$suffix;
+        }
+        if ($question_bank->bank_soal_id) {
+            $maxOrder = (int) QuestionBank::query()->where('bank_soal_id', $question_bank->bank_soal_id)->max('sort_order');
+            $copy->sort_order = $maxOrder > 0 ? $maxOrder + 1 : 1;
+        }
+        $copy->save();
+
+        foreach ($question_bank->options as $opt) {
+            QuestionOption::create([
+                'question_bank_id' => $copy->id,
+                'option_key' => $opt->option_key,
+                'body' => $opt->body,
+                'is_correct' => $opt->is_correct,
+                'option_weight' => $opt->option_weight,
+                'sort_order' => $opt->sort_order,
+            ]);
+        }
+
+        $copy->load(['subject', 'stimulus', 'options']);
+
+        return (new QuestionBankResource($copy))->response()->setStatusCode(201);
     }
 
     private function sanitizeQuestionHtml(string $html): string

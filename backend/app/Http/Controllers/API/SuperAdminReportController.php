@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Exports\AggregateReportExport;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\Institution;
@@ -9,7 +10,8 @@ use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Maatwebsite\Excel\Excel as ExcelManager;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SuperAdminReportController extends Controller
 {
@@ -42,59 +44,20 @@ class SuperAdminReportController extends Controller
     }
 
     /**
-     * Export aggregate report as CSV.
+     * Export aggregate report as XLSX.
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): BinaryFileResponse
     {
         $this->ensureSuperAdmin($request);
 
         $report = $this->buildReport($request);
-        $filename = 'laporan-agregat-' . now()->format('Ymd-His') . '.csv';
+        $filename = 'laporan-agregat-' . now()->format('Ymd-His') . '.xlsx';
 
-        return response()->streamDownload(function () use ($report) {
-            $out = fopen('php://output', 'w');
-            fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
-
-            fputcsv($out, ['Ringkasan']);
-            fputcsv($out, ['Total Institusi', $report['summary']['institutions']]);
-            fputcsv($out, ['Institusi Aktif', $report['summary']['active_institutions']]);
-            fputcsv($out, ['Siswa Aktif', $report['summary']['students']]);
-            fputcsv($out, ['Guru Aktif', $report['summary']['teachers']]);
-            fputcsv($out, []);
-
-            fputcsv($out, ['Per Jenjang']);
-            fputcsv($out, ['Jenjang', 'Institusi', 'Siswa', 'Guru']);
-            foreach ($report['by_level'] as $row) {
-                fputcsv($out, [$row['level'], $row['institutions'], $row['students'], $row['teachers']]);
-            }
-            fputcsv($out, []);
-
-            fputcsv($out, ['Per Jenis']);
-            fputcsv($out, ['Jenis', 'Institusi', 'Siswa', 'Guru']);
-            foreach ($report['by_type'] as $row) {
-                fputcsv($out, [$row['type'], $row['institutions'], $row['students'], $row['teachers']]);
-            }
-            fputcsv($out, []);
-
-            fputcsv($out, ['Per Institusi']);
-            fputcsv($out, ['Nama', 'NPSN', 'Jenjang', 'Jenis', 'Provinsi', 'Status', 'Siswa', 'Guru']);
-            foreach ($report['institutions'] as $row) {
-                fputcsv($out, [
-                    $row['name'],
-                    $row['npsn'],
-                    $row['level'],
-                    $row['type'],
-                    $row['province'],
-                    $row['is_active'] ? 'Aktif' : 'Dibekukan',
-                    $row['students'],
-                    $row['teachers'],
-                ]);
-            }
-
-            fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return app(ExcelManager::class)->download(
+            new AggregateReportExport($report),
+            $filename,
+            ExcelManager::XLSX
+        );
     }
 
     private function buildReport(Request $request): array
@@ -135,7 +98,7 @@ class SuperAdminReportController extends Controller
 
         $institutions = $instQuery
             ->orderBy('name')
-            ->get(['id', 'name', 'npsn', 'level', 'type', 'province', 'is_active'])
+            ->get(['id', 'name', 'npsn', 'level', 'type', 'province', 'phone', 'email', 'is_active'])
             ->map(function ($inst) use ($studentCounts, $teacherCounts) {
                 return [
                     'id' => $inst->id,
@@ -144,6 +107,8 @@ class SuperAdminReportController extends Controller
                     'level' => $inst->level,
                     'type' => $inst->type,
                     'province' => $inst->province,
+                    'phone' => $inst->phone,
+                    'email' => $inst->email,
                     'is_active' => (bool) $inst->is_active,
                     'students' => (int) ($studentCounts[$inst->id] ?? 0),
                     'teachers' => (int) ($teacherCounts[$inst->id] ?? 0),

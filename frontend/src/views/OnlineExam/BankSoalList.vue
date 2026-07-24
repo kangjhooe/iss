@@ -27,10 +27,19 @@
 
       <!-- Filters -->
       <div class="filters">
+        <input
+          v-model="filterSearch"
+          type="search"
+          class="filter-search"
+          placeholder="Cari kode atau nama bank..."
+          autocomplete="off"
+          @keydown.enter.prevent="fetchBanks"
+        />
         <select v-model="filterSubjectId" @change="fetchBanks" class="filter-select" aria-label="Filter mata pelajaran">
           <option value="">Semua mapel</option>
           <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
         </select>
+        <button type="button" class="btn-secondary btn-filter" @click="fetchBanks">Cari</button>
       </div>
 
       <!-- Loading -->
@@ -72,6 +81,7 @@
                 <th class="col-mapel">Mapel</th>
                 <th class="col-keterangan">Keterangan</th>
                 <th class="col-count">Jumlah Soal</th>
+                <th class="col-types">Per tipe</th>
                 <th class="col-actions">Aksi</th>
               </tr>
             </thead>
@@ -82,54 +92,39 @@
                 <td>{{ b.subject?.name ?? '—' }}</td>
                 <td class="cell-keterangan">{{ (b.keterangan || '').slice(0, 50) }}{{ (b.keterangan && b.keterangan.length > 50) ? '…' : '' }}</td>
                 <td class="col-count"><span class="badge-count">{{ b.questions_count ?? 0 }}</span></td>
+                <td class="col-types">
+                  <div class="type-chips" :title="typeSummaryTitle(b)">
+                    <span v-if="(b.questions_by_type?.pg || 0) > 0" class="type-chip">PG {{ b.questions_by_type.pg }}</span>
+                    <span v-if="(b.questions_by_type?.pg_kompleks || 0) > 0" class="type-chip">PGK {{ b.questions_by_type.pg_kompleks }}</span>
+                    <span v-if="(b.questions_by_type?.matching || 0) > 0" class="type-chip">Match {{ b.questions_by_type.matching }}</span>
+                    <span v-if="(b.questions_by_type?.isian || 0) > 0" class="type-chip">Isian {{ b.questions_by_type.isian }}</span>
+                    <span v-if="(b.questions_by_type?.uraian || 0) > 0" class="type-chip">Uraian {{ b.questions_by_type.uraian }}</span>
+                    <span v-if="!(b.questions_count > 0)" class="type-chip type-chip--empty">—</span>
+                  </div>
+                </td>
                 <td class="col-actions">
                   <div class="row-actions">
-                    <button type="button" class="btn-action btn-manage btn-action-icon" title="Kelola Soal" aria-label="Kelola Soal" @click="goToManageSoal(b)">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M4 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                    <router-link :to="`/ujian-online/bank-soal/${b.id}/stimulus`" class="btn-action btn-stimulus btn-action-icon" title="Stimulus" aria-label="Stimulus">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </router-link>
-                    <button type="button" class="btn-action btn-share btn-action-icon" @click="openShareModal(b)" title="Bagikan" aria-label="Bagikan">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3.99-3.98" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                    <button type="button" class="btn-action btn-edit btn-action-icon" @click="openForm(b)" title="Edit" aria-label="Edit">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                    <button type="button" class="btn-action btn-delete btn-action-icon" @click="confirmDelete(b)" title="Hapus" aria-label="Hapus">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                    <button type="button" class="btn-action btn-backup btn-action-icon" @click="doBackup(b)" title="Backup" aria-label="Backup" :disabled="backupLoading === b.id">
-                      <svg v-if="backupLoading !== b.id" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                      <span v-else class="btn-action-spinner"></span>
-                    </button>
-                    <button type="button" class="btn-action btn-restore btn-action-icon" @click="openRestoreModal(b)" title="Restore" aria-label="Restore">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
+                    <button type="button" class="btn-action-text btn-manage" @click="goToManageSoal(b)">Kelola soal</button>
+                    <router-link :to="`/ujian-online/bank-soal/${b.id}/stimulus`" class="btn-action-text btn-stimulus">Stimulus</router-link>
+                    <button type="button" class="btn-action-text btn-edit" @click="openForm(b)">Edit</button>
+                    <div class="more-wrap">
+                      <button
+                        type="button"
+                        class="btn-action-text btn-more"
+                        :aria-expanded="openMenuId === b.id"
+                        @click.stop="toggleMenu(b.id)"
+                      >
+                        Lainnya ▾
+                      </button>
+                      <div v-if="openMenuId === b.id" class="more-menu" @click.stop>
+                        <button type="button" @click="openShareModal(b); openMenuId = null">Bagikan</button>
+                        <button type="button" :disabled="backupLoading === b.id" @click="doBackup(b); openMenuId = null">
+                          {{ backupLoading === b.id ? 'Backup…' : 'Backup ZIP' }}
+                        </button>
+                        <button type="button" @click="openRestoreModal(b); openMenuId = null">Restore ZIP</button>
+                        <button type="button" class="danger" @click="confirmDelete(b); openMenuId = null">Hapus</button>
+                      </div>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -301,7 +296,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import { examApi } from '@/api/exam'
@@ -315,6 +310,8 @@ const banks = ref([])
 const subjects = ref([])
 const loading = ref(false)
 const filterSubjectId = ref('')
+const filterSearch = ref('')
+const openMenuId = ref(null)
 const showForm = ref(false)
 const formLoading = ref(false) // loading mapel & institusi saat modal dibuka
 const editingId = ref(null)
@@ -343,14 +340,35 @@ const form = reactive({
 
 async function fetchBanks() {
   loading.value = true
+  openMenuId.value = null
   try {
     const params = { per_page: 100 }
     if (filterSubjectId.value) params.subject_id = filterSubjectId.value
+    if (filterSearch.value.trim()) params.search = filterSearch.value.trim()
     const res = await examApi.listBanks(params)
     banks.value = res.data?.data ?? res.data ?? []
   } finally {
     loading.value = false
   }
+}
+
+function toggleMenu(id) {
+  openMenuId.value = openMenuId.value === id ? null : id
+}
+
+function typeSummaryTitle(b) {
+  const t = b.questions_by_type || {}
+  return [
+    t.pg ? `PG: ${t.pg}` : null,
+    t.pg_kompleks ? `PG kompleks: ${t.pg_kompleks}` : null,
+    t.matching ? `Matching: ${t.matching}` : null,
+    t.isian ? `Isian: ${t.isian}` : null,
+    t.uraian ? `Uraian: ${t.uraian}` : null
+  ].filter(Boolean).join(' · ') || 'Belum ada soal'
+}
+
+function onDocClick() {
+  openMenuId.value = null
 }
 
 function normalizeSubjectList(raw) {
@@ -548,8 +566,13 @@ onMounted(() => {
   if (route.query.subject_id) {
     filterSubjectId.value = String(route.query.subject_id)
   }
+  document.addEventListener('click', onDocClick)
   loadSubjects()
   fetchBanks()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick)
 })
 </script>
 
@@ -636,6 +659,70 @@ onMounted(() => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
 }
+.filter-search {
+  flex: 1;
+  min-width: 180px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+.btn-filter {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.type-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.type-chip {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  white-space: nowrap;
+}
+.type-chip--empty { color: #94a3b8; }
+.btn-action-text {
+  background: none;
+  border: none;
+  color: #059669;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  text-decoration: none;
+}
+.btn-action-text.btn-edit { color: #2563eb; }
+.btn-action-text.btn-more { color: #64748b; }
+.more-wrap { position: relative; display: inline-block; }
+.more-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 150px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+}
+.more-menu button {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: #334155;
+}
+.more-menu button:hover { background: #f1f5f9; }
+.more-menu button.danger { color: #dc2626; }
 .filter-select {
   padding: 0.5rem 2rem 0.5rem 0.75rem;
   border: 1px solid #e2e8f0;

@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Exports\ExamSessionResultsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
+use App\Http\Resources\ExamParticipantResource;
+use App\Http\Resources\ExamSessionResource;
 use App\Models\ExamAnswer;
 use App\Models\ExamParticipant;
 use App\Models\ExamSession;
 use App\Services\ExamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Excel as ExcelManager;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ExamControlController extends Controller
 {
@@ -18,6 +23,65 @@ class ExamControlController extends Controller
     public function __construct(
         protected ExamService $examService
     ) {}
+
+    /**
+     * Live monitoring snapshot: session + participants + status counts.
+     */
+    public function monitor(Request $request, ExamSession $exam_session): JsonResponse
+    {
+        if ($exam_session->exam->institution_id != $this->resolveInstitutionId($request)) {
+            return response()->json(['message' => 'Sesi ujian tidak ditemukan.'], 404);
+        }
+
+        $exam_session->load(['exam.subject', 'exam.institution']);
+        $participants = $exam_session->participants()
+            ->with(['student', 'examSession.exam.institution'])
+            ->orderByRaw('COALESCE(participant_order, 999999) ASC')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'session' => (new ExamSessionResource($exam_session))->resolve(),
+                'summary' => $this->examService->monitorSummary($exam_session),
+                'participants' => ExamParticipantResource::collection($participants)->resolve(),
+            ],
+        ]);
+    }
+
+    /**
+     * Export hasil sesi (Excel).
+     */
+    public function exportResults(Request $request, ExamSession $exam_session): BinaryFileResponse|JsonResponse
+    {
+        if ($exam_session->exam->institution_id != $this->resolveInstitutionId($request)) {
+            return response()->json(['message' => 'Sesi ujian tidak ditemukan.'], 404);
+        }
+
+        $exam_session->load(['exam.institution']);
+        $participants = $exam_session->participants()
+            ->with(['student', 'examSession.exam.institution'])
+            ->orderByRaw('COALESCE(participant_order, 999999) ASC')
+            ->orderBy('id')
+            ->get();
+
+        $institution = $exam_session->exam->institution;
+        foreach ($participants as $p) {
+            $nomor = null;
+            if ($institution && $p->participant_order !== null) {
+                $date = $exam_session->scheduled_start_at ?? $exam_session->started_at ?? now();
+                $nomor = $institution->buildNomorPeserta((int) $p->participant_order, $date);
+            }
+            $p->nomor_peserta_export = $nomor;
+        }
+
+        $safeName = preg_replace('/[^\w\-]+/u', '_', $exam_session->name) ?: 'sesi';
+        $filename = 'hasil-ujian-'.$safeName.'-'.now()->format('Ymd-His').'.xlsx';
+
+        $export = new ExamSessionResultsExport($participants, $exam_session->name);
+
+        return app(ExcelManager::class)->download($export, $filename, ExcelManager::XLSX);
+    }
 
     /**
      * Start session (manual start).
@@ -97,6 +161,24 @@ class ExamControlController extends Controller
         }
         $this->examService->releaseScore($exam_participant);
         return response()->json(['message' => 'Nilai dirilis ke siswa.']);
+    }
+
+    /**
+     * Release scores for all submitted participants in the session.
+     */
+    public function releaseAllScores(Request $request, ExamSession $exam_session): JsonResponse
+    {
+        if ($exam_session->exam->institution_id != $this->resolveInstitutionId($request)) {
+            return response()->json(['message' => 'Sesi ujian tidak ditemukan.'], 404);
+        }
+        $count = $this->examService->releaseAllScores($exam_session);
+
+        return response()->json([
+            'message' => $count > 0
+                ? "Nilai dirilis untuk {$count} peserta."
+                : 'Tidak ada nilai baru yang perlu dirilis.',
+            'released_count' => $count,
+        ]);
     }
 
     /**

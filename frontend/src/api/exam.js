@@ -54,6 +54,15 @@ export const examApi = {
   computeScores(sessionId) {
     return api.post(`${base}/sessions/${sessionId}/compute-scores`)
   },
+  monitorSession(sessionId) {
+    return api.get(`${base}/sessions/${sessionId}/monitor`)
+  },
+  exportSessionResults(sessionId) {
+    return api.get(`${base}/sessions/${sessionId}/export-results`, { responseType: 'blob' })
+  },
+  releaseAllScores(sessionId) {
+    return api.post(`${base}/sessions/${sessionId}/release-scores`)
+  },
 
   // Participants
   listParticipants(sessionId) {
@@ -83,6 +92,9 @@ export const examApi = {
   },
   releaseScore(participantId) {
     return api.post(`${base}/participants/${participantId}/release-score`)
+  },
+  resetParticipant(participantId) {
+    return api.post(`${base}/participants/${participantId}/reset`)
   },
   getParticipantAnswers(participantId) {
     return api.get(`${base}/participants/${participantId}/answers`)
@@ -183,6 +195,24 @@ export const examApi = {
   },
   deleteQuestion(id) {
     return api.delete(`/v1/question-bank/${id}`)
+  },
+  duplicateQuestion(id) {
+    return api.post(`/v1/question-bank/${id}/duplicate`)
+  },
+  reorderQuestions(bankSoalId, questionIds) {
+    return api.post('/v1/question-bank/reorder', {
+      bank_soal_id: bankSoalId,
+      question_ids: questionIds
+    })
+  },
+  importQuestions(bankSoalId, file) {
+    const form = new FormData()
+    form.append('bank_soal_id', bankSoalId)
+    form.append('file', file)
+    return api.post('/v1/question-bank/import', form)
+  },
+  downloadImportTemplate() {
+    return api.get('/v1/question-bank/import-template', { responseType: 'blob' })
   }
 }
 

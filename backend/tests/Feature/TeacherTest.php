@@ -186,4 +186,38 @@ class TeacherTest extends TestCase
         $data = $response->json('data');
         $this->assertGreaterThanOrEqual(1, count($data));
     }
+
+    /**
+     * Export returns full biodata fields (not the trimmed list select).
+     */
+    public function test_user_can_export_teachers_with_full_fields(): void
+    {
+        $this->createEmployee([
+            'name' => 'Guru Export',
+            'birth_place' => 'Bandung',
+            'birth_date' => '1990-05-20',
+            'address' => 'Jl. Merdeka 1',
+            'phone' => '08123456789',
+            'email' => 'guru.export@example.com',
+            'religion' => 'Islam',
+            'join_date' => '2015-07-01',
+        ]);
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->getJson('/api/v1/employee/export');
+
+        $response->assertStatus(200)
+            ->assertJsonFragment([
+                'name' => 'Guru Export',
+                'birth_place' => 'Bandung',
+                'birth_date' => '1990-05-20',
+                'address' => 'Jl. Merdeka 1',
+                'phone' => '08123456789',
+                'email' => 'guru.export@example.com',
+                'religion' => 'Islam',
+                'join_date' => '2015-07-01',
+            ]);
+    }
 }

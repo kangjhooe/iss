@@ -119,6 +119,8 @@ class PublicSchoolController extends Controller
                 'longitude' => $institution->longitude !== null ? (float) $institution->longitude : null,
                 'logo_url' => $institution->logo ? asset('storage/' . $institution->logo) : null,
                 'cover_image_url' => $institution->cover_image ? asset('storage/' . $institution->cover_image) : null,
+                'admission_label' => $institution->resolvedAdmissionLabel(),
+                'admission_open' => $institution->hasOpenAdmissionPeriod(),
             ],
         ]);
     }

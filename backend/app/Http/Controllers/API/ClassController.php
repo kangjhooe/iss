@@ -464,10 +464,10 @@ class ClassController extends Controller
 
             // Get all classes matching filters (no pagination for PDF)
             $classes = $this->classService->list($filters, $institutionId, 10000);
-            
-            // Get class items with relationships already loaded from repository
-            $classItems = $classes->items();
-            
+
+            // Collection (not array) so Blade helpers like sum() work reliably
+            $classItems = collect($classes->items());
+
             $pdf = DomPDF::loadView('class.report', [
                 'classes' => $classItems,
                 'filters' => $filters,
@@ -476,7 +476,7 @@ class ClassController extends Controller
             ])->setPaper('a4', 'landscape');
 
             $filename = 'Laporan_Data_Kelas_' . date('Y-m-d_His') . '.pdf';
-            return $pdf->download($filename);
+            return $pdf->stream($filename, ['Attachment' => false]);
         } catch (\Exception $e) {
             Log::error('Failed to export classes to PDF', [
                 'error' => $e->getMessage(),

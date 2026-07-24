@@ -8,7 +8,11 @@
       </header>
 
       <div class="services-grid">
-        <router-link :to="`/${npsn}/daftar-ppdb`" class="service-card">
+        <router-link
+          v-if="admissionOpen"
+          :to="`/${npsn}/daftar-ppdb`"
+          class="service-card"
+        >
           <span class="service-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -17,7 +21,7 @@
               <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </span>
-          <h3 class="service-title">Daftar PPDB</h3>
+          <h3 class="service-title">Daftar {{ admissionLabel }}</h3>
           <p class="service-desc">Pendaftaran peserta didik baru secara online.</p>
           <span class="service-cta">Mulai daftar →</span>
         </router-link>
@@ -57,7 +61,9 @@
 import { ref } from 'vue'
 
 defineProps({
-  npsn: { type: String, default: '' }
+  npsn: { type: String, default: '' },
+  admissionOpen: { type: Boolean, default: false },
+  admissionLabel: { type: String, default: 'PPDB' },
 })
 
 const sectionRef = ref(null)

@@ -21,6 +21,9 @@ class StorePpdbPeriodRequest extends FormRequest
             'close_date' => 'required|date|after_or_equal:open_date',
             'status' => 'nullable|in:draft,open,closed,finished',
             'description' => 'nullable|string',
+            're_registration_deadline' => 'nullable|date',
+            'registration_fee' => 'nullable|numeric|min:0',
+            're_registration_fee' => 'nullable|numeric|min:0',
         ];
     }
 

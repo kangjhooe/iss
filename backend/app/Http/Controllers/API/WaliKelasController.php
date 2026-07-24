@@ -59,7 +59,13 @@ class WaliKelasController extends Controller
 
         $student->load(['class', 'academicYear', 'semester']);
 
-        return (new StudentResource($student))->response();
+        $payload = (new StudentResource($student))->resolve();
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if ($class) {
+            $payload['snapshot'] = $this->dashboardService->studentSnapshot($user, $class, $student);
+        }
+
+        return response()->json(['data' => $payload]);
     }
 
     public function dashboard(Request $request, int $classId): JsonResponse
@@ -75,6 +81,42 @@ class WaliKelasController extends Controller
         }
 
         return response()->json(['data' => $this->dashboardService->build($user, $class)]);
+    }
+
+    public function attendanceSummary(Request $request, int $classId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return response()->json(['message' => 'Anda hanya dapat melihat absensi kelas yang Anda waliki.'], 403);
+        }
+
+        $period = (string) $request->query('period', 'week');
+
+        return response()->json([
+            'data' => $this->dashboardService->attendanceSummary($class, $period),
+        ]);
+    }
+
+    public function gradesOverview(Request $request, int $classId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return response()->json(['message' => 'Anda hanya dapat melihat nilai kelas yang Anda waliki.'], 403);
+        }
+
+        return response()->json([
+            'data' => $this->dashboardService->gradesOverview($class),
+        ]);
     }
 
     public function indexNotes(Request $request, int $classId, int $studentId): JsonResponse

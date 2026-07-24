@@ -1,0 +1,194 @@
+<template>
+  <Layout>
+    <div class="ppdb-page">
+      <header class="page-header">
+        <div class="header-bg" aria-hidden="true"></div>
+        <div class="header-content">
+          <div class="header-left">
+            <div>
+              <h1 class="page-title">Statistik PPDB</h1>
+              <p class="page-subtitle">Rekap calon per periode dan jalur</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-main">
+        <div class="filters-bar content-card">
+          <label class="filter-label">Periode</label>
+          <select v-model="statsPeriodId" class="filter-select" @change="loadStatistics">
+            <option value="">Pilih periode</option>
+            <option v-for="p in periods" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+
+        <div v-if="statsLoading" class="loading-wrap content-card">
+          <LoadingSkeleton type="table" :rows="4" :columns="4" />
+        </div>
+        <div v-else-if="!statsPeriodId" class="empty-state content-card empty-state-sm">
+          <p>Pilih periode untuk melihat statistik.</p>
+        </div>
+        <div v-else-if="statsData" class="stats-dashboard content-card">
+          <div class="stats-cards">
+            <div class="stats-card stats-total">
+              <span class="stats-value">{{ statsData.total }}</span>
+              <span class="stats-label">Total Calon</span>
+            </div>
+            <div v-for="key in highlightStatuses" :key="key" class="stats-card">
+              <span class="stats-value stats-value-sm">{{ (statsData.by_status || {})[key] || 0 }}</span>
+              <span class="stats-label">{{ statusApplicantLabels[key] || key }}</span>
+            </div>
+          </div>
+
+          <template v-if="statsData.total === 0">
+            <p class="empty-stats-msg">Belum ada calon peserta didik pada periode ini.</p>
+          </template>
+          <template v-else>
+            <div class="stats-section">
+              <h4>Per Status</h4>
+              <div v-if="Object.keys(statsData.by_status || {}).length" class="stats-grid">
+                <div v-for="(count, status) in (statsData.by_status || {})" :key="status" class="stats-row">
+                  <span class="status-badge" :class="'status-' + status">{{ statusApplicantLabels[status] || status }}</span>
+                  <strong>{{ count }}</strong>
+                </div>
+              </div>
+              <p v-else class="stats-empty">—</p>
+            </div>
+
+            <div class="stats-section">
+              <h4>Per Jalur & kuota</h4>
+              <table v-if="channelRows.length" class="data-table data-table-compact data-table-quota">
+                <thead>
+                  <tr>
+                    <th>Jalur</th>
+                    <th>Jumlah</th>
+                    <th>Kuota</th>
+                    <th>Isi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in channelRows" :key="row.channel_id">
+                    <td>{{ row.channel_name }}</td>
+                    <td>{{ row.count }}</td>
+                    <td>{{ row.quota ?? '—' }}</td>
+                    <td>
+                      <div v-if="row.quota" class="kuota-bar-wrap" :title="row.pct + '%'">
+                        <div class="kuota-bar" :style="{ width: Math.min(row.pct, 100) + '%' }" :class="{ 'kuota-full': row.pct >= 100 }"></div>
+                        <span class="kuota-pct">{{ row.pct }}%</span>
+                      </div>
+                      <span v-else class="stats-empty">—</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-else class="stats-empty">—</p>
+            </div>
+          </template>
+        </div>
+      </main>
+    </div>
+  </Layout>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import Layout from '@/components/Layout.vue'
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import { ppdbPeriodApi, ppdbChannelApi } from '@/api/ppdb'
+import { useToast } from '@/composables/useToast'
+import { statusApplicantLabels } from './ppdbConstants'
+import './ppdb.css'
+
+const toast = useToast()
+const periods = ref([])
+const channels = ref([])
+const statsPeriodId = ref('')
+const statsData = ref(null)
+const statsLoading = ref(false)
+const highlightStatuses = ['passed', 'reserve', 'failed', 'verified']
+
+const channelRows = computed(() => {
+  const rows = statsData.value?.by_channel || []
+  return rows.map((row) => {
+    const ch = channels.value.find(c => c.id === row.channel_id)
+    const quota = ch?.quota ?? null
+    const count = row.count ?? 0
+    const pct = quota ? Math.round((count / quota) * 100) : 0
+    return { ...row, quota, pct }
+  })
+})
+
+async function loadPeriods() {
+  try {
+    const res = await ppdbPeriodApi.getAll({ per_page: 100 })
+    periods.value = res.data.data || []
+    const open = periods.value.find(p => p.status === 'open')
+    if (open && !statsPeriodId.value) {
+      statsPeriodId.value = open.id
+      await loadStatistics()
+    }
+  } catch (e) {
+    toast.error('Gagal memuat periode', e.formattedMessage || 'Coba lagi.')
+  }
+}
+
+async function loadChannels() {
+  try {
+    const res = await ppdbChannelApi.getAll({ active_only: false })
+    channels.value = res.data.data || []
+  } catch {
+    channels.value = []
+  }
+}
+
+async function loadStatistics() {
+  const id = statsPeriodId.value
+  if (!id) {
+    statsData.value = null
+    return
+  }
+  statsLoading.value = true
+  statsData.value = null
+  try {
+    const res = await ppdbPeriodApi.getStatistics(id)
+    statsData.value = res.data?.data || res.data
+  } catch (e) {
+    toast.error('Gagal memuat statistik PPDB', e.formattedMessage || 'Statistik tidak dapat dimuat.')
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([loadPeriods(), loadChannels()])
+})
+</script>
+
+<style scoped>
+.stats-value-sm { font-size: 1.5rem !important; }
+.data-table-quota { max-width: 640px; }
+.kuota-bar-wrap {
+  position: relative;
+  height: 1.35rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 100px;
+}
+.kuota-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #34d399, #059669);
+  border-radius: 6px;
+}
+.kuota-bar.kuota-full { background: linear-gradient(90deg, #f59e0b, #dc2626); }
+.kuota-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+</style>

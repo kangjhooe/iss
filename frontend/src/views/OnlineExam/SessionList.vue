@@ -125,13 +125,13 @@ const pageTitle = computed(() => {
 
 const pageDescription = computed(() => {
   if (fokus.value === 'peserta') return 'Pilih sesi untuk mengatur peserta dan cetak kartu ujian.'
-  if (fokus.value === 'kontrol') return 'Pilih sesi untuk mengendalikan ujian: mulai, akhiri, reset peserta, hitung nilai.'
+  if (fokus.value === 'kontrol') return 'Pilih sesi untuk mulai/akhiri ujian, pantau peserta live, koreksi, rilis nilai, dan export laporan.'
   return ''
 })
 
 const actionLabel = computed(() => {
   if (fokus.value === 'peserta') return 'Kelola peserta'
-  if (fokus.value === 'kontrol') return 'Kontrol ujian'
+  if (fokus.value === 'kontrol') return 'Kontrol & monitoring'
   return 'Detail & Kendali'
 })
 

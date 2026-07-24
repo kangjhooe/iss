@@ -36,6 +36,8 @@ class TeacherMutationResource extends JsonResource
             'cancel_rejection_reason' => $this->cancel_rejection_reason,
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
+            'can_approve' => $request->user() ? $this->canBeApprovedBy($request->user()) : false,
+            'can_reject' => $request->user() ? $this->canBeRejectedBy($request->user()) : false,
             'can_request_cancel' => $request->user() ? $this->canRequestCancelBy($request->user()) : false,
             'can_decide_cancel' => $request->user() ? $this->canDecideCancelBy($request->user()) : false,
             // Relations
@@ -55,6 +57,7 @@ class TeacherMutationResource extends JsonResource
             'is_external_target' => $this->target_institution_id === null,
             'employee' => $this->whenLoaded('employee', fn () => [
                 'id' => $this->employee->id,
+                'nik' => $this->employee->nik,
                 'nuptk' => $this->employee->nuptk,
                 'nip' => $this->employee->nip,
                 'name' => $this->employee->name,

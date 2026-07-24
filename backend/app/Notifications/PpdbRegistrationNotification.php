@@ -11,8 +11,12 @@ class PpdbRegistrationNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * @param  string  $action  new_registration|re_registration
+     */
     public function __construct(
-        public PpdbApplicant $applicant
+        public PpdbApplicant $applicant,
+        public string $action = 'new_registration'
     ) {}
 
     public function via(object $notifiable): array
@@ -22,15 +26,23 @@ class PpdbRegistrationNotification extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
+        $name = $this->applicant->name;
+        $reg = $this->applicant->registration_number;
+
+        $message = $this->action === 're_registration'
+            ? "Konfirmasi daftar ulang PPDB: {$name} ({$reg})"
+            : "Pendaftaran PPDB baru: {$name} ({$reg})";
+
         return [
             'type' => 'ppdb_registration',
-            'action' => 'new_registration',
+            'action' => $this->action,
             'applicant_id' => $this->applicant->id,
-            'registration_number' => $this->applicant->registration_number,
-            'applicant_name' => $this->applicant->name,
+            'registration_number' => $reg,
+            'applicant_name' => $name,
             'period_name' => $this->applicant->period?->name,
             'channel_name' => $this->applicant->channel?->name,
-            'message' => "Pendaftaran PPDB baru: {$this->applicant->name} ({$this->applicant->registration_number})",
+            'message' => $message,
+            'link' => '/ppdb/pendaftar/' . $this->applicant->id,
             'created_at' => now()->toISOString(),
         ];
     }

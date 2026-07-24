@@ -176,6 +176,9 @@
             margin-bottom: 10px;
         }
         @include('partials.print-letterhead-styles')
+        @include('partials.print-signature-styles')
+        .standard-signature-wrap { margin-top: 20px; }
+        .standard-signature-space { height: 48px; }
         .cell-note { color: #555; font-size: 8px; margin-top: 2px; }
     </style>
 </head>
@@ -349,19 +352,18 @@
     </table>
 
     {{-- Tanda tangan --}}
-    <table class="sign-block">
-        <tr>
-            <td></td>
-            <td>
-                <div class="sign-box">
-                    <div class="place">{{ $city ?: '................' }}, {{ $signDate }}</div>
-                    <div class="role">Penanggung Jawab Lab</div>
-                    <p class="name">{{ $pj->name ?? '(................................)' }}</p>
-                    <p class="nip">NIP. {{ $pj->nip ?? '........................' }}</p>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <div class="standard-signature-wrap">
+        <div class="standard-signature-left"></div>
+        <div class="standard-signature-right">
+            @include('partials.print-signature', [
+                'institution' => $institution,
+                'date' => $signDate,
+                'role' => 'Penanggung Jawab Lab',
+                'name' => $pj->name ?? null,
+                'nip' => $pj->nip ?? null,
+            ])
+        </div>
+    </div>
 @else
     <div class="doc-title">
         <h1>Rekapitulasi Laboratorium</h1>
@@ -403,19 +405,15 @@
         </tbody>
     </table>
 
-    <table class="sign-block">
-        <tr>
-            <td></td>
-            <td>
-                <div class="sign-box">
-                    <div class="place">{{ $city ?: '................' }}, {{ $signDate }}</div>
-                    <div class="role">Mengetahui,<br>{{ $institution->principal_title ?? \App\Models\Institution::principalTitleForLevel($institution->level ?? null) }}</div>
-                    <p class="name">{{ $institution->principal_name ?? '(................................)' }}</p>
-                    <p class="nip">NIP. {{ $institution->principal_nip ?? '........................' }}</p>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <div class="standard-signature-wrap">
+        <div class="standard-signature-left"></div>
+        <div class="standard-signature-right">
+            @include('partials.print-signature', [
+                'institution' => $institution,
+                'date' => $signDate,
+            ])
+        </div>
+    </div>
 @endif
 
 <div class="footer">

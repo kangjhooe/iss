@@ -671,8 +671,9 @@
           <div class="modal-card">
             <h3>Import Katalog Buku (Excel)</h3>
             <p class="muted small">
-              Unduh template, isi data, lalu unggah file <strong>.xlsx</strong>.
-              Kolom wajib: <strong>kode_kategori</strong> dan <strong>judul</strong> (kode kategori harus sudah ada di master).
+              Unduh template, isi data, lalu pilih file <strong>.xlsx</strong>.
+              File dibaca di browser (sama seperti import siswa), lalu dikirim ke server per batch.
+              Kolom wajib: <strong>kode_kategori</strong> dan <strong>judul</strong> (kode harus sudah ada di master kategori).
               Duplikat ISBN atau judul+pengarang akan diperbarui.
             </p>
             <div class="form-group" style="margin-top:1rem">
@@ -1498,6 +1499,27 @@ async function downloadBooksTemplate() {
   }
 }
 
+/** Excel sering mengirim angka; paksa string agar validasi/hosting tidak menolak (ISBN, kode, dll). */
+function cellToText(value) {
+  if (value === undefined || value === null) return null
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null
+    // Hindari 9786… jadi scientific notation
+    if (Number.isInteger(value) || Math.floor(value) === value) {
+      return String(Math.trunc(value))
+    }
+    return String(value)
+  }
+  const s = String(value).trim()
+  return s === '' ? null : s
+}
+
+function cellToInt(value) {
+  const s = cellToText(value)
+  if (s === null || !/^-?\d+$/.test(s)) return null
+  return parseInt(s, 10)
+}
+
 function mapExcelBookRow(row) {
   const get = (...keys) => {
     for (const key of keys) {
@@ -1505,7 +1527,6 @@ function mapExcelBookRow(row) {
         return row[key]
       }
     }
-    // case-insensitive fallback
     const lowerMap = {}
     Object.keys(row || {}).forEach((k) => {
       lowerMap[String(k).toLowerCase().replace(/[\s-]+/g, '_')] = row[k]
@@ -1520,19 +1541,21 @@ function mapExcelBookRow(row) {
   }
 
   return {
-    kode_kategori: get('kode_kategori', 'Kode Kategori', 'kode kategori'),
-    judul: get('judul', 'Judul'),
-    isbn: get('isbn', 'ISBN'),
-    pengarang: get('pengarang', 'Pengarang', 'author'),
-    penerbit: get('penerbit', 'Penerbit'),
-    tahun: get('tahun', 'Tahun'),
-    bahasa: get('bahasa', 'Bahasa'),
-    halaman: get('halaman', 'Halaman'),
-    rak: get('rak', 'Rak'),
-    deskripsi: get('deskripsi', 'Deskripsi'),
-    jumlah_eksemplar: get('jumlah_eksemplar', 'Jumlah Eksemplar', 'eksemplar')
+    kode_kategori: cellToText(get('kode_kategori', 'Kode Kategori', 'kode kategori')),
+    judul: cellToText(get('judul', 'Judul')),
+    isbn: cellToText(get('isbn', 'ISBN')),
+    pengarang: cellToText(get('pengarang', 'Pengarang', 'author')),
+    penerbit: cellToText(get('penerbit', 'Penerbit')),
+    tahun: cellToInt(get('tahun', 'Tahun')),
+    bahasa: cellToText(get('bahasa', 'Bahasa')),
+    halaman: cellToInt(get('halaman', 'Halaman')),
+    rak: cellToText(get('rak', 'Rak')),
+    deskripsi: cellToText(get('deskripsi', 'Deskripsi')),
+    jumlah_eksemplar: cellToInt(get('jumlah_eksemplar', 'Jumlah Eksemplar', 'eksemplar'))
   }
 }
+
+const IMPORT_CHUNK_SIZE = 100
 
 async function runImportBooks() {
   if (!importFile.value) {
@@ -1548,10 +1571,11 @@ async function runImportBooks() {
   importing.value = true
   importResult.value = null
   try {
+    // Parse di browser (SheetJS) — sama seperti import siswa; tidak butuh PHP zip di hosting
     const buffer = await importFile.value.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
+    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: '' })
+    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: true })
 
     if (!jsonData.length) {
       toast.error('Gagal', 'File Excel kosong')
@@ -1563,14 +1587,33 @@ async function runImportBooks() {
       .filter((row) => row.judul || row.kode_kategori || row.isbn)
 
     if (!books.length) {
-      toast.error('Gagal', 'Tidak ada baris data yang dapat diimpor')
+      toast.error('Gagal', 'Tidak ada baris data yang dapat diimpor. Pastikan kolom judul/kode_kategori terisi.')
       return
     }
 
-    const res = await libraryApi.importBooks(books)
-    importResult.value = res.data.data || { success: 0, updated: 0, failed: 0, errors: [] }
-    const d = importResult.value
-    toast.success('Import selesai', `+${d.success} · update ${d.updated} · gagal ${d.failed}`)
+    const aggregated = { success: 0, updated: 0, failed: 0, errors: [] }
+
+    for (let offset = 0; offset < books.length; offset += IMPORT_CHUNK_SIZE) {
+      const chunk = books.slice(offset, offset + IMPORT_CHUNK_SIZE)
+      const res = await libraryApi.importBooks(chunk)
+      const d = res.data?.data || { success: 0, updated: 0, failed: 0, errors: [] }
+      aggregated.success += d.success || 0
+      aggregated.updated += d.updated || 0
+      aggregated.failed += d.failed || 0
+      if (Array.isArray(d.errors) && d.errors.length) {
+        const rowBase = offset
+        d.errors.forEach((err) => {
+          // Geser nomor baris relatif chunk agar tetap global (best-effort)
+          aggregated.errors.push(String(err).replace(/Baris (\d+)/, (_, n) => `Baris ${rowBase + Number(n)}`))
+        })
+      }
+    }
+
+    importResult.value = aggregated
+    toast.success(
+      'Import selesai',
+      `+${aggregated.success} · update ${aggregated.updated} · gagal ${aggregated.failed}`
+    )
     loadBooks(1)
     loadBooksList()
     loadStats()
