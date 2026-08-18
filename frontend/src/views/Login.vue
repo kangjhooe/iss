@@ -6,7 +6,6 @@
           <AppLogo :size="48" />
         </div>
         <h1>Selamat Datang</h1>
-        <p>Masuk ke akun Anda untuk melanjutkan</p>
         <div v-if="brandingStore.isMaintenanceMode" class="maintenance-notice">
           {{ brandingStore.maintenanceMessage || 'Sistem sedang dalam mode pemeliharaan. Hanya super admin yang dapat masuk.' }}
         </div>
@@ -14,21 +13,22 @@
       
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
-          <label>Email</label>
+          <label>NIK / Email</label>
           <div class="input-wrapper">
             <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <input 
-              type="email" 
-              v-model="form.email" 
-              :class="{ 'input-error': fieldErrors.email }"
-              @blur="() => validateField('email')"
-              placeholder="nama@email.com"
+              type="text" 
+              v-model="form.login" 
+              :class="{ 'input-error': fieldErrors.login }"
+              @blur="() => validateField('login')"
+              placeholder="NIK siswa (16 digit) atau email"
+              autocomplete="username"
             />
           </div>
-          <span v-if="fieldErrors.email" class="error-text">{{ fieldErrors.email }}</span>
+          <span v-if="fieldErrors.login" class="error-text">{{ fieldErrors.login }}</span>
         </div>
         
         <div class="form-group">
@@ -43,7 +43,8 @@
               v-model="form.password" 
               :class="{ 'input-error': fieldErrors.password }"
               @blur="() => validateField('password')"
-              placeholder="Masukkan password"
+              placeholder="Siswa: DDMMYYYY · Staff: password"
+              autocomplete="current-password"
             />
             <button
               type="button"
@@ -89,6 +90,31 @@
         </svg>
         <span>{{ error }}</span>
       </div>
+
+      <div class="demo-panel">
+        <button type="button" class="demo-toggle" @click="showDemo = !showDemo">
+          <span>Coba sekolah demo (gratis)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" :class="{ open: showDemo }">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div v-if="showDemo" class="demo-body">
+          <p class="demo-title">{{ DEMO_SCHOOL.name }}</p>
+          <p class="demo-note">{{ DEMO_SCHOOL.resetNote }} Jangan masukkan data asli.</p>
+          <div class="demo-actions">
+            <button
+              v-for="role in DEMO_SCHOOL.roles"
+              :key="role.key"
+              type="button"
+              class="demo-fill"
+              :disabled="loading"
+              @click="fillDemo(role.key)"
+            >
+              {{ role.label }}
+            </button>
+          </div>
+        </div>
+      </div>
       
       <div class="card-footer">
         <p>
@@ -110,18 +136,18 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAppBrandingStore } from '@/stores/appBranding'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
 import AppLogo from '@/components/AppLogo.vue'
+import { DEMO_SCHOOL } from '@/constants/demoSchool'
 
 const brandingStore = useAppBrandingStore()
-onMounted(() => {
-  brandingStore.refreshBranding()
-})
+const route = useRoute()
+const showDemo = ref(false)
 
 const toast = useToast()
 
@@ -129,7 +155,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const initialForm = {
-  email: '',
+  login: '',
   password: ''
 }
 const form = ref({ ...initialForm })
@@ -138,9 +164,15 @@ const loading = ref(false)
 const error = ref('')
 const showPassword = ref(false)
 const validationRules = {
-  email: [
-    (value) => validators.required(value, 'Email wajib diisi'),
-    (value) => validators.email(value, 'Format email tidak valid')
+  login: [
+    (value) => validators.required(value, 'NIK atau email wajib diisi'),
+    (value) => {
+      const v = String(value || '').trim()
+      // validateForm treats any truthy return as an error message — success must be null/undefined
+      if (/^\d{16}$/.test(v)) return null
+      if (v.includes('@')) return validators.email(v, 'Format email tidak valid')
+      return 'Masukkan NIK 16 digit (siswa) atau email'
+    }
   ],
   password: [
     (value) => validators.required(value, 'Password wajib diisi')
@@ -152,6 +184,22 @@ const { fieldErrors, validateField, validateAll, clearErrors, setErrors } = useF
   initialValues: initialForm,
   rules: validationRules
 })
+
+onMounted(() => {
+  brandingStore.refreshBranding()
+  if (route.query.demo === '1' || route.query.demo === 'true') {
+    showDemo.value = true
+  }
+})
+
+function fillDemo(roleKey) {
+  clearErrors()
+  error.value = ''
+  const role = DEMO_SCHOOL.roles.find((r) => r.key === roleKey)
+  if (!role) return
+  form.value.login = role.login
+  form.value.password = role.password
+}
 
 const handleLogin = async () => {
   // Clear previous errors
@@ -168,8 +216,16 @@ const handleLogin = async () => {
   loading.value = true
   
   try {
-    await authStore.login(form.value)
+    await authStore.login({
+      login: String(form.value.login || '').trim(),
+      password: form.value.password
+    })
     toast.success('Login Berhasil', 'Selamat datang kembali!')
+
+    if (authStore.user?.must_change_password) {
+      router.push({ name: 'ForceChangePassword' })
+      return
+    }
     
     // Redirect based on user role
     if (authStore.user?.role === 'super_admin') {
@@ -209,7 +265,7 @@ const handleLogin = async () => {
         errorMessage = err.message
       }
     } else if (err.response?.status === 401) {
-      errorMessage = 'Email atau password salah'
+      errorMessage = 'NIK/email atau password salah'
     } else if (err.response?.status === 422) {
       errorMessage = 'Data yang dimasukkan tidak valid'
     } else if (err.response?.status === 429) {
@@ -649,6 +705,83 @@ const handleLogin = async () => {
 .link:hover {
   color: #047857;
   text-decoration: underline;
+}
+
+.demo-panel {
+  margin-top: 20px;
+  border: 1px solid #d1fae5;
+  border-radius: 12px;
+  background: #f0fdf4;
+  overflow: hidden;
+}
+
+.demo-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: #065f46;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.demo-toggle svg {
+  transition: transform 0.2s ease;
+}
+
+.demo-toggle svg.open {
+  transform: rotate(180deg);
+}
+
+.demo-body {
+  padding: 0 14px 14px;
+}
+
+.demo-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #064e3b;
+}
+
+.demo-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #047857;
+  line-height: 1.4;
+}
+
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.demo-fill {
+  flex: 1;
+  min-width: 88px;
+  padding: 8px 10px;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  background: #fff;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.demo-fill:hover:not(:disabled) {
+  background: #ecfdf5;
+}
+
+.demo-fill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Kurangi motion untuk aksesibilitas */

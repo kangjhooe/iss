@@ -154,6 +154,14 @@ const approveError = ref('')
 const rejectError = ref('')
 
 const FIELD_LABELS = {
+  name: 'Nama',
+  nik: 'NIK',
+  nis: 'NIS',
+  nisn: 'NISN',
+  gender: 'Jenis Kelamin',
+  birth_place: 'Tempat Lahir',
+  birth_date: 'Tanggal Lahir',
+  email: 'Email',
   address: 'Alamat',
   phone: 'No. HP',
   religion: 'Agama',
@@ -164,6 +172,8 @@ const FIELD_LABELS = {
   height: 'Tinggi Badan',
   weight: 'Berat Badan',
   previous_school: 'Sekolah Asal',
+  previous_school_npsn: 'NPSN Sekolah Asal',
+  previous_school_address: 'Alamat Sekolah Asal',
   residence_type: 'Jenis Tempat Tinggal',
   father_name: 'Nama Ayah',
   father_status: 'Status Ayah',

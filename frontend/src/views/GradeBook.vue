@@ -1576,4 +1576,65 @@ onMounted(async () => {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+  .filters-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .table-container {
+    margin: 0 -0.25rem;
+    border-radius: 10px;
+  }
+
+  .data-table.grade-table {
+    font-size: 0.8rem;
+  }
+
+  .data-table.grade-table th,
+  .data-table.grade-table td {
+    padding: 0.35rem 0.4rem;
+  }
+
+  .col-name {
+    min-width: 120px;
+  }
+
+  .col-nis {
+    width: 72px;
+  }
+
+  .col-grade {
+    width: 64px;
+  }
+
+  .col-pred {
+    width: 52px;
+  }
+
+  .col-tuntas {
+    width: 84px;
+  }
+
+  .grade-input {
+    max-width: 56px;
+    padding: 0.3rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .pagination-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination-buttons {
+    justify-content: space-between;
+  }
+}
 </style>

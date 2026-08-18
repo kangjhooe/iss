@@ -272,12 +272,19 @@ class StudentAttendanceController extends Controller
                 ]);
             }
 
+            $signer = $this->studentAttendanceService->resolveRekapSigner(
+                $institutionId,
+                $filters,
+                $scopeEmployeeId
+            );
+
             $pdf = DomPDF::loadView('attendance.student_rekap', [
                 'institution' => $institution,
                 'rows' => $rekap['rows'],
                 'totals' => $rekap['totals'],
                 'meta' => $rekap['meta'],
                 'printed_at' => $printedAt,
+                'signer' => $signer,
             ])->setPaper('a4', 'landscape');
 
             return $pdf->download('Rekap_Absensi_Siswa_' . date('Y-m-d_His') . '.pdf');

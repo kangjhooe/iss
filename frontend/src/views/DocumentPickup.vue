@@ -1124,6 +1124,7 @@ onMounted(() => {
   .pickup-cards { display: flex; }
   .search-wrap { width: 100%; }
   .stat-badge { border: none; }
+  .form-row { flex-direction: column; }
 }
 
 /* Modal */

@@ -77,7 +77,7 @@ class UpdateStudentRequest extends FormRequest
                 : ['sometimes', 'required', 'integer', Rule::in($validGrades)],
             'class' => 'nullable|string|max:50',
             'class_id' => 'nullable|exists:class,id',
-            'academic_year' => 'nullable|string|max:10',
+            'academic_year' => 'nullable|string|max:50',
             'academic_year_id' => 'nullable|exists:academic_years,id',
             'semester_id' => 'nullable|exists:semesters,id',
             'status' => 'nullable|in:Aktif,Lulus,Pindah,Drop Out,Tidak Aktif',

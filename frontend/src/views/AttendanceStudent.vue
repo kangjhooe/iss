@@ -5,9 +5,9 @@
         <div class="header-content">
           <div>
             <h1 class="page-title">Absensi Siswa</h1>
-            <p class="page-subtitle">Isi kehadiran dari jadwal mengajar (jurnal dibuat otomatis) dan lihat rekap laporan</p>
+            <p class="page-subtitle">Isi absensi untuk tanggal selain alur harian, atau buka tab Rekap &amp; Laporan untuk cetak. PDF mapel ditandatangani guru mapel; rekap kelas (tanpa mapel) ditandatangani wali kelas. Absen hari ini lebih cepat lewat Jam Mengajar Hari Ini.</p>
           </div>
-          <div class="header-actions">
+          <div v-if="activeTab === 'rekap'" class="header-actions">
             <button type="button" class="btn-secondary btn-compact" :disabled="exporting || loadingRekap" @click="exportRekap('csv')">
               {{ exporting === 'csv' ? 'Mengekspor...' : 'Export CSV' }}
             </button>
@@ -182,7 +182,7 @@
           </div>
           <div v-if="rekapRows.length === 0" class="empty-state">
             <h3 class="empty-title">Belum ada data rekap</h3>
-            <p class="empty-desc">Pilih semester, kelas, dan mapel (mis. 8A · Penjaskes), lalu pastikan absensi sudah diisi dari tab Isi Absensi.</p>
+            <p class="empty-desc">Pilih semester + kelas + mapel untuk rekap guru mapel (TTD guru mapel), atau semester + kelas saja untuk rekap wali kelas (TTD wali). Pastikan absensi sudah diisi dari tab Isi Absensi.</p>
           </div>
           <div v-else class="table-container">
             <table class="data-table">
@@ -997,5 +997,49 @@ onMounted(async () => {
   margin-bottom: 1rem;
   font-size: 0.875rem;
   text-align: center;
+}
+
+@media (max-width: 768px) {
+  .fill-filters,
+  .filters-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-select,
+  .filter-wide {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .status-select {
+    min-width: 100px;
+  }
+
+  .notes-input {
+    max-width: none;
+    min-width: 120px;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions .btn-primary,
+  .form-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .section-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
 }
 </style>

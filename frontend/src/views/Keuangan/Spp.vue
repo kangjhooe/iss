@@ -2,11 +2,10 @@
   <Layout>
     <div class="keuangan-page">
       <header class="page-header">
-        <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
           <div class="header-left">
             <div>
-              <h1 class="page-title">SPP <span class="beta-pill">Beta</span></h1>
+              <h1 class="page-title">SPP</h1>
               <p class="page-subtitle">Generate tagihan SPP bulanan untuk siswa aktif</p>
             </div>
           </div>

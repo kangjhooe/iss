@@ -412,7 +412,7 @@ class StudentMutationService
                 'tingkat' => is_numeric($studentGrade) ? (int) $studentGrade : null,
                 'status' => 'Aktif',
                 'academic_year_id' => $target->active_academic_year_id,
-                'academic_year' => $target->activeAcademicYear?->name,
+                'academic_year' => $target->activeAcademicYear?->code ?: $target->activeAcademicYear?->name,
                 'semester_id' => $target->active_semester_id,
             ]);
 
@@ -558,7 +558,7 @@ class StudentMutationService
             $student->class = null;
             $student->nis = null;
             $student->academic_year_id = $target->active_academic_year_id;
-            $student->academic_year = $target->activeAcademicYear?->name ?? null;
+            $student->academic_year = $target->activeAcademicYear?->code ?: $target->activeAcademicYear?->name;
             $student->semester_id = $target->active_semester_id;
             $student->status = 'Aktif';
             $student->save();
@@ -756,7 +756,7 @@ class StudentMutationService
                 $student->nis = null;
                 $this->restoreStudentPlacement($student, $mutation);
                 $student->academic_year_id = $origin->active_academic_year_id;
-                $student->academic_year = $origin->activeAcademicYear?->name ?? null;
+                $student->academic_year = $origin->activeAcademicYear?->code ?: $origin->activeAcademicYear?->name;
                 $student->semester_id = $origin->active_semester_id;
                 $student->status = 'Aktif';
                 $student->save();

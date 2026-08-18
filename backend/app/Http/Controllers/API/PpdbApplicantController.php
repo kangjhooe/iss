@@ -683,7 +683,7 @@ class PpdbApplicantController extends Controller
             'class_id' => $classId,
             'tingkat' => $classModel?->grade,
             'class' => $classModel?->name,
-            'academic_year' => $academicYear->name ?? $academicYear->code ?? null,
+            'academic_year' => $academicYear->code ?? $academicYear->name ?? null,
             'nis' => $nis,
             'nisn' => $ppdb_applicant->nisn,
             'nik' => $ppdb_applicant->nik,

@@ -16,6 +16,13 @@ class UpdateFeedbackTicketRequest extends FormRequest
         return $this->user()?->isSuperAdmin() ?? false;
     }
 
+    protected function failedAuthorization()
+    {
+        throw new \Illuminate\Auth\Access\AuthorizationException(
+            'Hanya Super Admin yang dapat memperbarui status tiket feedback.'
+        );
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *

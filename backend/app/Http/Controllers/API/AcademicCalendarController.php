@@ -7,8 +7,9 @@ use App\Http\Requests\StoreAcademicCalendarEventRequest;
 use App\Http\Requests\UpdateAcademicCalendarEventRequest;
 use App\Http\Resources\AcademicCalendarEventResource;
 use App\Models\AcademicCalendarEvent;
-use App\Services\AcademicCalendarService;
-use Illuminate\Http\Request;
+use App\Notifications\AcademicCalendarParentNotification;
+use App\Support\ParentAccess;
+use Illuminate\Support\Facades\Notification;
 
 class AcademicCalendarController extends Controller
 {
@@ -52,6 +53,11 @@ class AcademicCalendarController extends Controller
         $validated['created_by'] = $request->user()->id;
 
         $event = $this->academicCalendarService->create($validated);
+
+        $parents = ParentAccess::parentUsersForInstitution((int) $event->institution_id);
+        if ($parents->isNotEmpty()) {
+            Notification::send($parents, new AcademicCalendarParentNotification($event));
+        }
 
         return response()->json([
             'message' => 'Event kalender akademik berhasil ditambahkan',
@@ -153,6 +159,12 @@ class AcademicCalendarController extends Controller
         $institutionId = $user->institution_id;
         if ($user->isStudent() && $user->studentProfile) {
             $institutionId = $user->studentProfile->institution_id;
+        }
+        if ($user->isParent()) {
+            $child = \App\Support\ParentAccess::linkedStudents($user)->first();
+            if ($child) {
+                $institutionId = $child->institution_id;
+            }
         }
         if (!$institutionId) {
             return AcademicCalendarEventResource::collection(collect());

@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateStudentRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use App\Models\StudentDocument;
+use App\Services\StudentAccountService;
 use App\Services\StudentService;
 use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
@@ -16,14 +17,17 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class StudentController extends Controller
 {
     protected StudentService $studentService;
+    protected StudentAccountService $studentAccountService;
 
-    public function __construct(StudentService $studentService)
+    public function __construct(StudentService $studentService, StudentAccountService $studentAccountService)
     {
         $this->studentService = $studentService;
+        $this->studentAccountService = $studentAccountService;
     }
 
     /**
@@ -148,6 +152,7 @@ class StudentController extends Controller
             'status',
             'gender',
             'tingkat',
+            'account_status',
             'sort_by',
             'sort_dir',
         ]);
@@ -228,8 +233,9 @@ class StudentController extends Controller
             $validated['institution_id'] = $institutionId;
             $validated['semester_id'] = $validated['semester_id'] ?? $institution->active_semester_id; // Set otomatis dari semester aktif jika tidak ada
 
-            // Use service to create student
+            // Use service to create student (also auto-creates login account)
             $student = $this->studentService->create($validated);
+            $account = $this->studentAccountService->findAccount($student);
 
             Log::info('Student created', [
                 'student_id' => $student->id,
@@ -238,8 +244,14 @@ class StudentController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Siswa berhasil ditambahkan',
-                'data' => new StudentResource($student),
+                'message' => 'Siswa berhasil ditambahkan'
+                    . ($account ? '. Akun login dibuat (NIK + tanggal lahir DDMMYYYY).' : ''),
+                'data' => new StudentResource($student->loadMissing('userAccount')),
+                'login_hint' => $account ? [
+                    'login' => 'NIK',
+                    'default_password' => 'Tanggal lahir (DDMMYYYY)',
+                    'must_change_password' => true,
+                ] : null,
             ], 201);
         } catch (\Exception $e) {
             Log::error('Failed to create student', [
@@ -271,7 +283,7 @@ class StudentController extends Controller
     {
         try {
             // Use service to find student
-            $student = $this->studentService->find($id, ['institution', 'documents', 'class', 'academicYear', 'classHistory']);
+            $student = $this->studentService->find($id, ['institution', 'documents', 'class', 'academicYear', 'classHistory', 'userAccount']);
 
             // Check authorization
             if (!$this->userCanAccessStudent($request, $student)) {
@@ -349,6 +361,223 @@ class StudentController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat memperbarui siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Ringkasan kesiapan akun login siswa (sesuai filter daftar).
+     */
+    public function accountStatus(Request $request)
+    {
+        try {
+            $institutionId = $this->resolveStudentInstitutionId($request);
+            $filters = $this->resolveListFilters($request, $institutionId);
+            $summary = $this->studentService->accountStatusSummary($filters, $institutionId);
+
+            return response()->json([
+                'data' => $summary,
+                'login_hint' => [
+                    'login' => 'NIK',
+                    'default_password' => 'Tanggal lahir (DDMMYYYY)',
+                    'must_change_password' => true,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to load student account status', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengambil status akun siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Buat akun login massal untuk siswa tanpa akun (atau id terpilih).
+     */
+    public function ensureAccountsBulk(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin()
+                && !$user->hasModuleAccess('student')) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $validated = $request->validate([
+                'class_id' => ['nullable'],
+                'student_ids' => ['nullable', 'array'],
+                'student_ids.*' => ['integer'],
+                'only_missing' => ['nullable', 'boolean'],
+                'limit' => ['nullable', 'integer', 'min:1', 'max:2000'],
+                'status' => ['nullable', 'string'],
+                'tingkat' => ['nullable'],
+                'account_status' => ['nullable', 'string'],
+            ]);
+
+            $institutionId = $this->resolveStudentInstitutionId($request);
+            $filters = $this->resolveListFilters($request, $institutionId);
+
+            if (array_key_exists('class_id', $validated) && $validated['class_id'] !== null && $validated['class_id'] !== '') {
+                $filters['class_id'] = $validated['class_id'];
+            }
+            if (!empty($validated['status'])) {
+                $filters['status'] = $validated['status'];
+            }
+            if (array_key_exists('tingkat', $validated) && $validated['tingkat'] !== null && $validated['tingkat'] !== '') {
+                $filters['tingkat'] = $validated['tingkat'];
+            }
+            if (!empty($validated['account_status'])) {
+                $filters['account_status'] = $validated['account_status'];
+            }
+
+            $onlyMissing = array_key_exists('only_missing', $validated)
+                ? (bool) $validated['only_missing']
+                : true;
+
+            $result = $this->studentService->bulkEnsureAccounts(
+                $filters,
+                $institutionId,
+                $validated['student_ids'] ?? null,
+                $onlyMissing,
+                (int) ($validated['limit'] ?? 500)
+            );
+
+            Log::info('Bulk ensure student accounts', [
+                'institution_id' => $institutionId,
+                'user_id' => $user->id,
+                'result' => [
+                    'processed' => $result['processed'],
+                    'created' => $result['created'],
+                    'updated' => $result['updated'],
+                    'skipped' => $result['skipped'],
+                ],
+            ]);
+
+            return response()->json([
+                'message' => sprintf(
+                    'Selesai: %d dibuat, %d sudah ada/diperbarui, %d dilewati (dari %d diproses).',
+                    $result['created'],
+                    $result['updated'],
+                    $result['skipped'],
+                    $result['processed']
+                ),
+                'data' => $result,
+                'login_hint' => [
+                    'login' => 'NIK',
+                    'default_password' => 'Tanggal lahir (DDMMYYYY)',
+                    'must_change_password' => true,
+                ],
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Failed to bulk ensure student accounts', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat membuat akun login massal',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Ensure student login account exists (NIK + birth date password).
+     */
+    public function ensureAccount(Request $request, $id)
+    {
+        try {
+            $student = $this->studentService->find($id);
+            if (!$this->userCanAccessStudent($request, $student)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if (!$request->user()->isAdminOrSuperAdmin() && !$request->user()->isInstitutionAdmin()
+                && !$request->user()->hasModuleAccess('student')) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $result = $this->studentAccountService->ensureAccount($student);
+
+            if (!$result['user'] && $result['skipped_reason']) {
+                return response()->json([
+                    'message' => 'Akun login tidak dapat dibuat: ' . $result['skipped_reason'],
+                ], 422);
+            }
+
+            $student->load('userAccount');
+
+            return response()->json([
+                'message' => $result['user_created']
+                    ? 'Akun login siswa berhasil dibuat. Sandi awal = tanggal lahir (DDMMYYYY).'
+                    : 'Akun login siswa sudah tersedia / diperbarui.',
+                'data' => new StudentResource($student),
+                'user_created' => $result['user_created'],
+                'login_hint' => [
+                    'login' => 'NIK',
+                    'default_password' => 'Tanggal lahir (DDMMYYYY)',
+                    'must_change_password' => true,
+                ],
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Failed to ensure student account', [
+                'student_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat membuat akun login siswa',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset student login password to birth date (DDMMYYYY) and force change on next login.
+     */
+    public function resetPassword(Request $request, $id)
+    {
+        try {
+            $student = $this->studentService->find($id);
+            if (!$this->userCanAccessStudent($request, $student)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $user = $request->user();
+            if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $account = $this->studentAccountService->resetPasswordToBirthDate($student);
+            $student->load('userAccount');
+
+            return response()->json([
+                'message' => 'Sandi berhasil direset ke tanggal lahir (DDMMYYYY). Siswa wajib ganti sandi saat login berikutnya.',
+                'data' => new StudentResource($student),
+                'must_change_password' => (bool) $account->must_change_password,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Failed to reset student password', [
+                'student_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat reset sandi siswa',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -539,18 +768,20 @@ class StudentController extends Controller
 
             foreach ($studentsData as $index => $studentData) {
                 try {
-                    // Validasi data minimal
-                    if (empty($studentData['nik']) || empty($studentData['name'])) {
-                        $errors[] = "Baris " . ($index + 1) . ": NIK dan Nama Lengkap wajib diisi";
-                        $errorCount++;
-                        continue;
-                    }
-
                     $rowValidator = Validator::make($studentData, [
+                        'nik' => ['required'],
+                        'name' => ['required'],
+                        'birth_place' => ['required', 'string'],
+                        'birth_date' => ['required', 'date'],
                         'tingkat' => $validGrades === null
-                            ? ['nullable', 'integer', Rule::in([])]
+                            ? ['required', 'integer']
                             : ['required', 'integer', Rule::in($validGrades)],
                     ], [
+                        'nik.required' => 'NIK wajib diisi',
+                        'name.required' => 'Nama Lengkap wajib diisi',
+                        'birth_place.required' => 'Tempat Lahir wajib diisi',
+                        'birth_date.required' => 'Tanggal Lahir wajib diisi',
+                        'birth_date.date' => 'Tanggal Lahir tidak valid',
                         'tingkat.required' => 'Tingkat wajib diisi',
                         'tingkat.integer' => 'Tingkat harus berupa angka',
                         'tingkat.in' => 'Tingkat tidak sesuai dengan jenjang institusi',
@@ -562,9 +793,7 @@ class StudentController extends Controller
                         continue;
                     }
 
-                    if ($validGrades !== null) {
-                        $studentData['tingkat'] = (int) $studentData['tingkat'];
-                    }
+                    $studentData['tingkat'] = (int) $studentData['tingkat'];
 
                     // Siswa impor wajib punya semester_id agar muncul di daftar (isi dari semester aktif jika belum ada)
                     $payload = array_merge($studentData, $defaults);
@@ -581,12 +810,14 @@ class StudentController extends Controller
                         ->first();
 
                     if ($existingStudent) {
-                        // Update jika sudah ada
+                        $previousNik = $existingStudent->nik;
                         $existingStudent->update($payload);
+                        $existingStudent->refresh();
+                        $this->studentAccountService->ensureAccount($existingStudent, $previousNik);
                         $successCount++;
                     } else {
-                        // Create jika belum ada
-                        Student::create($payload);
+                        $created = Student::create($payload);
+                        $this->studentAccountService->ensureAccount($created);
                         $successCount++;
                     }
                 } catch (\Exception $e) {

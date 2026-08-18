@@ -20,6 +20,7 @@ export function useStudentList() {
     class_id: '',
     tingkat: '',
     status: '',
+    account_status: '',
     only_trashed: false,
     sort_by: 'created_at',
     sort_dir: 'desc'
@@ -36,6 +37,7 @@ export function useStudentList() {
       params.tingkat = filters.value.tingkat
     }
     if (filters.value.status) params.status = filters.value.status
+    if (filters.value.account_status) params.account_status = filters.value.account_status
     if (filters.value.only_trashed) params.only_trashed = true
     if (filters.value.sort_by) params.sort_by = filters.value.sort_by
     if (filters.value.sort_dir) params.sort_dir = filters.value.sort_dir

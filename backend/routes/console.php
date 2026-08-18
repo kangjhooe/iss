@@ -51,3 +51,9 @@ Schedule::command('inventory:mark-loans-overdue')
     ->dailyAt('01:00')
     ->timezone('Asia/Jakarta')
     ->withoutOverlapping();
+
+// Reset sekolah demo publik (SMA 1 Demo Servrin) setiap hari pukul 03:00 WIB
+Schedule::command('demo:reset')
+    ->dailyAt('03:00')
+    ->timezone('Asia/Jakarta')
+    ->withoutOverlapping();

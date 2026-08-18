@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Correspondence;
+use App\Models\User;
 use App\Support\InstitutionContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\MultiInstitutionTeacherSetup;
@@ -38,20 +39,20 @@ class SwitchInstitutionTest extends TestCase
 
         $switch->assertStatus(200)
             ->assertJsonPath('user.active_institution_id', $this->guestInstitution->id)
-            ->assertJsonPath('user.active_affiliation', 'non_induk')
-            ->assertCookie(InstitutionContext::COOKIE_ACTIVE_INSTITUTION, (string) $this->guestInstitution->id);
+            ->assertJsonPath('user.active_affiliation', 'non_induk');
 
         $guestPermissions = $switch->json('user.permissions') ?? [];
         $this->assertNotContains('institution', $guestPermissions);
         $this->assertNotContains('report', $guestPermissions);
-        $this->assertContains('correspondence', $guestPermissions);
+        $this->assertNotContains('correspondence', $guestPermissions);
         $this->assertContains('grade_book', $guestPermissions);
 
-        $cookie = $switch->headers->getCookies()[0] ?? null;
-        $this->assertNotNull($cookie);
+        $hasInstitutionCookie = collect($switch->headers->getCookies())
+            ->contains(fn ($cookie) => $cookie->getName() === InstitutionContext::COOKIE_ACTIVE_INSTITUTION);
+        $this->assertTrue($hasInstitutionCookie);
 
         $followUp = $this->withHeaders($headers)
-            ->withCookie(InstitutionContext::COOKIE_ACTIVE_INSTITUTION, (string) $this->guestInstitution->id)
+            ->withHeader('X-Institution-Id', (string) $this->guestInstitution->id)
             ->getJson('/api/v1/me');
 
         $followUp->assertStatus(200)
@@ -75,29 +76,13 @@ class SwitchInstitutionTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_correspondence_list_scoped_to_active_institution_after_switch(): void
+    public function test_correspondence_module_forbidden_for_teacher_without_permission(): void
     {
-        Correspondence::create([
-            'institution_id' => $this->homeInstitution->id,
-            'type' => 'keluar',
-            'subject' => 'Surat Induk',
-            'letter_number' => '001/INDUK/2026',
-            'date' => now()->toDateString(),
-            'status' => 'draft',
-            'created_by' => $this->teacherUser->id,
-        ]);
-
-        Correspondence::create([
-            'institution_id' => $this->guestInstitution->id,
-            'type' => 'keluar',
-            'subject' => 'Surat Tamu',
-            'letter_number' => '001/TAMU/2026',
-            'date' => now()->toDateString(),
-            'status' => 'draft',
-            'created_by' => $this->teacherUser->id,
-        ]);
-
         $headers = $this->authHeaders($this->teacherUser);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/correspondence?per_page=50')
+            ->assertStatus(403);
 
         $this->withHeaders($headers)
             ->postJson('/api/v1/me/switch-institution', [
@@ -105,13 +90,52 @@ class SwitchInstitutionTest extends TestCase
             ])
             ->assertStatus(200);
 
-        $list = $this->withHeaders($headers)
+        $this->withHeaders($headers)
             ->withHeader('X-Institution-Id', (string) $this->guestInstitution->id)
-            ->getJson('/api/v1/correspondence?per_page=50');
+            ->getJson('/api/v1/correspondence?per_page=50')
+            ->assertStatus(403);
+    }
 
-        $list->assertStatus(200);
-        $subjects = collect($list->json('data'))->pluck('subject')->all();
-        $this->assertContains('Surat Tamu', $subjects);
-        $this->assertNotContains('Surat Induk', $subjects);
+    public function test_teacher_can_complete_disposition_without_correspondence_module(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin Disposisi',
+            'email' => 'admin-disposisi@example.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('Password123!'),
+            'role' => 'admin',
+            'institution_id' => $this->homeInstitution->id,
+            'email_verified_at' => now(),
+        ]);
+
+        $letter = Correspondence::create([
+            'institution_id' => $this->homeInstitution->id,
+            'type' => 'keluar',
+            'letter_type_code' => '16',
+            'subject' => 'Surat Disposisi',
+            'letter_number' => '010/DSP/2026',
+            'date' => now()->toDateString(),
+            'status' => 'approved',
+            'created_by' => $admin->id,
+        ]);
+
+        $disposition = \App\Models\CorrespondenceDisposition::create([
+            'correspondence_id' => $letter->id,
+            'from_user_id' => $admin->id,
+            'to_user_id' => $this->teacherUser->id,
+            'instruction' => 'Mohon ditindaklanjuti',
+            'status' => 'pending',
+        ]);
+
+        $headers = $this->authHeaders($this->teacherUser);
+
+        $pending = $this->withHeaders($headers)->getJson('/api/v1/dispositions/pending');
+        $pending->assertStatus(200);
+        $ids = collect($pending->json('data'))->pluck('id')->all();
+        $this->assertContains($disposition->id, $ids);
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/correspondence/dispositions/'.$disposition->id.'/complete')
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', 'completed');
     }
 }

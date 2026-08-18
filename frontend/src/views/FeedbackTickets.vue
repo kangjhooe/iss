@@ -114,6 +114,15 @@
           </div>
 
           <div v-if="isSuperAdmin" class="ticket-actions">
+            <button
+              v-if="isActiveStatus(ticket.status)"
+              type="button"
+              class="btn-resolve"
+              :disabled="processing"
+              @click="openResolveModal(ticket)"
+            >
+              Selesaikan
+            </button>
             <button type="button" class="btn-update" @click="openUpdateModal(ticket)">
               Perbarui Status
             </button>
@@ -143,124 +152,125 @@
         </div>
       </div>
 
-      <!-- Create Modal -->
-      <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Buat Laporan</h3>
-            <button type="button" class="btn-close" @click="showCreateModal = false">×</button>
-          </div>
-          <form class="modal-body" @submit.prevent="handleCreate">
-            <div class="form-group">
-              <label>Tipe *</label>
-              <select v-model="createForm.type" class="form-control" required>
-                <option value="bug">Lapor Bug</option>
-                <option value="feature">Request Fitur</option>
-              </select>
+      <!-- Create / Update modals: Teleport ke body agar tidak tertutup sidebar/topbar -->
+      <Teleport to="body">
+        <div v-if="showCreateModal" class="feedback-modal-overlay" @click.self="showCreateModal = false">
+          <div class="feedback-modal-content">
+            <div class="modal-header">
+              <h3>Buat Laporan</h3>
+              <button type="button" class="btn-close" @click="showCreateModal = false">×</button>
             </div>
-            <div class="form-group">
-              <label>Judul *</label>
-              <input
-                v-model="createForm.title"
-                type="text"
-                class="form-control"
-                maxlength="200"
-                placeholder="Ringkas masalah atau usulan..."
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>Deskripsi *</label>
-              <textarea
-                v-model="createForm.description"
-                class="form-control"
-                rows="5"
-                maxlength="5000"
-                placeholder="Jelaskan langkah reproduksi, hasil yang diharapkan, atau detail request fitur..."
-                required
-              ></textarea>
-            </div>
-            <div class="form-row">
+            <form class="modal-body" @submit.prevent="handleCreate">
               <div class="form-group">
-                <label>Modul terkait</label>
-                <select v-model="createForm.module" class="form-control">
-                  <option value="">— Opsional —</option>
-                  <option v-for="m in moduleOptions" :key="m" :value="m">{{ m }}</option>
+                <label>Tipe *</label>
+                <select v-model="createForm.type" class="form-control" required>
+                  <option value="bug">Lapor Bug</option>
+                  <option value="feature">Request Fitur</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Judul *</label>
+                <input
+                  v-model="createForm.title"
+                  type="text"
+                  class="form-control"
+                  maxlength="200"
+                  placeholder="Ringkas masalah atau usulan..."
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label>Deskripsi *</label>
+                <textarea
+                  v-model="createForm.description"
+                  class="form-control"
+                  rows="5"
+                  maxlength="5000"
+                  placeholder="Jelaskan langkah reproduksi, hasil yang diharapkan, atau detail request fitur..."
+                  required
+                ></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Modul terkait</label>
+                  <select v-model="createForm.module" class="form-control">
+                    <option value="">— Opsional —</option>
+                    <option v-for="m in moduleOptions" :key="m" :value="m">{{ m }}</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Prioritas</label>
+                  <select v-model="createForm.priority" class="form-control">
+                    <option value="low">Rendah</option>
+                    <option value="medium">Sedang</option>
+                    <option value="high">Tinggi</option>
+                  </select>
+                </div>
+              </div>
+              <p v-if="createError" class="form-error">{{ createError }}</p>
+              <div class="modal-actions">
+                <button type="button" class="btn-secondary" @click="showCreateModal = false">Batal</button>
+                <button type="submit" class="btn-primary" :disabled="processing">
+                  {{ processing ? 'Mengirim...' : 'Kirim' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div v-if="showUpdateModal" class="feedback-modal-overlay" @click.self="showUpdateModal = false">
+          <div class="feedback-modal-content">
+            <div class="modal-header">
+              <h3>{{ updateForm.status === 'resolved' ? 'Selesaikan Tiket' : 'Perbarui Tiket' }}</h3>
+              <button type="button" class="btn-close" @click="showUpdateModal = false">×</button>
+            </div>
+            <form class="modal-body" @submit.prevent="handleUpdate">
+              <p class="update-title">{{ selectedTicket?.title }}</p>
+              <div class="form-group">
+                <label>Status *</label>
+                <select v-model="updateForm.status" class="form-control" required>
+                  <option value="open">Terbuka</option>
+                  <option value="in_progress">Sedang diproses</option>
+                  <option value="resolved">Selesai</option>
+                  <option value="closed">Ditutup</option>
+                  <option value="rejected">Ditolak</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>Prioritas</label>
-                <select v-model="createForm.priority" class="form-control">
+                <select v-model="updateForm.priority" class="form-control">
                   <option value="low">Rendah</option>
                   <option value="medium">Sedang</option>
                   <option value="high">Tinggi</option>
                 </select>
               </div>
-            </div>
-            <p v-if="createError" class="form-error">{{ createError }}</p>
-            <div class="modal-actions">
-              <button type="button" class="btn-secondary" @click="showCreateModal = false">Batal</button>
-              <button type="submit" class="btn-primary" :disabled="processing">
-                {{ processing ? 'Mengirim...' : 'Kirim' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- Update Modal -->
-      <div v-if="showUpdateModal" class="modal-overlay" @click.self="showUpdateModal = false">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Perbarui Tiket</h3>
-            <button type="button" class="btn-close" @click="showUpdateModal = false">×</button>
+              <div class="form-group">
+                <label>Catatan untuk sekolah</label>
+                <textarea
+                  v-model="updateForm.admin_note"
+                  class="form-control"
+                  rows="4"
+                  maxlength="2000"
+                  placeholder="Opsional: update, alasan, atau langkah selanjutnya..."
+                ></textarea>
+              </div>
+              <p v-if="updateError" class="form-error">{{ updateError }}</p>
+              <div class="modal-actions">
+                <button type="button" class="btn-secondary" @click="showUpdateModal = false">Batal</button>
+                <button type="submit" class="btn-primary" :disabled="processing">
+                  {{ processing ? 'Menyimpan...' : (updateForm.status === 'resolved' ? 'Selesaikan' : 'Simpan') }}
+                </button>
+              </div>
+            </form>
           </div>
-          <form class="modal-body" @submit.prevent="handleUpdate">
-            <p class="update-title">{{ selectedTicket?.title }}</p>
-            <div class="form-group">
-              <label>Status *</label>
-              <select v-model="updateForm.status" class="form-control" required>
-                <option value="open">Terbuka</option>
-                <option value="in_progress">Sedang diproses</option>
-                <option value="resolved">Selesai</option>
-                <option value="closed">Ditutup</option>
-                <option value="rejected">Ditolak</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Prioritas</label>
-              <select v-model="updateForm.priority" class="form-control">
-                <option value="low">Rendah</option>
-                <option value="medium">Sedang</option>
-                <option value="high">Tinggi</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Catatan untuk sekolah</label>
-              <textarea
-                v-model="updateForm.admin_note"
-                class="form-control"
-                rows="4"
-                maxlength="2000"
-                placeholder="Opsional: update, alasan, atau langkah selanjutnya..."
-              ></textarea>
-            </div>
-            <p v-if="updateError" class="form-error">{{ updateError }}</p>
-            <div class="modal-actions">
-              <button type="button" class="btn-secondary" @click="showUpdateModal = false">Batal</button>
-              <button type="submit" class="btn-primary" :disabled="processing">
-                {{ processing ? 'Menyimpan...' : 'Simpan' }}
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
+      </Teleport>
     </div>
   </Layout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { feedbackTicketApi } from '@/api/feedbackTicket'
@@ -329,6 +339,12 @@ const moduleOptions = [
   'Perpustakaan',
   'BK / Pelanggaran',
   'Mutasi',
+  'PKL',
+  'BKK',
+  'UKS',
+  'Kepegawaian',
+  'Berita & Galeri',
+  'Portal Orang Tua',
   'Lainnya'
 ]
 
@@ -357,10 +373,12 @@ const loadTickets = async (page = 1) => {
     if (filterType.value) params.type = filterType.value
 
     const response = await feedbackTicketApi.getAll(params)
-    tickets.value = response.data.data || []
+    const payload = response.data || {}
+    const list = Array.isArray(payload.data) ? payload.data : []
+    tickets.value = list
     meta.value = {
-      current_page: response.data.current_page ?? 1,
-      last_page: response.data.last_page ?? 1
+      current_page: payload.current_page ?? payload.meta?.current_page ?? 1,
+      last_page: payload.last_page ?? payload.meta?.last_page ?? 1
     }
 
     if (isSuperAdmin.value) {
@@ -425,6 +443,46 @@ const openUpdateModal = (ticket) => {
   showUpdateModal.value = true
 }
 
+const openResolveModal = (ticket) => {
+  openUpdateModal(ticket)
+  updateForm.value.status = 'resolved'
+}
+
+const isActiveStatus = (status) => status === 'open' || status === 'in_progress'
+
+const applyStatusFilterAfterUpdate = (status) => {
+  if (status === 'resolved' || status === 'closed' || status === 'rejected') {
+    filterStatus.value = status
+    return
+  }
+  filterStatus.value = 'open'
+}
+
+const handleUpdate = async () => {
+  updateError.value = ''
+  processing.value = true
+  const nextStatus = updateForm.value.status
+  try {
+    await feedbackTicketApi.update(selectedTicket.value.id, {
+      status: nextStatus,
+      priority: updateForm.value.priority,
+      admin_note: updateForm.value.admin_note?.trim() || null
+    })
+    toast.success(
+      'Berhasil',
+      nextStatus === 'resolved' ? 'Tiket ditandai selesai' : 'Tiket berhasil diperbarui'
+    )
+    showUpdateModal.value = false
+    applyStatusFilterAfterUpdate(nextStatus)
+    await loadTickets(1)
+  } catch (err) {
+    updateError.value = extractError(err)
+    toast.error('Gagal', updateError.value)
+  } finally {
+    processing.value = false
+  }
+}
+
 const handleCreate = async () => {
   createError.value = ''
   processing.value = true
@@ -445,26 +503,6 @@ const handleCreate = async () => {
   } catch (err) {
     createError.value = extractError(err)
     toast.error('Gagal', createError.value)
-  } finally {
-    processing.value = false
-  }
-}
-
-const handleUpdate = async () => {
-  updateError.value = ''
-  processing.value = true
-  try {
-    await feedbackTicketApi.update(selectedTicket.value.id, {
-      status: updateForm.value.status,
-      priority: updateForm.value.priority,
-      admin_note: updateForm.value.admin_note?.trim() || null
-    })
-    toast.success('Berhasil', 'Tiket berhasil diperbarui')
-    showUpdateModal.value = false
-    await loadTickets(meta.value.current_page)
-  } catch (err) {
-    updateError.value = extractError(err)
-    toast.error('Gagal', updateError.value)
   } finally {
     processing.value = false
   }
@@ -494,11 +532,19 @@ const formatDate = (dateString) => {
 onMounted(async () => {
   await authStore.fetchUser()
   const role = authStore.user?.role
-  if (!['super_admin', 'institution_admin', 'admin'].includes(role)) {
+  if (!['super_admin', 'institution_admin', 'admin', 'teacher', 'staff'].includes(role)) {
     toast.error('Akses Ditolak', 'Anda tidak memiliki akses ke halaman ini')
     return
   }
   await loadTickets(1)
+})
+
+watch([showCreateModal, showUpdateModal], ([createOpen, updateOpen]) => {
+  document.body.style.overflow = (createOpen || updateOpen) ? 'hidden' : ''
+})
+
+onUnmounted(() => {
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -801,6 +847,7 @@ onMounted(async () => {
 .btn-primary,
 .btn-secondary,
 .btn-update,
+.btn-resolve,
 .btn-page {
   border-radius: 10px;
   padding: 10px 14px;
@@ -841,6 +888,21 @@ onMounted(async () => {
   background: #dbeafe;
 }
 
+.btn-resolve {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.btn-resolve:hover {
+  background: #d1fae5;
+}
+
+.btn-resolve:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .pagination-bar {
   display: flex;
   justify-content: space-between;
@@ -871,114 +933,7 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 560px;
-  max-height: 90vh;
-  overflow: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.btn-close {
-  border: none;
-  background: transparent;
-  font-size: 24px;
-  cursor: pointer;
-  color: #64748b;
-  line-height: 1;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.update-title {
-  margin: 0 0 16px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.form-group {
-  margin-bottom: 14px;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #334155;
-}
-
-.form-control {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  font-family: inherit;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
-}
-
-textarea.form-control {
-  resize: vertical;
-}
-
-.form-error {
-  color: #dc2626;
-  font-size: 13px;
-  margin: 0 0 12px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 8px;
-}
-
 @media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
   .header-content h2 {
     font-size: 22px;
   }
@@ -994,6 +949,144 @@ textarea.form-control {
 
   .detail-row .label {
     min-width: 0;
+  }
+}
+</style>
+
+<style>
+/* Unscoped: Teleport ke body, harus lolos stacking context Layout */
+.feedback-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2100;
+  padding: 16px;
+}
+
+.feedback-modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.feedback-modal-content .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.feedback-modal-content .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.feedback-modal-content .btn-close {
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  color: #64748b;
+  line-height: 1;
+}
+
+.feedback-modal-content .modal-body {
+  padding: 20px;
+}
+
+.feedback-modal-content .update-title {
+  margin: 0 0 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.feedback-modal-content .form-group {
+  margin-bottom: 14px;
+}
+
+.feedback-modal-content .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.feedback-modal-content .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.feedback-modal-content .form-control {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.feedback-modal-content .form-control:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.feedback-modal-content textarea.form-control {
+  resize: vertical;
+}
+
+.feedback-modal-content .form-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.feedback-modal-content .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.feedback-modal-content .btn-primary,
+.feedback-modal-content .btn-secondary {
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feedback-modal-content .btn-primary {
+  background: #059669;
+  color: white;
+  border: none;
+}
+
+.feedback-modal-content .btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.feedback-modal-content .btn-secondary {
+  background: white;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 640px) {
+  .feedback-modal-content .form-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -156,8 +156,11 @@ import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { permissionApi } from '@/api/permissions'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
+import { getActiveInstitutionLevel, isVocationalLevel, VOCATIONAL_PERMISSION_KEYS } from '@/utils/institution'
 
 const toast = useToast()
+const authStore = useAuthStore()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -225,7 +228,10 @@ const loadData = async () => {
       permissionApi.getTeachers()
     ])
     
-    availableModules.value = modulesRes.data.data || []
+    const modules = modulesRes.data.data || []
+    availableModules.value = isVocationalLevel(getActiveInstitutionLevel(authStore))
+      ? modules
+      : modules.filter(m => !VOCATIONAL_PERMISSION_KEYS.includes(m.key))
     teachers.value = teachersRes.data.data || []
     pendingChanges.value = {}
   } catch (err) {

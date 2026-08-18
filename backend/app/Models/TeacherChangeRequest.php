@@ -12,26 +12,45 @@ class TeacherChangeRequest extends Model
     protected $table = 'teacher_change_requests';
 
     /**
-     * Fields that teachers are allowed to request changes for.
-     * Admin-only fields (nik, nip, nuptk, name, institution_id, status, type, etc.) are excluded.
+     * Fields teachers may edit only via change request (admin approval).
+     * Structural fields (institution_id, type) remain admin-only and are excluded.
      */
-    public const ALLOWED_FIELDS = [
-        'address',
-        'phone',
+    public const APPROVAL_FIELDS = [
+        'name',
+        'nik',
+        'nip',
+        'nuptk',
+        'gender',
         'email',
-        'religion',
         'birth_place',
         'birth_date',
-        'education_level',
-        'major',
         'subject',
-        'notes',
+        'employment_status',
+        'status',
+        'join_date',
         'certification_status',
         'certification_date',
         'teacher_registration_number',
         'certification_number',
         'certification_issuing_authority',
     ];
+
+    /**
+     * Fields teachers may update on their own profile without approval.
+     */
+    public const SELF_EDITABLE_FIELDS = [
+        'address',
+        'phone',
+        'religion',
+        'education_level',
+        'major',
+        'notes',
+    ];
+
+    /**
+     * @deprecated Use APPROVAL_FIELDS. Kept for backward compatibility.
+     */
+    public const ALLOWED_FIELDS = self::APPROVAL_FIELDS;
 
     protected $fillable = [
         'employee_id',
@@ -84,6 +103,11 @@ class TeacherChangeRequest extends Model
 
     public static function isAllowedField(string $field): bool
     {
-        return in_array($field, self::ALLOWED_FIELDS, true);
+        return in_array($field, self::APPROVAL_FIELDS, true);
+    }
+
+    public static function isSelfEditableField(string $field): bool
+    {
+        return in_array($field, self::SELF_EDITABLE_FIELDS, true);
     }
 }

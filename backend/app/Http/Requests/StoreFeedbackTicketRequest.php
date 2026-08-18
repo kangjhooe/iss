@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\FeedbackTicket;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,11 +14,14 @@ class StoreFeedbackTicketRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $user = $this->user();
+        return $this->user()?->canSubmitFeedback() ?? false;
+    }
 
-        return $user
-            && ($user->isInstitutionAdmin() || $user->isAdmin())
-            && $user->institution_id;
+    protected function failedAuthorization()
+    {
+        throw new AuthorizationException(
+            'Hanya staf sekolah yang dapat mengirim laporan bug atau request fitur.'
+        );
     }
 
     /**

@@ -59,7 +59,7 @@ class StudentResource extends JsonResource
                     ];
                 }
             ),
-            'academic_year' => $this->academic_year,
+            'academic_year' => $this->getRawOriginal('academic_year'), // string column; use academic_year_detail for relation
             'academic_year_id' => $this->academic_year_id,
             'academic_year_detail' => $this->whenLoaded('academicYear', function () {
                 return [
@@ -125,7 +125,10 @@ class StudentResource extends JsonResource
                     'id' => $this->userAccount->id,
                     'name' => $this->userAccount->name,
                     'email' => $this->userAccount->email,
+                    'login_nik' => $this->userAccount->login_nik,
+                    'must_change_password' => (bool) $this->userAccount->must_change_password,
                     'role' => $this->userAccount->role,
+                    'is_active' => $this->userAccount->is_active !== false,
                 ];
             }),
             'class_history' => $this->whenLoaded('classHistory', function () {

@@ -83,6 +83,6 @@ class WaliKelasPermissionServiceTest extends TestCase
         $this->assertContains('grade_book', $keys);
         $this->assertContains('teaching_journal', $keys);
         $this->assertContains('schedule', $keys);
-        $this->assertContains('correspondence', $keys);
+        $this->assertNotContains('correspondence', $keys);
     }
 }

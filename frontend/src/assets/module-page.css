@@ -2,7 +2,7 @@
  * Layout konsisten untuk halaman modul (Data Siswa, Guru, Kelas, dll):
  * - Header: judul + tombol aksi dalam 1 baris ke samping (horizontal)
  * - Filter + pencarian: 1 baris ke samping (horizontal)
- * - Responsif: tetap horizontal di mobile
+ * - Responsif: tombol wrap di tablet; filter stack di mobile
  */
 
 /* Area loading skeleton full layar (lebar + tinggi konten) */
@@ -14,7 +14,7 @@
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 24px;
+  padding: 16px;
 }
 
 .main-content .loading-wrap .skeleton-container {
@@ -25,19 +25,19 @@
 }
 
 .main-content .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 
 .main-content .header-content {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 24px;
+  gap: 16px;
 }
 
 .main-content .header-content h2,
 .main-content .header-content .page-title {
-  font-size: 24px;
+  font-size: var(--fs-title, 18px);
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 4px;
@@ -51,7 +51,7 @@
 .main-content .header-content p,
 .main-content .header-content .page-subtitle {
   color: #64748b;
-  font-size: 13px;
+  font-size: var(--fs-subtitle, 12px);
   margin: 0;
 }
 
@@ -102,11 +102,11 @@
 /* Filter + pencarian: 1 baris ke samping (horizontal) */
 .main-content .filters {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 8px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
   background: white;
-  padding: 20px;
+  padding: 12px;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
@@ -171,7 +171,7 @@
   .main-content .header-actions {
     display: flex !important;
     flex-direction: row !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
     gap: 6px;
     width: 100%;
     max-width: 100%;
@@ -179,53 +179,44 @@
 
   .main-content .action-buttons-group .btn-compact,
   .main-content .header-actions .btn-compact {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
-    height: 36px;
-    padding: 0 4px !important;
-    font-size: 11px !important;
+    min-height: 36px;
+    height: auto;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
     justify-content: center;
     border-radius: 8px;
   }
 
   .main-content .action-buttons-group .btn-compact svg,
   .main-content .header-actions .btn-compact svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  .main-content .action-buttons-group .btn-compact span,
-  .main-content .header-actions .btn-compact span {
-    display: none;
+    width: 14px;
+    height: 14px;
   }
 
   .main-content .filters-inline {
     display: flex !important;
     flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    gap: 6px;
-    padding: 6px 8px;
+    flex-wrap: wrap !important;
+    gap: 8px;
+    padding: 8px 10px;
   }
 
   .main-content .filters-inline .search-input {
-    flex: 1 1 0;
+    flex: 1 1 140px;
     min-width: 0;
-    padding: 6px 8px;
-    font-size: 11px;
+    padding: 8px 10px;
+    font-size: 13px;
   }
 
   .main-content .filters-inline .filter-select,
   .main-content .filters-inline input[type="date"] {
-    flex: 0 0 auto;
-    min-width: 72px;
-    max-width: 95px;
-    padding: 6px 22px 6px 6px;
-    font-size: 11px;
-  }
-
-  .main-content .filters-inline input[type="date"] {
-    min-width: 92px;
-    max-width: 110px;
+    flex: 1 1 120px;
+    min-width: 0;
+    max-width: none;
+    padding: 8px 10px;
+    font-size: 13px;
   }
 }
 
@@ -241,7 +232,7 @@
 
   .main-content .header-content h2,
   .main-content .header-content .page-title {
-    font-size: 20px;
+    font-size: var(--fs-title, 18px);
   }
 
   .main-content .header-content p,
@@ -251,41 +242,33 @@
 
   .main-content .action-buttons-group,
   .main-content .header-actions {
-    gap: 4px;
+    gap: 6px;
   }
 
   .main-content .action-buttons-group .btn-compact,
   .main-content .header-actions .btn-compact {
-    height: 34px;
-    padding: 0 4px !important;
-    font-size: 10px !important;
-  }
-
-  .main-content .action-buttons-group .btn-compact svg,
-  .main-content .header-actions .btn-compact svg {
-    width: 12px;
-    height: 12px;
+    min-height: 40px;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
   }
 
   .main-content .filters-inline {
-    padding: 5px 6px;
+    flex-direction: column !important;
+    padding: 10px;
     margin-bottom: 10px;
-    gap: 5px;
+    gap: 8px;
   }
 
-  .main-content .filters-inline .search-input {
-    padding: 5px 6px;
-    font-size: 11px;
-    min-height: 32px;
-  }
-
+  .main-content .filters-inline .search-input,
   .main-content .filters-inline .filter-select,
   .main-content .filters-inline input[type="date"] {
-    min-width: 62px;
-    max-width: 82px;
-    padding: 5px 18px 5px 6px;
-    font-size: 10px;
-    min-height: 32px;
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    padding: 10px 12px;
+    font-size: 14px;
+    min-height: 40px;
   }
 }
 
@@ -308,37 +291,16 @@
 
   .main-content .action-buttons-group .btn-compact,
   .main-content .header-actions .btn-compact {
-    height: 32px;
-    border-radius: 6px;
-    padding: 0 3px !important;
-    font-size: 10px !important;
-  }
-
-  .main-content .action-buttons-group .btn-compact svg,
-  .main-content .header-actions .btn-compact svg {
-    width: 11px;
-    height: 11px;
+    min-height: 40px;
+    border-radius: 8px;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
   }
 
   .main-content .filters-inline {
-    padding: 4px 6px;
+    padding: 8px;
     margin-bottom: 8px;
-    gap: 4px;
-  }
-
-  .main-content .filters-inline .search-input {
-    font-size: 11px;
-    min-height: 30px;
-    padding: 4px 6px;
-  }
-
-  .main-content .filters-inline .filter-select,
-  .main-content .filters-inline input[type="date"] {
-    min-height: 30px;
-    min-width: 56px;
-    max-width: 72px;
-    padding: 4px 16px 4px 5px;
-    font-size: 10px;
+    gap: 6px;
   }
 }
 

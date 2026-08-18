@@ -265,6 +265,19 @@ onMounted(loadSubjects)
 .search-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
 .filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 6px; transition: border-color 0.2s, box-shadow 0.2s; }
 .filter-select:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
+
+@media (max-width: 768px) {
+  .filters,
+  .filters-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-input,
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+}
 .loading-state { text-align: center; padding: 2rem; }
 .table-container { overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .data-table { width: 100%; border-collapse: collapse; }

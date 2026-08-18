@@ -45,6 +45,12 @@
             <option value="Drop Out">Drop Out</option>
             <option value="Tidak Aktif">Tidak Aktif</option>
           </select>
+          <select v-model="filters.account_status" @change="loadStudents(1)" class="filter-select">
+            <option value="">Semua Akun</option>
+            <option value="missing">Belum punya akun</option>
+            <option value="incomplete">Data login belum lengkap</option>
+            <option value="ready">Sudah punya akun</option>
+          </select>
         </div>
         <div v-else class="filters filters-inline">
           <input
@@ -83,6 +89,15 @@
             <span>Import</span>
           </label>
           <input type="file" id="import-excel" accept=".xlsx,.xls" class="input-hidden" @change="handleImportExcel">
+          <button
+            v-if="canManageStudentAccount && (accountStatus.missing_account > 0)"
+            type="button"
+            class="btn-secondary btn-compact"
+            :disabled="bulkAccountLoading"
+            @click="bulkEnsureAccounts"
+          >
+            <span>{{ bulkAccountLoading ? 'Membuat akun…' : `Buat akun (${accountStatus.missing_account})` }}</span>
+          </button>
           <button @click="openAddModal" class="btn-primary btn-compact">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -91,6 +106,48 @@
             <span>Tambah Siswa</span>
           </button>
           </template>
+        </div>
+      </div>
+
+      <div
+        v-if="!filters.only_trashed && !loading && (accountStatus.missing_account > 0 || accountStatus.incomplete_data > 0)"
+        class="account-status-banner"
+      >
+        <div class="account-status-text">
+          <strong>Akun login siswa</strong>
+          <span>
+            {{ accountStatus.with_account }} sudah punya akun ·
+            {{ accountStatus.missing_account }} siap dibuat ·
+            {{ accountStatus.incomplete_data }} data belum lengkap (NIK/tgl lahir)
+          </span>
+          <span class="hint">Login: NIK · Sandi awal: tanggal lahir (DDMMYYYY)</span>
+        </div>
+        <div class="account-status-actions">
+          <button
+            v-if="accountStatus.missing_account > 0"
+            type="button"
+            class="btn-secondary btn-compact"
+            @click="filters.account_status = 'missing'; loadStudents(1)"
+          >
+            Lihat tanpa akun
+          </button>
+          <button
+            v-if="accountStatus.incomplete_data > 0"
+            type="button"
+            class="btn-secondary btn-compact"
+            @click="filters.account_status = 'incomplete'; loadStudents(1)"
+          >
+            Lihat data kurang
+          </button>
+          <button
+            v-if="canManageStudentAccount && accountStatus.missing_account > 0"
+            type="button"
+            class="btn-primary btn-compact"
+            :disabled="bulkAccountLoading"
+            @click="bulkEnsureAccounts"
+          >
+            {{ bulkAccountLoading ? 'Memproses…' : 'Buat akun massal' }}
+          </button>
         </div>
       </div>
 
@@ -894,6 +951,68 @@
               </div>
             </div>
 
+            <!-- Akun Login -->
+            <div class="biodata-section">
+              <h4 class="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Akun Login
+              </h4>
+              <div class="biodata-grid" v-if="viewingStudent.has_user_account && viewingStudent.user_account">
+                <div class="biodata-item">
+                  <span class="label">Login (NIK)</span>
+                  <span class="value">{{ viewingStudent.user_account.login_nik || viewingStudent.nik || '-' }}</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">Sandi awal</span>
+                  <span class="value">Tanggal lahir (DDMMYYYY)</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">Wajib ganti sandi</span>
+                  <span class="value">{{ viewingStudent.user_account.must_change_password ? 'Ya' : 'Tidak' }}</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">Status akun</span>
+                  <span class="value">{{ viewingStudent.user_account.is_active === false ? 'Nonaktif' : 'Aktif' }}</span>
+                </div>
+                <div class="biodata-item full-width" v-if="canResetStudentAccount">
+                  <span class="label">Reset sandi</span>
+                  <span class="value">
+                    <button
+                      type="button"
+                      class="btn-reset-password"
+                      :disabled="studentAccountLoading"
+                      @click="resetStudentPassword"
+                    >
+                      {{ studentAccountLoading ? 'Memproses...' : 'Reset ke tanggal lahir' }}
+                    </button>
+                    <span class="hint">Siswa wajib ganti sandi saat login berikutnya.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="biodata-grid" v-else>
+                <div class="biodata-item full-width">
+                  <span class="value hint">
+                    Akun login belum dibuat. Pastikan NIK dan tanggal lahir terisi, lalu buat akun.
+                  </span>
+                </div>
+                <div class="biodata-item full-width" v-if="canManageStudentAccount">
+                  <span class="value">
+                    <button
+                      type="button"
+                      class="btn-reset-password"
+                      :disabled="studentAccountLoading"
+                      @click="ensureStudentAccount"
+                    >
+                      {{ studentAccountLoading ? 'Memproses...' : 'Buat akun login' }}
+                    </button>
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <!-- Data Tambahan -->
             <div class="biodata-section">
               <h4 class="section-title">
@@ -1166,6 +1285,71 @@
       </div>
     </div>
     
+    <div v-if="importPreview.open" class="modal-overlay" @click="closeImportPreview">
+      <div class="modal-content import-preview-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Pratinjau Import Siswa</h3>
+          <button type="button" class="btn-close" @click="closeImportPreview">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-message">
+            {{ importPreview.valid.length }} baris siap diimpor
+            <template v-if="importPreview.invalid.length">
+              · {{ importPreview.invalid.length }} baris dilewati
+            </template>
+          </p>
+          <p class="hint">Akun login dibuat otomatis jika NIK (16 digit) dan tanggal lahir terisi.</p>
+          <div v-if="importPreview.valid.length" class="import-preview-table-wrap">
+            <table class="counseling-table">
+              <thead>
+                <tr>
+                  <th>NIK</th>
+                  <th>Nama</th>
+                  <th>Tgl Lahir</th>
+                  <th>Tingkat</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in importPreview.valid.slice(0, 8)" :key="'v'+idx">
+                  <td>{{ row.nik }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.birth_date }}</td>
+                  <td>{{ row.tingkat }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="importPreview.valid.length > 8" class="hint">…dan {{ importPreview.valid.length - 8 }} baris lainnya</p>
+          </div>
+          <div v-if="importPreview.invalid.length" class="import-invalid-box">
+            <strong>Baris tidak valid</strong>
+            <ul>
+              <li v-for="(row, idx) in importPreview.invalid.slice(0, 10)" :key="'i'+idx">
+                Baris {{ row.row }}: {{ row.reason }}
+              </li>
+            </ul>
+            <p v-if="importPreview.invalid.length > 10" class="hint">…dan {{ importPreview.invalid.length - 10 }} kesalahan lain</p>
+          </div>
+          <div v-if="importPreview.serverErrors?.length" class="import-invalid-box">
+            <strong>Error dari server</strong>
+            <ul>
+              <li v-for="(err, idx) in importPreview.serverErrors.slice(0, 10)" :key="'e'+idx">{{ err }}</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" :disabled="importPreview.loading" @click="closeImportPreview">Batal</button>
+          <button
+            type="button"
+            class="btn-primary"
+            :disabled="importPreview.loading || !importPreview.valid.length"
+            @click="confirmImportExcel"
+          >
+            {{ importPreview.loading ? 'Mengimpor…' : `Impor ${importPreview.valid.length} siswa` }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <ConfirmDialog
       :show="confirmDialog.show"
       :title="confirmDialog.title"
@@ -1215,11 +1399,95 @@ const {
   error,
   filters,
   pagination,
-  loadStudents,
+  loadStudents: loadStudentsBase,
+  buildListParams,
   setSort,
   goToPage,
   getStatusClass
 } = useStudentList()
+
+const accountStatus = ref({
+  total: 0,
+  with_account: 0,
+  missing_account: 0,
+  incomplete_data: 0,
+})
+const accountStatusLoading = ref(false)
+const bulkAccountLoading = ref(false)
+const importPreview = ref({
+  open: false,
+  loading: false,
+  valid: [],
+  invalid: [],
+  serverErrors: [],
+})
+
+async function loadAccountStatus() {
+  if (filters.value.only_trashed) return
+  accountStatusLoading.value = true
+  try {
+    const params = { ...buildListParams(1) }
+    delete params.page
+    delete params.per_page
+    delete params.account_status
+    const res = await studentApi.accountStatus(params)
+    accountStatus.value = {
+      total: res.data?.data?.total ?? 0,
+      with_account: res.data?.data?.with_account ?? 0,
+      missing_account: res.data?.data?.missing_account ?? 0,
+      incomplete_data: res.data?.data?.incomplete_data ?? 0,
+    }
+  } catch {
+    /* ignore banner errors */
+  } finally {
+    accountStatusLoading.value = false
+  }
+}
+
+async function loadStudents(page) {
+  await loadStudentsBase(page)
+  loadAccountStatus()
+}
+
+async function bulkEnsureAccounts() {
+  if (bulkAccountLoading.value || !canManageStudentAccount.value) return
+  const missing = accountStatus.value.missing_account || 0
+  if (missing <= 0) {
+    toast.success('Info', 'Tidak ada siswa yang siap dibuatkan akun')
+    return
+  }
+  const ok = await showConfirm({
+    title: 'Buat akun login massal?',
+    message: `${missing} siswa dengan NIK & tanggal lahir lengkap akan dibuatkan akun. Sandi awal = tanggal lahir (DDMMYYYY).`,
+    warning: 'Siswa wajib ganti sandi saat login pertama.',
+    confirmText: 'Buat akun',
+    cancelText: 'Batal',
+    confirmVariant: 'primary',
+  })
+  if (!ok) return
+
+  bulkAccountLoading.value = true
+  try {
+    const payload = {
+      only_missing: true,
+      limit: 2000,
+      class_id: filters.value.class_id || undefined,
+      tingkat: filters.value.tingkat || undefined,
+      status: filters.value.status || 'Aktif',
+    }
+    const res = await studentApi.ensureAccountsBulk(payload)
+    toast.success('Berhasil', res.data?.message || 'Akun massal selesai diproses')
+    const skipped = res.data?.data?.errors || []
+    if (skipped.length) {
+      toast.error('Sebagian dilewati', `${skipped.length} siswa tidak bisa dibuatkan akun (cek NIK/tgl lahir)`)
+    }
+    await loadStudents(1)
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Gagal membuat akun massal')
+  } finally {
+    bulkAccountLoading.value = false
+  }
+}
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
@@ -1255,6 +1523,61 @@ const canAccessExtracurricular = computed(() => {
   if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') return true
   return (authStore.user?.permissions || []).includes('extracurricular')
 })
+
+const canManageStudentAccount = computed(() => {
+  const role = authStore.user?.role
+  if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') return true
+  return (authStore.user?.permissions || []).includes('student')
+})
+
+const canResetStudentAccount = computed(() => {
+  const role = authStore.user?.role
+  return role === 'super_admin' || role === 'admin' || role === 'institution_admin'
+})
+
+const studentAccountLoading = ref(false)
+
+async function ensureStudentAccount() {
+  if (!viewingStudent.value?.id || studentAccountLoading.value) return
+  studentAccountLoading.value = true
+  try {
+    const res = await studentApi.ensureAccount(viewingStudent.value.id)
+    if (res.data?.data) {
+      viewingStudent.value = res.data.data
+    }
+    toast.success('Berhasil', res.data?.message || 'Akun login siswa siap digunakan')
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Tidak dapat membuat akun login siswa')
+  } finally {
+    studentAccountLoading.value = false
+  }
+}
+
+async function resetStudentPassword() {
+  if (!viewingStudent.value?.id || studentAccountLoading.value) return
+  const ok = await showConfirm({
+    title: 'Reset sandi siswa?',
+    message: 'Sandi akan dikembalikan ke tanggal lahir (DDMMYYYY). Siswa wajib ganti sandi saat login berikutnya.',
+    warning: '',
+    confirmText: 'Reset sandi',
+    cancelText: 'Batal',
+    confirmVariant: 'primary'
+  })
+  if (!ok) return
+  studentAccountLoading.value = true
+  try {
+    const res = await studentApi.resetPassword(viewingStudent.value.id)
+    if (res.data?.data) {
+      viewingStudent.value = res.data.data
+    }
+    toast.success('Berhasil', res.data?.message || 'Sandi berhasil direset')
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Tidak dapat mereset sandi siswa')
+  } finally {
+    studentAccountLoading.value = false
+  }
+}
+
 const saving = ref(false)
 const deleteLoading = ref(false)
 const activeTab = ref(1)
@@ -1398,6 +1721,15 @@ async function openAddModal() {
   showAddModal.value = true
 }
 
+function normalizeAcademicYearLabel(value) {
+  if (value && typeof value === 'object') {
+    return value.code || value.name || ''
+  }
+  if (typeof value !== 'string' || !value) return ''
+  const match = value.match(/(\d{4}\/\d{4})/)
+  return match ? match[1] : value
+}
+
 /** When user selects a class, sync form.class, semester_id, academic_year_id from selected class. */
 function onFormClassChange() {
   const id = form.value.class_id
@@ -1405,6 +1737,7 @@ function onFormClassChange() {
     form.value.class = ''
     form.value.semester_id = null
     form.value.academic_year_id = null
+    form.value.academic_year = ''
     return
   }
   const c = formClassList.value.find(x => x.id === id)
@@ -1412,6 +1745,8 @@ function onFormClassChange() {
     form.value.class = c.name || ''
     form.value.semester_id = c.semester_id ?? form.value.semester_id
     form.value.academic_year_id = c.academic_year_id ?? form.value.academic_year_id
+    const yearLabel = normalizeAcademicYearLabel(c.academic_year)
+    if (yearLabel) form.value.academic_year = yearLabel
   }
 }
 
@@ -1429,7 +1764,15 @@ function onTingkatChange() {
 
 const editStudent = async (student) => {
   editingId = student.id
-  Object.assign(form.value, student)
+  // Hanya salin field form — jangan Object.assign seluruh response (nested object bisa bikin validasi gagal)
+  Object.keys(form.value).forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(student, key)) {
+      form.value[key] = student[key]
+    }
+  })
+  form.value.academic_year = normalizeAcademicYearLabel(
+    student.academic_year_detail?.code || student.academic_year
+  )
   // Format dates
   if (student.birth_date) {
     form.value.birth_date = student.birth_date.split('T')[0]
@@ -1593,11 +1936,15 @@ const handleSubmit = async () => {
   saving.value = true
   
   try {
+    const payload = {
+      ...form.value,
+      academic_year: normalizeAcademicYearLabel(form.value.academic_year),
+    }
     if (editingId) {
-      await studentApi.update(editingId, form.value)
+      await studentApi.update(editingId, payload)
       toast.success('Berhasil', 'Data siswa berhasil diperbarui')
     } else {
-      await studentApi.create(form.value)
+      await studentApi.create(payload)
       toast.success('Berhasil', 'Siswa berhasil ditambahkan')
     }
     closeModal()
@@ -1937,16 +2284,16 @@ const exportToExcel = async () => {
 // Download Template Excel
 const downloadTemplate = () => {
   try {
-    // Buat data template dengan header dan 1 baris contoh
+    // Kolom bertanda * wajib diisi
     const templateData = [
       {
-        'NIK': '1234567890123456',
+        'NIK*': '1234567890123456',
         'NIS': '2024001',
         'NISN': '0012345678',
-        'Nama Lengkap': 'Ahmad Fauzi',
+        'Nama Lengkap*': 'Ahmad Fauzi',
         'Jenis Kelamin': 'L',
-        'Tempat Lahir': 'Jakarta',
-        'Tanggal Lahir': '2010-01-15',
+        'Tempat Lahir*': 'Jakarta',
+        'Tanggal Lahir*': '2010-01-15',
         'Alamat': 'Jl. Contoh No. 123',
         'No. Telepon': '081234567890',
         'Email': 'ahmad@example.com',
@@ -1959,7 +2306,7 @@ const downloadTemplate = () => {
         'Berat Badan (kg)': '45',
         'Sekolah Sebelumnya': 'SD Negeri 1',
         'Jenis Tempat Tinggal': 'tinggal_dengan_orang_tua',
-        'Tingkat': '7',
+        'Tingkat*': '7',
         'Kelas': 'VII-A',
         'Tahun Ajaran': '2024/2025',
         'Status': 'Aktif',
@@ -1992,10 +2339,19 @@ const downloadTemplate = () => {
         'Catatan': ''
       }
     ]
+
+    const guideData = [
+      { Keterangan: 'Kolom bertanda * wajib diisi' },
+      { Keterangan: 'Kolom wajib: NIK*, Nama Lengkap*, Tempat Lahir*, Tanggal Lahir*, Tingkat*' },
+      { Keterangan: 'Format Tanggal Lahir: YYYY-MM-DD (contoh: 2010-01-15)' },
+      { Keterangan: 'Tingkat harus sesuai jenjang institusi (SD/MI: 1-6, SMP/MTs: 7-9, SMA/SMK/MA: 10-12)' },
+      { Keterangan: 'Jangan ubah nama header kolom agar import berhasil' },
+    ]
     
     // Buat workbook
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.json_to_sheet(templateData)
+    const wsGuide = XLSX.utils.json_to_sheet(guideData)
     
     // Set column widths
     const colWidths = [
@@ -2012,174 +2368,218 @@ const downloadTemplate = () => {
       { wch: 30 }
     ]
     ws['!cols'] = colWidths
+    wsGuide['!cols'] = [{ wch: 90 }]
     
     XLSX.utils.book_append_sheet(wb, ws, 'Template Import Siswa')
+    XLSX.utils.book_append_sheet(wb, wsGuide, 'Petunjuk')
     
     // Download file
     const fileName = `Template_Import_Siswa.xlsx`
     XLSX.writeFile(wb, fileName)
     
-    toast.success('Berhasil', 'Template Excel berhasil didownload. Silakan isi data sesuai format yang ada.')
+    toast.success('Berhasil', 'Template Excel berhasil didownload. Kolom bertanda * wajib diisi.')
   } catch (err) {
     console.error(err)
     toast.error('Gagal', 'Gagal mendownload template Excel')
   }
 }
 
-// Import from Excel
+function closeImportPreview() {
+  if (importPreview.value.loading) return
+  importPreview.value = { open: false, loading: false, valid: [], invalid: [], serverErrors: [] }
+}
+
+function mapImportExcelRows(jsonData) {
+  const normalizeHeader = (key) => String(key || '').replace(/\s*\*\s*$/, '').replace(/\s*\(wajib\)\s*$/i, '').trim()
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null
+    if (dateStr instanceof Date) return dateStr.toISOString().split('T')[0]
+    if (typeof dateStr === 'number' && XLSX?.SSF?.parse_date_code) {
+      const parsed = XLSX.SSF.parse_date_code(dateStr)
+      if (parsed) {
+        const mm = String(parsed.m).padStart(2, '0')
+        const dd = String(parsed.d).padStart(2, '0')
+        return `${parsed.y}-${mm}-${dd}`
+      }
+    }
+    const date = new Date(dateStr)
+    if (!isNaN(date.getTime())) return date.toISOString().split('T')[0]
+    return null
+  }
+  const parseGender = (val) => {
+    if (!val) return null
+    const str = String(val).toLowerCase()
+    if (str.includes('laki') || str === 'l' || str === 'laki-laki') return 'L'
+    if (str.includes('perempuan') || str === 'p' || str === 'perempuan') return 'P'
+    return null
+  }
+  const parseStatus = (val) => {
+    if (!val) return null
+    const str = String(val).toLowerCase()
+    if (str.includes('hidup') || str === 'masih hidup') return 'masih_hidup'
+    if (str.includes('meninggal') || str === 'meninggal dunia') return 'meninggal_dunia'
+    if (str.includes('tidak') || str === 'tidak diketahui') return 'tidak_diketahui'
+    return null
+  }
+  const parseResidenceType = (val) => {
+    if (!val) return null
+    const str = String(val).toLowerCase()
+    if (str.includes('asrama')) return 'asrama'
+    if (str.includes('kost') || str.includes('kontrak')) return 'kost_kontrak'
+    if (str.includes('orang tua') || str.includes('tinggal')) return 'tinggal_dengan_orang_tua'
+    return 'lainnya'
+  }
+  const parseGuardianType = (val) => {
+    if (!val) return null
+    const str = String(val).toLowerCase()
+    if (str.includes('ayah')) return 'sama_dengan_ayah'
+    if (str.includes('ibu')) return 'sama_dengan_ibu'
+    return 'lainnya'
+  }
+
+  const valid = []
+  const invalid = []
+
+  jsonData.forEach((row, index) => {
+    const normalizedRow = {}
+    Object.keys(row || {}).forEach((key) => {
+      normalizedRow[normalizeHeader(key)] = row[key]
+    })
+    const mapField = (excelCol) => {
+      const value = normalizedRow[excelCol]
+      if (value === undefined || value === null || value === '') return null
+      return value
+    }
+
+    const item = {
+      nik: mapField('NIK'),
+      nis: mapField('NIS'),
+      nisn: mapField('NISN'),
+      name: mapField('Nama Lengkap'),
+      gender: parseGender(mapField('Jenis Kelamin')),
+      birth_place: mapField('Tempat Lahir'),
+      birth_date: parseDate(mapField('Tanggal Lahir')),
+      address: mapField('Alamat'),
+      phone: mapField('No. Telepon'),
+      email: mapField('Email'),
+      religion: mapField('Agama'),
+      no_kk: mapField('No. KK'),
+      aspiration: mapField('Cita-cita'),
+      hobby: mapField('Hobi'),
+      disability: mapField('Disabilitas'),
+      height: mapField('Tinggi Badan (cm)') ? parseFloat(mapField('Tinggi Badan (cm)')) : null,
+      weight: mapField('Berat Badan (kg)') ? parseFloat(mapField('Berat Badan (kg)')) : null,
+      previous_school: mapField('Sekolah Sebelumnya'),
+      residence_type: parseResidenceType(mapField('Jenis Tempat Tinggal')),
+      tingkat: mapField('Tingkat') ? parseInt(mapField('Tingkat'), 10) : null,
+      class: mapField('Kelas'),
+      academic_year: mapField('Tahun Ajaran'),
+      status: mapField('Status') || 'Aktif',
+      father_name: mapField('Nama Ayah'),
+      father_status: parseStatus(mapField('Status Ayah')),
+      father_nik: mapField('NIK Ayah'),
+      father_birth_place: mapField('Tempat Lahir Ayah'),
+      father_birth_date: parseDate(mapField('Tanggal Lahir Ayah')),
+      father_education: mapField('Pendidikan Ayah'),
+      father_occupation: mapField('Pekerjaan Ayah'),
+      father_income: mapField('Penghasilan Ayah') ? parseFloat(mapField('Penghasilan Ayah')) : null,
+      mother_name: mapField('Nama Ibu'),
+      mother_status: parseStatus(mapField('Status Ibu')),
+      mother_nik: mapField('NIK Ibu'),
+      mother_birth_place: mapField('Tempat Lahir Ibu'),
+      mother_birth_date: parseDate(mapField('Tanggal Lahir Ibu')),
+      mother_education: mapField('Pendidikan Ibu'),
+      mother_occupation: mapField('Pekerjaan Ibu'),
+      mother_income: mapField('Penghasilan Ibu') ? parseFloat(mapField('Penghasilan Ibu')) : null,
+      guardian_name: mapField('Nama Wali'),
+      guardian_phone: mapField('No. Telepon Wali'),
+      guardian_type: parseGuardianType(mapField('Jenis Wali')),
+      guardian_status: parseStatus(mapField('Status Wali')),
+      guardian_nik: mapField('NIK Wali'),
+      guardian_birth_place: mapField('Tempat Lahir Wali'),
+      guardian_birth_date: parseDate(mapField('Tanggal Lahir Wali')),
+      guardian_education: mapField('Pendidikan Wali'),
+      guardian_occupation: mapField('Pekerjaan Wali'),
+      guardian_income: mapField('Penghasilan Wali') ? parseFloat(mapField('Penghasilan Wali')) : null,
+      notes: mapField('Catatan'),
+    }
+
+    const missing = []
+    if (!item.nik) missing.push('NIK')
+    if (!item.name) missing.push('Nama')
+    if (!item.birth_place) missing.push('Tempat Lahir')
+    if (!item.birth_date) missing.push('Tanggal Lahir')
+    if (item.tingkat == null || Number.isNaN(item.tingkat)) missing.push('Tingkat')
+
+    if (missing.length) {
+      invalid.push({ row: index + 2, reason: `Kolom wajib kosong: ${missing.join(', ')}` })
+    } else {
+      valid.push(item)
+    }
+  })
+
+  return { valid, invalid }
+}
+
+// Import from Excel — tampilkan pratinjau dulu
 const handleImportExcel = async (event) => {
   const file = event.target.files[0]
   if (!file) return
-  
+
   try {
     loading.value = true
-    
-    // Baca file Excel
     const data = await file.arrayBuffer()
-    const workbook = XLSX.read(data, { type: 'array' })
+    const workbook = XLSX.read(data, { type: 'array', cellDates: true })
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
     const jsonData = XLSX.utils.sheet_to_json(firstSheet)
-    
+
     if (jsonData.length === 0) {
       toast.error('Gagal', 'File Excel kosong')
-      loading.value = false
       return
     }
-    
-    // Mapping kolom Excel ke field database
-    const mappedData = jsonData.map(row => {
-      const mapField = (excelCol, dbField) => {
-        const value = row[excelCol]
-        if (value === undefined || value === null || value === '') return null
-        return value
-      }
-      
-      // Parse tanggal
-      const parseDate = (dateStr) => {
-        if (!dateStr) return null
-        if (dateStr instanceof Date) return dateStr.toISOString().split('T')[0]
-        // Coba parse berbagai format tanggal
-        const date = new Date(dateStr)
-        if (!isNaN(date.getTime())) {
-          return date.toISOString().split('T')[0]
-        }
-        return null
-      }
-      
-      // Parse jenis kelamin
-      const parseGender = (val) => {
-        if (!val) return null
-        const str = String(val).toLowerCase()
-        if (str.includes('laki') || str === 'l' || str === 'laki-laki') return 'L'
-        if (str.includes('perempuan') || str === 'p' || str === 'perempuan') return 'P'
-        return null
-      }
-      
-      // Parse status
-      const parseStatus = (val) => {
-        if (!val) return null
-        const str = String(val).toLowerCase()
-        if (str.includes('hidup') || str === 'masih hidup') return 'masih_hidup'
-        if (str.includes('meninggal') || str === 'meninggal dunia') return 'meninggal_dunia'
-        if (str.includes('tidak') || str === 'tidak diketahui') return 'tidak_diketahui'
-        return null
-      }
-      
-      // Parse jenis tempat tinggal
-      const parseResidenceType = (val) => {
-        if (!val) return null
-        const str = String(val).toLowerCase()
-        if (str.includes('asrama')) return 'asrama'
-        if (str.includes('kost') || str.includes('kontrak')) return 'kost_kontrak'
-        if (str.includes('orang tua') || str.includes('tinggal')) return 'tinggal_dengan_orang_tua'
-        return 'lainnya'
-      }
-      
-      // Parse jenis wali
-      const parseGuardianType = (val) => {
-        if (!val) return null
-        const str = String(val).toLowerCase()
-        if (str.includes('ayah')) return 'sama_dengan_ayah'
-        if (str.includes('ibu')) return 'sama_dengan_ibu'
-        return 'lainnya'
-      }
-      
-      return {
-        nik: mapField('NIK', 'nik'),
-        nis: mapField('NIS', 'nis'),
-        nisn: mapField('NISN', 'nisn'),
-        name: mapField('Nama Lengkap', 'name'),
-        gender: parseGender(mapField('Jenis Kelamin', 'gender')),
-        birth_place: mapField('Tempat Lahir', 'birth_place'),
-        birth_date: parseDate(mapField('Tanggal Lahir', 'birth_date')),
-        address: mapField('Alamat', 'address'),
-        phone: mapField('No. Telepon', 'phone'),
-        email: mapField('Email', 'email'),
-        religion: mapField('Agama', 'religion'),
-        no_kk: mapField('No. KK', 'no_kk'),
-        aspiration: mapField('Cita-cita', 'aspiration'),
-        hobby: mapField('Hobi', 'hobby'),
-        disability: mapField('Disabilitas', 'disability'),
-        height: mapField('Tinggi Badan (cm)', 'height') ? parseFloat(mapField('Tinggi Badan (cm)', 'height')) : null,
-        weight: mapField('Berat Badan (kg)', 'weight') ? parseFloat(mapField('Berat Badan (kg)', 'weight')) : null,
-        previous_school: mapField('Sekolah Sebelumnya', 'previous_school'),
-        residence_type: parseResidenceType(mapField('Jenis Tempat Tinggal', 'residence_type')),
-        tingkat: mapField('Tingkat', 'tingkat') ? parseInt(mapField('Tingkat', 'tingkat'), 10) : null,
-        class: mapField('Kelas', 'class'),
-        academic_year: mapField('Tahun Ajaran', 'academic_year'),
-        status: mapField('Status', 'status') || 'Aktif',
-        father_name: mapField('Nama Ayah', 'father_name'),
-        father_status: parseStatus(mapField('Status Ayah', 'father_status')),
-        father_nik: mapField('NIK Ayah', 'father_nik'),
-        father_birth_place: mapField('Tempat Lahir Ayah', 'father_birth_place'),
-        father_birth_date: parseDate(mapField('Tanggal Lahir Ayah', 'father_birth_date')),
-        father_education: mapField('Pendidikan Ayah', 'father_education'),
-        father_occupation: mapField('Pekerjaan Ayah', 'father_occupation'),
-        father_income: mapField('Penghasilan Ayah', 'father_income') ? parseFloat(mapField('Penghasilan Ayah', 'father_income')) : null,
-        mother_name: mapField('Nama Ibu', 'mother_name'),
-        mother_status: parseStatus(mapField('Status Ibu', 'mother_status')),
-        mother_nik: mapField('NIK Ibu', 'mother_nik'),
-        mother_birth_place: mapField('Tempat Lahir Ibu', 'mother_birth_place'),
-        mother_birth_date: parseDate(mapField('Tanggal Lahir Ibu', 'mother_birth_date')),
-        mother_education: mapField('Pendidikan Ibu', 'mother_education'),
-        mother_occupation: mapField('Pekerjaan Ibu', 'mother_occupation'),
-        mother_income: mapField('Penghasilan Ibu', 'mother_income') ? parseFloat(mapField('Penghasilan Ibu', 'mother_income')) : null,
-        guardian_name: mapField('Nama Wali', 'guardian_name'),
-        guardian_phone: mapField('No. Telepon Wali', 'guardian_phone'),
-        guardian_type: parseGuardianType(mapField('Jenis Wali', 'guardian_type')),
-        guardian_status: parseStatus(mapField('Status Wali', 'guardian_status')),
-        guardian_nik: mapField('NIK Wali', 'guardian_nik'),
-        guardian_birth_place: mapField('Tempat Lahir Wali', 'guardian_birth_place'),
-        guardian_birth_date: parseDate(mapField('Tanggal Lahir Wali', 'guardian_birth_date')),
-        guardian_education: mapField('Pendidikan Wali', 'guardian_education'),
-        guardian_occupation: mapField('Pekerjaan Wali', 'guardian_occupation'),
-        guardian_income: mapField('Penghasilan Wali', 'guardian_income') ? parseFloat(mapField('Penghasilan Wali', 'guardian_income')) : null,
-        notes: mapField('Catatan', 'notes')
-      }
-    })
-    
-    // Filter data yang valid (minimal harus ada NIK dan Nama)
-    const validData = mappedData.filter(item => item.nik && item.name)
-    
-    if (validData.length === 0) {
-      toast.error('Gagal', 'Tidak ada data valid yang dapat diimpor. Pastikan kolom NIK dan Nama Lengkap terisi.')
-      loading.value = false
+
+    const { valid, invalid } = mapImportExcelRows(jsonData)
+    if (!valid.length) {
+      toast.error(
+        'Gagal',
+        'Tidak ada data valid. Pastikan kolom NIK, Nama Lengkap, Tempat Lahir, Tanggal Lahir, dan Tingkat terisi.'
+      )
+      importPreview.value = { open: true, loading: false, valid: [], invalid, serverErrors: [] }
       return
     }
-    
-    // Kirim ke backend
-    const response = await studentApi.import(validData)
-    
-    toast.success('Berhasil', `Berhasil mengimpor ${response.data.success_count || validData.length} data siswa`)
-    loadStudents()
-    
-    // Reset input file
-    event.target.value = ''
+
+    importPreview.value = { open: true, loading: false, valid, invalid, serverErrors: [] }
   } catch (err) {
     console.error(err)
-    toast.error('Gagal', err.formattedMessage || 'Gagal mengimpor data dari Excel')
+    toast.error('Gagal', err.formattedMessage || 'Gagal membaca file Excel')
   } finally {
     loading.value = false
+    event.target.value = ''
+  }
+}
+
+async function confirmImportExcel() {
+  if (!importPreview.value.valid.length || importPreview.value.loading) return
+  importPreview.value.loading = true
+  try {
+    const response = await studentApi.import(importPreview.value.valid)
+    const successCount = response.data?.success_count || 0
+    const errorCount = response.data?.error_count || 0
+    const errors = response.data?.errors || []
+    if (errorCount > 0) {
+      importPreview.value.serverErrors = errors
+      toast.success('Sebagian berhasil', `Berhasil ${successCount}, gagal ${errorCount}. Periksa daftar error.`)
+      await loadStudents()
+    } else {
+      toast.success('Berhasil', `Berhasil mengimpor ${successCount || importPreview.value.valid.length} data siswa`)
+      closeImportPreview()
+      await loadStudents()
+    }
+  } catch (err) {
+    console.error(err)
+    toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal mengimpor data dari Excel')
+  } finally {
+    importPreview.value.loading = false
   }
 }
 
@@ -2701,6 +3101,63 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.account-status-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: -8px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 10px;
+}
+
+.account-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #1e3a5f;
+}
+
+.account-status-text .hint,
+.import-preview-modal .hint {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.account-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-preview-modal {
+  max-width: 640px;
+  width: 100%;
+}
+
+.import-preview-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.import-invalid-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  font-size: 13px;
+}
+
+.import-invalid-box ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
 }
 
 .btn-compact {
@@ -3596,6 +4053,33 @@ onMounted(() => {
 .biodata-item:last-child .value,
 .biodata-item:nth-last-child(2) .value {
   border-bottom: none;
+}
+
+.biodata-item .value .hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.btn-reset-password {
+  padding: 8px 16px;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-reset-password:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.btn-reset-password:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* Riwayat Konseling di view modal */

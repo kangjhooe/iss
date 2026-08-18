@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\AcademicCalendarEvent;
+use App\Notifications\AcademicCalendarParentNotification;
 use App\Repositories\AcademicCalendarEventRepository;
+use App\Support\ParentAccess;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class AcademicCalendarService
@@ -76,7 +79,31 @@ class AcademicCalendarService
             'institution_id' => $event->institution_id,
         ]);
 
+        $this->notifyLinkedParents($event);
+
         return $event;
+    }
+
+    /**
+     * In-app notification to linked parent users when a calendar event is created.
+     */
+    protected function notifyLinkedParents(AcademicCalendarEvent $event): void
+    {
+        try {
+            if (!$event->institution_id) {
+                return;
+            }
+            $parents = ParentAccess::parentUsersForInstitution((int) $event->institution_id);
+            if ($parents->isEmpty()) {
+                return;
+            }
+            Notification::send($parents, new AcademicCalendarParentNotification($event));
+        } catch (\Throwable $e) {
+            Log::warning('Failed notifying parents for academic calendar event', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

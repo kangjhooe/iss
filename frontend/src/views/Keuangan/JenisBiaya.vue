@@ -2,11 +2,10 @@
   <Layout>
     <div class="keuangan-page">
       <header class="page-header">
-        <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
           <div class="header-left">
             <div>
-              <h1 class="page-title">Jenis Biaya <span class="beta-pill">Beta</span></h1>
+              <h1 class="page-title">Jenis Biaya</h1>
               <p class="page-subtitle">Katalog SPP, iuran, kas kelas, dan biaya non-rutin lainnya</p>
             </div>
           </div>

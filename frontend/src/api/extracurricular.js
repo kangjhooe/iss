@@ -16,6 +16,9 @@ export const extracurricularApi = {
   delete(id) {
     return api.delete(`/v1/extracurriculars/${id}`)
   },
+  classesLite(params) {
+    return api.get('/v1/extracurriculars/classes-lite', { params })
+  },
   getByStudent(studentId, params) {
     return api.get(`/v1/extracurriculars/by-student/${studentId}`, { params })
   },

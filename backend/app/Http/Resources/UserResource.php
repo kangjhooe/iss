@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Support\InstitutionContext;
+use App\Support\KaprogAccess;
 use App\Support\TeacherMenuContext;
 use App\Support\WaliKelasAccess;
 use Illuminate\Http\Request;
@@ -51,6 +52,8 @@ class UserResource extends JsonResource
             'institution_id' => $this->institution_id,
             'name' => $this->name,
             'email' => $this->email,
+            'login_nik' => $this->login_nik,
+            'must_change_password' => (bool) $this->must_change_password,
             'role' => $this->role,
             'permissions' => $this->when(
                 $this->relationLoaded('permissions'),
@@ -74,6 +77,24 @@ class UserResource extends JsonResource
             'teaching_assignments' => $teachingAssignments,
             'supervised_extracurriculars' => $supervisedExtracurriculars,
             'managed_labs' => $managedLabs,
+            'kaprog_program_ids' => (function () {
+                try {
+                    if (! KaprogAccess::isKaprog($this->resource)) {
+                        return [];
+                    }
+
+                    return KaprogAccess::programIds($this->resource);
+                } catch (\Throwable $e) {
+                    return [];
+                }
+            })(),
+            'is_kaprog' => (function () {
+                try {
+                    return KaprogAccess::isKaprog($this->resource);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })(),
             'bk_scope' => $bkScopeMode,
             'is_lab_responsible' => (function () use ($activeInstitutionId) {
                 try {
@@ -125,6 +146,7 @@ class UserResource extends JsonResource
                 $sp = $this->studentProfile;
                 return [
                     'id' => $sp->id,
+                    'nik' => $sp->nik,
                     'nis' => $sp->nis,
                     'nisn' => $sp->nisn,
                     'class' => $sp->class,
@@ -135,6 +157,16 @@ class UserResource extends JsonResource
                     'status' => $sp->status,
                 ];
             }),
+            'linked_children_count' => $this->when(
+                $this->role === 'parent',
+                function () {
+                    try {
+                        return count(\App\Support\ParentAccess::linkedStudentIds($this->resource));
+                    } catch (\Throwable $e) {
+                        return 0;
+                    }
+                }
+            ),
             'teacher_profile' => $this->whenLoaded('teacherProfile', function () {
                 return [
                     'id' => $this->teacherProfile->id,

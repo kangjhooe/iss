@@ -520,7 +520,7 @@ onMounted(async () => {
 }
 
 .welcome-content h1 {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.2px;
@@ -533,7 +533,7 @@ onMounted(async () => {
 
 .welcome-content p,
 .welcome-content .welcome-inst {
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.95;
   margin: 0;
   font-weight: 500;
@@ -556,20 +556,20 @@ onMounted(async () => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
   background: white;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.25s ease;
   border: 1px solid #e5e7eb;
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
 }
 
 .stat-card.stat-empty-state {
@@ -589,8 +589,8 @@ onMounted(async () => {
 .stat-card.stat-card-counseling { border-left: 4px solid #059669; }
 
 .stat-icon {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -646,7 +646,7 @@ onMounted(async () => {
 
 .stat-value {
   color: #0f172a;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   margin: 0 0 4px 0;
   letter-spacing: -0.5px;
@@ -659,7 +659,7 @@ onMounted(async () => {
 }
 
 .loading-text {
-  font-size: 14px;
+  font-size: 13px;
   color: #94a3b8;
   font-weight: 400;
   font-style: italic;
@@ -676,8 +676,8 @@ onMounted(async () => {
 
 .stat-action {
   display: inline-block;
-  margin-top: 10px;
-  font-size: 13px;
+  margin-top: 8px;
+  font-size: 12px;
   font-weight: 600;
   color: #059669;
   text-decoration: none;
@@ -694,9 +694,9 @@ onMounted(async () => {
 /* Aktivitas terbaru */
 .audit-section {
   background: white;
-  border-radius: 16px;
-  padding: 22px 26px;
-  margin-bottom: 24px;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -706,7 +706,7 @@ onMounted(async () => {
 }
 
 .audit-section .section-header h2 {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #0f172a;
   margin: 0;
@@ -714,7 +714,7 @@ onMounted(async () => {
 
 .audit-loading,
 .audit-empty {
-  font-size: 14px;
+  font-size: 13px;
   color: #64748b;
   margin: 0;
 }
@@ -738,7 +738,7 @@ onMounted(async () => {
 }
 
 .audit-desc {
-  font-size: 14px;
+  font-size: 13px;
   color: #0f172a;
   font-weight: 500;
 }
@@ -751,19 +751,19 @@ onMounted(async () => {
 /* Quick Actions - lebih ramah */
 .quick-actions {
   background: white;
-  border-radius: 16px;
-  padding: 24px 28px;
+  border-radius: 12px;
+  padding: 16px 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid #e5e7eb;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .section-header {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .section-header h2 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
@@ -772,7 +772,7 @@ onMounted(async () => {
 
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 14px;
 }
 
@@ -780,19 +780,27 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px 18px;
+  padding: 12px 14px;
   background: #f8fafc;
   border-radius: 14px;
   text-decoration: none;
   color: #1e293b;
   transition: all 0.25s ease;
   border: 1px solid #e5e7eb;
+  cursor: pointer;
+  min-width: 0;
 }
 
 .action-card:hover {
   background: #fff;
   border-color: #cbd5e1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.action-card:active {
+  transform: translateY(0);
+  background: #f1f5f9;
 }
 
 .action-icon {
@@ -846,7 +854,7 @@ onMounted(async () => {
 }
 
 .action-content h4 {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   margin: 0;
   color: #0f172a;
@@ -917,7 +925,7 @@ onMounted(async () => {
   }
 
   .welcome-content h1 {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .welcome-content p,
@@ -961,7 +969,7 @@ onMounted(async () => {
   }
 
   .stat-value {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .stat-label {
@@ -984,11 +992,11 @@ onMounted(async () => {
   }
 
   .section-header h2 {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .actions-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
@@ -997,10 +1005,10 @@ onMounted(async () => {
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 16px 10px;
+    padding: 16px 10px 12px;
     min-height: 100px;
     border-radius: 12px;
-    gap: 10px;
+    gap: 8px;
   }
 
   .action-icon {
@@ -1014,7 +1022,9 @@ onMounted(async () => {
   }
 
   .action-arrow {
-    display: none;
+    width: 18px;
+    height: 18px;
+    color: #059669;
   }
 
   .audit-section {
@@ -1088,7 +1098,7 @@ onMounted(async () => {
   }
 
   .stat-value {
-    font-size: 22px;
+    font-size: 18px;
     margin-bottom: 2px;
   }
 
@@ -1123,7 +1133,7 @@ onMounted(async () => {
   }
 
   .actions-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 

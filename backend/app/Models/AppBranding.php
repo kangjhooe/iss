@@ -20,12 +20,16 @@ class AppBranding extends Model
         'hero_secondary_cta_to',
         'maintenance_mode',
         'maintenance_message',
+        'monetization_launched',
+        'default_storage_quota_mb',
     ];
 
     protected function casts(): array
     {
         return [
             'maintenance_mode' => 'boolean',
+            'monetization_launched' => 'boolean',
+            'default_storage_quota_mb' => 'integer',
         ];
     }
 

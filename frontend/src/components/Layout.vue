@@ -14,6 +14,15 @@
         </button>
       </div>
     </div>
+    <div v-else-if="authStore.isDemoInstitution" class="demo-school-banner">
+      <div class="demo-school-banner-inner">
+        <span>
+          Mode demo: <strong>{{ authStore.activeInstitution?.name || 'SMA 1 Demo Servrin' }}</strong>
+          — data fiktif, di-reset setiap hari pukul 03:00 WIB. Jangan masukkan data asli.
+        </span>
+        <router-link to="/register" class="demo-register-link">Daftar sekolah sendiri</router-link>
+      </div>
+    </div>
 
     <!-- Mobile Menu Button -->
     <button 
@@ -59,6 +68,7 @@
               <component :is="entry.icon" />
               <span class="nav-item-label">{{ entry.label }}</span>
               <span v-if="entry.maturity === 'beta'" class="nav-badge">Beta</span>
+              <span v-if="entry.badgeCount" class="nav-count-badge">{{ entry.badgeCount }}</span>
             </router-link>
           </li>
           <li v-else-if="entry.type === 'group'" class="nav-group">
@@ -306,6 +316,7 @@ import { computed, ref, onMounted, onUnmounted, watch, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { appName } from '@/config/app'
+import { isVocationalLevel, getActiveInstitutionLevel } from '@/utils/institution'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import AppLogo from '@/components/AppLogo.vue'
 
@@ -313,6 +324,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const isSuperAdminLayout = computed(() => authStore.user?.role === 'super_admin')
+const isVocationalInstitution = computed(() => isVocationalLevel(getActiveInstitutionLevel(authStore)))
 const stoppingImpersonation = ref(false)
 const switchingInstitution = ref(false)
 
@@ -357,7 +369,9 @@ async function handleSwitchInstitution(event) {
         ? '/teacher/dashboard'
         : role === 'student'
           ? '/student/dashboard'
-          : '/dashboard'
+          : role === 'parent'
+            ? '/parent/dashboard'
+            : '/dashboard'
     window.location.assign(home)
   } catch (e) {
     console.error(e)
@@ -420,6 +434,11 @@ const IconGrade = () => h('svg', { class: 'nav-icon', width: 20, height: 20, vie
 const IconCounseling = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
+const IconUks = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M12 2v20', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }),
+  h('path', { d: 'M2 12h20', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }),
+  h('rect', { x: 4, y: 4, width: 16, height: 16, rx: 3, stroke: 'currentColor', 'stroke-width': 2, fill: 'none' })
+])
 const IconLayanan = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
@@ -443,6 +462,7 @@ const IconReport = () => h('svg', { class: 'nav-icon', width: 20, height: 20, vi
 const IconFeedback = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
+const openFeedbackCount = ref(0)
 const IconExam = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
@@ -467,10 +487,19 @@ const IconLab = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewB
   h('path', { d: 'M10 3v7.4L5.2 18a2 2 0 0 0 1.7 3h10.2a2 2 0 0 0 1.7-3L14 10.4V3', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M8.5 14h7', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
+const IconIndustry = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M3 21h18', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }),
+  h('path', { d: 'M5 21V8l6-3v16', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M11 21V11h4l4 3v7', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M7 12h.01M7 16h.01M15 15h.01M15 18h.01', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' })
+])
 
 const canAccessModule = (moduleKey) => {
   const role = authStore.user?.role
   if (!role) return false
+  if (moduleKey === 'online_exam' && !authStore.isOnlineExamEntitled) {
+    return false
+  }
   if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') {
     return true
   }
@@ -497,7 +526,39 @@ function getDashboardTo() {
   if (role === 'super_admin') return '/super-admin/dashboard'
   if (role === 'teacher' || role === 'staff') return '/teacher/dashboard'
   if (role === 'student') return '/student/dashboard'
+  if (role === 'parent') return '/parent/dashboard'
   return '/dashboard'
+}
+
+const parentChildren = ref([])
+async function fetchParentChildren() {
+  if (authStore.user?.role !== 'parent') {
+    parentChildren.value = []
+    return
+  }
+  try {
+    const { parentApi } = await import('@/api/parent')
+    const res = await parentApi.children()
+    parentChildren.value = Array.isArray(res.data?.data) ? res.data.data : []
+  } catch {
+    parentChildren.value = []
+  }
+}
+
+function pruneNavDividers(items) {
+  const out = []
+  for (let i = 0; i < items.length; i++) {
+    const e = items[i]
+    if (e.type !== 'divider') {
+      out.push(e)
+      continue
+    }
+    const hasFollowingItem = items.slice(i + 1).some(x => x.type !== 'divider')
+    if (!hasFollowingItem || out.length === 0) continue
+    if (out[out.length - 1]?.type === 'divider') continue
+    out.push(e)
+  }
+  return out
 }
 
 const menuEntries = computed(() => {
@@ -524,15 +585,16 @@ const menuEntries = computed(() => {
   if (role === 'super_admin') {
     return [
       { type: 'link', key: 'dashboard', to: '/super-admin/dashboard', label: 'Dashboard', icon: IconDashboard },
+      { type: 'link', key: 'feedback', to: '/feedback', label: 'Inbox Feedback', icon: IconFeedback, badgeCount: openFeedbackCount.value || null },
       addVisible({ type: 'group', key: 'sistem', label: 'Sistem', icon: IconSettings, children: [
+        { to: '/super-admin/onboard', label: 'Onboarding Sekolah', visible: true },
         { to: '/institution', label: 'Kelola Institusi', visible: true },
         { to: '/super-admin/institution-admins', label: 'Admin Institusi', visible: true },
-        { to: '/super-admin/onboard', label: 'Onboarding Sekolah', visible: true },
         { to: '/academic-year', label: 'Tahun Ajaran', visible: true },
+        { to: '/institution-change-requests', label: 'Request Perubahan', visible: true },
         { to: '/super-admin/app-branding', label: 'Branding Aplikasi', visible: true },
         { to: '/super-admin/system-settings', label: 'Pengaturan Sistem', visible: true },
-        { to: '/institution-change-requests', label: 'Request Perubahan', visible: true },
-        { to: '/feedback', label: 'Feedback Sekolah', visible: true }
+        { to: '/super-admin/monetisasi', label: 'Monetisasi', visible: true }
       ]}),
       addVisible({ type: 'group', key: 'platform', label: 'Platform', icon: IconReport, children: [
         { to: '/super-admin/adoption', label: 'Monitoring Adopsi', visible: true },
@@ -552,12 +614,37 @@ const menuEntries = computed(() => {
       { type: 'link', key: 'student-grades', to: '/student/nilai', label: 'Nilai Saya', icon: IconGrade },
       { type: 'link', key: 'student-exam', to: '/ujian-ikuti', label: 'Ikuti Ujian', icon: IconAcademic },
       { type: 'link', key: 'student-violations', to: '/student/pelanggaran-prestasi', label: 'Pelanggaran & Prestasi', icon: IconStudents },
-      { type: 'link', key: 'student-counseling', to: '/student/konseling', label: 'Konseling', icon: IconCounseling },
-      { type: 'link', key: 'student-extracurricular', to: '/student/ekstrakurikuler', label: 'Ekstrakurikuler', icon: IconStudents },
       { type: 'link', key: 'student-points', to: '/student/poin', label: 'Poin Saya', icon: IconPoints },
+      { type: 'link', key: 'student-counseling', to: '/student/konseling', label: 'Konseling', icon: IconCounseling },
+      { type: 'link', key: 'student-uks', to: '/student/uks', label: 'Kunjungan UKS', icon: IconUks },
+      { type: 'link', key: 'student-extracurricular', to: '/student/ekstrakurikuler', label: 'Ekstrakurikuler', icon: IconStudents },
+      { type: 'link', key: 'student-finance', to: '/student/keuangan', label: 'Tagihan & Pembayaran', icon: IconFinance },
+      ...(isVocationalInstitution.value
+        ? [
+            { type: 'link', key: 'student-pkl', to: '/student/pkl', label: 'PKL / Jurnal', icon: IconIndustry },
+            { type: 'link', key: 'student-bkk', to: '/student/bkk', label: 'BKK / Lowongan', icon: IconIndustry },
+          ]
+        : []),
       { type: 'link', key: 'student-ebooks', to: '/student/ebooks', label: 'Perpustakaan Digital', icon: IconLibrary },
-      { type: 'link', key: 'student-change-requests', to: '/student/permintaan-perubahan', label: 'Permintaan Perubahan', icon: IconAdmin },
       { type: 'link', key: 'student-profile', to: '/student/profil', label: 'Profil Saya', icon: IconSettings }
+    ]
+  }
+  if (role === 'parent') {
+    return [
+      { type: 'link', key: 'parent-dashboard', to: '/parent/dashboard', label: 'Ringkasan', icon: IconDashboard },
+      { type: 'link', key: 'parent-announcements', to: '/parent/pengumuman', label: 'Pengumuman', icon: IconAcademic },
+      ...parentChildren.value.map((c) => addVisible({
+        type: 'group',
+        key: `parent-child-${c.id}`,
+        label: c.name || `Anak #${c.id}`,
+        icon: IconStudents,
+        children: [
+          { to: `/parent/anak/${c.id}/jadwal`, label: 'Jadwal', visible: true },
+          { to: `/parent/anak/${c.id}/nilai`, label: 'Nilai', visible: true },
+          { to: `/parent/anak/${c.id}/absensi`, label: 'Absensi', visible: true },
+          { to: `/parent/anak/${c.id}/pelanggaran`, label: 'Pelanggaran', visible: true },
+        ],
+      })),
     ]
   }
   const isTeacherOrStaff = role === 'teacher' || role === 'staff'
@@ -609,8 +696,8 @@ const menuEntries = computed(() => {
       })
       if (canAccessModule('teaching_journal')) {
         waliChildren.push({
-          to: `/attendance/student${classQs}`,
-          label: `Input Absen · ${classLabel}`,
+          to: `/attendance/student${classQs}&tab=rekap`,
+          label: `Rekap Absen · ${classLabel}`,
           visible: true,
         })
       }
@@ -675,11 +762,16 @@ const menuEntries = computed(() => {
     visible: role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility'),
   })
 
+  const hasTeacherDailyWork = isTeacherOrStaff && (
+    hasHomeroom
+    || hasTeachingAssignments
+    || hasSupervisedEkskul
+    || hasManagedLabs
+  )
+
   const entries = [
     { type: 'link', key: 'dashboard', to: getDashboardTo(), label: 'Dashboard', icon: IconDashboard },
-    ...(isTeacherOrStaff ? [{ type: 'link', key: 'teacher-profile', to: '/teacher/profile', label: 'Profil Saya', icon: IconSettings }] : []),
-    ...(isTeacherOrStaff ? [{ type: 'link', key: 'teacher-points', to: '/teacher/poin', label: 'Poin & Prestasi Saya', icon: IconPoints }] : []),
-    ...(isTeacherOrStaff && (canAccessModule('teaching_journal') || canAccessModule('grade_book'))
+    ...(isTeacherOrStaff && hasTeachingAssignments && (canAccessModule('teaching_journal') || canAccessModule('grade_book'))
       ? [{ type: 'link', key: 'teacher-today', to: '/teacher/today', label: 'Jam Mengajar Hari Ini', icon: IconAttendance }]
       : []),
     ...(hasHomeroom
@@ -694,12 +786,15 @@ const menuEntries = computed(() => {
     ...(hasManagedLabs
       ? [addVisible({ type: 'group', key: 'lab-saya', label: 'Lab Saya', icon: IconLab, children: labChildren })]
       : []),
-    // Ready
-    addVisible({ type: 'group', key: 'master', label: 'Master Data', icon: IconDatabase, children: [
-      { to: '/institution', label: 'Profil Instansi', visible: canAccessModule('institution') },
-      { to: '/facility', label: 'Sarana Prasarana', visible: canAccessModule('facility') },
-      { to: '/inventory', label: 'Inventaris', visible: canAccessModule('inventory') },
-      { to: '/class', label: 'Kelas', visible: canAccessModule('class') }
+    ...(hasTeacherDailyWork
+      ? [{ type: 'divider', key: 'ops-divider', label: 'Operasional sekolah' }]
+      : []),
+    addVisible({ type: 'group', key: 'kesiswaan', label: 'Kesiswaan', icon: IconStudents, children: [
+      { to: '/student', label: 'Data Siswa', visible: canAccessModule('student') },
+      { to: '/student-mutation', label: 'Mutasi', visible: canAccessModule('student') },
+      { to: '/naik-kelas', label: 'Naik Kelas', visible: canAccessModule('student') },
+      { to: '/luluskan-siswa', label: 'Luluskan', visible: canAccessModule('student') },
+      { to: '/alumni', label: 'Alumni', visible: canAccessModule('student') }
     ]}),
     addVisible({ type: 'group', key: 'akademik', label: 'Keguruan', icon: IconAcademic, children: [
       { to: '/teacher', label: 'Data Guru', visible: canAccessModule('teacher') },
@@ -711,13 +806,19 @@ const menuEntries = computed(() => {
       { to: '/grade-book', label: 'Buku Nilai', visible: canAccessModule('grade_book') && showGenericJournalGrade },
       { to: '/raport', label: 'Raport Siswa', visible: showRaportInAkademik }
     ]}),
-    addVisible({ type: 'group', key: 'kesiswaan', label: 'Kesiswaan', icon: IconStudents, children: [
-      { to: '/student', label: 'Data Siswa', visible: canAccessModule('student') },
-      { to: '/student-mutation', label: 'Mutasi', visible: canAccessModule('student') },
-      { to: '/naik-kelas', label: 'Naik Kelas', visible: canAccessModule('student') },
-      { to: '/luluskan-siswa', label: 'Luluskan', visible: canAccessModule('student') },
-      { to: '/alumni', label: 'Alumni', visible: canAccessModule('student') }
+    addVisible({ type: 'group', key: 'kepegawaian', label: 'Kepegawaian', icon: IconAdmin, children: [
+      { to: '/kepegawaian', label: 'Cuti, SK & Jabatan', visible: canAccessModule('kepegawaian') },
     ]}),
+    // Grup Absensi hanya untuk modul attendance (TU/admin): pegawai + QR.
+    // Guru mapel mengisi absen siswa lewat Jam Mengajar / Hub Mapel / Wali.
+    ...(canAccessModule('attendance')
+      ? [addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, children: [
+          { to: '/attendance/student', label: 'Absensi Siswa', visible: canAccessModule('teaching_journal') },
+          { to: '/attendance/employee', label: 'Absensi Guru & Staff', visible: true },
+          { to: '/qr-attendance/scan', label: 'Scan QR Absensi', visible: true },
+          { to: '/qr-attendance/generate', label: 'Generate QR', visible: true },
+        ]})]
+      : []),
     addVisible({ type: 'group', key: 'ppdb', label: 'PPDB', icon: IconPpdb, children: [
       { to: '/ppdb/ringkasan', label: 'Ringkasan', visible: canAccessModule('ppdb') },
       { to: '/ppdb/konfigurasi', label: 'Konfigurasi', visible: canAccessModule('ppdb') },
@@ -730,12 +831,38 @@ const menuEntries = computed(() => {
       { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
       { to: '/laporan-bk', label: 'Laporan BK', visible: showBkReportInBkGroup }
     ]}),
+    addVisible({ type: 'group', key: 'uks', label: 'UKS', icon: IconUks, children: [
+      { to: '/uks', label: 'Kunjungan UKS', visible: canAccessModule('uks') },
+      { to: '/uks/stok', label: 'Stok Obat', visible: canAccessModule('uks') },
+      { to: '/laporan-uks', label: 'Laporan UKS', visible: canAccessModule('uks') },
+    ]}),
+    addVisible({ type: 'group', key: 'pkl-bkk', label: 'PKL & BKK', icon: IconIndustry, children: [
+      { to: '/industry-partners', label: 'Mitra DU/DI', visible: isVocationalInstitution.value && (canAccessModule('pkl') || canAccessModule('bkk')) },
+      { to: '/pkl', label: 'PKL / Prakerin', visible: isVocationalInstitution.value && canAccessModule('pkl') },
+      { to: '/bkk', label: 'BKK / Bursa Kerja', visible: isVocationalInstitution.value && canAccessModule('bkk') },
+    ]}),
+    addVisible({ type: 'group', key: 'keuangan', label: 'Keuangan', icon: IconFinance, children: [
+      { to: '/keuangan/jenis-biaya', label: 'Jenis Biaya', visible: canAccessModule('finance') },
+      { to: '/keuangan/spp', label: 'SPP', visible: canAccessModule('finance') },
+      { to: '/keuangan/tagihan', label: 'Tagihan', visible: canAccessModule('finance') },
+      { to: '/keuangan/pembayaran', label: 'Pembayaran', visible: canAccessModule('finance') },
+      { to: '/keuangan/tunggakan', label: 'Tunggakan', visible: canAccessModule('finance') },
+      { to: '/keuangan/laporan', label: 'Laporan', visible: canAccessModule('finance') },
+    ]}),
     addVisible({ type: 'group', key: 'correspondence', label: 'Persuratan', icon: IconCorrespondence, children: [
       { to: '/correspondence', label: 'Buat Surat', visible: canAccessModule('correspondence'), exact: true },
       { to: '/correspondence/workflow', label: 'Arsip', visible: canAccessModule('correspondence') },
       { to: '/correspondence/templates', label: 'Template', visible: canAccessModule('correspondence') },
       { to: '/correspondence/kop', label: 'KOP', visible: canAccessModule('correspondence') },
       { to: '/correspondence/tanda-tangan', label: 'TTD & Stempel', visible: canAccessModule('correspondence') }
+    ]}),
+    addVisible({ type: 'group', key: 'administrasi', label: 'Administrasi', icon: IconAdmin, children: [
+      { to: '/academic-calendar', label: 'Kalender Akademik', visible: canAccessModule('academic_calendar') },
+      { to: '/school-content', label: 'Berita & Galeri', visible: canAccessModule('school_content') || canAccessModule('institution') },
+      { to: '/digital-archive', label: 'Arsip Digital', visible: canAccessModule('digital_archive') },
+      { to: '/buku-tamu', label: 'Buku Tamu', visible: canAccessModule('guest_book') },
+      { to: '/pengambilan-ijazah', label: 'Pengambilan Ijazah', visible: canAccessModule('document_pickup') },
+      { to: '/report', label: 'Laporan', visible: canAccessModule('report') }
     ]}),
     // Flat ekskul hanya jika bukan pembina (atau koordinator tanpa daftar supervised — canAccessExtracurricular)
     ...(!hasSupervisedEkskul && canAccessExtracurricular()
@@ -751,45 +878,48 @@ const menuEntries = computed(() => {
     ...(canAccessModule('library')
       ? [{ type: 'link', key: 'perpustakaan', to: '/library', label: 'Perpustakaan', icon: IconLibrary }]
       : []),
-    addVisible({ type: 'group', key: 'administrasi', label: 'Administrasi', icon: IconAdmin, children: [
-      { to: '/academic-calendar', label: 'Kalender Akademik', visible: canAccessModule('academic_calendar') },
-      { to: '/digital-archive', label: 'Arsip Digital', visible: canAccessModule('digital_archive') },
-      { to: '/buku-tamu', label: 'Buku Tamu', visible: canAccessModule('guest_book') },
-      { to: '/pengambilan-ijazah', label: 'Pengambilan Ijazah', visible: canAccessModule('document_pickup') },
-      { to: '/report', label: 'Laporan', visible: canAccessModule('report') }
+    addVisible({ type: 'group', key: 'master', label: 'Master Data', icon: IconDatabase, children: [
+      { to: '/institution', label: 'Profil Instansi', visible: canAccessModule('institution') },
+      { to: '/facility', label: 'Sarana Prasarana', visible: canAccessModule('facility') },
+      { to: '/inventory', label: 'Inventaris', visible: canAccessModule('inventory') },
+      { to: '/class', label: 'Kelas', visible: canAccessModule('class') },
+      {
+        to: '/program-keahlian',
+        label: 'Program Keahlian',
+        visible: canAccessModule('class') && isVocationalInstitution.value,
+      },
     ]}),
+    addVisible({ type: 'group', key: 'layanan', label: 'Layanan', icon: IconLayanan, children: [
+      { to: '/student-change-requests', label: 'Permintaan Perubahan Siswa', visible: canAccessModule('student') },
+      { to: '/teacher-change-requests', label: 'Permintaan Perubahan Guru', visible: canAccessModule('teacher') },
+    ]}),
+    ...(isTeacherOrStaff
+      ? [
+          addVisible({ type: 'group', key: 'saya', label: 'Saya', icon: IconSettings, children: [
+            { to: '/teacher/profile', label: 'Profil Saya', visible: true },
+            { to: '/teacher/cuti', label: 'Cuti Saya', visible: true },
+            { to: '/teacher/poin', label: 'Poin & Prestasi Saya', visible: true },
+            { to: '/feedback', label: 'Lapor Bug / Fitur', visible: true },
+          ]}),
+        ]
+      : []),
     ...(role === 'institution_admin' || role === 'admin'
       ? [
+          { type: 'divider', key: 'settings-divider', label: 'Pengaturan' },
           { type: 'link', key: 'feedback', to: '/feedback', label: 'Lapor Bug / Fitur', icon: IconFeedback },
           { type: 'link', key: 'pengaturan', to: '/module-access', label: 'Akses Modul', icon: IconModuleAccess },
+          ...(authStore.isMonetizationVisible
+            ? [{ type: 'link', key: 'billing', to: '/billing', label: 'Paket & Add-on', icon: IconFinance }]
+            : []),
           { type: 'link', key: 'audit-log', to: '/audit-log', label: 'Audit Log', icon: IconAuditLog }
         ]
       : []),
-    // Beta
     { type: 'divider', key: 'beta-divider', label: 'Sedang dikembangkan' },
     addVisible({ type: 'group', key: 'ujian-online', label: 'Ujian Online', icon: IconExam, maturity: 'beta', children: [
       { to: '/ujian-online/exams', label: 'Daftar Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/sesi?fokus=peserta', label: 'Peserta Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/sesi?fokus=kontrol', label: 'Kontrol Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/bank-soal', label: 'Bank Soal', visible: canAccessModule('online_exam') }
-    ]}),
-    addVisible({ type: 'group', key: 'keuangan', label: 'Keuangan', icon: IconFinance, maturity: 'beta', children: [
-      { to: '/keuangan/jenis-biaya', label: 'Jenis Biaya', visible: canAccessModule('finance') },
-      { to: '/keuangan/spp', label: 'SPP', visible: canAccessModule('finance') },
-      { to: '/keuangan/tagihan', label: 'Tagihan', visible: canAccessModule('finance') },
-      { to: '/keuangan/pembayaran', label: 'Pembayaran', visible: canAccessModule('finance') },
-      { to: '/keuangan/tunggakan', label: 'Tunggakan', visible: canAccessModule('finance') },
-      { to: '/keuangan/laporan', label: 'Laporan', visible: canAccessModule('finance') },
-    ]}),
-    addVisible({ type: 'group', key: 'absensi', label: 'Absensi', icon: IconAttendance, children: [
-      { to: '/attendance/student', label: 'Absensi Siswa', visible: canAccessModule('teaching_journal') },
-      { to: '/attendance/employee', label: 'Absensi Guru & Staff', visible: canAccessModule('attendance') },
-      { to: '/qr-attendance/scan', label: 'Scan QR Absensi', visible: canAccessModule('attendance') },
-      { to: '/qr-attendance/generate', label: 'Generate QR', visible: canAccessModule('attendance') },
-    ]}),
-    addVisible({ type: 'group', key: 'layanan', label: 'Layanan', icon: IconLayanan, maturity: 'beta', children: [
-      { to: '/student-change-requests', label: 'Permintaan Perubahan Siswa', visible: canAccessModule('student') },
-      { to: '/teacher-change-requests', label: 'Permintaan Perubahan Guru', visible: canAccessModule('teacher') },
     ]})
   ]
   const visible = entries.filter(e =>
@@ -797,15 +927,15 @@ const menuEntries = computed(() => {
     e.type === 'link' ||
     (e.type === 'group' && e.visibleChildren?.length > 0)
   )
-  // Hide beta divider if no beta items remain after filtering
-  const betaStart = visible.findIndex(e => e.key === 'beta-divider')
-  if (betaStart !== -1) {
-    const hasBetaItems = visible.slice(betaStart + 1).some(e => e.type !== 'divider')
-    if (!hasBetaItems) {
-      return visible.filter(e => e.key !== 'beta-divider')
+  const pruned = pruneNavDividers(visible)
+  const opsIdx = pruned.findIndex(e => e.key === 'ops-divider')
+  if (opsIdx !== -1) {
+    const nextItem = pruned.slice(opsIdx + 1).find(e => e.type !== 'divider')
+    if (!nextItem || nextItem.key === 'saya' || nextItem.key === 'ujian-online') {
+      return pruneNavDividers(pruned.filter(e => e.key !== 'ops-divider'))
     }
   }
-  return visible
+  return pruned
 })
 const hasActiveChild = (entry) => {
   if (entry.type !== 'group' || !entry.children) return false
@@ -853,7 +983,7 @@ const bottomNavItems = computed(() => {
     return [
       { to: '/super-admin/dashboard', label: 'Beranda', icon: 'home' },
       { to: '/institution', label: 'Institusi', icon: 'institution' },
-      { to: '/institution-change-requests', label: 'Request', icon: 'request' },
+      { to: '/feedback', label: 'Feedback', icon: 'request' },
       { to: '/audit-log', label: 'Audit', icon: 'settings' }
     ]
   }
@@ -861,40 +991,53 @@ const bottomNavItems = computed(() => {
     return [
       { to: '/student/dashboard', label: 'Beranda', icon: 'home' },
       { to: '/student/jadwal', label: 'Jadwal', icon: 'class' },
+      { to: '/student/absensi', label: 'Absensi', icon: 'attendance' },
       { to: '/student/nilai', label: 'Nilai', icon: 'report' },
-      { to: '/student/poin', label: 'Poin', icon: 'violation' },
       { to: '/student/profil', label: 'Profil', icon: 'settings' }
     ]
   }
-  if (role === 'teacher' || role === 'staff') {
+  if (role === 'parent') {
     const items = [
-      { to: '/teacher/dashboard', label: 'Beranda', icon: 'home' },
-      { to: '/teacher/profile', label: 'Profil', icon: 'settings' }
+      { to: '/parent/dashboard', label: 'Beranda', icon: 'home' },
+      { to: '/parent/pengumuman', label: 'Pengumuman', icon: 'report' }
     ]
-    if (canAccessModule('class')) items.push({ to: '/class', label: 'Kelas', icon: 'class' })
-    if (canAccessModule('student')) items.push({ to: '/student', label: 'Siswa', icon: 'student' })
-    if (canAccessModule('violation')) items.push({ to: '/violation', label: 'Pelanggaran', icon: 'violation' })
-    else if (canAccessModule('bk_report')) items.push({ to: '/laporan-bk', label: 'Laporan BK', icon: 'violation' })
-    if (canAccessModule('ppdb')) items.push({ to: '/ppdb', label: 'PPDB', icon: 'student' })
-    if (canAccessModule('counseling')) items.push({ to: '/counseling', label: 'Konseling', icon: 'counseling' })
-    if (canAccessExtracurricular()) items.push({ to: '/extracurricular', label: 'Ekskul', icon: 'extracurricular' })
-    if (canAccessModule('report')) items.push({ to: '/report', label: 'Laporan', icon: 'report' })
-    if (canAccessModule('library')) items.push({ to: '/library', label: 'Perpustakaan', icon: 'library' })
-    if (canAccessModule('teaching_journal')) items.push({ to: '/teaching-journal', label: 'Jurnal', icon: 'journal' })
-    if (canAccessModule('attendance')) items.push({ to: '/attendance/employee', label: 'Absensi', icon: 'attendance' })
-    if (canAccessModule('grade_book')) items.push({ to: '/grade-book', label: 'Nilai', icon: 'grade' })
-    if (canAccessModule('online_exam')) items.push({ to: '/ujian-online/exams', label: 'Ujian', icon: 'grade' })
-    if (canAccessModule('correspondence')) items.push({ to: '/correspondence', label: 'Surat', icon: 'correspondence' })
+    const firstChild = parentChildren.value[0]
+    if (firstChild?.id) {
+      items.push({ to: `/parent/anak/${firstChild.id}/nilai`, label: 'Nilai', icon: 'class' })
+      items.push({ to: `/parent/anak/${firstChild.id}/absensi`, label: 'Absensi', icon: 'attendance' })
+    }
     return items.slice(0, 5)
   }
-  // Admin sekolah: 5 item tetap (Beranda, Pelanggaran, Laporan, Surat, Buku Tamu)
+  if (role === 'teacher' || role === 'staff') {
+    const items = [
+      { to: '/teacher/dashboard', label: 'Beranda', icon: 'home' }
+    ]
+    const teachingAssignments = authStore.user?.teaching_assignments || []
+    const homeroomClasses = authStore.user?.homeroom_classes || []
+    if (teachingAssignments.length && (canAccessModule('teaching_journal') || canAccessModule('grade_book'))) {
+      items.push({ to: '/teacher/today', label: 'Mengajar', icon: 'attendance' })
+    }
+    if (homeroomClasses.length) {
+      items.push({ to: '/teacher/wali', label: 'Wali', icon: 'class' })
+    }
+    if (teachingAssignments.length && (canAccessModule('grade_book') || canAccessModule('teaching_journal'))) {
+      items.push({ to: '/teacher/mapel', label: 'Mapel', icon: 'report' })
+    }
+    if (canAccessModule('student')) items.push({ to: '/student', label: 'Siswa', icon: 'student' })
+    if (canAccessModule('attendance')) items.push({ to: '/attendance/employee', label: 'Absensi', icon: 'attendance' })
+    if (canAccessModule('correspondence')) items.push({ to: '/correspondence', label: 'Surat', icon: 'correspondence' })
+    if (canAccessModule('violation')) items.push({ to: '/violation', label: 'Pelanggaran', icon: 'violation' })
+    else if (canAccessModule('bk_report')) items.push({ to: '/laporan-bk', label: 'Laporan BK', icon: 'violation' })
+    return items.slice(0, 5)
+  }
   const items = []
   items.push({ to: '/dashboard', label: 'Beranda', icon: 'home' })
-  if (canAccessModule('violation')) items.push({ to: '/violation', label: 'Pelanggaran', icon: 'violation' })
-  if (canAccessModule('report')) items.push({ to: '/report', label: 'Laporan', icon: 'report' })
+  if (canAccessModule('student')) items.push({ to: '/student', label: 'Siswa', icon: 'student' })
+  if (canAccessModule('attendance')) items.push({ to: '/attendance/employee', label: 'Absensi', icon: 'attendance' })
   if (canAccessModule('correspondence')) items.push({ to: '/correspondence', label: 'Surat', icon: 'correspondence' })
+  if (canAccessModule('report')) items.push({ to: '/report', label: 'Laporan', icon: 'report' })
   if (canAccessModule('guest_book')) items.push({ to: '/buku-tamu', label: 'Buku Tamu', icon: 'guest' })
-  return items
+  return items.slice(0, 5)
 })
 
 const isBottomNavActive = (path) => {
@@ -902,8 +1045,9 @@ const isBottomNavActive = (path) => {
   if (path === '/super-admin/dashboard') return route.path === '/super-admin/dashboard'
   if (path === '/teacher/dashboard') return route.path === '/teacher/dashboard'
   if (path === '/student/dashboard') return route.path === '/student/dashboard'
-  if (path === '/student/poin') return route.path === '/student/poin'
+  if (path === '/student/absensi') return route.path === '/student/absensi'
   if (path === '/student/profil') return route.path === '/student/profil'
+  if (path === '/parent/dashboard') return route.path === '/parent/dashboard'
   return route.path.startsWith(path)
 }
 
@@ -911,6 +1055,7 @@ const pageTitle = computed(() => {
   const titles = {
     Dashboard: 'Dashboard',
     TeacherDashboard: 'Dashboard Guru',
+    TeacherLeave: 'Cuti Saya',
     TeacherMyPoints: 'Poin & Prestasi Saya',
     TeacherWali: 'Wali Kelas',
     TeacherMapel: 'Mata Pelajaran',
@@ -922,9 +1067,9 @@ const pageTitle = computed(() => {
     StudentGrades: 'Nilai Saya',
     StudentViolations: 'Pelanggaran & Prestasi',
     StudentCounseling: 'Konseling',
+    StudentUks: 'Kunjungan UKS',
     StudentExtracurricular: 'Ekstrakurikuler',
     StudentPoints: 'Poin Saya',
-    StudentChangeRequests: 'Permintaan Perubahan',
     StudentProfile: 'Profil Saya',
     SuperAdminDashboard: 'Dashboard Super Admin',
     AppBranding: 'Branding Aplikasi',
@@ -936,6 +1081,8 @@ const pageTitle = computed(() => {
     SuperAdminTemplates: 'Library Template Surat',
     AggregateReport: 'Laporan Agregat',
     SystemSettings: 'Pengaturan Sistem',
+    SuperAdminMonetization: 'Monetisasi',
+    BillingOverview: 'Paket & Add-on',
     Institution: authStore.user?.role === 'super_admin' ? 'Kelola Institusi' : 'Profil Instansi',
     Student: 'Data Siswa',
     Teacher: 'Data Guru',
@@ -947,6 +1094,7 @@ const pageTitle = computed(() => {
     LabBookingRequest: 'Booking Lab',
     Inventory: 'Inventaris',
     Class: 'Kelas',
+    ProgramKeahlian: 'Program Keahlian',
     Report: 'Laporan & Statistik',
     AcademicYear: 'Tahun Ajaran',
     InstitutionChangeRequests: 'Request Perubahan',
@@ -964,9 +1112,26 @@ const pageTitle = computed(() => {
     Violation: 'Pelanggaran',
     Counseling: 'Konseling',
     LaporanBk: 'Laporan BK',
+    Uks: 'Kunjungan UKS',
+    UksStock: 'Stok Obat UKS',
+    LaporanUks: 'Laporan UKS',
     StudentAttendance: 'Absensi Saya',
+    StudentFinance: 'Tagihan & Pembayaran',
+    StudentPkl: 'PKL / Jurnal',
+    StudentBkk: 'BKK / Lowongan',
+    ParentDashboard: 'Portal Orang Tua',
+    ParentAnnouncements: 'Pengumuman',
+    ParentChildSchedule: 'Jadwal Anak',
+    ParentChildGrades: 'Nilai Anak',
+    ParentChildAttendance: 'Absensi Anak',
+    ParentChildViolations: 'Pelanggaran Anak',
+    SchoolContent: 'Berita & Galeri',
+    StudentEbooks: 'Perpustakaan Digital',
     Extracurricular: 'Ekstrakurikuler',
     ExtracurricularDetail: 'Detail Ekstrakurikuler',
+    IndustryPartners: 'Mitra DU/DI',
+    Pkl: 'PKL / Prakerin',
+    Bkk: 'BKK / Bursa Kerja',
     LessonSchedule: 'Jadwal Pelajaran',
     TeachingJournal: 'Jurnal Mengajar',
     AttendanceStudent: 'Absensi Siswa',
@@ -1000,20 +1165,27 @@ const pageTitle = computed(() => {
 
 const showNotificationBell = computed(() => {
   const role = authStore.user?.role
-  if (role === 'super_admin') return false
+  if (role === 'super_admin') return true
   if (role === 'student') return !!authStore.user?.student_profile
   return !!(authStore.activeInstitutionId || authStore.user?.institution_id)
 })
 
 const unreadNotificationCount = ref(0)
 async function fetchUnreadNotificationCount() {
-  if (authStore.user?.role === 'super_admin') return
   if (!authStore.user) return
   try {
     const res = await import('@/api/notifications').then(m => m.notificationsApi.getUnreadCount())
     unreadNotificationCount.value = res.data?.count ?? 0
   } catch {
     unreadNotificationCount.value = 0
+  }
+  if (authStore.user?.role === 'super_admin') {
+    try {
+      const countRes = await import('@/api/feedbackTicket').then(m => m.feedbackTicketApi.getOpenCount())
+      openFeedbackCount.value = countRes.data?.count ?? 0
+    } catch {
+      openFeedbackCount.value = 0
+    }
   }
 }
 
@@ -1059,6 +1231,7 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
   document.addEventListener('click', closeUserMenuOnClickOutside)
   fetchUnreadNotificationCount()
+  fetchParentChildren()
   notificationPollInterval = setInterval(fetchUnreadNotificationCount, 60000)
 })
 
@@ -1069,6 +1242,7 @@ onUnmounted(() => {
   if (notificationPollInterval) clearInterval(notificationPollInterval)
 })
 
+watch(() => authStore.user?.role, fetchParentChildren)
 watch(sidebarOpen, (open) => {
   if (window.innerWidth <= MOBILE_BREAKPOINT) {
     document.body.style.overflow = open ? 'hidden' : ''
@@ -1086,6 +1260,70 @@ const handleLogout = async () => {
   display: flex;
   min-height: 100vh;
   background: #f8fafc;
+}
+
+.demo-school-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  background: #065f46;
+  color: #ecfdf5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.demo-school-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 13px;
+}
+
+.demo-register-link {
+  flex-shrink: 0;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  padding: 6px 12px;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.demo-register-link:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.layout:has(.demo-school-banner) .sidebar {
+  top: 44px;
+  height: calc(100vh - 44px);
+}
+
+.layout:has(.demo-school-banner) .main-content {
+  padding-top: 44px;
+}
+
+.layout:has(.demo-school-banner) .mobile-menu-btn {
+  top: calc(12px + 44px);
+}
+
+@media (max-width: 768px) {
+  .layout:has(.demo-school-banner) .main-content {
+    padding-top: calc(56px + 44px);
+  }
+
+  .layout:has(.demo-school-banner) .topbar {
+    top: 44px;
+  }
+
+  .demo-school-banner-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .impersonation-banner {
@@ -1169,11 +1407,11 @@ const handleLogout = async () => {
 }
 
 .logo {
-  padding: 18px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -1184,8 +1422,8 @@ const handleLogout = async () => {
 }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-radius: 10px;
   display: flex;
@@ -1196,7 +1434,7 @@ const handleLogout = async () => {
 }
 
 .logo-text h2 {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   margin: 0;
   color: #ffffff;
@@ -1265,6 +1503,24 @@ const handleLogout = async () => {
   line-height: 1.4;
 }
 
+.nav-count-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: #dc2626;
+  line-height: 1.4;
+}
+
+.nav-item.router-link-active .nav-count-badge {
+  background: #fff;
+  color: #dc2626;
+}
+
 .nav-item.router-link-active .nav-badge {
   color: #fef3c7;
   background: rgba(255, 255, 255, 0.18);
@@ -1274,13 +1530,13 @@ const handleLogout = async () => {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   color: #cbd5e1;
   text-decoration: none;
   transition: all 0.2s ease;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   position: relative;
 }
@@ -1330,14 +1586,14 @@ const handleLogout = async () => {
 .nav-group-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   color: #cbd5e1;
   background: none;
   border: none;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   text-align: left;
@@ -1374,10 +1630,10 @@ const handleLogout = async () => {
 
 .nav-subitem {
   display: block;
-  padding: 8px 12px;
+  padding: 6px 10px;
   color: #94a3b8;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   border-radius: 6px;
   transition: all 0.2s ease;
@@ -1411,7 +1667,7 @@ const handleLogout = async () => {
 }
 
 .user-section {
-  padding: 20px;
+  padding: 12px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.2);
   position: relative;
@@ -1422,7 +1678,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -1443,8 +1699,8 @@ const handleLogout = async () => {
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border-radius: 10px;
   display: flex;
@@ -1461,7 +1717,7 @@ const handleLogout = async () => {
 
 .user-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   margin: 0 0 2px 0;
   color: #ffffff;
   white-space: nowrap;
@@ -1520,10 +1776,10 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 8px 12px;
   color: #e2e8f0;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   background: none;
   border: none;
@@ -1585,14 +1841,14 @@ const handleLogout = async () => {
 }
 
 .topbar-content {
-  padding: 24px 32px;
+  padding: 12px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .topbar h1 {
-  font-size: 28px;
+  font-size: 18px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
@@ -1691,7 +1947,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 12px;
   color: #64748b;
 }
 
@@ -1706,7 +1962,7 @@ const handleLogout = async () => {
 
 .content {
   flex: 1;
-  padding: 32px;
+  padding: 20px;
   max-width: 1600px;
   width: 100%;
   margin: 0;
@@ -1938,20 +2194,20 @@ const handleLogout = async () => {
   }
 
   .logo {
-    padding: 20px 16px;
+    padding: 14px 16px;
   }
 
   .logo-text h2 {
-    font-size: 20px;
+    font-size: 16px;
   }
 
   .nav-item {
-    padding: 10px 14px;
-    font-size: 13px;
+    padding: 8px 12px;
+    font-size: 12px;
   }
 
   .user-section {
-    padding: 16px;
+    padding: 12px;
   }
 }
 
@@ -1972,7 +2228,7 @@ const handleLogout = async () => {
   }
 
   .logo-text h2 {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .logo-period {

@@ -260,6 +260,9 @@ loadNotifications(1)
   display: flex;
   gap: 8px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .filter-tab {

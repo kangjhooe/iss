@@ -21,8 +21,10 @@ use App\Models\WaliNote;
 use App\Services\AchievementService;
 use App\Services\LessonScheduleExportService;
 use App\Services\LessonScheduleService;
+use App\Services\StudentAccountService;
 use App\Services\StudentAttendanceService;
 use App\Services\StudentMutationService;
+use App\Services\StudentService;
 use App\Services\ViolationService;
 use App\Services\WaliKelasDashboardService;
 use App\Support\WaliKelasAccess;
@@ -30,6 +32,7 @@ use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -43,6 +46,8 @@ class WaliKelasController extends Controller
         protected LessonScheduleExportService $lessonScheduleExportService,
         protected StudentMutationService $studentMutationService,
         protected StudentAttendanceService $studentAttendanceService,
+        protected StudentAccountService $studentAccountService,
+        protected StudentService $studentService,
     ) {}
 
     public function showStudent(Request $request, int $classId, int $studentId): JsonResponse
@@ -57,7 +62,7 @@ class WaliKelasController extends Controller
             return response()->json(['message' => 'Siswa tidak ditemukan di kelas yang Anda waliki.'], 403);
         }
 
-        $student->load(['class', 'academicYear', 'semester']);
+        $student->load(['class', 'academicYear', 'semester', 'userAccount']);
 
         $payload = (new StudentResource($student))->resolve();
         $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
@@ -66,6 +71,162 @@ class WaliKelasController extends Controller
         }
 
         return response()->json(['data' => $payload]);
+    }
+
+    /**
+     * Lengkapi NIK / tanggal lahir siswa kelas wali (untuk akun login).
+     */
+    public function updateLoginFields(Request $request, int $classId, int $studentId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $student = WaliKelasAccess::resolveHomeroomStudent($user, $classId, $studentId);
+        if (!$student) {
+            return response()->json(['message' => 'Siswa tidak ditemukan di kelas yang Anda waliki.'], 403);
+        }
+
+        $validated = $request->validate([
+            'nik' => [
+                'required',
+                'digits:16',
+                Rule::unique('student', 'nik')
+                    ->ignore($student->id)
+                    ->where(fn ($q) => $q->where('institution_id', $student->institution_id)),
+            ],
+            'birth_date' => ['required', 'date'],
+            'birth_place' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $payload = [
+            'nik' => $validated['nik'],
+            'birth_date' => $validated['birth_date'],
+        ];
+        if (array_key_exists('birth_place', $validated) && $validated['birth_place'] !== null) {
+            $payload['birth_place'] = $validated['birth_place'];
+        }
+
+        $updated = $this->studentService->update($student, $payload);
+
+        return response()->json([
+            'message' => 'Data login siswa diperbarui. Akun login disinkronkan otomatis jika NIK & tanggal lahir valid.',
+            'data' => new StudentResource($updated->loadMissing(['class', 'academicYear', 'semester', 'userAccount'])),
+        ]);
+    }
+
+    public function ensureStudentAccount(Request $request, int $classId, int $studentId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $student = WaliKelasAccess::resolveHomeroomStudent($user, $classId, $studentId);
+        if (!$student) {
+            return response()->json(['message' => 'Siswa tidak ditemukan di kelas yang Anda waliki.'], 403);
+        }
+
+        $result = $this->studentAccountService->ensureAccount($student);
+        if (!$result['user'] && $result['skipped_reason']) {
+            return response()->json([
+                'message' => 'Akun login tidak dapat dibuat: ' . $result['skipped_reason'],
+            ], 422);
+        }
+
+        $student->load(['class', 'academicYear', 'semester', 'userAccount']);
+
+        return response()->json([
+            'message' => $result['user_created']
+                ? 'Akun login siswa berhasil dibuat. Sandi awal = tanggal lahir (DDMMYYYY).'
+                : 'Akun login siswa sudah tersedia / diperbarui.',
+            'data' => new StudentResource($student),
+            'user_created' => $result['user_created'],
+        ]);
+    }
+
+    public function resetStudentPassword(Request $request, int $classId, int $studentId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $student = WaliKelasAccess::resolveHomeroomStudent($user, $classId, $studentId);
+        if (!$student) {
+            return response()->json(['message' => 'Siswa tidak ditemukan di kelas yang Anda waliki.'], 403);
+        }
+
+        try {
+            $account = $this->studentAccountService->resetPasswordToBirthDate($student);
+            $student->load(['class', 'academicYear', 'semester', 'userAccount']);
+
+            return response()->json([
+                'message' => 'Sandi berhasil direset ke tanggal lahir (DDMMYYYY). Siswa wajib ganti sandi saat login berikutnya.',
+                'data' => new StudentResource($student),
+                'must_change_password' => (bool) $account->must_change_password,
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        }
+    }
+
+    /**
+     * Buat akun login massal untuk siswa aktif di kelas wali.
+     */
+    public function ensureAccountsBulk(Request $request, int $classId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return response()->json(['message' => 'Anda hanya dapat mengelola akun siswa di kelas yang Anda waliki.'], 403);
+        }
+
+        $validated = $request->validate([
+            'only_missing' => ['nullable', 'boolean'],
+            'student_ids' => ['nullable', 'array'],
+            'student_ids.*' => ['integer'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
+        ]);
+
+        $onlyMissing = array_key_exists('only_missing', $validated)
+            ? (bool) $validated['only_missing']
+            : true;
+
+        $result = $this->studentService->bulkEnsureAccounts(
+            [
+                'class_id' => $class->id,
+                'status' => 'Aktif',
+                'account_status' => $onlyMissing ? 'missing' : null,
+            ],
+            (int) $class->institution_id,
+            $validated['student_ids'] ?? null,
+            $onlyMissing,
+            (int) ($validated['limit'] ?? 500)
+        );
+
+        Log::info('Wali kelas bulk ensure student accounts', [
+            'class_id' => $class->id,
+            'user_id' => $user->id,
+            'created' => $result['created'],
+            'skipped' => $result['skipped'],
+        ]);
+
+        return response()->json([
+            'message' => sprintf(
+                'Selesai: %d dibuat, %d sudah ada/diperbarui, %d dilewati (dari %d diproses).',
+                $result['created'],
+                $result['updated'],
+                $result['skipped'],
+                $result['processed']
+            ),
+            'data' => $result,
+        ]);
     }
 
     public function dashboard(Request $request, int $classId): JsonResponse

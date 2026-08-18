@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreFeedbackTicketRequest;
 use App\Http\Requests\UpdateFeedbackTicketRequest;
 use App\Models\FeedbackTicket;
+use App\Models\Institution;
 use App\Models\User;
 use App\Notifications\FeedbackTicketNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 
 class FeedbackTicketController extends Controller
 {
@@ -28,6 +30,13 @@ class FeedbackTicketController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
+            if (! Schema::hasTable('feedback_tickets')) {
+                return response()->json([
+                    'message' => 'Tabel feedback belum tersedia. Jalankan migrasi database (php artisan migrate).',
+                    'data' => [],
+                ], 503);
+            }
+
             $query = FeedbackTicket::with([
                 'institution:id,name,npsn',
                 'submitter:id,name,email',
@@ -39,7 +48,8 @@ class FeedbackTicketController extends Controller
                     $query->where('institution_id', (int) $request->institution_id);
                 }
             } else {
-                $query->where('institution_id', $user->institution_id);
+                $institutionId = $user->currentInstitutionId() ?: $user->institution_id;
+                $query->where('institution_id', $institutionId);
             }
 
             if ($request->filled('status')) {
@@ -89,12 +99,21 @@ class FeedbackTicketController extends Controller
     {
         try {
             $user = $request->user();
-            $institution = $user->institution;
+            $institutionId = $user->currentInstitutionId() ?: $user->institution_id;
+            $institution = $institutionId
+                ? Institution::query()->find($institutionId)
+                : $user->institution;
 
             if (! $institution) {
                 return response()->json([
                     'message' => 'Institusi tidak ditemukan',
                 ], 404);
+            }
+
+            if (! Schema::hasTable('feedback_tickets')) {
+                return response()->json([
+                    'message' => 'Tabel feedback belum tersedia. Jalankan migrasi database (php artisan migrate).',
+                ], 503);
             }
 
             DB::beginTransaction();
@@ -114,17 +133,25 @@ class FeedbackTicketController extends Controller
 
             $ticket->load(['institution:id,name,npsn', 'submitter:id,name,email']);
 
-            $superAdmins = User::where('role', 'super_admin')
-                ->where(function ($q) {
-                    $q->whereNull('is_active')->orWhere('is_active', true);
-                })
-                ->get();
+            try {
+                $superAdmins = User::where('role', 'super_admin')
+                    ->where(function ($q) {
+                        $q->whereNull('is_active')->orWhere('is_active', true);
+                    })
+                    ->get();
 
-            if ($superAdmins->isNotEmpty()) {
-                Notification::send(
-                    $superAdmins,
-                    new FeedbackTicketNotification($ticket, 'submitted')
-                );
+                if ($superAdmins->isNotEmpty()) {
+                    Notification::send(
+                        $superAdmins,
+                        new FeedbackTicketNotification($ticket, 'submitted')
+                    );
+                }
+            } catch (\Exception $notifyError) {
+                // Tiket sudah tersimpan; jangan gagalkan response karena notifikasi.
+                Log::warning('Feedback ticket created but notification failed', [
+                    'ticket_id' => $ticket->id,
+                    'error' => $notifyError->getMessage(),
+                ]);
             }
 
             Log::info('Feedback ticket created', [
@@ -144,8 +171,13 @@ class FeedbackTicketController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
+            $message = 'Terjadi kesalahan saat mengirim laporan';
+            if (str_contains($e->getMessage(), "doesn't exist") || str_contains($e->getMessage(), 'Base table or view not found')) {
+                $message = 'Tabel feedback belum tersedia. Jalankan migrasi database (php artisan migrate).';
+            }
+
             return response()->json([
-                'message' => 'Terjadi kesalahan saat mengirim laporan',
+                'message' => $message,
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -169,8 +201,11 @@ class FeedbackTicketController extends Controller
                 'handler:id,name,email',
             ])->findOrFail($id);
 
-            if (! $user->isSuperAdmin() && $ticket->institution_id !== $user->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if (! $user->isSuperAdmin()) {
+                $institutionId = (int) ($user->currentInstitutionId() ?: $user->institution_id);
+                if ((int) $ticket->institution_id !== $institutionId) {
+                    return response()->json(['message' => 'Unauthorized'], 403);
+                }
             }
 
             return response()->json(['data' => $ticket]);
@@ -229,9 +264,16 @@ class FeedbackTicketController extends Controller
                 && ($oldStatus !== $ticket->status || $oldNote !== $ticket->admin_note);
 
             if ($shouldNotify) {
-                $ticket->submitter->notify(
-                    new FeedbackTicketNotification($ticket, 'updated')
-                );
+                try {
+                    $ticket->submitter->notify(
+                        new FeedbackTicketNotification($ticket, 'updated')
+                    );
+                } catch (\Exception $notifyError) {
+                    Log::warning('Feedback ticket updated but notification failed', [
+                        'ticket_id' => $ticket->id,
+                        'error' => $notifyError->getMessage(),
+                    ]);
+                }
             }
 
             Log::info('Feedback ticket updated', [
@@ -273,6 +315,10 @@ class FeedbackTicketController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
+            if (! Schema::hasTable('feedback_tickets')) {
+                return response()->json(['count' => 0]);
+            }
+
             $count = FeedbackTicket::open()->count();
 
             return response()->json(['count' => $count]);
@@ -290,12 +336,6 @@ class FeedbackTicketController extends Controller
 
     private function canAccess(?User $user): bool
     {
-        if (! $user) {
-            return false;
-        }
-
-        return $user->isSuperAdmin()
-            || $user->isInstitutionAdmin()
-            || $user->isAdmin();
+        return $user?->canAccessFeedback() ?? false;
     }
 }

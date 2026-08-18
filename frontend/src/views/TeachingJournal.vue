@@ -879,4 +879,30 @@ onMounted(async () => {
   align-items: center;
   gap: 0.5rem;
 }
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar .filters {
+    min-width: 0;
+    width: 100%;
+  }
+  .filters-inline {
+    flex-direction: column;
+  }
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .toolbar-actions {
+    width: 100%;
+  }
+  .toolbar-actions .btn-primary,
+  .toolbar-actions .btn-secondary {
+    flex: 1;
+    justify-content: center;
+  }
+}
 </style>

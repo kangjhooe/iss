@@ -15,6 +15,7 @@ use App\Models\Permission;
 use App\Models\User;
 use App\Support\InstitutionContext;
 use App\Support\TeacherAccess;
+use App\Support\VocationalAccess;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -404,10 +405,21 @@ class EmployeeController extends Controller
             $educations = $validated['educations'] ?? [];
             unset($validated['educations']);
 
-            $additionalDutyIds = $validated['additional_duty_ids'] ?? [];
+            $additionalDutyIds = VocationalAccess::filterDutyIdsForInstitution(
+                $institutionId,
+                $validated['additional_duty_ids'] ?? []
+            );
             unset($validated['additional_duty_ids']);
+            $programKeahlianIds = $validated['program_keahlian_ids'] ?? [];
+            unset($validated['program_keahlian_ids']);
+            if (! VocationalAccess::isVocationalInstitution($institutionId)) {
+                $programKeahlianIds = [];
+            }
 
             $permissionKeys = $validated['permission_keys'] ?? null;
+            if (is_array($permissionKeys)) {
+                $permissionKeys = VocationalAccess::filterPermissionKeysForInstitution($institutionId, $permissionKeys);
+            }
             $userRole = $validated['user_role'] ?? null;
             unset($validated['permission_keys'], $validated['user_role']);
             if (!$request->user()->isAdminOrSuperAdmin() && !$request->user()->isInstitutionAdmin()) {
@@ -439,6 +451,7 @@ class EmployeeController extends Controller
 
             // Sync additional duties (tugas tambahan)
             $employee->additionalDuties()->sync($additionalDutyIds);
+            $this->syncKaprogPrograms($employee, $additionalDutyIds, $programKeahlianIds);
 
             $effectivePermissionKeys = $this->getEffectivePermissionKeys($employee, $permissionKeys);
             $accountResult = $this->ensureEmployeeUserAccount($employee, null, $effectivePermissionKeys, $userRole);
@@ -452,7 +465,7 @@ class EmployeeController extends Controller
 
             $response = [
                 'message' => 'Pegawai berhasil ditambahkan',
-                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties'])),
+                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties', 'programKeahlians'])),
             ];
 
             if (!empty($accountResult['user_created'])) {
@@ -518,7 +531,7 @@ class EmployeeController extends Controller
                 }
             }
 
-            $relations = ['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties'];
+            $relations = ['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties', 'programKeahlians'];
 
             if ($user->isAdminOrSuperAdmin() || $employee->institution_id == $currentInstitutionId) {
                 $relations[] = 'assignments.institution';
@@ -592,13 +605,25 @@ class EmployeeController extends Controller
             $educations = $validated['educations'] ?? null;
             unset($validated['educations']);
 
+            $institutionId = (int) $employee->institution_id;
             $additionalDutyIds = array_key_exists('additional_duty_ids', $validated) ? $validated['additional_duty_ids'] : null;
+            if (is_array($additionalDutyIds)) {
+                $additionalDutyIds = VocationalAccess::filterDutyIdsForInstitution($institutionId, $additionalDutyIds);
+            }
             unset($validated['additional_duty_ids']);
+            $programKeahlianIds = array_key_exists('program_keahlian_ids', $validated) ? $validated['program_keahlian_ids'] : null;
+            unset($validated['program_keahlian_ids']);
+            if (is_array($programKeahlianIds) && ! VocationalAccess::isVocationalInstitution($institutionId)) {
+                $programKeahlianIds = [];
+            }
 
             $permissionKeys = null;
             $userRole = null;
             if (array_key_exists('permission_keys', $validated)) {
-                $permissionKeys = $validated['permission_keys'];
+                $permissionKeys = VocationalAccess::filterPermissionKeysForInstitution(
+                    $institutionId,
+                    $validated['permission_keys'] ?? []
+                );
             }
             if (array_key_exists('user_role', $validated)) {
                 $userRole = $validated['user_role'];
@@ -639,6 +664,16 @@ class EmployeeController extends Controller
             if ($additionalDutyIds !== null) {
                 $employee->additionalDuties()->sync($additionalDutyIds);
             }
+            if ($additionalDutyIds !== null || $programKeahlianIds !== null) {
+                $dutyIdsForKaprog = $additionalDutyIds !== null
+                    ? $additionalDutyIds
+                    : $employee->additionalDuties()->pluck('additional_duties.id')->all();
+                $this->syncKaprogPrograms(
+                    $employee,
+                    $dutyIdsForKaprog,
+                    $programKeahlianIds ?? $employee->programKeahlians()->pluck('program_keahlian.id')->all()
+                );
+            }
 
             // When only additional_duty_ids sent, keep current user permissions as manual base
             $manualKeys = $permissionKeys;
@@ -657,7 +692,7 @@ class EmployeeController extends Controller
 
             $response = [
                 'message' => 'Pegawai berhasil diperbarui',
-                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties'])),
+                'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties', 'programKeahlians'])),
             ];
 
             if (!empty($accountResult['user_created'])) {
@@ -1269,7 +1304,8 @@ class EmployeeController extends Controller
 
     /**
      * Default module access for new teacher accounts.
-     * Persuratan, Jurnal Mengajar, Nilai, dan Jadwal agar guru baru langsung bisa bekerja.
+     * Jurnal Mengajar, Nilai, dan Jadwal agar guru baru langsung bisa bekerja.
+     * Persuratan hanya lewat tugas tambahan administratif / admin.
      */
     protected function getDefaultTeacherPermissions(): array
     {
@@ -1325,5 +1361,41 @@ class EmployeeController extends Controller
         $fromDuties = $employee->additionalDuties->flatMap(fn ($d) => $d->permissions->pluck('key'))->unique()->values()->all();
 
         return array_values(array_unique(array_merge($manual, $fromDuties)));
+    }
+
+    /**
+     * Sync jurusan Kaprog. Hanya berlaku jika duty kepala_program_keahlian aktif.
+     *
+     * @param  array<int, int|string>  $additionalDutyIds
+     * @param  array<int, int|string>  $programKeahlianIds
+     */
+    protected function syncKaprogPrograms(Employee $employee, array $additionalDutyIds, array $programKeahlianIds): void
+    {
+        $kaprogDutyId = \App\Models\AdditionalDuty::query()
+            ->where('key', \App\Support\KaprogAccess::DUTY_KEY)
+            ->value('id');
+
+        $hasKaprog = $kaprogDutyId && in_array((int) $kaprogDutyId, array_map('intval', $additionalDutyIds), true);
+        if (! $hasKaprog) {
+            $employee->programKeahlians()->sync([]);
+
+            return;
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $programKeahlianIds)));
+        if ($ids === []) {
+            $employee->programKeahlians()->sync([]);
+
+            return;
+        }
+
+        $validIds = \App\Models\ProgramKeahlian::query()
+            ->where('institution_id', $employee->institution_id)
+            ->whereIn('id', $ids)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $employee->programKeahlians()->sync($validIds);
     }
 }

@@ -50,5 +50,17 @@ export const studentApi = {
   },
   promote(data) {
     return api.post('/v1/student/promote', data)
+  },
+  ensureAccount(id) {
+    return api.post(`/v1/student/${id}/ensure-account`)
+  },
+  resetPassword(id) {
+    return api.post(`/v1/student/${id}/reset-password`)
+  },
+  accountStatus(params) {
+    return api.get('/v1/student/account-status', { params })
+  },
+  ensureAccountsBulk(data) {
+    return api.post('/v1/student/ensure-accounts-bulk', data)
   }
 }

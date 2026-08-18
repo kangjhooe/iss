@@ -61,6 +61,11 @@ onMounted(() => {
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
+  --fs-body: 13px;
+  --fs-title: 18px;
+  --fs-subtitle: 12px;
+  --fs-table: 13px;
+  --lh: 1.45;
 }
 
 html {
@@ -72,7 +77,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: #f8fafc;
   color: var(--text-primary);
-  line-height: 1.6;
+  font-size: var(--fs-body);
+  line-height: var(--lh);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -182,7 +188,7 @@ input, textarea, select {
   color: #059669;
   text-decoration: none;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-subtitle);
   transition: color 0.2s ease;
 }
 #app .back-link:hover {
@@ -243,25 +249,25 @@ input, textarea, select {
   max-width: 100%;
 }
 
+.data-table {
+  font-size: var(--fs-table);
+}
+
 
 @media (max-width: 768px) {
   .table-container {
     border-radius: 12px;
   }
 
-  .data-table {
-    min-width: 600px;
-  }
-
   .data-table th,
   .data-table td {
-    padding: 12px 14px;
-    font-size: 13px;
+    padding: 8px 10px;
+    font-size: var(--fs-table);
   }
 
   .data-table th {
     font-size: 11px;
-    padding: 10px 14px;
+    padding: 8px 10px;
   }
 }
 
@@ -300,8 +306,6 @@ input, textarea, select {
 
 /* Responsive Grid Improvements */
 @media (max-width: 768px) {
-  .stats-grid,
-  .actions-grid,
   .info-grid,
   .facilities-grid {
     grid-template-columns: 1fr !important;
@@ -333,18 +337,12 @@ input, textarea, select {
   }
 }
 
-/* Responsive Action Buttons */
+/* Responsive Action Buttons — jangan paksa column (bentrok dengan module-page.css) */
 @media (max-width: 768px) {
   .action-buttons-group {
-    flex-direction: column !important;
     width: 100% !important;
     gap: 8px !important;
-  }
-
-  .action-buttons-group button,
-  .action-buttons-group label {
-    width: 100% !important;
-    justify-content: center !important;
+    flex-wrap: wrap !important;
   }
 }
 
@@ -357,7 +355,7 @@ input, textarea, select {
   }
 
   .page-header h2 {
-    font-size: 20px !important;
+    font-size: var(--fs-title) !important;
   }
 }
 

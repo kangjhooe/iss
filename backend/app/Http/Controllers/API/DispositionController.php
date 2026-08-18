@@ -143,14 +143,14 @@ class DispositionController extends Controller
 
     /**
      * Complete a disposition.
+     * Penerima disposisi boleh menyelesaikan tanpa modul Persuratan penuh.
      */
     public function complete(Request $request, int $id)
     {
         try {
             $disposition = CorrespondenceDisposition::findOrFail($id);
 
-            $correspondence = $disposition->correspondence;
-            if (!$this->canAccessCorrespondence($request->user(), $correspondence)) {
+            if (!$this->canCompleteDisposition($request->user(), $disposition)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -219,6 +219,25 @@ class DispositionController extends Controller
             return true;
         }
 
+        if (!$user->hasModuleAccess('correspondence')) {
+            return false;
+        }
+
         return InstitutionContext::canAccessInstitution($user, (int) $correspondence->institution_id);
+    }
+
+    private function canCompleteDisposition(?User $user, ?CorrespondenceDisposition $disposition): bool
+    {
+        if (!$user || !$disposition) {
+            return false;
+        }
+
+        if ((int) $disposition->to_user_id === (int) $user->id) {
+            return true;
+        }
+
+        $correspondence = $disposition->correspondence;
+
+        return $this->canAccessCorrespondence($user, $correspondence);
     }
 }

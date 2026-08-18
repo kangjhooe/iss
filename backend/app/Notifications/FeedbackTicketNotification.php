@@ -3,14 +3,10 @@
 namespace App\Notifications;
 
 use App\Models\FeedbackTicket;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class FeedbackTicketNotification extends Notification implements ShouldQueue
+class FeedbackTicketNotification extends Notification
 {
-    use Queueable;
-
     /**
      * @param string $action 'submitted' | 'updated'
      */
@@ -57,7 +53,7 @@ class FeedbackTicketNotification extends Notification implements ShouldQueue
             'institution_name' => $institutionName,
             'submitter_name' => $submitterName,
             'message' => $message,
-            'created_at' => now()->toISOString(),
+            'created_at' => now()->toIso8601String(),
         ];
     }
 

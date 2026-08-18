@@ -98,6 +98,16 @@ class EmployeeResource extends JsonResource
                     'label' => $d->label,
                 ]);
             }),
+            'program_keahlians' => $this->whenLoaded('programKeahlians', function () {
+                return $this->programKeahlians->map(fn ($p) => [
+                    'id' => $p->id,
+                    'code' => $p->code,
+                    'name' => $p->name,
+                ]);
+            }),
+            'program_keahlian_ids' => $this->whenLoaded('programKeahlians', function () {
+                return $this->programKeahlians->pluck('id')->map(fn ($id) => (int) $id)->values();
+            }),
             'assignments' => $this->whenLoaded('assignments', function () {
                 return EmployeeInstitutionAssignmentResource::collection($this->assignments);
             }),

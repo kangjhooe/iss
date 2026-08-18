@@ -108,8 +108,17 @@ class Student extends Model
 
     /**
      * Get the class that the student belongs to.
+     * Note: column `class` (legacy string) also exists — prefer schoolClass() when eager-loading.
      */
     public function class()
+    {
+        return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
+    /**
+     * Alias for class() — used by auth/user payloads (avoids clash with legacy `class` attribute).
+     */
+    public function schoolClass()
     {
         return $this->belongsTo(SchoolClass::class, 'class_id');
     }
@@ -123,11 +132,11 @@ class Student extends Model
     }
 
     /**
-     * Get the user account associated with this student (by email).
+     * Get the user account associated with this student (by NIK login).
      */
     public function userAccount()
     {
-        return $this->belongsTo(User::class, 'email', 'email');
+        return $this->belongsTo(User::class, 'nik', 'login_nik');
     }
 
     /**
@@ -184,6 +193,11 @@ class Student extends Model
     public function counselingSessions()
     {
         return $this->hasMany(CounselingSession::class);
+    }
+
+    public function uksVisits()
+    {
+        return $this->hasMany(UksVisit::class);
     }
 
     /**
@@ -361,6 +375,30 @@ class Student extends Model
      */
     public function hasUserAccount(): bool
     {
-        return $this->email && User::where('email', $this->email)->exists();
+        if ($this->relationLoaded('userAccount')) {
+            $account = $this->getRelation('userAccount');
+
+            return $account instanceof User && $account->role === 'student';
+        }
+
+        if ($this->nik && User::where('login_nik', $this->nik)->where('role', 'student')->exists()) {
+            return true;
+        }
+
+        if ($this->email && User::where('email', $this->email)->where('role', 'student')->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Student is eligible for auto login account (valid NIK + birth date).
+     */
+    public function isEligibleForLoginAccount(): bool
+    {
+        $nik = trim((string) ($this->nik ?? ''));
+
+        return preg_match('/^\d{16}$/', $nik) === 1 && !empty($this->birth_date);
     }
 }

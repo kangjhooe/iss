@@ -5,8 +5,11 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApproveTeacherChangeRequestRequest;
 use App\Http\Requests\StoreTeacherChangeRequestRequest;
+use App\Http\Requests\UpdateMyTeacherProfileRequest;
+use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use App\Models\TeacherChangeRequest;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +26,52 @@ class TeacherChangeRequestController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         return response()->json([
-            'data' => TeacherChangeRequest::ALLOWED_FIELDS,
+            'data' => TeacherChangeRequest::APPROVAL_FIELDS,
+            'approval_fields' => TeacherChangeRequest::APPROVAL_FIELDS,
+            'self_editable_fields' => TeacherChangeRequest::SELF_EDITABLE_FIELDS,
         ]);
+    }
+
+    /**
+     * Teacher/staff updates non-key profile fields directly (no approval).
+     */
+    public function updateMyProfile(UpdateMyTeacherProfileRequest $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $user->load(['teacherProfile', 'employeeProfile']);
+            $profile = $user->teacherProfile ?? $user->employeeProfile;
+
+            if (!$profile) {
+                return response()->json(['message' => 'Profil guru tidak ditemukan.'], 403);
+            }
+
+            $employee = Employee::with('institution')->find($profile->id);
+            if (!$employee) {
+                return response()->json(['message' => 'Data pegawai tidak ditemukan.'], 404);
+            }
+
+            $payload = $request->only(TeacherChangeRequest::SELF_EDITABLE_FIELDS);
+            $employee->fill($payload);
+            $employee->save();
+
+            Log::info('Teacher self profile updated', [
+                'employee_id' => $employee->id,
+                'user_id' => $user->id,
+                'fields' => array_keys($payload),
+            ]);
+
+            return response()->json([
+                'message' => 'Profil berhasil diperbarui.',
+                'data' => new EmployeeResource($employee->fresh('institution')),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Teacher self profile update failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal memperbarui profil',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     public function index(Request $request): JsonResponse
@@ -192,13 +239,20 @@ class TeacherChangeRequestController extends Controller
                 $employee = $changeRequest->employee;
                 $fieldName = $changeRequest->field_name;
                 $newValue = $changeRequest->new_value;
+                $previousEmail = $employee->email;
 
                 if (in_array($fieldName, ['birth_date', 'join_date', 'certification_date'], true)) {
-                    $employee->{$fieldName} = $newValue ? \Carbon\Carbon::parse($newValue) : null;
+                    $employee->{$fieldName} = $newValue !== null && $newValue !== ''
+                        ? \Carbon\Carbon::parse($newValue)
+                        : null;
                 } else {
-                    $employee->{$fieldName} = $newValue;
+                    $employee->{$fieldName} = $newValue === '' ? null : $newValue;
                 }
                 $employee->save();
+
+                if (in_array($fieldName, ['email', 'name'], true)) {
+                    $this->syncLinkedUserAccount($employee, $previousEmail);
+                }
 
                 $changeRequest->status = 'approved';
                 $changeRequest->approved_by = $user->id;
@@ -270,6 +324,51 @@ class TeacherChangeRequestController extends Controller
         } catch (\Exception $e) {
             Log::error('TeacherChangeRequest pendingCount failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal mengambil jumlah.', 'count' => 0], 500);
+        }
+    }
+
+    /**
+     * Keep login account in sync when name/email change is approved.
+     */
+    private function syncLinkedUserAccount(Employee $employee, ?string $previousEmail): void
+    {
+        if (empty($previousEmail) && empty($employee->email)) {
+            return;
+        }
+
+        $lookupEmail = $previousEmail ?: $employee->email;
+        $account = User::where('email', $lookupEmail)
+            ->whereIn('role', ['teacher', 'staff'])
+            ->first();
+
+        if (!$account && $employee->email && $employee->email !== $lookupEmail) {
+            $account = User::where('email', $employee->email)
+                ->whereIn('role', ['teacher', 'staff'])
+                ->first();
+        }
+
+        if (!$account) {
+            return;
+        }
+
+        $updates = [];
+        if ($employee->name && $employee->name !== $account->name) {
+            $updates['name'] = $employee->name;
+        }
+        if ($employee->email && $employee->email !== $account->email) {
+            $conflict = User::where('email', $employee->email)->where('id', '!=', $account->id)->exists();
+            if (!$conflict) {
+                $updates['email'] = $employee->email;
+            } else {
+                Log::warning('Teacher change request email sync skipped due to conflict', [
+                    'employee_id' => $employee->id,
+                    'email' => $employee->email,
+                ]);
+            }
+        }
+
+        if ($updates !== []) {
+            $account->update($updates);
         }
     }
 }

@@ -99,7 +99,7 @@
               <span class="help-card-icon help-card-icon--violet">📦</span>
               <div class="help-card-body">
                 <div class="help-card-title">Inventaris</div>
-                <p class="help-card-desc">Barang & aset: peminjaman, pengembalian, stok.</p>
+                <p class="help-card-desc">Operasional (barang, transaksi, pemeliharaan, pinjam), laporan, dan pengaturan kategori.</p>
               </div>
             </div>
             <div class="help-card">
@@ -143,6 +143,13 @@
               </div>
             </div>
             <div class="help-card">
+              <span class="help-card-icon help-card-icon--teal">⏰</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Jam Mengajar Hari Ini</div>
+                <p class="help-card-desc">Alur harian guru mapel: isi absensi siswa, jurnal, lalu nilai harian. Menu muncul jika ada jadwal mengajar.</p>
+              </div>
+            </div>
+            <div class="help-card">
               <span class="help-card-icon help-card-icon--emerald">📖</span>
               <div class="help-card-body">
                 <div class="help-card-title">Jurnal Mengajar</div>
@@ -174,7 +181,7 @@
               <span class="help-card-icon help-card-icon--violet">⭐</span>
               <div class="help-card-body">
                 <div class="help-card-title">Apresiasi Guru</div>
-                <p class="help-card-desc">Poin prestasi & pelanggaran guru, leaderboard, reward. Guru bisa lihat poin sendiri dan ajukan prestasi.</p>
+                <p class="help-card-desc">Catatan prestasi/pelanggaran, usulan, poin, laporan, dan pengaturan jenis/reward.</p>
               </div>
             </div>
             <div class="help-card">
@@ -200,14 +207,14 @@
               <span class="help-card-icon help-card-icon--sky">📋</span>
               <div class="help-card-body">
                 <div class="help-card-title">Absensi Siswa</div>
-                <p class="help-card-desc">Presensi siswa per kelas/hari. Terkait modul Jurnal Mengajar.</p>
+                <p class="help-card-desc">Guru mapel mengisi absen lewat Jam Mengajar Hari Ini (atau Hub Mapel / Wali untuk rekap &amp; cetak). Menu sidebar Absensi Siswa hanya tampil jika modul Absensi pegawai juga aktif.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--cyan">👥</span>
               <div class="help-card-body">
                 <div class="help-card-title">Absensi Guru & Staff</div>
-                <p class="help-card-desc">Kehadiran pegawai: check-in/out, rekap per periode.</p>
+                <p class="help-card-desc">Kehadiran pegawai: check-in/out, rekap per periode. Menu sidebar Absensi hanya untuk akun dengan modul Absensi (biasanya TU/admin).</p>
               </div>
             </div>
             <div class="help-card">
@@ -280,14 +287,14 @@
               <span class="help-card-icon help-card-icon--red">⚠️</span>
               <div class="help-card-body">
                 <div class="help-card-title">Pelanggaran</div>
-                <p class="help-card-desc">Jenis pelanggaran, sanksi, riwayat per siswa. Untuk pembinaan.</p>
+                <p class="help-card-desc">Catatan (pelanggaran & prestasi), usulan, tindakan BK, dan pengaturan jenis/aturan skor.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--cyan">💬</span>
               <div class="help-card-body">
                 <div class="help-card-title">Konseling</div>
-                <p class="help-card-desc">Sesi konseling siswa, jenis konseling, ringkasan & tindak lanjut.</p>
+                <p class="help-card-desc">Catat sesi konseling; jenis konseling ada di Pengaturan.</p>
               </div>
             </div>
             <div class="help-card">
@@ -295,6 +302,131 @@
               <div class="help-card-body">
                 <div class="help-card-title">Laporan BK</div>
                 <p class="help-card-desc">Rekap per kelas/bulan + detail siapa saja yang melanggar (filter kelas & bulan). Bisa diekspor CSV atau cetak PDF.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- UKS -->
+        <section class="help-section help-section--student">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--cyan">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v20M2 12h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="2"/></svg>
+            </span>
+            UKS
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--green">➕</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Kunjungan UKS</div>
+                <p class="help-card-desc">Catat kunjungan UKS (keluhan, tindakan, vital). Jenis kunjungan ada di Pengaturan; jenis standar bisa diisi otomatis.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--blue">📊</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Laporan UKS</div>
+                <p class="help-card-desc">Rekap per kelas/bulan/jenis/status + detail kunjungan per siswa. Export CSV atau cetak PDF, pola sama seperti Laporan BK.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">💊</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Stok Obat</div>
+                <p class="help-card-desc">Inventaris obat UKS: master obat, stok, kedaluwarsa, transaksi masuk/keluar/penyesuaian. Terpisah dari modul inventaris umum agar petugas UKS bisa kelola sendiri.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PKL / Prakerin -->
+        <section v-if="isVocational" class="help-section help-section--admin">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--sky">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21h18M5 21V8l6-3v16M11 21V11h4l4 3v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            PKL / Prakerin
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">🏭</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Mitra DU/DI</div>
+                <p class="help-card-desc">Master perusahaan mitra (shared dengan BKK). Isi nama, kota, PIC, dan status aktif.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">📅</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Periode &amp; Penempatan</div>
+                <p class="help-card-desc">Buat periode PKL, tempatkan siswa ke mitra (satu per periode), bulk assign, nilai akhir, dan export CSV.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">📍</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Monitoring pembimbing</div>
+                <p class="help-card-desc">Catat kunjungan/telepon/online dari pembimbing sekolah ke siswa di industri.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">📝</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Jurnal siswa</div>
+                <p class="help-card-desc">Siswa mengisi jurnal harian di portal (/student/pkl). Staff bisa baca jurnal dan menulis catatan pembimbing dari tombol Jurnal di penempatan.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BKK / Bursa Kerja -->
+        <section v-if="isVocational" class="help-section help-section--admin">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--sky">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" stroke-width="2"/><path d="M12 12v5M9.5 14.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            BKK / Bursa Kerja
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">💼</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Lowongan</div>
+                <p class="help-card-desc">Kelola lowongan kerja dari mitra DU/DI: posisi, kuota, deadline, status buka/tutup.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--sky">📝</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Lamaran</div>
+                <p class="help-card-desc">Staff dapat mendaftarkan alumni/siswa ke lowongan, ubah status lamaran, dan export CSV. Siswa/alumni dapat melamar mandiri dari portal.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Kepegawaian -->
+        <section class="help-section help-section--admin">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--indigo">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M19 8v6M22 11h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            Kepegawaian
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--indigo">🏖️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Cuti</div>
+                <p class="help-card-desc">Admin kelola pengajuan cuti (setujui/tolak). Guru/staff ajukan sendiri lewat menu Cuti Saya.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--indigo">📄</span>
+              <div class="help-card-body">
+                <div class="help-card-title">SK &amp; Jabatan</div>
+                <p class="help-card-desc">Register surat keputusan, jabatan struktural aktif/akhir, dan lihat riwayat karier pegawai.</p>
               </div>
             </div>
           </div>
@@ -326,14 +458,13 @@
           </div>
         </section>
 
-        <!-- Keuangan (Beta) -->
+        <!-- Keuangan -->
         <section class="help-section help-section--admin">
           <h3 class="help-section-head">
             <span class="help-section-icon help-section-icon--sky">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M2 10h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="14" r="1.5" fill="currentColor"/></svg>
             </span>
             Keuangan
-            <span class="help-beta-badge">Beta</span>
           </h3>
           <div class="help-cards">
             <div class="help-card">
@@ -462,7 +593,7 @@
               <span class="help-card-icon help-card-icon--blue">📚</span>
               <div class="help-card-body">
                 <div class="help-card-title">Perpustakaan</div>
-                <p class="help-card-desc">Katalog buku fisik, peminjaman, denda. Upload ebook PDF; tandai publik agar bisa dibaca di /:npsn/ebooks tanpa login. Siswa: menu Ebook di portal.</p>
+                <p class="help-card-desc">Katalog (buku & eksemplar), sirkulasi (pinjam & denda), laporan, pengaturan kategori. Ebook publik di /:npsn/ebooks.</p>
               </div>
             </div>
             <div class="help-card">
@@ -530,7 +661,7 @@
               <span class="help-card-icon help-card-icon--slate">💬</span>
               <div class="help-card-body">
                 <div class="help-card-title">Feedback (API)</div>
-                <p class="help-card-desc">Admin sekolah bisa kirim tiket bug/request fitur ke Super Admin lewat API feedback-tickets; Super Admin kelola status di dashboard.</p>
+                <p class="help-card-desc">Admin, guru, dan staf sekolah bisa kirim tiket bug/request fitur lewat menu Lapor Bug / Fitur; Super Admin meninjau dan memperbarui status di Inbox Feedback (lonceng notifikasi).</p>
               </div>
             </div>
           </div>
@@ -600,11 +731,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
 
 const authStore = useAuthStore()
+const isVocational = computed(() => isVocationalLevel(getActiveInstitutionLevel(authStore)))
 const canSubmitFeedback = computed(() => {
   const role = authStore.user?.role
-  return role === 'super_admin' || role === 'institution_admin' || role === 'admin'
+  return ['institution_admin', 'admin', 'teacher', 'staff'].includes(role)
 })
 
 const STORAGE_KEY = 'helpSidebarOpen'
@@ -656,14 +789,21 @@ onUnmounted(() => {
   box-shadow: -2px 0 12px rgba(0, 0, 0, 0.04);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
+  overflow: hidden;
 }
 
 .help-sidebar--open {
   width: calc(var(--help-tab-width) + var(--help-width));
+  pointer-events: auto;
 }
 
 .help-sidebar--collapsed {
   width: var(--help-tab-width);
+  pointer-events: none;
+}
+
+.help-sidebar--collapsed .help-toggle {
+  pointer-events: auto;
 }
 
 /* Toggle tab */
@@ -1120,12 +1260,24 @@ onUnmounted(() => {
   }
 
   .help-sidebar--open.help-sidebar--overlay {
+    top: 0;
+    height: 100vh;
     width: min(calc(var(--help-tab-width) + var(--help-width)), 100vw);
     box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
   }
 
   .help-sidebar--collapsed {
+    top: 112px;
+    height: auto;
     width: var(--help-tab-width);
+    border-radius: 10px 0 0 10px;
+    box-shadow: -2px 4px 14px rgba(0, 0, 0, 0.1);
+  }
+
+  .help-sidebar--collapsed .help-toggle {
+    height: auto;
+    padding: 14px 0 16px;
+    min-height: 92px;
   }
 
   .help-panel {
@@ -1144,8 +1296,13 @@ onUnmounted(() => {
     --help-tab-width: 44px;
   }
 
-  .help-toggle {
+  .help-sidebar--open .help-toggle {
     padding-top: 72px;
+  }
+
+  .help-sidebar--collapsed .help-toggle {
+    padding: 12px 0 14px;
+    min-height: 84px;
   }
 
   .help-header {

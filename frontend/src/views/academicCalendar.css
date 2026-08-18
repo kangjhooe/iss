@@ -394,5 +394,38 @@
   .page-header { margin: -1rem -1rem 0; margin-bottom: 1.25rem; padding: 1.25rem; }
   .page-title { font-size: 1.35rem; }
   .form-grid { grid-template-columns: 1fr; }
-  .month-cell { min-height: 72px; }
+  .month-grid {
+    gap: 0;
+    font-size: 0.7rem;
+  }
+  .month-cell {
+    min-height: 56px;
+    padding: 0.2rem;
+    gap: 1px;
+  }
+  .cell-day {
+    font-size: 0.65rem;
+    margin-bottom: 0;
+  }
+  .cell-event {
+    font-size: 0.55rem;
+    padding: 1px 2px;
+    border-radius: 2px;
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 480px) {
+  .month-cell {
+    min-height: 48px;
+    padding: 0.15rem;
+  }
+  .cell-event {
+    /* tampilkan max 1 baris singkat; sisanya via tap/tooltip di UI */
+    max-width: 100%;
+  }
+  .month-dow {
+    font-size: 0.65rem;
+    padding: 0.35rem 0;
+  }
 }

@@ -224,6 +224,30 @@ class Employee extends Model
     }
 
     /**
+     * Program keahlian yang diampu sebagai Kaprog.
+     */
+    public function programKeahlians()
+    {
+        return $this->belongsToMany(ProgramKeahlian::class, 'employee_program_keahlian', 'employee_id', 'program_keahlian_id')
+            ->withTimestamps();
+    }
+
+    public function leaveRequests()
+    {
+        return $this->hasMany(EmployeeLeaveRequest::class);
+    }
+
+    public function decrees()
+    {
+        return $this->hasMany(EmployeeDecree::class);
+    }
+
+    public function structuralPositions()
+    {
+        return $this->hasMany(EmployeeStructuralPosition::class);
+    }
+
+    /**
      * Get the library loans where this employee is the borrower.
      */
     public function libraryLoans()

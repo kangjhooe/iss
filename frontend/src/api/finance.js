@@ -94,3 +94,27 @@ export const financePaymentApi = {
     })
   },
 }
+
+/** Portal siswa: tagihan & riwayat pembayaran sendiri (tanpa module:finance) */
+export const studentFinanceApi = {
+  getSummary() {
+    return api.get('/v1/finance/my/summary')
+  },
+  getInvoices(params) {
+    return api.get('/v1/finance/my/invoices', { params })
+  },
+  getPayments(params) {
+    return api.get('/v1/finance/my/payments', { params })
+  },
+  openReceipt(id) {
+    return api.get(`/v1/finance/my/payments/${id}/receipt`, { responseType: 'blob' }).then((res) => {
+      const blob = res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      return res
+    })
+  },
+}

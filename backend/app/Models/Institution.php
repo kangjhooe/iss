@@ -54,6 +54,9 @@ class Institution extends Model
         'logo',
         'cover_image',
         'is_active',
+        'is_demo',
+        'storage_quota_mb',
+        'storage_addon_mb',
         'active_academic_year_id',
         'active_semester_id',
         'latitude',
@@ -109,10 +112,23 @@ class Institution extends Model
     {
         return [
             'is_active' => 'boolean',
+            'is_demo' => 'boolean',
+            'storage_quota_mb' => 'integer',
+            'storage_addon_mb' => 'integer',
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
             'location_radius' => 'integer',
         ];
+    }
+
+    public function subscription()
+    {
+        return $this->hasOne(InstitutionSubscription::class);
+    }
+
+    public function addonGrants()
+    {
+        return $this->hasMany(InstitutionAddonGrant::class);
     }
 
     /**
@@ -514,6 +530,16 @@ class Institution extends Model
     public function scopeByLevel($query, string $level)
     {
         return $query->where('level', $level);
+    }
+
+    /**
+     * Jenjang kejuruan (PKL, BKK, program keahlian).
+     */
+    public const VOCATIONAL_LEVELS = ['SMK', 'MAK'];
+
+    public function isVocational(): bool
+    {
+        return \App\Support\VocationalAccess::isVocationalLevel($this->level);
     }
 
     /**

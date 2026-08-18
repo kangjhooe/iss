@@ -5,23 +5,46 @@
     :class="{ 'hero-section--animate': heroVisible }"
     aria-labelledby="hero-heading"
   >
-    <div class="hero-section__bg" aria-hidden="true"></div>
+    <div class="hero-section__bg" aria-hidden="true">
+      <span class="hero-section__blob hero-section__blob--1"></span>
+      <span class="hero-section__blob hero-section__blob--2"></span>
+    </div>
     <div class="hero-section__inner">
       <div class="hero-section__copy">
+        <p class="hero-section__badge">Gratis untuk sekolah · Siap pakai</p>
         <h1 id="hero-heading" class="hero-section__headline">
-          {{ headline }}
+          <template v-if="headlineParts.accent">
+            {{ headlineParts.before }}<span class="hero-section__accent">{{ headlineParts.accent }}</span>{{ headlineParts.after }}
+          </template>
+          <template v-else>{{ headline }}</template>
         </h1>
         <p class="hero-section__subheadline">
           {{ subheadline }}
         </p>
         <div class="hero-section__actions">
+          <a
+            v-if="isHashLink(primaryCtaTo)"
+            :href="primaryCtaTo"
+            class="hero-section__btn hero-section__btn--primary"
+          >
+            {{ primaryCtaText }}
+          </a>
           <router-link
+            v-else
             :to="primaryCtaTo"
             class="hero-section__btn hero-section__btn--primary"
           >
             {{ primaryCtaText }}
           </router-link>
+          <a
+            v-if="isHashLink(secondaryCtaTo)"
+            :href="secondaryCtaTo"
+            class="hero-section__btn hero-section__btn--secondary"
+          >
+            {{ secondaryCtaText }}
+          </a>
           <router-link
+            v-else
             :to="secondaryCtaTo"
             class="hero-section__btn hero-section__btn--secondary"
           >
@@ -30,6 +53,7 @@
         </div>
       </div>
       <div class="hero-section__visual">
+        <div class="hero-section__glow" aria-hidden="true"></div>
         <div v-if="heroImageUrl" class="hero-section__image-wrap" aria-hidden="true">
           <img :src="heroImageUrl" alt="" class="hero-section__hero-image" />
         </div>
@@ -39,13 +63,37 @@
             <span class="hero-section__mockup-dot"></span>
             <span class="hero-section__mockup-dot"></span>
           </div>
-          <div class="hero-section__mockup-screen">
-            <div class="hero-section__placeholder">
-              <svg class="hero-section__placeholder-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 21V12H15V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="hero-section__placeholder-text">Tampilan aplikasi</span>
+          <div class="hero-section__mockup-ui">
+            <div class="hero-section__mockup-side">
+              <span class="hero-section__mockup-brand"></span>
+              <span class="hero-section__mockup-side-item is-active"></span>
+              <span class="hero-section__mockup-side-item"></span>
+              <span class="hero-section__mockup-side-item"></span>
+              <span class="hero-section__mockup-side-item"></span>
+            </div>
+            <div class="hero-section__mockup-main">
+              <div class="hero-section__mockup-kpis">
+                <div class="hero-section__mockup-kpi">
+                  <span class="hero-section__mockup-kpi-label"></span>
+                  <span class="hero-section__mockup-kpi-value"></span>
+                </div>
+                <div class="hero-section__mockup-kpi">
+                  <span class="hero-section__mockup-kpi-label"></span>
+                  <span class="hero-section__mockup-kpi-value"></span>
+                </div>
+                <div class="hero-section__mockup-kpi">
+                  <span class="hero-section__mockup-kpi-label"></span>
+                  <span class="hero-section__mockup-kpi-value"></span>
+                </div>
+              </div>
+              <div class="hero-section__mockup-bars">
+                <span style="--h: 42%"></span>
+                <span style="--h: 68%"></span>
+                <span style="--h: 54%"></span>
+                <span style="--h: 86%"></span>
+                <span style="--h: 60%"></span>
+                <span style="--h: 74%"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -72,31 +120,47 @@ const props = defineProps({
   },
   primaryCtaText: {
     type: String,
-    default: 'Lihat Contoh',
+    default: 'Daftar Gratis',
   },
   primaryCtaTo: {
     type: String,
-    default: '#fitur',
+    default: '/register',
   },
   secondaryCtaText: {
     type: String,
-    default: 'Daftar Gratis',
+    default: 'Lihat Fitur',
   },
   secondaryCtaTo: {
     type: String,
-    default: '/register',
+    default: '#fitur',
   },
 })
 
 const heroRef = ref(null)
 const heroVisible = ref(true)
 const heroImageUrl = computed(() => props.heroImageUrl || '')
+
+function isHashLink(to) {
+  return typeof to === 'string' && to.startsWith('#')
+}
+
+const ACCENT_PHRASE = 'Sekolah & Madrasah'
+const headlineParts = computed(() => {
+  const text = props.headline || ''
+  const index = text.indexOf(ACCENT_PHRASE)
+  if (index === -1) return { accent: null }
+  return {
+    before: text.slice(0, index),
+    accent: ACCENT_PHRASE,
+    after: text.slice(index + ACCENT_PHRASE.length),
+  }
+})
 </script>
 
 <style scoped>
 .hero-section {
   position: relative;
-  padding: 40px 20px 48px;
+  padding: 72px 20px 80px;
   padding-left: max(20px, env(safe-area-inset-left));
   padding-right: max(20px, env(safe-area-inset-right));
   overflow: hidden;
@@ -105,18 +169,31 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
 .hero-section__bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #f8fafc 0%, #ecfdf5 50%, #f8fafc 100%);
+  background: linear-gradient(165deg, #f8fafc 0%, #ecfdf5 45%, #f0fdf4 100%);
   z-index: 0;
-  transition: opacity 0.6s ease;
 }
 
-.hero-section--animate .hero-section__bg {
-  animation: hero-bg-soft 8s ease-in-out infinite;
+.hero-section__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(64px);
+  pointer-events: none;
 }
 
-@keyframes hero-bg-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.92; }
+.hero-section__blob--1 {
+  width: 420px;
+  height: 420px;
+  background: rgba(5, 150, 105, 0.18);
+  top: -140px;
+  right: 8%;
+}
+
+.hero-section__blob--2 {
+  width: 300px;
+  height: 300px;
+  background: rgba(16, 185, 129, 0.14);
+  bottom: -100px;
+  left: -40px;
 }
 
 .hero-section__inner {
@@ -126,7 +203,7 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  gap: 48px;
   align-items: center;
 }
 
@@ -134,30 +211,50 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
   text-align: left;
 }
 
-/* Tanpa class animate: tampil langsung (fallback). Dengan class: animasi fade-up. */
+.hero-section__badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(5, 150, 105, 0.18);
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .hero-section__headline,
 .hero-section__subheadline,
-.hero-section__actions {
+.hero-section__actions,
+.hero-section__badge {
   opacity: 1;
   transform: translateY(0);
+}
+
+.hero-section--animate .hero-section__badge {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: hero-fade-up 0.45s ease-out forwards;
 }
 
 .hero-section--animate .hero-section__headline {
   opacity: 0;
   transform: translateY(14px);
-  animation: hero-fade-up 0.5s ease-out forwards;
+  animation: hero-fade-up 0.5s ease-out 0.06s forwards;
 }
 
 .hero-section--animate .hero-section__subheadline {
   opacity: 0;
   transform: translateY(14px);
-  animation: hero-fade-up 0.45s ease-out 0.08s forwards;
+  animation: hero-fade-up 0.45s ease-out 0.12s forwards;
 }
 
 .hero-section--animate .hero-section__actions {
   opacity: 0;
   transform: translateY(14px);
-  animation: hero-fade-up 0.45s ease-out 0.16s forwards;
+  animation: hero-fade-up 0.45s ease-out 0.18s forwards;
 }
 
 @keyframes hero-fade-up {
@@ -168,20 +265,24 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
 }
 
 .hero-section__headline {
-  font-size: clamp(26px, 4.2vw, 38px);
-  font-weight: 700;
-  color: #1e293b;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  margin: 0 0 12px;
+  font-size: clamp(28px, 4.4vw, 42px);
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  margin: 0 0 14px;
+}
+
+.hero-section__accent {
+  color: #059669;
 }
 
 .hero-section__subheadline {
   font-size: clamp(15px, 2vw, 17px);
   color: #64748b;
-  line-height: 1.55;
-  margin: 0 0 24px;
-  max-width: 420px;
+  line-height: 1.6;
+  margin: 0 0 28px;
+  max-width: 440px;
 }
 
 .hero-section__actions {
@@ -233,19 +334,31 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
   outline-offset: 2px;
 }
 
-/* Visual: gambar hero atau mockup placeholder */
 .hero-section__visual {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
+.hero-section__glow {
+  position: absolute;
+  width: 78%;
+  height: 78%;
+  border-radius: 32px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.22) 0%, transparent 70%);
+  filter: blur(12px);
+  z-index: 0;
+}
+
 .hero-section__image-wrap {
+  position: relative;
+  z-index: 1;
   width: 100%;
-  max-width: 420px;
-  border-radius: 12px;
+  max-width: 440px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(30, 41, 59, 0.12), 0 8px 24px rgba(5, 150, 105, 0.08);
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.14), 0 8px 24px rgba(5, 150, 105, 0.1);
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
@@ -258,12 +371,14 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
 }
 
 .hero-section__mockup {
+  position: relative;
+  z-index: 1;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(30, 41, 59, 0.12), 0 8px 24px rgba(5, 150, 105, 0.08);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.14), 0 8px 24px rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.85);
   overflow: hidden;
 }
 
@@ -277,7 +392,7 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
 .hero-section__mockup-bar {
   display: flex;
   gap: 6px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   background: #f1f5f9;
   border-bottom: 1px solid #e2e8f0;
 }
@@ -289,47 +404,113 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
   background: #cbd5e1;
 }
 
-.hero-section__mockup-dot:nth-child(1) { background: #94a3b8; }
-.hero-section__mockup-dot:nth-child(2) { background: #94a3b8; }
-.hero-section__mockup-dot:nth-child(3) { background: #94a3b8; }
+.hero-section__mockup-dot:nth-child(1) { background: #f87171; }
+.hero-section__mockup-dot:nth-child(2) { background: #fbbf24; }
+.hero-section__mockup-dot:nth-child(3) { background: #34d399; }
 
-.hero-section__mockup-screen {
-  aspect-ratio: 16 / 10;
-  min-height: 200px;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.hero-section__mockup-ui {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  min-height: 220px;
 }
 
-.hero-section__placeholder {
+.hero-section__mockup-side {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  color: #94a3b8;
+  gap: 8px;
+  padding: 14px 10px;
+  background: linear-gradient(180deg, #064e3b 0%, #047857 100%);
 }
 
-.hero-section__placeholder-icon {
-  width: 48px;
-  height: 48px;
-  color: #cbd5e1;
+.hero-section__mockup-brand {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  margin-bottom: 6px;
 }
 
-.hero-section__placeholder-text {
-  font-size: 13px;
-  font-weight: 500;
+.hero-section__mockup-side-item {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.28);
 }
 
-/* Responsive */
+.hero-section__mockup-side-item.is-active {
+  background: #fff;
+}
+
+.hero-section__mockup-main {
+  padding: 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.hero-section__mockup-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.hero-section__mockup-kpi {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 8px;
+}
+
+.hero-section__mockup-kpi-label {
+  display: block;
+  height: 6px;
+  width: 55%;
+  border-radius: 99px;
+  background: #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.hero-section__mockup-kpi-value {
+  display: block;
+  height: 10px;
+  width: 70%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #059669, #34d399);
+}
+
+.hero-section__mockup-kpi:nth-child(2) .hero-section__mockup-kpi-value {
+  width: 58%;
+}
+
+.hero-section__mockup-kpi:nth-child(3) .hero-section__mockup-kpi-value {
+  width: 64%;
+}
+
+.hero-section__mockup-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 92px;
+  padding: 12px 10px 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.hero-section__mockup-bars span {
+  flex: 1;
+  height: var(--h);
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  opacity: 0.85;
+}
+
 @media (max-width: 768px) {
   .hero-section {
-    padding: 32px 16px 40px;
+    padding: 40px 16px 56px;
   }
 
   .hero-section__inner {
     grid-template-columns: 1fr;
-    gap: 28px;
+    gap: 32px;
     text-align: center;
   }
 
@@ -358,12 +539,10 @@ const heroImageUrl = computed(() => props.heroImageUrl || '')
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-section--animate .hero-section__bg {
-    animation: none;
-  }
   .hero-section__headline,
   .hero-section__subheadline,
   .hero-section__actions,
+  .hero-section__badge,
   .hero-section__mockup,
   .hero-section__image-wrap {
     opacity: 1;

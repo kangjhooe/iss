@@ -77,6 +77,7 @@
                 <td class="col-nama">
                   <button type="button" class="cell-link" @click="$router.push(`/extracurricular/${item.id}`)">
                     <span class="cell-main">{{ displayValue(item.name) }}</span>
+                    <span v-if="item.is_pramuka" class="pramuka-badge">Pramuka</span>
                     <span v-if="item.description" class="cell-sub">{{ truncate(item.description, 48) }}</span>
                   </button>
                 </td>
@@ -188,6 +189,12 @@
                   <option value="Aktif">Aktif</option>
                   <option value="Nonaktif">Nonaktif</option>
                 </select>
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input v-model="form.is_pramuka" type="checkbox" />
+                  Modul Pramuka (flag khusus)
+                </label>
               </div>
             </div>
             <div class="form-group">
@@ -405,7 +412,6 @@ import Layout from '@/components/Layout.vue'
 import { extracurricularApi } from '@/api/extracurricular'
 import { teacherApi } from '@/api/teacher'
 import { semesterApi } from '@/api/semester'
-import { classApi } from '@/api/class'
 import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
@@ -444,6 +450,7 @@ const form = ref({
   supervisor_employee_id: null,
   capacity: null,
   status: 'Aktif',
+  is_pramuka: false,
   days_of_week: [],
   start_time: '',
   end_time: '',
@@ -576,6 +583,7 @@ function openAddModal() {
     supervisor_employee_id: null,
     capacity: null,
     status: 'Aktif',
+    is_pramuka: false,
     days_of_week: [],
     start_time: '',
     end_time: '',
@@ -599,6 +607,7 @@ function openEditModal(item) {
     supervisor_employee_id: item.supervisor_employee_id || null,
     capacity: item.capacity || null,
     status: item.status || 'Aktif',
+    is_pramuka: !!item.is_pramuka,
     days_of_week: daysOfWeek,
     start_time: item.start_time || '',
     end_time: item.end_time || '',
@@ -857,7 +866,7 @@ async function submitAddParticipants() {
   addParticipantError.value = ''
   try {
     const res = await extracurricularApi.addStudents(selectedEkskul.value.id, {
-      student_ids: selectedStudentIds.value,
+      student_ids: selectedStudentIds.value.map((sid) => Number(sid)).filter((sid) => Number.isInteger(sid) && sid > 0),
     })
     toast.success('Berhasil', res.data?.message || 'Peserta berhasil ditambahkan')
     closeAddPanel()
@@ -913,10 +922,11 @@ async function loadSemesters() {
 
 async function loadClasses() {
   try {
-    const res = await classApi.getAll({ status: 'Aktif', per_page: 200 })
+    const res = await extracurricularApi.classesLite()
     classes.value = res.data.data || []
-  } catch (_) {
+  } catch (e) {
     classes.value = []
+    toast.error('Gagal', e.formattedMessage || 'Gagal memuat daftar kelas')
   }
 }
 
@@ -1092,6 +1102,16 @@ onMounted(async () => {
   font-weight: 600;
   color: #0f172a;
   line-height: 1.35;
+}
+.pramuka-badge {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .cell-link {

@@ -2,11 +2,10 @@
   <Layout>
     <div class="keuangan-page">
       <header class="page-header">
-        <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
           <div class="header-left">
             <div>
-              <h1 class="page-title">Laporan Keuangan <span class="beta-pill">Beta</span></h1>
+              <h1 class="page-title">Laporan Keuangan</h1>
               <p class="page-subtitle">Ringkasan tagihan, penerimaan, dan tunggakan</p>
             </div>
           </div>

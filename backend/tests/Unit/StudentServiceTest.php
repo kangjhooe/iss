@@ -17,7 +17,7 @@ class StudentServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->studentService = new StudentService();
+        $this->studentService = new StudentService(new \App\Services\StudentAccountService());
     }
 
     /**

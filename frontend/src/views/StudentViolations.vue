@@ -1,56 +1,79 @@
 <template>
   <Layout>
-    <div class="page">
-      <div v-if="!studentId && authStore.user?.role === 'student'" class="alert alert-warning">
-        <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah. Silakan hubungi operator sekolah atau admin.
-        <router-link to="/student/dashboard" class="alert-link">← Kembali ke Dashboard</router-link>
+    <div class="sp-page">
+      <div v-if="!studentId && authStore.user?.role === 'student'" class="sp-alert sp-alert-warning">
+        <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah.
       </div>
 
-      <div v-if="loading" class="loading-state">
+      <div class="sp-page-header">
+        <p class="sp-subtitle">Catatan pelanggaran dan prestasi semester berjalan</p>
+        <div class="sp-actions">
+          <router-link to="/student/poin" class="sp-btn sp-btn--soft">Lihat poin</router-link>
+        </div>
+      </div>
+
+      <div v-if="loading" class="sp-loading">
         <p>Memuat data...</p>
       </div>
 
-      <div v-else class="content-wrap">
-        <section class="section">
-          <h2 class="section-title">Pelanggaran</h2>
-          <div v-if="violations.length" class="list">
-            <div v-for="v in violations" :key="'v-' + v.id" class="card card-violation">
-              <div class="card-main">
-                <span class="card-type">Pelanggaran</span>
-                <span class="card-desc">{{ v.violation_type?.name || v.description || '-' }}</span>
-                <span class="card-date">{{ formatDate(v.violation_date || v.date) }}</span>
-              </div>
-              <div v-if="violationPoints(v) != null" class="card-meta">Poin: +{{ violationPoints(v) }}</div>
+      <template v-else>
+        <div class="sp-stats summary-stats">
+          <div class="sp-stat sp-stat--warn">
+            <div class="sp-stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 9V13M12 17H12.01M21 12A9 9 0 1 1 3 12A9 9 0 0 1 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <span class="sp-stat-label">Pelanggaran</span>
+              <span class="sp-stat-value">{{ violations.length }}</span>
             </div>
           </div>
-          <div v-else class="empty-state">
-            <p v-if="loadError">Gagal memuat data. Silakan coba lagi atau kembali ke dashboard.</p>
-            <p v-else>Belum ada catatan pelanggaran.</p>
-            <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
-          </div>
-        </section>
-
-        <section class="section">
-          <h2 class="section-title">Prestasi</h2>
-          <div v-if="achievements.length" class="list">
-            <div v-for="a in achievements" :key="'a-' + a.id" class="card card-achievement">
-              <div class="card-main">
-                <span class="card-type">Prestasi</span>
-                <span class="card-desc">{{ a.achievement_type?.name || a.description || '-' }}</span>
-                <span class="card-date">{{ formatDate(a.achievement_date || a.date) }}</span>
-              </div>
-              <div v-if="achievementPoints(a) != null" class="card-meta">Poin: −{{ achievementPoints(a) }}</div>
+          <div class="sp-stat sp-stat--ok">
+            <div class="sp-stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div>
+              <span class="sp-stat-label">Prestasi</span>
+              <span class="sp-stat-value">{{ achievements.length }}</span>
             </div>
           </div>
-          <div v-else class="empty-state">
-            <p v-if="loadError">Gagal memuat data. Silakan coba lagi atau kembali ke dashboard.</p>
-            <p v-else>Belum ada catatan prestasi.</p>
-            <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
-          </div>
-        </section>
+        </div>
 
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
-      </div>
+        <div class="two-col">
+          <section class="sp-panel">
+            <div class="sp-panel-header">
+              <h2 class="sp-panel-title">Pelanggaran</h2>
+            </div>
+            <div v-if="violations.length" class="sp-list">
+              <div v-for="v in violations" :key="'v-' + v.id" class="sp-list-item sp-list-item--danger">
+                <span class="sp-list-kicker">Pelanggaran</span>
+                <span class="sp-list-title">{{ v.violation_type?.name || v.description || '-' }}</span>
+                <span class="sp-list-meta">{{ formatDate(v.violation_date || v.date) }}</span>
+                <span v-if="violationPoints(v) != null" class="sp-chip">+{{ violationPoints(v) }} poin</span>
+              </div>
+            </div>
+            <div v-else class="sp-empty compact">
+              <p class="sp-empty-desc">{{ loadError ? 'Gagal memuat data.' : 'Belum ada catatan pelanggaran.' }}</p>
+            </div>
+          </section>
+
+          <section class="sp-panel">
+            <div class="sp-panel-header">
+              <h2 class="sp-panel-title">Prestasi</h2>
+            </div>
+            <div v-if="achievements.length" class="sp-list">
+              <div v-for="a in achievements" :key="'a-' + a.id" class="sp-list-item sp-list-item--ok">
+                <span class="sp-list-kicker">Prestasi</span>
+                <span class="sp-list-title">{{ a.achievement_type?.name || a.description || '-' }}</span>
+                <span class="sp-list-meta">{{ formatDate(a.achievement_date || a.date) }}</span>
+                <span v-if="achievementPoints(a) != null" class="sp-chip sp-chip--strong">−{{ achievementPoints(a) }} poin</span>
+              </div>
+            </div>
+            <div v-else class="sp-empty compact">
+              <p class="sp-empty-desc">{{ loadError ? 'Gagal memuat data.' : 'Belum ada catatan prestasi.' }}</p>
+            </div>
+          </section>
+        </div>
+      </template>
     </div>
   </Layout>
 </template>
@@ -111,39 +134,30 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 100%; padding: 0; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
-.page-header { margin-bottom: 24px; }
-.page-header h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
-.page-subtitle { font-size: 14px; color: #64748b; margin: 0; }
-
-.loading-state {
-  text-align: center; padding: 48px 24px; color: #64748b;
-  background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;
+.summary-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.content-wrap { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; }
-.section { margin-bottom: 28px; }
-.section:last-of-type { margin-bottom: 20px; }
-.section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; }
-
-.list { display: flex; flex-direction: column; gap: 10px; }
-.card {
-  padding: 14px 16px; border-radius: 10px; border: 1px solid #e2e8f0;
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+.summary-stats .sp-stat {
+  cursor: default;
 }
-.card-violation { background: #fef2f2; border-color: #fecaca; }
-.card-achievement { background: #f0fdf4; border-color: #bbf7d0; }
-.card-type { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; }
-.card-desc { flex: 1; font-weight: 600; color: #0f172a; }
-.card-date { font-size: 13px; color: #64748b; }
-.card-meta { font-size: 12px; color: #475569; }
 
-.empty-state { padding: 16px; text-align: center; color: #94a3b8; font-size: 14px; }
-.back-link { display: inline-block; margin-top: 16px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
-.back-link:hover { text-decoration: underline; color: #047857; }
+.two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
 
-.alert { padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
-.alert-warning { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
-.alert-link { display: inline-block; margin-top: 10px; color: #b45309; font-weight: 600; text-decoration: none; }
-.alert-link:hover { text-decoration: underline; }
+.compact {
+  padding: 24px 16px;
+  border-style: solid;
+  background: #f8fafc;
+}
+
+@media (max-width: 900px) {
+  .two-col,
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

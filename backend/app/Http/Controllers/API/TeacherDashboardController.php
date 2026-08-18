@@ -310,6 +310,33 @@ class TeacherDashboardController extends Controller
             }
         }
 
+        $accountStatus = strtolower(trim((string) $request->get('account_status', '')));
+        if (in_array($accountStatus, ['missing', 'without_account', 'ready', 'with_account', 'incomplete', 'incomplete_data'], true)) {
+            $hasAccount = function ($q) {
+                $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                    ->from('user')
+                    ->whereColumn('user.login_nik', 'student.nik')
+                    ->where('user.role', 'student');
+            };
+
+            if (in_array($accountStatus, ['ready', 'with_account'], true)) {
+                $query->whereExists($hasAccount);
+            } elseif (in_array($accountStatus, ['missing', 'without_account'], true)) {
+                $query->whereNotNull('nik')
+                    ->where('nik', '!=', '')
+                    ->whereRaw("TRIM(nik) REGEXP '^[0-9]{16}$'")
+                    ->whereNotNull('birth_date')
+                    ->whereNotExists($hasAccount);
+            } else {
+                $query->where(function ($q) {
+                    $q->whereNull('nik')
+                        ->orWhere('nik', '')
+                        ->orWhereRaw("TRIM(nik) NOT REGEXP '^[0-9]{16}$'")
+                        ->orWhereNull('birth_date');
+                });
+            }
+        }
+
         $allowedSorts = ['name', 'nis', 'nisn', 'nik', 'gender', 'status'];
         $sortBy = (string) $request->get('sort_by', 'name');
         if (!in_array($sortBy, $allowedSorts, true)) {
@@ -341,7 +368,9 @@ class TeacherDashboardController extends Controller
             }
         }
 
-        $students = $query->paginate($perPage);
+        $students = $query
+            ->with(['userAccount:id,name,email,login_nik,must_change_password,is_active,role'])
+            ->paginate($perPage);
 
         return StudentResource::collection($students)->additional([
             'class' => [

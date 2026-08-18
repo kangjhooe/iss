@@ -2,23 +2,34 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Models\AdditionalDuty;
+use App\Support\VocationalAccess;
 use Illuminate\Http\Request;
 
 class AdditionalDutyController extends Controller
 {
+    use ResolvesInstitution;
+
     /**
      * List all additional duties (master) with their permission keys.
      * For use in forms (e.g. assign tugas tambahan to teacher).
+     * Duty kejuruan (Kaprog, Bengkel, Hubin, PKL, BKK) hanya untuk SMK/MAK.
      */
     public function index(Request $request)
     {
-        $duties = AdditionalDuty::query()
+        $query = AdditionalDuty::query()
             ->with('permissions:id,key,label')
             ->orderBy('sort_order')
-            ->orderBy('label')
-            ->get();
+            ->orderBy('label');
+
+        $institutionId = $this->resolveInstitutionId($request);
+        if ($institutionId && ! VocationalAccess::isVocationalInstitution($institutionId)) {
+            $query->whereNotIn('key', VocationalAccess::DUTY_KEYS);
+        }
+
+        $duties = $query->get();
 
         $data = $duties->map(function (AdditionalDuty $duty) {
             return [

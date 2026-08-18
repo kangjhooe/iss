@@ -11,7 +11,9 @@
           </router-link>
           <div>
             <h1>Profil Saya</h1>
-            <p class="page-subtitle">Lihat data diri dan ajukan perubahan untuk disetujui admin</p>
+            <p class="page-subtitle">
+              Data non-kunci bisa diubah langsung. Data kunci tetap bisa diajukan, menunggu persetujuan admin.
+            </p>
           </div>
         </div>
         <div v-if="pendingCount" class="pending-chip">
@@ -24,7 +26,6 @@
       </div>
 
       <template v-else>
-        <!-- Hero -->
         <section class="hero-card">
           <div class="hero-avatar" aria-hidden="true">{{ initials }}</div>
           <div class="hero-body">
@@ -39,6 +40,7 @@
               <div class="hero-tags">
                 <span v-if="teacher?.nip" class="hero-tag">NIP {{ teacher.nip }}</span>
                 <span v-if="teacher?.nuptk" class="hero-tag">NUPTK {{ teacher.nuptk }}</span>
+                <span v-if="teacher?.nik" class="hero-tag">NIK {{ teacher.nik }}</span>
                 <span v-if="teacher?.join_date" class="hero-tag">
                   Bergabung {{ formatProfileValue(teacher.join_date, 'join_date') }}
                 </span>
@@ -48,36 +50,122 @@
         </section>
 
         <div class="content-grid">
-          <!-- Data profil -->
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Data Saat Ini</h2>
-              <span class="panel-hint">Hanya tampilan</span>
-            </div>
-
-            <div v-if="loadingProfile" class="loading-wrap">Memuat profil...</div>
-
-            <template v-else-if="teacher">
-              <div v-for="group in profileGroups" :key="group.key" class="profile-group">
-                <h3 class="group-title">{{ group.title }}</h3>
-                <dl class="profile-grid">
-                  <div v-for="item in group.items" :key="item.key" class="profile-item">
-                    <dt>{{ item.label }}</dt>
-                    <dd :class="{ empty: item.empty }">{{ item.value }}</dd>
-                  </div>
-                </dl>
+          <div class="main-stack">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Data Saat Ini</h2>
+                <span class="panel-hint panel-hint-icons" title="Gembok tertutup = butuh approval · Gembok terbuka = edit langsung">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  approval
+                  <span class="hint-sep">·</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 7.2-2.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  langsung
+                </span>
               </div>
-            </template>
-          </section>
 
-          <!-- Form + riwayat -->
+              <div v-if="loadingProfile" class="loading-wrap">Memuat profil...</div>
+
+              <template v-else-if="teacher">
+                <div v-for="group in profileGroups" :key="group.key" class="profile-group">
+                  <h3 class="group-title">{{ group.title }}</h3>
+                  <dl class="profile-grid">
+                    <div v-for="item in group.items" :key="item.key" class="profile-item">
+                      <dt>
+                        {{ item.label }}
+                        <span
+                          v-if="item.needsApproval"
+                          class="field-badge key"
+                          title="Data kunci — perubahan butuh persetujuan admin"
+                          aria-label="Data kunci"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/>
+                            <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </span>
+                        <span
+                          v-else
+                          class="field-badge free"
+                          title="Bisa diubah langsung tanpa persetujuan"
+                          aria-label="Bisa diedit langsung"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/>
+                            <path d="M8 11V8a4 4 0 0 1 7.2-2.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </span>
+                      </dt>
+                      <dd :class="{ empty: item.empty }">{{ item.value }}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </template>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Edit Langsung</h2>
+                <span class="panel-hint">Tanpa persetujuan</span>
+              </div>
+              <p class="section-desc">
+                Ubah alamat, kontak, pendidikan, dan catatan. Perubahan langsung tersimpan.
+              </p>
+
+              <form @submit.prevent="saveSelfEdit" class="form">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="self_phone">No. HP</label>
+                    <input id="self_phone" v-model="selfForm.phone" type="text" maxlength="20" placeholder="08..." />
+                  </div>
+                  <div class="form-group">
+                    <label for="self_religion">Agama</label>
+                    <select id="self_religion" v-model="selfForm.religion">
+                      <option value="">-- Pilih --</option>
+                      <option v-for="opt in RELIGION_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="self_education_level">Pendidikan</label>
+                    <select id="self_education_level" v-model="selfForm.education_level">
+                      <option value="">-- Pilih --</option>
+                      <option v-for="opt in EDUCATION_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="self_major">Jurusan</label>
+                    <input id="self_major" v-model="selfForm.major" type="text" maxlength="255" placeholder="Jurusan pendidikan" />
+                  </div>
+                  <div class="form-group form-group-full">
+                    <label for="self_address">Alamat</label>
+                    <textarea id="self_address" v-model="selfForm.address" rows="3" placeholder="Alamat lengkap"></textarea>
+                  </div>
+                  <div class="form-group form-group-full">
+                    <label for="self_notes">Catatan</label>
+                    <textarea id="self_notes" v-model="selfForm.notes" rows="2" placeholder="Catatan tambahan (opsional)"></textarea>
+                  </div>
+                </div>
+
+                <p v-if="selfError" class="error-msg">{{ selfError }}</p>
+                <button type="submit" class="btn-primary" :disabled="savingSelf || !selfDirty">
+                  {{ savingSelf ? 'Menyimpan...' : 'Simpan Perubahan' }}
+                </button>
+              </form>
+            </section>
+          </div>
+
           <div class="side-stack">
             <section class="panel">
               <div class="panel-header">
-                <h2>Ajukan Perubahan</h2>
+                <h2>Ajukan Perubahan Data Kunci</h2>
               </div>
               <p class="section-desc">
-                Pilih field dan isi nilai baru. Perubahan berlaku setelah disetujui admin.
+                Nama, NIK, NIP, NUPTK, email, mapel, TTL, status, dan sertifikasi. Berlaku setelah admin menyetujui.
               </p>
               <p class="form-hint">
                 Satu permintaan per field. Jika sudah ada permintaan menunggu untuk field yang sama, tunggu hasilnya dulu.
@@ -88,7 +176,7 @@
                   <label for="field_name">Field yang ingin diubah *</label>
                   <select id="field_name" v-model="form.field_name" required>
                     <option value="">-- Pilih field --</option>
-                    <option v-for="f in allowedFields" :key="f" :value="f">{{ getFieldLabel(f) }}</option>
+                    <option v-for="f in approvalFields" :key="f" :value="f">{{ getFieldLabel(f) }}</option>
                   </select>
                 </div>
 
@@ -98,16 +186,30 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="new_value">
-                    Nilai baru
-                    {{ isDateField(form.field_name) ? '(opsional)' : '(kosongkan untuk mengosongkan field)' }}
-                  </label>
+                  <label for="new_value">Nilai baru</label>
+
+                  <select
+                    v-if="isSelectField(form.field_name)"
+                    id="new_value"
+                    v-model="form.new_value"
+                  >
+                    <option value="">-- Pilih --</option>
+                    <option
+                      v-for="opt in getSelectOptions(form.field_name)"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </option>
+                  </select>
+
                   <input
-                    v-if="isDateField(form.field_name)"
+                    v-else-if="isDateField(form.field_name)"
                     id="new_value"
                     v-model="form.new_value"
                     type="date"
                   />
+
                   <input
                     v-else-if="form.field_name === 'email'"
                     id="new_value"
@@ -116,6 +218,17 @@
                     placeholder="contoh@email.com"
                     maxlength="255"
                   />
+
+                  <input
+                    v-else-if="form.field_name === 'nik'"
+                    id="new_value"
+                    v-model="form.new_value"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="16"
+                    placeholder="16 digit NIK"
+                  />
+
                   <input
                     v-else
                     id="new_value"
@@ -129,7 +242,7 @@
 
                 <p v-if="submitError" class="error-msg">{{ submitError }}</p>
 
-                <button type="submit" class="btn-primary" :disabled="submitting || !form.field_name">
+                <button type="submit" class="btn-primary btn-amber" :disabled="submitting || !form.field_name">
                   {{ submitting ? 'Mengirim...' : 'Kirim Permintaan' }}
                 </button>
               </form>
@@ -148,7 +261,7 @@
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <p>Belum ada permintaan. Gunakan form di atas untuk mengajukan perubahan data.</p>
+                <p>Belum ada permintaan data kunci.</p>
               </div>
 
               <div v-else class="requests-list">
@@ -165,12 +278,12 @@
                   <div class="request-values">
                     <div class="value-block">
                       <span class="value-label">Lama</span>
-                      <span class="value-text">{{ req.old_value || '-' }}</span>
+                      <span class="value-text">{{ formatRequestValue(req.old_value, req.field_name) }}</span>
                     </div>
                     <div class="value-arrow" aria-hidden="true">→</div>
                     <div class="value-block">
                       <span class="value-label">Baru</span>
-                      <span class="value-text new">{{ req.new_value || '-' }}</span>
+                      <span class="value-text new">{{ formatRequestValue(req.new_value, req.field_name) }}</span>
                     </div>
                   </div>
                   <div class="request-foot">
@@ -201,27 +314,56 @@ const toast = useToast()
 const teacher = ref(null)
 const profileError = ref('')
 const loadingProfile = ref(true)
-const allowedFields = ref([])
+const approvalFields = ref([])
+const selfEditableFields = ref([])
 const requests = ref([])
 const loading = ref(true)
 const submitting = ref(false)
 const submitError = ref('')
+const savingSelf = ref(false)
+const selfError = ref('')
 
 const form = ref({
   field_name: '',
   new_value: ''
 })
 
+const selfForm = ref({
+  phone: '',
+  religion: '',
+  education_level: '',
+  major: '',
+  address: '',
+  notes: ''
+})
+
+const selfBaseline = ref({
+  phone: '',
+  religion: '',
+  education_level: '',
+  major: '',
+  address: '',
+  notes: ''
+})
+
 const FIELD_LABELS = {
+  name: 'Nama',
+  nik: 'NIK',
+  nip: 'NIP',
+  nuptk: 'NUPTK',
+  gender: 'Jenis Kelamin',
+  email: 'Email',
   address: 'Alamat',
   phone: 'No. HP',
-  email: 'Email',
   religion: 'Agama',
   birth_place: 'Tempat Lahir',
   birth_date: 'Tanggal Lahir',
   education_level: 'Pendidikan',
   major: 'Jurusan',
   subject: 'Mata Pelajaran',
+  employment_status: 'Status Kepegawaian',
+  status: 'Status',
+  join_date: 'Tanggal Bergabung',
   notes: 'Catatan',
   certification_status: 'Status Sertifikasi',
   certification_date: 'Tanggal Sertifikasi',
@@ -230,21 +372,77 @@ const FIELD_LABELS = {
   certification_issuing_authority: 'Lembaga Penerbit Sertifikasi'
 }
 
-const CORE_FIELDS = ['name', 'nip', 'nuptk', 'join_date']
+const RELIGION_OPTIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu']
+const EDUCATION_OPTIONS = ['SMA', 'D3', 'S1', 'S2', 'S3']
+const GENDER_OPTIONS = [
+  { value: 'L', label: 'Laki-laki' },
+  { value: 'P', label: 'Perempuan' }
+]
+const EMPLOYMENT_STATUS_OPTIONS = [
+  'PNS', 'CPNS', 'Guru Tetap Yayasan', 'Guru Honor Sekolah', 'Guru Kontrak',
+  'Pegawai Tetap Yayasan', 'Pegawai Honor', 'Pegawai Kontrak'
+].map((v) => ({ value: v, label: v }))
+const STATUS_OPTIONS = [
+  'Aktif', 'Cuti', 'Pensiun', 'Pindah', 'Mengundurkan Diri', 'Tidak Aktif'
+].map((v) => ({ value: v, label: v }))
+const CERT_STATUS_OPTIONS = [
+  { value: 'Sudah', label: 'Sudah' },
+  { value: 'Belum', label: 'Belum' }
+]
+
+const DEFAULT_APPROVAL_FIELDS = [
+  'name', 'nik', 'nip', 'nuptk', 'gender', 'email', 'birth_place', 'birth_date',
+  'subject', 'employment_status', 'status', 'join_date',
+  'certification_status', 'certification_date', 'teacher_registration_number',
+  'certification_number', 'certification_issuing_authority'
+]
+
+const DEFAULT_SELF_FIELDS = ['address', 'phone', 'religion', 'education_level', 'major', 'notes']
 
 function getFieldLabel(field) {
   return FIELD_LABELS[field] || field
 }
 
 function isDateField(field) {
-  return field === 'birth_date' || field === 'certification_date'
+  return ['birth_date', 'certification_date', 'join_date'].includes(field)
+}
+
+function isSelectField(field) {
+  return ['gender', 'employment_status', 'status', 'certification_status'].includes(field)
+}
+
+function getSelectOptions(field) {
+  if (field === 'gender') return GENDER_OPTIONS
+  if (field === 'employment_status') return EMPLOYMENT_STATUS_OPTIONS
+  if (field === 'status') return STATUS_OPTIONS
+  if (field === 'certification_status') return CERT_STATUS_OPTIONS
+  return []
+}
+
+function formatGender(val) {
+  if (val === 'L') return 'Laki-laki'
+  if (val === 'P') return 'Perempuan'
+  return val || '-'
 }
 
 function formatProfileValue(val, field) {
   if (val == null || val === '') return '-'
+  if (field === 'gender') return formatGender(val)
   const dateFields = ['birth_date', 'certification_date', 'join_date']
   if (dateFields.includes(field) && val) {
     return new Date(val).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+  return String(val)
+}
+
+function formatRequestValue(val, field) {
+  if (val == null || val === '') return '-'
+  if (field === 'gender') return formatGender(val)
+  if (isDateField(field) && val) {
+    const d = new Date(val)
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    }
   }
   return String(val)
 }
@@ -265,6 +463,24 @@ function formatDate(s) {
   })
 }
 
+function normalizeSelfValue(val) {
+  return val == null ? '' : String(val)
+}
+
+function syncSelfFormFromTeacher() {
+  const t = teacher.value || {}
+  const next = {
+    phone: normalizeSelfValue(t.phone),
+    religion: normalizeSelfValue(t.religion),
+    education_level: normalizeSelfValue(t.education_level),
+    major: normalizeSelfValue(t.major),
+    address: normalizeSelfValue(t.address),
+    notes: normalizeSelfValue(t.notes)
+  }
+  selfForm.value = { ...next }
+  selfBaseline.value = { ...next }
+}
+
 const initials = computed(() => {
   const name = teacher.value?.name || ''
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -275,22 +491,30 @@ const initials = computed(() => {
 
 const pendingCount = computed(() => requests.value.filter((r) => r.status === 'pending').length)
 
+const selfDirty = computed(() => {
+  return Object.keys(selfBaseline.value).some(
+    (k) => normalizeSelfValue(selfForm.value[k]) !== normalizeSelfValue(selfBaseline.value[k])
+  )
+})
+
+const approvalFieldSet = computed(() => new Set(approvalFields.value.length ? approvalFields.value : DEFAULT_APPROVAL_FIELDS))
+
 function makeItem(key, label) {
   const raw = teacher.value?.[key]
   const value = formatProfileValue(raw, key)
-  return { key, label, value, empty: value === '-' }
+  return {
+    key,
+    label,
+    value,
+    empty: value === '-',
+    needsApproval: approvalFieldSet.value.has(key)
+  }
 }
 
 const profileGroups = computed(() => {
   if (!teacher.value) return []
 
-  const identity = [
-    makeItem('name', 'Nama'),
-    makeItem('nip', 'NIP'),
-    makeItem('nuptk', 'NUPTK'),
-    makeItem('join_date', 'Tanggal Bergabung'),
-  ]
-
+  const identityKeys = ['name', 'nik', 'nip', 'nuptk', 'gender', 'join_date', 'status', 'employment_status']
   const contactKeys = ['phone', 'email', 'address', 'religion', 'birth_place', 'birth_date']
   const eduKeys = ['education_level', 'major', 'subject', 'notes']
   const certKeys = [
@@ -298,20 +522,20 @@ const profileGroups = computed(() => {
     'certification_date',
     'teacher_registration_number',
     'certification_number',
-    'certification_issuing_authority',
+    'certification_issuing_authority'
   ]
-
-  const allowed = allowedFields.value || []
-  const extraKeys = allowed.filter((f) => !CORE_FIELDS.includes(f))
 
   const pick = (keys) =>
     keys
-      .filter((k) => extraKeys.includes(k) || teacher.value?.[k])
+      .filter((k) => {
+        const hasValue = teacher.value?.[k] != null && teacher.value?.[k] !== ''
+        return hasValue || approvalFieldSet.value.has(k) || DEFAULT_SELF_FIELDS.includes(k)
+      })
       .map((k) => makeItem(k, getFieldLabel(k)))
 
-  const groups = [
-    { key: 'identity', title: 'Identitas', items: identity },
-  ]
+  const groups = []
+  const identity = pick(identityKeys)
+  if (identity.length) groups.push({ key: 'identity', title: 'Identitas', items: identity })
 
   const contact = pick(contactKeys)
   if (contact.length) groups.push({ key: 'contact', title: 'Kontak & Pribadi', items: contact })
@@ -321,10 +545,6 @@ const profileGroups = computed(() => {
 
   const cert = pick(certKeys)
   if (cert.length) groups.push({ key: 'cert', title: 'Sertifikasi', items: cert })
-
-  const used = new Set([...CORE_FIELDS, ...contactKeys, ...eduKeys, ...certKeys])
-  const other = extraKeys.filter((k) => !used.has(k)).map((k) => makeItem(k, getFieldLabel(k)))
-  if (other.length) groups.push({ key: 'other', title: 'Lainnya', items: other })
 
   return groups
 })
@@ -336,7 +556,11 @@ async function loadProfile() {
     const res = await teacherApi.getDashboard()
     const data = res.data?.data
     teacher.value = data?.teacher || null
-    if (!teacher.value) profileError.value = 'Profil guru tidak ditemukan.'
+    if (!teacher.value) {
+      profileError.value = 'Profil guru tidak ditemukan.'
+    } else {
+      syncSelfFormFromTeacher()
+    }
   } catch (err) {
     profileError.value = err.response?.data?.message || 'Gagal memuat profil.'
   } finally {
@@ -347,9 +571,12 @@ async function loadProfile() {
 async function loadAllowedFields() {
   try {
     const res = await teacherChangeRequestApi.getAllowedFields()
-    allowedFields.value = res.data?.data || []
+    const body = res.data || {}
+    approvalFields.value = body.approval_fields || body.data || DEFAULT_APPROVAL_FIELDS
+    selfEditableFields.value = body.self_editable_fields || DEFAULT_SELF_FIELDS
   } catch {
-    allowedFields.value = []
+    approvalFields.value = DEFAULT_APPROVAL_FIELDS
+    selfEditableFields.value = DEFAULT_SELF_FIELDS
   }
 }
 
@@ -364,6 +591,42 @@ async function loadRequests() {
     requests.value = []
   } finally {
     loading.value = false
+  }
+}
+
+async function saveSelfEdit() {
+  selfError.value = ''
+  if (!selfDirty.value) {
+    selfError.value = 'Tidak ada perubahan untuk disimpan.'
+    return
+  }
+
+  const payload = {}
+  for (const key of selfEditableFields.value.length ? selfEditableFields.value : DEFAULT_SELF_FIELDS) {
+    if (normalizeSelfValue(selfForm.value[key]) !== normalizeSelfValue(selfBaseline.value[key])) {
+      const val = (selfForm.value[key] || '').trim()
+      payload[key] = val === '' ? null : val
+    }
+  }
+
+  if (!Object.keys(payload).length) {
+    selfError.value = 'Tidak ada perubahan untuk disimpan.'
+    return
+  }
+
+  savingSelf.value = true
+  try {
+    const res = await teacherChangeRequestApi.updateMyProfile(payload)
+    teacher.value = res.data?.data || teacher.value
+    syncSelfFormFromTeacher()
+    toast.success('Berhasil', 'Profil berhasil diperbarui.')
+  } catch (err) {
+    selfError.value = err.response?.data?.message
+      || err.response?.data?.errors?.fields?.[0]
+      || 'Gagal menyimpan profil'
+    toast.error('Gagal', selfError.value)
+  } finally {
+    savingSelf.value = false
   }
 }
 
@@ -384,7 +647,9 @@ async function submitRequest() {
     await loadRequests()
     await loadProfile()
   } catch (err) {
-    submitError.value = err.response?.data?.message || 'Gagal mengirim permintaan'
+    submitError.value = err.response?.data?.message
+      || Object.values(err.response?.data?.errors || {})?.[0]?.[0]
+      || 'Gagal mengirim permintaan'
     toast.error('Gagal', submitError.value)
   } finally {
     submitting.value = false
@@ -394,10 +659,17 @@ async function submitRequest() {
 watch(
   () => form.value.field_name,
   (field) => {
-    if (!field) return
-    if (teacher.value && isDateField(field) && teacher.value[field]) {
-      const d = teacher.value[field]
-      form.value.new_value = typeof d === 'string' ? d.slice(0, 10) : ''
+    if (!field) {
+      form.value.new_value = ''
+      return
+    }
+    const current = teacher.value?.[field]
+    if (isDateField(field) && current) {
+      form.value.new_value = typeof current === 'string' ? current.slice(0, 10) : ''
+    } else if (isSelectField(field) && current != null) {
+      form.value.new_value = String(current)
+    } else if (current != null && current !== '') {
+      form.value.new_value = String(current)
     } else {
       form.value.new_value = ''
     }
@@ -466,6 +738,8 @@ onMounted(async () => {
   font-size: 13px;
   color: #64748b;
   margin: 0;
+  max-width: 52ch;
+  line-height: 1.45;
 }
 
 .pending-chip {
@@ -568,6 +842,7 @@ onMounted(async () => {
   align-items: start;
 }
 
+.main-stack,
 .side-stack {
   display: flex;
   flex-direction: column;
@@ -605,6 +880,21 @@ onMounted(async () => {
   background: #f1f5f9;
   padding: 3px 8px;
   border-radius: 999px;
+}
+
+.panel-hint-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.panel-hint-icons svg {
+  flex-shrink: 0;
+}
+
+.hint-sep {
+  opacity: 0.5;
+  margin: 0 2px;
 }
 
 .section-desc {
@@ -657,6 +947,32 @@ onMounted(async () => {
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.field-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.field-badge.key {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.field-badge.free {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #bbf7d0;
 }
 
 .profile-item dd {
@@ -673,8 +989,19 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
 .form-group {
   margin-bottom: 14px;
+}
+
+.form-group-full {
+  grid-column: 1 / -1;
 }
 
 .form-group label {
@@ -686,7 +1013,8 @@ onMounted(async () => {
 }
 
 .form-group select,
-.form-group input {
+.form-group input,
+.form-group textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #d1d5db;
@@ -694,11 +1022,18 @@ onMounted(async () => {
   font-size: 14px;
   background: #fff;
   color: #0f172a;
+  font-family: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+.form-group textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
 .form-group select:focus,
-.form-group input:focus {
+.form-group input:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: #059669;
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
@@ -764,6 +1099,14 @@ onMounted(async () => {
 .btn-primary:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.btn-amber {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.btn-amber:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(180, 83, 9, 0.35);
 }
 
 .loading-wrap {
@@ -914,7 +1257,8 @@ onMounted(async () => {
     font-size: 18px;
   }
 
-  .profile-grid {
+  .profile-grid,
+  .form-grid {
     grid-template-columns: 1fr;
   }
 

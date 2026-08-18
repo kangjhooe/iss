@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -96,7 +97,7 @@ const router = createRouter({
       path: '/teacher/today',
       name: 'TeacherToday',
       component: () => import('@/views/TeacherToday.vue'),
-      meta: { requiresAuth: true, requiresTeacher: true }
+      meta: { requiresAuth: true, requiresTeacher: true, requiresTeachingAssignments: true }
     },
     {
       path: '/teacher-appreciation',
@@ -171,6 +172,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
+      path: '/super-admin/monetisasi',
+      name: 'SuperAdminMonetization',
+      component: () => import('@/views/SuperAdminMonetization.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
+      path: '/billing',
+      name: 'BillingOverview',
+      component: () => import('@/views/BillingOverview.vue'),
+      meta: { requiresAuth: true, requiresMonetization: true, requiresInstitutionAdmin: true }
+    },
+    {
       path: '/student/dashboard',
       name: 'StudentDashboard',
       component: () => import('@/views/StudentDashboard.vue'),
@@ -219,12 +232,6 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresStudent: true }
     },
     {
-      path: '/student/permintaan-perubahan',
-      name: 'StudentChangeRequests',
-      component: () => import('@/views/StudentChangeRequests.vue'),
-      meta: { requiresAuth: true, requiresStudent: true }
-    },
-    {
       path: '/student/absensi',
       name: 'StudentAttendance',
       component: () => import('@/views/StudentAttendance.vue'),
@@ -235,6 +242,76 @@ const router = createRouter({
       name: 'StudentEbooks',
       component: () => import('@/views/StudentEbooks.vue'),
       meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/uks',
+      name: 'StudentUks',
+      component: () => import('@/views/StudentUks.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/keuangan',
+      name: 'StudentFinance',
+      component: () => import('@/views/StudentFinance.vue'),
+      meta: { requiresAuth: true, requiresStudent: true }
+    },
+    {
+      path: '/student/pkl',
+      name: 'StudentPkl',
+      component: () => import('@/views/StudentPkl.vue'),
+      meta: { requiresAuth: true, requiresStudent: true, requiresVocational: true }
+    },
+    {
+      path: '/student/bkk',
+      name: 'StudentBkk',
+      component: () => import('@/views/StudentBkk.vue'),
+      meta: { requiresAuth: true, requiresStudent: true, requiresVocational: true }
+    },
+    {
+      path: '/parent/dashboard',
+      name: 'ParentDashboard',
+      component: () => import('@/views/ParentDashboard.vue'),
+      meta: { requiresAuth: true, requiresParent: true }
+    },
+    {
+      path: '/parent/pengumuman',
+      name: 'ParentAnnouncements',
+      component: () => import('@/views/ParentAnnouncements.vue'),
+      meta: { requiresAuth: true, requiresParent: true }
+    },
+    {
+      path: '/parent/anak/:studentId/jadwal',
+      name: 'ParentChildSchedule',
+      component: () => import('@/views/ParentChildDetail.vue'),
+      props: { section: 'jadwal' },
+      meta: { requiresAuth: true, requiresParent: true }
+    },
+    {
+      path: '/parent/anak/:studentId/nilai',
+      name: 'ParentChildGrades',
+      component: () => import('@/views/ParentChildDetail.vue'),
+      props: { section: 'nilai' },
+      meta: { requiresAuth: true, requiresParent: true }
+    },
+    {
+      path: '/parent/anak/:studentId/absensi',
+      name: 'ParentChildAttendance',
+      component: () => import('@/views/ParentChildDetail.vue'),
+      props: { section: 'absensi' },
+      meta: { requiresAuth: true, requiresParent: true }
+    },
+    {
+      path: '/parent/anak/:studentId/pelanggaran',
+      name: 'ParentChildViolations',
+      component: () => import('@/views/ParentChildDetail.vue'),
+      props: { section: 'pelanggaran' },
+      meta: { requiresAuth: true, requiresParent: true }
+    },
+    {
+      path: '/school-content',
+      name: 'SchoolContent',
+      component: () => import('@/views/SchoolContent.vue'),
+      meta: { requiresAuth: true, requiresModule: 'school_content' }
     },
     {
       path: '/institution',
@@ -297,6 +374,24 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'] }
     },
     {
+      path: '/uks',
+      name: 'Uks',
+      component: () => import('../views/Uks.vue'),
+      meta: { requiresAuth: true, requiresModule: 'uks' }
+    },
+    {
+      path: '/uks/stok',
+      name: 'UksStock',
+      component: () => import('../views/UksStock.vue'),
+      meta: { requiresAuth: true, requiresModule: 'uks' }
+    },
+    {
+      path: '/laporan-uks',
+      name: 'LaporanUks',
+      component: () => import('../views/LaporanUks.vue'),
+      meta: { requiresAuth: true, requiresModule: 'uks' }
+    },
+    {
       path: '/extracurricular',
       name: 'Extracurricular',
       component: () => import('../views/Extracurricular.vue'),
@@ -307,6 +402,24 @@ const router = createRouter({
       name: 'ExtracurricularDetail',
       component: () => import('../views/ExtracurricularDetail.vue'),
       meta: { requiresAuth: true, requiresModule: 'extracurricular', allowExtracurricularSupervisor: true }
+    },
+    {
+      path: '/industry-partners',
+      name: 'IndustryPartners',
+      component: () => import('@/views/Pkl/IndustryPartners.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['pkl', 'bkk'], requiresVocational: true }
+    },
+    {
+      path: '/pkl',
+      name: 'Pkl',
+      component: () => import('@/views/Pkl/Index.vue'),
+      meta: { requiresAuth: true, requiresModule: 'pkl', requiresVocational: true }
+    },
+    {
+      path: '/bkk',
+      name: 'Bkk',
+      component: () => import('@/views/Bkk/Index.vue'),
+      meta: { requiresAuth: true, requiresModule: 'bkk', requiresVocational: true }
     },
     {
       path: '/subject',
@@ -375,6 +488,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'teacher' }
     },
     {
+      path: '/kepegawaian',
+      name: 'Kepegawaian',
+      component: () => import('@/views/Kepegawaian.vue'),
+      meta: { requiresAuth: true, requiresModule: 'kepegawaian' }
+    },
+    {
+      path: '/teacher/cuti',
+      name: 'TeacherLeave',
+      component: () => import('@/views/TeacherLeave.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true }
+    },
+    {
       path: '/teacher-mutation',
       name: 'TeacherMutation',
       component: () => import('@/views/TeacherMutation.vue'),
@@ -415,6 +540,9 @@ const router = createRouter({
       name: 'Class',
       component: () => import('@/views/Class.vue'),
       meta: { requiresAuth: true, requiresModule: 'class' }
+    },
+    {
+      meta: { requiresAuth: true, requiresModule: 'class', requiresVocational: true }
     },
     {
       path: '/report',
@@ -552,7 +680,13 @@ const router = createRouter({
       path: '/pengaturan-akun',
       name: 'AccountSettings',
       component: () => import('@/views/AccountSettings.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, allowMustChangePassword: true }
+    },
+    {
+      path: '/ganti-sandi-wajib',
+      name: 'ForceChangePassword',
+      component: () => import('@/views/ForceChangePassword.vue'),
+      meta: { requiresAuth: true, allowMustChangePassword: true, hideLayout: true }
     },
     {
       path: '/audit-log',
@@ -728,12 +862,19 @@ const getDefaultRoute = (role) => {
   if (role === 'student') {
     return '/student/dashboard'
   }
+  if (role === 'parent') {
+    return '/parent/dashboard'
+  }
   return '/dashboard'
 }
 
 const hasModuleAccess = (user, moduleKey) => {
   if (!user) return false
   if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'institution_admin') {
+    return true
+  }
+  // school_content also allowed via institution module for admins already covered above
+  if (moduleKey === 'school_content' && (user.permissions || []).includes('institution')) {
     return true
   }
   if ((user.permissions || []).includes(moduleKey)) return true
@@ -795,6 +936,40 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  // Force password change gate (e.g. student default birth-date password)
+  if (authStore.isAuthenticated) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch {
+        // ignore
+      }
+    }
+    if (authStore.user?.must_change_password && !to.meta.allowMustChangePassword) {
+      next({ name: 'ForceChangePassword' })
+      return
+    }
+  }
+
+  if (authStore.isAuthenticated && to.meta.requiresVocational) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch {
+        // ignore
+      }
+    }
+    if (!isVocationalLevel(getActiveInstitutionLevel(authStore))) {
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
+      return
+    }
+  }
+
   if (to.meta.requiresGuest && authStore.isAuthenticated) {
     // Redirect based on user role
     if (!authStore.user) {
@@ -852,7 +1027,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const role = authStore.user?.role
-    const allowed = role === 'super_admin' || role === 'institution_admin' || role === 'admin'
+    const allowed = ['super_admin', 'institution_admin', 'admin', 'teacher', 'staff'].includes(role)
     if (!allowed) {
       next(getDefaultRoute(role))
     } else {
@@ -877,6 +1052,11 @@ router.beforeEach(async (to, from, next) => {
       } else {
         next()
       }
+    } else if (
+      to.meta.requiresTeachingAssignments
+      && !(authStore.user?.teaching_assignments || []).length
+    ) {
+      next('/teacher/dashboard')
     } else {
       next()
     }
@@ -893,6 +1073,28 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (authStore.user?.role !== 'student') {
+      const defaultRoute = getDefaultRoute(authStore.user?.role)
+      if (to.path !== defaultRoute) {
+        next(defaultRoute)
+      } else {
+        next()
+      }
+    } else {
+      next()
+    }
+  } else if (to.meta.requiresParent) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next('/login')
+        return
+      }
+    }
+
+    if (authStore.user?.role !== 'parent') {
       const defaultRoute = getDefaultRoute(authStore.user?.role)
       if (to.path !== defaultRoute) {
         next(defaultRoute)
@@ -956,6 +1158,30 @@ router.beforeEach(async (to, from, next) => {
     } else {
       next()
     }
+  } else if (to.meta.requiresMonetization || to.meta.requiresInstitutionAdmin) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch (error) {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next('/login')
+        return
+      }
+    }
+
+    const role = authStore.user?.role
+    if (to.meta.requiresInstitutionAdmin && !['institution_admin', 'admin'].includes(role)) {
+      next(getDefaultRoute(role))
+      return
+    }
+
+    if (to.meta.requiresMonetization && !authStore.isMonetizationVisible) {
+      next(getDefaultRoute(role))
+      return
+    }
+
+    next()
   } else if (to.meta.requiresAnyModule) {
     if (!authStore.user) {
       try {

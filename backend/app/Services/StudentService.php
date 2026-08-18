@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Log;
 
 class StudentService
 {
+    public function __construct(
+        protected StudentAccountService $studentAccountService
+    ) {
+    }
+
     /** Sentinel values for "tanpa kelas / tanpa tingkat" filters. */
     public const UNASSIGNED_VALUES = ['__none__', 'unassigned', 'none'];
 
@@ -46,12 +51,13 @@ class StudentService
         $perPage = min($perPage, 100); // Max 100 per page
 
         // Include graduation_year for list
-        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'tingkat', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'graduation_year', 'created_at'])
+        return $query->select(['id', 'institution_id', 'nik', 'nis', 'nisn', 'name', 'gender', 'birth_date', 'tingkat', 'class', 'class_id', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'graduation_year', 'created_at'])
             ->with([
                 'institution:id,name,npsn',
                 'class:id,name,grade,academic_year_id',
                 'academicYear:id,name,code',
-                'semester:id,name,academic_year_id'
+                'semester:id,name,academic_year_id',
+                'userAccount:id,name,email,login_nik,must_change_password,is_active,role',
             ])
             ->paginate($perPage);
     }
@@ -152,6 +158,135 @@ class StudentService
                 $query->where('tingkat', $filters['tingkat']);
             }
         }
+
+        $this->applyAccountStatusFilter($query, $filters['account_status'] ?? null);
+    }
+
+    /**
+     * Filter by login account readiness.
+     * - ready: punya akun role=student
+     * - missing: NIK+tgl lahir lengkap tapi belum punya akun
+     * - incomplete: NIK/tgl lahir belum valid
+     */
+    protected function applyAccountStatusFilter(Builder $query, mixed $accountStatus): void
+    {
+        $status = is_string($accountStatus) ? strtolower(trim($accountStatus)) : '';
+        if ($status === '' || $status === 'all') {
+            return;
+        }
+
+        $hasAccount = function ($q) {
+            $q->select(DB::raw(1))
+                ->from('user')
+                ->whereColumn('user.login_nik', 'student.nik')
+                ->where('user.role', 'student');
+        };
+
+        $eligibleNikBirth = function ($q) {
+            $q->whereNotNull('nik')
+                ->where('nik', '!=', '')
+                ->whereRaw("TRIM(nik) REGEXP '^[0-9]{16}$'")
+                ->whereNotNull('birth_date');
+        };
+
+        if ($status === 'ready' || $status === 'with_account') {
+            $query->whereExists($hasAccount);
+            return;
+        }
+
+        if ($status === 'missing' || $status === 'without_account') {
+            $query->where($eligibleNikBirth)->whereNotExists($hasAccount);
+            return;
+        }
+
+        if ($status === 'incomplete' || $status === 'incomplete_data') {
+            $query->where(function ($q) {
+                $q->whereNull('nik')
+                    ->orWhere('nik', '')
+                    ->orWhereRaw("TRIM(nik) NOT REGEXP '^[0-9]{16}$'")
+                    ->orWhereNull('birth_date');
+            });
+        }
+    }
+
+    /**
+     * Ringkasan kesiapan akun login untuk filter daftar saat ini (tanpa account_status).
+     *
+     * @return array{total: int, with_account: int, missing_account: int, incomplete_data: int}
+     */
+    public function accountStatusSummary(array $filters, ?int $institutionId = null): array
+    {
+        unset($filters['account_status']);
+        $base = $this->buildListQuery($filters, $institutionId);
+
+        $hasAccount = function ($q) {
+            $q->select(DB::raw(1))
+                ->from('user')
+                ->whereColumn('user.login_nik', 'student.nik')
+                ->where('user.role', 'student');
+        };
+
+        $total = (clone $base)->count();
+        $withAccount = (clone $base)->whereExists($hasAccount)->count();
+        $missingAccount = (clone $base)
+            ->whereNotNull('nik')
+            ->where('nik', '!=', '')
+            ->whereRaw("TRIM(nik) REGEXP '^[0-9]{16}$'")
+            ->whereNotNull('birth_date')
+            ->whereNotExists($hasAccount)
+            ->count();
+        $incompleteData = (clone $base)
+            ->where(function ($q) {
+                $q->whereNull('nik')
+                    ->orWhere('nik', '')
+                    ->orWhereRaw("TRIM(nik) NOT REGEXP '^[0-9]{16}$'")
+                    ->orWhereNull('birth_date');
+            })
+            ->count();
+
+        return [
+            'total' => $total,
+            'with_account' => $withAccount,
+            'missing_account' => $missingAccount,
+            'incomplete_data' => $incompleteData,
+        ];
+    }
+
+    /**
+     * Buat akun login massal untuk siswa yang cocok filter / id tertentu.
+     *
+     * @param  list<int>|null  $studentIds
+     * @return array{
+     *     processed: int,
+     *     created: int,
+     *     updated: int,
+     *     skipped: int,
+     *     errors: list<array{student_id: int|null, name: string|null, reason: string}>
+     * }
+     */
+    public function bulkEnsureAccounts(
+        array $filters,
+        ?int $institutionId = null,
+        ?array $studentIds = null,
+        bool $onlyMissing = true,
+        int $limit = 500
+    ): array {
+        if ($onlyMissing && empty($filters['account_status'])) {
+            $filters['account_status'] = 'missing';
+        }
+
+        $query = $this->buildListQuery($filters, $institutionId)
+            ->select(['id', 'institution_id', 'nik', 'name', 'email', 'birth_date']);
+
+        if (!empty($studentIds)) {
+            $ids = array_values(array_unique(array_map('intval', $studentIds)));
+            $query->whereIn('id', $ids);
+        }
+
+        $limit = max(1, min($limit, 2000));
+        $students = $query->limit($limit)->get();
+
+        return $this->studentAccountService->bulkEnsure($students);
     }
 
     protected function applyListSorting(Builder $query, array $filters): void
@@ -172,10 +307,35 @@ class StudentService
     }
 
     /**
+     * Keep student.academic_year in short code form (e.g. 2025/2026), not full name.
+     */
+    protected function syncAcademicYearLabel(array $data): array
+    {
+        $academicYearId = $data['academic_year_id'] ?? null;
+        if ($academicYearId) {
+            $code = \App\Models\AcademicYear::whereKey($academicYearId)->value('code');
+            if ($code) {
+                $data['academic_year'] = $code;
+
+                return $data;
+            }
+        }
+
+        if (!empty($data['academic_year']) && is_string($data['academic_year'])) {
+            if (preg_match('/(\d{4}\/\d{4})/', $data['academic_year'], $matches)) {
+                $data['academic_year'] = $matches[1];
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * Create a new student.
      */
     public function create(array $data): Student
     {
+        $data = $this->syncAcademicYearLabel($data);
         $student = Student::create($data);
 
         // Create initial class history if class_id is provided
@@ -184,12 +344,14 @@ class StudentService
             $this->createClassHistory($student, $data['class_id'], $data['academic_year_id'], $semesterId, 'masuk');
         }
 
+        $this->studentAccountService->ensureAccount($student);
+
         Log::info('Student created', [
             'student_id' => $student->id,
             'institution_id' => $student->institution_id,
         ]);
 
-        return $student->load(['institution', 'class', 'academicYear', 'semester']);
+        return $student->load(['institution', 'class', 'academicYear', 'semester', 'userAccount']);
     }
 
     /**
@@ -209,6 +371,9 @@ class StudentService
         $oldClassId = $student->class_id;
         $oldAcademicYearId = $student->academic_year_id;
         $oldStatus = $student->status;
+        $previousNik = $student->nik;
+
+        $data = $this->syncAcademicYearLabel($data);
 
         // Update student
         $student->update($data);
@@ -241,6 +406,8 @@ class StudentService
             }
         }
 
+        $this->studentAccountService->ensureAccount($student, $previousNik);
+
         Log::info('Student updated', [
             'student_id' => $student->id,
             'class_changed' => $classChanged,
@@ -248,7 +415,7 @@ class StudentService
             'status_changed' => $statusChanged,
         ]);
 
-        return $student->fresh(['institution', 'class', 'academicYear', 'semester', 'documents']);
+        return $student->fresh(['institution', 'class', 'academicYear', 'semester', 'documents', 'userAccount']);
     }
 
     /**
@@ -717,7 +884,7 @@ class StudentService
             'tingkat' => $targetClass->grade,
             'academic_year_id' => $targetAcademicYearId,
             'class' => $targetClass->name,
-            'academic_year' => $targetAcademicYear->name,
+            'academic_year' => $targetAcademicYear->code ?: $targetAcademicYear->name,
         ];
         if ($targetSemesterId) {
             $updateData['semester_id'] = $targetSemesterId;

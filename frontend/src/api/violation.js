@@ -19,6 +19,12 @@ export const violationApi = {
   getByStudent(studentId, params) {
     return api.get(`/v1/violations/by-student/${studentId}`, { params })
   },
+  classesLite() {
+    return api.get('/v1/violations/classes-lite')
+  },
+  studentsLite(params) {
+    return api.get('/v1/violations/students-lite', { params })
+  },
   approve(id, data = {}) {
     return api.post(`/v1/violations/${id}/approve`, data)
   },

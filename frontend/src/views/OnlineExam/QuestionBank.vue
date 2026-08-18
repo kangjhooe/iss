@@ -921,6 +921,7 @@ watch(() => form.type, (newType) => {
 .filters-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .filter-search { flex: 1; min-width: 180px; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; }
 .filter-select { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; min-width: 140px; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
 .stimulus-banner {
   display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;
   background: #f0fdf4; border: 1px solid #86efac;
@@ -1016,4 +1017,29 @@ tr.dragging { opacity: 0.6; }
 .alias-row input { flex: 1; }
 .import-result { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; font-size: 0.875rem; }
 .import-result ul { margin: 0.35rem 0 0; padding-left: 1.1rem; color: #b91c1c; }
+
+@media (max-width: 768px) {
+  .filter-search,
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .filters,
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .stimulus-row,
+  .option-row-rich,
+  .alias-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .stimulus-row select,
+  .option-row-rich .opt-editor,
+  .matching-correct .correct-row select {
+    min-width: 0;
+    width: 100%;
+  }
+}
 </style>

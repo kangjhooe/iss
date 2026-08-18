@@ -41,14 +41,19 @@ return new class extends Migration
             'bendahara' => ['report'],
             'ketua_perpus' => ['digital_archive', 'report'],
             'kepala_lab' => ['facility', 'inventory', 'report'],
-            'koordinator_bk' => ['counseling', 'student', 'report'],
-            'koordinator_uks' => ['student', 'report'],
-            'koordinator_osis' => ['student', 'violation', 'report'],
-            'koordinator_pramuka' => ['student', 'report'],
+            // BK: hanya operasional BK. student/report dicabut di 2026_07_25_100000;
+            // violation ditambah di 2026_07_15_170000 lalu dipertahankan di narrowing.
+            'koordinator_bk' => ['counseling', 'violation'],
+            // UKS: permission `uks` ditambah di 2026_07_26_140001. Pramuka: label saja.
+            'koordinator_uks' => [],
+            // OSIS: violation saja (student/report dicabut di 2026_07_25_110000).
+            'koordinator_osis' => ['violation'],
+            'koordinator_pramuka' => [],
             'koordinator_literasi' => ['digital_archive', 'report'],
             'operator_sekolah' => ['report', 'institution', 'student', 'class', 'teacher'],
-            'koordinator_ekstrakurikuler' => ['student', 'report'],
-            'pembina_ekstrakurikuler' => ['student', 'report'],
+            // Ekskul: extracurricular ditambah di 2026_07_15_080000; student/report dicabut di 2026_07_25_110000.
+            'koordinator_ekstrakurikuler' => ['extracurricular'],
+            'pembina_ekstrakurikuler' => ['extracurricular'],
         ];
 
         $dutyIdsByKey = DB::table('additional_duties')->pluck('id', 'key')->all();

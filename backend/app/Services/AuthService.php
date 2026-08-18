@@ -72,22 +72,28 @@ class AuthService
     /**
      * Login user.
      */
-    public function login(string $email, string $password): array
+    public function login(string $login, string $password): array
     {
-        $user = User::where('email', $email)->first();
+        $loginField = 'login';
+        if (preg_match('/^\d{16}$/', $login)) {
+            $user = User::where('login_nik', $login)->where('role', 'student')->first();
+        } else {
+            $user = User::where('email', $login)->first();
+            $loginField = 'email';
+        }
 
         // Check if account is locked
         // Check if account is deactivated by admin
         if ($user && $user->is_active === false) {
             throw ValidationException::withMessages([
-                'email' => ['Akun Anda dinonaktifkan. Silakan hubungi administrator.'],
+                $loginField => ['Akun Anda dinonaktifkan. Silakan hubungi administrator.'],
             ]);
         }
 
         if ($user && $user->isLocked()) {
             $minutesRemaining = $user->lockedMinutesRemaining();
             throw ValidationException::withMessages([
-                'email' => ["Akun Anda terkunci. Silakan coba lagi dalam {$minutesRemaining} menit."],
+                $loginField => ["Akun Anda terkunci. Silakan coba lagi dalam {$minutesRemaining} menit."],
             ]);
         }
 
@@ -96,7 +102,7 @@ class AuthService
             $passwordValid = $user && Hash::check($password, $user->password);
         } catch (\RuntimeException $e) {
             Log::error('Password hash algorithm error on login', [
-                'email' => $email,
+                'login' => preg_match('/^\d{16}$/', $login) ? '[NIK]' : $login,
                 'error' => $e->getMessage(),
             ]);
         }
@@ -105,9 +111,11 @@ class AuthService
             if ($user) {
                 $user->incrementFailedLoginAttempts();
             }
-            Log::warning('Failed login attempt', ['email' => $email]);
+            Log::warning('Failed login attempt', [
+                'login' => preg_match('/^\d{16}$/', $login) ? '[NIK]' : $login,
+            ]);
             throw ValidationException::withMessages([
-                'email' => ['Kredensial yang diberikan salah.'],
+                $loginField => ['Kredensial yang diberikan salah.'],
             ]);
         }
 
@@ -117,17 +125,18 @@ class AuthService
             Log::info('Auto-verified user email in development', ['user_id' => $user->id]);
         }
         
-        // Check if email is verified (skip check in development)
-        if (!$this->shouldSkipEmailVerification() && !$user->isEmailVerified()) {
+        // Students may use synthetic email — skip verification for student role
+        $skipEmailVerification = $this->shouldSkipEmailVerification() || $user->isStudent();
+        if (!$skipEmailVerification && !$user->isEmailVerified()) {
             throw ValidationException::withMessages([
-                'email' => ['Email Anda belum diverifikasi. Silakan cek email untuk link verifikasi.'],
+                $loginField => ['Email Anda belum diverifikasi. Silakan cek email untuk link verifikasi.'],
             ]);
         }
 
         // Check if user's institution is active (skip for super admin)
         if (!$user->isSuperAdmin() && $user->institution && !$user->institution->is_active) {
             throw ValidationException::withMessages([
-                'email' => ['Akun institusi Anda tidak aktif. Silakan hubungi administrator.'],
+                $loginField => ['Akun institusi Anda tidak aktif. Silakan hubungi administrator.'],
             ]);
         }
 
@@ -223,9 +232,10 @@ class AuthService
             ]);
         }
 
-        $user->update([
-            'password' => Hash::make($password),
-        ]);
+        $user->forceFill([
+            'password' => $password,
+            'must_change_password' => false,
+        ])->save();
 
         // Delete reset token
         DB::table('password_reset_tokens')->where('email', $email)->delete();

@@ -7,30 +7,69 @@
           <h1>Apresiasi Guru</h1>
           <p>Kelola prestasi, pelanggaran, dan perolehan poin guru dalam satu tempat.</p>
         </div>
-        <button v-if="primaryActionLabel" type="button" class="btn-primary" @click="primaryActionClick">
-          <span class="btn-icon">+</span>
-          {{ primaryActionLabel }}
-        </button>
+        <div class="header-actions">
+          <template v-if="mainTab === 'catatan' && canManageFull">
+            <button type="button" class="btn-primary" @click="openAddFromToolbar('achievements')">
+              <span class="btn-icon">+</span>
+              Catat Prestasi
+            </button>
+            <button type="button" class="btn-secondary" @click="openAddFromToolbar('violations')">
+              <span class="btn-icon">+</span>
+              Catat Pelanggaran
+            </button>
+          </template>
+          <button v-else-if="primaryActionLabel" type="button" class="btn-primary" @click="primaryActionClick">
+            <span class="btn-icon">+</span>
+            {{ primaryActionLabel }}
+          </button>
+        </div>
       </header>
 
       <nav class="nav-tabs" aria-label="Apresiasi Guru">
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'achievements' }]" @click="switchTab('achievements')">Prestasi</button>
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'pending' }]" @click="switchTab('pending')">
-          Menunggu Prestasi
+        <button type="button" :class="['nav-tab', { active: mainTab === 'catatan' }]" @click="switchMainTab('catatan')">Catatan</button>
+        <button type="button" :class="['nav-tab', { active: mainTab === 'usulan' }]" @click="switchMainTab('usulan')">
+          Usulan
+          <span v-if="pendingTotal" class="badge">{{ pendingTotal }}</span>
+        </button>
+        <button v-if="canManageFull" type="button" :class="['nav-tab', { active: mainTab === 'poin' }]" @click="switchMainTab('poin')">Poin</button>
+        <button v-if="canManageFull" type="button" :class="['nav-tab', { active: mainTab === 'laporan' }]" @click="switchMainTab('laporan')">Laporan</button>
+        <button v-if="canManageFull" type="button" :class="['nav-tab', { active: mainTab === 'pengaturan' }]" @click="switchMainTab('pengaturan')">Pengaturan</button>
+      </nav>
+
+      <div v-if="mainTab === 'catatan' && canManageFull" class="sub-nav" role="tablist" aria-label="Jenis catatan">
+        <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'achievements' }]" @click="switchTab('achievements')">Prestasi</button>
+        <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'violations' }]" @click="switchTab('violations')">Pelanggaran</button>
+      </div>
+      <div v-else-if="mainTab === 'usulan'" class="sub-nav" role="tablist" aria-label="Jenis usulan">
+        <button
+          v-if="canManageFull"
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: tab === 'pending' }]"
+          @click="switchTab('pending')"
+        >
+          Prestasi
           <span v-if="pendingCount" class="badge">{{ pendingCount }}</span>
         </button>
-        <button :class="['nav-tab', { active: tab === 'violations' }]" @click="switchTab('violations')">Pelanggaran</button>
-        <button :class="['nav-tab', { active: tab === 'pending_violations' }]" @click="switchTab('pending_violations')">
-          Menunggu Pelanggaran
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: tab === 'pending_violations' }]"
+          @click="switchTab('pending_violations')"
+        >
+          Pelanggaran
           <span v-if="pendingViolationCount" class="badge">{{ pendingViolationCount }}</span>
         </button>
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'points' }]" @click="switchTab('points')">Poin Guru</button>
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'leaderboard' }]" @click="switchTab('leaderboard')">Peringkat</button>
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'types' }]" @click="switchTab('types')">Jenis Prestasi</button>
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'violation_types' }]" @click="switchTab('violation_types')">Jenis Pelanggaran</button>
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'rewards' }]" @click="switchTab('rewards')">Aturan Reward</button>
-        <button v-if="canManageFull" :class="['nav-tab', { active: tab === 'report' }]" @click="switchTab('report')">Laporan</button>
-      </nav>
+      </div>
+      <div v-else-if="mainTab === 'poin'" class="sub-nav" role="tablist" aria-label="Poin guru">
+        <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'points' }]" @click="switchTab('points')">Poin Guru</button>
+        <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'leaderboard' }]" @click="switchTab('leaderboard')">Peringkat</button>
+      </div>
+      <div v-else-if="mainTab === 'pengaturan'" class="sub-nav" role="tablist" aria-label="Pengaturan">
+        <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'types' }]" @click="switchTab('types')">Jenis Prestasi</button>
+        <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'violation_types' }]" @click="switchTab('violation_types')">Jenis Pelanggaran</button>
+        <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'rewards' }]" @click="switchTab('rewards')">Aturan Reward</button>
+      </div>
 
       <div class="filters">
         <div class="filter-group">
@@ -864,6 +903,25 @@ const canManageFull = computed(() => {
 })
 
 const tab = ref(canManageFull.value ? 'achievements' : 'violations')
+const CATATAN_TABS = ['achievements', 'violations']
+const USULAN_TABS = ['pending', 'pending_violations']
+const POIN_TABS = ['points', 'leaderboard']
+const PENGATURAN_TABS = ['types', 'violation_types', 'rewards']
+
+const mainTab = computed(() => {
+  if (CATATAN_TABS.includes(tab.value)) return 'catatan'
+  if (USULAN_TABS.includes(tab.value)) return 'usulan'
+  if (POIN_TABS.includes(tab.value)) return 'poin'
+  if (tab.value === 'report') return 'laporan'
+  if (PENGATURAN_TABS.includes(tab.value)) return 'pengaturan'
+  return 'catatan'
+})
+
+const pendingTotal = computed(() => {
+  if (canManageFull.value) return (pendingCount.value || 0) + (pendingViolationCount.value || 0)
+  return pendingViolationCount.value || 0
+})
+
 const loading = ref(false)
 const saving = ref(false)
 const printing = ref(false)
@@ -1053,8 +1111,9 @@ function rowNumber(index) {
 }
 
 const primaryActionLabel = computed(() => {
-  if (tab.value === 'achievements' && canManageFull.value) return 'Catat Prestasi'
-  if (tab.value === 'violations' || tab.value === 'pending_violations') return 'Catat Pelanggaran'
+  if (!canManageFull.value && (tab.value === 'violations' || tab.value === 'pending_violations' || mainTab.value === 'catatan' || mainTab.value === 'usulan')) {
+    return 'Catat Pelanggaran'
+  }
   if (tab.value === 'types' && canManageFull.value) return 'Tambah Jenis Prestasi'
   if (tab.value === 'violation_types' && canManageFull.value) return 'Tambah Jenis Pelanggaran'
   if (tab.value === 'rewards' && canManageFull.value) return 'Tambah Reward'
@@ -1062,11 +1121,40 @@ const primaryActionLabel = computed(() => {
 })
 
 function primaryActionClick() {
-  if (tab.value === 'achievements') openAddAchievement()
-  else if (tab.value === 'violations' || tab.value === 'pending_violations') openAddViolation()
+  if (!canManageFull.value || tab.value === 'violations' || tab.value === 'pending_violations') openAddViolation()
   else if (tab.value === 'types') openAddType()
   else if (tab.value === 'violation_types') openAddViolationType()
   else if (tab.value === 'rewards') openAddReward()
+}
+
+function openAddFromToolbar(kind) {
+  if (kind === 'achievements') {
+    if (tab.value !== 'achievements') switchTab('achievements')
+    openAddAchievement()
+  } else if (kind === 'violations') {
+    if (tab.value !== 'violations') switchTab('violations')
+    openAddViolation()
+  }
+}
+
+function switchMainTab(next) {
+  if (next === 'catatan') {
+    switchTab(canManageFull.value
+      ? (tab.value === 'violations' ? 'violations' : 'achievements')
+      : 'violations')
+  } else if (next === 'usulan') {
+    if (canManageFull.value) {
+      switchTab(tab.value === 'pending_violations' ? 'pending_violations' : 'pending')
+    } else {
+      switchTab('pending_violations')
+    }
+  } else if (next === 'poin') {
+    switchTab(tab.value === 'leaderboard' ? 'leaderboard' : 'points')
+  } else if (next === 'laporan') {
+    switchTab('report')
+  } else if (next === 'pengaturan') {
+    switchTab(PENGATURAN_TABS.includes(tab.value) ? tab.value : 'types')
+  }
 }
 
 function periodParams() {
@@ -2256,6 +2344,12 @@ onMounted(async () => {
   gap: 24px;
   margin-bottom: 22px;
 }
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
 .page-header h1 { margin: 4px 0 6px; color: #0f172a; font-size: 26px; line-height: 1.2; letter-spacing: -0.025em; }
 .page-header p { margin: 0; color: #64748b; font-size: 13px; }
 .eyebrow { color: #059669; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -2311,6 +2405,28 @@ onMounted(async () => {
 }
 .nav-tab:hover { background: #f8fafc; color: #0f172a; }
 .nav-tab.active { background: #ecfdf5; color: #047857; box-shadow: inset 0 0 0 1px #a7f3d0; }
+.sub-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -4px 0 16px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.sub-nav-btn {
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+.sub-nav-btn:hover { background: #f8fafc; color: #0f172a; }
+.sub-nav-btn.active { background: #f0fdf4; color: #047857; box-shadow: inset 0 0 0 1px #a7f3d0; }
 .badge {
   display: inline-block; margin-left: 6px; background: #f59e0b; color: #fff;
   border-radius: 999px; padding: 0 6px; font-size: 11px;

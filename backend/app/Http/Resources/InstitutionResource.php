@@ -43,6 +43,7 @@ class InstitutionResource extends JsonResource
             'logo' => $this->logo ? asset('storage/' . $this->logo) : null,
             'cover_image' => $this->cover_image ? asset('storage/' . $this->cover_image) : null,
             'is_active' => $this->is_active,
+            'is_demo' => (bool) ($this->is_demo ?? false),
             'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
             'longitude' => $this->longitude !== null ? (float) $this->longitude : null,
             'location_radius' => $this->location_radius !== null ? (int) $this->location_radius : null,

@@ -12,6 +12,7 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Services\ClassService;
 use App\Support\InstitutionContext;
+use App\Support\KaprogAccess;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -38,7 +39,11 @@ class ClassController extends Controller
             return true;
         }
 
-        return InstitutionContext::canAccessInstitution($user, (int) $class->institution_id);
+        if (! InstitutionContext::canAccessInstitution($user, (int) $class->institution_id)) {
+            return false;
+        }
+
+        return KaprogAccess::canAccessClass($user, $class);
     }
 
     /**
@@ -46,7 +51,10 @@ class ClassController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'grade', 'academic_year', 'academic_year_id', 'semester_id', 'status', 'room_id', 'teacher_id']);
+        $filters = $request->only([
+            'search', 'grade', 'academic_year', 'academic_year_id', 'semester_id',
+            'status', 'room_id', 'teacher_id', 'program_keahlian_id',
+        ]);
         
         $institutionId = $this->resolveInstitutionId($request);
 
@@ -72,6 +80,11 @@ class ClassController extends Controller
                     }
                 }
             }
+        }
+
+        $user = $request->user();
+        if ($user && KaprogAccess::shouldScope($user) && empty($filters['program_keahlian_id'])) {
+            $filters['program_keahlian_ids'] = KaprogAccess::programIds($user);
         }
 
         $perPage = min($request->get('per_page', 15), 100);

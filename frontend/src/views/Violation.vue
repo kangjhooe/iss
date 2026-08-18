@@ -1,10 +1,24 @@
 <template>
   <Layout>
     <div class="violation-page">
-      <div class="toolbar" v-if="primaryActionLabel">
+      <div class="toolbar" v-if="showToolbar">
         <div class="toolbar-spacer"></div>
-        <div class="header-actions">
-          <button @click="primaryActionClick" class="btn-primary btn-compact">
+        <div class="header-actions toolbar-actions">
+          <template v-if="mainTab === 'catatan'">
+            <button type="button" @click="openAddFromToolbar('list')" class="btn-primary btn-compact">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Pelanggaran</span>
+            </button>
+            <button type="button" @click="openAddFromToolbar('prestasi')" class="btn-secondary btn-compact">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tambah Prestasi</span>
+            </button>
+          </template>
+          <button v-else-if="primaryActionLabel" type="button" @click="primaryActionClick" class="btn-primary btn-compact">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -13,50 +27,76 @@
         </div>
       </div>
 
-      <!-- Single-level tabs: semua dalam satu baris dengan pengelompokan visual -->
+      <!-- 4 tab operasional; master data di Pengaturan -->
       <div class="nav-tabs-wrap">
         <nav class="nav-tabs" aria-label="Navigasi modul Pelanggaran">
-          <div class="nav-tab-group">
-            <button :class="['nav-tab', { active: activeTab === 'list' }]" @click="switchTab('list')">
-              <span class="nav-tab-label">Daftar Pelanggaran</span>
-              <span class="nav-tab-hint">Catat pelanggaran</span>
-            </button>
-            <button :class="['nav-tab', { active: activeTab === 'pending' }]" @click="switchTab('pending')">
-              <span class="nav-tab-label">Usulan</span>
-              <span class="nav-tab-hint">
-                Menunggu BK
-                <template v-if="pendingProposalCount"> ({{ pendingProposalCount }})</template>
-              </span>
-            </button>
-            <button :class="['nav-tab', { active: activeTab === 'types' }]" @click="switchTab('types')">
-              <span class="nav-tab-label">Jenis Pelanggaran</span>
-              <span class="nav-tab-hint">Master jenis & bobot</span>
-            </button>
-            <button :class="['nav-tab', { active: activeTab === 'points' }]" @click="switchTab('points')">
-              <span class="nav-tab-label">Poin Siswa</span>
-              <span class="nav-tab-hint">Yang perlu tindakan</span>
-            </button>
-          </div>
-          <span class="nav-tab-divider" aria-hidden="true"></span>
-          <div class="nav-tab-group">
-            <button :class="['nav-tab', { active: activeTab === 'prestasi' }]" @click="switchTab('prestasi')">
-              <span class="nav-tab-label">Prestasi</span>
-              <span class="nav-tab-hint">Poin pengurang</span>
-            </button>
-            <button :class="['nav-tab', { active: activeTab === 'achievement_types' }]" @click="switchTab('achievement_types')">
-              <span class="nav-tab-label">Jenis Prestasi</span>
-              <span class="nav-tab-hint">Master jenis</span>
-            </button>
-            <button :class="['nav-tab', { active: activeTab === 'thresholds' }]" @click="switchTab('thresholds')">
-              <span class="nav-tab-label">Aturan Tindakan</span>
-              <span class="nav-tab-hint">Skor → tindakan</span>
-            </button>
-          </div>
+          <button type="button" :class="['nav-tab', { active: mainTab === 'catatan' }]" @click="switchMainTab('catatan')">
+            <span class="nav-tab-label">Catatan</span>
+            <span class="nav-tab-hint">Pelanggaran & prestasi</span>
+          </button>
+          <button type="button" :class="['nav-tab', { active: mainTab === 'pending' }]" @click="switchMainTab('pending')">
+            <span class="nav-tab-label">Usulan</span>
+            <span class="nav-tab-hint">
+              Menunggu BK
+              <template v-if="pendingProposalCount"> ({{ pendingProposalCount }})</template>
+            </span>
+          </button>
+          <button type="button" :class="['nav-tab', { active: mainTab === 'points' }]" @click="switchMainTab('points')">
+            <span class="nav-tab-label">Tindakan</span>
+            <span class="nav-tab-hint">Skor & tindakan BK</span>
+          </button>
+          <button type="button" :class="['nav-tab', { active: mainTab === 'settings' }]" @click="switchMainTab('settings')">
+            <span class="nav-tab-label">Pengaturan</span>
+            <span class="nav-tab-hint">Jenis & aturan</span>
+          </button>
         </nav>
         <p v-if="tabDescription" class="tab-description">{{ tabDescription }}</p>
       </div>
 
       <main class="page-main">
+      <!-- Sub-nav: Catatan -->
+      <div v-if="mainTab === 'catatan'" class="sub-nav" role="tablist" aria-label="Jenis catatan">
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: activeTab === 'list' }]"
+          :aria-selected="activeTab === 'list'"
+          @click="switchTab('list')"
+        >Pelanggaran</button>
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: activeTab === 'prestasi' }]"
+          :aria-selected="activeTab === 'prestasi'"
+          @click="switchTab('prestasi')"
+        >Prestasi</button>
+      </div>
+
+      <!-- Sub-nav: Pengaturan -->
+      <div v-if="mainTab === 'settings'" class="sub-nav" role="tablist" aria-label="Pengaturan BK">
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: activeTab === 'types' }]"
+          :aria-selected="activeTab === 'types'"
+          @click="switchTab('types')"
+        >Jenis Pelanggaran</button>
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: activeTab === 'achievement_types' }]"
+          :aria-selected="activeTab === 'achievement_types'"
+          @click="switchTab('achievement_types')"
+        >Jenis Prestasi</button>
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: activeTab === 'thresholds' }]"
+          :aria-selected="activeTab === 'thresholds'"
+          @click="switchTab('thresholds')"
+        >Aturan Tindakan</button>
+      </div>
+
       <!-- Tab: Daftar Pelanggaran / Usulan Piket -->
       <template v-if="activeTab === 'list' || activeTab === 'pending'">
         <div v-if="activeTab === 'pending'" class="pending-banner">
@@ -212,7 +252,7 @@
         </div>
       </template>
 
-      <!-- Tab: Poin Siswa (Skor pelanggaran: makin besar makin buruk; tabung prestasi) -->
+      <!-- Tab: Tindakan (skor pelanggaran → tindakan BK) -->
       <template v-if="activeTab === 'points'">
         <div class="points-info-banner">
           <div class="points-info-icon">
@@ -270,7 +310,7 @@
         <div v-if="pointsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat poin siswa...</p></div>
         <div v-else-if="studentPoints.length === 0" class="empty-state">
           <h3 class="empty-title">Tidak ada siswa dengan skor &gt; 0</h3>
-          <p class="empty-desc">Tidak ada data untuk periode ini, atau filter menyembunyikan semua baris. Catat pelanggaran di tab Daftar untuk melihat skor.</p>
+          <p class="empty-desc">Tidak ada data untuk periode ini, atau filter menyembunyikan semua baris. Catat pelanggaran di tab Catatan untuk melihat skor.</p>
         </div>
         <div v-else class="points-list">
           <article
@@ -322,7 +362,7 @@
                   </template>
                   <template v-else>
                     <span class="action-name-line muted">Belum ada aturan</span>
-                    <span class="action-range-line">Atur di tab Aturan Tindakan</span>
+                    <span class="action-range-line">Atur di Pengaturan → Aturan Tindakan</span>
                   </template>
                   <span
                     class="status-chip"
@@ -616,12 +656,58 @@
             <button @click="showFormModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitViolation" class="modal-body">
-            <div class="form-group">
-              <label>Siswa *</label>
-              <select v-model="form.student_id" required :disabled="!!editingViolation" class="form-select">
-                <option value="">Pilih siswa</option>
-                <option v-for="s in students" :key="s.id" :value="s.id">{{ s.name }} ({{ s.nis || s.nisn || '-' }})</option>
-              </select>
+            <div v-if="editingViolation" class="form-group">
+              <label>Siswa</label>
+              <p class="student-picker-locked">
+                {{ editingViolation.student?.name || '—' }}
+                <span class="student-meta">
+                  {{ editingViolation.student?.nis || editingViolation.student?.nisn || '' }}
+                  <template v-if="editingViolation.student?.class?.name || editingViolation.student?.class_name">
+                    · {{ editingViolation.student?.class?.name || editingViolation.student?.class_name }}
+                  </template>
+                </span>
+              </p>
+            </div>
+            <div v-else class="student-picker">
+              <div class="form-group">
+                <label>Kelas *</label>
+                <select v-model="pickerClassId" class="form-select" required @change="onPickerClassChange()">
+                  <option value="">Pilih kelas dulu</option>
+                  <option v-for="c in pickerClasses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Siswa *</label>
+                <input
+                  v-model="pickerStudentSearch"
+                  type="text"
+                  class="form-input"
+                  placeholder="Filter nama / NIS (opsional)"
+                  :disabled="!pickerClassId"
+                  @input="debouncePickerStudentSearch"
+                />
+                <p class="field-hint">
+                  <template v-if="!pickerClassId">Pilih kelas untuk menampilkan daftar siswa.</template>
+                  <template v-else-if="loadingPickerStudents">Memuat siswa...</template>
+                  <template v-else-if="pickerStudentError">{{ pickerStudentError }}</template>
+                  <template v-else-if="students.length">
+                    {{ students.length }} siswa — pilih di daftar bawah.
+                  </template>
+                  <template v-else>Tidak ada siswa aktif di kelas ini.</template>
+                </p>
+                <select
+                  v-model="form.student_id"
+                  required
+                  class="form-select student-listbox"
+                  size="8"
+                  :disabled="!pickerClassId || loadingPickerStudents"
+                >
+                  <option value="">Pilih siswa</option>
+                  <option v-for="s in students" :key="s.id" :value="String(s.id)">
+                    {{ studentOptionLabel(s) }}
+                  </option>
+                </select>
+              </div>
             </div>
             <div class="form-group">
               <label>Jenis Pelanggaran *</label>
@@ -742,12 +828,55 @@
             <button @click="showPrestasiModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitPrestasi" class="modal-body">
-            <div class="form-group">
-              <label>Siswa *</label>
-              <select v-model="prestasiForm.student_id" required :disabled="!!editingPrestasi" class="form-select">
-                <option value="">Pilih siswa</option>
-                <option v-for="s in students" :key="s.id" :value="s.id">{{ s.name }} ({{ s.nis || s.nisn || '-' }})</option>
-              </select>
+            <div v-if="editingPrestasi" class="form-group">
+              <label>Siswa</label>
+              <p class="student-picker-locked">
+                {{ editingPrestasi.student?.name || '—' }}
+                <span class="student-meta">
+                  {{ editingPrestasi.student?.nis || editingPrestasi.student?.nisn || '' }}
+                </span>
+              </p>
+            </div>
+            <div v-else class="student-picker">
+              <div class="form-group">
+                <label>Kelas *</label>
+                <select v-model="pickerClassId" class="form-select" required @change="onPickerClassChange()">
+                  <option value="">Pilih kelas dulu</option>
+                  <option v-for="c in pickerClasses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Siswa *</label>
+                <input
+                  v-model="pickerStudentSearch"
+                  type="text"
+                  class="form-input"
+                  placeholder="Filter nama / NIS (opsional)"
+                  :disabled="!pickerClassId"
+                  @input="debouncePickerStudentSearch"
+                />
+                <p class="field-hint">
+                  <template v-if="!pickerClassId">Pilih kelas untuk menampilkan daftar siswa.</template>
+                  <template v-else-if="loadingPickerStudents">Memuat siswa...</template>
+                  <template v-else-if="pickerStudentError">{{ pickerStudentError }}</template>
+                  <template v-else-if="students.length">
+                    {{ students.length }} siswa — pilih di daftar bawah.
+                  </template>
+                  <template v-else>Tidak ada siswa aktif di kelas ini.</template>
+                </p>
+                <select
+                  v-model="prestasiForm.student_id"
+                  required
+                  class="form-select student-listbox"
+                  size="8"
+                  :disabled="!pickerClassId || loadingPickerStudents"
+                >
+                  <option value="">Pilih siswa</option>
+                  <option v-for="s in students" :key="s.id" :value="String(s.id)">
+                    {{ studentOptionLabel(s) }}
+                  </option>
+                </select>
+              </div>
             </div>
             <div class="form-group">
               <label>Jenis Prestasi *</label>
@@ -980,7 +1109,6 @@ import Layout from '@/components/Layout.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { violationApi, violationTypeApi, achievementApi, achievementTypeApi, pointThresholdApi, studentActionLogApi, studentPointApi } from '@/api/violation'
-import { studentApi } from '@/api/student'
 import { institutionApi } from '@/api/institution'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
@@ -989,39 +1117,74 @@ import { useToast } from '@/composables/useToast'
 const toast = useToast()
 
 const activeTab = ref('list')
+const CATATAN_TABS = ['list', 'prestasi']
+const SETTINGS_TABS = ['types', 'achievement_types', 'thresholds']
+
+const mainTab = computed(() => {
+  if (CATATAN_TABS.includes(activeTab.value)) return 'catatan'
+  if (activeTab.value === 'pending') return 'pending'
+  if (activeTab.value === 'points') return 'points'
+  if (SETTINGS_TABS.includes(activeTab.value)) return 'settings'
+  return 'catatan'
+})
 
 const primaryActionLabel = computed(() => {
   const labels = {
-    list: 'Tambah Pelanggaran',
     types: 'Tambah Jenis Pelanggaran',
-    points: null,
-    prestasi: 'Tambah Prestasi',
     achievement_types: 'Tambah Jenis Prestasi',
     thresholds: 'Tambah Aturan Tindakan',
   }
   return labels[activeTab.value] || null
 })
 
+const showToolbar = computed(() => mainTab.value === 'catatan' || !!primaryActionLabel.value)
+
 function primaryActionClick() {
-  if (activeTab.value === 'list') openAddModal()
-  else if (activeTab.value === 'types') openAddTypeModal()
-  else if (activeTab.value === 'prestasi') openAddPrestasiModal()
+  if (activeTab.value === 'types') openAddTypeModal()
   else if (activeTab.value === 'achievement_types') openAddAchievementTypeModal()
   else if (activeTab.value === 'thresholds') openAddThresholdModal()
 }
 
+function openAddFromToolbar(kind) {
+  if (kind === 'list') {
+    if (activeTab.value !== 'list') switchTab('list')
+    openAddModal()
+  } else if (kind === 'prestasi') {
+    if (activeTab.value !== 'prestasi') switchTab('prestasi')
+    openAddPrestasiModal()
+  }
+}
+
 const tabDescription = computed(() => {
-  const desc = {
-    list: 'Catat setiap pelanggaran siswa di sini. Data dipakai untuk menghitung poin di tab Poin Siswa. Usulan piket menunggu tidak dihitung sampai disetujui.',
-    pending: 'Usulan pelanggaran dari guru piket. Setujui agar poin masuk, atau tolak dengan alasan.',
+  const byMain = {
+    catatan: 'Catat pelanggaran dan prestasi siswa. Prestasi mengurangi skor pada periode yang sama. Usulan piket tidak dihitung sampai disetujui di tab Usulan.',
+    pending: 'Usulan pelanggaran dari guru piket atau wali kelas. Setujui agar poin masuk, atau tolak dengan alasan.',
+    points: 'Skor = Σ pelanggaran − prestasi per periode. Catat tindakan BK di sini. Pelanggaran baru setelah tindakan (atau skor naik) membuka ulang status Menunggu.',
+    settings: 'Kelola master jenis pelanggaran, jenis prestasi, dan aturan tindakan berdasarkan skor. Jarang diubah saat pencatatan harian.',
+  }
+  const bySection = {
     types: 'Atur jenis pelanggaran (mis. Terlambat, Tidak pakai atribut) beserta kategori dan bobot poin.',
-    points: 'Skor = Σ pelanggaran − prestasi per periode. Pelanggaran baru setelah tindakan (atau skor naik) membuka ulang status Menunggu. Gunakan Detail untuk melihat tiap pelanggaran.',
-    prestasi: 'Prestasi mengurangi skor pelanggaran pada periode yang sama. Catat di sini setelah Jenis Prestasi tersedia.',
     achievement_types: 'Atur jenis prestasi dan nilai poin pengurang.',
     thresholds: 'Atur rentang skor pelanggaran dan tindakan wajib (mis. skor 40–999 = Panggilan orang tua).',
+    list: byMain.catatan,
+    prestasi: 'Prestasi mengurangi skor pelanggaran pada periode yang sama. Pastikan Jenis Prestasi sudah ada di Pengaturan.',
   }
-  return desc[activeTab.value] || ''
+  if (mainTab.value === 'settings') return bySection[activeTab.value] || byMain.settings
+  if (mainTab.value === 'catatan') return bySection[activeTab.value] || byMain.catatan
+  return byMain[mainTab.value] || ''
 })
+
+function switchMainTab(tab) {
+  if (tab === 'catatan') {
+    switchTab(activeTab.value === 'prestasi' ? 'prestasi' : 'list')
+  } else if (tab === 'pending') {
+    switchTab('pending')
+  } else if (tab === 'points') {
+    switchTab('points')
+  } else if (tab === 'settings') {
+    switchTab(SETTINGS_TABS.includes(activeTab.value) ? activeTab.value : 'types')
+  }
+}
 
 function switchTab(tab) {
   activeTab.value = tab
@@ -1039,6 +1202,13 @@ const typesLoading = ref(false)
 const violations = ref([])
 const violationTypes = ref([])
 const students = ref([])
+const pickerClasses = ref([])
+const pickerClassId = ref('')
+const pickerStudentSearch = ref('')
+const loadingPickerStudents = ref(false)
+const pickerStudentError = ref('')
+const pickerTarget = ref('violation') // 'violation' | 'prestasi'
+let pickerStudentTimer = null
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const pendingProposalCount = ref(0)
 const showRejectModal = ref(false)
@@ -1333,13 +1503,72 @@ async function loadTypes() {
   }
 }
 
-async function loadStudents() {
+function studentOptionLabel(s) {
+  const id = s.nis || s.nisn || '-'
+  return `${s.name} (${id})`
+}
+
+function resetStudentPicker(target = 'violation') {
+  pickerTarget.value = target
+  pickerClassId.value = ''
+  pickerStudentSearch.value = ''
+  pickerStudentError.value = ''
+  students.value = []
+  loadingPickerStudents.value = false
+  clearTimeout(pickerStudentTimer)
+}
+
+async function loadPickerClasses() {
   try {
-    const res = await studentApi.getAll({ per_page: 500 })
-    students.value = res.data.data || []
+    const res = await violationApi.classesLite()
+    pickerClasses.value = res.data?.data || []
   } catch {
-    students.value = []
+    pickerClasses.value = []
   }
+}
+
+async function loadPickerStudents() {
+  if (!pickerClassId.value) {
+    students.value = []
+    pickerStudentError.value = ''
+    return
+  }
+  loadingPickerStudents.value = true
+  pickerStudentError.value = ''
+  try {
+    const params = { class_id: pickerClassId.value }
+    const q = pickerStudentSearch.value.trim()
+    if (q) params.q = q
+    const res = await violationApi.studentsLite(params)
+    students.value = res.data?.data || []
+    if (!students.value.length) {
+      pickerStudentError.value = q
+        ? 'Tidak ada siswa cocok. Coba kata kunci lain.'
+        : 'Tidak ada siswa aktif di kelas ini.'
+    }
+  } catch (e) {
+    students.value = []
+    pickerStudentError.value = e.response?.data?.message || e.formattedMessage || 'Gagal memuat data siswa'
+  } finally {
+    loadingPickerStudents.value = false
+  }
+}
+
+function debouncePickerStudentSearch() {
+  clearTimeout(pickerStudentTimer)
+  pickerStudentTimer = setTimeout(() => {
+    loadPickerStudents()
+  }, 300)
+}
+
+function onPickerClassChange() {
+  if (pickerTarget.value === 'prestasi') {
+    prestasiForm.value.student_id = ''
+  } else {
+    form.value.student_id = ''
+  }
+  pickerStudentSearch.value = ''
+  loadPickerStudents()
 }
 
 function goToPage(page) {
@@ -1359,7 +1588,8 @@ function openAddModal() {
     follow_up_notes: '',
   }
   formError.value = ''
-  if (students.value.length === 0) loadStudents()
+  resetStudentPicker('violation')
+  loadPickerClasses()
   if (violationTypes.value.length === 0) loadTypes()
   showFormModal.value = true
 }
@@ -1641,7 +1871,8 @@ function openAddPrestasiModal() {
   editingPrestasi.value = null
   prestasiForm.value = { student_id: '', achievement_type_id: '', achievement_date: new Date().toISOString().slice(0, 10), notes: '' }
   prestasiFormError.value = ''
-  if (students.value.length === 0) loadStudents()
+  resetStudentPicker('prestasi')
+  loadPickerClasses()
   if (achievementTypes.value.length === 0) loadAchievementTypes()
   showPrestasiModal.value = true
 }
@@ -1654,7 +1885,7 @@ function openEditPrestasiModal(a) {
     notes: a.notes || '',
   }
   prestasiFormError.value = ''
-  if (students.value.length === 0) loadStudents()
+  resetStudentPicker('prestasi')
   if (achievementTypes.value.length === 0) loadAchievementTypes()
   showPrestasiModal.value = true
 }
@@ -1962,33 +2193,30 @@ onMounted(async () => {
   border: 1px solid #e2e8f0;
   padding: 1.25rem 1.5rem;
 }
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
 .nav-tabs-wrap {
   margin-bottom: 1.5rem;
 }
 .nav-tabs {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
+  align-items: stretch;
+  gap: 0.5rem;
   padding: 0.5rem 0;
   border-bottom: 2px solid #e2e8f0;
-}
-.nav-tab-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-.nav-tab-divider {
-  width: 1px;
-  height: 28px;
-  background: #cbd5e1;
-  margin: 0 0.25rem;
-  flex-shrink: 0;
 }
 .nav-tab {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 220px;
   padding: 0.55rem 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -2033,6 +2261,44 @@ onMounted(async () => {
   border-radius: 10px;
   border-left: 4px solid #059669;
   line-height: 1.5;
+}
+.sub-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1.15rem;
+  padding: 0.35rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.sub-nav-btn {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.sub-nav-btn:hover {
+  background: #fff;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+.sub-nav-btn.active {
+  background: #fff;
+  color: #047857;
+  border-color: #6ee7b7;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.12);
+}
+@media (max-width: 640px) {
+  .nav-tab {
+    flex: 1 1 calc(50% - 0.5rem);
+    max-width: none;
+  }
 }
 .filter-toggle {
   display: inline-flex;
@@ -2180,6 +2446,37 @@ onMounted(async () => {
 }
 .student-name { display: block; font-weight: 500; }
 .student-meta { font-size: 0.8rem; color: #64748b; }
+.student-picker {
+  margin-bottom: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.student-picker .field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+.student-picker .student-listbox {
+  margin-top: 0.5rem;
+  min-height: 160px;
+}
+.student-picker-locked {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-weight: 500;
+  color: #334155;
+}
+.student-picker-locked .student-meta {
+  display: block;
+  margin-top: 0.2rem;
+  font-weight: 400;
+}
 .category-badge {
   display: inline-block;
   padding: 0.2rem 0.5rem;

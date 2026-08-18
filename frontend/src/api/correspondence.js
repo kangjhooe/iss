@@ -1,6 +1,6 @@
 import api from './index'
 
-export default {
+const correspondenceApi = {
   // Get list of correspondence
   list(params) {
     return api.get('/v1/correspondence', { params })
@@ -186,3 +186,6 @@ export default {
     })
   }
 }
+
+export default correspondenceApi
+export { correspondenceApi }

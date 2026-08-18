@@ -379,14 +379,6 @@ function buildQuery(extra = {}) {
 
 const gradeLink = computed(() => `/grade-book?${buildQuery()}`)
 const journalLink = computed(() => `/teaching-journal?${buildQuery()}`)
-const attendanceLink = computed(() => {
-  const params = new URLSearchParams()
-  if (assignment.value?.class_id) params.set('class_id', String(assignment.value.class_id))
-  if (assignment.value?.subject_id) params.set('subject_id', String(assignment.value.subject_id))
-  if (semesterId.value) params.set('semester_id', String(semesterId.value))
-  const qs = params.toString()
-  return qs ? `/attendance/student?${qs}` : '/attendance/student'
-})
 const attendanceRekapLink = computed(() => {
   const params = new URLSearchParams()
   params.set('tab', 'rekap')
@@ -439,9 +431,9 @@ const visibleActions = computed(() => {
   }
   if (canAccessModule('teaching_journal')) {
     items.push({
-      title: 'Absensi Siswa',
-      desc: 'Isi absen dari jadwal (tanpa jurnal dulu)',
-      to: attendanceLink.value,
+      title: 'Rekap Absensi',
+      desc: 'Tanggal lain & cetak rekap PDF/CSV',
+      to: attendanceRekapLink.value,
       tone: 'info',
       icon: icons.attendance,
     })

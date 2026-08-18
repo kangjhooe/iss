@@ -19,7 +19,6 @@ class InstitutionContext
      * Jabatan tambahan (Kepala Sekolah, Waka, dll.) hanya berlaku di sekolah induk.
      */
     public const NON_INDUK_TEACHING_PERMISSIONS = [
-        'correspondence',
         'teaching_journal',
         'grade_book',
         'schedule',
@@ -29,9 +28,9 @@ class InstitutionContext
 
     /**
      * Default akses operasional guru di sekolah non-induk.
+     * Persuratan tidak ikut — administratif di sekolah induk saja.
      */
     public const NON_INDUK_DEFAULT_PERMISSIONS = [
-        'correspondence',
         'teaching_journal',
         'grade_book',
         'schedule',
@@ -61,6 +60,7 @@ class InstitutionContext
                     'id' => (int) $home->id,
                     'name' => $home->name,
                     'npsn' => $home->npsn,
+                    'is_demo' => (bool) ($home->is_demo ?? false),
                     'affiliation' => 'induk',
                 ]);
             }
@@ -74,7 +74,7 @@ class InstitutionContext
         $assignments = EmployeeInstitutionAssignment::query()
             ->approved()
             ->where('employee_id', $employee->id)
-            ->with('institution:id,name,npsn')
+            ->with('institution:id,name,npsn,is_demo')
             ->get();
 
         foreach ($assignments as $assignment) {
@@ -89,6 +89,7 @@ class InstitutionContext
                 'id' => (int) $inst->id,
                 'name' => $inst->name,
                 'npsn' => $inst->npsn,
+                'is_demo' => (bool) ($inst->is_demo ?? false),
                 'affiliation' => 'non_induk',
             ]);
         }

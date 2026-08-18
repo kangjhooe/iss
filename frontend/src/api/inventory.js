@@ -102,6 +102,9 @@ export const inventoryApi = {
   getReportStatistics(params = {}) {
     return api.get('/v1/inventory/reports/statistics', { params })
   },
+  getReportStock(params = {}) {
+    return api.get('/v1/inventory/reports/stock', { params })
+  },
   getReportByCategory(params = {}) {
     return api.get('/v1/inventory/reports/by-category', { params })
   },

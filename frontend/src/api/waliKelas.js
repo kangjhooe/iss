@@ -4,6 +4,18 @@ export const waliKelasApi = {
   getStudent(classId, studentId) {
     return api.get(`/v1/teacher/wali/classes/${classId}/students/${studentId}`)
   },
+  updateLoginFields(classId, studentId, data) {
+    return api.patch(`/v1/teacher/wali/classes/${classId}/students/${studentId}/login-fields`, data)
+  },
+  ensureStudentAccount(classId, studentId) {
+    return api.post(`/v1/teacher/wali/classes/${classId}/students/${studentId}/ensure-account`)
+  },
+  resetStudentPassword(classId, studentId) {
+    return api.post(`/v1/teacher/wali/classes/${classId}/students/${studentId}/reset-password`)
+  },
+  ensureAccountsBulk(classId, data) {
+    return api.post(`/v1/teacher/wali/classes/${classId}/ensure-accounts`, data || {})
+  },
   getDashboard(classId) {
     return api.get(`/v1/teacher/wali/classes/${classId}/dashboard`)
   },

@@ -8,6 +8,8 @@ use App\Http\Requests\StoreViolationRequest;
 use App\Http\Requests\UpdateViolationRequest;
 use App\Http\Resources\ViolationResource;
 use App\Models\Institution;
+use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\Violation;
 use App\Services\ViolationService;
 use App\Support\InstitutionContext;
@@ -215,6 +217,89 @@ class ViolationController extends Controller
             Log::error('Violation reject failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal menolak pelanggaran.'], 500);
         }
+    }
+
+    /**
+     * Lightweight class list for student picker (BK / pelanggaran).
+     * Tidak membutuhkan modul student.
+     */
+    public function classesLite(Request $request): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $institution = Institution::find($institutionId);
+        $query = SchoolClass::query()
+            ->where('institution_id', $institutionId)
+            ->orderBy('grade')
+            ->orderBy('name');
+
+        if ($institution?->active_academic_year_id) {
+            $query->where('academic_year_id', $institution->active_academic_year_id);
+        }
+
+        return response()->json([
+            'data' => $query->get(['id', 'name', 'grade']),
+        ]);
+    }
+
+    /**
+     * Lightweight student list for student picker (BK / pelanggaran).
+     * Filter class_id (disarankan) dan/atau q (nama/NIS/NISN).
+     * Tidak membutuhkan modul student.
+     */
+    public function studentsLite(Request $request): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $q = trim((string) $request->get('q', ''));
+        $classId = $request->get('class_id');
+
+        if (!$classId && $q === '') {
+            return response()->json([
+                'message' => 'Pilih kelas atau ketik nama/NIS siswa.',
+                'data' => [],
+            ]);
+        }
+
+        $query = Student::query()
+            ->leftJoin('class', 'student.class_id', '=', 'class.id')
+            ->where('student.institution_id', $institutionId)
+            ->where(function ($w) {
+                $w->where('student.status', 'Aktif')->orWhereNull('student.status');
+            })
+            ->orderBy('student.name')
+            ->select([
+                'student.id',
+                'student.name',
+                'student.nis',
+                'student.nisn',
+                'student.class_id',
+                'class.name as class_name',
+            ]);
+
+        if ($classId) {
+            $query->where('student.class_id', (int) $classId)->limit(200);
+        } else {
+            $query->limit(50);
+        }
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('student.name', 'like', "%{$q}%")
+                    ->orWhere('student.nis', 'like', "%{$q}%")
+                    ->orWhere('student.nisn', 'like', "%{$q}%");
+            });
+        }
+
+        return response()->json([
+            'data' => $query->get(),
+        ]);
     }
 
     /**

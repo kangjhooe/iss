@@ -9,7 +9,6 @@ use App\Http\Requests\UpdateExtracurricularRequest;
 use App\Http\Requests\UpdateExtracurricularStudentRequest;
 use App\Http\Resources\ExtracurricularResource;
 use App\Http\Resources\ExtracurricularStudentResource;
-use App\Http\Resources\StudentResource;
 use App\Models\Extracurricular;
 use App\Models\ExtracurricularGrade;
 use App\Models\ExtracurricularSession;
@@ -71,6 +70,9 @@ class ExtracurricularController extends Controller
                     $q->where('name', 'like', '%' . $search . '%')
                         ->orWhere('description', 'like', '%' . $search . '%');
                 });
+            }
+            if ($request->filled('is_pramuka')) {
+                $query->where('is_pramuka', filter_var($request->get('is_pramuka'), FILTER_VALIDATE_BOOLEAN));
             }
 
             $query->orderBy('name');
@@ -134,6 +136,13 @@ class ExtracurricularController extends Controller
                 if (!empty($data['room_id'])) {
                     $data['location_note'] = null;
                 }
+            }
+
+            if (!array_key_exists('is_pramuka', $data) || $data['is_pramuka'] === null) {
+                $hay = strtolower(($data['name'] ?? '') . ' ' . ($data['description'] ?? ''));
+                $data['is_pramuka'] = str_contains($hay, 'pramuka');
+            } else {
+                $data['is_pramuka'] = (bool) $data['is_pramuka'];
             }
 
             $extracurricular = Extracurricular::create($data);
@@ -212,6 +221,12 @@ class ExtracurricularController extends Controller
                 $data['is_outdoor'] = false;
                 $data['location_note'] = null;
             }
+            if (array_key_exists('is_pramuka', $data)) {
+                $data['is_pramuka'] = (bool) $data['is_pramuka'];
+            } elseif (array_key_exists('name', $data) || array_key_exists('description', $data)) {
+                $hay = strtolower(($data['name'] ?? $extracurricular->name) . ' ' . ($data['description'] ?? $extracurricular->description));
+                $data['is_pramuka'] = str_contains($hay, 'pramuka');
+            }
 
             $extracurricular->update($data);
             if (array_key_exists('supervisor_employee_id', $data)) {
@@ -276,6 +291,37 @@ class ExtracurricularController extends Controller
     }
 
     /**
+     * Lightweight class list for the participant picker.
+     * Pembina/koordinator ekskul tidak punya modul class|student.
+     */
+    public function classesLite(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+        if (!$institutionId && !$user->isSuperAdmin()) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+        if (!$institutionId) {
+            return response()->json(['message' => 'Pilih institusi.'], 400);
+        }
+
+        $institution = Institution::find($institutionId);
+        $query = SchoolClass::query()
+            ->where('institution_id', $institutionId)
+            ->where('status', 'Aktif')
+            ->orderBy('grade')
+            ->orderBy('name');
+
+        if ($institution?->active_academic_year_id) {
+            $query->where('academic_year_id', $institution->active_academic_year_id);
+        }
+
+        return response()->json([
+            'data' => $query->get(['id', 'name', 'grade']),
+        ]);
+    }
+
+    /**
      * List students available to add. Requires class_id.
      */
     public function getAvailableStudents(Request $request, Extracurricular $extracurricular): JsonResponse
@@ -289,32 +335,59 @@ class ExtracurricularController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $semesterId = $this->getActiveSemesterId($extracurricular->institution_id);
-        $alreadyEnrolledQuery = $extracurricular->extracurricularStudents();
-        if ($semesterId) {
-            $alreadyEnrolledQuery->where('semester_id', $semesterId);
-        } else {
-            $alreadyEnrolledQuery->where('status', 'aktif');
+        try {
+            $semesterId = $this->getActiveSemesterId($extracurricular->institution_id);
+            $alreadyEnrolledQuery = $extracurricular->extracurricularStudents();
+            if ($semesterId) {
+                $alreadyEnrolledQuery->where('semester_id', $semesterId);
+            } else {
+                $alreadyEnrolledQuery->where('status', 'aktif');
+            }
+
+            $query = Student::where('institution_id', $extracurricular->institution_id)
+                ->where('status', 'Aktif')
+                ->where('class_id', $request->get('class_id'))
+                ->whereNotIn('id', $alreadyEnrolledQuery->pluck('student_id'));
+
+            if ($request->filled('search')) {
+                $search = $request->get('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('nis', 'like', '%' . $search . '%')
+                        ->orWhere('nisn', 'like', '%' . $search . '%');
+                });
+            }
+
+            $limit = min((int) $request->get('per_page', 200), 200);
+            $students = $query
+                ->with('schoolClass:id,name')
+                ->orderBy('name')
+                ->limit($limit)
+                ->get(['id', 'name', 'nis', 'nisn', 'class_id']);
+
+            return response()->json([
+                'data' => $students->map(function (Student $student) {
+                    $class = $student->schoolClass;
+                    return [
+                        'id' => (int) $student->id,
+                        'name' => $student->name,
+                        'nis' => $student->nis,
+                        'nisn' => $student->nisn,
+                        'class_id' => $student->class_id ? (int) $student->class_id : null,
+                        'class' => $class ? [
+                            'id' => (int) $class->id,
+                            'name' => $class->name,
+                        ] : null,
+                    ];
+                })->values(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Extracurricular getAvailableStudents failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal memuat daftar siswa.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
-
-        $query = Student::where('institution_id', $extracurricular->institution_id)
-            ->where('status', 'Aktif')
-            ->where('class_id', $request->get('class_id'))
-            ->whereNotIn('id', $alreadyEnrolledQuery->pluck('student_id'));
-
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('nis', 'like', '%' . $search . '%')
-                    ->orWhere('nisn', 'like', '%' . $search . '%');
-            });
-        }
-
-        $perPage = min((int) $request->get('per_page', 200), 200);
-        $students = $query->with('class:id,name')->orderBy('name')->paginate($perPage);
-
-        return StudentResource::collection($students)->response();
     }
 
     /**
@@ -365,6 +438,18 @@ class ExtracurricularController extends Controller
                 $added++;
             }
             DB::commit();
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            Log::error('Extracurricular addStudents failed', ['error' => $e->getMessage()]);
+            if ((string) $e->getCode() === '23000') {
+                return response()->json([
+                    'message' => 'Sebagian siswa sudah terdaftar sebagai peserta di semester ini.',
+                ], 422);
+            }
+            return response()->json([
+                'message' => 'Gagal menambahkan peserta.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Extracurricular addStudents failed', ['error' => $e->getMessage()]);

@@ -1,49 +1,45 @@
 <template>
   <Layout>
-    <div class="page">
-      <div class="page-header">
-        <div>
-          <h1>Perpustakaan Digital</h1>
-          <p class="page-subtitle">Baca ebook PDF koleksi sekolah Anda</p>
+    <div class="sp-page">
+      <div class="sp-page-header">
+        <p class="sp-subtitle">Baca ebook PDF koleksi sekolah Anda</p>
+      </div>
+
+      <div class="sp-filters">
+        <div class="sp-filter search-wrap">
+          <label for="ebook-search">Cari</label>
+          <input
+            id="ebook-search"
+            v-model="filters.search"
+            type="search"
+            placeholder="Judul, pengarang, ISBN..."
+            @input="debounceLoad"
+          />
+        </div>
+        <div class="sp-filter">
+          <label for="ebook-category">Kategori</label>
+          <select id="ebook-category" v-model="filters.category_id" @change="loadEbooks(1)">
+            <option value="">Semua kategori</option>
+            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.code }} — {{ c.name }}</option>
+          </select>
         </div>
       </div>
 
-      <div class="filters">
-        <div class="filters-row">
-          <div class="filter-group search-wrap">
-            <label for="ebook-search">Cari</label>
-            <input
-              id="ebook-search"
-              v-model="filters.search"
-              type="search"
-              class="filter-input"
-              placeholder="Judul, pengarang, ISBN..."
-              @input="debounceLoad"
-            />
-          </div>
-          <div class="filter-group">
-            <label for="ebook-category">Kategori</label>
-            <select id="ebook-category" v-model="filters.category_id" class="filter-input" @change="loadEbooks(1)">
-              <option value="">Semua kategori</option>
-              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.code }} — {{ c.name }}</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="loading" class="loading-state">
+      <div v-if="loading" class="sp-loading">
         <p>Memuat katalog ebook...</p>
       </div>
 
-      <div v-else-if="loadError" class="empty-state">
-        <p>{{ loadError }}</p>
-        <button type="button" class="btn-primary" @click="loadEbooks(1)">Coba lagi</button>
+      <div v-else-if="loadError" class="sp-empty">
+        <h3 class="sp-empty-title">Gagal memuat</h3>
+        <p class="sp-empty-desc">{{ loadError }}</p>
+        <div class="sp-empty-actions">
+          <button type="button" class="sp-btn sp-btn--primary" @click="loadEbooks(1)">Coba lagi</button>
+        </div>
       </div>
 
-      <div v-else-if="!ebooks.length" class="empty-state">
-        <h3>Belum ada ebook</h3>
-        <p>Pustakawan belum mengunggah buku PDF, atau tidak ada yang cocok dengan filter.</p>
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
+      <div v-else-if="!ebooks.length" class="sp-empty">
+        <h3 class="sp-empty-title">Belum ada ebook</h3>
+        <p class="sp-empty-desc">Pustakawan belum mengunggah buku PDF, atau tidak ada yang cocok dengan filter.</p>
       </div>
 
       <div v-else class="ebook-grid">
@@ -56,7 +52,7 @@
             <h2 class="ebook-title">{{ book.title }}</h2>
             <p class="ebook-meta">{{ book.author || 'Pengarang tidak diketahui' }}</p>
             <p v-if="book.category?.name" class="ebook-cat">{{ book.category.name }}</p>
-            <button type="button" class="btn-primary" :disabled="openingId === book.id" @click="openReader(book)">
+            <button type="button" class="sp-btn sp-btn--primary" :disabled="openingId === book.id" @click="openReader(book)">
               {{ openingId === book.id ? 'Membuka...' : 'Baca' }}
             </button>
           </div>
@@ -64,9 +60,9 @@
       </div>
 
       <div v-if="meta.last_page > 1" class="pagination">
-        <button type="button" class="pagination-btn" :disabled="meta.current_page <= 1" @click="loadEbooks(meta.current_page - 1)">Sebelumnya</button>
+        <button type="button" class="sp-btn sp-btn--ghost" :disabled="meta.current_page <= 1" @click="loadEbooks(meta.current_page - 1)">Sebelumnya</button>
         <span class="pagination-info">Halaman {{ meta.current_page }} / {{ meta.last_page }}</span>
-        <button type="button" class="pagination-btn" :disabled="meta.current_page >= meta.last_page" @click="loadEbooks(meta.current_page + 1)">Selanjutnya</button>
+        <button type="button" class="sp-btn sp-btn--ghost" :disabled="meta.current_page >= meta.last_page" @click="loadEbooks(meta.current_page + 1)">Selanjutnya</button>
       </div>
 
       <Teleport to="body">
@@ -74,8 +70,8 @@
           <div class="reader-toolbar">
             <div class="reader-title">{{ readerTitle }}</div>
             <div class="reader-actions">
-              <a v-if="readerUrl" :href="readerUrl" target="_blank" rel="noopener" class="btn-secondary">Tab baru</a>
-              <button type="button" class="btn-secondary" @click="closeReader">Tutup</button>
+              <a v-if="readerUrl" :href="readerUrl" target="_blank" rel="noopener" class="sp-btn sp-btn--ghost reader-btn">Tab baru</a>
+              <button type="button" class="sp-btn sp-btn--ghost reader-btn" @click="closeReader">Tutup</button>
             </div>
           </div>
           <iframe v-if="readerUrl" class="reader-frame" :src="readerUrl" title="Pembaca ebook PDF" />
@@ -205,26 +201,17 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.page { padding: 0 1rem 2rem; max-width: 1100px; margin: 0 auto; }
-.page-header { margin-bottom: 1.25rem; }
-.page-header h1 { margin: 0 0 0.25rem; font-size: 1.5rem; color: #0f172a; }
-.page-subtitle { margin: 0; color: #64748b; font-size: 0.95rem; }
-
-.filters { margin-bottom: 1.25rem; }
-.filters-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-.filter-group { display: flex; flex-direction: column; gap: 0.35rem; min-width: 180px; }
-.filter-group.search-wrap { flex: 1; min-width: 220px; }
-.filter-group label { font-size: 0.85rem; font-weight: 500; color: #475569; }
-.filter-input { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
-
-.loading-state, .empty-state { text-align: center; padding: 2.5rem 1rem; color: #64748b; }
-.empty-state h3 { margin: 0 0 0.5rem; color: #334155; }
+.search-wrap {
+  flex: 2;
+  min-width: 220px;
+}
 
 .ebook-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
 }
+
 .ebook-card {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -233,57 +220,74 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+
+.ebook-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
 .ebook-cover {
   aspect-ratio: 3 / 4;
-  background: #f1f5f9;
+  background: linear-gradient(160deg, #ecfdf5, #f1f5f9);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.ebook-cover img { width: 100%; height: 100%; object-fit: cover; }
+
+.ebook-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .cover-placeholder {
   font-weight: 800;
   letter-spacing: 0.08em;
   color: #059669;
   font-size: 1.25rem;
 }
-.ebook-body { padding: 0.9rem 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
-.ebook-title { margin: 0; font-size: 1rem; color: #0f172a; line-height: 1.35; }
-.ebook-meta, .ebook-cat { margin: 0; font-size: 0.85rem; color: #64748b; }
-.ebook-body .btn-primary { margin-top: auto; }
 
-.btn-primary {
-  display: inline-flex;
-  justify-content: center;
+.ebook-body {
+  padding: 14px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.ebook-title {
+  margin: 0;
+  font-size: 15px;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.ebook-meta,
+.ebook-cat {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ebook-body .sp-btn {
+  margin-top: auto;
+  width: 100%;
+}
+
+.pagination {
+  display: flex;
   align-items: center;
-  padding: 0.55rem 0.9rem;
-  background: #059669;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 4px;
 }
-.btn-primary:hover:not(:disabled) { background: #047857; }
-.btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
-.btn-secondary {
-  padding: 0.45rem 0.8rem;
-  background: #f1f5f9;
-  color: #334155;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-}
-.btn-secondary:hover { background: #e2e8f0; }
 
-.pagination { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1.5rem; }
-.pagination-btn { padding: 0.45rem 0.85rem; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; cursor: pointer; }
-.pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.pagination-info { font-size: 0.85rem; color: #64748b; }
-.back-link { display: inline-block; margin-top: 1rem; color: #059669; text-decoration: none; font-weight: 500; }
+.pagination-info {
+  font-size: 13px;
+  color: #64748b;
+}
 
 .reader-overlay {
   position: fixed;
@@ -293,6 +297,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
 }
+
 .reader-toolbar {
   display: flex;
   align-items: center;
@@ -302,12 +307,48 @@ onBeforeUnmount(() => {
   background: #1e293b;
   color: #fff;
 }
-.reader-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reader-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
-.reader-frame { flex: 1; width: 100%; border: 0; background: #334155; }
-.reader-loading { flex: 1; display: flex; align-items: center; justify-content: center; color: #cbd5e1; }
+
+.reader-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.reader-btn {
+  background: #334155;
+  border-color: #475569;
+  color: #fff;
+}
+
+.reader-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #334155;
+}
+
+.reader-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+}
 
 @media (max-width: 640px) {
-  .reader-toolbar { flex-wrap: wrap; }
+  .reader-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .ebook-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 </style>

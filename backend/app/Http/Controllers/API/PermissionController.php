@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\User;
+use App\Support\InstitutionContext;
+use App\Support\VocationalAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -17,9 +19,18 @@ class PermissionController extends Controller
      */
     public function index(Request $request)
     {
-        $permissions = Permission::query()
-            ->orderBy('label')
-            ->get(['key', 'label']);
+        $query = Permission::query()->orderBy('label');
+
+        $institutionId = InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->get('institution_id')
+        );
+        if ($institutionId && ! VocationalAccess::isVocationalInstitution($institutionId)) {
+            $query->whereNotIn('key', VocationalAccess::PERMISSION_KEYS);
+        }
+
+        $permissions = $query->get(['key', 'label']);
 
         return response()->json([
             'data' => $permissions,
@@ -118,7 +129,10 @@ class PermissionController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $permissionKeys = $request->input('permission_keys', []);
+            $permissionKeys = VocationalAccess::filterPermissionKeysForInstitution(
+                $targetUser->institution_id,
+                $request->input('permission_keys', [])
+            );
             $permissionIds = Permission::whereIn('key', $permissionKeys)->pluck('id')->all();
             $oldKeys = $targetUser->permissions()->pluck('key')->toArray();
             $targetUser->permissions()->sync($permissionIds);

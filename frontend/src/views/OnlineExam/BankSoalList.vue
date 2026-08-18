@@ -1252,4 +1252,30 @@ onUnmounted(() => {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+  .filter-search,
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .filters,
+  .filters-bar,
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .table-card {
+    overflow: visible;
+  }
+  .data-table {
+    table-layout: auto;
+    min-width: 640px;
+  }
+  .cell-keterangan,
+  .cell-nama {
+    max-width: none;
+    white-space: normal;
+  }
+}
 </style>

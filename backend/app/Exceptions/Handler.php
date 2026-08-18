@@ -98,7 +98,7 @@ class Handler extends ExceptionHandler
 
         // Handle authorization exceptions
         if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
-            return $this->handleAuthorizationException();
+            return $this->handleAuthorizationException($e);
         }
 
         // Handle rate limiting
@@ -186,11 +186,16 @@ class Handler extends ExceptionHandler
      *
      * @return JsonResponse
      */
-    protected function handleAuthorizationException(): JsonResponse
+    protected function handleAuthorizationException(\Illuminate\Auth\Access\AuthorizationException $e): JsonResponse
     {
+        $message = trim((string) $e->getMessage());
+        if ($message === '' || $message === 'This action is unauthorized.') {
+            $message = 'Anda tidak memiliki akses untuk melakukan aksi ini.';
+        }
+
         return response()->json([
             'success' => false,
-            'message' => 'Anda tidak memiliki akses untuk melakukan aksi ini.',
+            'message' => $message,
         ], 403);
     }
 

@@ -5,6 +5,10 @@ namespace App\Support;
 /**
  * Akses modul operasional mengajar untuk semua guru mapel
  * (bukan hanya wali kelas).
+ *
+ * Persuratan (correspondence) sengaja tidak termasuk — hanya admin /
+ * tugas tambahan administratif (TU, Humas, Kepala Sekolah, Hubin, dll.).
+ * Guru penerima disposisi memakai API inbox disposisi terpisah.
  */
 class TeacherAccess
 {
@@ -16,7 +20,6 @@ class TeacherAccess
     public static function defaultPermissionKeys(): array
     {
         return [
-            'correspondence',
             'teaching_journal',
             'grade_book',
             'schedule',

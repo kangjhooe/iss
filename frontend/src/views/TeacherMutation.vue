@@ -2873,5 +2873,13 @@ onMounted(async () => {
     gap: 8px;
   }
   .flow-arrow { transform: rotate(90deg); align-self: center; }
+  .student-preview-grid { grid-template-columns: 1fr; }
+  .form-group-type { min-width: 0; width: 100%; }
+  .report-form-top .filter-select,
+  .report-form-top input,
+  .report-form-top select {
+    min-width: 0 !important;
+    width: 100%;
+  }
 }
 </style>

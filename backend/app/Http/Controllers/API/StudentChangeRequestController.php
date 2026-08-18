@@ -5,8 +5,11 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApproveStudentChangeRequestRequest;
 use App\Http\Requests\StoreStudentChangeRequestRequest;
+use App\Http\Requests\UpdateMyStudentProfileRequest;
+use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use App\Models\StudentChangeRequest;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +17,94 @@ use Illuminate\Support\Facades\Log;
 
 class StudentChangeRequestController extends Controller
 {
+    public function allowedFields(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isStudent() && !$user?->isAdminOrSuperAdmin() && !$user?->isInstitutionAdmin()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'data' => StudentChangeRequest::APPROVAL_FIELDS,
+            'approval_fields' => StudentChangeRequest::APPROVAL_FIELDS,
+            'self_editable_fields' => StudentChangeRequest::SELF_EDITABLE_FIELDS,
+        ]);
+    }
+
+    /**
+     * Full profile for the authenticated student.
+     */
+    public function showMyProfile(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$user?->isStudent()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $profile = $user->studentProfile;
+            if (!$profile) {
+                return response()->json(['message' => 'Profil siswa tidak ditemukan.'], 404);
+            }
+
+            $student = Student::with(['institution', 'class'])->find($profile->id);
+            if (!$student) {
+                return response()->json(['message' => 'Data siswa tidak ditemukan.'], 404);
+            }
+
+            return response()->json([
+                'data' => new StudentResource($student),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Student showMyProfile failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal memuat profil',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Student updates non-key profile fields directly (no approval).
+     */
+    public function updateMyProfile(UpdateMyStudentProfileRequest $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $profile = $user->studentProfile;
+
+            if (!$profile) {
+                return response()->json(['message' => 'Profil siswa tidak ditemukan.'], 403);
+            }
+
+            $student = Student::with(['institution', 'class'])->find($profile->id);
+            if (!$student) {
+                return response()->json(['message' => 'Data siswa tidak ditemukan.'], 404);
+            }
+
+            $payload = $request->only(StudentChangeRequest::SELF_EDITABLE_FIELDS);
+            $student->fill($payload);
+            $student->save();
+
+            Log::info('Student self profile updated', [
+                'student_id' => $student->id,
+                'user_id' => $user->id,
+                'fields' => array_keys($payload),
+            ]);
+
+            return response()->json([
+                'message' => 'Profil berhasil diperbarui.',
+                'data' => new StudentResource($student->fresh(['institution', 'class'])),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Student self profile update failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal memperbarui profil',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -84,7 +175,7 @@ class StudentChangeRequestController extends Controller
             } else {
                 $oldValue = $oldValue === null ? '' : (string) $oldValue;
             }
-            if ($newValue === $oldValue || (string) $newValue === (string) $oldValue) {
+            if ((string) $newValue === (string) $oldValue) {
                 return response()->json(['message' => 'Nilai baru sama dengan nilai saat ini.'], 422);
             }
 
@@ -94,7 +185,7 @@ class StudentChangeRequestController extends Controller
                 'requested_by' => $user->id,
                 'field_name' => $fieldName,
                 'old_value' => $oldValue,
-                'new_value' => $newValue,
+                'new_value' => $newValue === null ? '' : (string) $newValue,
                 'status' => 'pending',
             ]);
             DB::commit();
@@ -165,13 +256,20 @@ class StudentChangeRequestController extends Controller
                 $student = $changeRequest->student;
                 $fieldName = $changeRequest->field_name;
                 $newValue = $changeRequest->new_value;
+                $previousEmail = $student->email;
 
                 if (in_array($fieldName, ['father_birth_date', 'mother_birth_date', 'guardian_birth_date', 'birth_date'], true)) {
-                    $student->{$fieldName} = $newValue ? \Carbon\Carbon::parse($newValue) : null;
+                    $student->{$fieldName} = $newValue !== null && $newValue !== ''
+                        ? \Carbon\Carbon::parse($newValue)
+                        : null;
                 } else {
-                    $student->{$fieldName} = $newValue;
+                    $student->{$fieldName} = $newValue === '' ? null : $newValue;
                 }
                 $student->save();
+
+                if (in_array($fieldName, ['email', 'name'], true)) {
+                    $this->syncLinkedUserAccount($student, $previousEmail);
+                }
 
                 $changeRequest->status = 'approved';
                 $changeRequest->approved_by = $user->id;
@@ -221,7 +319,13 @@ class StudentChangeRequestController extends Controller
         try {
             $user = $request->user();
             if ($user->isStudent()) {
-                return response()->json(['count' => 0], 200);
+                $profile = $user->studentProfile;
+                if (!$profile) {
+                    return response()->json(['count' => 0], 200);
+                }
+                return response()->json([
+                    'count' => StudentChangeRequest::where('student_id', $profile->id)->pending()->count(),
+                ], 200);
             }
 
             $query = StudentChangeRequest::pending();
@@ -240,16 +344,42 @@ class StudentChangeRequestController extends Controller
         }
     }
 
-    /**
-     * Get list of allowed fields for student self-service (for frontend form).
-     */
-    public function allowedFields(Request $request): JsonResponse
+    private function syncLinkedUserAccount(Student $student, ?string $previousEmail): void
     {
-        if (!$request->user()?->isStudent()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        /** @var \App\Services\StudentAccountService $accountService */
+        $accountService = app(\App\Services\StudentAccountService::class);
+        $accountService->ensureAccount($student);
+
+        $account = $accountService->findAccount($student);
+        if (!$account && $previousEmail) {
+            $account = User::where('email', $previousEmail)->where('role', 'student')->first();
         }
-        return response()->json([
-            'data' => StudentChangeRequest::ALLOWED_FIELDS,
-        ]);
+
+        if (!$account) {
+            return;
+        }
+
+        $updates = [];
+        if ($student->name && $student->name !== $account->name) {
+            $updates['name'] = $student->name;
+        }
+        if ($student->nik && $student->nik !== $account->login_nik) {
+            $updates['login_nik'] = $student->nik;
+        }
+        if ($student->email && $student->email !== $account->email) {
+            $conflict = User::where('email', $student->email)->where('id', '!=', $account->id)->exists();
+            if (!$conflict) {
+                $updates['email'] = $student->email;
+            } else {
+                Log::warning('Student change request email sync skipped due to conflict', [
+                    'student_id' => $student->id,
+                    'email' => $student->email,
+                ]);
+            }
+        }
+
+        if ($updates !== []) {
+            $account->update($updates);
+        }
     }
 }

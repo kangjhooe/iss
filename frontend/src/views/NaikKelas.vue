@@ -611,4 +611,22 @@ watch(targetAcademicYearId, () => {
   gap: 12px;
   justify-content: flex-end;
 }
+
+@media (max-width: 768px) {
+  .field-group {
+    min-width: 0;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+  .modal-actions button {
+    width: 100%;
+  }
+}
 </style>

@@ -106,6 +106,7 @@ const emit = defineEmits(['close', 'print'])
   font-size: 12pt;
   line-height: 1.6;
   box-sizing: border-box;
+  transform-origin: top center;
 }
 
 .preview-paper :deep(table) {
@@ -121,5 +122,46 @@ const emit = defineEmits(['close', 'print'])
 
 .preview-paper :deep(img) {
   max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .preview-overlay {
+    padding: 8px;
+    align-items: stretch;
+  }
+
+  .preview-dialog {
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 10px;
+  }
+
+  .preview-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .preview-header h3 {
+    font-size: 14px;
+  }
+
+  .preview-body {
+    padding: 12px;
+  }
+
+  .preview-paper {
+    width: min(210mm, 100%);
+    min-height: auto;
+    padding: 16px 18px 20px;
+    font-size: 11pt;
+  }
+}
+
+@media (max-width: 480px) {
+  .preview-paper {
+    padding: 12px 14px 16px;
+    font-size: 10.5pt;
+    line-height: 1.5;
+  }
 }
 </style>

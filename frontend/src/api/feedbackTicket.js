@@ -11,7 +11,7 @@ export const feedbackTicketApi = {
     return api.post('/v1/feedback-tickets', data)
   },
   update(id, data) {
-    return api.put(`/v1/feedback-tickets/${id}`, data)
+    return api.post(`/v1/feedback-tickets/${id}/status`, data)
   },
   getOpenCount() {
     return api.get('/v1/feedback-tickets/open-count')

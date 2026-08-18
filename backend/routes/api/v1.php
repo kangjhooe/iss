@@ -21,6 +21,9 @@ use App\Http\Controllers\API\FinanceDashboardController;
 use App\Http\Controllers\API\FinanceFeeTypeController;
 use App\Http\Controllers\API\FinanceInvoiceController;
 use App\Http\Controllers\API\FinancePaymentController;
+use App\Http\Controllers\API\StudentFinanceController;
+use App\Http\Controllers\API\ParentPortalController;
+use App\Http\Controllers\API\SchoolPostController;
 use App\Http\Controllers\API\InstitutionChangeRequestController;
 use App\Http\Controllers\API\StudentChangeRequestController;
 use App\Http\Controllers\API\TeacherChangeRequestController;
@@ -31,6 +34,13 @@ use App\Http\Controllers\API\StudentController;
 use App\Http\Controllers\API\BukuIndukController;
 use App\Http\Controllers\API\AlumniController;
 use App\Http\Controllers\API\AlumniDestinationController;
+use App\Http\Controllers\API\IndustryPartnerController;
+use App\Http\Controllers\API\PklPeriodController;
+use App\Http\Controllers\API\PklPlacementController;
+use App\Http\Controllers\API\PklJournalController;
+use App\Http\Controllers\API\ProgramKeahlianController;
+use App\Http\Controllers\API\BkkVacancyController;
+use App\Http\Controllers\API\BkkApplicationController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\StudentMutationController;
 use App\Http\Controllers\API\TeacherMutationController;
@@ -39,6 +49,10 @@ use App\Http\Controllers\API\ViolationTypeController;
 use App\Http\Controllers\API\CounselingController;
 use App\Http\Controllers\API\CounselingTypeController;
 use App\Http\Controllers\API\BkReportController;
+use App\Http\Controllers\API\UksVisitController;
+use App\Http\Controllers\API\UksVisitTypeController;
+use App\Http\Controllers\API\UksReportController;
+use App\Http\Controllers\API\UksMedicineController;
 use App\Http\Controllers\API\AchievementController;
 use App\Http\Controllers\API\AchievementTypeController;
 use App\Http\Controllers\API\PointThresholdController;
@@ -55,6 +69,10 @@ use App\Http\Controllers\API\TeacherViolationController;
 use App\Http\Controllers\API\PiketController;
 use App\Http\Controllers\API\EmployeeController;
 use App\Http\Controllers\API\EmployeeInstitutionAssignmentController;
+use App\Http\Controllers\API\EmployeeLeaveController;
+use App\Http\Controllers\API\EmployeeDecreeController;
+use App\Http\Controllers\API\EmployeeStructuralPositionController;
+use App\Http\Controllers\API\EmployeeCareerHistoryController;
 use App\Http\Controllers\API\InventoryController;
 use App\Http\Controllers\API\InventoryCategoryController;
 use App\Http\Controllers\API\InventoryTransactionController;
@@ -72,6 +90,8 @@ use App\Http\Controllers\API\PublicReleaseController;
 use App\Http\Controllers\API\SuperAdminReportController;
 use App\Http\Controllers\API\SuperAdminDatabaseBackupController;
 use App\Http\Controllers\API\SuperAdminImpersonationController;
+use App\Http\Controllers\API\SuperAdminMonetizationController;
+use App\Http\Controllers\API\InstitutionMonetizationController;
 use App\Http\Controllers\API\PermissionController;
 use App\Http\Controllers\API\AdditionalDutyController;
 use App\Http\Controllers\API\AuditLogController;
@@ -196,6 +216,7 @@ Route::middleware('throttle:60,1')->prefix('exam/attempt')->group(function () {
 
 // Public school landing: institusi by NPSN, buku tamu submit
 Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])->name('public.school.show');
+Route::get('/public/school/posts', [SchoolPostController::class, 'publicByNpsn'])->name('public.school.posts');
 Route::middleware('throttle:30,1')->get('/public/npsn-lookup', [PublicSchoolController::class, 'lookupNpsnReferensi'])->name('public.npsn-lookup');
 Route::middleware('throttle:5,1')->post('/public/guest-visit', [PublicSchoolController::class, 'storeGuestVisit'])->name('public.guest-visit.store');
 
@@ -216,7 +237,7 @@ Route::middleware('throttle:30,1')->get('/public/releases', [PublicReleaseContro
 Route::get('/app-branding', [AppBrandingController::class, 'show'])->name('app-branding.show');
 
 // Protected routes with rate limiting
-Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'storage.quota'])->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
@@ -247,13 +268,19 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::apiResource('institution', InstitutionController::class);
     });
 
+    // Student self-service profile (must be registered before /student/{id})
+    Route::get('/student/profile', [StudentChangeRequestController::class, 'showMyProfile'])->name('student.profile.show');
+    Route::put('/student/profile', [StudentChangeRequestController::class, 'updateMyProfile'])->name('student.profile.update');
+
     // Student routes (list tanpa cache agar tambah/edit/import langsung muncul)
     Route::middleware('module:student')->group(function () {
         Route::get('/student', [StudentController::class, 'index']);
         Route::get('/student/export', [StudentController::class, 'export'])->name('student.export');
+        Route::get('/student/account-status', [StudentController::class, 'accountStatus'])->name('student.account-status');
         Route::post('/student', [StudentController::class, 'store']);
         Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
         Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
+        Route::post('/student/ensure-accounts-bulk', [StudentController::class, 'ensureAccountsBulk'])->name('student.ensure-accounts-bulk');
         Route::post('/student/graduate-bulk', [AlumniController::class, 'graduateBulk']);
         Route::post('/student/revoke-graduation-bulk', [AlumniController::class, 'revokeGraduationBulk']);
         Route::get('/alumni', [AlumniController::class, 'index']);
@@ -262,6 +289,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::get('/student/{id}/buku-induk', [BukuIndukController::class, 'show'])->name('student.buku-induk');
         Route::get('/student/{id}/buku-induk/pdf', [BukuIndukController::class, 'print'])->name('student.buku-induk.pdf');
         Route::put('/student/{id}', [StudentController::class, 'update']);
+        Route::post('/student/{id}/ensure-account', [StudentController::class, 'ensureAccount'])->name('student.ensure-account');
+        Route::post('/student/{id}/reset-password', [StudentController::class, 'resetPassword'])->name('student.reset-password');
         Route::delete('/student/{id}', [StudentController::class, 'destroy']);
         Route::post('/student/{id}/restore', [StudentController::class, 'restore']);
         Route::post('/student/{id}/graduate', [AlumniController::class, 'graduate']);
@@ -298,6 +327,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::get('/violations', [ViolationController::class, 'index']);
         Route::post('/violations', [ViolationController::class, 'store']);
         Route::get('/violations/by-student/{studentId}', [ViolationController::class, 'byStudent'])->name('violations.by-student');
+        Route::get('/violations/classes-lite', [ViolationController::class, 'classesLite']);
+        Route::get('/violations/students-lite', [ViolationController::class, 'studentsLite']);
         Route::post('/violations/{violation}/approve', [ViolationController::class, 'approve']);
         Route::post('/violations/{violation}/reject', [ViolationController::class, 'reject']);
         Route::get('/violations/{violation}', [ViolationController::class, 'show']);
@@ -362,6 +393,74 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::get('/bk-reports/violations', [BkReportController::class, 'violationDetail'])->name('bk-reports.violations');
         Route::get('/bk-reports/export', [BkReportController::class, 'export'])->name('bk-reports.export');
         Route::get('/bk-reports/export-violations', [BkReportController::class, 'exportViolations'])->name('bk-reports.export-violations');
+    });
+
+    // Portal siswa: ringkasan kunjungan UKS sendiri (harus sebelum /uks/visits/{id})
+    Route::get('/uks/visits/my', [UksVisitController::class, 'my'])->name('uks.visits.my');
+
+    // Portal guru/staff: cuti sendiri (tanpa modul kepegawaian penuh)
+    Route::get('/employee-leaves/meta', [EmployeeLeaveController::class, 'meta'])->name('employee-leaves.meta');
+    Route::get('/employee-leaves/my', [EmployeeLeaveController::class, 'my'])->name('employee-leaves.my');
+    Route::post('/employee-leaves/my', [EmployeeLeaveController::class, 'storeMy'])->name('employee-leaves.my.store');
+    Route::post('/employee-leaves/{employee_leave_request}/cancel', [EmployeeLeaveController::class, 'cancel'])->name('employee-leaves.cancel');
+
+    // Kepegawaian lanjutan (cuti, SK, jabatan struktural, riwayat)
+    Route::middleware('module:kepegawaian')->group(function () {
+        Route::get('/employee-leaves', [EmployeeLeaveController::class, 'index']);
+        Route::post('/employee-leaves', [EmployeeLeaveController::class, 'store']);
+        Route::get('/employee-leaves/{employee_leave_request}', [EmployeeLeaveController::class, 'show']);
+        Route::post('/employee-leaves/{employee_leave_request}/decide', [EmployeeLeaveController::class, 'decide']);
+
+        Route::get('/employee-decrees/meta', [EmployeeDecreeController::class, 'meta']);
+        Route::get('/employee-decrees', [EmployeeDecreeController::class, 'index']);
+        Route::post('/employee-decrees', [EmployeeDecreeController::class, 'store']);
+        Route::get('/employee-decrees/{employee_decree}', [EmployeeDecreeController::class, 'show']);
+        Route::match(['put', 'post'], '/employee-decrees/{employee_decree}', [EmployeeDecreeController::class, 'update']);
+        Route::delete('/employee-decrees/{employee_decree}', [EmployeeDecreeController::class, 'destroy']);
+        Route::get('/employee-decrees/{employee_decree}/download', [EmployeeDecreeController::class, 'download']);
+
+        Route::get('/structural-positions', [EmployeeStructuralPositionController::class, 'positions']);
+        Route::get('/employee-structural-positions', [EmployeeStructuralPositionController::class, 'index']);
+        Route::post('/employee-structural-positions', [EmployeeStructuralPositionController::class, 'store']);
+        Route::get('/employee-structural-positions/{employee_structural_position}', [EmployeeStructuralPositionController::class, 'show']);
+        Route::post('/employee-structural-positions/{employee_structural_position}/end', [EmployeeStructuralPositionController::class, 'end']);
+
+        Route::get('/employee-career-history/{employeeId}', [EmployeeCareerHistoryController::class, 'show']);
+    });
+
+    // UKS (Usaha Kesehatan Sekolah)
+    Route::middleware('module:uks')->group(function () {
+        Route::get('/uks/visits', [UksVisitController::class, 'index']);
+        Route::get('/uks/visits/stats', [UksVisitController::class, 'stats'])->name('uks.visits.stats');
+        Route::get('/uks/visits/export', [UksVisitController::class, 'export'])->name('uks.visits.export');
+        Route::get('/uks/visits/recorders', [UksVisitController::class, 'recorders'])->name('uks.visits.recorders');
+        Route::post('/uks/visits', [UksVisitController::class, 'store']);
+        Route::get('/uks/visits/by-student/{studentId}', [UksVisitController::class, 'byStudent'])->name('uks.visits.by-student');
+        Route::get('/uks/visits/{uks_visit}', [UksVisitController::class, 'show']);
+        Route::put('/uks/visits/{uks_visit}', [UksVisitController::class, 'update']);
+        Route::delete('/uks/visits/{uks_visit}', [UksVisitController::class, 'destroy']);
+
+        Route::get('/uks/visit-types', [UksVisitTypeController::class, 'index']);
+        Route::post('/uks/visit-types', [UksVisitTypeController::class, 'store']);
+        Route::post('/uks/visit-types/seed-defaults', [UksVisitTypeController::class, 'seedDefaults'])->name('uks.visit-types.seed');
+        Route::get('/uks/visit-types/{uks_visit_type}', [UksVisitTypeController::class, 'show']);
+        Route::put('/uks/visit-types/{uks_visit_type}', [UksVisitTypeController::class, 'update']);
+        Route::delete('/uks/visit-types/{uks_visit_type}', [UksVisitTypeController::class, 'destroy']);
+
+        Route::get('/uks-reports/summary', [UksReportController::class, 'summary'])->name('uks-reports.summary');
+        Route::get('/uks-reports/visits', [UksReportController::class, 'visits'])->name('uks-reports.visits');
+        Route::get('/uks-reports/export', [UksReportController::class, 'export'])->name('uks-reports.export');
+        Route::get('/uks-reports/export-visits', [UksReportController::class, 'exportVisits'])->name('uks-reports.export-visits');
+
+        // Inventaris obat / stok UKS
+        Route::get('/uks/medicines/summary', [UksMedicineController::class, 'summary'])->name('uks.medicines.summary');
+        Route::get('/uks/medicines/transactions', [UksMedicineController::class, 'transactions'])->name('uks.medicines.transactions');
+        Route::post('/uks/medicines/transactions', [UksMedicineController::class, 'storeTransaction'])->name('uks.medicines.transactions.store');
+        Route::get('/uks/medicines', [UksMedicineController::class, 'index']);
+        Route::post('/uks/medicines', [UksMedicineController::class, 'store']);
+        Route::get('/uks/medicines/{uks_medicine}', [UksMedicineController::class, 'show']);
+        Route::put('/uks/medicines/{uks_medicine}', [UksMedicineController::class, 'update']);
+        Route::delete('/uks/medicines/{uks_medicine}', [UksMedicineController::class, 'destroy']);
     });
 
     // Apresiasi Guru (poin & prestasi guru)
@@ -490,6 +589,31 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     Route::get('/student-attendances/my', [StudentAttendanceController::class, 'my'])->name('student-attendances.my');
     Route::get('/student-attendances/my/export', [StudentAttendanceController::class, 'exportMy'])->name('student-attendances.my.export');
 
+    // Portal siswa: tagihan & riwayat pembayaran sendiri (tanpa module:finance)
+    Route::prefix('finance/my')->group(function () {
+        Route::get('summary', [StudentFinanceController::class, 'summary'])->name('finance.my.summary');
+        Route::get('invoices', [StudentFinanceController::class, 'invoices'])->name('finance.my.invoices');
+        Route::get('payments', [StudentFinanceController::class, 'payments'])->name('finance.my.payments');
+        Route::get('payments/{payment}/receipt', [StudentFinanceController::class, 'receipt'])->name('finance.my.payments.receipt');
+    });
+
+    // Portal siswa: penempatan & jurnal PKL (tanpa module:pkl) — SMK/MAK
+    Route::middleware('vocational')->prefix('pkl/my')->group(function () {
+        Route::get('placements', [PklJournalController::class, 'myPlacements'])->name('pkl.my.placements');
+        Route::get('placements/{pkl_placement}', [PklJournalController::class, 'myPlacementShow'])->name('pkl.my.placements.show');
+        Route::get('placements/{pkl_placement}/journals', [PklJournalController::class, 'myJournalsIndex'])->name('pkl.my.journals.index');
+        Route::post('placements/{pkl_placement}/journals', [PklJournalController::class, 'myJournalsStore'])->name('pkl.my.journals.store');
+        Route::put('placements/{pkl_placement}/journals/{journal}', [PklJournalController::class, 'myJournalsUpdate'])->name('pkl.my.journals.update');
+        Route::delete('placements/{pkl_placement}/journals/{journal}', [PklJournalController::class, 'myJournalsDestroy'])->name('pkl.my.journals.destroy');
+    });
+
+    // Portal siswa/alumni: lowongan & lamaran BKK (tanpa module:bkk) — SMK/MAK
+    Route::middleware('vocational')->prefix('bkk/my')->group(function () {
+        Route::get('vacancies', [BkkVacancyController::class, 'myOpen'])->name('bkk.my.vacancies');
+        Route::get('applications', [BkkApplicationController::class, 'myIndex'])->name('bkk.my.applications');
+        Route::post('applications', [BkkApplicationController::class, 'myStore'])->name('bkk.my.applications.store');
+    });
+
     // Absensi (Guru & Staff per hari)
     Route::middleware('module:attendance')->group(function () {
         Route::get('/employee-attendances/status-options', [EmployeeAttendanceController::class, 'statusOptions'])->name('employee-attendances.status-options');
@@ -592,6 +716,15 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::delete('/class/{id}/students/{studentId}', [ClassController::class, 'removeStudent'])->name('class.remove-student');
     });
 
+    // Program keahlian (SMK/MAK) — master jurusan + dipakai Kaprog
+    Route::middleware('module:class')->group(function () {
+        Route::get('program-keahlian', [ProgramKeahlianController::class, 'index']);
+        Route::post('program-keahlian', [ProgramKeahlianController::class, 'store']);
+        Route::get('program-keahlian/{program_keahlian}', [ProgramKeahlianController::class, 'show']);
+        Route::put('program-keahlian/{program_keahlian}', [ProgramKeahlianController::class, 'update']);
+        Route::delete('program-keahlian/{program_keahlian}', [ProgramKeahlianController::class, 'destroy']);
+    });
+
     // GET subjects: boleh diakses modul Jadwal atau Ujian Online (untuk dropdown mapel di bank soal, dll.)
     Route::middleware('module:schedule|online_exam')->group(function () {
         Route::get('subjects', [SubjectController::class, 'index'])->name('subjects.index.shared');
@@ -665,7 +798,28 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
 
     // Feedback tickets (lapor bug / request fitur admin sekolah → super admin)
     Route::get('/feedback-tickets/open-count', [FeedbackTicketController::class, 'openCount'])->name('feedback-tickets.open-count');
+    Route::post('/feedback-tickets/{id}/status', [FeedbackTicketController::class, 'update'])->name('feedback-tickets.status');
     Route::apiResource('feedback-tickets', FeedbackTicketController::class)->only(['index', 'store', 'show', 'update']);
+
+    // Portal orang tua / wali murid
+    Route::prefix('parent')->group(function () {
+        Route::get('/dashboard', [ParentPortalController::class, 'dashboard'])->name('parent.dashboard');
+        Route::get('/children', [ParentPortalController::class, 'children'])->name('parent.children');
+        Route::get('/announcements', [ParentPortalController::class, 'announcements'])->name('parent.announcements');
+        Route::get('/children/{studentId}/schedule', [ParentPortalController::class, 'schedule'])->name('parent.children.schedule');
+        Route::get('/children/{studentId}/grades', [ParentPortalController::class, 'grades'])->name('parent.children.grades');
+        Route::get('/children/{studentId}/attendance', [ParentPortalController::class, 'attendance'])->name('parent.children.attendance');
+        Route::get('/children/{studentId}/violations', [ParentPortalController::class, 'violations'])->name('parent.children.violations');
+    });
+
+    // Konten publik sekolah (berita & galeri) — staff
+    Route::middleware('module:school_content|institution')->group(function () {
+        Route::get('/school-posts', [SchoolPostController::class, 'index']);
+        Route::post('/school-posts', [SchoolPostController::class, 'store']);
+        Route::get('/school-posts/{school_post}', [SchoolPostController::class, 'show']);
+        Route::match(['put', 'post'], '/school-posts/{school_post}', [SchoolPostController::class, 'update']);
+        Route::delete('/school-posts/{school_post}', [SchoolPostController::class, 'destroy']);
+    });
 
     // Student change requests (siswa lengkapi data, admin setujui)
     Route::get('/student-change-requests/allowed-fields', [StudentChangeRequestController::class, 'allowedFields'])->name('student-change-requests.allowed-fields');
@@ -678,6 +832,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     Route::get('/teacher-change-requests/pending-count', [TeacherChangeRequestController::class, 'pendingCount'])->name('teacher-change-requests.pending-count');
     Route::post('/teacher-change-requests/{id}/approve', [TeacherChangeRequestController::class, 'approve'])->name('teacher-change-requests.approve');
     Route::apiResource('teacher-change-requests', TeacherChangeRequestController::class)->only(['index', 'store', 'show']);
+    Route::put('/teacher/profile', [TeacherChangeRequestController::class, 'updateMyProfile'])->name('teacher.profile.update');
 
     // Facility routes (Sarana Prasarana)
     Route::prefix('facility')->middleware('module:facility')->group(function () {
@@ -756,6 +911,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         // Report routes
         Route::prefix('reports')->group(function () {
             Route::get('/statistics', [InventoryReportController::class, 'statistics'])->name('inventory.reports.statistics');
+            Route::get('/stock', [InventoryReportController::class, 'stock'])->name('inventory.reports.stock');
             Route::get('/by-category', [InventoryReportController::class, 'byCategory'])->name('inventory.reports.by-category');
             Route::get('/by-location', [InventoryReportController::class, 'byLocation'])->name('inventory.reports.by-location');
             Route::get('/damaged-missing', [InventoryReportController::class, 'damagedMissing'])->name('inventory.reports.damaged-missing');
@@ -781,6 +937,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     // Wali kelas hub (scoped by homeroom ownership, no extra module grant)
     Route::prefix('teacher/wali')->group(function () {
         Route::get('/classes/{classId}/students/{studentId}', [WaliKelasController::class, 'showStudent']);
+        Route::patch('/classes/{classId}/students/{studentId}/login-fields', [WaliKelasController::class, 'updateLoginFields']);
+        Route::post('/classes/{classId}/students/{studentId}/ensure-account', [WaliKelasController::class, 'ensureStudentAccount']);
+        Route::post('/classes/{classId}/students/{studentId}/reset-password', [WaliKelasController::class, 'resetStudentPassword']);
+        Route::post('/classes/{classId}/ensure-accounts', [WaliKelasController::class, 'ensureAccountsBulk']);
         Route::get('/classes/{classId}/dashboard', [WaliKelasController::class, 'dashboard']);
         Route::get('/classes/{classId}/attendance-summary', [WaliKelasController::class, 'attendanceSummary']);
         Route::get('/classes/{classId}/grades-overview', [WaliKelasController::class, 'gradesOverview']);
@@ -842,7 +1002,33 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
             ->name('super-admin.database-backups.destroy');
     });
 
-    // Correspondence routes (Persuratan)
+    // Super admin: monetisasi (dark launch — default tersembunyi dari sekolah)
+    Route::middleware(\App\Http\Middleware\EnsureSuperAdmin::class)->prefix('super-admin/monetization')->group(function () {
+        Route::get('/summary', [SuperAdminMonetizationController::class, 'summary'])->name('super-admin.monetization.summary');
+        Route::put('/launch', [SuperAdminMonetizationController::class, 'updateLaunch'])->name('super-admin.monetization.launch');
+        Route::get('/plans', [SuperAdminMonetizationController::class, 'plans'])->name('super-admin.monetization.plans');
+        Route::post('/plans', [SuperAdminMonetizationController::class, 'storePlan'])->name('super-admin.monetization.plans.store');
+        Route::put('/plans/{id}', [SuperAdminMonetizationController::class, 'updatePlan'])->name('super-admin.monetization.plans.update');
+        Route::get('/addons', [SuperAdminMonetizationController::class, 'addons'])->name('super-admin.monetization.addons');
+        Route::put('/addons/{id}', [SuperAdminMonetizationController::class, 'updateAddon'])->name('super-admin.monetization.addons.update');
+        Route::get('/institutions', [SuperAdminMonetizationController::class, 'institutions'])->name('super-admin.monetization.institutions');
+        Route::put('/institutions/{institutionId}/subscription', [SuperAdminMonetizationController::class, 'upsertInstitutionSubscription'])
+            ->name('super-admin.monetization.institutions.subscription');
+        Route::put('/institutions/{institutionId}/addons', [SuperAdminMonetizationController::class, 'upsertInstitutionAddon'])
+            ->name('super-admin.monetization.institutions.addons');
+    });
+
+    // Sisi sekolah: hanya hidup setelah Super Admin klik "Tampilkan ke sekolah"
+    Route::middleware('monetization.launched')->prefix('billing')->group(function () {
+        Route::get('/overview', [InstitutionMonetizationController::class, 'overview'])->name('billing.overview');
+    });
+
+    // Inbox disposisi: penerima (guru) tanpa modul Persuratan penuh
+    Route::get('/dispositions/pending', [DispositionController::class, 'pending'])->name('dispositions.pending');
+    Route::post('/correspondence/dispositions/{id}/complete', [DispositionController::class, 'complete'])
+        ->name('correspondence.dispositions.complete');
+
+    // Correspondence routes (Persuratan) — admin / tugas administratif
     Route::prefix('correspondence')->middleware('module:correspondence')->group(function () {
         Route::get('/categories', [CorrespondenceController::class, 'categories'])->name('correspondence.categories');
         Route::get('/letter-types', [CorrespondenceController::class, 'letterTypes'])->name('correspondence.letter-types');
@@ -859,14 +1045,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::post('/{id}/send', [CorrespondenceController::class, 'send'])->name('correspondence.send');
         Route::post('/{id}/archive', [CorrespondenceController::class, 'archive'])->name('correspondence.archive');
         Route::post('/{id}/restore', [CorrespondenceController::class, 'restore'])->name('correspondence.restore');
-        
-        // Disposition routes
+
+        // Disposition manage (buat/edit/hapus) — perlu modul penuh
         Route::get('/{correspondenceId}/dispositions', [DispositionController::class, 'index'])->name('correspondence.dispositions.index');
         Route::post('/{correspondenceId}/dispositions', [DispositionController::class, 'store'])->name('correspondence.dispositions.store');
         Route::put('/dispositions/{id}', [DispositionController::class, 'update'])->name('correspondence.dispositions.update');
-        Route::post('/dispositions/{id}/complete', [DispositionController::class, 'complete'])->name('correspondence.dispositions.complete');
         Route::delete('/dispositions/{id}', [DispositionController::class, 'destroy'])->name('correspondence.dispositions.destroy');
-        
+
         // Attachment routes
         Route::get('/{correspondenceId}/attachments', [AttachmentController::class, 'index'])->name('correspondence.attachments.index');
         Route::post('/{correspondenceId}/attachments', [AttachmentController::class, 'store'])->name('correspondence.attachments.store');
@@ -876,11 +1061,6 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     });
     Route::middleware('module:correspondence')->group(function () {
         Route::apiResource('correspondence', CorrespondenceController::class);
-    });
-    
-    // Disposition routes (standalone)
-    Route::middleware('module:correspondence')->group(function () {
-        Route::get('/dispositions/pending', [DispositionController::class, 'pending'])->name('dispositions.pending');
     });
 
     // Editor Persuratan (template + surat Word-like)
@@ -969,6 +1149,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
 
     // Ekstrakurikuler
     Route::middleware('module:extracurricular')->group(function () {
+        Route::get('extracurriculars/classes-lite', [ExtracurricularController::class, 'classesLite'])->name('extracurriculars.classes-lite');
         Route::get('extracurriculars', [ExtracurricularController::class, 'index'])->name('extracurriculars.index');
         Route::post('extracurriculars', [ExtracurricularController::class, 'store'])->name('extracurriculars.store');
         Route::get('extracurriculars/{extracurricular}', [ExtracurricularController::class, 'show'])->name('extracurriculars.show');
@@ -1040,7 +1221,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
     });
 
     // Ujian Online (admin/guru: exam, session, bank soal, peserta, kendali)
-    Route::middleware('module:online_exam')->prefix('exam')->group(function () {
+    Route::middleware(['module:online_exam', 'online_exam.entitled'])->prefix('exam')->group(function () {
         Route::get('exams/by-code/{code}', [ExamController::class, 'showByCode'])->name('exams.by-code');
         Route::apiResource('exams', ExamController::class);
         Route::post('exams/{exam}/questions', [ExamController::class, 'attachQuestions'])->name('exams.attach-questions');
@@ -1074,7 +1255,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::get('subjects', [SubjectController::class, 'index'])->name('exam.subjects.index');
         Route::get('subjects-ready', [ExamController::class, 'subjectsReady'])->name('exam.subjects.ready');
     });
-    Route::middleware('module:online_exam')->group(function () {
+    Route::middleware(['module:online_exam', 'online_exam.entitled'])->group(function () {
         Route::apiResource('question-stimuli', QuestionStimulusController::class);
         Route::post('banks/restore', [BankSoalController::class, 'restore'])->name('exam.banks.restore');
         Route::get('banks/{bank_soal}/backup', [BankSoalController::class, 'backup'])->name('exam.banks.backup');
@@ -1092,5 +1273,51 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context'])->gro
         Route::post('question-bank/import', [QuestionBankController::class, 'import'])->name('exam.question-bank.import');
         Route::post('question-bank/{question_bank}/duplicate', [QuestionBankController::class, 'duplicate'])->name('exam.question-bank.duplicate');
         Route::apiResource('question-bank', QuestionBankController::class);
+    });
+
+    // Mitra DU/DI (shared PKL + BKK — Beta, SMK/MAK)
+    Route::middleware(['vocational', 'module:pkl|bkk'])->group(function () {
+        Route::get('industry-partners', [IndustryPartnerController::class, 'index']);
+        Route::post('industry-partners', [IndustryPartnerController::class, 'store']);
+        Route::get('industry-partners/{industry_partner}', [IndustryPartnerController::class, 'show']);
+        Route::put('industry-partners/{industry_partner}', [IndustryPartnerController::class, 'update']);
+        Route::delete('industry-partners/{industry_partner}', [IndustryPartnerController::class, 'destroy']);
+    });
+
+    // PKL / Prakerin (Beta, SMK/MAK)
+    Route::middleware(['vocational', 'module:pkl'])->group(function () {
+        Route::get('pkl/periods', [PklPeriodController::class, 'index']);
+        Route::post('pkl/periods', [PklPeriodController::class, 'store']);
+        Route::get('pkl/periods/{pkl_period}', [PklPeriodController::class, 'show']);
+        Route::put('pkl/periods/{pkl_period}', [PklPeriodController::class, 'update']);
+        Route::delete('pkl/periods/{pkl_period}', [PklPeriodController::class, 'destroy']);
+
+        Route::get('pkl/placements/export', [PklPlacementController::class, 'export']);
+        Route::post('pkl/placements/bulk', [PklPlacementController::class, 'bulkStore']);
+        Route::get('pkl/placements', [PklPlacementController::class, 'index']);
+        Route::post('pkl/placements', [PklPlacementController::class, 'store']);
+        Route::get('pkl/placements/{pkl_placement}', [PklPlacementController::class, 'show']);
+        Route::put('pkl/placements/{pkl_placement}', [PklPlacementController::class, 'update']);
+        Route::delete('pkl/placements/{pkl_placement}', [PklPlacementController::class, 'destroy']);
+        Route::get('pkl/placements/{pkl_placement}/monitoring-logs', [PklPlacementController::class, 'listMonitoring']);
+        Route::post('pkl/placements/{pkl_placement}/monitoring-logs', [PklPlacementController::class, 'storeMonitoring']);
+        Route::delete('pkl/placements/{pkl_placement}/monitoring-logs/{monitoring_log}', [PklPlacementController::class, 'destroyMonitoring']);
+        Route::get('pkl/placements/{pkl_placement}/journals', [PklJournalController::class, 'indexForPlacement']);
+        Route::put('pkl/placements/{pkl_placement}/journals/{journal}', [PklJournalController::class, 'updateSupervisorNotes']);
+    });
+
+    // BKK / Bursa Kerja (Beta, SMK/MAK)
+    Route::middleware(['vocational', 'module:bkk'])->group(function () {
+        Route::get('bkk/vacancies', [BkkVacancyController::class, 'index']);
+        Route::post('bkk/vacancies', [BkkVacancyController::class, 'store']);
+        Route::get('bkk/vacancies/{bkk_vacancy}', [BkkVacancyController::class, 'show']);
+        Route::put('bkk/vacancies/{bkk_vacancy}', [BkkVacancyController::class, 'update']);
+        Route::delete('bkk/vacancies/{bkk_vacancy}', [BkkVacancyController::class, 'destroy']);
+
+        Route::get('bkk/applications/export', [BkkApplicationController::class, 'export']);
+        Route::get('bkk/applications', [BkkApplicationController::class, 'index']);
+        Route::post('bkk/applications', [BkkApplicationController::class, 'store']);
+        Route::put('bkk/applications/{bkk_application}', [BkkApplicationController::class, 'update']);
+        Route::delete('bkk/applications/{bkk_application}', [BkkApplicationController::class, 'destroy']);
     });
 });

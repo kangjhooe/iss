@@ -1,32 +1,54 @@
 <template>
   <Layout>
-    <div class="page">
-      <div v-if="loading" class="loading-state">
+    <div class="sp-page">
+      <div class="sp-page-header">
+        <p class="sp-subtitle">Ringkasan poin pelanggaran dan prestasi Anda</p>
+        <div class="sp-actions">
+          <router-link to="/student/pelanggaran-prestasi" class="sp-btn sp-btn--soft">Riwayat detail</router-link>
+        </div>
+      </div>
+
+      <div v-if="loading" class="sp-loading">
         <p>Memuat data poin...</p>
       </div>
 
-      <div v-else-if="!summary" class="empty-state">
-        <p>Belum dapat memuat data poin.</p>
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
+      <div v-else-if="!summary" class="sp-empty">
+        <h3 class="sp-empty-title">Data poin belum tersedia</h3>
+        <p class="sp-empty-desc">Belum dapat memuat ringkasan poin. Coba muat ulang halaman.</p>
       </div>
 
-      <div v-else class="content-wrap">
-        <div class="points-grid">
-          <div class="point-card point-total">
-            <span class="point-label">Total Poin</span>
-            <span class="point-value">{{ summary.total_points ?? '-' }}</span>
+      <template v-else>
+        <div class="sp-stats points-stats">
+          <div class="sp-stat sp-stat--primary">
+            <div class="sp-stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <span class="sp-stat-label">Total Poin</span>
+              <span class="sp-stat-value">{{ summary.total_points ?? '-' }}</span>
+            </div>
           </div>
-          <div class="point-card point-violation">
-            <span class="point-label">Poin Pelanggaran</span>
-            <span class="point-value">{{ summary.violation_points ?? '-' }}</span>
+          <div class="sp-stat sp-stat--warn">
+            <div class="sp-stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 9V13M12 17H12.01M21 12A9 9 0 1 1 3 12A9 9 0 0 1 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <span class="sp-stat-label">Poin Pelanggaran</span>
+              <span class="sp-stat-value">{{ summary.violation_points ?? '-' }}</span>
+            </div>
           </div>
-          <div class="point-card point-achievement">
-            <span class="point-label">Poin Prestasi</span>
-            <span class="point-value">{{ summary.achievement_points ?? summary.achievement_bank ?? '-' }}</span>
+          <div class="sp-stat sp-stat--ok">
+            <div class="sp-stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div>
+              <span class="sp-stat-label">Poin Prestasi</span>
+              <span class="sp-stat-value">{{ summary.achievement_points ?? summary.achievement_bank ?? '-' }}</span>
+            </div>
           </div>
         </div>
 
-        <div v-if="summary.required_action" class="action-card">
+        <div v-if="summary.required_action" class="sp-panel action-card">
           <h3 class="action-title">Tindakan yang Diperlukan</h3>
           <p class="action-name">{{ summary.required_action.action_name }}</p>
           <p v-if="summary.required_action.description" class="action-desc">{{ summary.required_action.description }}</p>
@@ -42,12 +64,11 @@
           </p>
         </div>
 
-        <div v-else class="action-card action-ok">
+        <div v-else class="sp-panel action-card action-ok">
           <p class="action-name">Poin Anda dalam batas aman.</p>
+          <p class="action-desc">Pertahankan kedisiplinan dan terus kumpulkan prestasi.</p>
         </div>
-
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
-      </div>
+      </template>
     </div>
   </Layout>
 </template>
@@ -81,60 +102,63 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 100%; padding: 0; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%); min-height: 100%; }
-.page-header { margin-bottom: 24px; }
-.page-header h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
-.page-subtitle { font-size: 14px; color: #64748b; margin: 0; }
-
-.loading-state, .empty-state {
-  text-align: center; padding: 48px 24px; color: #64748b;
-  background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;
+.points-stats .sp-stat {
+  cursor: default;
 }
-
-.content-wrap { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; }
-
-.points-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.point-card {
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  text-align: center;
-}
-
-.point-total { background: #eff6ff; border-color: #bfdbfe; }
-.point-violation { background: #fef2f2; border-color: #fecaca; }
-.point-achievement { background: #f0fdf4; border-color: #bbf7d0; }
-
-.point-label { display: block; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
-.point-value { font-size: 24px; font-weight: 700; color: #0f172a; }
 
 .action-card {
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  margin-bottom: 20px;
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff5f5 0%, #fff 60%);
 }
 
 .action-card.action-ok {
   border-color: #bbf7d0;
-  background: #f0fdf4;
+  background: linear-gradient(180deg, #f0fdf4 0%, #fff 60%);
 }
 
-.action-title { font-size: 14px; font-weight: 700; color: #991b1b; margin: 0 0 8px 0; }
-.action-card.action-ok .action-name { color: #065f46; }
-.action-name { font-weight: 600; color: #0f172a; margin: 0 0 6px 0; }
-.action-desc { font-size: 14px; color: #475569; margin: 0 0 6px 0; }
-.action-range { font-size: 13px; color: #64748b; margin: 0; }
-.action-fulfilled { font-size: 13px; color: #047857; font-weight: 600; margin: 8px 0 0; }
-.action-pending { font-size: 13px; color: #b45309; font-weight: 600; margin: 8px 0 0; }
+.action-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #991b1b;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
-.back-link { display: inline-block; margin-top: 16px; color: #059669; text-decoration: none; font-weight: 600; font-size: 14px; }
-.back-link:hover { text-decoration: underline; color: #047857; }
+.action-name {
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  font-size: 16px;
+}
+
+.action-card.action-ok .action-name {
+  color: #065f46;
+}
+
+.action-desc {
+  font-size: 13px;
+  color: #475569;
+  margin: 0 0 6px 0;
+}
+
+.action-range {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.action-fulfilled {
+  font-size: 13px;
+  color: #047857;
+  font-weight: 700;
+  margin: 10px 0 0;
+}
+
+.action-pending {
+  font-size: 13px;
+  color: #b45309;
+  font-weight: 700;
+  margin: 10px 0 0;
+}
 </style>

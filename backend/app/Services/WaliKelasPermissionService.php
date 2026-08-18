@@ -138,7 +138,7 @@ class WaliKelasPermissionService
 
     /**
      * Cabut permission khusus wali dari guru yang sudah tidak menjadi wali kelas.
-     * Tidak mencabut paket mengajar (grade_book, teaching_journal, schedule, correspondence).
+     * Tidak mencabut paket mengajar (grade_book, teaching_journal, schedule).
      */
     public function revokeWaliOnlyPermissionsFromEmployee(int $employeeId): void
     {

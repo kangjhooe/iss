@@ -22,7 +22,9 @@ class User extends Authenticatable
         'institution_id',
         'name',
         'email',
+        'login_nik',
         'password',
+        'must_change_password',
         'role',
         'is_active',
         'email_verified_at',
@@ -49,6 +51,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
             'locked_until' => 'datetime',
             'is_active' => 'boolean',
         ];
@@ -323,11 +326,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the student profile associated with this user (by email).
+     * Get the student profile associated with this user (by NIK login).
      */
     public function studentProfile()
     {
-        return $this->hasOne(Student::class, 'email', 'email');
+        return $this->hasOne(Student::class, 'nik', 'login_nik');
     }
 
     /**
@@ -537,6 +540,52 @@ class User extends Authenticatable
     public function isStudent(): bool
     {
         return $this->role === 'student';
+    }
+
+    /**
+     * Check if user is parent / wali murid.
+     */
+    public function isParent(): bool
+    {
+        return $this->role === 'parent';
+    }
+
+    /**
+     * School staff (admin/guru/staf) may submit bug reports and feature requests.
+     */
+    public function canSubmitFeedback(): bool
+    {
+        if (! $this->isInstitutionAdmin() && ! $this->isAdmin() && ! $this->isTeacherOrStaff()) {
+            return false;
+        }
+
+        return (bool) ($this->institution_id || $this->currentInstitutionId());
+    }
+
+    /**
+     * Super admin inbox, or school staff who can file tickets.
+     */
+    public function canAccessFeedback(): bool
+    {
+        return $this->isSuperAdmin() || $this->canSubmitFeedback();
+    }
+
+    /**
+     * Explicit parent↔student links.
+     */
+    public function parentLinks()
+    {
+        return $this->hasMany(ParentLink::class);
+    }
+
+    /**
+     * Students linked via parent_links pivot.
+     */
+    public function linkedStudents()
+    {
+        return $this->belongsToMany(Student::class, 'parent_links')
+            ->withPivot('institution_id', 'relation')
+            ->withTimestamps();
     }
 
     /**

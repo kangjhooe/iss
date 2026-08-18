@@ -140,10 +140,10 @@
           <div v-else-if="openFeedbackTickets.length === 0" class="panel-empty">Tidak ada feedback aktif</div>
           <ul v-else class="panel-list">
             <li v-for="ticket in openFeedbackTickets" :key="ticket.id">
-              <div class="panel-item-main">
+              <router-link to="/feedback" class="panel-item-main">
                 <strong>{{ ticket.title }}</strong>
                 <span class="panel-meta">{{ ticket.institution?.name || 'Institusi' }} · {{ ticket.type === 'bug' ? 'Bug' : 'Fitur' }}</span>
-              </div>
+              </router-link>
               <span class="panel-time">{{ formatRelative(ticket.created_at) }}</span>
             </li>
           </ul>
@@ -451,6 +451,23 @@
               </svg>
             </div>
           </router-link>
+
+          <router-link to="/super-admin/monetisasi" class="action-card action-card-primary">
+            <div class="action-icon action-icon-primary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="action-content">
+              <h4>Monetisasi</h4>
+              <p>Paket, add-on & tampilkan ke sekolah</p>
+            </div>
+            <div class="action-arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </router-link>
         </div>
       </div>
     </div>
@@ -748,6 +765,15 @@ a.stat-card:hover {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+a.panel-item-main {
+  text-decoration: none;
+  color: inherit;
+}
+
+a.panel-item-main:hover strong {
+  color: #059669;
 }
 
 .panel-item-main strong {

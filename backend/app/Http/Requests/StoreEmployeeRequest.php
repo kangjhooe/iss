@@ -76,6 +76,8 @@ class StoreEmployeeRequest extends FormRequest
             'permission_keys.*' => 'string|exists:permissions,key',
             'additional_duty_ids' => 'nullable|array',
             'additional_duty_ids.*' => 'integer|exists:additional_duties,id',
+            'program_keahlian_ids' => 'nullable|array',
+            'program_keahlian_ids.*' => 'integer|exists:program_keahlian,id',
         ];
     }
 

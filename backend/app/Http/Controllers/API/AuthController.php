@@ -14,6 +14,7 @@ use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Institution;
 use App\Models\User;
+use App\Services\MonetizationService;
 use App\Support\InstitutionContext;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
@@ -285,20 +286,27 @@ class AuthController extends Controller
     {
         try {
             $validated = $request->validated();
+            $login = (string) $validated['login'];
+            $loginField = 'login';
 
-            $user = User::where('email', $validated['email'])->first();
+            if (preg_match('/^\d{16}$/', $login)) {
+                $user = User::where('login_nik', $login)->where('role', 'student')->first();
+            } else {
+                $user = User::where('email', $login)->first();
+                $loginField = 'email';
+            }
 
             // Check if account is deactivated by admin
             if ($user && $user->is_active === false) {
                 throw ValidationException::withMessages([
-                    'email' => ['Akun Anda dinonaktifkan. Silakan hubungi administrator.'],
+                    $loginField => ['Akun Anda dinonaktifkan. Silakan hubungi administrator.'],
                 ]);
             }
 
             // Maintenance mode: only super_admin may login
             if ($user && !$user->isSuperAdmin() && $this->isMaintenanceEnabled()) {
                 throw ValidationException::withMessages([
-                    'email' => [$this->maintenanceMessage()],
+                    $loginField => [$this->maintenanceMessage()],
                 ]);
             }
 
@@ -306,7 +314,7 @@ class AuthController extends Controller
             if ($user && $user->isLocked()) {
                 $minutesRemaining = $user->lockedMinutesRemaining();
                 throw ValidationException::withMessages([
-                    'email' => ["Akun Anda terkunci. Silakan coba lagi dalam {$minutesRemaining} menit."],
+                    $loginField => ["Akun Anda terkunci. Silakan coba lagi dalam {$minutesRemaining} menit."],
                 ]);
             }
 
@@ -315,7 +323,7 @@ class AuthController extends Controller
                 $passwordValid = $user && Hash::check($validated['password'], $user->password);
             } catch (\RuntimeException $e) {
                 Log::error('Password hash algorithm error on login', [
-                    'email' => $validated['email'],
+                    'login' => preg_match('/^\d{16}$/', $login) ? '[NIK]' : $login,
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -324,9 +332,11 @@ class AuthController extends Controller
                 if ($user) {
                     $user->incrementFailedLoginAttempts();
                 }
-                Log::warning('Failed login attempt', ['email' => $validated['email']]);
+                Log::warning('Failed login attempt', [
+                    'login' => preg_match('/^\d{16}$/', $login) ? '[NIK]' : $login,
+                ]);
                 throw ValidationException::withMessages([
-                    'email' => ['Kredensial yang diberikan salah.'],
+                    $loginField => ['Kredensial yang diberikan salah.'],
                 ]);
             }
 
@@ -336,18 +346,26 @@ class AuthController extends Controller
                 Log::info('Auto-verified user email in development', ['user_id' => $user->id]);
             }
             
-            // Check if email is verified (skip check in development)
-            if (!$this->shouldSkipEmailVerification() && !$user->isEmailVerified()) {
+            // Students use NIK login (may have synthetic email) — skip email verification
+            $skipEmailVerification = $this->shouldSkipEmailVerification() || $user->isStudent() || $user->isParent();
+            if (!$skipEmailVerification && !$user->isEmailVerified()) {
                 throw ValidationException::withMessages([
-                    'email' => ['Email Anda belum diverifikasi. Silakan cek email untuk link verifikasi.'],
+                    $loginField => ['Email Anda belum diverifikasi. Silakan cek email untuk link verifikasi.'],
                 ]);
             }
 
             // Check if user's institution is active (skip for super admin)
-            if (!$user->isSuperAdmin() && $user->institution && !$user->institution->is_active) {
-                throw ValidationException::withMessages([
-                    'email' => ['Akun institusi Anda tidak aktif. Silakan hubungi administrator.'],
-                ]);
+            // Students may have institution only via student_profile
+            if (!$user->isSuperAdmin()) {
+                $institution = $user->institution;
+                if (!$institution && $user->isStudent()) {
+                    $institution = $user->studentProfile?->institution;
+                }
+                if ($institution && !$institution->is_active) {
+                    throw ValidationException::withMessages([
+                        $loginField => ['Akun institusi Anda tidak aktif. Silakan hubungi administrator.'],
+                    ]);
+                }
             }
 
             // Reset failed login attempts on successful login
@@ -386,6 +404,14 @@ class AuthController extends Controller
                 }
             }
 
+            if ($user->isStudent()) {
+                try {
+                    $user->load(['studentProfile.schoolClass', 'studentProfile.institution']);
+                } catch (\Exception $e) {
+                    // ignore
+                }
+            }
+
             InstitutionContext::applyToRequest($request, $user);
             $userPayload = (new UserResource($user))->resolve();
             $userPayload = array_merge($userPayload, $this->institutionContextPayload($user, $request));
@@ -395,6 +421,7 @@ class AuthController extends Controller
                 'user' => $userPayload,
                 'token' => $accessToken,
                 'refresh_token' => $refreshToken,
+                'must_change_password' => (bool) $user->must_change_password,
             ]);
             $response->cookie($this->makeAuthCookie($accessToken));
             $response->cookie($this->makeRefreshCookie($refreshToken));
@@ -544,9 +571,15 @@ class AuthController extends Controller
 
         $activeAcademicYear = null;
         $activeSemester = null;
+        $institution = null;
         if ($activeId) {
             $institution = Institution::query()
-                ->with(['activeAcademicYear:id,code,name', 'activeSemester:id,name,order,academic_year_id'])
+                ->with([
+                    'activeAcademicYear:id,code,name',
+                    'activeSemester:id,name,order,academic_year_id',
+                    'subscription.plan',
+                    'addonGrants',
+                ])
                 ->find($activeId);
             if ($institution?->activeAcademicYear) {
                 $activeAcademicYear = [
@@ -564,6 +597,8 @@ class AuthController extends Controller
             }
         }
 
+        $monetizationFeatures = app(MonetizationService::class)->featuresForInstitution($institution);
+
         return [
             'available_institutions' => $available->values()->all(),
             'active_institution_id' => $activeId,
@@ -572,12 +607,16 @@ class AuthController extends Controller
                 'id' => $active['id'],
                 'name' => $active['name'],
                 'npsn' => $active['npsn'] ?? null,
+                'is_demo' => (bool) ($active['is_demo'] ?? false),
                 'affiliation' => $active['affiliation'],
                 'active_academic_year_id' => $activeAcademicYear['id'] ?? null,
                 'active_semester_id' => $activeSemester['id'] ?? null,
                 'active_academic_year' => $activeAcademicYear,
                 'active_semester' => $activeSemester,
+                'monetization' => $monetizationFeatures,
             ] : null,
+            // Shortcut global: sekolah memakai ini untuk menyembunyikan menu billing/add-on
+            'monetization' => $monetizationFeatures,
         ];
     }
 
@@ -677,9 +716,10 @@ class AuthController extends Controller
                 ]);
             }
 
-            $user->update([
-                'password' => Hash::make($validated['password']),
-            ]);
+            $user->forceFill([
+                'password' => $validated['password'],
+                'must_change_password' => false,
+            ])->save();
 
             $user->resetFailedLoginAttempts();
 
@@ -687,6 +727,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Sandi berhasil diubah. Silakan gunakan sandi baru untuk login berikutnya.',
+                'user' => new UserResource($user->fresh(['institution', 'permissions'])),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;

@@ -38,6 +38,7 @@ class ExtracurricularResource extends JsonResource
             'capacity' => $this->capacity,
             'kkm' => $this->kkm !== null ? (float) $this->kkm : 75.0,
             'status' => $this->status,
+            'is_pramuka' => (bool) $this->is_pramuka,
             'days_of_week' => $this->days_of_week ?? [],
             'day_labels' => $this->day_labels,
             'start_time' => $this->formatTimeValue($this->start_time),

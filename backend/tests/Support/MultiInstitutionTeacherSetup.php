@@ -74,7 +74,6 @@ trait MultiInstitutionTeacherSetup
         $this->attachPermissions($this->teacherUser, [
             'institution',
             'report',
-            'correspondence',
             'schedule',
             'teaching_journal',
             'grade_book',

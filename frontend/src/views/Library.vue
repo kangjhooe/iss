@@ -26,11 +26,31 @@
       </div>
 
       <div class="tabs-container">
-        <div class="tabs-nav" role="tablist">
-          <button v-for="t in tabList" :key="t.id" type="button" role="tab" :aria-selected="activeTab === t.id"
-            @click="activeTab = t.id" :class="['tab-btn', { active: activeTab === t.id }]">
-            <span class="tab-icon" v-html="t.icon"></span>
+        <div class="tabs-nav" role="tablist" aria-label="Modul Perpustakaan">
+          <button
+            v-for="t in mainTabList"
+            :key="t.id"
+            type="button"
+            role="tab"
+            :aria-selected="mainTab === t.id"
+            @click="switchMainTab(t.id)"
+            :class="['tab-btn', { active: mainTab === t.id }]"
+          >
+            <span class="tab-icon">{{ t.icon }}</span>
             <span class="tab-label">{{ t.label }}</span>
+          </button>
+        </div>
+        <div v-if="subTabList.length" class="sub-nav" role="tablist" aria-label="Sub modul perpustakaan">
+          <button
+            v-for="t in subTabList"
+            :key="t.id"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === t.id"
+            @click="activeTab = t.id"
+            :class="['sub-nav-btn', { active: activeTab === t.id }]"
+          >
+            <span>{{ t.label }}</span>
           </button>
         </div>
       </div>
@@ -737,14 +757,51 @@ const categoriesPerPage = ref(15)
 const copiesPerPage = ref(15)
 const loansPerPage = ref(15)
 
-const tabList = [
-  { id: 'books', label: 'Katalog Buku', icon: '📚' },
-  { id: 'categories', label: 'Kategori', icon: '🏷️' },
-  { id: 'copies', label: 'Eksemplar', icon: '📋' },
-  { id: 'loans', label: 'Peminjaman', icon: '📖' },
-  { id: 'fines', label: 'Denda', icon: '💰' },
-  { id: 'reports', label: 'Laporan', icon: '📊' }
+const KATALOG_TABS = ['books', 'copies']
+const SIRKULASI_TABS = ['loans', 'fines']
+
+const mainTabList = [
+  { id: 'katalog', label: 'Katalog', icon: '📚' },
+  { id: 'sirkulasi', label: 'Sirkulasi', icon: '📖' },
+  { id: 'laporan', label: 'Laporan', icon: '📊' },
+  { id: 'pengaturan', label: 'Pengaturan', icon: '🏷️' },
 ]
+
+const mainTab = computed(() => {
+  if (KATALOG_TABS.includes(activeTab.value)) return 'katalog'
+  if (SIRKULASI_TABS.includes(activeTab.value)) return 'sirkulasi'
+  if (activeTab.value === 'reports') return 'laporan'
+  if (activeTab.value === 'categories') return 'pengaturan'
+  return 'katalog'
+})
+
+const subTabList = computed(() => {
+  if (mainTab.value === 'katalog') {
+    return [
+      { id: 'books', label: 'Katalog Buku' },
+      { id: 'copies', label: 'Eksemplar' },
+    ]
+  }
+  if (mainTab.value === 'sirkulasi') {
+    return [
+      { id: 'loans', label: 'Peminjaman' },
+      { id: 'fines', label: 'Denda' },
+    ]
+  }
+  return []
+})
+
+function switchMainTab(next) {
+  if (next === 'katalog') {
+    activeTab.value = KATALOG_TABS.includes(activeTab.value) ? activeTab.value : 'books'
+  } else if (next === 'sirkulasi') {
+    activeTab.value = SIRKULASI_TABS.includes(activeTab.value) ? activeTab.value : 'loans'
+  } else if (next === 'laporan') {
+    activeTab.value = 'reports'
+  } else if (next === 'pengaturan') {
+    activeTab.value = 'categories'
+  }
+}
 
 // Categories
 const categories = ref([])
@@ -1679,6 +1736,10 @@ onMounted(() => {
 .tab-btn:hover { color: #475569; }
 .tab-btn.active { color: #059669; border-bottom-color: #059669; }
 .tab-icon { font-size: 1.1rem; line-height: 1; }
+.sub-nav { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0.65rem 0 0.85rem; }
+.sub-nav-btn { padding: 0.4rem 0.85rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.sub-nav-btn:hover { background: #fff; color: #0f172a; border-color: #cbd5e1; }
+.sub-nav-btn.active { background: #ecfdf5; color: #047857; border-color: #6ee7b7; }
 .tab-content { padding-top: 1rem; animation: tabIn 0.3s ease; }
 @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 

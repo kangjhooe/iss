@@ -705,4 +705,68 @@ onMounted(async () => {
   font-size: 0.875rem;
   text-align: center;
 }
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+  }
+
+  .header-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .filters-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .status-select,
+  .time-input {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  .modal-content {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-actions .btn-primary,
+  .modal-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pagination-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
 </style>

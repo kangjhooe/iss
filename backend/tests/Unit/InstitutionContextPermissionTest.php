@@ -39,7 +39,7 @@ class InstitutionContextPermissionTest extends TestCase
 
         $this->assertNotContains('institution', $keys);
         $this->assertNotContains('report', $keys);
-        $this->assertContains('correspondence', $keys);
+        $this->assertNotContains('correspondence', $keys);
         $this->assertContains('schedule', $keys);
         $this->assertContains('teaching_journal', $keys);
         $this->assertContains('grade_book', $keys);

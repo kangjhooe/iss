@@ -139,9 +139,41 @@ class FeedbackTicketTest extends TestCase
         $this->assertStringContainsString($this->institution->name, $payload['message']);
     }
 
-    public function test_teacher_cannot_create_feedback_ticket(): void
+    public function test_teacher_can_create_feedback_ticket(): void
     {
+        Notification::fake();
+
         Sanctum::actingAs($this->teacher);
+
+        $response = $this->postJson('/api/v1/feedback-tickets', [
+            'type' => 'feature',
+            'title' => 'Minta fitur baru',
+            'description' => 'Tolong tambahkan export PDF.',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.type', 'feature')
+            ->assertJsonPath('data.status', 'open');
+
+        $this->assertDatabaseHas('feedback_tickets', [
+            'submitted_by' => $this->teacher->id,
+            'title' => 'Minta fitur baru',
+        ]);
+    }
+
+    public function test_student_cannot_create_feedback_ticket(): void
+    {
+        $student = User::create([
+            'name' => 'Siswa',
+            'email' => 'siswa-feedback@example.com',
+            'password' => Hash::make('Password123!'),
+            'role' => 'student',
+            'institution_id' => $this->institution->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($student);
 
         $response = $this->postJson('/api/v1/feedback-tickets', [
             'type' => 'feature',
@@ -214,6 +246,41 @@ class FeedbackTicketTest extends TestCase
         $this->assertDatabaseHas('feedback_tickets', [
             'id' => $ticket->id,
             'status' => 'in_progress',
+            'handled_by' => $this->superAdmin->id,
+        ]);
+
+        Notification::assertSentTo($this->schoolAdmin, FeedbackTicketNotification::class);
+    }
+
+    public function test_super_admin_can_resolve_ticket_via_status_endpoint(): void
+    {
+        Notification::fake();
+
+        $ticket = FeedbackTicket::create([
+            'institution_id' => $this->institution->id,
+            'submitted_by' => $this->schoolAdmin->id,
+            'type' => 'bug',
+            'title' => 'Tombol simpan error',
+            'description' => 'Sudah diperbaiki di frontend.',
+            'priority' => 'high',
+            'status' => 'open',
+        ]);
+
+        Sanctum::actingAs($this->superAdmin);
+
+        $response = $this->postJson("/api/v1/feedback-tickets/{$ticket->id}/status", [
+            'status' => 'resolved',
+            'priority' => 'high',
+            'admin_note' => 'Sudah diperbaiki dan di-deploy.',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'resolved')
+            ->assertJsonPath('data.admin_note', 'Sudah diperbaiki dan di-deploy.');
+
+        $this->assertDatabaseHas('feedback_tickets', [
+            'id' => $ticket->id,
+            'status' => 'resolved',
             'handled_by' => $this->superAdmin->id,
         ]);
 

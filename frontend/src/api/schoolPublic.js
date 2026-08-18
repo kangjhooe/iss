@@ -41,4 +41,9 @@ export const schoolPublicApi = {
   issuePublicEbookViewer(npsn, bookId) {
     return api.get(`/v1/public/library/books/${bookId}/viewer`, { params: { npsn } })
   },
+
+  /** Published news & gallery by NPSN */
+  getPosts(npsn, params = {}) {
+    return api.get('/v1/public/school/posts', { params: { npsn, ...params } })
+  },
 }

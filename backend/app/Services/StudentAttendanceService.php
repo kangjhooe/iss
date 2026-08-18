@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Employee;
 use App\Models\LessonSchedule;
 use App\Models\SchoolClass;
 use App\Models\Semester;
@@ -656,5 +657,97 @@ class StudentAttendanceService
                 'status_labels' => StudentAttendance::STATUSES,
             ],
         ];
+    }
+
+    /**
+     * Resolve PDF signatory for attendance rekap.
+     * - Mapel filter: Guru Mata Pelajaran (from schedule / journal)
+     * - Kelas only: Wali Kelas
+     * - Otherwise: null → template falls back to kepala sekolah
+     *
+     * @param  array{semester_id?:int|string,class_id?:int|string,subject_id?:int|string}  $filters
+     * @return array{role: string, name: ?string, nip: ?string}|null
+     */
+    public function resolveRekapSigner(int $institutionId, array $filters = [], ?int $scopeEmployeeId = null): ?array
+    {
+        $subjectId = !empty($filters['subject_id']) ? (int) $filters['subject_id'] : null;
+        $classId = !empty($filters['class_id']) ? (int) $filters['class_id'] : null;
+        $semesterId = !empty($filters['semester_id']) ? (int) $filters['semester_id'] : null;
+
+        if ($subjectId) {
+            $employee = null;
+            if ($scopeEmployeeId) {
+                $employee = Employee::query()
+                    ->where('id', $scopeEmployeeId)
+                    ->where('institution_id', $institutionId)
+                    ->first(['id', 'name', 'nip']);
+            }
+
+            if (!$employee) {
+                $scheduleQuery = LessonSchedule::query()
+                    ->where('institution_id', $institutionId)
+                    ->where('subject_id', $subjectId)
+                    ->whereNotNull('employee_id');
+                if ($classId) {
+                    $scheduleQuery->where('class_id', $classId);
+                }
+                if ($semesterId) {
+                    $scheduleQuery->where('semester_id', $semesterId);
+                }
+                $employeeId = $scheduleQuery->value('employee_id');
+
+                if (!$employeeId) {
+                    $journalQuery = TeachingJournal::query()
+                        ->where('institution_id', $institutionId)
+                        ->where('subject_id', $subjectId)
+                        ->whereNotNull('employee_id');
+                    if ($classId) {
+                        $journalQuery->where('class_id', $classId);
+                    }
+                    if ($semesterId) {
+                        $journalQuery->where('semester_id', $semesterId);
+                    }
+                    $employeeId = $journalQuery->value('employee_id');
+                }
+
+                if ($employeeId) {
+                    $employee = Employee::query()
+                        ->where('id', (int) $employeeId)
+                        ->where('institution_id', $institutionId)
+                        ->first(['id', 'name', 'nip']);
+                }
+            }
+
+            if ($employee) {
+                return [
+                    'role' => 'Guru Mata Pelajaran',
+                    'name' => $employee->name,
+                    'nip' => $employee->nip,
+                ];
+            }
+
+            return [
+                'role' => 'Guru Mata Pelajaran',
+                'name' => null,
+                'nip' => null,
+            ];
+        }
+
+        if ($classId) {
+            $class = SchoolClass::query()
+                ->with(['teacher:id,name,nip'])
+                ->where('id', $classId)
+                ->where('institution_id', $institutionId)
+                ->first();
+            $wali = $class?->teacher;
+
+            return [
+                'role' => 'Wali Kelas',
+                'name' => $wali?->name,
+                'nip' => $wali?->nip,
+            ];
+        }
+
+        return null;
     }
 }

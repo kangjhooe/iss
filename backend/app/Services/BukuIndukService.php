@@ -43,6 +43,7 @@ class BukuIndukService
             'violations.violationType',
             'violations.academicYear',
             'counselingSessions.counselingType',
+            'uksVisits.visitType',
             'documentPickups',
             'extracurricularEnrollments.extracurricular',
             'extracurricularEnrollments.academicYear',
@@ -73,9 +74,40 @@ class BukuIndukService
             'extracurriculars' => $extracurriculars,
             'alumni_destinations' => $student->alumniDestinations->sortByDesc('year_entered')->values(),
             'library_loans_summary' => $librarySummary,
-            'health_records' => [], // Placeholder: data dari modul UKS ketika tersedia
+            'health_records' => $this->buildHealthRecords($student),
             'printed_at' => now()->locale('id')->isoFormat('D MMMM YYYY HH:mm'),
         ];
+    }
+
+    /**
+     * Map kunjungan UKS ke bentuk Buku Induk: date, type, notes.
+     *
+     * @return array<int, array{date: ?string, type: string, notes: string}>
+     */
+    protected function buildHealthRecords($student): array
+    {
+        if (!$student->relationLoaded('uksVisits')) {
+            return [];
+        }
+
+        return $student->uksVisits
+            ->sortByDesc('visit_date')
+            ->values()
+            ->map(function ($v) {
+                $parts = array_filter([
+                    $v->complaint ? 'Keluhan: '.$v->complaint : null,
+                    $v->action_taken ? 'Tindakan: '.$v->action_taken : null,
+                    $v->notes,
+                    $v->status && $v->status !== 'selesai' ? 'Status: '.$v->status : null,
+                ]);
+
+                return [
+                    'date' => $v->visit_date?->format('Y-m-d'),
+                    'type' => $v->visitType?->name ?? '-',
+                    'notes' => $parts ? implode(' | ', $parts) : '-',
+                ];
+            })
+            ->all();
     }
 
     /**

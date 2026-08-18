@@ -29,6 +29,7 @@ class StoreClassRequest extends FormRequest
             'code' => 'nullable|string|max:50',
             'name' => 'required|string|max:255',
             'grade' => 'nullable|integer|min:1|max:12',
+            'program_keahlian_id' => 'nullable|integer|exists:program_keahlian,id',
             // academic_year_id tidak perlu di-require, akan di-set otomatis dari active_academic_year_id
             'academic_year_id' => 'nullable|exists:academic_years,id',
             'semester_id' => 'nullable|exists:semesters,id',

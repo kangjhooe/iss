@@ -55,6 +55,7 @@ class WaliKelasDashboardService
 
         $studentIds = (clone $studentsQuery)->pluck('id');
         $incomplete = $this->gradesIncomplete($institutionId, $class->id, $studentIds, $semesterId);
+        $accounts = $this->accountStatusForClass($class->id);
 
         return [
             'class' => [
@@ -67,6 +68,7 @@ class WaliKelasDashboardService
                 'male' => $male,
                 'female' => $female,
             ],
+            'accounts' => $accounts,
             'attendance_today' => $this->attendanceToday($institutionId, $studentIds),
             'bk_high_scores' => $this->bkHighScores($institutionId, $studentIds, $academicYearId, $semesterId),
             'grades_incomplete' => $incomplete['count'],
@@ -93,6 +95,91 @@ class WaliKelasDashboardService
                     ->count(),
             ],
             'is_homeroom' => WaliKelasAccess::resolveHomeroomClass($user, (int) $class->id) !== null,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     with_account: int,
+     *     missing_account: int,
+     *     incomplete_data: int,
+     *     missing_students: list<array{student_id: int, name: string, nik: ?string}>,
+     *     incomplete_students: list<array{student_id: int, name: string, nik: ?string, reason: string}>
+     * }
+     */
+    protected function accountStatusForClass(int $classId): array
+    {
+        $base = Student::query()
+            ->where('class_id', $classId)
+            ->where('status', 'Aktif');
+
+        $hasAccount = function ($q) {
+            $q->select(DB::raw(1))
+                ->from('user')
+                ->whereColumn('user.login_nik', 'student.nik')
+                ->where('user.role', 'student');
+        };
+
+        $withAccount = (clone $base)->whereExists($hasAccount)->count();
+
+        $missingQuery = (clone $base)
+            ->whereNotNull('nik')
+            ->where('nik', '!=', '')
+            ->whereRaw("TRIM(nik) REGEXP '^[0-9]{16}$'")
+            ->whereNotNull('birth_date')
+            ->whereNotExists($hasAccount);
+
+        $missingAccount = (clone $missingQuery)->count();
+        $missingStudents = (clone $missingQuery)
+            ->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'name', 'nik'])
+            ->map(fn (Student $s) => [
+                'student_id' => $s->id,
+                'name' => $s->name,
+                'nik' => $s->nik,
+            ])
+            ->values()
+            ->all();
+
+        $incompleteQuery = (clone $base)->where(function ($q) {
+            $q->whereNull('nik')
+                ->orWhere('nik', '')
+                ->orWhereRaw("TRIM(nik) NOT REGEXP '^[0-9]{16}$'")
+                ->orWhereNull('birth_date');
+        });
+
+        $incompleteData = (clone $incompleteQuery)->count();
+        $incompleteStudents = (clone $incompleteQuery)
+            ->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'name', 'nik', 'birth_date'])
+            ->map(function (Student $s) {
+                $reasons = [];
+                $nik = trim((string) ($s->nik ?? ''));
+                if ($nik === '' || preg_match('/^\d{16}$/', $nik) !== 1) {
+                    $reasons[] = 'NIK';
+                }
+                if (empty($s->birth_date)) {
+                    $reasons[] = 'tanggal lahir';
+                }
+
+                return [
+                    'student_id' => $s->id,
+                    'name' => $s->name,
+                    'nik' => $s->nik,
+                    'reason' => 'Belum lengkap: ' . implode(', ', $reasons),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'with_account' => $withAccount,
+            'missing_account' => $missingAccount,
+            'incomplete_data' => $incompleteData,
+            'missing_students' => $missingStudents,
+            'incomplete_students' => $incompleteStudents,
         ];
     }
 

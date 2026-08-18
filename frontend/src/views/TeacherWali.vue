@@ -112,6 +112,15 @@
             </div>
             <span class="metric-hint">Kelola usulan →</span>
           </button>
+          <button type="button" class="metric-card tone-rose metric-clickable" @click="focusMissingAccounts">
+            <span class="metric-label">Akun login</span>
+            <div class="metric-row">
+              <span><strong>{{ accounts.with_account }}</strong> siap</span>
+              <span><strong>{{ accounts.missing_account }}</strong> belum</span>
+              <span><strong>{{ accounts.incomplete_data }}</strong> kurang data</span>
+            </div>
+            <span class="metric-hint">Buat akun / lengkapi NIK →</span>
+          </button>
         </section>
 
         <nav class="panel-tabs" role="tablist" aria-label="Panel wali">
@@ -165,6 +174,15 @@
                   class="filter-chip"
                   @click="clearListFilter"
                 >Filter: {{ listFilterLabel }} ×</button>
+                <button
+                  v-if="accounts.missing_account > 0"
+                  type="button"
+                  class="btn-secondary link-btn-sm"
+                  :disabled="bulkAccountLoading"
+                  @click="bulkEnsureClassAccounts"
+                >
+                  {{ bulkAccountLoading ? 'Membuat akun…' : `Buat akun (${accounts.missing_account})` }}
+                </button>
                 <span v-if="!studentsLoading" class="section-meta">{{ filteredStudents.length }}{{ listFilter ? '' : ` / ${pagination.total}` }} siswa</span>
               </div>
             </div>
@@ -190,6 +208,7 @@
                       <th><button type="button" class="th-sort" @click="setSort('nis')">NIS <span class="sort-icon" :class="sortClass('nis')"></span></button></th>
                       <th><button type="button" class="th-sort" @click="setSort('nisn')">NISN <span class="sort-icon" :class="sortClass('nisn')"></span></button></th>
                       <th>Kontak</th>
+                      <th>Akun</th>
                       <th class="col-gender"><button type="button" class="th-sort" @click="setSort('gender')">L/P <span class="sort-icon" :class="sortClass('gender')"></span></button></th>
                     </tr>
                   </thead>
@@ -209,6 +228,9 @@
                           <span v-if="student.guardian_phone || student.phone">{{ student.guardian_phone || student.phone }}</span>
                           <span v-else class="muted">—</span>
                         </div>
+                      </td>
+                      <td>
+                        <span class="account-pill" :class="accountTone(student)">{{ accountLabel(student) }}</span>
                       </td>
                       <td class="col-gender"><span class="gender-pill" :class="genderTone(student.gender)">{{ genderLabel(student.gender) }}</span></td>
                     </tr>
@@ -232,12 +254,12 @@
           <div class="section-header">
             <div>
               <h2>Rekap Absensi Kelas</h2>
-              <p class="section-hint">Monitoring kehadiran — input absen tetap lewat Jurnal / Absensi Siswa</p>
+              <p class="section-hint">Monitoring kehadiran — isi absen lewat Jam Mengajar Hari Ini; rekap lengkap di tautan ini</p>
             </div>
             <div class="period-switch">
               <button type="button" class="period-chip" :class="{ active: attendancePeriod === 'week' }" @click="setAttendancePeriod('week')">7 hari</button>
               <button type="button" class="period-chip" :class="{ active: attendancePeriod === 'month' }" @click="setAttendancePeriod('month')">30 hari</button>
-              <router-link v-if="canAccessModule('teaching_journal')" :to="`/attendance/student?class_id=${selectedClassId}`" class="btn-secondary link-btn-sm">Buka absensi →</router-link>
+              <router-link v-if="canAccessModule('teaching_journal')" :to="`/attendance/student?class_id=${selectedClassId}&tab=rekap`" class="btn-secondary link-btn-sm">Rekap lengkap →</router-link>
             </div>
           </div>
           <div v-if="attendanceLoading" class="state-card soft"><p>Memuat rekap absensi…</p></div>
@@ -514,6 +536,52 @@
                 <div><dt>Email</dt><dd>{{ profile.email || '—' }}</dd></div>
               </dl>
             </div>
+            <div class="info-block highlight account-block">
+              <h4>Akun login portal siswa</h4>
+              <p class="metric-hint">Login NIK · sandi awal tanggal lahir (DDMMYYYY)</p>
+              <form class="login-fields-form" @submit.prevent="saveLoginFields">
+                <label>
+                  <span>NIK (16 digit)</span>
+                  <input v-model="loginForm.nik" type="text" maxlength="16" inputmode="numeric" required pattern="\d{16}" />
+                </label>
+                <label>
+                  <span>Tanggal lahir</span>
+                  <input v-model="loginForm.birth_date" type="date" required />
+                </label>
+                <label>
+                  <span>Tempat lahir</span>
+                  <input v-model="loginForm.birth_place" type="text" maxlength="100" />
+                </label>
+                <div class="login-actions">
+                  <button type="submit" class="btn-primary" :disabled="accountActionLoading">
+                    {{ accountActionLoading ? 'Menyimpan…' : 'Simpan & sinkron akun' }}
+                  </button>
+                  <button
+                    v-if="!profile.has_user_account"
+                    type="button"
+                    class="btn-secondary"
+                    :disabled="accountActionLoading"
+                    @click="ensureProfileAccount"
+                  >
+                    Buat akun
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    class="btn-secondary"
+                    :disabled="accountActionLoading"
+                    @click="resetProfilePassword"
+                  >
+                    Reset sandi
+                  </button>
+                </div>
+              </form>
+              <p class="metric-hint">
+                Status:
+                <strong>{{ profile.has_user_account ? 'Sudah punya akun' : 'Belum punya akun' }}</strong>
+                <template v-if="profile.user_account?.must_change_password"> · wajib ganti sandi</template>
+              </p>
+            </div>
             <div class="info-block highlight">
               <h4>Kontak</h4>
               <div class="contact-line">
@@ -646,7 +714,11 @@ const summary = ref({ total: 0, male: 0, female: 0 })
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const dashboard = ref(null)
 const dashLoading = ref(false)
-const listFilter = ref(null) // 'bk_high' | 'grades_incomplete' | null
+const listFilter = ref(null) // 'bk_high' | 'grades_incomplete' | 'missing_account' | 'incomplete_account' | null
+const accountFilterMode = ref('') // '', 'missing', 'incomplete' — server-side via account_status
+const bulkAccountLoading = ref(false)
+const accountActionLoading = ref(false)
+const loginForm = ref({ nik: '', birth_date: '', birth_place: '' })
 
 const profileOpen = ref(false)
 const profileLoading = ref(false)
@@ -710,10 +782,19 @@ const canAccessModule = (key) => (authStore.user?.permissions || []).includes(ke
 const canAccessBk = computed(() => canAccessModule('bk_report') || canAccessModule('violation') || canAccessModule('counseling'))
 const att = computed(() => dashboard.value?.attendance_today || { hadir: 0, izin: 0, sakit: 0, alpha: 0, students_recorded: 0 })
 const pending = computed(() => dashboard.value?.pending || { violations: 0, achievements: 0, mutations: 0 })
+const accounts = computed(() => dashboard.value?.accounts || {
+  with_account: 0,
+  missing_account: 0,
+  incomplete_data: 0,
+  missing_students: [],
+  incomplete_students: [],
+})
 const scheduleMaxPeriods = computed(() => Math.max(1, Number(schedule.value?.template?.max_periods || 0)))
 const listFilterLabel = computed(() => {
   if (listFilter.value === 'bk_high') return 'Skor BK tinggi'
   if (listFilter.value === 'grades_incomplete') return 'Nilai belum lengkap'
+  if (listFilter.value === 'missing_account') return 'Belum punya akun'
+  if (listFilter.value === 'incomplete_account') return 'Data login kurang'
   return ''
 })
 const filteredStudents = computed(() => {
@@ -729,6 +810,7 @@ const filteredStudents = computed(() => {
     const ids = new Set((dashboard.value?.grades_incomplete_students || []).map((s) => Number(s.student_id)))
     return students.value.filter((s) => ids.has(Number(s.id)))
   }
+  // missing_account / incomplete_account sudah difilter server-side
   return students.value
 })
 
@@ -799,6 +881,7 @@ function selectClass(id) {
   selectedClassId.value = String(id)
   studentQuery.value = ''
   listFilter.value = null
+  accountFilterMode.value = ''
   replaceQuery({ class_id: String(id) })
   refreshClassData()
 }
@@ -814,6 +897,7 @@ function setPanel(next) {
 
 function focusBkHigh() {
   listFilter.value = 'bk_high'
+  accountFilterMode.value = ''
   setPanel('siswa')
   // Load all active students so filter can match beyond current page
   loadStudentsForFilter()
@@ -821,12 +905,126 @@ function focusBkHigh() {
 
 function focusGradesIncomplete() {
   listFilter.value = 'grades_incomplete'
+  accountFilterMode.value = ''
   setPanel('nilai')
   loadGradesOverview()
 }
 
+function focusMissingAccounts() {
+  setPanel('siswa')
+  if ((accounts.value.missing_account || 0) > 0) {
+    listFilter.value = 'missing_account'
+    accountFilterMode.value = 'missing'
+  } else if ((accounts.value.incomplete_data || 0) > 0) {
+    listFilter.value = 'incomplete_account'
+    accountFilterMode.value = 'incomplete'
+  } else {
+    listFilter.value = null
+    accountFilterMode.value = ''
+    toast.success('Info', 'Semua siswa aktif di kelas ini sudah punya akun login')
+  }
+  loadStudents(1)
+}
+
 function clearListFilter() {
   listFilter.value = null
+  accountFilterMode.value = ''
+  loadStudents(1)
+}
+
+function accountLabel(student) {
+  if (student?.has_user_account) return 'Ada akun'
+  const nik = String(student?.nik || '').trim()
+  const hasNik = /^\d{16}$/.test(nik)
+  const hasBirth = !!student?.birth_date
+  if (hasNik && hasBirth) return 'Belum akun'
+  return 'Kurang data'
+}
+
+function accountTone(student) {
+  if (student?.has_user_account) return 'ok'
+  const nik = String(student?.nik || '').trim()
+  if (/^\d{16}$/.test(nik) && student?.birth_date) return 'warn'
+  return 'bad'
+}
+
+async function bulkEnsureClassAccounts() {
+  if (!selectedClassId.value || bulkAccountLoading.value) return
+  const count = accounts.value.missing_account || 0
+  if (count <= 0) {
+    toast.success('Info', 'Tidak ada siswa yang siap dibuatkan akun')
+    return
+  }
+  if (!window.confirm(`Buat akun login untuk ${count} siswa di kelas ini?\nSandi awal = tanggal lahir (DDMMYYYY).`)) return
+  bulkAccountLoading.value = true
+  try {
+    const res = await waliKelasApi.ensureAccountsBulk(selectedClassId.value, { only_missing: true, limit: 500 })
+    toast.success('Berhasil', res.data?.message || 'Akun massal selesai')
+    await Promise.all([loadDashboard(), loadStudents(1)])
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || e.response?.data?.message || e.message)
+  } finally {
+    bulkAccountLoading.value = false
+  }
+}
+
+async function saveLoginFields() {
+  if (!profile.value?.id || !selectedClassId.value || accountActionLoading.value) return
+  accountActionLoading.value = true
+  try {
+    const res = await waliKelasApi.updateLoginFields(selectedClassId.value, profile.value.id, {
+      nik: loginForm.value.nik,
+      birth_date: loginForm.value.birth_date,
+      birth_place: loginForm.value.birth_place || null,
+    })
+    profile.value = res.data?.data || profile.value
+    syncLoginFormFromProfile()
+    toast.success('Berhasil', res.data?.message || 'Data login disimpan')
+    await Promise.all([loadDashboard(), loadStudents(pagination.value.current_page)])
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || e.response?.data?.message || e.message)
+  } finally {
+    accountActionLoading.value = false
+  }
+}
+
+async function ensureProfileAccount() {
+  if (!profile.value?.id || !selectedClassId.value || accountActionLoading.value) return
+  accountActionLoading.value = true
+  try {
+    const res = await waliKelasApi.ensureStudentAccount(selectedClassId.value, profile.value.id)
+    profile.value = res.data?.data || profile.value
+    syncLoginFormFromProfile()
+    toast.success('Berhasil', res.data?.message || 'Akun dibuat')
+    await Promise.all([loadDashboard(), loadStudents(pagination.value.current_page)])
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || e.response?.data?.message || e.message)
+  } finally {
+    accountActionLoading.value = false
+  }
+}
+
+async function resetProfilePassword() {
+  if (!profile.value?.id || !selectedClassId.value || accountActionLoading.value) return
+  if (!window.confirm('Reset sandi ke tanggal lahir (DDMMYYYY)? Siswa wajib ganti sandi saat login berikutnya.')) return
+  accountActionLoading.value = true
+  try {
+    const res = await waliKelasApi.resetStudentPassword(selectedClassId.value, profile.value.id)
+    profile.value = res.data?.data || profile.value
+    toast.success('Berhasil', res.data?.message || 'Sandi direset')
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || e.response?.data?.message || e.message)
+  } finally {
+    accountActionLoading.value = false
+  }
+}
+
+function syncLoginFormFromProfile() {
+  loginForm.value = {
+    nik: profile.value?.nik || '',
+    birth_date: profile.value?.birth_date || '',
+    birth_place: profile.value?.birth_place || '',
+  }
 }
 
 async function loadStudentsForFilter() {
@@ -888,6 +1086,8 @@ async function loadStudents(page = pagination.value.current_page) {
     }
     const q = studentQuery.value.trim()
     if (q) params.search = q
+    if (accountFilterMode.value === 'missing') params.account_status = 'missing'
+    if (accountFilterMode.value === 'incomplete') params.account_status = 'incomplete'
     const response = await teacherApi.getHomeroomClassStudents(selectedClassId.value, params)
     const payload = response.data || {}
     students.value = payload.data || []
@@ -951,6 +1151,7 @@ async function openProfile(student) {
     profile.value = data
     snapshot.value = data.snapshot || null
     notes.value = notesRes.data?.data || []
+    syncLoginFormFromProfile()
   } catch (e) {
     toast.error('Gagal memuat profil', e.formattedMessage || e.message)
   } finally {
@@ -1333,7 +1534,7 @@ onBeforeUnmount(() => {
 .class-chip { border: 1px solid #d1fae5; background: #fff; color: #065f46; padding: .45rem .9rem; border-radius: 999px; font-size: .88rem; font-weight: 600; cursor: pointer; }
 .class-chip.active { background: #059669; border-color: #059669; color: #fff; }
 
-.metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
 .metric-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .35rem; }
 .metric-clickable { cursor: pointer; text-align: left; font: inherit; width: 100%; transition: box-shadow .15s, transform .15s; }
 .metric-clickable:hover { box-shadow: 0 8px 20px rgba(15,23,42,.08); transform: translateY(-1px); }
@@ -1347,6 +1548,19 @@ onBeforeUnmount(() => {
 .tone-amber { border-top: 3px solid #f59e0b; }
 .tone-sky { border-top: 3px solid #0ea5e9; }
 .tone-violet { border-top: 3px solid #8b5cf6; }
+.tone-rose { border-top: 3px solid #f43f5e; }
+.account-pill {
+  display: inline-flex; padding: .15rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 700; white-space: nowrap;
+}
+.account-pill.ok { background: #ecfdf5; color: #047857; }
+.account-pill.warn { background: #fffbeb; color: #b45309; }
+.account-pill.bad { background: #fef2f2; color: #b91c1c; }
+.login-fields-form { display: flex; flex-direction: column; gap: .55rem; margin-top: .55rem; }
+.login-fields-form label { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; font-weight: 600; color: #475569; }
+.login-fields-form input {
+  border: 1px solid #e2e8f0; border-radius: 8px; padding: .45rem .6rem; font: inherit; font-weight: 400; background: #fff; color: #0f172a;
+}
+.login-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .2rem; }
 
 .panel-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .panel-tab {

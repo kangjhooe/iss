@@ -7,14 +7,14 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 6H21M8 12H21M8 18H21M3 6H3.01M3 12H3.01M3 18H3.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>Daftar Sesi Konseling</span>
+            <span>Sesi Konseling</span>
           </button>
           <button :class="['main-tab', { active: activeTab === 'types' }]" @click="activeTab = 'types'; loadTypes()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>Jenis Konseling</span>
+            <span>Pengaturan</span>
           </button>
         </div>
         <div class="header-actions">
@@ -199,8 +199,9 @@
         </div>
       </template>
 
-      <!-- Tab: Jenis Konseling -->
+      <!-- Tab: Pengaturan (jenis konseling) -->
       <template v-if="activeTab === 'types'">
+        <p class="settings-hint">Kelola master jenis konseling. Jarang diubah saat pencatatan sesi harian.</p>
         <div v-if="typesLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat jenis konseling...</p></div>
         <div v-else-if="counselingTypes.length === 0" class="empty-state">
           <h3 class="empty-title">Belum ada jenis konseling</h3>
@@ -986,6 +987,16 @@ onMounted(async () => {
   color: #fff;
   border-color: transparent;
   box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
+}
+.settings-hint {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #475569;
+  background: #f8fafc;
+  border-radius: 10px;
+  border-left: 4px solid #059669;
+  line-height: 1.45;
 }
 .filters-inline {
   display: flex;

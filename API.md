@@ -135,12 +135,19 @@ Mutasi antar institusi berdasarkan NIK (tidak ada batasan jenjang). Push dari se
 
 ## Class
 
-- `GET|POST|PUT|DELETE /api/v1/class` – CRUD
+- `GET|POST|PUT|DELETE /api/v1/class` – CRUD (`program_keahlian_id` opsional untuk SMK/MAK)
 - `GET /api/v1/class/export/pdf`
 - `POST /api/v1/class/clone-to-year` – Clone kelas ke tahun ajaran lain
 - `GET /api/v1/class/{id}/available-students` – Siswa yang bisa ditambah
 - `GET|POST /api/v1/class/{id}/students` – List / tambah siswa
 - `DELETE /api/v1/class/{id}/students/{studentId}` – Hapus dari kelas
+
+Kaprog (`kepala_program_keahlian`) hanya melihat kelas dengan `program_keahlian_id` yang diampu.
+
+## Program Keahlian (SMK/MAK, modul `class`)
+
+- `GET|POST|PUT|DELETE /api/v1/program-keahlian` – Master jurusan
+- Assign Kaprog: kirim `program_keahlian_ids` saat create/update employee yang punya duty `kepala_program_keahlian`
 
 ## Tahun Ajaran & Semester
 
@@ -322,7 +329,7 @@ Scoped by homeroom ownership (tidak butuh grant modul ekstra). Prefix: `/api/v1/
 - `GET /api/v1/academic-calendar/calendar` – Data kalender
 - `GET /api/v1/academic-calendar/upcoming` – Event mendatang
 
-## Keuangan (modul `finance`, Beta)
+## Keuangan (modul `finance`)
 
 - `GET /api/v1/finance/summary` – Ringkasan tagihan / penerimaan / tunggakan
 - `GET|POST|PUT|DELETE /api/v1/finance/fee-types` – Jenis biaya
@@ -334,6 +341,80 @@ Scoped by homeroom ownership (tidak butuh grant modul ekstra). Prefix: `/api/v1/
 - `GET|POST|DELETE /api/v1/finance/payments` – Pembayaran
 - `GET /api/v1/finance/payments/export` – Export CSV pembayaran
 - `GET /api/v1/finance/payments/{id}/receipt` – Kwitansi PDF (DomPDF + kop + TTD, selaras laporan lain)
+
+Portal siswa (tanpa `module:finance`, hanya data sendiri):
+
+- `GET /api/v1/finance/my/summary` – Ringkasan tagihan / tunggakan siswa login
+- `GET /api/v1/finance/my/invoices` – Daftar tagihan sendiri
+- `GET /api/v1/finance/my/payments` – Riwayat pembayaran sendiri
+- `GET /api/v1/finance/my/payments/{id}/receipt` – Kwitansi PDF pembayaran sendiri
+
+## Kepegawaian (modul `kepegawaian`)
+
+Staff (permission `kepegawaian`):
+
+- `GET|POST /api/v1/employee-leaves` – Daftar / buat pengajuan cuti
+- `GET /api/v1/employee-leaves/{id}` – Detail pengajuan
+- `POST /api/v1/employee-leaves/{id}/decide` – Setujui / tolak
+- `GET /api/v1/employee-decrees/meta` – Meta jenis SK
+- `GET|POST /api/v1/employee-decrees` – Register SK
+- `GET|PUT|DELETE /api/v1/employee-decrees/{id}` – Detail / ubah / hapus
+- `GET /api/v1/employee-decrees/{id}/download` – Unduh file SK
+- `GET /api/v1/structural-positions` – Master jabatan struktural
+- `GET|POST /api/v1/employee-structural-positions` – Penugasan jabatan
+- `POST /api/v1/employee-structural-positions/{id}/end` – Akhiri jabatan
+- `GET /api/v1/employee-career-history/{employeeId}` – Riwayat karier
+
+Portal guru/staff (tanpa modul penuh):
+
+- `GET /api/v1/employee-leaves/meta` – Meta jenis cuti
+- `GET|POST /api/v1/employee-leaves/my` – Cuti Saya
+- `POST /api/v1/employee-leaves/{id}/cancel` – Batalkan pengajuan sendiri (pending)
+
+## UKS (modul `uks`)
+
+- `GET|POST /api/v1/uks/visits` – Kunjungan UKS
+- `GET /api/v1/uks/visits/stats`, `export`, `recorders`
+- `GET /api/v1/uks/visits/by-student/{studentId}` – Riwayat per siswa
+- `GET|PUT|DELETE /api/v1/uks/visits/{id}`
+- `GET|POST|PUT|DELETE /api/v1/uks/visit-types` – Jenis kunjungan
+- `POST /api/v1/uks/visit-types/seed-defaults`
+- `GET /api/v1/uks-reports/summary`, `visits`, `export`, `export-visits`
+- `GET|POST|PUT|DELETE /api/v1/uks/medicines` – Stok obat
+- `GET /api/v1/uks/medicines/summary`, `transactions`
+- `POST /api/v1/uks/medicines/transactions` – Masuk/keluar/penyesuaian
+
+Portal siswa: `GET /api/v1/uks/visits/my` – Ringkasan kunjungan sendiri.
+
+## BKK / Bursa Kerja (modul `bkk`, hanya SMK/MAK)
+
+Staff (permission `bkk`):
+
+- `GET|POST|PUT|DELETE /api/v1/bkk/vacancies` – Lowongan
+- `GET|POST|PUT|DELETE /api/v1/bkk/applications` – Lamaran (staff daftarkan alumni)
+- `GET /api/v1/bkk/applications/export` – Export CSV lamaran
+
+Portal siswa/alumni (tanpa `module:bkk`):
+
+- `GET /api/v1/bkk/my/vacancies` – Lowongan terbuka (status buka, deadline belum lewat)
+- `GET /api/v1/bkk/my/applications` – Lamaran sendiri
+- `POST /api/v1/bkk/my/applications` – Lamar mandiri (`bkk_vacancy_id`, `notes` opsional)
+
+Mitra industri dipakai bersama PKL: lihat section Mitra DU/DI.
+
+## Monetisasi & Billing
+
+Super Admin (`/api/v1/super-admin/monetization`):
+
+- `GET /summary` – Ringkasan launch + paket
+- `PUT /launch` – Saklar “tampilkan monetisasi ke sekolah”
+- `GET|POST /plans`, `PUT /plans/{id}` – Paket langganan
+- `GET /addons`, `PUT /addons/{id}` – Add-on (storage, ujian, dll.)
+- `GET /institutions` – Status langganan per institusi
+- `PUT /institutions/{id}/subscription` – Assign paket
+- `PUT /institutions/{id}/addons` – Grant add-on
+
+Sekolah (hanya jika launch aktif): `GET /api/v1/billing/overview` – Ringkasan paket/add-on (read-only).
 
 ## Report
 
@@ -385,6 +466,34 @@ Notifikasi: admin (in-app) saat daftar baru & daftar ulang; calon (email) saat d
 - Facility (modul `facility`): `GET|POST /api/v1/facility/lab-bookings`, `POST .../{id}/approve|reject|cancel`
 - Guru (tanpa modul facility): prefix `/api/v1/lab-booking` – request & status sendiri
 
+## Mitra DU/DI (modul `pkl` atau `bkk`, hanya SMK/MAK)
+
+- `GET|POST|PUT|DELETE /api/v1/industry-partners` – Master mitra industri (shared PKL + BKK)
+
+## PKL / Prakerin (modul `pkl`, hanya SMK/MAK)
+
+Staff (perlu permission `pkl`):
+
+- `GET|POST /api/v1/pkl/periods` – Daftar / buat periode
+- `GET|PUT|DELETE /api/v1/pkl/periods/{id}` – Detail / ubah / hapus periode
+- `GET|POST /api/v1/pkl/placements` – Daftar / buat penempatan
+- `POST /api/v1/pkl/placements/bulk` – Bulk assign siswa ke mitra (satu periode)
+- `GET /api/v1/pkl/placements/export` – Export CSV penempatan (termasuk jml monitoring & jurnal)
+- `GET|PUT|DELETE /api/v1/pkl/placements/{id}` – Detail / ubah (nilai, status) / hapus
+- `GET|POST /api/v1/pkl/placements/{id}/monitoring-logs` – Monitoring pembimbing sekolah
+- `DELETE /api/v1/pkl/placements/{id}/monitoring-logs/{logId}` – Hapus catatan monitoring
+- `GET /api/v1/pkl/placements/{id}/journals` – Daftar jurnal siswa (staff)
+- `PUT /api/v1/pkl/placements/{id}/journals/{journalId}` – Catatan pembimbing pada jurnal (`supervisor_notes`)
+
+Portal siswa (tanpa `module:pkl`, hanya data sendiri):
+
+- `GET /api/v1/pkl/my/placements` – Penempatan PKL siswa login
+- `GET /api/v1/pkl/my/placements/{id}` – Detail + monitoring logs (read-only)
+- `GET|POST /api/v1/pkl/my/placements/{id}/journals` – Daftar / buat jurnal harian
+- `PUT|DELETE /api/v1/pkl/my/placements/{id}/journals/{journalId}` – Ubah / hapus jurnal sendiri
+
+Jurnal: satu entri per tanggal per penempatan; field `activities`, `hours` (opsional), `status` (`draft`|`submitted`). Siswa hanya bisa menulis saat penempatan `draft` atau `berlangsung`.
+
 ## Ujian Online (modul `online_exam`, Beta)
 
 - Prefix `/api/v1/exam` – bank soal, ujian, sesi, peserta, kartu login, kendali mulai/akhir/reset, koreksi, rilis nilai
@@ -408,3 +517,4 @@ Notifikasi: admin (in-app) saat daftar baru & daftar ulang; calon (email) saat d
 - `GET|POST|PUT|DELETE /api/v1/super-admin/releases`
 - `GET /api/v1/super-admin/reports/aggregate`, `.../export`
 - `PATCH|POST /api/v1/institution/{id}/status` – Aktif/suspend institusi
+- Monetisasi: lihat section Monetisasi & Billing di atas

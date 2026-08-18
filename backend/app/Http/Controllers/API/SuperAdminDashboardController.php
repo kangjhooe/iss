@@ -30,7 +30,41 @@ class SuperAdminDashboardController extends Controller
             $studentCount = Student::where('status', 'Aktif')->count();
             $teacherCount = Employee::where('type', 'Guru')->where('status', 'Aktif')->count();
             $pendingRequestsCount = InstitutionChangeRequest::where('status', 'pending')->count();
-            $openFeedbackCount = FeedbackTicket::open()->count();
+            $openFeedbackCount = 0;
+            $openFeedbackTickets = collect();
+
+            try {
+                $openFeedbackCount = FeedbackTicket::open()->count();
+                $openFeedbackTickets = FeedbackTicket::with([
+                        'institution:id,name,npsn',
+                        'submitter:id,name,email',
+                    ])
+                    ->open()
+                    ->orderByDesc('created_at')
+                    ->limit(5)
+                    ->get()
+                    ->map(fn ($t) => [
+                        'id' => $t->id,
+                        'type' => $t->type,
+                        'title' => $t->title,
+                        'priority' => $t->priority,
+                        'status' => $t->status,
+                        'created_at' => $t->created_at?->toIso8601String(),
+                        'institution' => $t->institution ? [
+                            'id' => $t->institution->id,
+                            'name' => $t->institution->name,
+                            'npsn' => $t->institution->npsn,
+                        ] : null,
+                        'submitter' => $t->submitter ? [
+                            'id' => $t->submitter->id,
+                            'name' => $t->submitter->name,
+                        ] : null,
+                    ]);
+            } catch (\Exception $feedbackError) {
+                Log::warning('Failed to load feedback tickets for dashboard', [
+                    'error' => $feedbackError->getMessage(),
+                ]);
+            }
 
             $pendingRequests = InstitutionChangeRequest::with([
                     'institution:id,name,npsn',
@@ -54,32 +88,6 @@ class SuperAdminDashboardController extends Controller
                     'requester' => $r->requester ? [
                         'id' => $r->requester->id,
                         'name' => $r->requester->name,
-                    ] : null,
-                ]);
-
-            $openFeedbackTickets = FeedbackTicket::with([
-                    'institution:id,name,npsn',
-                    'submitter:id,name,email',
-                ])
-                ->open()
-                ->orderByDesc('created_at')
-                ->limit(5)
-                ->get()
-                ->map(fn ($t) => [
-                    'id' => $t->id,
-                    'type' => $t->type,
-                    'title' => $t->title,
-                    'priority' => $t->priority,
-                    'status' => $t->status,
-                    'created_at' => $t->created_at?->toIso8601String(),
-                    'institution' => $t->institution ? [
-                        'id' => $t->institution->id,
-                        'name' => $t->institution->name,
-                        'npsn' => $t->institution->npsn,
-                    ] : null,
-                    'submitter' => $t->submitter ? [
-                        'id' => $t->submitter->id,
-                        'name' => $t->submitter->name,
                     ] : null,
                 ]);
 

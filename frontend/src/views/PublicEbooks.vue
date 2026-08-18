@@ -332,5 +332,17 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .navbar-title { max-width: 140px; }
+  .filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-group,
+  .filter-group.search-wrap {
+    min-width: 0;
+    width: 100%;
+  }
+  .ebook-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

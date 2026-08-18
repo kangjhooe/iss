@@ -2,36 +2,50 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Laporan Inventaris - {{ $institution->name ?? 'Institusi' }}</title>
+    <title>{{ $report_title ?? 'Laporan Inventaris' }} - {{ $institution->name ?? 'Institusi' }}</title>
     <style>
-        @page { margin: 1.2cm; size: A4 landscape; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 9pt; line-height: 1.3; color: #000; }
-        .header { text-align: center; margin-bottom: 12px; }
-        .header h1 { font-size: 14pt; font-weight: bold; margin: 0 0 4px 0; text-transform: uppercase; }
+        @page { margin: 1.2cm 1.2cm 1.6cm 1.2cm; size: A4 landscape; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 8.5pt; line-height: 1.3; color: #000; }
+        .header { text-align: center; margin-bottom: 10px; }
+        .header h1 { font-size: 13pt; font-weight: bold; margin: 0 0 3px 0; text-transform: uppercase; }
         .header p { font-size: 8pt; margin: 0; color: #444; }
-        .stats { margin-bottom: 12px; padding: 8px 10px; background: #f5f5f5; border: 1px solid #ddd; font-size: 8pt; }
+        .meta {
+            margin-bottom: 10px;
+            padding: 6px 8px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            font-size: 7.5pt;
+        }
+        .meta table { width: 100%; border: none; border-collapse: collapse; }
+        .meta td { border: none; padding: 1px 10px 1px 0; vertical-align: top; }
+        .meta td.lbl { font-weight: bold; white-space: nowrap; width: 1%; }
+        .stats { margin-bottom: 10px; padding: 6px 8px; background: #f5f5f5; border: 1px solid #ddd; font-size: 8pt; }
         .stats table { width: auto; border: none; border-collapse: collapse; }
         .stats td { border: none; padding: 2px 14px 2px 0; }
         .stats td.lbl { font-weight: bold; }
         .section-title {
-            font-size: 10pt;
+            font-size: 9.5pt;
             font-weight: bold;
-            margin: 14px 0 6px;
-            padding: 3px 0;
+            margin: 12px 0 5px;
+            padding: 2px 0;
             border-bottom: 1px solid #333;
             text-transform: uppercase;
         }
-        table.data { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; font-size: 8pt; margin-bottom: 4px; }
-        table.data th, table.data td { border: 1px solid #333; padding: 4px 5px; text-align: left; }
+        table.data { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-bottom: 4px; }
+        table.data th, table.data td { border: 1px solid #333; padding: 3px 4px; text-align: left; }
         table.data th { background: #e8e8e8; font-weight: bold; }
-        table.data td.num { text-align: center; width: 28px; }
-        table.data td.center { text-align: center; }
-        table.data td.right { text-align: right; }
+        table.data td.num, table.data th.num { text-align: center; width: 24px; }
+        table.data td.center, table.data th.center { text-align: center; }
+        table.data td.right, table.data th.right { text-align: right; }
+        table.data tfoot td { font-weight: bold; background: #f3f3f3; }
         .footer { margin-top: 10px; font-size: 7pt; text-align: center; color: #666; }
         .empty { text-align: center; padding: 10px; color: #666; }
+        .two-col { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+        .two-col > tbody > tr > td { width: 49%; vertical-align: top; border: none; padding: 0; }
+        .two-col > tbody > tr > td + td { padding-left: 2%; }
         @include('partials.print-letterhead-styles')
         @include('partials.print-signature-styles')
-        .standard-signature-wrap { margin-top: 18px; }
+        .standard-signature-wrap { margin-top: 16px; }
         .standard-signature-space { height: 48px; }
     </style>
 </head>
@@ -39,10 +53,40 @@
     @include('partials.print-letterhead', ['institution' => $institution])
 
     <div class="header">
-        <h1>Laporan Inventaris</h1>
-        <p>Statistik, kondisi, peminjaman, dan nilai aset</p>
+        <h1>{{ $report_title ?? 'Laporan Inventaris' }}</h1>
+        <p>{{ $institution->name ?? '' }}</p>
     </div>
 
+    <div class="meta">
+        <table>
+            <tr>
+                <td class="lbl">Jenis laporan:</td>
+                <td>{{ $report_title ?? '-' }}</td>
+                <td class="lbl">Dicetak:</td>
+                <td>{{ $printed_at ?? '-' }}@if(!empty($printed_by)) — {{ $printed_by }}@endif</td>
+            </tr>
+            @if(!empty($filter_legend))
+            <tr>
+                <td class="lbl">Filter:</td>
+                <td colspan="3">{{ implode(' · ', $filter_legend) }}</td>
+            </tr>
+            @endif
+        </table>
+    </div>
+
+    @php
+        $type = $report_type ?? 'summary';
+        $showSummaryBlocks = $type === 'summary';
+        $showStock = in_array($type, ['summary', 'stock'], true);
+        $showAsset = in_array($type, ['summary', 'asset'], true);
+        $showDamaged = in_array($type, ['summary', 'damaged'], true);
+        $showLoaned = in_array($type, ['summary', 'loaned'], true);
+        $showTransactions = $type === 'transactions';
+        $showMaintenance = $type === 'maintenance';
+        $section = 0;
+    @endphp
+
+    @if($showSummaryBlocks && !empty($statistics))
     <div class="stats">
         <table>
             <tr>
@@ -56,51 +100,63 @@
         </table>
     </div>
 
-    @if(!empty($statistics['by_status']))
-    <div class="section-title">1. Ringkasan per Status</div>
-    <table class="data">
-        <thead>
-            <tr>
-                <th>Status</th>
-                <th class="center">Jumlah Item</th>
-                <th class="center">Total Unit</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($statistics['by_status'] as $status => $row)
-            <tr>
-                <td>{{ $status }}</td>
-                <td class="center">{{ $row['count'] ?? 0 }}</td>
-                <td class="center">{{ $row['quantity'] ?? 0 }}</td>
-            </tr>
-            @endforeach
-        </tbody>
+    <table class="two-col">
+        <tr>
+            <td>
+                @php $section++; @endphp
+                <div class="section-title">{{ $section }}. Ringkasan per Status</div>
+                <table class="data">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th class="center">Jumlah Item</th>
+                            <th class="center">Total Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse(($statistics['by_status'] ?? []) as $status => $row)
+                        <tr>
+                            <td>{{ $status }}</td>
+                            <td class="center">{{ $row['count'] ?? 0 }}</td>
+                            <td class="center">{{ $row['quantity'] ?? 0 }}</td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="3" class="empty">Tidak ada data.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </td>
+            <td>
+                @php $section++; @endphp
+                <div class="section-title">{{ $section }}. Ringkasan per Kondisi</div>
+                <table class="data">
+                    <thead>
+                        <tr>
+                            <th>Kondisi</th>
+                            <th class="center">Jumlah Item</th>
+                            <th class="center">Total Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse(($statistics['by_condition'] ?? []) as $condition => $row)
+                        <tr>
+                            <td>{{ $condition }}</td>
+                            <td class="center">{{ $row['count'] ?? 0 }}</td>
+                            <td class="center">{{ $row['quantity'] ?? 0 }}</td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="3" class="empty">Tidak ada data.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </td>
+        </tr>
     </table>
     @endif
 
-    @if(!empty($statistics['by_condition']))
-    <div class="section-title">2. Ringkasan per Kondisi</div>
-    <table class="data">
-        <thead>
-            <tr>
-                <th>Kondisi</th>
-                <th class="center">Jumlah Item</th>
-                <th class="center">Total Unit</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($statistics['by_condition'] as $condition => $row)
-            <tr>
-                <td>{{ $condition }}</td>
-                <td class="center">{{ $row['count'] ?? 0 }}</td>
-                <td class="center">{{ $row['quantity'] ?? 0 }}</td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
-    @endif
-
-    <div class="section-title">3. Nilai Aset per Kategori</div>
+    @if($showAsset && !empty($asset_value))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Nilai Aset per Kategori</div>
     <table class="data">
         <thead>
             <tr>
@@ -117,22 +173,69 @@
                 <td class="num">{{ $i + 1 }}</td>
                 <td>{{ $row['category'] ?? '-' }}</td>
                 <td class="center">{{ $row['item_count'] ?? 0 }}</td>
-                <td class="center">{{ $row['total_quantity'] ?? 0 }}</td>
+                <td class="center">{{ number_format($row['total_quantity'] ?? 0, 0, ',', '.') }}</td>
                 <td class="right">{{ number_format($row['total_value'] ?? 0, 0, ',', '.') }}</td>
             </tr>
             @empty
             <tr><td colspan="5" class="empty">Tidak ada data nilai aset.</td></tr>
             @endforelse
-            @if(!empty($asset_value['by_category']))
-            <tr>
-                <td colspan="4" class="right"><strong>Total</strong></td>
-                <td class="right"><strong>{{ number_format($asset_value['grand_total_value'] ?? 0, 0, ',', '.') }}</strong></td>
-            </tr>
-            @endif
         </tbody>
+        @if(!empty($asset_value['by_category']))
+        <tfoot>
+            <tr>
+                <td colspan="4" class="right">Total</td>
+                <td class="right">{{ number_format($asset_value['grand_total_value'] ?? 0, 0, ',', '.') }}</td>
+            </tr>
+        </tfoot>
+        @endif
     </table>
 
-    <div class="section-title">4. Barang Rusak / Hilang</div>
+    @if($type === 'asset')
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Rincian Nilai per Barang</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th class="num">No</th>
+                <th>Kode</th>
+                <th>Nama</th>
+                <th>Kategori</th>
+                <th class="center">Qty</th>
+                <th class="right">Harga Satuan</th>
+                <th class="right">Nilai</th>
+                <th class="center">Tgl Beli</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php
+                $assetItems = collect($asset_value['by_category'] ?? [])->flatMap(function ($cat) {
+                    return collect($cat['items'] ?? [])->map(fn ($item) => array_merge($item, [
+                        'category' => $cat['category'] ?? '-',
+                    ]));
+                })->values();
+            @endphp
+            @forelse($assetItems as $i => $row)
+            <tr>
+                <td class="num">{{ $i + 1 }}</td>
+                <td>{{ $row['code'] ?? '-' }}</td>
+                <td>{{ $row['name'] ?? '-' }}</td>
+                <td>{{ $row['category'] ?? '-' }}</td>
+                <td class="center">{{ $row['quantity'] ?? '-' }}{{ !empty($row['unit']) ? ' '.$row['unit'] : '' }}</td>
+                <td class="right">{{ number_format($row['unit_price'] ?? 0, 0, ',', '.') }}</td>
+                <td class="right">{{ number_format($row['total_value'] ?? 0, 0, ',', '.') }}</td>
+                <td class="center">{{ !empty($row['purchase_date']) ? \Carbon\Carbon::parse($row['purchase_date'])->format('d/m/Y') : '-' }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="8" class="empty">Tidak ada rincian aset.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+    @endif
+    @endif
+
+    @if($showDamaged && !empty($damaged_missing))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Barang Rusak / Hilang</div>
     <table class="data">
         <thead>
             <tr>
@@ -147,9 +250,12 @@
         </thead>
         <tbody>
             @php
-                $damagedRows = collect($damaged_missing['damaged'] ?? [])->map(fn ($r) => array_merge($r, ['label' => $r['condition'] ?? 'Rusak']));
-                $missingRows = collect($damaged_missing['missing'] ?? [])->map(fn ($r) => array_merge($r, ['label' => 'Hilang']));
-                $problemRows = $damagedRows->concat($missingRows)->values();
+                $problemRows = collect($damaged_missing['rows'] ?? []);
+                if ($problemRows->isEmpty()) {
+                    $damagedRows = collect($damaged_missing['damaged'] ?? [])->map(fn ($r) => array_merge($r, ['label' => $r['condition'] ?? 'Rusak']));
+                    $missingRows = collect($damaged_missing['missing'] ?? [])->map(fn ($r) => array_merge($r, ['label' => 'Hilang']));
+                    $problemRows = $damagedRows->concat($missingRows)->values();
+                }
             @endphp
             @forelse($problemRows as $i => $row)
             <tr>
@@ -157,8 +263,8 @@
                 <td>{{ $row['code'] ?? '-' }}</td>
                 <td>{{ $row['name'] ?? '-' }}</td>
                 <td>{{ $row['category'] ?? '-' }}</td>
-                <td>{{ $row['label'] ?? '-' }}</td>
-                <td class="center">{{ $row['quantity'] ?? '-' }}</td>
+                <td>{{ $row['label'] ?? ($row['condition'] ?? $row['status'] ?? '-') }}</td>
+                <td class="center">{{ $row['quantity'] ?? '-' }}{{ !empty($row['unit']) ? ' '.$row['unit'] : '' }}</td>
                 <td>{{ $row['location'] ?? '-' }}</td>
             </tr>
             @empty
@@ -166,14 +272,18 @@
             @endforelse
         </tbody>
     </table>
+    @endif
 
-    <div class="section-title">5. Sedang Dipinjam</div>
+    @if($showLoaned && !empty($loaned))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Sedang Dipinjam</div>
     <table class="data">
         <thead>
             <tr>
                 <th class="num">No</th>
                 <th>Kode</th>
                 <th>Barang</th>
+                <th>Kategori</th>
                 <th>Peminjam</th>
                 <th class="center">Qty</th>
                 <th class="center">Tgl Pinjam</th>
@@ -187,6 +297,7 @@
                 <td class="num">{{ $i + 1 }}</td>
                 <td>{{ $loan['item_code'] ?? '-' }}</td>
                 <td>{{ $loan['item_name'] ?? '-' }}</td>
+                <td>{{ $loan['category'] ?? '-' }}</td>
                 <td>{{ $loan['borrower_name'] ?? '-' }}</td>
                 <td class="center">{{ $loan['quantity'] ?? '-' }}</td>
                 <td class="center">{{ !empty($loan['loan_date']) ? \Carbon\Carbon::parse($loan['loan_date'])->format('d/m/Y') : '-' }}</td>
@@ -194,56 +305,158 @@
                 <td>{{ ($loan['is_overdue'] ?? false) ? 'Terlambat' : ($loan['status'] ?? '-') }}</td>
             </tr>
             @empty
-            <tr><td colspan="8" class="empty">Tidak ada peminjaman aktif.</td></tr>
+            <tr><td colspan="9" class="empty">Tidak ada peminjaman aktif.</td></tr>
             @endforelse
         </tbody>
     </table>
+    @endif
 
-    <div class="section-title">6. Daftar Barang Inventaris</div>
+    @if($showStock && !empty($stock))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Daftar Stok Barang</div>
     <table class="data">
         <thead>
             <tr>
                 <th class="num">No</th>
                 <th>Kode</th>
                 <th>Nama</th>
+                <th>Merk/Model</th>
+                <th>SN</th>
                 <th>Kategori</th>
                 <th class="center">Qty</th>
                 <th>Kondisi</th>
                 <th>Status</th>
                 <th>Lokasi</th>
+                <th class="center">Tgl Beli</th>
+                <th class="right">Harga</th>
+                <th class="right">Nilai</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($items as $i => $item)
+            @forelse($stock['items'] ?? [] as $i => $item)
             <tr>
                 <td class="num">{{ $i + 1 }}</td>
-                <td>{{ $item->code ?? '-' }}</td>
-                <td>{{ $item->name ?? '-' }}</td>
-                <td>{{ $item->category->name ?? '-' }}</td>
-                <td class="center">{{ $item->quantity ?? '-' }}{{ $item->unit ? ' ' . $item->unit : '' }}</td>
-                <td>{{ $item->condition ?? '-' }}</td>
-                <td>{{ $item->status ?? '-' }}</td>
-                <td>
-                    @if($item->room)
-                        {{ $item->room->name }}
-                    @elseif($item->building)
-                        {{ $item->building->name }}
-                    @else
-                        {{ $item->location_note ?: '-' }}
-                    @endif
-                </td>
+                <td>{{ $item['code'] ?? '-' }}</td>
+                <td>{{ $item['name'] ?? '-' }}</td>
+                <td>{{ $item['brand_model'] ?? '-' }}</td>
+                <td>{{ $item['serial_number'] ?? '-' }}</td>
+                <td>{{ $item['category'] ?? '-' }}</td>
+                <td class="center">{{ $item['quantity'] ?? '-' }}{{ !empty($item['unit']) ? ' '.$item['unit'] : '' }}</td>
+                <td>{{ $item['condition'] ?? '-' }}</td>
+                <td>{{ $item['status'] ?? '-' }}</td>
+                <td>{{ $item['location'] ?? '-' }}</td>
+                <td class="center">{{ !empty($item['purchase_date']) ? \Carbon\Carbon::parse($item['purchase_date'])->format('d/m/Y') : '-' }}</td>
+                <td class="right">{{ $item['purchase_price'] !== null ? number_format($item['purchase_price'], 0, ',', '.') : '-' }}</td>
+                <td class="right">{{ $item['total_value'] !== null ? number_format($item['total_value'], 0, ',', '.') : '-' }}</td>
             </tr>
             @empty
-            <tr><td colspan="8" class="empty">Tidak ada data barang.</td></tr>
+            <tr><td colspan="13" class="empty">Tidak ada data barang.</td></tr>
+            @endforelse
+        </tbody>
+        @if(!empty($stock['items']))
+        <tfoot>
+            <tr>
+                <td colspan="6" class="right">Total</td>
+                <td class="center">{{ number_format($stock['total_quantity'] ?? 0, 0, ',', '.') }}</td>
+                <td colspan="4"></td>
+                <td colspan="2" class="right">{{ number_format($stock['total_value'] ?? 0, 0, ',', '.') }}</td>
+            </tr>
+        </tfoot>
+        @endif
+    </table>
+    @if(!empty($stock['truncated']))
+    <div class="footer">Daftar dibatasi {{ count($stock['items'] ?? []) }} dari {{ $stock['total'] ?? 0 }} barang.</div>
+    @endif
+    @endif
+
+    @if($showTransactions && !empty($transactions))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Mutasi / Transaksi</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th class="num">No</th>
+                <th class="center">Tanggal</th>
+                <th>No Ref</th>
+                <th>Kode</th>
+                <th>Nama</th>
+                <th>Jenis</th>
+                <th class="center">Qty</th>
+                <th>Dari</th>
+                <th>Ke</th>
+                <th>Oleh</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($transactions['transactions'] ?? [] as $i => $row)
+            <tr>
+                <td class="num">{{ $i + 1 }}</td>
+                <td class="center">{{ !empty($row['date']) ? \Carbon\Carbon::parse($row['date'])->format('d/m/Y') : '-' }}</td>
+                <td>{{ $row['reference_number'] ?? '-' }}</td>
+                <td>{{ $row['item_code'] ?? '-' }}</td>
+                <td>{{ $row['item_name'] ?? '-' }}</td>
+                <td>{{ $row['type'] ?? '-' }}</td>
+                <td class="center">{{ $row['quantity'] ?? '-' }}</td>
+                <td>{{ $row['from_location'] ?? '-' }}</td>
+                <td>{{ $row['to_location'] ?? '-' }}</td>
+                <td>{{ $row['created_by'] ?? '-' }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="10" class="empty">Tidak ada transaksi pada periode ini.</td></tr>
             @endforelse
         </tbody>
     </table>
+    @endif
+
+    @if($showMaintenance && !empty($maintenance))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Pemeliharaan</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th class="num">No</th>
+                <th class="center">Tgl Jadwal</th>
+                <th>Kode</th>
+                <th>Barang</th>
+                <th>Jenis</th>
+                <th class="right">Biaya</th>
+                <th>Status</th>
+                <th>Teknisi</th>
+                <th class="center">Selesai</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($maintenance['maintenances'] ?? [] as $i => $row)
+            <tr>
+                <td class="num">{{ $i + 1 }}</td>
+                <td class="center">{{ !empty($row['scheduled_date']) ? \Carbon\Carbon::parse($row['scheduled_date'])->format('d/m/Y') : '-' }}</td>
+                <td>{{ $row['item_code'] ?? '-' }}</td>
+                <td>{{ $row['item_name'] ?? '-' }}</td>
+                <td>{{ $row['type'] ?? '-' }}</td>
+                <td class="right">{{ $row['cost'] !== null ? number_format($row['cost'], 0, ',', '.') : '-' }}</td>
+                <td>{{ $row['status'] ?? '-' }}</td>
+                <td>{{ $row['technician_name'] ?? '-' }}</td>
+                <td class="center">{{ !empty($row['completed_date']) ? \Carbon\Carbon::parse($row['completed_date'])->format('d/m/Y') : '-' }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="9" class="empty">Tidak ada data pemeliharaan.</td></tr>
+            @endforelse
+        </tbody>
+        @if(!empty($maintenance['maintenances']))
+        <tfoot>
+            <tr>
+                <td colspan="5" class="right">Total biaya</td>
+                <td class="right">{{ number_format($maintenance['total_cost'] ?? 0, 0, ',', '.') }}</td>
+                <td colspan="3"></td>
+            </tr>
+        </tfoot>
+        @endif
+    </table>
+    @endif
 
     <div class="footer">
         Dicetak pada {{ $printed_at }}
         @if(!empty($printed_by)) &mdash; oleh {{ $printed_by }}@endif
-        &mdash; {{ $items->count() }} barang ditampilkan
-        @if(($items_truncated ?? false)) (dibatasi 2000 baris)@endif
     </div>
 
     <div class="standard-signature-wrap">

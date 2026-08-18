@@ -1,29 +1,23 @@
 # TODO
 
-## Prioritas berikutnya
+## Belum dibangun (modul / produk)
 
-- [ ] Portal orang tua / wali murid (lihat jadwal, nilai, absensi, pelanggaran, pengumuman)
-- [ ] Modul keuangan sekolah (SPP, tagihan, pembayaran, tunggakan, laporan) — Beta operasional; polish kritis selesai (yearly period, kwitansi, target siswa, edit tagihan, export laporan); polish lanjut / luluskan Beta menyusul
-- [x] Kalender akademik admin (UI untuk event/libur/kegiatan — API sudah ada)
-- [ ] Billing & subscription Super Admin (paket, trial, invoice, suspend tenant)
-
-## Monetisasi (add-on / paket)
-
-- [ ] Peningkatan penyimpanan (kuota per institusi + add-on upgrade)
-- [ ] Modul ujian online sebagai add-on berbayar (ikat ke subscription / module grant)
-- [ ] Posting berita & galeri di halaman publik sekolah (CMS admin + tampil di SchoolPublic)
+- [ ] Billing & subscription Super Admin lanjutan (invoice, trial otomatis, suspend tenant) — fondasi paket/add-on/dark-launch sudah ada di `/super-admin/monetisasi`
 
 ## Matangkan modul Beta
 
-- [ ] Luluskan Ujian Online dari status Beta (stabilitas beban tinggi; Bank Soal Fase A–C + monitoring/laporan sudah ada)
-- [x] Luluskan PPDB dari status Beta (alur lengkap, notifikasi, export)
+### Keuangan (`/keuangan/*`)
+- [ ] Payment gateway (opsional; saat ini pencatatan pembayaran staff-only)
+
+### Ujian Online (`/ujian-online/*`) — Beta
+- [ ] Luluskan dari status Beta (stabilitas beban tinggi — tetap Beta untuk sekarang)
+
+## Monetisasi (add-on / paket)
+
+Fondasi dark launch sudah ada (`/super-admin/monetisasi`). Default **tersembunyi** dari semua sekolah sampai Super Admin centang “Tampilkan monetisasi ke sekolah”.
+
+- [ ] Billing & subscription penuh (invoice, trial otomatis, suspend tenant, gateway)
 
 ## Peningkatan operasional sekolah
 
-- [ ] Kepegawaian lanjutan (cuti, SK, jabatan struktural, riwayat)
-- [ ] Notifikasi / pengumuman ke orang tua (email / WhatsApp / in-app)
 - [ ] Template raport sesuai format resmi (jika belum lengkap)
-
-## Platform & kualitas
-
-- [x] Hardening QA fitur baru: mutasi guru, template jadwal multi, ebook, bobot nilai/KKM

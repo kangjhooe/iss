@@ -71,6 +71,38 @@
         </div>
       </div>
 
+      <!-- Disposisi masuk (tanpa modul Persuratan penuh) -->
+      <div v-if="pendingDispositions.length" class="disposition-inbox" role="status">
+        <div class="disposition-inbox-head">
+          <h2>Disposisi menunggu tindak lanjut</h2>
+          <span class="disposition-inbox-count">{{ pendingDispositions.length }}</span>
+        </div>
+        <ul class="disposition-inbox-list">
+          <li v-for="item in pendingDispositions" :key="item.id" class="disposition-inbox-item">
+            <div class="disposition-inbox-body">
+              <p class="disposition-inbox-subject">
+                {{ item.correspondence?.subject || 'Surat' }}
+                <span v-if="item.correspondence?.letter_number" class="disposition-inbox-no">
+                  · {{ item.correspondence.letter_number }}
+                </span>
+              </p>
+              <p class="disposition-inbox-meta">
+                Dari {{ item.from_user?.name || '-' }}
+              </p>
+              <p class="disposition-inbox-instruction">{{ item.instruction }}</p>
+            </div>
+            <button
+              type="button"
+              class="disposition-inbox-btn"
+              :disabled="completingDispositionId === item.id"
+              @click="completeDisposition(item.id)"
+            >
+              {{ completingDispositionId === item.id ? 'Menyimpan…' : 'Selesai' }}
+            </button>
+          </li>
+        </ul>
+      </div>
+
       <!-- Stats -->
       <div class="stats-grid">
         <div class="stat-card stat-card-primary">
@@ -409,14 +441,19 @@ import { computed, onMounted, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import { teacherApi } from '@/api/teacher'
 import { myTeacherAppreciationApi } from '@/api/teacherAppreciation'
+import correspondenceApi from '@/api/correspondence'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const authStore = useAuthStore()
+const toast = useToast()
 
 const loading = ref(true)
 const pointsLoading = ref(true)
 const myPoints = ref(null)
 const loadError = ref('')
+const pendingDispositions = ref([])
+const completingDispositionId = ref(null)
 const dashboardData = ref({
   teacher: null,
   summary: { total_classes: 0, total_students: 0, homeroom_classes: 0 },
@@ -522,7 +559,8 @@ const actionIconSvg = (name) => {
 
 const quickActions = computed(() => {
   const actions = []
-  if (canAccessModule('teaching_journal') || canAccessModule('grade_book')) {
+  const hasTeachingAssignments = (authStore.user?.teaching_assignments || []).length > 0
+  if (hasTeachingAssignments && (canAccessModule('teaching_journal') || canAccessModule('grade_book'))) {
     actions.push({
       to: '/teacher/today',
       label: 'Jam Mengajar Hari Ini',
@@ -596,10 +634,10 @@ const quickActions = computed(() => {
     actions.push({ to: '/extracurricular', label: 'Ekstrakurikuler', icon: 'users', tone: 'success' })
   }
   actions.push({ to: '/lab-booking', label: 'Booking Lab', icon: 'calendar', tone: 'neutral' })
-  if (canAccessModule('attendance') || canAccessModule('teaching_journal')) {
+  if (canAccessModule('attendance')) {
     actions.push({
-      to: canAccessModule('teaching_journal') ? '/attendance/student' : '/attendance/employee',
-      label: canAccessModule('teaching_journal') ? 'Absensi Siswa' : 'Absensi',
+      to: '/attendance/employee',
+      label: 'Absensi Guru & Staff',
       icon: 'calendar',
       tone: 'primary',
     })
@@ -668,6 +706,31 @@ const loadDashboard = async () => {
   }
 }
 
+const loadPendingDispositions = async () => {
+  try {
+    const res = await correspondenceApi.getPendingDispositions()
+    pendingDispositions.value = res.data?.data || []
+  } catch {
+    pendingDispositions.value = []
+  }
+}
+
+const completeDisposition = async (id) => {
+  completingDispositionId.value = id
+  try {
+    await correspondenceApi.completeDisposition(id)
+    pendingDispositions.value = pendingDispositions.value.filter((d) => d.id !== id)
+    toast.success('Berhasil', 'Disposisi ditandai selesai')
+  } catch (error) {
+    toast.error(
+      'Gagal',
+      error.formattedMessage || error.response?.data?.message || 'Gagal menyelesaikan disposisi'
+    )
+  } finally {
+    completingDispositionId.value = null
+  }
+}
+
 const loadMyPoints = async () => {
   pointsLoading.value = true
   try {
@@ -683,6 +746,7 @@ const loadMyPoints = async () => {
 onMounted(() => {
   loadDashboard()
   loadMyPoints()
+  loadPendingDispositions()
 })
 </script>
 
@@ -691,6 +755,104 @@ onMounted(() => {
   width: 100%;
   max-width: 100%;
   padding: 0 0 8px;
+}
+
+.disposition-inbox {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+}
+
+.disposition-inbox-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.disposition-inbox-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.disposition-inbox-count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.disposition-inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.disposition-inbox-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #fde68a;
+}
+
+.disposition-inbox-subject {
+  margin: 0 0 2px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.disposition-inbox-no {
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.disposition-inbox-meta {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.disposition-inbox-instruction {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #374151;
+  white-space: pre-wrap;
+}
+
+.disposition-inbox-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #0d9488;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.disposition-inbox-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Welcome - compact bar */
@@ -717,7 +879,7 @@ onMounted(() => {
 }
 
 .welcome-content h1 {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.2px;
@@ -730,7 +892,7 @@ onMounted(() => {
 
 .welcome-content p,
 .welcome-content .welcome-inst {
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.95;
   margin: 0;
   font-weight: 500;
@@ -801,7 +963,7 @@ onMounted(() => {
 
 .piket-title {
   margin: 0 0 6px;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: #065f46;
 }
@@ -973,7 +1135,7 @@ onMounted(() => {
 
 .stat-value {
   color: #0f172a;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   margin: 0 0 2px;
   letter-spacing: -0.4px;
@@ -1003,8 +1165,8 @@ onMounted(() => {
 /* Quick actions */
 .quick-actions {
   background: white;
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 12px;
+  padding: 16px 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid #e5e7eb;
   margin-bottom: 20px;
@@ -1019,7 +1181,7 @@ onMounted(() => {
 }
 
 .section-header h2 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
@@ -1142,8 +1304,8 @@ onMounted(() => {
 .classes-section,
 .attention-panel {
   background: white;
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 12px;
+  padding: 16px 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid #e5e7eb;
 }
@@ -1622,7 +1784,7 @@ onMounted(() => {
   }
 
   .stat-value {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .quick-actions,

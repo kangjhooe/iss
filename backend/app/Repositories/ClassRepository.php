@@ -64,10 +64,25 @@ class ClassRepository extends BaseRepository
             $query->where('teacher_id', $filters['teacher_id']);
         }
 
+        if (isset($filters['program_keahlian_id'])) {
+            $query->where('program_keahlian_id', $filters['program_keahlian_id']);
+        }
+
+        if (!empty($filters['program_keahlian_ids']) && is_array($filters['program_keahlian_ids'])) {
+            $query->whereIn('program_keahlian_id', $filters['program_keahlian_ids']);
+        }
+
         $perPage = min($perPage, 100);
 
         return $query->withCount('students')
-            ->with(['institution:id,name,npsn', 'room:id,name,code', 'teacher:id,name,nip,nuptk', 'academicYear:id,code,name', 'semester:id,name'])
+            ->with([
+                'institution:id,name,npsn',
+                'room:id,name,code',
+                'teacher:id,name,nip,nuptk',
+                'academicYear:id,code,name',
+                'semester:id,name',
+                'programKeahlian:id,code,name',
+            ])
             ->orderBy('grade', 'asc')
             ->orderBy('name', 'asc')
             ->paginate($perPage);
@@ -79,7 +94,7 @@ class ClassRepository extends BaseRepository
     public function findWithRelations(int $id): SchoolClass
     {
         return $this->query()
-            ->with(['institution', 'room', 'teacher', 'students', 'academicYear', 'semester'])
+            ->with(['institution', 'room', 'teacher', 'students', 'academicYear', 'semester', 'programKeahlian'])
             ->findOrFail($id);
     }
 

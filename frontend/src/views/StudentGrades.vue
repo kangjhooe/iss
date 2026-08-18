@@ -1,44 +1,45 @@
 <template>
   <Layout>
-    <div class="page">
-      <div class="tab-header">
-        <h1 class="tab-title">Nilai Saya</h1>
-        <div v-if="semesters.length" class="semester-select-wrap">
-          <label for="semester-select">Semester:</label>
-          <select id="semester-select" v-model="selectedSemesterId" class="semester-select">
-            <option value="">Pilih semester</option>
-            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div v-if="loading" class="loading-state">
-        <p>Memuat nilai...</p>
-      </div>
-
-      <div v-else-if="!selectedSemesterId" class="empty-state">
-        <p>Pilih semester untuk melihat nilai.</p>
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
-      </div>
-
-      <div v-else-if="!grades.length" class="empty-state">
-        <p>Belum ada nilai untuk semester ini.</p>
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
-      </div>
-
-      <div v-else class="grades-wrap">
-        <div class="grades-actions">
+    <div class="sp-page">
+      <div class="sp-page-header">
+        <p class="sp-subtitle">Nilai per semester dan unduh raport CSV</p>
+        <div class="sp-actions">
+          <div v-if="semesters.length" class="semester-select-wrap">
+            <label for="semester-select">Semester</label>
+            <select id="semester-select" v-model="selectedSemesterId" class="sp-select">
+              <option value="">Pilih semester</option>
+              <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+          </div>
           <button
+            v-if="grades.length"
             type="button"
-            class="btn-download"
+            class="sp-btn sp-btn--primary"
             :disabled="downloadingRaport"
             @click="downloadRaport"
           >
-            {{ downloadingRaport ? 'Mengunduh...' : 'Download Raport (CSV)' }}
+            {{ downloadingRaport ? 'Mengunduh...' : 'Download Raport' }}
           </button>
         </div>
-        <div class="table-scroll">
-          <table class="grades-table">
+      </div>
+
+      <div v-if="loading" class="sp-loading">
+        <p>Memuat nilai...</p>
+      </div>
+
+      <div v-else-if="!selectedSemesterId" class="sp-empty">
+        <h3 class="sp-empty-title">Pilih semester</h3>
+        <p class="sp-empty-desc">Pilih semester di atas untuk melihat nilai.</p>
+      </div>
+
+      <div v-else-if="!grades.length" class="sp-empty">
+        <h3 class="sp-empty-title">Belum ada nilai</h3>
+        <p class="sp-empty-desc">Belum ada nilai untuk semester ini.</p>
+      </div>
+
+      <div v-else class="sp-panel grades-panel">
+        <div class="sp-table-wrap sp-table-desktop">
+          <table class="sp-table">
             <thead>
               <tr>
                 <th>Mata Pelajaran</th>
@@ -69,8 +70,8 @@
                 <td>
                   <span
                     v-if="g.tuntas_label"
-                    class="tuntas-chip"
-                    :class="g.is_tuntas ? 'tuntas' : 'belum'"
+                    class="sp-badge"
+                    :class="g.is_tuntas ? 'sp-badge--ok' : 'sp-badge--danger'"
                   >{{ g.tuntas_label }}</span>
                   <span v-else>-</span>
                 </td>
@@ -78,7 +79,19 @@
             </tbody>
           </table>
         </div>
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
+
+        <div class="sp-mobile-cards">
+          <article v-for="g in grades" :key="'m-' + g.subject_id" class="sp-mobile-card">
+            <div class="sp-mobile-card-title">{{ g.subject?.name || '-' }}</div>
+            <div class="sp-mobile-card-row"><span>Rata Penilaian</span><strong>{{ g.rata_penilaian ?? '-' }}</strong></div>
+            <div class="sp-mobile-card-row"><span>UTS</span><strong>{{ g.uts ?? '-' }}</strong></div>
+            <div class="sp-mobile-card-row"><span>UAS</span><strong>{{ g.uas ?? '-' }}</strong></div>
+            <div class="sp-mobile-card-row"><span>Nilai Akhir</span><strong>{{ g.nilai_akhir ?? '-' }}</strong></div>
+            <div class="sp-mobile-card-row"><span>KKM</span><strong>{{ g.kkm ?? '-' }}</strong></div>
+            <div class="sp-mobile-card-row"><span>Predikat</span><strong>{{ g.predicate || '-' }}</strong></div>
+            <div class="sp-mobile-card-row"><span>Ketuntasan</span><strong>{{ g.tuntas_label || '-' }}</strong></div>
+          </article>
+        </div>
       </div>
     </div>
   </Layout>
@@ -192,148 +205,27 @@ async function downloadRaport() {
 </script>
 
 <style scoped>
-.page {
-  max-width: 100%;
-  padding: 0;
-  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
-  min-height: 100%;
-}
-
-.tab-header {
-  margin-bottom: 24px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-}
-
-.tab-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-
-.page-header {
-  margin-bottom: 24px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-}
-
-.page-header h1 {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-
 .semester-select-wrap {
   display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.semester-select-wrap label {
-  font-size: 14px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.semester-select {
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #0f172a;
+  flex-direction: column;
+  gap: 4px;
   min-width: 180px;
 }
 
-.loading-state,
-.empty-state {
-  text-align: center;
-  padding: 48px 24px;
-  color: #64748b;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.back-link {
-  display: inline-block;
-  margin-top: 16px;
-  color: #059669;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.back-link:hover {
-  text-decoration: underline;
-  color: #047857;
-}
-
-.grades-wrap {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  padding: 20px;
-  overflow: hidden;
-}
-
-.grades-actions {
-  margin-bottom: 16px;
-}
-
-.btn-download {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-}
-
-.btn-download:hover:not(:disabled) {
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
-}
-
-.btn-download:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.table-scroll {
-  overflow-x: auto;
-}
-
-.grades-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.grades-table th,
-.grades-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #e2e8f0;
-  text-align: left;
-}
-
-.grades-table th {
-  background: #f8fafc;
-  font-size: 12px;
-  font-weight: 600;
+.semester-select-wrap label {
+  font-size: 11px;
+  font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
 }
 
-.grades-table td {
-  font-size: 14px;
-  color: #0f172a;
+.grades-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.sp-table-wrap {
+  border: none;
 }
 
 .subject-name {
@@ -342,53 +234,38 @@ async function downloadRaport() {
 
 .penilaian-detail {
   margin-top: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
   color: #64748b;
+  font-weight: 400;
 }
 
 .nilai-akhir {
-  font-weight: 700;
-  color: #059669;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .pred-chip {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.75rem;
-  padding: 0.15rem 0.45rem;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: #e2e8f0;
+  font-size: 11px;
+  font-weight: 800;
+  background: #f1f5f9;
   color: #334155;
 }
-.pred-chip.pred-A { background: #d1fae5; color: #065f46; }
-.pred-chip.pred-B { background: #dbeafe; color: #1e40af; }
-.pred-chip.pred-C { background: #fef3c7; color: #92400e; }
-.pred-chip.pred-D { background: #fee2e2; color: #991b1b; }
 
-.tuntas-chip {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-.tuntas-chip.tuntas { background: #d1fae5; color: #065f46; }
-.tuntas-chip.belum { background: #fee2e2; color: #991b1b; }
+.pred-A { background: #d1fae5; color: #065f46; }
+.pred-B { background: #dbeafe; color: #1d4ed8; }
+.pred-C { background: #fef3c7; color: #92400e; }
+.pred-D, .pred-E { background: #fee2e2; color: #991b1b; }
 
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
+  .sp-page-header .sp-actions {
+    width: 100%;
   }
 
-  .grades-table th,
-  .grades-table td {
-    padding: 10px 8px;
-    font-size: 13px;
+  .semester-select-wrap {
+    flex: 1;
   }
 }
 </style>

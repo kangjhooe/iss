@@ -501,6 +501,22 @@
                         <span>{{ duty.label }}</span>
                       </label>
                     </div>
+                    <div v-if="isKaprogDutySelected" class="form-section kaprog-programs-section">
+                      <h5>Jurusan yang diampu (Kaprog)</h5>
+                      <div v-if="loadingProgramKeahlian" class="info-box">
+                        <p>Memuat program keahlian...</p>
+                      </div>
+                      <div v-else-if="!programKeahlianOptions.length" class="info-box">
+                        <p>Belum ada program keahlian. Buat dulu di menu Program Keahlian.</p>
+                      </div>
+                      <div v-else class="module-grid">
+                        <label v-for="pk in programKeahlianOptions" :key="pk.id" class="module-option">
+                          <input type="checkbox" :value="pk.id" v-model="form.program_keahlian_ids" />
+                          <span>{{ pk.code ? `${pk.code} — ` : '' }}{{ pk.name }}</span>
+                        </label>
+                      </div>
+                      <p class="form-hint">Kaprog hanya melihat kelas dan penempatan PKL pada jurusan yang dicentang.</p>
+                    </div>
                     <p class="form-hint">Tugas tambahan memberi akses otomatis ke modul terkait (digabung dengan akses modul di bawah).</p>
                   </div>
                   <div v-if="form.user_role" class="module-access-grid">
@@ -1340,8 +1356,9 @@ import { useTeacherList } from '@/composables/useTeacherList'
 import { employeeApi } from '@/api/teacher'
 import { institutionApi } from '@/api/institution'
 import { permissionApi } from '@/api/permissions'
+import { programKeahlianApi } from '@/api/programKeahlian'
 import { useReferenceDataStore } from '@/stores/referenceData'
-import { getInstitutionTypeLabel, getPrincipalTitle, getNssLabel } from '@/utils/institution'
+import { getInstitutionTypeLabel, getPrincipalTitle, getNssLabel, isVocationalLevel, getActiveInstitutionLevel, VOCATIONAL_DUTY_KEYS, VOCATIONAL_PERMISSION_KEYS } from '@/utils/institution'
 import { validators } from '@/utils/validation'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
@@ -1353,8 +1370,38 @@ import * as XLSX from 'xlsx'
 const toast = useToast()
 const authStore = useAuthStore()
 const referenceStore = useReferenceDataStore()
-const availableAdditionalDuties = computed(() => referenceStore.additionalDuties)
+const availableAdditionalDuties = computed(() => {
+  const duties = referenceStore.additionalDuties
+  if (isVocationalLevel(getActiveInstitutionLevel(authStore))) return duties
+  return duties.filter(d => !VOCATIONAL_DUTY_KEYS.includes(d.key))
+})
 const loadingAdditionalDuties = computed(() => referenceStore.additionalDutiesLoading)
+const kaprogDutyId = computed(() => {
+  const duty = availableAdditionalDuties.value.find(d => d.key === 'kepala_program_keahlian')
+  return duty?.id ?? null
+})
+const isKaprogDutySelected = computed(() => {
+  if (!kaprogDutyId.value) return false
+  return form.value.additional_duty_ids.map(Number).includes(Number(kaprogDutyId.value))
+})
+const programKeahlianOptions = ref([])
+const loadingProgramKeahlian = ref(false)
+
+const loadProgramKeahlianOptions = async () => {
+  if (!isVocationalLevel(getActiveInstitutionLevel(authStore))) {
+    programKeahlianOptions.value = []
+    return
+  }
+  loadingProgramKeahlian.value = true
+  try {
+    const res = await programKeahlianApi.getAll({ status: 'Aktif', all: 1 })
+    programKeahlianOptions.value = res.data?.data || res.data || []
+  } catch {
+    programKeahlianOptions.value = []
+  } finally {
+    loadingProgramKeahlian.value = false
+  }
+}
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const availableModules = ref([])
@@ -1423,6 +1470,7 @@ const form = ref({
   user_role: '',
   permission_keys: ['correspondence', 'teaching_journal', 'grade_book', 'schedule'],
   additional_duty_ids: [],
+  program_keahlian_ids: [],
   affiliation: null,
   current_assignment: null,
   assignment_subject: '',
@@ -1457,7 +1505,10 @@ const loadPermissions = async () => {
   loadingPermissions.value = true
   try {
     const response = await permissionApi.getAll()
-    availableModules.value = response.data.data || []
+    const modules = response.data.data || []
+    availableModules.value = isVocationalLevel(getActiveInstitutionLevel(authStore))
+      ? modules
+      : modules.filter(m => !VOCATIONAL_PERMISSION_KEYS.includes(m.key))
   } catch (err) {
     console.error(err)
     toast.error('Gagal', 'Gagal memuat daftar modul')
@@ -1709,6 +1760,9 @@ const editTeacher = async (teacher) => {
       ? fullData.user_account.permissions
       : ['correspondence', 'teaching_journal', 'grade_book', 'schedule']
     form.value.additional_duty_ids = (fullData.additional_duties || []).map(d => d.id)
+    form.value.program_keahlian_ids = fullData.program_keahlian_ids
+      || (fullData.program_keahlians || []).map(p => p.id)
+      || []
     if (fullData.birth_date) {
       form.value.birth_date = fullData.birth_date.split('T')[0]
     }
@@ -1961,6 +2015,7 @@ const closeModal = () => {
     user_role: '',
     permission_keys: ['correspondence', 'teaching_journal', 'grade_book', 'schedule'],
     additional_duty_ids: [],
+    program_keahlian_ids: [],
     affiliation: null,
     current_assignment: null,
     assignment_subject: '',
@@ -2647,6 +2702,7 @@ const handleImportExcel = async (event) => {
 onMounted(() => {
   loadPermissions()
   referenceStore.getAdditionalDuties()
+  loadProgramKeahlianOptions()
   refreshPendingAssignmentCount()
 })
 </script>

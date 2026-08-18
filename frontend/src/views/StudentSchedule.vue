@@ -1,23 +1,29 @@
 <template>
   <Layout>
-    <div class="page">
-      <div class="page-header">
-        <h1>Jadwal Pelajaran</h1>
-        <p v-if="classInfo" class="page-subtitle">{{ classInfo }}</p>
-        <p v-if="activeSemester" class="page-meta">Semester: {{ activeSemester.name }}</p>
+    <div class="sp-page">
+      <div class="sp-page-header">
+        <div>
+          <p class="sp-subtitle">{{ classInfo || 'Jadwal pelajaran mingguan' }}</p>
+          <div v-if="activeSemester" class="sp-meta">
+            <span class="sp-meta-chip">Semester {{ activeSemester.name }}</span>
+          </div>
+        </div>
       </div>
 
-      <div v-if="loading" class="loading-state">
+      <div v-if="loading" class="sp-loading">
         <p>Memuat jadwal...</p>
       </div>
 
-      <div v-else-if="!scheduleMatrix.length" class="empty-state">
-        <p>Belum ada jadwal untuk semester aktif.</p>
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
+      <div v-else-if="!scheduleMatrix.length" class="sp-empty">
+        <div class="sp-empty-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M8 2V6M16 2V6M3 10H21M5 4H19C20.1 4 21 4.9 21 6V20C21 21.1 20.1 22 19 22H5C3.9 22 3 21.1 3 20V6C3 4.9 3.9 4 5 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <h3 class="sp-empty-title">Belum ada jadwal</h3>
+        <p class="sp-empty-desc">Jadwal semester aktif belum tersedia untuk kelas Anda.</p>
       </div>
 
-      <div v-else class="schedule-wrap">
-        <div class="table-scroll">
+      <div v-else class="sp-panel schedule-panel">
+        <div class="sp-table-wrap schedule-scroll">
           <table class="schedule-table">
             <thead>
               <tr>
@@ -42,7 +48,6 @@
             </tbody>
           </table>
         </div>
-        <router-link to="/student/dashboard" class="back-link">← Kembali ke Dashboard</router-link>
       </div>
     </div>
   </Layout>
@@ -110,68 +115,19 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page {
-  max-width: 100%;
+.schedule-panel {
   padding: 0;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 8px 0;
-}
-
-.page-subtitle,
-.page-meta {
-  font-size: 14px;
-  color: #64748b;
-  margin: 0;
-}
-
-.loading-state,
-.empty-state {
-  text-align: center;
-  padding: 48px 24px;
-  color: #64748b;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.back-link {
-  display: inline-block;
-  margin-top: 16px;
-  color: #059669;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.back-link:hover {
-  text-decoration: underline;
-  color: #047857;
-}
-
-.schedule-wrap {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  padding: 20px;
   overflow: hidden;
 }
 
-.table-scroll {
-  overflow-x: auto;
+.schedule-scroll {
+  border: none;
+  border-radius: 14px;
 }
 
 .schedule-table {
   width: 100%;
-  min-width: 500px;
+  min-width: 640px;
   border-collapse: collapse;
 }
 
@@ -185,16 +141,18 @@ onMounted(async () => {
 
 .schedule-table th {
   background: #f8fafc;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .col-period {
-  width: 48px;
-  font-weight: 600;
+  width: 52px;
+  font-weight: 700;
   color: #475569;
+  background: #f8fafc;
 }
 
 .col-day {
@@ -207,7 +165,7 @@ onMounted(async () => {
 }
 
 .slot-subject {
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 4px;
 }
 
@@ -222,17 +180,13 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .schedule-table {
-    font-size: 12px;
-  }
-
   .schedule-table th,
   .schedule-table td {
     padding: 8px 6px;
   }
 
   .col-day {
-    min-width: 90px;
+    min-width: 96px;
   }
 }
 </style>

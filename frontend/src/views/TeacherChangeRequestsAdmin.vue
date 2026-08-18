@@ -60,11 +60,11 @@
             <div class="request-details">
               <div class="detail-row">
                 <span class="label">Nilai Lama:</span>
-                <span class="value">{{ request.old_value || '-' }}</span>
+                <span class="value">{{ formatFieldValue(request.old_value, request.field_name) }}</span>
               </div>
               <div class="detail-row">
                 <span class="label">Nilai Baru:</span>
-                <span class="value new-value">{{ request.new_value }}</span>
+                <span class="value new-value">{{ formatFieldValue(request.new_value, request.field_name) }}</span>
               </div>
               <div class="detail-row">
                 <span class="label">Diminta oleh:</span>
@@ -118,11 +118,11 @@
               </div>
               <div class="detail-row">
                 <span class="label">Dari:</span>
-                <span class="value">{{ selectedRequest?.old_value || '-' }}</span>
+                <span class="value">{{ formatFieldValue(selectedRequest?.old_value, selectedRequest?.field_name) }}</span>
               </div>
               <div class="detail-row">
                 <span class="label">Menjadi:</span>
-                <span class="value new-value">{{ selectedRequest?.new_value }}</span>
+                <span class="value new-value">{{ formatFieldValue(selectedRequest?.new_value, selectedRequest?.field_name) }}</span>
               </div>
             </div>
             <div v-if="approveError" class="error-message">{{ approveError }}</div>
@@ -177,15 +177,23 @@ import { useToast } from '@/composables/useToast'
 const toast = useToast()
 
 const FIELD_LABELS = {
+  name: 'Nama',
+  nik: 'NIK',
+  nip: 'NIP',
+  nuptk: 'NUPTK',
+  gender: 'Jenis Kelamin',
+  email: 'Email',
   address: 'Alamat',
   phone: 'No. HP',
-  email: 'Email',
   religion: 'Agama',
   birth_place: 'Tempat Lahir',
   birth_date: 'Tanggal Lahir',
   education_level: 'Pendidikan',
   major: 'Jurusan',
   subject: 'Mata Pelajaran',
+  employment_status: 'Status Kepegawaian',
+  status: 'Status',
+  join_date: 'Tanggal Bergabung',
   notes: 'Catatan',
   certification_status: 'Status Sertifikasi',
   certification_date: 'Tanggal Sertifikasi',
@@ -196,6 +204,15 @@ const FIELD_LABELS = {
 
 function getFieldLabel(field) {
   return FIELD_LABELS[field] || field
+}
+
+function formatFieldValue(val, field) {
+  if (val == null || val === '') return '-'
+  if (field === 'gender') {
+    if (val === 'L') return 'Laki-laki'
+    if (val === 'P') return 'Perempuan'
+  }
+  return String(val)
 }
 
 const loading = ref(true)

@@ -43,6 +43,14 @@ class ClassResource extends JsonResource
             'code' => $this->code,
             'name' => $this->name,
             'grade' => $this->grade,
+            'program_keahlian_id' => $this->program_keahlian_id,
+            'program_keahlian' => $this->whenLoaded('programKeahlian', function () {
+                return $this->programKeahlian ? [
+                    'id' => $this->programKeahlian->id,
+                    'code' => $this->programKeahlian->code,
+                    'name' => $this->programKeahlian->name,
+                ] : null;
+            }),
             'academic_year_id' => $this->academic_year_id,
             'academic_year' => $this->whenLoaded('academicYear', function () {
                 return $this->academicYear->code ?? $this->academic_year;

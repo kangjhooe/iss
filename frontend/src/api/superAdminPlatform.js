@@ -51,5 +51,35 @@ export const superAdminPlatformApi = {
   },
   deleteDatabaseBackup(filename) {
     return api.delete(`/v1/super-admin/database-backups/${encodeURIComponent(filename)}`)
+  },
+  getMonetizationSummary() {
+    return api.get('/v1/super-admin/monetization/summary')
+  },
+  updateMonetizationLaunch(data) {
+    return api.put('/v1/super-admin/monetization/launch', data)
+  },
+  getMonetizationPlans() {
+    return api.get('/v1/super-admin/monetization/plans')
+  },
+  createMonetizationPlan(data) {
+    return api.post('/v1/super-admin/monetization/plans', data)
+  },
+  updateMonetizationPlan(id, data) {
+    return api.put(`/v1/super-admin/monetization/plans/${id}`, data)
+  },
+  getMonetizationAddons() {
+    return api.get('/v1/super-admin/monetization/addons')
+  },
+  updateMonetizationAddon(id, data) {
+    return api.put(`/v1/super-admin/monetization/addons/${id}`, data)
+  },
+  getMonetizationInstitutions(params = {}) {
+    return api.get('/v1/super-admin/monetization/institutions', { params })
+  },
+  upsertInstitutionSubscription(institutionId, data) {
+    return api.put(`/v1/super-admin/monetization/institutions/${institutionId}/subscription`, data)
+  },
+  upsertInstitutionAddon(institutionId, data) {
+    return api.put(`/v1/super-admin/monetization/institutions/${institutionId}/addons`, data)
   }
 }

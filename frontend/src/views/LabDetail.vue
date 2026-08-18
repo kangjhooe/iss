@@ -1136,4 +1136,20 @@ onMounted(async () => {
 .st-approved { color: #059669; font-weight: 600; }
 .st-rejected, .st-cancelled { color: #94a3b8; }
 .loading-state, .empty-state { padding: 2rem; text-align: center; color: #64748b; }
+.panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 768px) {
+  .form-row { grid-template-columns: 1fr; }
+  .modal-footer {
+    flex-direction: column-reverse;
+  }
+  .modal-footer .btn-primary,
+  .modal-footer .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+  .data-table { font-size: 0.8rem; }
+  .data-table th, .data-table td { padding: 0.4rem 0.3rem; }
+  .actions-cell { white-space: normal; }
+}
 </style>

@@ -14,6 +14,18 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // Backward compatible: older clients send "email"
+        if (!$this->filled('login') && $this->filled('email')) {
+            $this->merge(['login' => $this->input('email')]);
+        }
+
+        if ($this->filled('login')) {
+            $this->merge(['login' => trim((string) $this->input('login'))]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -22,7 +34,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => 'required|email',
+            'login' => 'required|string|max:255',
             'password' => 'required',
         ];
     }
@@ -35,8 +47,7 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'Email wajib diisi',
-            'email.email' => 'Format email tidak valid',
+            'login.required' => 'NIK atau email wajib diisi',
             'password.required' => 'Password wajib diisi',
         ];
     }

@@ -7,6 +7,7 @@ const getDefaultRoute = (role) => {
   if (role === 'super_admin') return '/super-admin/dashboard'
   if (role === 'teacher' || role === 'staff') return '/teacher/dashboard'
   if (role === 'student') return '/student/dashboard'
+  if (role === 'parent') return '/parent/dashboard'
   return '/dashboard'
 }
 
@@ -29,7 +30,26 @@ export const useAuthStore = defineStore('auth', {
     activeInstitutionId: (state) => state.user?.active_institution_id || state.user?.institution_id || null,
     activeInstitution: (state) => state.user?.active_institution || state.user?.institution || null,
     activeAffiliation: (state) => state.user?.active_affiliation || 'induk',
-    canSwitchInstitution: (state) => (state.user?.available_institutions || []).length > 1
+    canSwitchInstitution: (state) => (state.user?.available_institutions || []).length > 1,
+    isDemoInstitution: (state) => {
+      const inst = state.user?.active_institution || state.user?.institution
+      return !!(inst?.is_demo)
+    },
+    monetization: (state) => {
+      return state.user?.monetization
+        || state.user?.active_institution?.monetization
+        || { launched: false, store_visible: false }
+    },
+    isMonetizationVisible: (state) => {
+      const m = state.user?.monetization || state.user?.active_institution?.monetization
+      return !!(m?.launched && m?.store_visible)
+    },
+    /** Sebelum launch selalu true; setelah launch mengikuti entitlement paket/add-on. */
+    isOnlineExamEntitled: (state) => {
+      const m = state.user?.monetization || state.user?.active_institution?.monetization
+      if (!m?.launched || !m?.online_exam?.enforced) return true
+      return m.online_exam?.entitled !== false
+    },
   },
 
   actions: {

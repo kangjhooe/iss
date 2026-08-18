@@ -1,6 +1,12 @@
 import api from './index'
 
 export const studentChangeRequestApi = {
+  getMyProfile() {
+    return api.get('/v1/student/profile')
+  },
+  updateMyProfile(data) {
+    return api.put('/v1/student/profile', data)
+  },
   getAll(params) {
     return api.get('/v1/student-change-requests', { params })
   },

@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Correspondence;
+use App\Models\CorrespondenceDisposition;
 use App\Models\User;
 use App\Support\InstitutionContext;
 
@@ -13,8 +14,7 @@ class CorrespondencePolicy
      */
     public function viewAny(User $user): bool
     {
-        // All authenticated users can view correspondences
-        return true;
+        return $user->hasModuleAccess('correspondence');
     }
 
     /**
@@ -22,9 +22,16 @@ class CorrespondencePolicy
      */
     public function view(User $user, Correspondence $correspondence): bool
     {
-        // Super admin and admin can view all
         if ($user->isAdminOrSuperAdmin()) {
             return true;
+        }
+
+        if ($this->isDispositionParty($user, $correspondence)) {
+            return true;
+        }
+
+        if (!$user->hasModuleAccess('correspondence')) {
+            return false;
         }
 
         return $this->canAccessCorrespondenceInstitution($user, $correspondence);
@@ -35,8 +42,7 @@ class CorrespondencePolicy
      */
     public function create(User $user): bool
     {
-        // All authenticated users can create correspondences
-        return true;
+        return $user->hasModuleAccess('correspondence');
     }
 
     /**
@@ -44,9 +50,12 @@ class CorrespondencePolicy
      */
     public function update(User $user, Correspondence $correspondence): bool
     {
-        // Super admin and admin can update all
         if ($user->isAdminOrSuperAdmin()) {
             return true;
+        }
+
+        if (!$user->hasModuleAccess('correspondence')) {
+            return false;
         }
 
         return $this->canAccessCorrespondenceInstitution($user, $correspondence);
@@ -57,9 +66,12 @@ class CorrespondencePolicy
      */
     public function delete(User $user, Correspondence $correspondence): bool
     {
-        // Super admin and admin can delete all
         if ($user->isAdminOrSuperAdmin()) {
             return true;
+        }
+
+        if (!$user->hasModuleAccess('correspondence')) {
+            return false;
         }
 
         return $this->canAccessCorrespondenceInstitution($user, $correspondence);
@@ -70,9 +82,12 @@ class CorrespondencePolicy
      */
     public function restore(User $user, Correspondence $correspondence): bool
     {
-        // Super admin and admin can restore all
         if ($user->isAdminOrSuperAdmin()) {
             return true;
+        }
+
+        if (!$user->hasModuleAccess('correspondence')) {
+            return false;
         }
 
         return $this->canAccessCorrespondenceInstitution($user, $correspondence);
@@ -83,7 +98,6 @@ class CorrespondencePolicy
      */
     public function forceDelete(User $user, Correspondence $correspondence): bool
     {
-        // Only super admin can permanently delete
         return $user->isSuperAdmin();
     }
 
@@ -92,12 +106,10 @@ class CorrespondencePolicy
      */
     public function approve(User $user, Correspondence $correspondence): bool
     {
-        // Only admin and super admin can approve
         if (!$user->isAdminOrSuperAdmin()) {
             return false;
         }
 
-        // Must be from an accessible institution (unless super admin)
         if (!$user->isSuperAdmin() && !$this->canAccessCorrespondenceInstitution($user, $correspondence)) {
             return false;
         }
@@ -110,12 +122,10 @@ class CorrespondencePolicy
      */
     public function send(User $user, Correspondence $correspondence): bool
     {
-        // Only admin and super admin can send
         if (!$user->isAdminOrSuperAdmin()) {
             return false;
         }
 
-        // Must be from an accessible institution (unless super admin)
         if (!$user->isSuperAdmin() && !$this->canAccessCorrespondenceInstitution($user, $correspondence)) {
             return false;
         }
@@ -128,9 +138,12 @@ class CorrespondencePolicy
      */
     public function archive(User $user, Correspondence $correspondence): bool
     {
-        // Super admin and admin can archive all
         if ($user->isAdminOrSuperAdmin()) {
             return true;
+        }
+
+        if (!$user->hasModuleAccess('correspondence')) {
+            return false;
         }
 
         return $this->canAccessCorrespondenceInstitution($user, $correspondence);
@@ -143,5 +156,19 @@ class CorrespondencePolicy
     private function canAccessCorrespondenceInstitution(User $user, Correspondence $correspondence): bool
     {
         return InstitutionContext::canAccessInstitution($user, (int) $correspondence->institution_id);
+    }
+
+    /**
+     * Penerima/pengirim disposisi boleh melihat detail surat terkait.
+     */
+    private function isDispositionParty(User $user, Correspondence $correspondence): bool
+    {
+        return CorrespondenceDisposition::query()
+            ->where('correspondence_id', $correspondence->id)
+            ->where(function ($q) use ($user) {
+                $q->where('to_user_id', $user->id)
+                    ->orWhere('from_user_id', $user->id);
+            })
+            ->exists();
     }
 }

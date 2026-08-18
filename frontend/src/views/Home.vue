@@ -9,14 +9,61 @@
           </div>
           <span class="navbar-title">{{ appName }}</span>
         </router-link>
-        <div class="navbar-actions">
-          <a href="#cari-sekolah" class="nav-link">Cari Sekolah</a>
+
+        <div class="navbar-links">
           <router-link to="/catatan-rilis" class="nav-link">Update</router-link>
-          <router-link to="/login" class="btn btn-ghost">Masuk</router-link>
-          <router-link to="/register" class="btn btn-primary">Daftar</router-link>
+          <router-link to="/login?demo=1" class="nav-link">Coba Demo</router-link>
+        </div>
+
+        <div class="navbar-auth">
+          <router-link to="/login" class="navbar-login">Masuk</router-link>
+          <router-link to="/register" class="btn btn-primary navbar-register">Daftar</router-link>
+          <button
+            type="button"
+            class="navbar-toggle"
+            :aria-expanded="menuOpen"
+            aria-controls="home-mobile-menu"
+            :aria-label="menuOpen ? 'Tutup menu' : 'Buka menu'"
+            @click="menuOpen = !menuOpen"
+          >
+            <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
+            <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
+            <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
+          </button>
         </div>
       </div>
     </nav>
+
+    <Teleport to="body">
+      <Transition name="menu">
+        <div
+          v-if="menuOpen"
+          class="mobile-menu-backdrop"
+          @click="closeMenu"
+        ></div>
+      </Transition>
+      <Transition name="drawer">
+        <div
+          v-if="menuOpen"
+          id="home-mobile-menu"
+          class="mobile-menu-drawer"
+          role="dialog"
+          aria-label="Menu"
+        >
+          <button type="button" class="mobile-menu-close" aria-label="Tutup menu" @click="closeMenu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+          <router-link to="/catatan-rilis" class="mobile-menu-link" @click="closeMenu">Update</router-link>
+          <router-link to="/login?demo=1" class="mobile-menu-link" @click="closeMenu">Coba Demo</router-link>
+          <div class="mobile-menu-auth">
+            <router-link to="/login" class="navbar-login" @click="closeMenu">Masuk</router-link>
+            <router-link to="/register" class="btn btn-primary navbar-register" @click="closeMenu">Daftar</router-link>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Hero (teks & gambar dari Branding Aplikasi) -->
     <HeroSection
@@ -29,157 +76,101 @@
       :secondary-cta-to="appBranding.heroSecondaryCtaTo ?? undefined"
     />
 
-    <!-- Cari sekolah (pintu masuk publik, sekunder dari CTA marketing) -->
+    <!-- Cari sekolah (pintu masuk publik) -->
     <section id="cari-sekolah" class="section find-school-section" aria-labelledby="find-school-title">
       <div class="section-inner find-school-inner">
-        <div class="find-school-copy">
-          <h2 id="find-school-title" class="find-school-title">Cari Sekolah Anda</h2>
-          <p class="find-school-subtitle">
-            Masukkan NPSN untuk membuka profil, PPDB, perpustakaan digital, buku tamu, dan layanan publik sekolah.
-          </p>
-        </div>
-        <form class="find-school-form" @submit.prevent="searchSchoolByNpsn">
-          <div class="find-school-field">
-            <label for="home-npsn" class="find-school-label">NPSN</label>
-            <input
-              id="home-npsn"
-              :value="findNpsn"
-              type="text"
-              class="find-school-input"
-              :class="{ 'find-school-input--error': findError }"
-              inputmode="numeric"
-              autocomplete="off"
-              maxlength="8"
-              placeholder="8 digit NPSN"
-              aria-describedby="find-school-hint find-school-error"
-              :disabled="findLoading"
-              @input="onFindNpsnInput"
-            />
+        <div class="find-school-card">
+          <div class="find-school-copy">
+            <h2 id="find-school-title" class="find-school-title">Cari Sekolah Anda</h2>
+            <p class="find-school-subtitle">
+              Masukkan NPSN untuk membuka profil, PPDB, perpustakaan digital, buku tamu, dan layanan publik sekolah.
+            </p>
           </div>
-          <button type="submit" class="btn btn-primary find-school-btn" :disabled="findLoading || findNpsn.length !== 8">
-            <span v-if="findLoading">Mencari...</span>
-            <span v-else>Cari</span>
-          </button>
-        </form>
-        <p id="find-school-hint" class="find-school-hint">NPSN terdiri dari 8 digit angka.</p>
-        <p v-if="findError" id="find-school-error" class="find-school-error" role="alert">{{ findError }}</p>
+          <form class="find-school-form" @submit.prevent="searchSchoolByNpsn">
+            <div class="find-school-field">
+              <label for="home-npsn" class="find-school-label">NPSN</label>
+              <input
+                id="home-npsn"
+                :value="findNpsn"
+                type="text"
+                class="find-school-input"
+                :class="{ 'find-school-input--error': findError }"
+                inputmode="numeric"
+                autocomplete="off"
+                maxlength="8"
+                placeholder="8 digit NPSN"
+                aria-describedby="find-school-hint find-school-error"
+                :disabled="findLoading"
+                @input="onFindNpsnInput"
+              />
+            </div>
+            <button type="submit" class="btn btn-primary find-school-btn" :disabled="findLoading || findNpsn.length !== 8">
+              <span v-if="findLoading">Mencari...</span>
+              <span v-else>Cari</span>
+            </button>
+          </form>
+          <p id="find-school-hint" class="find-school-hint">NPSN terdiri dari 8 digit angka.</p>
+          <p v-if="findError" id="find-school-error" class="find-school-error" role="alert">{{ findError }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Statistik: bukti sosial dekat hero -->
+    <section class="section stats-section" :aria-busy="statsLoading" aria-labelledby="stats-heading">
+      <div class="stats-bg" aria-hidden="true"></div>
+      <div class="section-inner stats-inner">
+        <h2 id="stats-heading" class="stats-heading">Dipercaya oleh institusi pendidikan</h2>
+        <p class="stats-subheading">Bergabung bersama sekolah dan madrasah di seluruh Indonesia</p>
+        <div class="stats-row">
+          <div class="stats-total-block">
+            <div class="stats-main">
+              <div v-if="statsLoading" class="stats-number-wrap">
+                <span class="stats-number stats-number--skeleton" aria-hidden="true">0</span>
+              </div>
+              <div v-else class="stats-number-wrap">
+                <span class="stats-number" :aria-label="(institutionsCount ?? 0).toLocaleString('id-ID')">{{ displayTotal.toLocaleString('id-ID') }}</span>
+              </div>
+              <p class="stats-caption">Sekolah & madrasah sudah bergabung</p>
+              <p v-if="statsLoadError" class="stats-error-msg">Statistik tidak dapat dimuat. Periksa koneksi atau coba lagi.</p>
+              <p v-else-if="!statsLoading && (institutionsCount ?? 0) === 0" class="stats-zero-cta">Jadilah yang pertama bergabung.</p>
+            </div>
+            <div class="stats-decoration" aria-hidden="true">
+              <svg class="stats-decoration-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 21V12H15V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+          <div v-if="!statsLoading" class="stats-tiers" role="list">
+            <div
+              v-for="(tier, idx) in statsByTier"
+              :key="tier.key"
+              class="stats-tier-item"
+              :class="{ 'stats-tier-item--active': (tier.count ?? 0) > 0, 'stats-tier-item--muted': (tier.count ?? 0) === 0 }"
+              role="listitem"
+              :title="tier.key === 'lainnya' ? 'Belum mengisi jenjang' : undefined"
+            >
+              <span class="stats-tier-label">{{ tier.label }}</span>
+              <span class="stats-tier-value">{{ (animatedTierCounts[idx] ?? 0).toLocaleString('id-ID') }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
     <!-- Fitur -->
     <section id="fitur" ref="featuresRef" class="section features-section" :class="{ 'section--in-view': featuresVisible }">
       <div class="section-inner">
-        <h2 class="section-title">Fitur Lengkap</h2>
-        <p class="section-subtitle">Semua yang Anda butuhkan untuk mengelola sekolah dan madrasah dalam satu tempat</p>
+        <h2 class="section-title">Fitur unggulan</h2>
+        <p class="section-subtitle">Modul yang paling sering dipakai sekolah dan madrasah, dalam satu platform</p>
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 21V12H15V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 3V8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Profil Sekolah/Madrasah</h3>
-            <p>Kelola profil institusi, halaman publik by NPSN, dan identitas lembaga</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="7" r="4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Data Siswa & Mutasi</h3>
-            <p>Data siswa, mutasi, naik kelas, kelulusan, dan alumni dalam satu alur</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Data Guru & Apresiasi</h3>
-            <p>Data guru, mutasi, apresiasi, poin prestasi, dan ranking di satu tempat</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 6V12L16 14" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 12H4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 3V4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M20 12H21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 20V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Jadwal & Jurnal</h3>
-            <p>Template jadwal per kelas, jadwal mengajar, dan jurnal harian guru</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 7H12" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 11H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 15H14" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Buku Nilai & Raport</h3>
-            <p>KKM, bobot penilaian, remedial, buku nilai, dan cetak raport</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 2V6" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 2V6" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 10H21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 14H8.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 14H12.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 14H16.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 18H8.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 18H12.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 18H16.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Absensi & QR</h3>
-            <p>Absensi siswa dan pegawai, termasuk presensi dengan scan QR code</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 8V12" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 16H12.01" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>BK, Pelanggaran & Piket</h3>
-            <p>Konseling, poin pelanggaran/prestasi, laporan BK, dan jadwal guru piket</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Ekstrakurikuler</h3>
-            <p>Kelola ekskul, jadwal kegiatan, kehadiran, dan penilaian sesi</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M15 2H9C8.46957 2 7.96086 2.21071 7.58579 2.58579C7.21071 2.96086 7 3.46957 7 4V16C7 16.5304 7.21071 17.0391 7.58579 17.4142C7.96086 17.7893 8.46957 18 9 18H15C15.5304 18 16.0391 17.7893 16.4142 17.4142C16.7893 17.0391 17 16.5304 17 16V4C17 3.46957 16.7893 2.96086 16.4142 2.58579C16.0391 2.21071 15.5304 2 15 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 7V11" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H14" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15 2H9C8.46957 2 7.96086 2.21071 7.58579 2.58579C7.21071 2.96086 7 3.46957 7 4V16C7 16.5304 7.21071 17.0391 7.58579 17.4142C7.96086 17.7893 8.46957 18 9 18H15C15.5304 18 16.0391 17.7893 16.4142 17.4142C16.7893 17.0391 17 16.5304 17 16V4C17 3.46957 16.7893 2.96086 16.4142 2.58579C16.0391 2.21071 15.5304 2 15 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>PPDB Online</h3>
@@ -187,12 +178,53 @@
           </div>
           <div class="feature-card">
             <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 2V8H20" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 13H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 17H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9H8" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 15H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Buku Nilai & Raport</h3>
+            <p>KKM, bobot penilaian, remedial, buku nilai, dan cetak raport</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 14H8.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 14H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 14H16.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 18H8.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 18H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 18H16.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Absensi & QR</h3>
+            <p>Absensi siswa dan pegawai, termasuk presensi dengan scan QR code</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="12" y1="18" x2="12.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Portal & Ujian Online</h3>
+            <p>Portal siswa/guru, ujian online, serta booking lab dan inventaris</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Surat-menyurat</h3>
@@ -200,27 +232,96 @@
           </div>
           <div class="feature-card">
             <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 7H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 11H16" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8 15H12" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Data Siswa & Mutasi</h3>
+            <p>Data siswa, mutasi, naik kelas, kelulusan, dan alumni dalam satu alur</p>
+          </div>
+        </div>
+
+        <div v-if="showAllFeatures" class="features-grid features-grid--more">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 21V12H15V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Profil Sekolah/Madrasah</h3>
+            <p>Kelola profil institusi, halaman publik by NPSN, dan identitas lembaga</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Data Guru & Apresiasi</h3>
+            <p>Data guru, mutasi, apresiasi, poin prestasi, dan ranking di satu tempat</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 12H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 20V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Jadwal & Jurnal</h3>
+            <p>Template jadwal per kelas, jadwal mengajar, dan jurnal harian guru</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 8V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>BK, Pelanggaran & Piket</h3>
+            <p>Konseling, poin pelanggaran/prestasi, laporan BK, dan jadwal guru piket</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Ekstrakurikuler</h3>
+            <p>Kelola ekskul, jadwal kegiatan, kehadiran, dan penilaian sesi</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
             <h3>Perpustakaan & E-book</h3>
             <p>Katalog buku, peminjaman, e-book publik, arsip digital, dan ijazah</p>
           </div>
-          <div class="feature-card">
-            <div class="feature-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <line x1="12" y1="18" x2="12.01" y2="18" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h3>Portal & Ujian Online</h3>
-            <p>Portal siswa/guru, ujian online, serta booking lab dan inventaris</p>
-          </div>
+        </div>
+
+        <div class="features-more">
+          <button type="button" class="features-more-btn" :aria-expanded="showAllFeatures" @click="showAllFeatures = !showAllFeatures">
+            {{ showAllFeatures ? 'Tampilkan lebih sedikit' : 'Lihat semua fitur' }}
+          </button>
         </div>
       </div>
     </section>
@@ -269,49 +370,6 @@
             </div>
             <h3>Multi-institusi</h3>
             <p>Mendukung berbagai jenjang dan jenis lembaga pendidikan</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Statistik: total besar + per jenjang, count-up, hirarki jelas, kartu aktif/redup -->
-    <section class="section stats-section" :aria-busy="statsLoading" aria-labelledby="stats-heading">
-      <div class="stats-bg" aria-hidden="true"></div>
-      <div class="section-inner stats-inner">
-        <h2 id="stats-heading" class="stats-heading">Dipercaya oleh institusi pendidikan</h2>
-        <p class="stats-subheading">Bergabung bersama sekolah dan madrasah di seluruh Indonesia</p>
-        <div class="stats-row">
-          <div class="stats-total-block">
-            <div class="stats-main">
-              <div v-if="statsLoading" class="stats-number-wrap">
-                <span class="stats-number stats-number--skeleton" aria-hidden="true">0</span>
-              </div>
-              <div v-else class="stats-number-wrap">
-                <span class="stats-number" :aria-label="(institutionsCount ?? 0).toLocaleString('id-ID')">{{ displayTotal.toLocaleString('id-ID') }}</span>
-              </div>
-              <p class="stats-caption">Sekolah & madrasah sudah bergabung</p>
-              <p v-if="statsLoadError" class="stats-error-msg">Statistik tidak dapat dimuat. Periksa koneksi atau coba lagi.</p>
-              <p v-else-if="!statsLoading && (institutionsCount ?? 0) === 0" class="stats-zero-cta">Jadilah yang pertama bergabung.</p>
-            </div>
-            <div class="stats-decoration" aria-hidden="true">
-              <svg class="stats-decoration-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 21H21V9L12 3L3 9V21Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 21V12H15V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-          </div>
-          <div v-if="!statsLoading" class="stats-tiers" role="list">
-            <div
-              v-for="(tier, idx) in statsByTier"
-              :key="tier.key"
-              class="stats-tier-item"
-              :class="{ 'stats-tier-item--active': (tier.count ?? 0) > 0, 'stats-tier-item--muted': (tier.count ?? 0) === 0 }"
-              role="listitem"
-              :title="tier.key === 'lainnya' ? 'Belum mengisi jenjang' : undefined"
-            >
-              <span class="stats-tier-label">{{ tier.label }}</span>
-              <span class="stats-tier-value">{{ (animatedTierCounts[idx] ?? 0).toLocaleString('id-ID') }}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -426,7 +484,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, nextTick, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { appName, appTagline, appVersion } from '@/config/app'
 import AppLogo from '@/components/AppLogo.vue'
@@ -441,6 +499,21 @@ const appBranding = useAppBrandingStore()
 const findNpsn = ref('')
 const findError = ref('')
 const findLoading = ref(false)
+const menuOpen = ref(false)
+const showAllFeatures = ref(false)
+
+function closeMenu() {
+  menuOpen.value = false
+}
+
+function onMenuKeydown(e) {
+  if (e.key === 'Escape') closeMenu()
+}
+
+watch(menuOpen, (open) => {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = open ? 'hidden' : ''
+})
 
 function onFindNpsnInput(e) {
   findError.value = ''
@@ -612,6 +685,7 @@ function onLogoError(id) {
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', onMenuKeydown)
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -654,6 +728,11 @@ onMounted(async () => {
   await nextTick()
   updateSliderButtons()
 })
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onMenuKeydown)
+  document.body.style.overflow = ''
+})
 </script>
 
 <style scoped>
@@ -678,14 +757,13 @@ onMounted(async () => {
 .navbar-inner {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 14px 24px;
+  padding: 12px 24px;
   padding-left: max(24px, env(safe-area-inset-left));
   padding-right: max(24px, env(safe-area-inset-right));
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
+  gap: 28px;
+  flex-wrap: nowrap;
 }
 
 .navbar-brand {
@@ -696,6 +774,7 @@ onMounted(async () => {
   color: #1e293b;
   font-weight: 600;
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .navbar-brand:hover {
@@ -712,7 +791,10 @@ onMounted(async () => {
 
 .navbar-links {
   display: flex;
-  gap: 24px;
+  align-items: center;
+  gap: 4px 20px;
+  flex: 1;
+  min-width: 0;
 }
 
 .nav-link {
@@ -739,10 +821,42 @@ onMounted(async () => {
   border-radius: 6px;
 }
 
-.navbar-actions {
+.navbar-auth {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding-left: 20px;
+  border-left: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.navbar-login {
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 8px 12px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.navbar-login:hover {
+  color: #059669;
+  background: #f8fafc;
+}
+
+.navbar-login:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+.navbar-register {
+  font-weight: 600;
+  padding: 10px 18px;
 }
 
 /* Hamburger: only on mobile */
@@ -801,14 +915,33 @@ onMounted(async () => {
   width: min(280px, 85vw);
   background: #ffffff;
   z-index: 200;
-  padding: 80px 24px 24px;
-  padding-top: max(80px, calc(env(safe-area-inset-top) + 60px));
+  padding: 72px 24px 24px;
+  padding-top: max(72px, calc(env(safe-area-inset-top) + 56px));
   padding-right: max(24px, env(safe-area-inset-right));
   padding-bottom: max(24px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 8px;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+}
+.mobile-menu-close {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #f8fafc;
+  border-radius: 10px;
+  color: #334155;
+  cursor: pointer;
+}
+.mobile-menu-close:hover {
+  background: #ecfdf5;
+  color: #059669;
 }
 .mobile-menu-link {
   padding: 14px 16px;
@@ -831,6 +964,19 @@ onMounted(async () => {
   outline: 2px solid #059669;
   outline-offset: 2px;
 }
+.mobile-menu-auth {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.mobile-menu-auth .navbar-login,
+.mobile-menu-auth .navbar-register {
+  flex: 1;
+  justify-content: center;
+}
 .menu-enter-active,
 .menu-leave-active {
   transition: opacity 0.2s ease;
@@ -850,15 +996,20 @@ onMounted(async () => {
 
 /* Why section SVG icons */
 .why-icon {
-  font-size: 32px;
-  margin-bottom: 16px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
   display: flex;
   justify-content: center;
   align-items: center;
   color: #059669;
+  background: #ecfdf5;
+  border-radius: 12px;
 }
 .why-icon svg {
   flex-shrink: 0;
+  width: 24px;
+  height: 24px;
 }
 
 /* Buttons - min touch target 44px (accessibility) */
@@ -944,11 +1095,14 @@ a.btn:focus-visible {
 }
 
 /* Find school (public entry) */
-.find-school-section {
-  padding: 40px 24px;
-  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
-  border-bottom: 1px solid #e2e8f0;
+.section.find-school-section {
+  padding: 0 24px 8px;
+  margin-top: -28px;
+  background: transparent;
+  border-bottom: none;
   scroll-margin-top: 72px;
+  position: relative;
+  z-index: 2;
 }
 
 .find-school-inner {
@@ -956,8 +1110,17 @@ a.btn:focus-visible {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 16px;
-  max-width: 640px;
+  gap: 0;
+  max-width: 720px;
+}
+
+.find-school-card {
+  width: 100%;
+  padding: 28px 28px 22px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(5, 150, 105, 0.06);
 }
 
 .find-school-title {
@@ -969,7 +1132,7 @@ a.btn:focus-visible {
 }
 
 .find-school-subtitle {
-  margin: 0;
+  margin: 0 0 18px;
   font-size: 15px;
   line-height: 1.5;
   color: #64748b;
@@ -986,8 +1149,8 @@ a.btn:focus-visible {
 }
 
 .find-school-field {
-  flex: 1 1 200px;
-  max-width: 280px;
+  flex: 1 1 240px;
+  max-width: 360px;
   text-align: left;
 }
 
@@ -1001,12 +1164,12 @@ a.btn:focus-visible {
 
 .find-school-input {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 14px;
+  min-height: 52px;
+  padding: 12px 16px;
   border: 1.5px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 16px;
-  letter-spacing: 0.06em;
+  border-radius: 12px;
+  font-size: 18px;
+  letter-spacing: 0.08em;
   color: #0f172a;
   background: #ffffff;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -1015,7 +1178,7 @@ a.btn:focus-visible {
 .find-school-input:focus {
   outline: none;
   border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.15);
 }
 
 .find-school-input--error {
@@ -1033,7 +1196,10 @@ a.btn:focus-visible {
 
 .find-school-btn {
   flex: 0 0 auto;
-  min-width: 100px;
+  min-width: 120px;
+  min-height: 52px;
+  border-radius: 12px;
+  font-size: 16px;
 }
 
 .find-school-btn:disabled {
@@ -1044,13 +1210,13 @@ a.btn:focus-visible {
 }
 
 .find-school-hint {
-  margin: 0;
+  margin: 12px 0 0;
   font-size: 13px;
   color: #94a3b8;
 }
 
 .find-school-error {
-  margin: 0;
+  margin: 8px 0 0;
   font-size: 14px;
   font-weight: 500;
   color: #dc2626;
@@ -1084,7 +1250,7 @@ a.btn:focus-visible {
 .stats-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(160deg, #f0f4ff 0%, #e8eeff 35%, #f8fafc 70%);
+  background: linear-gradient(160deg, #ecfdf5 0%, #f0fdf4 40%, #f8fafc 75%);
   z-index: 0;
 }
 
@@ -1515,6 +1681,7 @@ a.btn:focus-visible {
 /* Features */
 .features-section {
   background: #f8fafc;
+  scroll-margin-top: 72px;
 }
 
 .features-section.section--in-view .feature-card {
@@ -1541,33 +1708,72 @@ a.btn:focus-visible {
   gap: 24px;
 }
 
+.features-grid--more {
+  margin-top: 24px;
+}
+
+.features-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.features-more-btn {
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1.5px solid #059669;
+  border-radius: 999px;
+  background: #fff;
+  color: #047857;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.features-more-btn:hover {
+  background: #ecfdf5;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.12);
+  transform: translateY(-1px);
+}
+
 .feature-card {
-  padding: 32px 24px;
+  padding: 28px 24px;
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid #e2e8f0;
+  text-align: left;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .feature-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: #059669;
+  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.1);
   transform: translateY(-2px);
 }
 
 .feature-card:hover .feature-icon {
-  transform: scale(1.08);
+  transform: none;
+  background: #059669;
+  color: #fff;
 }
 
 .feature-icon {
-  transition: transform 0.25s ease;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #059669;
+  transition: transform 0.25s ease, background 0.2s ease, color 0.2s ease;
   display: flex;
+  align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .feature-icon svg {
-  color: #059669;
+  color: inherit;
+  flex-shrink: 0;
 }
 
 .feature-card h3 {
@@ -1600,11 +1806,13 @@ a.btn:focus-visible {
 .why-section.section--in-view .why-card:nth-child(4) { animation-delay: 240ms; }
 
 .why-card:hover .why-icon {
-  transform: scale(1.06);
+  transform: none;
+  background: #059669;
+  color: #fff;
 }
 
 .why-icon {
-  transition: transform 0.25s ease;
+  transition: transform 0.25s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .why-grid {
@@ -1623,8 +1831,8 @@ a.btn:focus-visible {
 }
 
 .why-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-color: #059669;
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.08);
   transform: translateY(-2px);
 }
 
@@ -1814,6 +2022,11 @@ a.btn:focus-visible {
     padding: 56px 24px;
   }
 
+  .section.find-school-section {
+    padding: 0 24px 8px;
+    margin-top: -24px;
+  }
+
   .section-inner {
     padding-left: max(24px, env(safe-area-inset-left));
     padding-right: max(24px, env(safe-area-inset-right));
@@ -1845,14 +2058,26 @@ a.btn:focus-visible {
     display: flex;
   }
 
+  .navbar-auth {
+    border-left: none;
+    padding-left: 0;
+    gap: 6px;
+  }
+
   .navbar-inner {
     padding: 12px 20px;
     padding-left: max(20px, env(safe-area-inset-left));
     padding-right: max(20px, env(safe-area-inset-right));
+    gap: 12px;
   }
 
   .find-school-section {
-    padding: 32px 20px;
+    padding: 0 20px 8px;
+    margin-top: -16px;
+  }
+
+  .find-school-card {
+    padding: 22px 18px 18px;
   }
 
   .find-school-title {
@@ -1906,6 +2131,13 @@ a.btn:focus-visible {
     padding: 48px 20px;
     padding-left: max(20px, env(safe-area-inset-left));
     padding-right: max(20px, env(safe-area-inset-right));
+  }
+
+  .section.find-school-section {
+    padding: 0 20px 8px;
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    margin-top: -16px;
   }
 
   .section-title {
@@ -1985,18 +2217,19 @@ a.btn:focus-visible {
 
   .navbar-title {
     font-size: 15px;
-    white-space: normal;
+    white-space: nowrap;
     line-height: 1.3;
   }
 
-  .navbar-actions {
-    gap: 8px;
+  .navbar-login {
+    padding: 8px 8px;
+    font-size: 13px;
   }
 
-  .navbar-actions .btn {
-    padding: 10px 16px;
-    min-height: 44px;
-    font-size: 14px;
+  .navbar-register {
+    padding: 8px 14px;
+    min-height: 40px;
+    font-size: 13px;
   }
 
   .hero {
@@ -2027,6 +2260,13 @@ a.btn:focus-visible {
     padding: 40px 16px;
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .section.find-school-section {
+    padding: 0 16px 8px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    margin-top: -12px;
   }
 
   .section-title {

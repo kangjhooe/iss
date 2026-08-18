@@ -25,6 +25,7 @@ class SchoolClass extends Model
         'code',
         'name',
         'grade',
+        'program_keahlian_id',
         'academic_year',
         'academic_year_id',
         'semester_id',
@@ -69,6 +70,11 @@ class SchoolClass extends Model
     public function teacher()
     {
         return $this->belongsTo(Employee::class, 'teacher_id');
+    }
+
+    public function programKeahlian()
+    {
+        return $this->belongsTo(ProgramKeahlian::class, 'program_keahlian_id');
     }
 
     /**

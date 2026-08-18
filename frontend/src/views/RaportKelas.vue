@@ -992,5 +992,36 @@ th.col-rank {
   td.sticky-col {
     position: static;
   }
+
+  .data-table {
+    font-size: 0.75rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.4rem 0.45rem;
+  }
+
+  .col-name {
+    min-width: 110px;
+  }
+
+  .col-subject {
+    min-width: 56px;
+    max-width: 80px;
+  }
+
+  .col-grade {
+    min-width: 44px;
+  }
+
+  .col-avg,
+  .col-rank {
+    min-width: 64px;
+  }
+
+  .col-grade .grade-pred {
+    font-size: 0.6rem;
+  }
 }
 </style>

@@ -99,7 +99,7 @@
               </label>
               <div class="available-scroll">
                 <div v-for="s in availableStudents" :key="s.id" class="check-row" @click="toggleStudent(s.id)">
-                  <input type="checkbox" :checked="selectedIds.includes(s.id)" @click.stop @change="toggleStudent(s.id)" />
+                  <input type="checkbox" :checked="selectedIds.includes(s.id)" @click.stop="toggleStudent(s.id)" />
                   <span class="check-name">{{ s.name }}</span>
                   <span class="muted">{{ s.nis || '—' }}</span>
                 </div>
@@ -624,7 +624,6 @@ import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { extracurricularApi } from '@/api/extracurricular'
-import { classApi } from '@/api/class'
 import { semesterApi } from '@/api/semester'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
@@ -870,10 +869,11 @@ async function loadPeserta() {
 
 async function loadClasses() {
   try {
-    const res = await classApi.getAll({ status: 'Aktif', per_page: 200 })
+    const res = await extracurricularApi.classesLite()
     classes.value = res.data.data || []
-  } catch {
+  } catch (e) {
     classes.value = []
+    toast.error('Gagal', e.formattedMessage || 'Gagal memuat daftar kelas')
   }
 }
 
@@ -932,7 +932,9 @@ async function submitPeserta() {
   if (!selectedIds.value.length) return
   savingPeserta.value = true
   try {
-    const res = await extracurricularApi.addStudents(id.value, { student_ids: selectedIds.value })
+    const res = await extracurricularApi.addStudents(id.value, {
+      student_ids: selectedIds.value.map((sid) => Number(sid)).filter((sid) => Number.isInteger(sid) && sid > 0),
+    })
     toast.success('Berhasil', res.data?.message || 'Peserta ditambahkan')
     showAddPeserta.value = false
     selectedIds.value = []

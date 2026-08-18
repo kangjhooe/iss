@@ -31,6 +31,7 @@
         <div id="school-nav-menu" class="navbar-links">
           <a href="#tentang" class="nav-link" @click="menuOpen = false">Tentang</a>
           <a href="#layanan" class="nav-link" @click="menuOpen = false">Layanan</a>
+          <a href="#berita" class="nav-link" @click="menuOpen = false">Berita</a>
           <a href="#kontak" class="nav-link" @click="menuOpen = false">Lokasi</a>
           <router-link :to="`/${npsn}/buku-tamu`" class="nav-link" @click="menuOpen = false">Buku Tamu</router-link>
           <router-link
@@ -76,6 +77,7 @@
         :admission-open="admissionOpen"
         :admission-label="admissionLabel"
       />
+      <SchoolPublicContent :npsn="npsn" />
       <SchoolPublicIdentity ref="identityRef" :institution="institution" />
       <SchoolPublicContact ref="contactRef" :institution="institution" />
       <SchoolPublicFooter
@@ -98,6 +100,7 @@ import { getInstitutionTypeLabel } from '@/utils/institution'
 import SchoolPublicHero from './SchoolPublic/SchoolPublicHero.vue'
 import SchoolPublicAbout from './SchoolPublic/SchoolPublicAbout.vue'
 import SchoolPublicServices from './SchoolPublic/SchoolPublicServices.vue'
+import SchoolPublicContent from './SchoolPublic/SchoolPublicContent.vue'
 import SchoolPublicIdentity from './SchoolPublic/SchoolPublicIdentity.vue'
 import SchoolPublicContact from './SchoolPublic/SchoolPublicContact.vue'
 import SchoolPublicFooter from './SchoolPublic/SchoolPublicFooter.vue'

@@ -49,6 +49,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'module' => \App\Http\Middleware\EnsureModuleAccess::class,
             'maintenance' => \App\Http\Middleware\EnsureNotInMaintenance::class,
             'institution.context' => \App\Http\Middleware\ResolveActiveInstitution::class,
+            'monetization.launched' => \App\Http\Middleware\EnsureMonetizationLaunched::class,
+            'online_exam.entitled' => \App\Http\Middleware\EnsureOnlineExamEntitled::class,
+            'storage.quota' => \App\Http\Middleware\EnsureStorageQuota::class,
+            'vocational' => \App\Http\Middleware\EnsureVocationalInstitution::class,
         ]);
 
         // Force JSON response for API routes FIRST (before authentication)

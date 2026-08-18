@@ -361,7 +361,7 @@
         <!-- Riwayat Kesehatan / UKS -->
         <section class="buku-section">
           <h2 class="section-title">M. Riwayat Kesehatan (UKS)</h2>
-          <p v-if="!(data.health_records?.length)" class="no-data">Data akan diisi dari modul UKS ketika tersedia.</p>
+          <p v-if="!(data.health_records?.length)" class="no-data">Belum ada riwayat kunjungan UKS untuk siswa ini.</p>
           <table v-else class="data-table">
             <thead>
               <tr>
@@ -711,8 +711,12 @@ onMounted(() => load())
 }
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 10px 20px;
+}
+.buku-section {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .data-item {
   display: flex;
@@ -767,5 +771,21 @@ onMounted(() => load())
   margin-top: 1.5rem;
   font-size: 0.85rem;
   color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+  .data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .data-table {
+    font-size: 0.8rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
 }
 </style>

@@ -9,6 +9,11 @@
         </div>
         <div class="welcome-actions">
           <input v-model="selectedDate" type="date" class="date-input" @change="loadSessions" />
+          <router-link
+            v-if="canAccessModule('teaching_journal')"
+            :to="recapAttendanceTo"
+            class="profile-link"
+          >Rekap Absensi</router-link>
           <router-link to="/teacher/dashboard" class="profile-link">Dashboard</router-link>
         </div>
       </div>
@@ -101,6 +106,7 @@
                   <button type="button" class="btn-ghost btn-sm" :disabled="!attRows.length" @click="markAllHadir">
                     Semua Hadir
                   </button>
+                  <router-link :to="recapAttendanceTo" class="btn-ghost btn-sm toolbar-link">Tanggal lain / rekap</router-link>
                 </div>
                 <p v-if="dayMismatch" class="warn-text">{{ dayMismatch }}</p>
                 <p v-if="attError" class="error-text">{{ attError }}</p>
@@ -279,6 +285,15 @@ const dayLabel = computed(() => {
   return name ? `${name}, ${formatDate(selectedDate.value)}` : formatDate(selectedDate.value)
 })
 const activeSession = computed(() => sessions.value.find((s) => s.key === activeKey.value) || null)
+
+const recapAttendanceTo = computed(() => {
+  const s = activeSession.value
+  const params = new URLSearchParams()
+  params.set('tab', 'rekap')
+  if (s?.class_id) params.set('class_id', String(s.class_id))
+  if (s?.subject_id) params.set('subject_id', String(s.subject_id))
+  return `/attendance/student?${params.toString()}`
+})
 
 const steps = [
   { id: 'attendance', label: '1. Absensi' },
@@ -660,6 +675,7 @@ watch(activeKey, async (key) => {
 .btn-secondary { background: #fff; color: #0f766e; border-color: #99f6e4; }
 .btn-ghost { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
 .btn-sm { padding: 6px 10px; font-size: 12px; }
+.toolbar-link { display: inline-flex; align-items: center; text-decoration: none; }
 .btn-primary:disabled, .btn-ghost:disabled { opacity: .6; cursor: not-allowed; }
 .hint-text { font-size: 13px; color: #64748b; margin: 0 0 10px; }
 .warn-text { font-size: 13px; color: #b45309; background: #fffbeb; padding: 8px 10px; border-radius: 8px; }

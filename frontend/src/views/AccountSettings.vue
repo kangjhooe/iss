@@ -255,11 +255,16 @@ async function submitPassword() {
 
   passwordLoading.value = true
   try {
-    await authApi.changePassword({
+    const res = await authApi.changePassword({
       current_password: current_password,
       password,
       password_confirmation
     })
+    if (res.data?.user) {
+      authStore.user = res.data.user
+    } else if (authStore.user) {
+      authStore.user = { ...authStore.user, must_change_password: false }
+    }
     passwordForm.value = { current_password: '', password: '', password_confirmation: '' }
     toast.success('Berhasil', 'Sandi berhasil diubah')
   } catch (err) {

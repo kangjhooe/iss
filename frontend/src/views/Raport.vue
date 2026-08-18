@@ -271,6 +271,17 @@ onMounted(async () => {
   min-width: 200px;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+
+@media (max-width: 768px) {
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+}
 .filter-select:focus {
   outline: none;
   border-color: #059669;

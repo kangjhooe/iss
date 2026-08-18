@@ -4,6 +4,15 @@
 
 const MADRASAH_LEVELS = ['MI', 'MTS', 'MA', 'MAK']
 const SEKOLAH_LEVELS = ['SD', 'SMP', 'SMA', 'SMK']
+export const VOCATIONAL_LEVELS = ['SMK', 'MAK']
+export const VOCATIONAL_DUTY_KEYS = [
+  'kepala_program_keahlian',
+  'kepala_bengkel',
+  'koordinator_hubin',
+  'koordinator_pkl',
+  'koordinator_bkk',
+]
+export const VOCATIONAL_PERMISSION_KEYS = ['pkl', 'bkk']
 
 /**
  * Apakah jenjang termasuk madrasah (MI, MTs, MA, MAK).
@@ -13,6 +22,28 @@ const SEKOLAH_LEVELS = ['SD', 'SMP', 'SMA', 'SMK']
 export function isMadrasahLevel(level) {
   if (!level) return false
   return MADRASAH_LEVELS.includes(String(level).toUpperCase())
+}
+
+/**
+ * SMK / MAK (PKL, BKK, program keahlian, duty Hubin/Kaprog).
+ * @param {string} [level]
+ * @returns {boolean}
+ */
+export function isVocationalLevel(level) {
+  if (!level) return false
+  return VOCATIONAL_LEVELS.includes(String(level).toUpperCase())
+}
+
+/**
+ * Jenjang institusi aktif dari auth store (atau objek user).
+ * @param {object} [auth]
+ * @returns {string|null}
+ */
+export function getActiveInstitutionLevel(auth) {
+  return auth?.activeInstitution?.level
+    || auth?.user?.active_institution?.level
+    || auth?.user?.institution?.level
+    || null
 }
 
 /**

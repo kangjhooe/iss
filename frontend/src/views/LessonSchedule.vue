@@ -1482,4 +1482,56 @@ onMounted(async () => {
 @media (max-width: 900px) {
   .template-layout { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .schedule-matrix-wrap {
+    margin: 0 -0.25rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .schedule-matrix {
+    font-size: 0.75rem;
+  }
+
+  .schedule-matrix th,
+  .schedule-matrix td {
+    padding: 0.35rem;
+  }
+
+  .period-cell {
+    min-width: 44px;
+  }
+
+  .slot-cell {
+    min-width: 96px;
+  }
+
+  .template-name-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+  }
+}
 </style>

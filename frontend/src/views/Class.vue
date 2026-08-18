@@ -56,6 +56,7 @@
               <th>Kode</th>
               <th>Nama Kelas</th>
               <th>Tingkat</th>
+              <th v-if="isSmk">Jurusan</th>
               <th>Ruangan</th>
               <th>Wali Kelas</th>
               <th>Siswa</th>
@@ -68,6 +69,7 @@
               <td>{{ displayValue(classItem.code) }}</td>
               <td>{{ displayValue(classItem.name) }}</td>
               <td>{{ classItem.grade != null && classItem.grade !== '' ? `Tingkat ${classItem.grade}` : 'Belum ada data' }}</td>
+              <td v-if="isSmk">{{ displayValue(classItem.program_keahlian?.name || classItem.program_keahlian_name) }}</td>
               <td>{{ displayValue(classItem.room?.name) }}</td>
               <td>{{ displayValue(classItem.teacher?.name) }}</td>
               <td>
@@ -184,6 +186,16 @@
                 <option value="">Pilih Tingkat</option>
                 <option v-for="grade in availableGrades" :key="grade" :value="grade">
                   Tingkat {{ grade }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group" v-if="isSmk">
+              <label>Program Keahlian / Jurusan</label>
+              <select v-model="form.program_keahlian_id" class="form-input">
+                <option :value="null">Belum ditentukan</option>
+                <option v-for="pk in programKeahlianList" :key="pk.id" :value="pk.id">
+                  {{ pk.code ? `${pk.code} — ` : '' }}{{ pk.name }}
                 </option>
               </select>
             </div>
@@ -401,12 +413,14 @@ import { classApi } from '@/api/class'
 import { institutionApi } from '@/api/institution'
 import { facilityApi } from '@/api/facility'
 import { teacherApi } from '@/api/teacher'
+import { programKeahlianApi } from '@/api/programKeahlian'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { studentApi } from '@/api/student'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import { isVocationalLevel } from '@/utils/institution'
 
 const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
@@ -442,14 +456,17 @@ const academicYearsList = computed(() => referenceStore.academicYears)
 
 const institution = ref(null)
 const institutionLevel = computed(() => institution.value?.level)
+const isSmk = computed(() => isVocationalLevel(institutionLevel.value))
 const rooms = ref([])
 const teachers = ref([])
+const programKeahlianList = ref([])
 const currentAcademicYear = ref(null)
 
 const form = ref({
   code: '',
   name: '',
   grade: null,
+  program_keahlian_id: null,
   academic_year_id: null,
   room_id: null,
   teacher_id: null,
@@ -501,6 +518,20 @@ const loadTeachers = async () => {
     teachers.value = response.data.data || []
   } catch (err) {
     console.error('Failed to load teachers:', err)
+  }
+}
+
+const loadProgramKeahlian = async () => {
+  if (!isSmk.value) {
+    programKeahlianList.value = []
+    return
+  }
+  try {
+    const response = await programKeahlianApi.getAll({ status: 'Aktif', all: 1 })
+    programKeahlianList.value = response.data?.data || response.data || []
+  } catch (err) {
+    console.error('Failed to load program keahlian:', err)
+    programKeahlianList.value = []
   }
 }
 
@@ -672,6 +703,7 @@ const editClass = (classItem) => {
     code: classItem.code || '',
     name: classItem.name || '',
     grade: classItem.grade || null,
+    program_keahlian_id: classItem.program_keahlian_id || null,
     academic_year_id: classItem.academic_year_id || null,
     room_id: classItem.room_id || null,
     teacher_id: classItem.teacher_id || null,
@@ -781,6 +813,7 @@ const closeModal = () => {
     code: '',
     name: '',
     grade: null,
+    program_keahlian_id: null,
     academic_year_id: institution.value?.active_academic_year_id || null,
     room_id: null,
     teacher_id: null,
@@ -903,7 +936,7 @@ onMounted(async () => {
     form.value.academic_year_id = institution.value.active_academic_year_id
   }
   
-  await Promise.all([loadRooms(), loadTeachers(), loadClasses()])
+  await Promise.all([loadRooms(), loadTeachers(), loadProgramKeahlian(), loadClasses()])
 })
 </script>
 
@@ -1020,7 +1053,8 @@ onMounted(async () => {
 .table-container {
   background: white;
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid #e5e7eb;
 }
@@ -1321,5 +1355,29 @@ onMounted(async () => {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .data-table th,
+  .data-table td {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .modal-footer .btn-primary,
+  .modal-footer .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>

@@ -2718,7 +2718,7 @@ textarea.form-input {
   }
 
   .data-table {
-    min-width: 900px;
+    min-width: 720px;
   }
 
   /* Override global module-page.css compact-row layout */
