@@ -181,17 +181,35 @@
       </template>
 
       <template v-else-if="viewMode === 'detail' && detail">
-        <div class="stat-cards">
-          <div class="stat-card">
-            <span class="stat-label">Total baris</span>
-            <span class="stat-value">{{ detail.total ?? 0 }}</span>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Total baris</span>
+              <span class="meta-value">{{ detail.total ?? 0 }} kunjungan</span>
+            </div>
           </div>
-          <div class="stat-card">
-            <span class="stat-label">Siswa unik</span>
-            <span class="stat-value">{{ detail.by_student?.length ?? 0 }}</span>
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Siswa unik</span>
+              <span class="meta-value">{{ detail.by_student?.length ?? 0 }} siswa</span>
+            </div>
+          </div>
+          <div v-if="detail.truncated" class="meta-item">
+            <span class="meta-icon meta-icon-warn" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Catatan</span>
+              <span class="meta-value">Ditampilkan maks. 2000 baris</span>
+            </div>
           </div>
         </div>
-        <p v-if="detail.truncated" class="toolbar-hint">Ditampilkan maksimal 2000 baris. Persempit filter jika data terpotong.</p>
 
         <div class="nav-tabs-wrap">
           <nav class="nav-tabs">
@@ -209,17 +227,22 @@
                   <th class="th-num">Kunjungan</th><th class="th-num">Rujukan</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr v-for="(row, idx) in detail.by_student || []" :key="row.student_id">
-                  <td>{{ idx + 1 }}</td>
-                  <td>{{ row.nis || '—' }}</td>
-                  <td>{{ row.student_name }}</td>
-                  <td>{{ row.class_name }}</td>
-                  <td class="td-num">{{ row.visit_count }}</td>
-                  <td class="td-num">{{ row.referral_count }}</td>
-                </tr>
-                <tr v-if="!(detail.by_student || []).length"><td colspan="6">Belum ada data</td></tr>
-              </tbody>
+                <tbody>
+                  <tr v-if="!uksStudentGroups.length"><td colspan="6">Belum ada data</td></tr>
+                  <template v-for="group in uksStudentGroups" :key="'uks-' + group.key">
+                    <tr class="group-row">
+                      <td colspan="6">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
+                    </tr>
+                    <tr v-for="(row, i) in group.rows" :key="row.student_id">
+                      <td>{{ group.start + i + 1 }}</td>
+                      <td>{{ row.nis || '—' }}</td>
+                      <td>{{ row.student_name }}</td>
+                      <td>{{ row.class_name }}</td>
+                      <td class="td-num">{{ row.visit_count }}</td>
+                      <td class="td-num">{{ row.referral_count }}</td>
+                    </tr>
+                  </template>
+                </tbody>
             </table>
           </div>
         </section>
@@ -280,6 +303,22 @@ const summaryTab = ref('class')
 const detailTab = ref('students')
 const report = ref(null)
 const detail = ref(null)
+function groupRowsByClassName(rows) {
+  const groups = []
+  let current = null
+  let index = 0
+  for (const row of rows || []) {
+    const name = row.class_name || 'Tanpa kelas'
+    if (!current || current.name !== name) {
+      current = { key: name, name, rows: [], start: index }
+      groups.push(current)
+    }
+    current.rows.push(row)
+    index += 1
+  }
+  return groups
+}
+const uksStudentGroups = computed(() => groupRowsByClassName(detail.value?.by_student || []))
 const classes = ref([])
 const semesters = ref([])
 const institution = ref(null)
@@ -426,15 +465,19 @@ function escapeHtml(str) {
 function buildPrintBodyHtml() {
   if (viewMode.value === 'detail') {
     if (!detail.value) return '<p>Tidak ada data.</p>'
-    const studentRows = (detail.value.by_student || []).map((row, idx) => `
+    const studentRows = (uksStudentGroups.value || []).flatMap((group) => {
+      const header = `<tr class="group-row"><td colspan="6">Kelas ${escapeHtml(group.name)} (${group.rows.length} siswa)</td></tr>`
+      const body = group.rows.map((row, i) => `
       <tr>
-        <td>${idx + 1}</td>
+        <td>${group.start + i + 1}</td>
         <td>${escapeHtml(row.nis || '—')}</td>
         <td>${escapeHtml(row.student_name)}</td>
         <td>${escapeHtml(row.class_name)}</td>
         <td class="num">${escapeHtml(row.visit_count)}</td>
         <td class="num">${escapeHtml(row.referral_count)}</td>
-      </tr>`).join('') || '<tr><td colspan="6">Belum ada data</td></tr>'
+      </tr>`).join('')
+      return header + body
+    }).join('') || '<tr><td colspan="6">Belum ada data</td></tr>'
     const listRows = (detail.value.items || []).map(row => `
       <tr>
         <td>${escapeHtml(formatDate(row.visit_date))}</td>
@@ -508,6 +551,7 @@ function printPdf() {
         table{width:100%;border-collapse:collapse;margin-bottom:12px}
         th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}
         th{background:#f1f5f9} .num{text-align:right}
+        tr.group-row td{background:#e2e8f0;font-weight:700}
         .stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
         .stat{border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;min-width:120px}
         .stat-label{font-size:10px;color:#64748b}.stat-value{font-size:18px;font-weight:700}
@@ -561,6 +605,25 @@ onMounted(async () => {
 .stat-value { font-size: 26px; font-weight: 700; color: #0f172a; }
 .stat-card-warn .stat-value { color: #b45309; }
 .stat-card-bad .stat-value { color: #b91c1c; }
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 12px;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.meta-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.meta-icon {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #ecfdf5; color: #059669;
+}
+.meta-icon-warn { background: #fff7ed; color: #c2410c; }
+.meta-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; }
+.meta-value { font-size: 13.5px; font-weight: 600; color: #0f172a; line-height: 1.35; word-break: break-word; }
+@media (max-width: 768px) { .meta-grid { grid-template-columns: 1fr 1fr; } }
 .nav-tabs-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 6px; }
 .nav-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
 .nav-tab { border: none; background: transparent; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; color: #64748b; font-weight: 500; }
@@ -570,6 +633,7 @@ onMounted(async () => {
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .data-table th, .data-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; text-align: left; }
 .data-table th { background: #f8fafc; color: #475569; font-weight: 600; }
+.group-row td { background: #f1f5f9; font-weight: 700; font-size: 12px; color: #334155; }
 .th-num, .td-num { text-align: right; }
 .row-clickable { cursor: pointer; }
 .row-clickable:hover { background: #f8fafc; }

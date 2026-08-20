@@ -27,14 +27,49 @@
         </div>
         <template v-else>
           <div class="content-card detail-hero">
-            <div>
-              <h2 class="detail-name">{{ applicant.name }}</h2>
-              <p class="detail-meta">
+            <div class="hero-main">
+              <div class="header-title-row">
+                <h2 class="detail-name">{{ applicant.name }}</h2>
                 <span :class="['status-badge', 'status-' + applicant.status]">{{ statusApplicantLabels[applicant.status] || applicant.status }}</span>
-                <span>{{ applicant.channel?.name || '—' }}</span>
-                <span>{{ applicant.period?.name || '—' }}</span>
-                <span v-if="applicant.rank">Rank {{ applicant.rank }}</span>
-              </p>
+              </div>
+              <div class="meta-grid">
+                <div class="meta-item">
+                  <span class="meta-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  </span>
+                  <div class="meta-body">
+                    <span class="meta-label">No. daftar</span>
+                    <span class="meta-value">{{ applicant.registration_number || '—' }}</span>
+                  </div>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7h18v13H3z" stroke="currentColor" stroke-width="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2" stroke="currentColor" stroke-width="2"/></svg>
+                  </span>
+                  <div class="meta-body">
+                    <span class="meta-label">Jalur</span>
+                    <span class="meta-value">{{ applicant.channel?.name || '—' }}</span>
+                  </div>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  </span>
+                  <div class="meta-body">
+                    <span class="meta-label">Periode</span>
+                    <span class="meta-value">{{ applicant.period?.name || '—' }}</span>
+                  </div>
+                </div>
+                <div v-if="applicant.rank" class="meta-item">
+                  <span class="meta-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10l-1.5 8.5a5 5 0 0 1-7 0L7 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                  </span>
+                  <div class="meta-body">
+                    <span class="meta-label">Peringkat</span>
+                    <span class="meta-value">{{ applicant.rank }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="action-row">
               <button v-if="canSetResult(applicant)" type="button" class="btn-primary btn-compact" @click="openResultModal">Set Hasil</button>
@@ -116,7 +151,7 @@
               <ul>
                 <li v-for="d in applicant.documents" :key="d.id">
                   {{ d.name }} — {{ d.file_name }}
-                  <button type="button" class="link-download" @click="downloadDocument(d)">Unduh</button>
+                  <TableAction kind="download" title="Unduh" @click="downloadDocument(d)" />
                 </li>
               </ul>
             </div>
@@ -188,6 +223,16 @@
         </div>
       </div>
     </div>
+    <AccountCredentialsModal
+      :show="!!accountCredentials"
+      :title="accountCredentials?.title"
+      :name="accountCredentials?.name"
+      :login-label="accountCredentials?.loginLabel || 'NIK'"
+      :login-value="accountCredentials?.loginValue"
+      :password="accountCredentials?.password"
+      :hint="accountCredentials?.hint"
+      @close="accountCredentials = null"
+    />
   </Layout>
 </template>
 
@@ -195,10 +240,13 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { ppdbApplicantApi, ppdbPeriodApi } from '@/api/ppdb'
 import { classApi } from '@/api/class'
 import { useToast } from '@/composables/useToast'
+import { studentLoginCredentials } from '@/utils/accountCredentials'
 import {
   statusApplicantLabels,
   paymentStatusLabels,
@@ -211,6 +259,7 @@ import {
 import './ppdb.css'
 
 const toast = useToast()
+const accountCredentials = ref(null)
 const route = useRoute()
 
 const loading = ref(true)
@@ -380,9 +429,15 @@ async function submitConvert() {
     const res = await ppdbApplicantApi.convertToStudent(applicant.value.id, {
       class_id: convertForm.value.class_id || undefined,
     })
-    toast.success(res.data?.message || 'Calon berhasil dijadikan siswa')
     showConvertModal.value = false
+    const creds = studentLoginCredentials(applicant.value, res.data?.login_hint)
     await loadApplicant()
+    if (creds) {
+      creds.title = 'Akun login siswa dibuat'
+      accountCredentials.value = creds
+    } else {
+      toast.success(res.data?.message || 'Calon berhasil dijadikan siswa')
+    }
   } catch (e) {
     convertFormError.value = e.formattedMessage || 'Gagal menjadikan siswa'
   } finally {
@@ -402,8 +457,26 @@ onMounted(loadApplicant)
   gap: 1rem;
   align-items: flex-start;
 }
-.detail-name { margin: 0 0 0.5rem; font-size: 1.35rem; color: #1e293b; }
-.detail-meta { display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; margin: 0; color: #64748b; font-size: 0.9rem; }
+.hero-main { flex: 1 1 280px; min-width: 0; }
+.header-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.detail-name { margin: 0; font-size: 1.35rem; color: #1e293b; }
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+.meta-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.meta-icon {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #ecfdf5; color: #059669;
+}
+.meta-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; }
+.meta-value { font-size: 13.5px; font-weight: 600; color: #0f172a; line-height: 1.35; word-break: break-word; }
+@media (max-width: 768px) { .meta-grid { grid-template-columns: 1fr 1fr; } }
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -427,6 +500,7 @@ onMounted(loadApplicant)
 .check-label { display: flex !important; align-items: center; gap: 0.5rem; font-weight: 500 !important; margin-bottom: 0.5rem !important; }
 .muted { color: #94a3b8; }
 .btn-compact { margin-top: 0.5rem; }
+.detail-hero .btn-compact { margin-top: 0; }
 .pay-badge {
   display: inline-block;
   padding: 0.25rem 0.55rem;

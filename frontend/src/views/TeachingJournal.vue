@@ -80,8 +80,8 @@
               <td class="summary-cell">{{ truncate(j.attendance_notes, 30) || 'Belum ada data' }}</td>
               <td>
                 <div class="action-buttons">
-                  <button @click="openEditModal(j)" class="btn-action btn-edit" title="Edit">✎</button>
-                  <button @click="confirmDelete(j)" class="btn-action btn-delete" title="Hapus">🗑</button>
+                  <TableAction kind="edit" @click="openEditModal(j)" />
+                  <TableAction kind="delete" @click="confirmDelete(j)" />
                 </div>
               </td>
             </tr>
@@ -192,6 +192,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { teachingJournalApi } from '@/api/teachingJournal'
@@ -878,6 +879,28 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+  }
+
+  .toolbar-actions .btn-primary,
+  .toolbar-actions .btn-secondary {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {

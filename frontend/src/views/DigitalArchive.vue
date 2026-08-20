@@ -122,9 +122,9 @@
               <td>{{ item.creator?.name || '—' }}</td>
               <td class="col-actions">
                 <div class="action-buttons">
-                  <button type="button" @click="downloadFile(item)" class="btn-action btn-download" title="Unduh">↓</button>
-                  <button type="button" @click="openEditModal(item)" class="btn-action btn-edit" title="Edit">✎</button>
-                  <button type="button" @click="confirmDelete(item)" class="btn-action btn-delete" title="Hapus">🗑</button>
+                  <TableAction kind="download" @click="downloadFile(item)" />
+                  <TableAction kind="edit" @click="openEditModal(item)" />
+                  <TableAction kind="delete" @click="confirmDelete(item)" />
                 </div>
               </td>
             </tr>
@@ -240,6 +240,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import digitalArchiveApi from '@/api/digitalArchive'
@@ -1000,9 +1001,12 @@ watch(showFormModal, (v) => {
   margin-top: 8px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .header-content { flex-direction: column; align-items: stretch; }
-  .header-actions { margin-left: 0; }
+  .header-actions { margin-left: 0; width: 100%; }
+}
+
+@media (max-width: 768px) {
   .filters-inner { flex-direction: column; }
   .search-wrap { min-width: 100%; }
   .form-row { grid-template-columns: 1fr; }

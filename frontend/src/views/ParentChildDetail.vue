@@ -36,21 +36,26 @@
       <!-- Grades -->
       <template v-else-if="section === 'nilai'">
         <div v-if="!rows.length" class="sp-empty"><p class="sp-empty-desc">Belum ada nilai.</p></div>
-        <div v-else class="sp-table-wrap">
-          <table class="sp-table">
-            <thead>
-              <tr><th>Mapel</th><th>Nilai</th><th>KKM</th><th>Predikat</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="(g, i) in rows" :key="g.id || g.subject_id || i">
-                <td>{{ g.subject?.name || g.subject_name || '—' }}</td>
-                <td><strong>{{ g.nilai_akhir ?? g.value ?? '—' }}</strong></td>
-                <td>{{ g.kkm ?? '—' }}</td>
-                <td>{{ g.predicate || '—' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <template v-else>
+          <div class="chart-solo">
+            <AppChart title="Nilai vs KKM" type="bar" :chart-data="gradesChart" :options="gradesChartOptions" />
+          </div>
+          <div class="sp-table-wrap">
+            <table class="sp-table">
+              <thead>
+                <tr><th>Mapel</th><th>Nilai</th><th>KKM</th><th>Predikat</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(g, i) in rows" :key="g.id || g.subject_id || i">
+                  <td>{{ g.subject?.name || g.subject_name || '—' }}</td>
+                  <td><strong>{{ g.nilai_akhir ?? g.value ?? '—' }}</strong></td>
+                  <td>{{ g.kkm ?? '—' }}</td>
+                  <td>{{ g.predicate || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
       </template>
 
       <!-- Attendance -->
@@ -60,6 +65,9 @@
           <div class="sp-stat"><span class="sp-stat-label">Izin</span><span class="sp-stat-value">{{ summary.izin ?? 0 }}</span></div>
           <div class="sp-stat"><span class="sp-stat-label">Sakit</span><span class="sp-stat-value">{{ summary.sakit ?? 0 }}</span></div>
           <div class="sp-stat"><span class="sp-stat-label">Alpha</span><span class="sp-stat-value">{{ summary.alpha ?? 0 }}</span></div>
+        </div>
+        <div class="chart-solo" v-if="attendanceChart">
+          <AppChart title="Komposisi kehadiran" type="doughnut" :chart-data="attendanceChart" />
         </div>
         <div v-if="!rows.length" class="sp-empty"><p class="sp-empty-desc">Belum ada data absensi.</p></div>
         <div v-else class="sp-table-wrap">
@@ -96,7 +104,9 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import AppChart from '@/components/AppChart.vue'
 import { parentApi } from '@/api/parent'
+import { doughnutFromCounts, countStatuses, chartOptionsBar } from '@/composables/useChart'
 import '@/assets/student-portal.css'
 
 const props = defineProps({
@@ -115,6 +125,37 @@ const pageTitle = computed(() => {
   const map = { jadwal: 'Jadwal', nilai: 'Nilai', absensi: 'Absensi', pelanggaran: 'Pelanggaran' }
   return map[props.section] || 'Detail'
 })
+
+const attendanceChart = computed(() => {
+  const fromSummary = doughnutFromCounts(summary.value)
+  if (fromSummary) return fromSummary
+  return doughnutFromCounts(countStatuses(rows.value))
+})
+
+const gradesChart = computed(() => {
+  const list = (rows.value || []).filter((g) => g.nilai_akhir != null || g.value != null)
+  if (!list.length) return null
+  return {
+    labels: list.map((g) => g.subject?.name || g.subject_name || '—'),
+    datasets: [
+      {
+        label: 'Nilai',
+        data: list.map((g) => Number(g.nilai_akhir ?? g.value ?? 0)),
+        backgroundColor: '#059669',
+        borderRadius: 4,
+        maxBarThickness: 28,
+      },
+      {
+        label: 'KKM',
+        data: list.map((g) => Number(g.kkm ?? 0)),
+        backgroundColor: '#94a3b8',
+        borderRadius: 4,
+        maxBarThickness: 28,
+      },
+    ],
+  }
+})
+const gradesChartOptions = { ...chartOptionsBar, plugins: { legend: { position: 'bottom' } } }
 
 const DAYS = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu', 7: 'Minggu' }
 function dayLabel(d) { return DAYS[d] || d }
@@ -168,5 +209,9 @@ watch([studentId, () => props.section], load, { immediate: true })
   font-size: 0.85rem;
   text-decoration: none;
   font-weight: 600;
+}
+.chart-solo {
+  max-width: 520px;
+  margin-bottom: 16px;
 }
 </style>

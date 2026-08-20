@@ -5,6 +5,7 @@ import router from './router'
 import './assets/module-page.css'
 import './assets/student-portal.css'
 import './assets/super-admin-responsive.css'
+import './utils/pwaInstall'
 import { usePWA } from './composables/usePWA'
 
 const app = createApp(App)
@@ -12,9 +13,6 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 
-// Initialize PWA
-if ('serviceWorker' in navigator) {
-  usePWA()
-}
+usePWA()
 
 app.mount('#app')

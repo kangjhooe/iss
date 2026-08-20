@@ -123,13 +123,35 @@
           </button>
         </section>
 
-        <nav class="panel-tabs" role="tablist" aria-label="Panel wali">
-          <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'siswa' }" @click="setPanel('siswa')">Data Siswa</button>
-          <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'absensi' }" @click="setPanel('absensi')">Absensi</button>
-          <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'nilai' }" @click="setPanel('nilai')">Nilai</button>
-          <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'usulan' }" @click="setPanel('usulan')">Usulan</button>
-          <button type="button" role="tab" class="panel-tab" :class="{ active: panel === 'jadwal' }" @click="setPanel('jadwal')">Jadwal</button>
+        <div class="charts-grid">
+          <AppChart title="Absen hari ini" type="doughnut" :chart-data="attendanceChart" />
+          <AppChart title="Komposisi kelas" type="doughnut" :chart-data="genderChart" />
+        </div>
+
+        <div class="tab-shell">
+        <nav class="section-nav" role="tablist" aria-label="Panel wali">
+          <button type="button" role="tab" class="sec-btn" :class="{ active: panel === 'siswa' }" :aria-selected="panel === 'siswa'" @click="setPanel('siswa')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-label">Data Siswa</span>
+          </button>
+          <button type="button" role="tab" class="sec-btn" :class="{ active: panel === 'absensi' }" :aria-selected="panel === 'absensi'" @click="setPanel('absensi')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-label">Absensi</span>
+          </button>
+          <button type="button" role="tab" class="sec-btn" :class="{ active: panel === 'nilai' }" :aria-selected="panel === 'nilai'" @click="setPanel('nilai')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V5a1 1 0 0 1 1-1h10l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2"/><path d="M14 4v5h5M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-label">Nilai</span>
+          </button>
+          <button type="button" role="tab" class="sec-btn" :class="{ active: panel === 'usulan' }" :aria-selected="panel === 'usulan'" @click="setPanel('usulan')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-label">Usulan</span>
+          </button>
+          <button type="button" role="tab" class="sec-btn" :class="{ active: panel === 'jadwal' }" :aria-selected="panel === 'jadwal'" @click="setPanel('jadwal')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-label">Jadwal</span>
+          </button>
         </nav>
+        <div class="tab-main">
 
         <!-- Panel: Siswa -->
         <template v-if="panel === 'siswa'">
@@ -326,6 +348,9 @@
               <div class="ov-stat warn"><strong>{{ gradesOverview.summary?.missing_any || 0 }}</strong><span>Tanpa nilai</span></div>
               <div class="ov-stat warn"><strong>{{ gradesOverview.summary?.below_kkm_any || 0 }}</strong><span>Di bawah KKM</span></div>
             </div>
+            <div class="chart-solo">
+              <AppChart title="Status nilai siswa" type="doughnut" :chart-data="gradesStatusChart" />
+            </div>
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
@@ -512,6 +537,8 @@
             </table>
           </div>
         </section>
+        </div>
+        </div>
       </template>
     </div>
 
@@ -675,8 +702,8 @@
                 </div>
                 <p>{{ n.body }}</p>
                 <div v-if="n.can_edit" class="note-actions">
-                  <button type="button" class="chip-link" @click="startEditNote(n)">Edit</button>
-                  <button type="button" class="chip-link danger" @click="removeNote(n)">Hapus</button>
+                  <TableAction kind="edit" @click="startEditNote(n)" />
+                  <TableAction kind="delete" @click="removeNote(n)" />
                 </div>
               </li>
               <li v-if="!notes.length" class="muted">Belum ada catatan.</li>
@@ -686,21 +713,38 @@
       </div>
     </div>
   </Layout>
+  <AccountCredentialsModal
+    :show="!!accountCredentials"
+    :title="accountCredentials?.title"
+    :name="accountCredentials?.name"
+    :login-label="accountCredentials?.loginLabel || 'NIK'"
+    :login-value="accountCredentials?.loginValue"
+    :password="accountCredentials?.password"
+    :hint="accountCredentials?.hint"
+    :items="accountCredentials?.items || []"
+    @close="accountCredentials = null"
+  />
 </template>
 
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
+import AppChart from '@/components/AppChart.vue'
+import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { doughnutFromCounts, doughnutFromEntries } from '@/composables/useChart'
 import { teacherApi } from '@/api/teacher'
 import { waliKelasApi } from '@/api/waliKelas'
 import { useToast } from '@/composables/useToast'
+import { studentLoginCredentials, mapStudentCreatedAccounts } from '@/utils/accountCredentials'
 
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const accountCredentials = ref(null)
 
 const selectedClassId = ref('')
 const panel = ref('siswa')
@@ -781,6 +825,21 @@ const startIndex = computed(() => Math.max(0, (pagination.value.current_page - 1
 const canAccessModule = (key) => (authStore.user?.permissions || []).includes(key)
 const canAccessBk = computed(() => canAccessModule('bk_report') || canAccessModule('violation') || canAccessModule('counseling'))
 const att = computed(() => dashboard.value?.attendance_today || { hadir: 0, izin: 0, sakit: 0, alpha: 0, students_recorded: 0 })
+const attendanceChart = computed(() => doughnutFromCounts(att.value))
+const genderChart = computed(() => doughnutFromEntries([
+  { label: 'Laki-laki', value: dashboard.value?.students?.male ?? summary.value.male, color: '#0284c7' },
+  { label: 'Perempuan', value: dashboard.value?.students?.female ?? summary.value.female, color: '#db2777' },
+]))
+const gradesStatusChart = computed(() => {
+  const s = gradesOverview.value?.summary
+  if (!s) return null
+  const complete = Math.max(0, (s.students || 0) - (s.missing_any || 0))
+  return doughnutFromEntries([
+    { label: 'Lengkap', value: complete, color: '#059669' },
+    { label: 'Tanpa nilai', value: s.missing_any || 0, color: '#f59e0b' },
+    { label: 'Di bawah KKM', value: s.below_kkm_any || 0, color: '#ef4444' },
+  ])
+})
 const pending = computed(() => dashboard.value?.pending || { violations: 0, achievements: 0, mutations: 0 })
 const accounts = computed(() => dashboard.value?.accounts || {
   with_account: 0,
@@ -959,7 +1018,17 @@ async function bulkEnsureClassAccounts() {
   bulkAccountLoading.value = true
   try {
     const res = await waliKelasApi.ensureAccountsBulk(selectedClassId.value, { only_missing: true, limit: 500 })
-    toast.success('Berhasil', res.data?.message || 'Akun massal selesai')
+    const items = mapStudentCreatedAccounts(res.data?.data?.created_accounts || [])
+    if (items.length) {
+      accountCredentials.value = {
+        title: 'Akun login siswa dibuat',
+        loginLabel: 'NIK',
+        hint: 'Siswa login dengan NIK. Sandi awal = tanggal lahir (DDMMYYYY). Kartu ini hanya hilang jika ditutup.',
+        items,
+      }
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Akun massal selesai')
+    }
     await Promise.all([loadDashboard(), loadStudents(1)])
   } catch (e) {
     toast.error('Gagal', e.formattedMessage || e.response?.data?.message || e.message)
@@ -995,7 +1064,13 @@ async function ensureProfileAccount() {
     const res = await waliKelasApi.ensureStudentAccount(selectedClassId.value, profile.value.id)
     profile.value = res.data?.data || profile.value
     syncLoginFormFromProfile()
-    toast.success('Berhasil', res.data?.message || 'Akun dibuat')
+    const creds = studentLoginCredentials(profile.value, res.data?.login_hint)
+    if (creds) {
+      creds.title = res.data?.user_created ? 'Akun login siswa dibuat' : 'Akun login siswa'
+      accountCredentials.value = creds
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Akun dibuat')
+    }
     await Promise.all([loadDashboard(), loadStudents(pagination.value.current_page)])
   } catch (e) {
     toast.error('Gagal', e.formattedMessage || e.response?.data?.message || e.message)
@@ -1011,7 +1086,13 @@ async function resetProfilePassword() {
   try {
     const res = await waliKelasApi.resetStudentPassword(selectedClassId.value, profile.value.id)
     profile.value = res.data?.data || profile.value
-    toast.success('Berhasil', res.data?.message || 'Sandi direset')
+    const creds = studentLoginCredentials(profile.value, res.data?.login_hint)
+    if (creds) {
+      creds.title = 'Sandi siswa berhasil direset'
+      accountCredentials.value = creds
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Sandi direset')
+    }
   } catch (e) {
     toast.error('Gagal', e.formattedMessage || e.response?.data?.message || e.message)
   } finally {
@@ -1535,6 +1616,8 @@ onBeforeUnmount(() => {
 .class-chip.active { background: #059669; border-color: #059669; color: #fff; }
 
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.charts-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.chart-solo { max-width: 360px; margin: 0 0 1rem; }
 .metric-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .35rem; }
 .metric-clickable { cursor: pointer; text-align: left; font: inherit; width: 100%; transition: box-shadow .15s, transform .15s; }
 .metric-clickable:hover { box-shadow: 0 8px 20px rgba(15,23,42,.08); transform: translateY(-1px); }
@@ -1562,16 +1645,60 @@ onBeforeUnmount(() => {
 }
 .login-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .2rem; }
 
-.panel-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.panel-tab {
-  border: 1px solid #e2e8f0; background: #fff; color: #475569; padding: .5rem 1rem; border-radius: 999px;
-  font-weight: 650; cursor: pointer; font-size: .88rem;
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
 }
-.panel-tab.active { background: #059669; border-color: #059669; color: #fff; }
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
+}
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.tab-main { min-width: 0; padding: 14px; }
+
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
+}
 
 .panel-card, .students-section {
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.1rem 1.15rem 1.25rem;
-  box-shadow: 0 1px 2px rgba(15,23,42,.03); margin-bottom: 1rem;
+  background: transparent; border: none; border-radius: 0; padding: 0;
+  box-shadow: none; margin-bottom: 0;
 }
 .section-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; flex-wrap: wrap; }
 .section-header h2 { margin: 0; font-size: 1.08rem; color: #0f172a; }
@@ -1749,6 +1876,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 980px) {
   .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .charts-grid { grid-template-columns: 1fr; }
   .usulan-grid, .profile-grid, .snapshot-grid, .snapshot-lists { grid-template-columns: 1fr; }
   .note-form { grid-template-columns: 1fr; }
 }

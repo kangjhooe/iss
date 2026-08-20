@@ -2,18 +2,21 @@
 
 namespace App\Services;
 
-use App\Models\Student;
 use App\Models\ClassStudentHistory;
+use App\Models\Institution;
+use App\Models\Student;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 class StudentService
 {
     public function __construct(
-        protected StudentAccountService $studentAccountService
+        protected StudentAccountService $studentAccountService,
+        protected LocalNisService $localNisService = new LocalNisService()
     ) {
     }
 
@@ -160,6 +163,10 @@ class StudentService
         }
 
         $this->applyAccountStatusFilter($query, $filters['account_status'] ?? null);
+
+        if (!empty($filters['missing_nis']) && filter_var($filters['missing_nis'], FILTER_VALIDATE_BOOLEAN)) {
+            $query->missingNis();
+        }
     }
 
     /**
@@ -336,6 +343,21 @@ class StudentService
     public function create(array $data): Student
     {
         $data = $this->syncAcademicYearLabel($data);
+
+        if (!$this->localNisService->hasNis($data['nis'] ?? null) && !empty($data['institution_id'])) {
+            $institution = Institution::with('activeAcademicYear')->find($data['institution_id']);
+            if ($institution) {
+                try {
+                    $data['nis'] = $this->localNisService->next(
+                        $institution,
+                        isset($data['academic_year_id']) ? (int) $data['academic_year_id'] : null
+                    );
+                } catch (InvalidArgumentException $e) {
+                    throw $e;
+                }
+            }
+        }
+
         $student = Student::create($data);
 
         // Create initial class history if class_id is provided

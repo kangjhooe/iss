@@ -11,12 +11,12 @@ use App\Models\PpdbApplicant;
 use App\Exports\PpdbApplicantsExport;
 use App\Models\PpdbApplicantDocument;
 use App\Models\PpdbPeriod;
-use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Models\Semester;
 use App\Models\SchoolClass;
 use App\Helpers\FileUploadRules;
 use App\Services\StudentService;
+use App\Services\StudentAccountService;
 use App\Notifications\PpdbApplicantMailNotification;
 use App\Support\PpdbDocumentStorage;
 use Illuminate\Http\JsonResponse;
@@ -670,10 +670,6 @@ class PpdbApplicantController extends Controller
         $semesterId = $semester?->id;
 
         $academicYear = $period->academicYear;
-        $yearCode = $academicYear ? preg_replace('/[^0-9]/', '', (string) $academicYear->code) : date('Y');
-        $yearCode = substr($yearCode, 0, 4) ?: date('Y');
-        $nis = $this->generateNis($institutionId, (int) $yearCode);
-
         $classId = $request->class_id ? (int) $request->class_id : null;
         $classModel = $classId ? SchoolClass::find($classId) : null;
         $studentData = [
@@ -684,7 +680,7 @@ class PpdbApplicantController extends Controller
             'tingkat' => $classModel?->grade,
             'class' => $classModel?->name,
             'academic_year' => $academicYear->code ?? $academicYear->name ?? null,
-            'nis' => $nis,
+            'nis' => null,
             'nisn' => $ppdb_applicant->nisn,
             'nik' => $ppdb_applicant->nik,
             'name' => $ppdb_applicant->name,
@@ -707,6 +703,8 @@ class PpdbApplicantController extends Controller
 
         $studentService = app(StudentService::class);
         $student = $studentService->create($studentData);
+        $accountService = app(StudentAccountService::class);
+        $account = $accountService->findAccount($student);
 
         foreach ($ppdb_applicant->documents as $doc) {
             $destPath = 'student_documents/' . $student->id . '/' . basename($doc->file_path);
@@ -743,6 +741,7 @@ class PpdbApplicantController extends Controller
                 'nis' => $student->nis,
                 'applicant' => new PpdbApplicantResource($ppdb_applicant->fresh(['period', 'channel', 'student'])),
             ],
+            'login_hint' => $account ? $accountService->loginHintFor($student) : null,
         ]);
     }
 
@@ -924,24 +923,5 @@ class PpdbApplicantController extends Controller
             $seq = (int) $m[1] + 1;
         }
         return 'PPDB-' . $periodId . '-' . str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
-    }
-
-    private function generateNis(int $institutionId, int $yearCode): string
-    {
-        $prefix = (string) $yearCode;
-        $nisList = Student::where('institution_id', $institutionId)
-            ->where('nis', 'like', $prefix . '%')
-            ->pluck('nis');
-
-        $seq = 1;
-        foreach ($nisList as $nis) {
-            if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)$/', $nis, $m)) {
-                $n = (int) $m[1];
-                if ($n >= $seq) {
-                    $seq = $n + 1;
-                }
-            }
-        }
-        return $prefix . str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
     }
 }

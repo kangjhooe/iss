@@ -797,16 +797,17 @@ const menuEntries = computed(() => {
       { to: '/alumni', label: 'Alumni', visible: canAccessModule('student') }
     ]}),
     addVisible({ type: 'group', key: 'akademik', label: 'Keguruan', icon: IconAcademic, children: [
-      { to: '/teacher', label: 'Data Guru', visible: canAccessModule('teacher') },
-      { to: '/teacher-mutation', label: 'Mutasi Guru', visible: canAccessModule('teacher') },
       { to: '/teacher-appreciation', label: 'Apresiasi Guru', visible: canAccessModule('teacher_appreciation') || canAccessModule('teacher_violation_report') },
       { to: '/guru-piket', label: 'Guru Piket', visible: canAccessPiket() },
       { to: '/lesson-schedule', label: 'Jadwal Pelajaran', visible: canAccessModule('schedule') },
       { to: '/teaching-journal', label: 'Jurnal Mengajar', visible: canAccessModule('teaching_journal') && showGenericJournalGrade },
+      { to: '/qr-attendance/scan', label: 'Scan QR Absensi', visible: canAccessModule('teaching_journal') && !canAccessModule('attendance') },
       { to: '/grade-book', label: 'Buku Nilai', visible: canAccessModule('grade_book') && showGenericJournalGrade },
       { to: '/raport', label: 'Raport Siswa', visible: showRaportInAkademik }
     ]}),
     addVisible({ type: 'group', key: 'kepegawaian', label: 'Kepegawaian', icon: IconAdmin, children: [
+      { to: '/teacher', label: 'Data Pegawai', visible: canAccessModule('teacher') },
+      { to: '/teacher-mutation', label: 'Mutasi', visible: canAccessModule('teacher') },
       { to: '/kepegawaian', label: 'Cuti, SK & Jabatan', visible: canAccessModule('kepegawaian') },
     ]}),
     // Grup Absensi hanya untuk modul attendance (TU/admin): pegawai + QR.
@@ -816,7 +817,7 @@ const menuEntries = computed(() => {
           { to: '/attendance/student', label: 'Absensi Siswa', visible: canAccessModule('teaching_journal') },
           { to: '/attendance/employee', label: 'Absensi Guru & Staff', visible: true },
           { to: '/qr-attendance/scan', label: 'Scan QR Absensi', visible: true },
-          { to: '/qr-attendance/generate', label: 'Generate QR', visible: true },
+          { to: '/qr-attendance/generate', label: 'Kartu QR Absensi', visible: true },
         ]})]
       : []),
     addVisible({ type: 'group', key: 'ppdb', label: 'PPDB', icon: IconPpdb, children: [
@@ -1085,7 +1086,8 @@ const pageTitle = computed(() => {
     BillingOverview: 'Paket & Add-on',
     Institution: authStore.user?.role === 'super_admin' ? 'Kelola Institusi' : 'Profil Instansi',
     Student: 'Data Siswa',
-    Teacher: 'Data Guru',
+    Teacher: 'Data Pegawai',
+    Kepegawaian: 'Cuti, SK & Jabatan',
     Facility: 'Sarana Prasarana',
     Lab: authStore.user?.is_lab_responsible && !(authStore.user?.permissions || []).includes('facility') && authStore.user?.role !== 'admin' && authStore.user?.role !== 'institution_admin' && authStore.user?.role !== 'super_admin'
       ? 'Lab Saya'
@@ -1102,7 +1104,7 @@ const pageTitle = computed(() => {
     StudentChangeRequestsAdmin: 'Permintaan Perubahan Siswa',
     ModuleAccess: 'Akses Modul',
     StudentMutation: 'Mutasi Siswa',
-    TeacherMutation: 'Mutasi Guru',
+    TeacherMutation: 'Mutasi Pegawai',
     Notifications: 'Notifikasi',
     AccountSettings: 'Pengaturan Akun',
     AuditLog: 'Audit Log',
@@ -1137,7 +1139,7 @@ const pageTitle = computed(() => {
     AttendanceStudent: 'Absensi Siswa',
     AttendanceEmployee: 'Absensi Guru & Staff',
     QrAttendanceScan: 'Scan QR Absensi',
-    QrCodeGenerate: 'Generate QR',
+    QrCodeGenerate: 'Kartu QR Absensi',
     GradeBook: 'Buku Nilai',
     Raport: 'Raport Siswa',
     OnlineExamList: 'Ujian Online',
@@ -1826,6 +1828,7 @@ const handleLogout = async () => {
   margin-left: 280px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 100vh;
   background: #f8fafc;
 }
@@ -1965,6 +1968,7 @@ const handleLogout = async () => {
   padding: 20px;
   max-width: 1600px;
   width: 100%;
+  min-width: 0;
   margin: 0;
   background: #f8fafc;
   min-height: 0;

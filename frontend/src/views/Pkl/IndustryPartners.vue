@@ -51,8 +51,8 @@
               <td>{{ item.pic_name || '—' }}</td>
               <td><span class="status-chip" :class="item.status === 'Aktif' ? 'ok' : 'off'">{{ item.status }}</span></td>
               <td class="col-aksi">
-                <button type="button" class="btn-link" @click="openModal(item)">Edit</button>
-                <button type="button" class="btn-link danger" @click="remove(item)">Hapus</button>
+                <TableAction kind="edit" @click="openModal(item)" />
+                <TableAction kind="delete" @click="remove(item)" />
               </td>
             </tr>
           </tbody>
@@ -113,6 +113,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { industryPartnersApi } from '@/api/industryPartners'
 import '@/assets/module-page.css'
 

@@ -198,6 +198,29 @@ class StudentAccountService
     }
 
     /**
+     * Credentials shown once after student account create/reset.
+     */
+    public function loginHintFor(Student $student): array
+    {
+        $hint = [
+            'login' => 'NIK',
+            'login_value' => $student->nik,
+            'default_password' => 'Tanggal lahir (DDMMYYYY)',
+            'must_change_password' => true,
+        ];
+
+        if (!empty($student->birth_date)) {
+            try {
+                $hint['password'] = $this->defaultPasswordFromBirthDate($student);
+            } catch (\Throwable) {
+                // Birth date invalid — omit plaintext password.
+            }
+        }
+
+        return $hint;
+    }
+
+    /**
      * Ensure accounts for many students.
      *
      * @param  iterable<Student>  $students
@@ -206,7 +229,8 @@ class StudentAccountService
      *     created: int,
      *     updated: int,
      *     skipped: int,
-     *     errors: list<array{student_id: int|null, name: string|null, reason: string}>
+     *     errors: list<array{student_id: int|null, name: string|null, reason: string}>,
+     *     created_accounts: list<array{name: string|null, nik: string|null, password: string|null}>
      * }
      */
     public function bulkEnsure(iterable $students): array
@@ -217,6 +241,7 @@ class StudentAccountService
             'updated' => 0,
             'skipped' => 0,
             'errors' => [],
+            'created_accounts' => [],
         ];
 
         foreach ($students as $student) {
@@ -230,6 +255,11 @@ class StudentAccountService
                 $ensure = $this->ensureAccount($student);
                 if ($ensure['user_created']) {
                     $result['created']++;
+                    $result['created_accounts'][] = [
+                        'name' => $student->name,
+                        'nik' => $student->nik,
+                        'password' => $ensure['default_password'],
+                    ];
                 } elseif ($ensure['user_updated']) {
                     $result['updated']++;
                 } elseif ($ensure['user']) {

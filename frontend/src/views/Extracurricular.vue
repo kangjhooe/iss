@@ -122,9 +122,7 @@
                 </td>
                 <td class="col-aksi">
                   <div class="action-buttons">
-                    <button type="button" @click="$router.push(`/extracurricular/${item.id}`)" class="btn-action btn-kelola" title="Kelola">
-                      Kelola
-                    </button>
+                    <TableAction kind="manage" :to="`/extracurricular/${item.id}`" />
                     <button type="button" @click="openEditModal(item)" class="btn-action btn-edit" title="Edit">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -283,7 +281,7 @@
                       <td>{{ p.student?.nis || '—' }} / {{ p.student?.nisn || '—' }}</td>
                       <td>{{ p.student?.class?.name || '—' }}</td>
                       <td class="col-aksi">
-                        <button type="button" class="btn-action btn-delete btn-sm" @click="confirmRemoveParticipant(p)" title="Keluarkan">Hapus</button>
+                        <TableAction kind="delete" title="Keluarkan" @click="confirmRemoveParticipant(p)" />
                       </td>
                     </tr>
                   </tbody>
@@ -409,6 +407,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { extracurricularApi } from '@/api/extracurricular'
 import { teacherApi } from '@/api/teacher'
 import { semesterApi } from '@/api/semester'
@@ -1378,19 +1377,24 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .toolbar {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
-    margin-bottom: 16px;
+  }
+
+  .toolbar-actions {
+    width: 100%;
   }
 
   .toolbar-actions .btn-compact {
     width: 100%;
     justify-content: center;
   }
+}
 
+@media (max-width: 768px) {
   .filters {
     width: 100%;
     display: grid;

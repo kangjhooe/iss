@@ -83,18 +83,16 @@
                   <td>{{ row.due_date || '—' }}</td>
                   <td><span :class="['pill', `pill-${row.status}`]">{{ statusLabel(row.status) }}</span></td>
                   <td>
-                    <button
+                    <TableAction
                       v-if="row.status !== 'cancelled' && row.status !== 'paid'"
-                      type="button"
-                      class="btn-action btn-edit"
+                      kind="edit"
                       @click="openEdit(row)"
-                    >Edit</button>
-                    <button
+                    />
+                    <TableAction
                       v-if="row.status !== 'cancelled' && row.status !== 'paid'"
-                      type="button"
-                      class="btn-action btn-danger"
+                      kind="cancel"
                       @click="cancelInvoice(row)"
-                    >Batal</button>
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -238,6 +236,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { classApi } from '@/api/class'
 import { studentApi } from '@/api/student'

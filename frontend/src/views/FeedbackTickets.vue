@@ -933,6 +933,19 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-content > button,
+  .header-content .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 640px) {
   .header-content h2 {
     font-size: 22px;

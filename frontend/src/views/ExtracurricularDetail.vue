@@ -27,11 +27,68 @@
               </span>
             </div>
             <p v-if="item?.description" class="header-desc">{{ item.description }}</p>
-            <div class="meta-chips">
-              <span v-if="item?.supervisor?.name" class="meta-chip">Pembina: {{ item.supervisor.name }}</span>
-              <span v-if="scheduleText" class="meta-chip">{{ scheduleText }}</span>
-              <span v-if="locationText" class="meta-chip">{{ locationText }}</span>
-              <span class="meta-chip">{{ participants.length }} peserta</span>
+            <div class="meta-grid">
+              <div v-if="item?.supervisor?.name" class="meta-item">
+                <span class="meta-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </span>
+                <div class="meta-body">
+                  <span class="meta-label">Pembina</span>
+                  <span class="meta-value">{{ item.supervisor.name }}</span>
+                </div>
+              </div>
+              <div v-if="scheduleText" class="meta-item">
+                <span class="meta-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <div class="meta-body">
+                  <span class="meta-label">Jadwal</span>
+                  <span class="meta-value">{{ scheduleText }}</span>
+                </div>
+              </div>
+              <div v-if="locationText" class="meta-item">
+                <span class="meta-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </span>
+                <div class="meta-body">
+                  <span class="meta-label">Lokasi</span>
+                  <span class="meta-value">{{ locationText }}</span>
+                </div>
+              </div>
+              <div class="meta-item">
+                <span class="meta-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <div class="meta-body">
+                  <span class="meta-label">Peserta</span>
+                  <span class="meta-value">{{ participants.length }} siswa</span>
+                </div>
+              </div>
+              <div v-if="!canSetKkm" class="meta-item">
+                <span class="meta-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <div class="meta-body">
+                  <span class="meta-label">KKM</span>
+                  <span class="meta-value">{{ item?.kkm ?? '—' }} <span class="meta-hint">diisi pembina</span></span>
+                </div>
+              </div>
             </div>
             <div v-if="canSetKkm" class="kkm-box">
               <label class="kkm-label">KKM</label>
@@ -51,22 +108,44 @@
               >{{ savingKkm ? 'Menyimpan...' : 'Simpan KKM' }}</button>
               <span class="muted kkm-hint">Di bawah KKM = D; di atas dibagi C, B, A. Predikat dihitung ulang setelah disimpan.</span>
             </div>
-            <div v-else class="meta-chips" style="margin-top:8px">
-              <span class="meta-chip">KKM {{ item?.kkm ?? '—' }} <span class="muted">(diisi pembina)</span></span>
-            </div>
           </div>
         </div>
 
-        <div class="section-nav" role="tablist">
+        <div class="tab-shell">
+        <nav class="section-nav" role="tablist">
           <button
             v-for="t in tabs"
             :key="t.key"
             type="button"
             role="tab"
             :class="['sec-btn', { active: tab === t.key }]"
+            :aria-selected="tab === t.key"
             @click="tab = t.key"
-          >{{ t.label }}</button>
-        </div>
+          >
+            <span class="sec-icon" aria-hidden="true">
+              <svg v-if="t.key === 'peserta'" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <svg v-else-if="t.key === 'pertemuan'" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <svg v-else-if="t.key === 'nilai'" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M4 19V5a1 1 0 0 1 1-1h10l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2"/>
+                <path d="M14 4v5h5M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </span>
+            <span class="sec-label">{{ t.label }}</span>
+          </button>
+        </nav>
+
+        <div class="tab-main">
 
         <!-- PESERTA -->
         <div v-show="tab === 'peserta'" class="panel">
@@ -127,15 +206,20 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(p, i) in participants" :key="p.id">
-                  <td class="col-no">{{ i + 1 }}</td>
-                  <td class="cell-strong">{{ p.student?.name || '—' }}</td>
-                  <td>{{ p.student?.nis || '—' }} / {{ p.student?.nisn || '—' }}</td>
-                  <td>{{ p.student?.class?.name || '—' }}</td>
-                  <td class="col-aksi">
-                    <button type="button" class="btn-link danger" @click="removePeserta(p)">Hapus</button>
-                  </td>
-                </tr>
+                <template v-for="group in participantGroups" :key="'p-' + group.key">
+                  <tr class="group-row">
+                    <td colspan="5">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
+                  </tr>
+                  <tr v-for="(p, i) in group.rows" :key="p.id">
+                    <td class="col-no">{{ group.start + i + 1 }}</td>
+                    <td class="cell-strong">{{ p.student?.name || '—' }}</td>
+                    <td>{{ p.student?.nis || '—' }} / {{ p.student?.nisn || '—' }}</td>
+                    <td>{{ p.student?.class?.name || '—' }}</td>
+                    <td class="col-aksi">
+                      <TableAction kind="delete" @click="removePeserta(p)" />
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -204,9 +288,48 @@
                   <td>{{ s.topic || '—' }}</td>
                   <td>{{ s.attendances_count ?? 0 }} siswa</td>
                   <td class="col-aksi">
-                    <button type="button" class="btn-link" @click="openAttendance(s)">Kehadiran</button>
-                    <button type="button" class="btn-link" @click="openGrading(s)">Penilaian</button>
-                    <button type="button" class="btn-link danger" @click="deleteSession(s)">Hapus</button>
+                    <div class="action-btns">
+                      <button
+                        type="button"
+                        class="btn-icon"
+                        :class="{ active: attendanceSession?.id === s.id }"
+                        title="Kehadiran"
+                        aria-label="Kehadiran"
+                        @click="openAttendance(s)"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M21 12V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-icon"
+                        :class="{ active: gradingSession?.id === s.id }"
+                        title="Penilaian"
+                        aria-label="Penilaian"
+                        @click="openGrading(s)"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M12 20H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M16.5 3.5C16.8978 3.10219 17.4374 2.87869 18 2.87869C18.2786 2.87869 18.5544 2.93355 18.8118 3.04015C19.0692 3.14676 19.303 3.30301 19.5 3.5C19.697 3.69699 19.8532 3.93077 19.9598 4.18815C20.0665 4.44554 20.1213 4.72142 20.1213 5C20.1213 5.27858 20.0665 5.55446 19.9598 5.81185C19.8532 6.06923 19.697 6.30301 19.5 6.5L7 19L3 20L4 16L16.5 3.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-icon danger"
+                        title="Hapus"
+                        aria-label="Hapus pertemuan"
+                        @click="deleteSession(s)"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M10 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M14 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -221,7 +344,23 @@
             </div>
             <div v-if="attendanceLoading" class="muted">Memuat kehadiran...</div>
             <template v-else>
-              <div class="table-scroll">
+              <div class="roster-toolbar">
+                <input
+                  v-model="attendancePager.search"
+                  type="search"
+                  class="form-input"
+                  placeholder="Cari nama / NIS..."
+                />
+                <select v-model="attendancePager.classId" class="form-input">
+                  <option value="">Semua kelas</option>
+                  <option v-for="c in attendancePager.classOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+                <button type="button" class="btn-secondary btn-sm" :disabled="!attendancePager.paged.length" @click="markAttendancePage('hadir')">
+                  Tandai halaman ini Hadir
+                </button>
+              </div>
+              <p class="roster-meta">{{ attendancePager.rangeLabel }} · urut per kelas, lalu abjad</p>
+              <div v-if="attendancePager.paged.length" class="table-scroll">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -232,20 +371,33 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(a, i) in attendances" :key="a.student_id">
-                      <td class="col-no">{{ i + 1 }}</td>
-                      <td class="cell-strong">{{ a.student?.name }}</td>
-                      <td>{{ a.student?.class?.name || '—' }}</td>
-                      <td>
-                        <select v-model="a.status" class="form-input form-input-sm status-select">
-                          <option v-for="st in attendanceStatuses" :key="st" :value="st">{{ statusLabel(st) }}</option>
-                        </select>
-                      </td>
-                    </tr>
+                    <template v-for="group in attendancePageGroups" :key="'att-' + group.key">
+                      <tr class="group-row">
+                        <td colspan="4">Kelas {{ group.name }}</td>
+                      </tr>
+                      <tr v-for="(a, i) in group.rows" :key="a.student_id">
+                        <td class="col-no">{{ group.start + i + 1 }}</td>
+                        <td class="cell-strong">{{ a.student?.name }}</td>
+                        <td>{{ a.student?.class?.name || '—' }}</td>
+                        <td>
+                          <select v-model="a.status" class="form-input form-input-sm status-select">
+                            <option v-for="st in attendanceStatuses" :key="st" :value="st">{{ statusLabel(st) }}</option>
+                          </select>
+                        </td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
-              <button type="button" class="btn-primary btn-sm" :disabled="savingAttendance" @click="saveAttendance">
+              <p v-else class="muted">Tidak ada siswa yang cocok.</p>
+              <div v-if="attendancePager.lastPage > 1" class="pagination-bar">
+                <div class="pagination-buttons">
+                  <button type="button" class="btn-page" :disabled="attendancePager.page <= 1" @click="attendancePager.page--">Sebelumnya</button>
+                  <span class="page-num">Halaman {{ attendancePager.page }} / {{ attendancePager.lastPage }}</span>
+                  <button type="button" class="btn-page" :disabled="attendancePager.page >= attendancePager.lastPage" @click="attendancePager.page++">Selanjutnya</button>
+                </div>
+              </div>
+              <button type="button" class="btn-primary btn-sm" :disabled="savingAttendance || !attendances.length" @click="saveAttendance">
                 {{ savingAttendance ? 'Menyimpan...' : 'Simpan kehadiran' }}
               </button>
             </template>
@@ -262,7 +414,20 @@
             <p class="muted pad-sm" style="padding-top:0">Siswa alpha otomatis tanpa nilai. Predikat dihitung dari KKM.</p>
             <div v-if="gradingLoading" class="muted">Memuat nilai...</div>
             <template v-else>
-              <div class="table-scroll">
+              <div class="roster-toolbar">
+                <input
+                  v-model="gradingPager.search"
+                  type="search"
+                  class="form-input"
+                  placeholder="Cari nama / NIS..."
+                />
+                <select v-model="gradingPager.classId" class="form-input">
+                  <option value="">Semua kelas</option>
+                  <option v-for="c in gradingPager.classOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+              <p class="roster-meta">{{ gradingPager.rangeLabel }} · urut per kelas, lalu abjad</p>
+              <div v-if="gradingPager.paged.length" class="table-scroll">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -275,30 +440,43 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(g, i) in sessionGrades" :key="g.student_id">
-                      <td class="col-no">{{ i + 1 }}</td>
-                      <td class="cell-strong">{{ g.student?.name }}</td>
-                      <td>{{ g.student?.class?.name || '—' }}</td>
-                      <td>{{ statusLabel(g.attendance_status) || '—' }}</td>
-                      <td>
-                        <input
-                          v-model.number="g.score"
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          class="form-input form-input-sm input-score"
-                          :disabled="g.score_locked"
-                          :placeholder="g.score_locked ? 'Alpha' : ''"
-                          @input="onSessionScoreInput(g)"
-                        />
-                      </td>
-                      <td>{{ g.predicate || '—' }}</td>
-                    </tr>
+                    <template v-for="group in gradingPageGroups" :key="'gr-' + group.key">
+                      <tr class="group-row">
+                        <td colspan="6">Kelas {{ group.name }}</td>
+                      </tr>
+                      <tr v-for="(g, i) in group.rows" :key="g.student_id">
+                        <td class="col-no">{{ group.start + i + 1 }}</td>
+                        <td class="cell-strong">{{ g.student?.name }}</td>
+                        <td>{{ g.student?.class?.name || '—' }}</td>
+                        <td>{{ statusLabel(g.attendance_status) || '—' }}</td>
+                        <td>
+                          <input
+                            v-model.number="g.score"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            class="form-input form-input-sm input-score"
+                            :disabled="g.score_locked"
+                            :placeholder="g.score_locked ? 'Alpha' : ''"
+                            @input="onSessionScoreInput(g)"
+                          />
+                        </td>
+                        <td>{{ g.predicate || '—' }}</td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
-              <button type="button" class="btn-primary btn-sm" :disabled="savingSessionGrades" @click="saveSessionGrades">
+              <p v-else class="muted">Tidak ada siswa yang cocok.</p>
+              <div v-if="gradingPager.lastPage > 1" class="pagination-bar">
+                <div class="pagination-buttons">
+                  <button type="button" class="btn-page" :disabled="gradingPager.page <= 1" @click="gradingPager.page--">Sebelumnya</button>
+                  <span class="page-num">Halaman {{ gradingPager.page }} / {{ gradingPager.lastPage }}</span>
+                  <button type="button" class="btn-page" :disabled="gradingPager.page >= gradingPager.lastPage" @click="gradingPager.page++">Selanjutnya</button>
+                </div>
+              </div>
+              <button type="button" class="btn-primary btn-sm" :disabled="savingSessionGrades || !sessionGrades.length" @click="saveSessionGrades">
                 {{ savingSessionGrades ? 'Menyimpan...' : 'Simpan penilaian' }}
               </button>
             </template>
@@ -318,41 +496,69 @@
             KKM {{ gradesKkm ?? item?.kkm ?? '—' }} · Predikat: &lt;KKM = D; di atas KKM dibagi C, B, A.
           </p>
           <div v-if="gradesLoading" class="muted pad-sm">Memuat rekap nilai...</div>
-          <div v-else-if="grades.length" class="table-scroll">
-            <table class="data-table matrix-table">
-              <thead>
-                <tr>
-                  <th class="col-no sticky-col">No</th>
-                  <th class="sticky-col sticky-name">Nama</th>
-                  <th>Kelas</th>
-                  <th
-                    v-for="s in gradeSessions"
-                    :key="s.id"
-                    class="col-center"
-                    :title="sessionColTitle(s)"
-                  >{{ formatDateShort(s.session_date) }}</th>
-                  <th class="col-center">Jml</th>
-                  <th class="col-center">Rata-rata</th>
-                  <th class="col-center">Akhir</th>
-                  <th class="col-center">Predikat</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(g, i) in grades" :key="g.student_id">
-                  <td class="col-no sticky-col">{{ i + 1 }}</td>
-                  <td class="cell-strong sticky-col sticky-name">{{ g.student?.name }}</td>
-                  <td>{{ g.student?.class?.name || '—' }}</td>
-                  <td v-for="s in gradeSessions" :key="s.id" class="col-center">
-                    {{ g.scores?.[String(s.id)] != null ? g.scores[String(s.id)] : '—' }}
-                  </td>
-                  <td class="col-center">{{ g.graded_sessions ?? 0 }}</td>
-                  <td class="col-center">{{ g.average != null ? g.average : '—' }}</td>
-                  <td class="col-center">{{ g.final_score != null ? g.final_score : '—' }}</td>
-                  <td class="col-center">{{ g.predicate || '—' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <template v-else-if="grades.length">
+            <div class="roster-toolbar">
+              <input
+                v-model="gradesPager.search"
+                type="search"
+                class="form-input"
+                placeholder="Cari nama / NIS..."
+              />
+              <select v-model="gradesPager.classId" class="form-input">
+                <option value="">Semua kelas</option>
+                <option v-for="c in gradesPager.classOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <p class="roster-meta">{{ gradesPager.rangeLabel }} · urut per kelas, lalu abjad</p>
+            <div v-if="gradesPager.paged.length" class="table-scroll">
+              <table class="data-table matrix-table">
+                <thead>
+                  <tr>
+                    <th class="col-no sticky-col">No</th>
+                    <th class="sticky-col sticky-name">Nama</th>
+                    <th>Kelas</th>
+                    <th
+                      v-for="s in gradeSessions"
+                      :key="s.id"
+                      class="col-center"
+                      :title="sessionColTitle(s)"
+                    >{{ formatDateShort(s.session_date) }}</th>
+                    <th class="col-center">Jml</th>
+                    <th class="col-center">Rata-rata</th>
+                    <th class="col-center">Akhir</th>
+                    <th class="col-center">Predikat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="group in gradePageGroups" :key="'nilai-' + group.key">
+                    <tr class="group-row">
+                      <td :colspan="7 + gradeSessions.length">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
+                    </tr>
+                    <tr v-for="(g, i) in group.rows" :key="g.student_id">
+                      <td class="col-no sticky-col">{{ group.start + i + 1 }}</td>
+                      <td class="cell-strong sticky-col sticky-name">{{ g.student?.name }}</td>
+                      <td>{{ g.student?.class?.name || '—' }}</td>
+                      <td v-for="s in gradeSessions" :key="s.id" class="col-center">
+                        {{ g.scores?.[String(s.id)] != null ? g.scores[String(s.id)] : '—' }}
+                      </td>
+                      <td class="col-center">{{ g.graded_sessions ?? 0 }}</td>
+                      <td class="col-center">{{ g.average != null ? g.average : '—' }}</td>
+                      <td class="col-center">{{ g.final_score != null ? g.final_score : '—' }}</td>
+                      <td class="col-center">{{ g.predicate || '—' }}</td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="muted pad-sm">Tidak ada siswa yang cocok.</p>
+            <div v-if="gradesPager.lastPage > 1" class="pagination-bar">
+              <div class="pagination-buttons">
+                <button type="button" class="btn-page" :disabled="gradesPager.page <= 1" @click="gradesPager.page--">Sebelumnya</button>
+                <span class="page-num">Halaman {{ gradesPager.page }} / {{ gradesPager.lastPage }}</span>
+                <button type="button" class="btn-page" :disabled="gradesPager.page >= gradesPager.lastPage" @click="gradesPager.page++">Selanjutnya</button>
+              </div>
+            </div>
+          </template>
           <div v-else class="empty-inline">Belum ada peserta aktif. Tambah pertemuan lalu isi penilaian untuk melihat rekap.</div>
         </div>
 
@@ -405,6 +611,10 @@
                 @change="loadReport"
               >
                 <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+              </select>
+              <select v-if="reportClassOptions.length" v-model="reportClassId" class="form-input filter-input">
+                <option value="">Semua kelas</option>
+                <option v-for="c in reportClassOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
             </div>
           </div>
@@ -467,13 +677,13 @@
               <h3 class="report-section-title">
                 Rekap Kehadiran per Pertemuan
                 <span class="title-meta">
-                  ({{ report.attendance_matrix?.rows?.length || 0 }} peserta × {{ report.attendance_matrix?.sessions?.length || 0 }} pertemuan)
+                  ({{ filteredAttendanceRows.length }} peserta × {{ report.attendance_matrix?.sessions?.length || 0 }} pertemuan)
                 </span>
               </h3>
               <p class="matrix-hint">
                 Setiap kolom = satu pertemuan. H = Hadir, I = Izin, S = Sakit, A = Alpha, — = belum dicatat.
               </p>
-              <div v-if="report.attendance_matrix?.sessions?.length && report.attendance_matrix?.rows?.length" class="table-scroll matrix-scroll">
+              <div v-if="report.attendance_matrix?.sessions?.length && filteredAttendanceRows.length" class="table-scroll matrix-scroll">
                 <table class="data-table matrix-table">
                   <thead>
                     <tr>
@@ -497,25 +707,32 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(r, i) in report.attendance_matrix.rows" :key="r.student_id">
-                      <td class="col-no sticky-col">{{ i + 1 }}</td>
-                      <td class="cell-strong sticky-col sticky-name">{{ r.name }}</td>
-                      <td>{{ r.class?.name || '—' }}</td>
-                      <td
-                        v-for="s in report.attendance_matrix.sessions"
-                        :key="s.id"
-                        class="col-center"
-                      >
-                        <span :class="['att-code', attCodeClass(matrixStatus(r, s.id))]">
-                          {{ attCode(matrixStatus(r, s.id)) }}
-                        </span>
-                      </td>
-                      <td class="col-center">{{ r.hadir }}</td>
-                      <td class="col-center">{{ r.izin }}</td>
-                      <td class="col-center">{{ r.sakit }}</td>
-                      <td class="col-center">{{ r.alpha }}</td>
-                      <td class="col-center">{{ r.hadir_pct != null ? r.hadir_pct + '%' : '—' }}</td>
-                    </tr>
+                    <template v-for="group in reportAttendanceGroups" :key="'attm-' + group.key">
+                      <tr class="group-row">
+                        <td :colspan="8 + (report.attendance_matrix.sessions?.length || 0)">
+                          Kelas {{ group.name }} · {{ group.rows.length }} siswa
+                        </td>
+                      </tr>
+                      <tr v-for="(r, i) in group.rows" :key="r.student_id">
+                        <td class="col-no sticky-col">{{ group.start + i + 1 }}</td>
+                        <td class="cell-strong sticky-col sticky-name">{{ r.name }}</td>
+                        <td>{{ r.class?.name || '—' }}</td>
+                        <td
+                          v-for="s in report.attendance_matrix.sessions"
+                          :key="s.id"
+                          class="col-center"
+                        >
+                          <span :class="['att-code', attCodeClass(matrixStatus(r, s.id))]">
+                            {{ attCode(matrixStatus(r, s.id)) }}
+                          </span>
+                        </td>
+                        <td class="col-center">{{ r.hadir }}</td>
+                        <td class="col-center">{{ r.izin }}</td>
+                        <td class="col-center">{{ r.sakit }}</td>
+                        <td class="col-center">{{ r.alpha }}</td>
+                        <td class="col-center">{{ r.hadir_pct != null ? r.hadir_pct + '%' : '—' }}</td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
@@ -527,7 +744,7 @@
                 Rekap Nilai per Pertemuan
                 <span v-if="report.kkm != null" class="muted"> · KKM {{ report.kkm }}</span>
               </h3>
-              <div v-if="report.grade_matrix?.sessions?.length && report.grade_matrix?.rows?.length" class="table-scroll">
+              <div v-if="report.grade_matrix?.sessions?.length && filteredGradeRows.length" class="table-scroll">
                 <table class="data-table matrix-table">
                   <thead>
                     <tr>
@@ -547,18 +764,25 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(r, i) in report.grade_matrix.rows" :key="r.student_id">
-                      <td class="col-no">{{ i + 1 }}</td>
-                      <td class="cell-strong">{{ r.name }}</td>
-                      <td>{{ r.class?.name || '—' }}</td>
-                      <td v-for="s in report.grade_matrix.sessions" :key="s.id" class="col-center">
-                        {{ r.scores?.[String(s.id)] != null ? r.scores[String(s.id)] : '—' }}
-                      </td>
-                      <td class="col-center">{{ r.graded_sessions ?? 0 }}</td>
-                      <td class="col-center">{{ r.average != null ? r.average : '—' }}</td>
-                      <td class="col-center">{{ r.score != null ? r.score : '—' }}</td>
-                      <td class="col-center">{{ r.predicate || '—' }}</td>
-                    </tr>
+                    <template v-for="group in reportGradeGroups" :key="'grm-' + group.key">
+                      <tr class="group-row">
+                        <td :colspan="7 + (report.grade_matrix.sessions?.length || 0)">
+                          Kelas {{ group.name }} · {{ group.rows.length }} siswa
+                        </td>
+                      </tr>
+                      <tr v-for="(r, i) in group.rows" :key="r.student_id">
+                        <td class="col-no">{{ group.start + i + 1 }}</td>
+                        <td class="cell-strong">{{ r.name }}</td>
+                        <td>{{ r.class?.name || '—' }}</td>
+                        <td v-for="s in report.grade_matrix.sessions" :key="s.id" class="col-center">
+                          {{ r.scores?.[String(s.id)] != null ? r.scores[String(s.id)] : '—' }}
+                        </td>
+                        <td class="col-center">{{ r.graded_sessions ?? 0 }}</td>
+                        <td class="col-center">{{ r.average != null ? r.average : '—' }}</td>
+                        <td class="col-center">{{ r.score != null ? r.score : '—' }}</td>
+                        <td class="col-center">{{ r.predicate || '—' }}</td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
@@ -566,8 +790,8 @@
             </div>
 
             <div v-if="report.period?.type !== 'month'" class="report-section">
-              <h3 class="report-section-title">Rekap Ringkas per Siswa ({{ report.per_student?.length || 0 }})</h3>
-              <div v-if="report.per_student?.length" class="table-scroll">
+              <h3 class="report-section-title">Rekap Ringkas per Siswa ({{ filteredPerStudentRows.length }})</h3>
+              <div v-if="filteredPerStudentRows.length" class="table-scroll">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -583,17 +807,22 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(r, i) in report.per_student" :key="r.student_id">
-                      <td class="col-no">{{ i + 1 }}</td>
-                      <td class="cell-strong">{{ r.name }}</td>
-                      <td>{{ r.class?.name || '—' }}</td>
-                      <td class="col-center">{{ r.hadir }}</td>
-                      <td class="col-center">{{ r.izin }}</td>
-                      <td class="col-center">{{ r.sakit }}</td>
-                      <td class="col-center">{{ r.alpha }}</td>
-                      <td class="col-center">{{ r.hadir_pct != null ? r.hadir_pct + '%' : '—' }}</td>
-                      <td class="col-center">{{ r.score != null ? r.score : '—' }}{{ r.predicate ? ` (${r.predicate})` : '' }}</td>
-                    </tr>
+                    <template v-for="group in reportPerStudentGroups" :key="'ps-' + group.key">
+                      <tr class="group-row">
+                        <td colspan="9">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
+                      </tr>
+                      <tr v-for="(r, i) in group.rows" :key="r.student_id">
+                        <td class="col-no">{{ group.start + i + 1 }}</td>
+                        <td class="cell-strong">{{ r.name }}</td>
+                        <td>{{ r.class?.name || '—' }}</td>
+                        <td class="col-center">{{ r.hadir }}</td>
+                        <td class="col-center">{{ r.izin }}</td>
+                        <td class="col-center">{{ r.sakit }}</td>
+                        <td class="col-center">{{ r.alpha }}</td>
+                        <td class="col-center">{{ r.hadir_pct != null ? r.hadir_pct + '%' : '—' }}</td>
+                        <td class="col-center">{{ r.score != null ? r.score : '—' }}{{ r.predicate ? ` (${r.predicate})` : '' }}</td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
@@ -601,6 +830,8 @@
             </div>
           </template>
           <div v-else class="empty-inline">Pilih periode lalu muat laporan.</div>
+        </div>
+        </div>
         </div>
       </template>
 
@@ -619,9 +850,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { extracurricularApi } from '@/api/extracurricular'
 import { semesterApi } from '@/api/semester'
@@ -703,16 +935,157 @@ const gradingKkm = ref(75)
 const gradingLoading = ref(false)
 const savingSessionGrades = ref(false)
 
+const ROSTER_PAGE_SIZE = 20
+
+function groupByClass(rows, getClass) {
+  const groups = []
+  let current = null
+  let index = 0
+  for (const row of rows || []) {
+    const c = getClass(row)
+    const key = String(c?.id ?? c?.name ?? '')
+    const name = c?.name || 'Tanpa kelas'
+    if (!current || current.key !== key) {
+      current = { key, name, rows: [], start: index }
+      groups.push(current)
+    }
+    current.rows.push(row)
+    index += 1
+  }
+  return groups
+}
+
+function uniqueClassesFrom(rows, getClass) {
+  const map = new Map()
+  for (const row of rows || []) {
+    const c = getClass(row)
+    if (!c?.id || map.has(c.id)) continue
+    map.set(c.id, {
+      id: c.id,
+      name: c.name || '—',
+      grade: c.grade == null || c.grade === '' ? 999 : Number(c.grade),
+    })
+  }
+  return [...map.values()].sort((a, b) => (a.grade - b.grade) || a.name.localeCompare(b.name, 'id', { numeric: true }))
+}
+
+function useRosterPager(rowsRef, getStudent) {
+  const page = ref(1)
+  const search = ref('')
+  const classId = ref('')
+
+  const classOptions = computed(() => uniqueClassesFrom(rowsRef.value, (row) => getStudent(row)?.class))
+
+  const filtered = computed(() => {
+    const q = search.value.trim().toLowerCase()
+    const cid = classId.value
+    return (rowsRef.value || []).filter((row) => {
+      const st = getStudent(row)
+      if (cid && String(st?.class?.id ?? '') !== String(cid)) return false
+      if (!q) return true
+      const hay = `${st?.name || ''} ${st?.nis || ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+  })
+
+  const lastPage = computed(() => Math.max(1, Math.ceil(filtered.value.length / ROSTER_PAGE_SIZE)))
+  const paged = computed(() => {
+    const start = (page.value - 1) * ROSTER_PAGE_SIZE
+    return filtered.value.slice(start, start + ROSTER_PAGE_SIZE)
+  })
+  const rangeLabel = computed(() => {
+    const total = filtered.value.length
+    if (!total) return '0 dari 0 siswa'
+    const start = (page.value - 1) * ROSTER_PAGE_SIZE + 1
+    const end = Math.min(page.value * ROSTER_PAGE_SIZE, total)
+    return `Menampilkan ${start}–${end} dari ${total} siswa`
+  })
+
+  function reset() {
+    page.value = 1
+    search.value = ''
+    classId.value = ''
+  }
+
+  watch([search, classId], () => {
+    page.value = 1
+  })
+  watch(lastPage, (last) => {
+    if (page.value > last) page.value = last
+  })
+
+  return reactive({
+    page,
+    search,
+    classId,
+    classOptions,
+    filtered,
+    lastPage,
+    paged,
+    rangeLabel,
+    reset,
+  })
+}
+
+const attendancePager = useRosterPager(attendances, (a) => a.student)
+const gradingPager = useRosterPager(sessionGrades, (g) => g.student)
+const attendancePageGroups = computed(() => groupByClass(
+  attendancePager.paged,
+  (a) => a.student?.class,
+).map((group) => ({
+  ...group,
+  start: (attendancePager.page - 1) * ROSTER_PAGE_SIZE + group.start,
+})))
+const gradingPageGroups = computed(() => groupByClass(
+  gradingPager.paged,
+  (g) => g.student?.class,
+).map((group) => ({
+  ...group,
+  start: (gradingPager.page - 1) * ROSTER_PAGE_SIZE + group.start,
+})))
+const participantGroups = computed(() => groupByClass(participants.value, (p) => p.student?.class))
+
 const grades = ref([])
 const gradeSessions = ref([])
 const gradesKkm = ref(null)
 const gradesLoading = ref(false)
 const savingGrades = ref(false)
+const gradesPager = useRosterPager(grades, (g) => g.student)
+const gradePageGroups = computed(() => groupByClass(
+  gradesPager.paged,
+  (g) => g.student?.class,
+).map((group) => ({
+  ...group,
+  start: (gradesPager.page - 1) * ROSTER_PAGE_SIZE + group.start,
+})))
 
 const report = ref(null)
 const reportLoading = ref(false)
 const exportingCsv = ref(false)
 const printingPdf = ref(false)
+const reportClassId = ref('')
+const filteredAttendanceRows = computed(() => {
+  const rows = report.value?.attendance_matrix?.rows || []
+  if (!reportClassId.value) return rows
+  return rows.filter((r) => String(r.class?.id ?? '') === String(reportClassId.value))
+})
+const filteredGradeRows = computed(() => {
+  const rows = report.value?.grade_matrix?.rows || []
+  if (!reportClassId.value) return rows
+  return rows.filter((r) => String(r.class?.id ?? '') === String(reportClassId.value))
+})
+const filteredPerStudentRows = computed(() => {
+  const rows = report.value?.per_student || []
+  if (!reportClassId.value) return rows
+  return rows.filter((r) => String(r.class?.id ?? '') === String(reportClassId.value))
+})
+const reportClassOptions = computed(() => uniqueClassesFrom(
+  report.value?.attendance_matrix?.rows || report.value?.grade_matrix?.rows || report.value?.per_student || [],
+  (r) => r.class,
+))
+const reportAttendanceGroups = computed(() => groupByClass(filteredAttendanceRows.value, (r) => r.class))
+const reportGradeGroups = computed(() => groupByClass(filteredGradeRows.value, (r) => r.class))
+const reportPerStudentGroups = computed(() => groupByClass(filteredPerStudentRows.value, (r) => r.class))
 
 const now = new Date()
 const reportFilters = ref({
@@ -1029,6 +1402,7 @@ function deleteSession(s) {
 async function openAttendance(s) {
   gradingSession.value = null
   attendanceSession.value = s
+  attendancePager.reset()
   attendanceLoading.value = true
   try {
     const res = await extracurricularApi.getAttendances(id.value, s.id)
@@ -1039,6 +1413,12 @@ async function openAttendance(s) {
     toast.error('Gagal', e.formattedMessage || 'Gagal memuat kehadiran')
   } finally {
     attendanceLoading.value = false
+  }
+}
+
+function markAttendancePage(status) {
+  for (const row of attendancePager.paged) {
+    row.status = status
   }
 }
 
@@ -1064,6 +1444,7 @@ async function saveAttendance() {
 async function openGrading(s) {
   attendanceSession.value = null
   gradingSession.value = s
+  gradingPager.reset()
   gradingLoading.value = true
   try {
     const res = await extracurricularApi.getSessionGrades(id.value, s.id)
@@ -1131,6 +1512,7 @@ async function loadReport() {
   try {
     const res = await extracurricularApi.getReport(id.value, reportParams())
     report.value = res.data.data || null
+    reportClassId.value = ''
   } catch (e) {
     report.value = null
     toast.error('Gagal', e.formattedMessage || 'Gagal memuat laporan')
@@ -1258,7 +1640,7 @@ onMounted(async () => {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
-  padding: 1.1rem 1.25rem;
+  padding: 1.15rem 1.25rem 1.2rem;
   margin-bottom: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
@@ -1272,8 +1654,9 @@ onMounted(async () => {
 
 .header-info h1 {
   margin: 0;
-  font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+  font-size: clamp(1.2rem, 2.5vw, 1.55rem);
   color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
 .header-desc {
@@ -1283,11 +1666,61 @@ onMounted(async () => {
   line-height: 1.45;
 }
 
-.meta-chips {
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.meta-item {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.meta-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.meta-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.meta-value {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.meta-hint {
+  font-weight: 500;
+  color: #94a3b8;
+  font-size: 12px;
 }
 
 .meta-chip {
@@ -1333,36 +1766,90 @@ onMounted(async () => {
 .status-active { background: #c6f6d5; color: #22543d; }
 .status-inactive { background: #fed7d7; color: #742a2a; }
 
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
+}
+
 .section-nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
 }
 
 .sec-btn {
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  border-radius: 999px;
-  padding: 0.45rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 0.88rem;
-  color: #475569;
-  font-weight: 500;
+  color: #64748b;
+  text-align: left;
+}
+
+.sec-btn:hover:not(.active) {
+  background: #fff;
+  color: #0f172a;
+}
+
+.sec-btn:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 1px;
 }
 
 .sec-btn.active {
-  background: #059669;
-  border-color: #059669;
-  color: #fff;
+  background: #fff;
+  color: #065f46;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0;
+}
+
+.sec-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #059669;
+  flex-shrink: 0;
+}
+
+.sec-btn.active .sec-icon {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.sec-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.tab-main {
+  min-width: 0;
 }
 
 .panel {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 16px 18px 18px;
+  box-shadow: none;
 }
 
 .panel-toolbar {
@@ -1428,7 +1915,40 @@ onMounted(async () => {
 .row-active { background: #ecfdf5 !important; }
 
 .col-no { width: 48px; text-align: center; color: #94a3b8; }
-.col-aksi { width: 200px; text-align: right; white-space: nowrap; }
+.col-aksi { width: 132px; text-align: right; white-space: nowrap; }
+.action-btns {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #047857;
+  cursor: pointer;
+}
+.btn-icon:hover,
+.btn-icon.active {
+  background: #d1fae5;
+  border-color: #059669;
+}
+.btn-icon.danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.btn-icon.danger:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
 .col-center { text-align: center; }
 .cell-strong { font-weight: 600; color: #0f172a; }
 .cell-sub { font-size: 12px; color: #94a3b8; }
@@ -1510,6 +2030,64 @@ onMounted(async () => {
 }
 
 .attendance-box { margin-top: 14px; }
+
+.roster-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.roster-toolbar .form-input {
+  flex: 1;
+  min-width: 140px;
+  max-width: 260px;
+}
+.roster-meta {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pagination-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+.pagination-info { font-size: 12px; color: #64748b; }
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-page {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+.btn-page:disabled { opacity: 0.45; cursor: not-allowed; }
+.page-num { font-size: 12px; color: #475569; font-weight: 600; }
+
+.group-row td {
+  background: #f1f5f9;
+  font-weight: 700;
+  font-size: 12px;
+  color: #334155;
+  letter-spacing: 0.02em;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.matrix-table tbody .group-row .sticky-col,
+.matrix-table tbody .group-row td {
+  background: #f1f5f9;
+}
 
 .check-all, .check-row {
   display: flex;
@@ -1732,6 +2310,17 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
   .panel { padding: 12px; }
   .report-toolbar { flex-direction: column; align-items: stretch; }
   .toolbar-actions { width: 100%; }
@@ -1742,10 +2331,11 @@ onMounted(async () => {
   .data-table th, .data-table td { padding: 10px 12px; }
   .sticky-col { position: static; }
   .sticky-name { left: auto; }
+  .roster-toolbar .form-input { max-width: none; }
+  .meta-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 480px) {
-  .sec-btn { flex: 1 1 calc(50% - 0.4rem); text-align: center; justify-content: center; }
   .period-btn { flex: 1 1 calc(33% - 6px); text-align: center; font-size: 12px; padding: 7px 8px; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }

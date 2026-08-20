@@ -112,12 +112,10 @@
                 <td>{{ typeLabel(q.type) }}</td>
                 <td>{{ q.weight }}</td>
                 <td class="row-actions">
-                  <button type="button" class="btn-action btn-preview" @click="openPreview(q)">Preview</button>
-                  <button type="button" class="btn-action btn-edit" @click="openForm(q)">Edit</button>
-                  <button type="button" class="btn-action btn-dup" :disabled="duplicatingId === q.id" @click="duplicateQuestion(q)">
-                    {{ duplicatingId === q.id ? '…' : 'Duplikat' }}
-                  </button>
-                  <button type="button" class="btn-action btn-delete" @click="confirmDelete(q)">Hapus</button>
+                  <TableAction kind="preview" @click="openPreview(q)" />
+                  <TableAction kind="edit" @click="openForm(q)" />
+                  <TableAction kind="duplicate" :disabled="duplicatingId === q.id" @click="duplicateQuestion(q)" />
+                  <TableAction kind="delete" @click="confirmDelete(q)" />
                 </td>
               </tr>
             </tbody>
@@ -379,6 +377,7 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'

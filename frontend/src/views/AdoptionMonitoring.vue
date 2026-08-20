@@ -54,18 +54,24 @@
           </div>
         </div>
 
-        <div class="tabs">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            type="button"
-            class="tab-btn"
-            :class="{ active: activeTab === tab.id }"
-            @click="activeTab = tab.id"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
+        <div class="tab-shell">
+          <nav class="section-nav" role="tablist" aria-label="Monitoring adopsi">
+            <button
+              v-for="tab in tabs"
+              :key="tab.id"
+              type="button"
+              :class="['sec-btn', { active: activeTab === tab.id }]"
+              @click="activeTab = tab.id"
+            >
+              <span class="sec-icon" aria-hidden="true">
+                <svg v-if="tab.id === 'adoption'" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V5a1 1 0 0 1 1-1h10l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2"/><path d="M14 4v5h5M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <svg v-else-if="tab.id === 'usage'" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 16l3-5 2 3 3-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="sec-label">{{ tab.label }}</span>
+            </button>
+          </nav>
+          <div class="tab-main">
 
         <!-- ADOPSI -->
         <template v-if="activeTab === 'adoption'">
@@ -292,6 +298,8 @@
             <p v-if="filteredInstitutions.length === 0" class="empty-hint">Tidak ada institusi.</p>
           </div>
         </section>
+          </div>
+        </div>
       </template>
     </div>
   </Layout>
@@ -464,32 +472,60 @@ onMounted(loadData)
 .stat-card.danger { border-color: #fca5a5; }
 .stat-label { display: block; font-size: 12px; color: #64748b; margin-bottom: 6px; }
 .stat-card strong { font-size: 22px; color: #0f172a; }
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.tab-btn {
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
   border: 1px solid #e2e8f0;
-  background: white;
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
 }
-.tab-btn.active {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: white;
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
+}
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
 }
 .panel {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 20px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0 0 16px;
   margin-bottom: 16px;
 }
 .panel-header {

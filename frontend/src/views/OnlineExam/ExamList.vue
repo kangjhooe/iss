@@ -319,6 +319,23 @@ onMounted(() => fetchExams())
   border-color: #047857;
 }
 
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .btn-add,
+  .header-actions .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 768px) {
   .content-card {
     padding: 12px;

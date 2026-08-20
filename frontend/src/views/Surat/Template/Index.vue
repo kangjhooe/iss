@@ -10,6 +10,7 @@ import EditorSurat from '../components/EditorSurat.vue'
 import Paper from '../components/Paper.vue'
 import PreviewDialog from '../components/PreviewDialog.vue'
 import SuratSubNav from '../components/SuratSubNav.vue'
+import TableAction from '@/components/TableAction.vue'
 import { templateService } from '../services/templateService'
 import {
   DEFAULT_LETTER_TYPE_CODE,
@@ -268,7 +269,7 @@ onMounted(load)
                   <button type="button" @click="toggleStatus(item)">
                     {{ item.status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan' }}
                   </button>
-                  <button type="button" class="danger" @click="remove(item)">Hapus</button>
+                  <TableAction kind="delete" @click="remove(item)" />
                 </div>
               </article>
               <p v-if="!ownList.length" class="empty">

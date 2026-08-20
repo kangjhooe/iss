@@ -1,8 +1,8 @@
 /**
  * Layout konsisten untuk halaman modul (Data Siswa, Guru, Kelas, dll):
- * - Header: judul + tombol aksi dalam 1 baris ke samping (horizontal)
+ * - Header: judul + tombol aksi dalam 1 baris di desktop
  * - Filter + pencarian: 1 baris ke samping (horizontal)
- * - Responsif: tombol wrap di tablet; filter stack di mobile
+ * - Tablet/mobile (≤1024px): header stack vertikal, tombol wrap full-width
  */
 
 /* Area loading skeleton full layar (lebar + tinggi konten) */
@@ -163,8 +163,14 @@
 @media (max-width: 1024px) {
   .main-content .header-content {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .main-content .header-content > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .main-content .action-buttons-group,
@@ -175,6 +181,8 @@
     gap: 6px;
     width: 100%;
     max-width: 100%;
+    margin-left: 0;
+    flex-shrink: 1;
   }
 
   .main-content .action-buttons-group .btn-compact,

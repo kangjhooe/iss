@@ -86,8 +86,8 @@
                   <td><span :class="['status-badge', 'status-' + p.status]">{{ statusPeriodLabel(p.status) }}</span></td>
                   <td>{{ p.applicants_count ?? 0 }}</td>
                   <td>
-                    <button type="button" class="btn-action btn-edit" @click="openPeriodModal(p)">Edit</button>
-                    <button type="button" class="btn-action btn-delete" @click="confirmDeletePeriod(p)">Hapus</button>
+                    <TableAction kind="edit" @click="openPeriodModal(p)" />
+                    <TableAction kind="delete" @click="confirmDeletePeriod(p)" />
                   </td>
                 </tr>
               </tbody>
@@ -122,8 +122,8 @@
                   <td>{{ c.quota ?? '-' }}</td>
                   <td>{{ c.is_active ? 'Ya' : 'Tidak' }}</td>
                   <td>
-                    <button type="button" class="btn-action btn-edit" @click="openChannelModal(c)">Edit</button>
-                    <button type="button" class="btn-action btn-delete" @click="confirmDeleteChannel(c)">Hapus</button>
+                    <TableAction kind="edit" @click="openChannelModal(c)" />
+                    <TableAction kind="delete" @click="confirmDeleteChannel(c)" />
                   </td>
                 </tr>
               </tbody>
@@ -245,6 +245,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { ppdbPeriodApi, ppdbChannelApi } from '@/api/ppdb'

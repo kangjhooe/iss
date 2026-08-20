@@ -12,40 +12,60 @@ export default defineConfig(({ mode }) => {
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      injectRegister: false,
+      includeAssets: [
+        'favicon.ico',
+        'favicon-32x32.png',
+        'favicon-192x192.png',
+        'apple-touch-icon.png',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'pwa-maskable-192x192.png',
+        'pwa-maskable-512x512.png'
+      ],
       manifest: {
+        id: '/',
         name: appName,
         short_name: appName,
         description: `${appName} - One Platform for Smarter Education. Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia`,
+        lang: 'id',
         theme_color: '#0ea5e9',
         background_color: '#ffffff',
         display: 'standalone',
-        orientation: 'portrait',
         start_url: '/',
+        scope: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: 'pwa-maskable-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: 'pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/storage/],
         runtimeCaching: [
-          // Jangan cache request API (termasuk login/register/logout) agar setelah logout
-          // request login selalu ke server dan tidak dapat response cache lama (mis. 422)
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
             handler: 'CacheFirst',
@@ -53,7 +73,7 @@ export default defineConfig(({ mode }) => {
               cacheName: 'image-cache',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }
           }

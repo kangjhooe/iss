@@ -700,6 +700,24 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+@media (max-width: 1024px) {
+  .tab-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-header .btn-add,
+  .tab-header .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 @media (max-width: 768px) {
   .filters {
     flex-direction: column;

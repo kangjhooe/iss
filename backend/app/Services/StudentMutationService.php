@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\StudentMutation;
 use App\Models\User;
 use App\Notifications\StudentMutationNotification;
+use App\Services\LocalNisService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -415,6 +416,14 @@ class StudentMutationService
                 'academic_year' => $target->activeAcademicYear?->code ?: $target->activeAcademicYear?->name,
                 'semester_id' => $target->active_semester_id,
             ]);
+            try {
+                app(LocalNisService::class)->assignIfEmpty($student);
+            } catch (\InvalidArgumentException $e) {
+                Log::warning('Local NIS not generated on external mutation in', [
+                    'student_id' => $student->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             $mutation = StudentMutation::create([
                 'origin_institution_id' => null,
@@ -562,6 +571,14 @@ class StudentMutationService
             $student->semester_id = $target->active_semester_id;
             $student->status = 'Aktif';
             $student->save();
+            try {
+                app(LocalNisService::class)->assignIfEmpty($student);
+            } catch (\InvalidArgumentException $e) {
+                Log::warning('Local NIS not generated on mutation approve', [
+                    'student_id' => $student->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             $mutation->student_grade = $grade;
             $mutation->student_gender = $gender;

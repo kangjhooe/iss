@@ -159,8 +159,8 @@
                     <span class="color-swatch" :style="{ background: event.color || typeColor(event.event_type) }" />
                   </td>
                   <td>
-                    <button type="button" class="btn-action btn-edit" @click="editEvent(event)">Edit</button>
-                    <button type="button" class="btn-action btn-danger" @click="deleteEvent(event)">Hapus</button>
+                    <TableAction kind="edit" @click="editEvent(event)" />
+                    <TableAction kind="delete" @click="deleteEvent(event)" />
                   </td>
                 </tr>
               </tbody>
@@ -303,6 +303,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { academicCalendarApi } from '@/api/academicCalendar'

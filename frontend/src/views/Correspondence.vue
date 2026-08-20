@@ -711,30 +711,22 @@
                         Selesai: {{ formatDate(disposition.completed_at) }}
                       </span>
                       <div class="disposition-actions">
-                        <button 
+                        <TableAction
                           v-if="disposition.status === 'pending' && disposition.to_user_id === currentUserId"
-                          @click="completeDisposition(disposition.id)"
-                          class="btn-action btn-complete"
+                          kind="complete"
                           title="Selesaikan"
-                        >
-                          Selesaikan
-                        </button>
-                        <button 
+                          @click="completeDisposition(disposition.id)"
+                        />
+                        <TableAction
                           v-if="disposition.status === 'pending' && disposition.from_user_id === currentUserId"
+                          kind="edit"
                           @click="editDisposition(disposition)"
-                          class="btn-action btn-edit"
-                          title="Edit"
-                        >
-                          Edit
-                        </button>
-                        <button 
+                        />
+                        <TableAction
                           v-if="disposition.status === 'pending' && disposition.from_user_id === currentUserId"
+                          kind="delete"
                           @click="deleteDisposition(disposition.id)"
-                          class="btn-action btn-delete"
-                          title="Hapus"
-                        >
-                          Hapus
-                        </button>
+                        />
                       </div>
                     </div>
                   </div>
@@ -914,6 +906,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import correspondenceApi from '@/api/correspondence'
 import { institutionApi } from '@/api/institution'
@@ -2719,6 +2712,28 @@ textarea.form-input {
 
   .data-table {
     min-width: 720px;
+  }
+
+  .correspondence-page .header-content,
+  .header-content {
+    flex-direction: column;
+    align-items: stretch !important;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .correspondence-page .action-buttons-group,
+  .action-buttons-group {
+    width: 100%;
+    flex-wrap: wrap !important;
+  }
+
+  .correspondence-page .action-buttons-group .btn-add,
+  .action-buttons-group .btn-add {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    justify-content: center;
+    min-height: 40px;
   }
 
   /* Override global module-page.css compact-row layout */

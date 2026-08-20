@@ -49,6 +49,11 @@
             </router-link>
           </div>
 
+          <div v-if="attendanceChart || gradesChart" class="charts-grid">
+            <AppChart title="Kehadiran semester ini" type="doughnut" :chart-data="attendanceChart" />
+            <AppChart title="Nilai vs KKM" type="bar" :chart-data="gradesChart" :options="gradesChartOptions" />
+          </div>
+
           <section class="sp-panel">
             <div class="sp-panel-header">
               <h2 class="sp-panel-title">Aksi Cepat</h2>
@@ -240,6 +245,7 @@
 import { computed, onMounted, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import HelpSidebar from '@/components/HelpSidebar.vue'
+import AppChart from '@/components/AppChart.vue'
 import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
 import { gradeBookApi } from '@/api/gradeBook'
@@ -249,6 +255,8 @@ import { counselingApi } from '@/api/counseling'
 import { extracurricularApi } from '@/api/extracurricular'
 import { semesterApi } from '@/api/semester'
 import { academicCalendarApi } from '@/api/academicCalendar'
+import { studentAttendanceApi } from '@/api/attendance'
+import { doughnutFromCounts, countStatuses, chartOptionsBar } from '@/composables/useChart'
 
 const authStore = useAuthStore()
 
@@ -277,6 +285,7 @@ const loadingSchedule = ref(false)
 const loadingGrades = ref(false)
 const loadingCounseling = ref(false)
 const loadingExtracurricular = ref(false)
+const attendances = ref([])
 
 const upcomingEvents = ref([])
 
@@ -310,6 +319,32 @@ const violationsCount = computed(() => violationsList.value.length)
 const achievementsCount = computed(() => achievementsList.value.length)
 const recentViolations = computed(() => violationsList.value.slice(0, 5))
 const recentAchievements = computed(() => achievementsList.value.slice(0, 5))
+
+const attendanceChart = computed(() => doughnutFromCounts(countStatuses(attendances.value)))
+const gradesChart = computed(() => {
+  const list = (grades.value || []).filter((g) => g.nilai_akhir != null || g.value != null)
+  if (!list.length) return null
+  return {
+    labels: list.map((g) => g.subject?.name || g.subject_name || '—'),
+    datasets: [
+      {
+        label: 'Nilai',
+        data: list.map((g) => Number(g.nilai_akhir ?? g.value ?? 0)),
+        backgroundColor: '#059669',
+        borderRadius: 4,
+        maxBarThickness: 28,
+      },
+      {
+        label: 'KKM',
+        data: list.map((g) => Number(g.kkm ?? 0)),
+        backgroundColor: '#94a3b8',
+        borderRadius: 4,
+        maxBarThickness: 28,
+      },
+    ],
+  }
+})
+const gradesChartOptions = { ...chartOptionsBar, plugins: { legend: { position: 'bottom' } } }
 
 function formatDate(val) {
   if (!val) return '-'
@@ -387,6 +422,19 @@ async function loadSchedule() {
   }
 }
 
+async function loadAttendance() {
+  if (!studentId.value) return
+  try {
+    const params = {}
+    if (activeSemester.value?.id) params.semester_id = activeSemester.value.id
+    const res = await studentAttendanceApi.getMy(params)
+    const list = res.data?.data ?? res.data ?? []
+    attendances.value = Array.isArray(list) ? list : (list?.data ?? [])
+  } catch {
+    attendances.value = []
+  }
+}
+
 async function loadGrades() {
   if (!studentId.value || !activeSemester.value?.id) return
   loadingGrades.value = true
@@ -440,6 +488,7 @@ onMounted(async () => {
   loadAchievements()
   loadSchedule()
   loadGrades()
+  loadAttendance()
   loadCounseling()
   loadExtracurricular()
   loadUpcomingEvents()
@@ -475,6 +524,16 @@ async function loadUpcomingEvents() {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .charts-grid { grid-template-columns: 1fr; }
 }
 
 .sp-panel:target {

@@ -459,4 +459,22 @@ loadNotifications(1)
   font-size: 14px;
   border-radius: 10px;
 }
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .header-actions .btn-primary,
+  .header-actions .btn-compact {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

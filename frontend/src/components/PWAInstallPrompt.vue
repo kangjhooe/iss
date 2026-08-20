@@ -1,67 +1,98 @@
 <template>
   <div v-if="showPrompt" class="pwa-install-prompt">
     <div class="prompt-content">
-      <div class="prompt-icon">📱</div>
+      <div class="prompt-icon">{{ isIos ? '📲' : '📱' }}</div>
       <div class="prompt-text">
-        <h3>Install {{ appName }}</h3>
-        <p>Install aplikasi untuk akses lebih cepat dan fitur offline</p>
+        <h3>{{ isIos ? `Tambahkan ${appName}` : `Install ${appName}` }}</h3>
+        <p v-if="isIos">
+          Di Safari, ketuk tombol <strong>Bagikan</strong> lalu pilih <strong>Add to Home Screen</strong>
+        </p>
+        <p v-else>Install aplikasi untuk akses lebih cepat dari layar utama HP</p>
       </div>
       <div class="prompt-actions">
-        <button @click="dismiss" class="btn-dismiss">Nanti</button>
-        <button @click="install" class="btn-install">Install</button>
+        <button type="button" class="btn-dismiss" @click="dismiss">Nanti</button>
+        <button v-if="!isIos" type="button" class="btn-install" @click="install">Install</button>
+        <button v-else type="button" class="btn-install" @click="dismiss">Mengerti</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { appName } from '@/config/app'
+import {
+  clearDeferredPrompt,
+  getDeferredPrompt,
+  isIosDevice,
+  isStandaloneDisplay,
+  onInstallPromptChange
+} from '@/utils/pwaInstall'
+
+const DISMISS_KEY = 'pwa-install-dismissed'
+const DISMISS_DAYS = 7
 
 const showPrompt = ref(false)
+const isIos = ref(false)
 let deferredPrompt = null
+let unsubscribe = null
+let iosTimer = null
+
+function wasDismissedRecently() {
+  const dismissed = localStorage.getItem(DISMISS_KEY)
+  if (!dismissed) return false
+  const daysSinceDismissed = (Date.now() - parseInt(dismissed, 10)) / (1000 * 60 * 60 * 24)
+  return daysSinceDismissed < DISMISS_DAYS
+}
 
 onMounted(() => {
-  // Check if already installed
-  if (window.matchMedia('(display-mode: standalone)').matches) {
+  if (isStandaloneDisplay() || wasDismissedRecently()) {
     return
   }
 
-  // Check if dismissed before
-  const dismissed = localStorage.getItem('pwa-install-dismissed')
-  if (dismissed) {
-    const dismissedTime = parseInt(dismissed)
-    const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24)
-    if (daysSinceDismissed < 7) {
-      return // Don't show for 7 days after dismissal
+  isIos.value = isIosDevice()
+
+  unsubscribe = onInstallPromptChange((event) => {
+    deferredPrompt = event
+    if (event && !isStandaloneDisplay() && !wasDismissedRecently()) {
+      showPrompt.value = true
     }
+  })
+
+  if (getDeferredPrompt()) {
+    return
   }
 
-  // Listen for beforeinstallprompt event
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault()
-    deferredPrompt = e
-    showPrompt.value = true
-  })
+  if (isIos.value) {
+    iosTimer = window.setTimeout(() => {
+      if (!isStandaloneDisplay() && !wasDismissedRecently()) {
+        showPrompt.value = true
+      }
+    }, 2500)
+  }
+})
+
+onUnmounted(() => {
+  unsubscribe?.()
+  if (iosTimer) window.clearTimeout(iosTimer)
 })
 
 function dismiss() {
   showPrompt.value = false
-  localStorage.setItem('pwa-install-dismissed', Date.now().toString())
+  localStorage.setItem(DISMISS_KEY, Date.now().toString())
 }
 
 async function install() {
+  if (!deferredPrompt) {
+    deferredPrompt = getDeferredPrompt()
+  }
   if (!deferredPrompt) {
     return
   }
 
   deferredPrompt.prompt()
-  const { outcome } = await deferredPrompt.userChoice
-  
-  if (outcome === 'accepted') {
-    console.log('User accepted the install prompt')
-  }
-  
+  await deferredPrompt.userChoice
+  clearDeferredPrompt()
   deferredPrompt = null
   showPrompt.value = false
 }

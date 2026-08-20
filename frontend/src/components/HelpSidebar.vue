@@ -122,20 +122,6 @@
           </h3>
           <div class="help-cards">
             <div class="help-card">
-              <span class="help-card-icon help-card-icon--green">👨‍🏫</span>
-              <div class="help-card-body">
-                <div class="help-card-title">Data Guru</div>
-                <p class="help-card-desc">NIP, nama, mapel, status kepegawaian, tugas tambahan. Bisa export Excel atau cetak PDF (kop + TTD, preview tab baru).</p>
-              </div>
-            </div>
-            <div class="help-card">
-              <span class="help-card-icon help-card-icon--amber">↔️</span>
-              <div class="help-card-body">
-                <div class="help-card-title">Mutasi Guru</div>
-                <p class="help-card-desc">Push (sekolah asal) atau pull (sekolah tujuan) berdasarkan NIK. Setujui/tolak, batalkan, lihat riwayat & laporan. Tidak ada batasan jenjang.</p>
-              </div>
-            </div>
-            <div class="help-card">
               <span class="help-card-icon help-card-icon--lime">📅</span>
               <div class="help-card-body">
                 <div class="help-card-title">Jadwal Pelajaran</div>
@@ -221,7 +207,7 @@
               <span class="help-card-icon help-card-icon--indigo">📱</span>
               <div class="help-card-body">
                 <div class="help-card-title">Absensi QR</div>
-                <p class="help-card-desc">Generate QR per siswa/pegawai, scan untuk mencatat kehadiran.</p>
+                <p class="help-card-desc">Generate kartu QR tetap per kelas (massal/cetak), lalu scan untuk mencatat kehadiran. Kartu tidak kadaluarsa; siswa tidak aktif tidak bisa di-scan.</p>
               </div>
             </div>
           </div>
@@ -240,7 +226,7 @@
               <span class="help-card-icon help-card-icon--emerald">👤</span>
               <div class="help-card-body">
                 <div class="help-card-title">Data Siswa</div>
-                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Buku Induk per siswa bisa diakses dari detail siswa.</p>
+                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Generate NIS lokal lewat pratinjau: cek nomor dulu, batal atau terapkan. Buku Induk per siswa bisa diakses dari detail siswa.</p>
               </div>
             </div>
             <div class="help-card">
@@ -416,17 +402,31 @@
           </h3>
           <div class="help-cards">
             <div class="help-card">
+              <span class="help-card-icon help-card-icon--green">👨‍🏫</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Data Pegawai</div>
+                <p class="help-card-desc">NIP, nama, mapel, status, tugas tambahan operasional (operator, koordinator, pembina). Jabatan struktural diatur di Cuti, SK &amp; Jabatan.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--amber">↔️</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Mutasi</div>
+                <p class="help-card-desc">Push (sekolah asal) atau pull (sekolah tujuan) berdasarkan NIK. Setujui/tolak, batalkan, lihat riwayat &amp; laporan.</p>
+              </div>
+            </div>
+            <div class="help-card">
               <span class="help-card-icon help-card-icon--indigo">🏖️</span>
               <div class="help-card-body">
                 <div class="help-card-title">Cuti</div>
-                <p class="help-card-desc">Admin kelola pengajuan cuti (setujui/tolak). Guru/staff ajukan sendiri lewat menu Cuti Saya.</p>
+                <p class="help-card-desc">Admin kelola pengajuan cuti (setujui/tolak). Cuti yang disetujui otomatis mengisi absensi pegawai (hari kerja). Guru/staff ajukan sendiri lewat Cuti Saya.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--indigo">📄</span>
               <div class="help-card-body">
                 <div class="help-card-title">SK &amp; Jabatan</div>
-                <p class="help-card-desc">Register surat keputusan, jabatan struktural aktif/akhir, dan lihat riwayat karier pegawai.</p>
+                <p class="help-card-desc">Register SK, tetapkan jabatan struktural (akses modul ikut), dan lihat riwayat karier pegawai.</p>
               </div>
             </div>
           </div>

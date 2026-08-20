@@ -127,20 +127,27 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .layout-super-admin .form-grid,
-  .layout-super-admin .form-row,
-  .layout-super-admin .branding-grid {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-/* ---- Mobile ---- */
-@media (max-width: 768px) {
   .layout-super-admin .page-header {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .layout-super-admin .header-actions,
+  .layout-super-admin .action-buttons-group {
+    width: 100%;
+  }
+
+  .layout-super-admin .header-actions > *,
+  .layout-super-admin .action-buttons-group > * {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 768px) {
   .layout-super-admin .page-header h1,
   .layout-super-admin .page-header h2 {
     font-size: 1.25rem !important;

@@ -92,7 +92,7 @@
               <span class="upcoming-student">{{ u.student?.name }}</span>
               <span class="upcoming-type">{{ u.counseling_type?.name || '-' }}</span>
               <span class="upcoming-counselor">{{ u.counselor?.name }}</span>
-              <button type="button" class="upcoming-link" @click="openEditModal(u)">Edit</button>
+              <TableAction kind="edit" @click="openEditModal(u)" />
             </div>
           </div>
         </div>
@@ -178,8 +178,8 @@
                 <td class="summary-cell">{{ truncate(s.summary, 50) }}</td>
                 <td>
                   <div class="action-buttons">
-                    <button @click="openEditModal(s)" class="btn-action btn-edit" title="Edit">✎</button>
-                    <button @click="confirmDelete(s)" class="btn-action btn-delete" title="Hapus">🗑</button>
+                    <TableAction kind="edit" @click="openEditModal(s)" />
+                    <TableAction kind="delete" @click="confirmDelete(s)" />
                   </div>
                 </td>
               </tr>
@@ -218,8 +218,8 @@
               <p class="type-desc">{{ t.description }}</p>
             </div>
             <div class="type-actions">
-              <button @click="openEditTypeModal(t)" class="btn-action btn-edit">Edit</button>
-              <button @click="confirmDeleteType(t)" class="btn-action btn-delete">Hapus</button>
+              <TableAction kind="edit" @click="openEditTypeModal(t)" />
+              <TableAction kind="delete" @click="confirmDeleteType(t)" />
             </div>
           </div>
         </div>
@@ -383,6 +383,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { Bar, Doughnut } from 'vue-chartjs'
@@ -923,6 +924,25 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 .toolbar .main-tabs { margin-bottom: 0; }
+
+@media (max-width: 1024px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary,
+  .header-actions .btn-compact {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
 .page-header {
   margin-bottom: 1.5rem;
 }

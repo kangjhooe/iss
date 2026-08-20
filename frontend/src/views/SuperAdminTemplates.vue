@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -181,7 +182,7 @@ onMounted(load)
                 <button type="button" @click="toggleStatus(item)">
                   {{ item.status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan' }}
                 </button>
-                <button type="button" class="danger" @click="remove(item)">Hapus</button>
+                <TableAction kind="delete" @click="remove(item)" />
               </div>
             </article>
             <p v-if="!list.length" class="empty">Belum ada template platform. Buat yang pertama.</p>

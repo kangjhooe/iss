@@ -14,34 +14,119 @@
 
       <template v-else>
         <header class="lab-header">
-          <div>
+          <div class="header-title-row">
             <h1>{{ room.name }}</h1>
-            <p class="lab-meta">
-              {{ labTypeLabel(room.lab_type) }}
-              <span v-if="room.code"> · {{ room.code }}</span>
-              <span v-if="room.building?.name"> · {{ room.building.name }}</span>
-              <span> · Lantai {{ room.floor }}</span>
-            </p>
-            <p class="lab-meta">
-              PJ: {{ room.responsible_employee?.name || 'Belum ditetapkan' }}
-              <span :class="getConditionClass(room.condition)"> · {{ room.condition }}</span>
-            </p>
+            <span v-if="room.condition" :class="['status-badge', getConditionClass(room.condition)]">{{ room.condition }}</span>
           </div>
-          <div class="stat-chips">
-            <div class="chip"><strong>{{ room.stats?.inventory_count ?? 0 }}</strong><span>Inventaris</span></div>
-            <div class="chip warn"><strong>{{ room.stats?.damaged_count ?? 0 }}</strong><span>Rusak</span></div>
-            <div class="chip"><strong>{{ room.stats?.active_loans ?? 0 }}</strong><span>Dipinjam</span></div>
-            <div class="chip accent"><strong>{{ room.stats?.pending_bookings ?? 0 }}</strong><span>Booking pending</span></div>
-            <div class="chip"><strong>{{ room.stats?.open_maintenance ?? 0 }}</strong><span>Perawatan</span></div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Tipe</span>
+                <span class="meta-value">{{ labTypeLabel(room.lab_type) }}</span>
+              </div>
+            </div>
+            <div v-if="room.code" class="meta-item">
+              <span class="meta-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Kode</span>
+                <span class="meta-value">{{ room.code }}</span>
+              </div>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 21V8l9-5 9 5v13" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 21v-8h6v8" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Gedung</span>
+                <span class="meta-value">{{ room.building?.name || '—' }}<template v-if="room.floor != null"> · Lt. {{ room.floor }}</template></span>
+              </div>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Penanggung jawab</span>
+                <span class="meta-value">{{ room.responsible_employee?.name || 'Belum ditetapkan' }}</span>
+              </div>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Inventaris</span>
+                <span class="meta-value">{{ room.stats?.inventory_count ?? 0 }}</span>
+              </div>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon meta-icon-warn" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Rusak</span>
+                <span class="meta-value">{{ room.stats?.damaged_count ?? 0 }}</span>
+              </div>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16 3h5v5M21 3l-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Dipinjam</span>
+                <span class="meta-value">{{ room.stats?.active_loans ?? 0 }}</span>
+              </div>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon meta-icon-accent" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Booking pending</span>
+                <span class="meta-value">{{ room.stats?.pending_bookings ?? 0 }}</span>
+              </div>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+              </span>
+              <div class="meta-body">
+                <span class="meta-label">Perawatan</span>
+                <span class="meta-value">{{ room.stats?.open_maintenance ?? 0 }}</span>
+              </div>
+            </div>
           </div>
         </header>
 
-        <div class="section-nav">
-          <button v-for="s in sections" :key="s.key" type="button" :class="['sec-btn', { active: section === s.key }]" @click="section = s.key">
-            {{ s.label }}
-            <span v-if="s.badge" class="sec-badge">{{ s.badge }}</span>
-          </button>
-        </div>
+        <div class="tab-shell">
+          <nav class="section-nav" role="tablist">
+            <button
+              v-for="s in sections"
+              :key="s.key"
+              type="button"
+              role="tab"
+              :class="['sec-btn', { active: section === s.key }]"
+              :aria-selected="section === s.key"
+              @click="section = s.key"
+            >
+              <span class="sec-icon" aria-hidden="true">
+                <svg v-if="s.key === 'inventory'" width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2" stroke="currentColor" stroke-width="2"/></svg>
+                <svg v-else-if="s.key === 'schedule'" width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <svg v-else-if="s.key === 'loans'" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16 3h5v5M21 3l-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" stroke="currentColor" stroke-width="2"/></svg>
+                <svg v-else-if="s.key === 'booking'" width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 3v4M16 3v4M8 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <svg v-else-if="s.key === 'maintenance'" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              <span class="sec-label">{{ s.label }}</span>
+              <span v-if="s.badge" class="sec-badge">{{ s.badge }}</span>
+            </button>
+          </nav>
+          <div class="tab-main">
 
         <!-- Inventaris -->
         <section v-show="section === 'inventory'" class="panel">
@@ -60,9 +145,9 @@
                 <td>{{ item.condition }}</td>
                 <td>{{ item.status }}</td>
                 <td v-if="canManage" class="actions-cell">
-                  <button type="button" class="btn-action btn-edit btn-xs" @click="openItemModal(item)">Edit</button>
+                  <TableAction kind="edit" @click="openItemModal(item)" />
                   <button type="button" class="btn-action btn-xs" @click="openMaintFromItem(item)">Laporkan Rusak</button>
-                  <button type="button" class="btn-action btn-delete btn-xs" @click="deleteItem(item)">Hapus</button>
+                  <TableAction kind="delete" @click="deleteItem(item)" />
                 </td>
               </tr>
               <tr v-if="!items.length"><td :colspan="canManage ? 6 : 5" class="muted">Belum ada barang.</td></tr>
@@ -89,8 +174,8 @@
                 <td>{{ s.school_class?.name || '-' }}</td>
                 <td>{{ s.employee?.name || '-' }}</td>
                 <td v-if="canManage" class="actions-cell">
-                  <button type="button" class="btn-action btn-edit btn-xs" @click="openScheduleModal(s)">Edit</button>
-                  <button type="button" class="btn-action btn-delete btn-xs" @click="deleteSchedule(s)">Hapus</button>
+                  <TableAction kind="edit" @click="openScheduleModal(s)" />
+                  <TableAction kind="delete" @click="deleteSchedule(s)" />
                 </td>
               </tr>
               <tr v-if="!schedules.length"><td :colspan="canManage ? 7 : 6" class="muted">Belum ada jadwal.</td></tr>
@@ -116,7 +201,7 @@
                 <td>{{ loan.expected_return_date }}</td>
                 <td>{{ loan.status }}{{ loan.is_overdue ? ' (Terlambat)' : '' }}</td>
                 <td v-if="canManage" class="actions-cell">
-                  <button v-if="['Dipinjam','Terlambat'].includes(loan.status)" type="button" class="btn-action btn-edit btn-xs" @click="openReturnModal(loan)">Kembalikan</button>
+                  <TableAction v-if="['Dipinjam','Terlambat'].includes(loan.status)" kind="return" @click="openReturnModal(loan)" />
                 </td>
               </tr>
               <tr v-if="!loans.length"><td :colspan="canManage ? 7 : 6" class="muted">Belum ada peminjaman.</td></tr>
@@ -142,10 +227,10 @@
                 <td><span :class="'st-' + b.status">{{ statusLabel(b.status) }}</span></td>
                 <td class="actions-cell">
                   <template v-if="canManage && b.status === 'pending'">
-                    <button type="button" class="btn-action btn-edit btn-xs" @click="approveBooking(b)">Setujui</button>
-                    <button type="button" class="btn-action btn-delete btn-xs" @click="rejectBooking(b)">Tolak</button>
+                    <TableAction kind="approve" @click="approveBooking(b)" />
+                    <TableAction kind="reject" @click="rejectBooking(b)" />
                   </template>
-                  <button v-if="['pending','approved'].includes(b.status)" type="button" class="btn-action btn-xs" @click="cancelBooking(b)">Batal</button>
+                  <TableAction v-if="['pending','approved'].includes(b.status)" kind="cancel" @click="cancelBooking(b)" />
                 </td>
               </tr>
               <tr v-if="!bookings.length"><td colspan="6" class="muted">Belum ada booking.</td></tr>
@@ -170,7 +255,7 @@
                 <td>{{ m.status }}</td>
                 <td>{{ m.description || '-' }}</td>
                 <td v-if="canManage" class="actions-cell">
-                  <button v-if="m.status !== 'Selesai'" type="button" class="btn-action btn-edit btn-xs" @click="completeMaint(m)">Selesai</button>
+                  <TableAction v-if="m.status !== 'Selesai'" kind="complete" @click="completeMaint(m)" />
                 </td>
               </tr>
               <tr v-if="!maintenances.length"><td :colspan="canManage ? 6 : 5" class="muted">Belum ada catatan perawatan.</td></tr>
@@ -195,13 +280,15 @@
                 <td>{{ j.participants_count ?? '-' }}</td>
                 <td>{{ j.incident_notes || '-' }}</td>
                 <td v-if="canManage" class="actions-cell">
-                  <button type="button" class="btn-action btn-delete btn-xs" @click="deleteJournal(j)">Hapus</button>
+                  <TableAction kind="delete" @click="deleteJournal(j)" />
                 </td>
               </tr>
               <tr v-if="!journals.length"><td :colspan="canManage ? 6 : 5" class="muted">Belum ada jurnal.</td></tr>
             </tbody>
           </table>
         </section>
+          </div>
+        </div>
       </template>
 
       <!-- Modals -->
@@ -397,6 +484,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { inventoryApi } from '@/api/inventory'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
@@ -1085,22 +1173,76 @@ onMounted(async () => {
 .detail-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .btn-back { color: #059669; text-decoration: none; font-weight: 600; }
 .detail-actions { display: flex; gap: 0.5rem; }
-.lab-header { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
-.lab-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; color: #0f172a; }
-.lab-meta { margin: 0.15rem 0; color: #64748b; font-size: 0.92rem; }
-.stat-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.chip { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 0.5rem 0.75rem; min-width: 70px; text-align: center; }
-.chip strong { display: block; font-size: 1.15rem; color: #059669; }
-.chip span { font-size: 0.75rem; color: #64748b; }
-.chip.warn { background: #fff7ed; border-color: #fed7aa; }
-.chip.warn strong { color: #c2410c; }
-.chip.accent { background: #eff6ff; border-color: #bfdbfe; }
-.chip.accent strong { color: #2563eb; }
-.section-nav { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
-.sec-btn { border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 0.45rem 0.9rem; cursor: pointer; font-size: 0.88rem; color: #475569; display: inline-flex; align-items: center; gap: 0.35rem; }
-.sec-btn.active { background: #059669; border-color: #059669; color: #fff; }
-.sec-badge { background: #f97316; color: #fff; border-radius: 999px; font-size: 0.7rem; padding: 0.1rem 0.4rem; }
-.panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1rem 1.25rem; }
+.lab-header { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.15rem 1.25rem 1.2rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.header-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lab-header h1 { margin: 0; font-size: clamp(1.2rem, 2.5vw, 1.5rem); color: #0f172a; letter-spacing: -0.02em; }
+.status-badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+.status-badge.condition-baik { background: #dcfce7; color: #166534; }
+.status-badge.condition-rusak-ringan { background: #ffedd5; color: #c2410c; }
+.status-badge.condition-rusak-sedang,
+.status-badge.condition-rusak-berat { background: #fee2e2; color: #991b1b; }
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+.meta-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.meta-icon {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #ecfdf5; color: #059669;
+}
+.meta-icon-warn { background: #fff7ed; color: #c2410c; }
+.meta-icon-accent { background: #eff6ff; color: #2563eb; }
+.meta-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; }
+.meta-value { font-size: 13.5px; font-weight: 600; color: #0f172a; line-height: 1.35; word-break: break-word; }
+@media (max-width: 768px) { .meta-grid { grid-template-columns: 1fr 1fr; } }
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
+}
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
+}
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn:focus-visible { outline: 2px solid #059669; outline-offset: 1px; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; flex: 1; }
+.sec-badge { background: #f97316; color: #fff; border-radius: 999px; font-size: 0.7rem; padding: 0.1rem 0.4rem; font-weight: 700; }
+.tab-main { min-width: 0; padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.panel { background: transparent; border: none; border-radius: 0; padding: 1rem 1.25rem; }
 .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
 .panel-head h2 { margin: 0; font-size: 1.05rem; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
@@ -1139,6 +1281,13 @@ onMounted(async () => {
 .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 @media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
   .form-row { grid-template-columns: 1fr; }
   .modal-footer {
     flex-direction: column-reverse;

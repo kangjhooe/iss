@@ -6,6 +6,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import SuratSubNav from '../components/SuratSubNav.vue'
+import TableAction from '@/components/TableAction.vue'
 import { kopService } from '../services/kopService'
 
 const toast = useToast()
@@ -187,7 +188,7 @@ onBeforeUnmount(clearLogoFiles)
               <h3>{{ item.nama }} <span v-if="item.is_default" class="badge">Default</span></h3>
               <p>{{ item.baris_1 || '—' }} · {{ item.status }}</p>
             </div>
-            <button type="button" class="link-danger" @click="remove(item)">Hapus</button>
+            <TableAction kind="delete" @click="remove(item)" />
           </article>
           <p v-if="!loading && !list.length" class="empty">Belum ada kop</p>
         </aside>

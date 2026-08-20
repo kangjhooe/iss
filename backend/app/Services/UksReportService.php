@@ -96,7 +96,18 @@ class UksReportService
                     'referral_count' => $rows->where('status', 'rujuk')->count(),
                 ];
             })
-            ->sortByDesc('visit_count')
+            ->sort(function ($a, $b) {
+                $class = strnatcasecmp((string) ($a['class_name'] ?? ''), (string) ($b['class_name'] ?? ''));
+                if ($class !== 0) {
+                    return $class;
+                }
+                $visits = ($b['visit_count'] <=> $a['visit_count']);
+                if ($visits !== 0) {
+                    return $visits;
+                }
+
+                return strcasecmp((string) ($a['student_name'] ?? ''), (string) ($b['student_name'] ?? ''));
+            })
             ->values()
             ->all();
 

@@ -10,10 +10,10 @@ use App\Models\ExtracurricularSession;
 use App\Models\ExtracurricularSessionGrade;
 use App\Models\ExtracurricularStudent;
 use App\Models\Institution;
-use App\Models\SchoolClass;
 use App\Models\Semester;
 use App\Models\Student;
 use App\Support\ExtracurricularAccess;
+use App\Support\StudentRosterSort;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,15 +49,7 @@ class ExtracurricularActivityController extends Controller
 
     private function classPayload(?Student $student): ?array
     {
-        if (!$student || !$student->relationLoaded('class')) {
-            return null;
-        }
-        $related = $student->getRelation('class');
-        if (!$related instanceof SchoolClass) {
-            return null;
-        }
-
-        return ['id' => $related->id, 'name' => $related->name];
+        return StudentRosterSort::classArray($student);
     }
 
     /**
@@ -260,7 +252,7 @@ class ExtracurricularActivityController extends Controller
         $rows = $extracurricularSession->attendances()
             ->with(['student' => fn ($q) => $q->with('class')])
             ->get()
-            ->sortBy(fn ($a) => $a->student?->name ?? '')
+            ->sort(fn ($a, $b) => StudentRosterSort::compareStudents($a->student, $b->student))
             ->values()
             ->map(function (ExtracurricularAttendance $a) {
                 return [
@@ -378,7 +370,12 @@ class ExtracurricularActivityController extends Controller
                 'predicate' => $isAlpha ? null : $g?->predicate,
                 'notes' => $g?->notes,
             ];
-        })->sortBy(fn ($r) => $r['student']['name'] ?? '')->values();
+        })->sort(fn ($a, $b) => StudentRosterSort::compare(
+            $a['student']['class'] ?? null,
+            $a['student']['name'] ?? '',
+            $b['student']['class'] ?? null,
+            $b['student']['name'] ?? ''
+        ))->values();
 
         return response()->json([
             'data' => $data,
@@ -639,7 +636,12 @@ class ExtracurricularActivityController extends Controller
                 'grade_id' => $final?->id,
                 'score' => $finalScore,
             ];
-        })->sortBy(fn ($r) => $r['student']['name'] ?? '')->values();
+        })->sort(fn ($a, $b) => StudentRosterSort::compare(
+            $a['student']['class'] ?? null,
+            $a['student']['name'] ?? '',
+            $b['student']['class'] ?? null,
+            $b['student']['name'] ?? ''
+        ))->values();
 
         return response()->json([
             'data' => $rows,
@@ -1015,7 +1017,12 @@ class ExtracurricularActivityController extends Controller
                     'notes' => $g?->notes,
                 ];
             }
-            usort($perStudent, fn ($a, $b) => strcmp($a['name'] ?? '', $b['name'] ?? ''));
+            usort($perStudent, fn ($a, $b) => StudentRosterSort::compare(
+                $a['class'] ?? null,
+                $a['name'] ?? '',
+                $b['class'] ?? null,
+                $b['name'] ?? ''
+            ));
         }
 
         $sessionList = $sessions->map(function (ExtracurricularSession $s) {
@@ -1079,7 +1086,12 @@ class ExtracurricularActivityController extends Controller
                 'hadir_pct' => $marked > 0 ? round(($counts['hadir'] / $marked) * 100, 1) : null,
             ];
         }
-        usort($matrixRows, fn ($a, $b) => strcmp($a['name'] ?? '', $b['name'] ?? ''));
+        usort($matrixRows, fn ($a, $b) => StudentRosterSort::compare(
+            $a['class'] ?? null,
+            $a['name'] ?? '',
+            $b['class'] ?? null,
+            $b['name'] ?? ''
+        ));
 
         // Grade matrix: peserta × pertemuan (skor per tanggal)
         $gradeMatrixSessions = $sessions->map(function (ExtracurricularSession $s) {
@@ -1128,7 +1140,12 @@ class ExtracurricularActivityController extends Controller
                     ?? ExtracurricularGrade::predicateFromScore($finalScore, $kkm),
             ];
         }
-        usort($gradeMatrixRows, fn ($a, $b) => strcmp($a['name'] ?? '', $b['name'] ?? ''));
+        usort($gradeMatrixRows, fn ($a, $b) => StudentRosterSort::compare(
+            $a['class'] ?? null,
+            $a['name'] ?? '',
+            $b['class'] ?? null,
+            $b['name'] ?? ''
+        ));
 
         $extracurricular->loadMissing(['supervisor:id,name,nip,nuptk', 'institution', 'room:id,name']);
 

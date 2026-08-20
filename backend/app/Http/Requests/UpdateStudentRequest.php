@@ -18,6 +18,13 @@ class UpdateStudentRequest extends FormRequest
         return true; // Authorization handled in controller
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->exists('nis') && is_string($this->input('nis')) && trim($this->input('nis')) === '') {
+            $this->merge(['nis' => null]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -44,7 +51,12 @@ class UpdateStudentRequest extends FormRequest
                         return $query->where('institution_id', $institutionId);
                     }),
             ],
-            'nis' => 'nullable|string|max:50',
+            'nis' => [
+                'nullable',
+                'string',
+                'max:50',
+                \App\Services\LocalNisService::uniqueRule($institutionId, $studentId),
+            ],
             'nisn' => [
                 'nullable',
                 'string',
@@ -151,6 +163,7 @@ class UpdateStudentRequest extends FormRequest
             'nik.unique' => 'NIK sudah terdaftar di institusi ini',
             'nisn.size' => 'NISN harus terdiri dari 10 digit',
             'nisn.regex' => 'NISN harus berupa angka 10 digit',
+            'nis.unique' => 'NIS sudah terdaftar di institusi ini',
             'nisn.unique' => 'NISN sudah terdaftar di institusi ini',
             'name.required' => 'Nama siswa wajib diisi',
             'gender.required' => 'Jenis kelamin wajib diisi',

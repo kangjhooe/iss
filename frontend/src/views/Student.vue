@@ -51,6 +51,10 @@
             <option value="incomplete">Data login belum lengkap</option>
             <option value="ready">Sudah punya akun</option>
           </select>
+          <select v-model="filters.missing_nis" @change="loadStudents(1)" class="filter-select">
+            <option value="">Semua NIS</option>
+            <option value="1">Belum punya NIS</option>
+          </select>
         </div>
         <div v-else class="filters filters-inline">
           <input
@@ -97,6 +101,14 @@
             @click="bulkEnsureAccounts"
           >
             <span>{{ bulkAccountLoading ? 'Membuat akun…' : `Buat akun (${accountStatus.missing_account})` }}</span>
+          </button>
+          <button
+            v-if="canManageStudentAccount"
+            type="button"
+            class="btn-secondary btn-compact"
+            @click="openNisSettings"
+          >
+            <span>Format NIS</span>
           </button>
           <button @click="openAddModal" class="btn-primary btn-compact">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -147,6 +159,44 @@
             @click="bulkEnsureAccounts"
           >
             {{ bulkAccountLoading ? 'Memproses…' : 'Buat akun massal' }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="!filters.only_trashed && !loading && canManageStudentAccount && nisNumbering.missing_nis_count > 0"
+        class="account-status-banner nis-status-banner"
+      >
+        <div class="account-status-text">
+          <strong>NIS lokal</strong>
+          <span>{{ nisNumbering.missing_nis_count }} siswa aktif belum punya NIS</span>
+          <span class="hint">
+            Format berikutnya:
+            {{ nisNumbering.preview || nisNumbering.preview_error || 'atur format dulu' }}
+          </span>
+        </div>
+        <div class="account-status-actions">
+          <button
+            type="button"
+            class="btn-secondary btn-compact"
+            @click="filters.missing_nis = '1'; loadStudents(1)"
+          >
+            Lihat tanpa NIS
+          </button>
+          <button
+            type="button"
+            class="btn-secondary btn-compact"
+            @click="openNisSettings"
+          >
+            Atur format
+          </button>
+          <button
+            type="button"
+            class="btn-primary btn-compact"
+            :disabled="nisGenerateLoading || !!nisNumbering.preview_error"
+            @click="bulkGenerateNis"
+          >
+            {{ nisGenerateLoading ? 'Memuat pratinjau…' : `Pratinjau NIS (${nisNumbering.missing_nis_count})` }}
           </button>
         </div>
       </div>
@@ -349,6 +399,7 @@
                 <div class="form-group">
                   <label>NIS</label>
                   <input v-model="form.nis" placeholder="Nomor Induk Siswa" />
+                  <p class="field-hint">Kosongkan untuk generate otomatis sesuai format sekolah.</p>
                 </div>
                 <div class="form-group">
                   <label>Nama Lengkap <span class="required">*</span></label>
@@ -824,8 +875,8 @@
                           <p v-if="doc.description" class="text-muted">{{ doc.description }}</p>
                         </div>
                         <div class="document-actions">
-                          <button @click="downloadDocument(doc.id)" class="btn btn-sm btn-secondary" type="button">Download</button>
-                          <button @click="deleteDocument(doc.id)" class="btn btn-sm btn-danger" type="button">Hapus</button>
+                          <TableAction kind="download" title="Download" @click="downloadDocument(doc.id)" />
+                          <TableAction kind="delete" @click="deleteDocument(doc.id)" />
                         </div>
                       </div>
                     </div>
@@ -898,7 +949,18 @@
                 </div>
                 <div class="biodata-item">
                   <span class="label">NIS</span>
-                  <span class="value">{{ viewingStudent.nis || '-' }}</span>
+                  <span class="value">
+                    {{ viewingStudent.nis || '-' }}
+                    <button
+                      v-if="canManageStudentAccount && !viewingStudent.nis"
+                      type="button"
+                      class="btn-secondary btn-compact btn-inline-nis"
+                      :disabled="nisGenerateLoading"
+                      @click="generateNisForViewing"
+                    >
+                      {{ nisGenerateLoading ? 'Mengisi…' : 'Generate NIS' }}
+                    </button>
+                  </span>
                 </div>
                 <div class="biodata-item">
                   <span class="label">NISN</span>
@@ -1298,7 +1360,7 @@
               · {{ importPreview.invalid.length }} baris dilewati
             </template>
           </p>
-          <p class="hint">Akun login dibuat otomatis jika NIK (16 digit) dan tanggal lahir terisi.</p>
+          <p class="hint">Akun login dibuat otomatis jika NIK (16 digit) dan tanggal lahir terisi. NIS yang kosong di Excel tidak diisi otomatis — generate lewat tombol Pratinjau NIS setelah import.</p>
           <div v-if="importPreview.valid.length" class="import-preview-table-wrap">
             <table class="counseling-table">
               <thead>
@@ -1350,6 +1412,166 @@
       </div>
     </div>
 
+    <div v-if="nisSettings.open" class="modal-overlay" @click="nisSettings.open = false">
+      <div class="modal-content import-preview-modal nis-settings-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Format NIS lokal</h3>
+          <button type="button" class="btn-close" @click="nisSettings.open = false">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="hint">Setiap sekolah bisa memakai format sendiri. NIS yang sudah terisi tidak diubah.</p>
+          <div class="form-group">
+            <label>Format</label>
+            <select v-model="nisSettings.form.preset">
+              <option v-for="p in nisNumbering.presets" :key="p.value" :value="p.value">
+                {{ p.label }} (contoh {{ p.example }})
+              </option>
+            </select>
+          </div>
+          <div v-if="needsNisPrefix" class="form-group">
+            <label>Kode sekolah (prefix)</label>
+            <input v-model="nisSettings.form.prefix" maxlength="12" placeholder="Contoh: S atau MTs" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Digit nomor urut</label>
+              <select v-model.number="nisSettings.form.seq_digits">
+                <option :value="3">3 (001)</option>
+                <option :value="4">4 (0001)</option>
+                <option :value="5">5 (00001)</option>
+                <option :value="6">6 (000001)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Reset nomor urut</label>
+              <select v-model="nisSettings.form.reset">
+                <option value="yearly">Setiap tahun ajaran</option>
+                <option value="never">Tidak pernah (terus bertambah)</option>
+              </select>
+            </div>
+          </div>
+          <div v-if="nisSettings.form.preset === 'custom'" class="form-group">
+            <label>Pola kustom</label>
+            <input v-model="nisSettings.form.pattern" placeholder="{PREFIX}/{YY}/{SEQ}" />
+            <p class="field-hint">Token: {YYYY} {YY} {PREFIX} {NPSN4} {SEQ} atau {SEQ:4}</p>
+          </div>
+          <p class="nis-preview-line">
+            Contoh format:
+            <strong>{{ nisSettingsPreview || '—' }}</strong>
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" @click="nisSettings.open = false">Batal</button>
+          <button type="button" class="btn-primary" :disabled="nisSettings.saving" @click="saveNisSettings">
+            {{ nisSettings.saving ? 'Menyimpan…' : 'Simpan format' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="nisAssignPreview.open" class="modal-overlay" @click="!nisAssignPreview.applying && closeNisAssignPreview()">
+      <div class="modal-content import-preview-modal nis-assign-modal" @click.stop>
+        <div class="modal-header">
+          <h3>{{ nisAssignPreview.result ? 'NIS sudah diterapkan' : 'Pratinjau NIS lokal' }}</h3>
+          <button type="button" class="btn-close" :disabled="nisAssignPreview.applying" @click="closeNisAssignPreview">×</button>
+        </div>
+        <div class="modal-body">
+          <template v-if="nisAssignPreview.result">
+            <p class="modal-message">
+              {{ nisAssignPreview.result.assigned }} siswa mendapat NIS. Nomor ini sudah tersimpan di data siswa.
+            </p>
+            <div v-if="nisAssignPreview.result.assigned_rows?.length" class="import-preview-table-wrap">
+              <table class="counseling-table">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Kelas</th>
+                    <th>NIS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in nisAssignPreview.result.assigned_rows.slice(0, 40)" :key="'r'+row.id">
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.class || row.tingkat || '—' }}</td>
+                    <td><strong>{{ row.nis }}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-if="nisAssignPreview.result.assigned_rows.length > 40" class="hint">
+                …dan {{ nisAssignPreview.result.assigned_rows.length - 40 }} siswa lain
+              </p>
+            </div>
+            <div v-if="nisAssignPreview.result.errors?.length" class="import-invalid-box">
+              <strong>Sebagian dilewati</strong>
+              <ul>
+                <li v-for="(err, idx) in nisAssignPreview.result.errors.slice(0, 8)" :key="'ne'+idx">{{ err }}</li>
+              </ul>
+            </div>
+          </template>
+          <template v-else>
+            <p class="modal-message">
+              {{ nisAssignPreview.rows.length }} siswa akan mendapat NIS jika Anda menerapkan.
+              Nomor di bawah belum disimpan.
+            </p>
+            <p class="hint">
+              Centang siswa yang akan diisi. Batal tidak mengubah data.
+              Jika sebagian tidak dicentang, nomor urut dihitung ulang saat terapkan.
+            </p>
+            <p v-if="nisAssignPreview.truncated" class="hint">
+              Hanya {{ nisAssignPreview.rows.length }} dari {{ nisAssignPreview.total_missing }} siswa ditampilkan. Terapkan per batch.
+            </p>
+            <p v-if="nisAssignPreview.error" class="error-text">{{ nisAssignPreview.error }}</p>
+            <div v-if="nisAssignPreview.loading" class="hint">Memuat pratinjau…</div>
+            <div v-else-if="nisAssignPreview.rows.length" class="import-preview-table-wrap">
+              <table class="counseling-table">
+                <thead>
+                  <tr>
+                    <th class="col-check">
+                      <input
+                        type="checkbox"
+                        :checked="nisAssignAllSelected"
+                        :indeterminate.prop="nisAssignSomeSelected && !nisAssignAllSelected"
+                        @change="toggleNisAssignAll($event.target.checked)"
+                      />
+                    </th>
+                    <th>Nama</th>
+                    <th>Kelas</th>
+                    <th>NIS usulan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in nisAssignPreview.rows" :key="row.id">
+                    <td class="col-check">
+                      <input v-model="nisAssignPreview.selected[row.id]" type="checkbox" />
+                    </td>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.class || row.tingkat || '—' }}</td>
+                    <td><strong>{{ row.proposed_nis }}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer">
+          <template v-if="nisAssignPreview.result">
+            <button type="button" class="btn-primary" @click="closeNisAssignPreview">Tutup</button>
+          </template>
+          <template v-else>
+            <button type="button" class="btn-secondary" :disabled="nisAssignPreview.applying" @click="closeNisAssignPreview">Batal</button>
+            <button
+              type="button"
+              class="btn-primary"
+              :disabled="nisAssignPreview.loading || nisAssignPreview.applying || nisAssignSelectedCount === 0"
+              @click="applyNisAssignPreview"
+            >
+              {{ nisAssignPreview.applying ? 'Menerapkan…' : `Terapkan (${nisAssignSelectedCount})` }}
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+
     <ConfirmDialog
       :show="confirmDialog.show"
       :title="confirmDialog.title"
@@ -1364,13 +1586,26 @@
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
     />
+    <AccountCredentialsModal
+      :show="!!accountCredentials"
+      :title="accountCredentials?.title"
+      :name="accountCredentials?.name"
+      :login-label="accountCredentials?.loginLabel || 'NIK'"
+      :login-value="accountCredentials?.loginValue"
+      :password="accountCredentials?.password"
+      :hint="accountCredentials?.hint"
+      :items="accountCredentials?.items || []"
+      @close="accountCredentials = null"
+    />
   </Layout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import StudentTable from '@/components/student/StudentTable.vue'
 import StudentTableSkeleton from '@/components/StudentTableSkeleton.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
@@ -1387,11 +1622,13 @@ import { useFormValidation } from '@/composables/useFormValidation'
 import { getInstitutionTypeLabel, getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
+import { studentLoginCredentials, mapStudentCreatedAccounts } from '@/utils/accountCredentials'
 import * as XLSX from 'xlsx'
 
 const toast = useToast()
 const authStore = useAuthStore()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
+const accountCredentials = ref(null)
 
 const {
   students,
@@ -1414,6 +1651,83 @@ const accountStatus = ref({
 })
 const accountStatusLoading = ref(false)
 const bulkAccountLoading = ref(false)
+const nisGenerateLoading = ref(false)
+const nisAssignPreview = ref({
+  open: false,
+  loading: false,
+  applying: false,
+  rows: [],
+  selected: {},
+  truncated: false,
+  total_missing: 0,
+  error: null,
+  result: null,
+})
+const nisAssignSelectedCount = computed(() => {
+  return nisAssignPreview.value.rows.filter((row) => nisAssignPreview.value.selected[row.id]).length
+})
+const nisAssignAllSelected = computed(() => {
+  const rows = nisAssignPreview.value.rows
+  return rows.length > 0 && rows.every((row) => nisAssignPreview.value.selected[row.id])
+})
+const nisAssignSomeSelected = computed(() => nisAssignSelectedCount.value > 0)
+const nisNumbering = ref({
+  settings: {
+    preset: 'tahun_urut',
+    prefix: '',
+    seq_digits: 5,
+    reset: 'yearly',
+    pattern: '',
+  },
+  presets: [],
+  preview: '',
+  preview_error: null,
+  missing_nis_count: 0,
+  year_code: '',
+})
+const nisSettings = ref({
+  open: false,
+  saving: false,
+  form: {
+    preset: 'tahun_urut',
+    prefix: '',
+    seq_digits: 5,
+    reset: 'yearly',
+    pattern: '',
+  },
+})
+const needsNisPrefix = computed(() => {
+  const preset = nisSettings.value.form.preset
+  return preset === 'prefix_tahun_urut' || preset === 'prefix_tahun2_urut' || preset === 'custom'
+})
+const nisSettingsPreview = computed(() => {
+  const form = nisSettings.value.form
+  const year = nisNumbering.value.year_code || String(new Date().getFullYear())
+  const yy = year.slice(-2)
+  const seq = String(1).padStart(Number(form.seq_digits) || 5, '0')
+  const prefix = (form.prefix || '').trim()
+  const npsn4 = (myInstitution.value?.npsn || '0000').toString().slice(-4).padStart(4, '0')
+  const map = {
+    tahun_urut: `${year}${seq}`,
+    tahun2_urut: `${yy}${seq}`,
+    urut_saja: seq,
+    prefix_tahun_urut: `${prefix}${year}${seq}`,
+    prefix_tahun2_urut: `${prefix}${yy}${seq}`,
+    npsn4_tahun_urut: `${npsn4}${yy}${seq}`,
+  }
+  if (form.preset === 'custom') {
+    const digitsMatch = (form.pattern || '').match(/\{SEQ:([1-8])\}/)
+    const customSeq = String(1).padStart(digitsMatch ? Number(digitsMatch[1]) : (Number(form.seq_digits) || 5), '0')
+    return (form.pattern || '')
+      .replace(/\{SEQ:[1-8]\}/g, customSeq)
+      .replace('{YYYY}', year)
+      .replace('{YY}', yy)
+      .replace('{PREFIX}', prefix)
+      .replace('{NPSN4}', npsn4)
+      .replace('{SEQ}', customSeq)
+  }
+  return map[form.preset] || nisNumbering.value.preview
+})
 const importPreview = ref({
   open: false,
   loading: false,
@@ -1447,6 +1761,7 @@ async function loadAccountStatus() {
 async function loadStudents(page) {
   await loadStudentsBase(page)
   loadAccountStatus()
+  loadNisNumbering()
 }
 
 async function bulkEnsureAccounts() {
@@ -1476,7 +1791,18 @@ async function bulkEnsureAccounts() {
       status: filters.value.status || 'Aktif',
     }
     const res = await studentApi.ensureAccountsBulk(payload)
-    toast.success('Berhasil', res.data?.message || 'Akun massal selesai diproses')
+    const createdAccounts = res.data?.data?.created_accounts || []
+    const items = mapStudentCreatedAccounts(createdAccounts)
+    if (items.length) {
+      accountCredentials.value = {
+        title: 'Akun login siswa dibuat',
+        loginLabel: 'NIK',
+        hint: 'Siswa login dengan NIK. Sandi awal = tanggal lahir (DDMMYYYY). Kartu ini hanya hilang jika ditutup.',
+        items,
+      }
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Akun massal selesai diproses')
+    }
     const skipped = res.data?.data?.errors || []
     if (skipped.length) {
       toast.error('Sebagian dilewati', `${skipped.length} siswa tidak bisa dibuatkan akun (cek NIK/tgl lahir)`)
@@ -1486,6 +1812,190 @@ async function bulkEnsureAccounts() {
     toast.error('Gagal', err.response?.data?.message || 'Gagal membuat akun massal')
   } finally {
     bulkAccountLoading.value = false
+  }
+}
+
+async function loadNisNumbering() {
+  if (filters.value.only_trashed) return
+  try {
+    const res = await studentApi.getNisNumbering()
+    const data = res.data?.data || {}
+    nisNumbering.value = {
+      settings: {
+        preset: data.settings?.preset || 'tahun_urut',
+        prefix: data.settings?.prefix || '',
+        seq_digits: data.settings?.seq_digits || 5,
+        reset: data.settings?.reset || 'yearly',
+        pattern: data.settings?.pattern || '',
+      },
+      presets: data.presets || [],
+      preview: data.preview || '',
+      preview_error: data.preview_error || null,
+      missing_nis_count: data.missing_nis_count || 0,
+      year_code: data.year_code || '',
+    }
+  } catch {
+    /* ignore banner errors */
+  }
+}
+
+function openNisSettings() {
+  nisSettings.value.form = { ...nisNumbering.value.settings }
+  nisSettings.value.open = true
+}
+
+async function saveNisSettings() {
+  if (nisSettings.value.saving) return
+  nisSettings.value.saving = true
+  try {
+    const res = await studentApi.updateNisNumbering(nisSettings.value.form)
+    const data = res.data?.data || {}
+    nisNumbering.value = {
+      settings: {
+        preset: data.settings?.preset || nisSettings.value.form.preset,
+        prefix: data.settings?.prefix || '',
+        seq_digits: data.settings?.seq_digits || 5,
+        reset: data.settings?.reset || 'yearly',
+        pattern: data.settings?.pattern || '',
+      },
+      presets: data.presets || nisNumbering.value.presets,
+      preview: data.preview || '',
+      preview_error: data.preview_error || null,
+      missing_nis_count: data.missing_nis_count ?? nisNumbering.value.missing_nis_count,
+      year_code: data.year_code || nisNumbering.value.year_code,
+    }
+    nisSettings.value.open = false
+    toast.success('Berhasil', res.data?.message || 'Format NIS disimpan')
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || err.response?.data?.errors?.prefix?.[0] || 'Gagal menyimpan format NIS')
+  } finally {
+    nisSettings.value.saving = false
+  }
+}
+
+async function bulkGenerateNis() {
+  if (nisGenerateLoading.value || !canManageStudentAccount.value) return
+  if (nisNumbering.value.preview_error) {
+    toast.error('Format belum siap', nisNumbering.value.preview_error)
+    return
+  }
+  const missing = nisNumbering.value.missing_nis_count || 0
+  if (missing <= 0) {
+    toast.success('Info', 'Semua siswa aktif sudah punya NIS')
+    return
+  }
+  await openNisAssignPreview()
+}
+
+function closeNisAssignPreview() {
+  if (nisAssignPreview.value.applying) return
+  nisAssignPreview.value.open = false
+  nisAssignPreview.value.result = null
+  nisAssignPreview.value.error = null
+}
+
+function toggleNisAssignAll(checked) {
+  const next = {}
+  nisAssignPreview.value.rows.forEach((row) => {
+    next[row.id] = !!checked
+  })
+  nisAssignPreview.value.selected = next
+}
+
+async function openNisAssignPreview(studentIds) {
+  nisGenerateLoading.value = true
+  nisAssignPreview.value = {
+    open: true,
+    loading: true,
+    applying: false,
+    rows: [],
+    selected: {},
+    truncated: false,
+    total_missing: 0,
+    error: null,
+    result: null,
+  }
+  try {
+    const payload = { limit: 500 }
+    if (studentIds?.length) payload.student_ids = studentIds
+    const res = await studentApi.previewGenerateNis(payload)
+    const rows = res.data?.data?.rows || []
+    const selected = {}
+    rows.forEach((row) => { selected[row.id] = true })
+    nisAssignPreview.value.rows = rows
+    nisAssignPreview.value.selected = selected
+    nisAssignPreview.value.truncated = !!res.data?.data?.truncated
+    nisAssignPreview.value.total_missing = res.data?.data?.total_missing || rows.length
+    if (!rows.length) {
+      nisAssignPreview.value.error = 'Tidak ada siswa tanpa NIS untuk dipratinjau.'
+    }
+  } catch (err) {
+    nisAssignPreview.value.error = err.response?.data?.message || 'Gagal memuat pratinjau NIS'
+  } finally {
+    nisAssignPreview.value.loading = false
+    nisGenerateLoading.value = false
+  }
+}
+
+async function applyNisAssignPreview() {
+  const ids = nisAssignPreview.value.rows
+    .filter((row) => nisAssignPreview.value.selected[row.id])
+    .map((row) => row.id)
+  if (!ids.length || nisAssignPreview.value.applying) return
+  nisAssignPreview.value.applying = true
+  try {
+    const res = await studentApi.generateNisBulk({ student_ids: ids, limit: 2000 })
+    nisAssignPreview.value.result = {
+      assigned: res.data?.data?.assigned || 0,
+      assigned_rows: res.data?.data?.assigned_rows || [],
+      errors: res.data?.data?.errors || [],
+    }
+    toast.success('Berhasil', res.data?.message || 'NIS diterapkan')
+    await loadStudents(1)
+    await loadNisNumbering()
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Gagal menerapkan NIS')
+  } finally {
+    nisAssignPreview.value.applying = false
+  }
+}
+
+async function generateNisForViewing() {
+  if (!viewingStudent.value?.id || nisGenerateLoading.value) return
+  nisGenerateLoading.value = true
+  try {
+    const previewRes = await studentApi.previewGenerateNis({
+      student_ids: [viewingStudent.value.id],
+      limit: 1,
+    })
+    const row = previewRes.data?.data?.rows?.[0]
+    if (!row?.proposed_nis) {
+      toast.error('Gagal', 'Tidak ada usulan NIS untuk siswa ini')
+      return
+    }
+    nisGenerateLoading.value = false
+    const ok = await showConfirm({
+      title: 'Terapkan NIS lokal?',
+      message: `${viewingStudent.value.name} akan mendapat NIS ${row.proposed_nis}.`,
+      warning: 'Setelah diterapkan, nomor ini tersimpan di data siswa. Batal jika formatnya salah.',
+      confirmText: 'Terapkan',
+      cancelText: 'Batal',
+      confirmVariant: 'primary',
+    })
+    if (!ok) return
+
+    nisGenerateLoading.value = true
+    const res = await studentApi.generateNis(viewingStudent.value.id)
+    if (res.data?.data) {
+      viewingStudent.value = { ...viewingStudent.value, ...res.data.data }
+    }
+    toast.success('Berhasil', res.data?.message || 'NIS berhasil diterapkan')
+    await loadStudents()
+    await loadNisNumbering()
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Gagal generate NIS')
+  } finally {
+    nisGenerateLoading.value = false
   }
 }
 const showAddModal = ref(false)
@@ -1545,7 +2055,13 @@ async function ensureStudentAccount() {
     if (res.data?.data) {
       viewingStudent.value = res.data.data
     }
-    toast.success('Berhasil', res.data?.message || 'Akun login siswa siap digunakan')
+    const creds = studentLoginCredentials(res.data?.data || viewingStudent.value, res.data?.login_hint)
+    if (creds) {
+      creds.title = res.data?.user_created ? 'Akun login siswa dibuat' : 'Akun login siswa'
+      accountCredentials.value = creds
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Akun login siswa siap digunakan')
+    }
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || 'Tidak dapat membuat akun login siswa')
   } finally {
@@ -1570,7 +2086,13 @@ async function resetStudentPassword() {
     if (res.data?.data) {
       viewingStudent.value = res.data.data
     }
-    toast.success('Berhasil', res.data?.message || 'Sandi berhasil direset')
+    const creds = studentLoginCredentials(res.data?.data || viewingStudent.value, res.data?.login_hint)
+    if (creds) {
+      creds.title = 'Sandi siswa berhasil direset'
+      accountCredentials.value = creds
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Sandi berhasil direset')
+    }
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || 'Tidak dapat mereset sandi siswa')
   } finally {
@@ -1943,12 +2465,20 @@ const handleSubmit = async () => {
     if (editingId) {
       await studentApi.update(editingId, payload)
       toast.success('Berhasil', 'Data siswa berhasil diperbarui')
+      closeModal()
+      loadStudents()
     } else {
-      await studentApi.create(payload)
-      toast.success('Berhasil', 'Siswa berhasil ditambahkan')
+      const res = await studentApi.create(payload)
+      closeModal()
+      loadStudents()
+      const creds = studentLoginCredentials(res.data?.data || payload, res.data?.login_hint)
+      if (creds) {
+        creds.title = 'Akun login siswa dibuat'
+        accountCredentials.value = creds
+      } else {
+        toast.success('Berhasil', 'Siswa berhasil ditambahkan')
+      }
     }
-    closeModal()
-    loadStudents()
   } catch (err) {
     const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
     error.value = errorMsg
@@ -3134,6 +3664,48 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.nis-status-banner {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.nis-status-banner .account-status-text {
+  color: #064e3b;
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.btn-inline-nis {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.nis-preview-line {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 13px;
+  color: #334155;
+}
+
+.nis-settings-modal .form-group {
+  margin-bottom: 12px;
+}
+
+.nis-assign-modal {
+  max-width: 720px;
+}
+
+.nis-assign-modal .col-check {
+  width: 36px;
+  text-align: center;
 }
 
 .import-preview-modal {
@@ -4507,15 +5079,16 @@ onMounted(() => {
 @media (max-width: 1024px) {
   .header-content {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 16px;
   }
 
-  /* Tombol aksi: 1 baris ke samping (horizontal), 4 tombol sejajar */
+  /* Tombol aksi: wrap di layar sempit agar tidak terpotong */
   .student-page .action-buttons-group {
     display: flex !important;
     flex-direction: row !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
+    width: 100%;
     gap: 8px;
   }
 
@@ -4581,11 +5154,12 @@ onMounted(() => {
     font-size: 13px;
   }
 
-  /* Tombol aksi: 1 baris ke samping (horizontal) */
+  /* Tombol aksi: wrap di layar sempit */
   .student-page .action-buttons-group {
     display: flex !important;
     flex-direction: row !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
+    width: 100%;
     gap: 6px;
   }
 

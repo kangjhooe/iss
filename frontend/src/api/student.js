@@ -62,5 +62,20 @@ export const studentApi = {
   },
   ensureAccountsBulk(data) {
     return api.post('/v1/student/ensure-accounts-bulk', data)
+  },
+  getNisNumbering(params) {
+    return api.get('/v1/student/nis-numbering', { params })
+  },
+  updateNisNumbering(data) {
+    return api.post('/v1/student/nis-numbering', data)
+  },
+  generateNisBulk(data) {
+    return api.post('/v1/student/generate-nis', data)
+  },
+  previewGenerateNis(data) {
+    return api.post('/v1/student/generate-nis/preview', data)
+  },
+  generateNis(id) {
+    return api.post(`/v1/student/${id}/generate-nis`)
   }
 }

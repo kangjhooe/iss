@@ -1,37 +1,32 @@
 <template>
   <Layout>
     <div class="lab-page">
-      <div class="tabs-nav-lab">
-        <button
-          v-if="!isLabResponsibleOnly"
-          type="button"
-          :class="['tab-btn-lab', { active: labTab === 'list' }]"
-          @click="labTab = 'list'"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Daftar Lab</span>
-        </button>
-        <button
-          v-if="!isLabResponsibleOnly"
-          type="button"
-          :class="['tab-btn-lab', { active: labTab === 'report' }]"
-          @click="switchToReport"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 17V7M13 17V7M17 17V7M5 17V7M3 21H21M3 3H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Laporan Lab</span>
-        </button>
-        <button type="button" :class="['tab-btn-lab', { active: labTab === 'mylabs' }]" @click="switchToMyLabs">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>{{ isLabResponsibleOnly ? 'Lab Saya' : 'Dashboard Saya' }}</span>
-        </button>
-      </div>
+      <div class="tab-shell">
+        <nav class="section-nav" role="tablist" aria-label="Modul Lab">
+          <button
+            v-if="!isLabResponsibleOnly"
+            type="button"
+            :class="['sec-btn', { active: labTab === 'list' }]"
+            @click="labTab = 'list'"
+          >
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-label">Daftar Lab</span>
+          </button>
+          <button
+            v-if="!isLabResponsibleOnly"
+            type="button"
+            :class="['sec-btn', { active: labTab === 'report' }]"
+            @click="switchToReport"
+          >
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 17V7M13 17V7M17 17V7M5 17V7M3 21H21M3 3H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-label">Laporan Lab</span>
+          </button>
+          <button type="button" :class="['sec-btn', { active: labTab === 'mylabs' }]" @click="switchToMyLabs">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-label">{{ isLabResponsibleOnly ? 'Lab Saya' : 'Dashboard Saya' }}</span>
+          </button>
+        </nav>
+        <div class="tab-main">
 
       <div v-show="labTab === 'list'" class="tab-panel">
         <div class="tab-header">
@@ -138,10 +133,10 @@
               </td>
               <td><span :class="getConditionClass(room.condition)">{{ room.condition }}</span></td>
               <td class="actions-cell">
-                <router-link :to="`/lab/${room.id}`" class="btn-action btn-edit" title="Kelola lab">Kelola</router-link>
+                <TableAction kind="manage" :to="`/lab/${room.id}`" title="Kelola lab" />
                 <template v-if="isSchoolAdmin">
-                  <button type="button" class="btn-action btn-edit" @click="openLabModal(room)" title="Edit lab">Edit</button>
-                  <button type="button" class="btn-action btn-delete" @click="confirmDeleteLab(room)" title="Hapus lab">Hapus</button>
+                  <TableAction kind="edit" title="Edit lab" @click="openLabModal(room)" />
+                  <TableAction kind="delete" title="Hapus lab" @click="confirmDeleteLab(room)" />
                 </template>
               </td>
               </tr>
@@ -204,8 +199,8 @@
                             <td>{{ displayValue(item.condition) }}</td>
                             <td>{{ displayValue(item.status) }}</td>
                             <td>
-                              <button type="button" class="btn-action btn-edit btn-xs" @click="openItemModal(room, item)">Edit</button>
-                              <button type="button" class="btn-action btn-delete btn-xs" @click="confirmDeleteItem(room, item)">Hapus</button>
+                              <TableAction kind="edit" @click="openItemModal(room, item)" />
+                              <TableAction kind="delete" @click="confirmDeleteItem(room, item)" />
                             </td>
                           </tr>
                         </tbody>
@@ -249,8 +244,8 @@
                             <td>{{ displayValue(s.school_class?.name) }}</td>
                             <td>{{ displayValue(s.employee?.name) }}</td>
                             <td>
-                              <button type="button" class="btn-action btn-edit btn-xs" @click="openScheduleModal(room, s)">Edit</button>
-                              <button type="button" class="btn-action btn-delete btn-xs" @click="confirmDeleteSchedule(room, s)">Hapus</button>
+                              <TableAction kind="edit" @click="openScheduleModal(room, s)" />
+                              <TableAction kind="delete" @click="confirmDeleteSchedule(room, s)" />
                             </td>
                           </tr>
                         </tbody>
@@ -350,7 +345,7 @@
                 <td>{{ lab.inventory_count }}</td>
                 <td>{{ lab.damaged_count ?? 0 }}</td>
                 <td>{{ lab.schedule_count }}</td>
-                <td><router-link :to="`/lab/${lab.id}`" class="btn-action btn-edit">Kelola</router-link></td>
+                <td><TableAction kind="manage" :to="`/lab/${lab.id}`" /></td>
               </tr>
             </tbody>
           </table>
@@ -440,11 +435,13 @@
                 <td>{{ lab.today_schedule_count ?? 0 }}</td>
                 <td>{{ lab.week_usage_count ?? 0 }}</td>
                 <td>
-                  <router-link :to="`/lab/${lab.id}`" class="btn-action btn-edit">Kelola</router-link>
+                  <TableAction kind="manage" :to="`/lab/${lab.id}`" />
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
         </div>
       </div>
 
@@ -712,6 +709,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'
 import { inventoryApi } from '@/api/inventory'
@@ -1639,36 +1637,55 @@ async function loadSubjects() {
 .expanded-detail-code { font-weight: 500; color: #64748b; font-size: 0.95rem; }
 .detail-panel-title svg { color: #059669; }
 .inventory-subtable th { background: #f0fdf4; font-weight: 600; }
-.tabs-nav-lab {
-  display: flex;
-  gap: 0.25rem;
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
   margin-bottom: 1rem;
 }
-
-.tab-btn-lab {
-  padding: 0.6rem 1.25rem;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
   border-radius: 10px;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
+  color: #64748b;
+  text-align: left;
 }
-
-.tab-btn-lab:hover {
-  border-color: #a7f3d0;
-  background: #f8fafc;
-  color: #059669;
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
 }
-
-.tab-btn-lab.active {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: #fff;
-  border-color: #059669;
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
 }
 
 .tab-panel { margin-top: 0; }
@@ -1974,6 +1991,23 @@ async function loadSubjects() {
 .btn-danger:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .tab-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-header-actions {
+    width: 100%;
+  }
+
+  .tab-header-actions .btn-primary,
+  .tab-header-actions .btn-secondary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {

@@ -25,8 +25,8 @@
         </div>
       </div>
 
-      <div class="tabs-container">
-        <div class="tabs-nav" role="tablist" aria-label="Modul Perpustakaan">
+      <div class="tab-shell">
+        <nav class="section-nav" role="tablist" aria-label="Modul Perpustakaan">
           <button
             v-for="t in mainTabList"
             :key="t.id"
@@ -34,12 +34,18 @@
             role="tab"
             :aria-selected="mainTab === t.id"
             @click="switchMainTab(t.id)"
-            :class="['tab-btn', { active: mainTab === t.id }]"
+            :class="['sec-btn', { active: mainTab === t.id }]"
           >
-            <span class="tab-icon">{{ t.icon }}</span>
-            <span class="tab-label">{{ t.label }}</span>
+            <span class="sec-icon" aria-hidden="true">
+              <svg v-if="t.id === 'katalog'" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/></svg>
+              <svg v-else-if="t.id === 'sirkulasi'" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16 3h5v5M21 3l-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" stroke="currentColor" stroke-width="2"/></svg>
+              <svg v-else-if="t.id === 'laporan'" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V5a1 1 0 0 1 1-1h10l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2"/><path d="M14 4v5h5M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" stroke="currentColor" stroke-width="2"/></svg>
+            </span>
+            <span class="sec-label">{{ t.label }}</span>
           </button>
-        </div>
+        </nav>
+        <div class="tab-main">
         <div v-if="subTabList.length" class="sub-nav" role="tablist" aria-label="Sub modul perpustakaan">
           <button
             v-for="t in subTabList"
@@ -53,7 +59,6 @@
             <span>{{ t.label }}</span>
           </button>
         </div>
-      </div>
 
       <!-- BOOKS TAB -->
       <div v-show="activeTab === 'books'" class="tab-content">
@@ -79,14 +84,31 @@
               </select>
             </div>
             <div class="tab-actions">
-              <button type="button" class="btn-secondary btn-compact" :disabled="exportingBooksCsv" @click="exportBooksCsv">
-                {{ exportingBooksCsv ? '...' : 'Export CSV' }}
+              <button type="button" class="btn-icon-tool" :disabled="exportingBooksCsv" @click="exportBooksCsv" title="Export CSV" aria-label="Export CSV">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </button>
-              <button type="button" class="btn-secondary btn-compact" :disabled="exportingBooksPdf" @click="exportBooksPdf">
-                {{ exportingBooksPdf ? '...' : 'Cetak PDF' }}
+              <button type="button" class="btn-icon-tool" :disabled="exportingBooksPdf" @click="exportBooksPdf" title="Cetak PDF" aria-label="Cetak PDF">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 9V2h12v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </button>
-              <button type="button" class="btn-secondary btn-compact" @click="showImportModal = true">Import Excel</button>
-              <button @click="openBookModal()" class="btn-primary btn-add"><span>Tambah Buku</span></button>
+              <button type="button" class="btn-icon-tool" @click="showImportModal = true" title="Import Excel" aria-label="Import Excel">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button type="button" @click="openBookModal()" class="btn-primary btn-add">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span>Tambah Buku</span>
+              </button>
             </div>
           </div>
           <div v-if="booksLoading" class="loading-wrap">
@@ -153,20 +175,20 @@
                 </td>
                 <td>
                   <div class="action-buttons">
-                    <button type="button" @click="openBookModal(b)" class="btn-action btn-edit" title="Edit">
+                    <button type="button" @click="openBookModal(b)" class="btn-action btn-edit" title="Edit" aria-label="Edit buku">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                         <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                     </button>
-                    <button type="button" @click="openCopyModal(null, b)" class="btn-action btn-secondary" title="Eksemplar">
+                    <button type="button" @click="openCopyModal(null, b)" class="btn-action btn-secondary" title="Eksemplar" aria-label="Tambah eksemplar">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M8 7H16M8 11H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                       </svg>
                     </button>
-                    <button type="button" @click="confirmDelete('book', b)" class="btn-action btn-delete" title="Hapus">
+                    <button type="button" @click="confirmDelete('book', b)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus buku">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                         <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -210,7 +232,12 @@
               <option :value="50">50 / halaman</option>
             </select>
           </div>
-          <button @click="openCategoryModal()" class="btn-primary btn-add"><span>Tambah Kategori</span></button>
+          <button type="button" @click="openCategoryModal()" class="btn-primary btn-add">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Tambah Kategori</span>
+          </button>
         </div>
         <div v-if="categoriesLoading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="6" :columns="4" />
@@ -218,17 +245,27 @@
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
-              <tr><th>Kode</th><th>Nama</th><th>Status</th><th>Aksi</th></tr>
+              <tr><th>Kode</th><th>Nama</th><th>Status</th><th class="col-aksi">Aksi</th></tr>
             </thead>
             <tbody>
               <tr v-for="c in categories" :key="c.id">
                 <td>{{ displayValue(c.code) }}</td>
                 <td><div class="name-cell"><div class="name">{{ displayValue(c.name) }}</div><div v-if="c.description" class="muted small">{{ displayValue(c.description) }}</div></div></td>
                 <td><span :class="c.is_active ? 'badge-success' : 'badge-gray'">{{ c.is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
-                <td>
+                <td class="col-aksi">
                   <div class="action-buttons">
-                    <button @click="openCategoryModal(c)" class="btn-action btn-edit">Edit</button>
-                    <button @click="confirmDelete('category', c)" class="btn-action btn-delete">Hapus</button>
+                    <button type="button" @click="openCategoryModal(c)" class="btn-action btn-edit" title="Edit" aria-label="Edit kategori">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button type="button" @click="confirmDelete('category', c)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus kategori">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -273,7 +310,12 @@
               <option :value="50">50 / halaman</option>
             </select>
           </div>
-          <button @click="openCopyModal()" class="btn-primary btn-add"><span>Tambah Eksemplar</span></button>
+          <button type="button" @click="openCopyModal()" class="btn-primary btn-add">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Tambah Eksemplar</span>
+          </button>
         </div>
         <div v-if="copiesLoading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="6" :columns="5" />
@@ -281,7 +323,7 @@
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
-              <tr><th>Kode</th><th>Buku</th><th>Status</th><th>Kondisi</th><th>Aksi</th></tr>
+              <tr><th>Kode</th><th>Buku</th><th>Status</th><th>Kondisi</th><th class="col-aksi">Aksi</th></tr>
             </thead>
             <tbody>
               <tr v-for="cp in copies" :key="cp.id">
@@ -289,11 +331,27 @@
                 <td><div class="name-cell"><div class="name">{{ displayValue(cp.book?.title) }}</div><div class="muted small">{{ displayValue(cp.book?.author) }}</div></div></td>
                 <td><span :class="getCopyStatusClass(cp.status)">{{ cp.status }}</span></td>
                 <td>{{ displayValue(cp.condition) }}</td>
-                <td>
+                <td class="col-aksi">
                   <div class="action-buttons">
-                    <button @click="openCopyModal(cp)" class="btn-action btn-edit">Edit</button>
-                    <button v-if="cp.status === 'Tersedia'" @click="openLoanModal(cp)" class="btn-action btn-secondary">Pinjam</button>
-                    <button @click="confirmDelete('copy', cp)" class="btn-action btn-delete">Hapus</button>
+                    <button type="button" @click="openCopyModal(cp)" class="btn-action btn-edit" title="Edit" aria-label="Edit eksemplar">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button v-if="cp.status === 'Tersedia'" type="button" @click="openLoanModal(cp)" class="btn-action btn-secondary" title="Pinjam" aria-label="Catat peminjaman">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M16 3h5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 3l-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button type="button" @click="confirmDelete('copy', cp)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus eksemplar">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -339,7 +397,12 @@
               <option :value="50">50 / halaman</option>
             </select>
           </div>
-          <button @click="openLoanModal()" class="btn-primary btn-add"><span>Catat Peminjaman</span></button>
+          <button type="button" @click="openLoanModal()" class="btn-primary btn-add">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Catat Peminjaman</span>
+          </button>
         </div>
         <div v-if="loansLoading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="6" :columns="7" />
@@ -347,7 +410,7 @@
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
-              <tr><th>Peminjam</th><th>Buku / Eksemplar</th><th>Pinjam</th><th>Jatuh Tempo</th><th>Status</th><th>Denda</th><th>Aksi</th></tr>
+              <tr><th>Peminjam</th><th>Buku / Eksemplar</th><th>Pinjam</th><th>Jatuh Tempo</th><th>Status</th><th>Denda</th><th class="col-aksi">Aksi</th></tr>
             </thead>
             <tbody>
               <tr v-for="ln in loans" :key="ln.id">
@@ -367,11 +430,48 @@
                 <td>{{ displayValue(ln.due_date) }}</td>
                 <td><span :class="getLoanStatusClass(ln.status)">{{ ln.status }}</span></td>
                 <td>Rp {{ formatNumber(ln.fine_amount || 0) }} <span v-if="ln.remaining_fine > 0" class="muted">(sisa: {{ formatNumber(ln.remaining_fine) }})</span></td>
-                <td>
+                <td class="col-aksi">
                   <div class="action-buttons">
-                    <button v-if="ln.status === 'Dipinjam' || ln.status === 'Terlambat'" @click="openReturnModal(ln)" class="btn-action btn-secondary">Kembalikan</button>
-                    <button v-if="ln.status === 'Dipinjam' || ln.status === 'Terlambat'" @click="renewLoan(ln)" class="btn-action btn-renew" title="Perpanjang 7 hari">Perpanjang</button>
-                    <button v-if="ln.remaining_fine > 0" @click="openFinePaymentModal(ln)" class="btn-action btn-edit">Bayar Denda</button>
+                    <button
+                      v-if="ln.status === 'Dipinjam' || ln.status === 'Terlambat'"
+                      type="button"
+                      @click="openReturnModal(ln)"
+                      class="btn-action btn-secondary"
+                      title="Kembalikan"
+                      aria-label="Kembalikan buku"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M9 14L4 9l5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="ln.status === 'Dipinjam' || ln.status === 'Terlambat'"
+                      type="button"
+                      @click="renewLoan(ln)"
+                      class="btn-action btn-renew"
+                      title="Perpanjang 7 hari"
+                      aria-label="Perpanjang peminjaman 7 hari"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button
+                      v-if="ln.remaining_fine > 0"
+                      type="button"
+                      @click="openFinePaymentModal(ln)"
+                      class="btn-action btn-edit"
+                      title="Bayar Denda"
+                      aria-label="Bayar denda"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="2"/>
+                        <path d="M6 12h.01M18 12h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -397,8 +497,12 @@
               <input v-model="fineFilters.loan_id" @input="debounceLoadFinePayments" placeholder="ID peminjaman (opsional)..." class="search-input" />
               <button v-if="fineFilters.loan_id" type="button" class="search-clear" @click="fineFilters.loan_id = ''; loadFinePayments(1)" aria-label="Hapus">×</button>
             </div>
-            <button type="button" class="btn-secondary btn-compact" :disabled="exportingFinesPdf" @click="previewFinesPdf">
-              {{ exportingFinesPdf ? '...' : 'Cetak PDF' }}
+            <button type="button" class="btn-icon-tool" :disabled="exportingFinesPdf" @click="previewFinesPdf" title="Cetak PDF" aria-label="Cetak PDF laporan denda">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9V2h12v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -439,13 +543,21 @@
             <span class="filter-sep">s/d</span>
             <input v-model="reportDateTo" type="date" class="filter-select" />
           </div>
-          <button type="button" class="btn-primary" :disabled="exportingPdf" @click="previewLoansPdf">
-            <span v-if="exportingPdf">Memuat...</span>
-            <span v-else>Preview / Cetak PDF Laporan Peminjaman</span>
+          <button type="button" class="btn-primary btn-add" :disabled="exportingPdf" @click="previewLoansPdf" title="Preview / Cetak PDF Laporan Peminjaman">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 9V2h12v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ exportingPdf ? 'Memuat...' : 'Laporan Peminjaman' }}</span>
           </button>
-          <button type="button" class="btn-secondary" :disabled="exportingFinesPdf" @click="previewFinesPdf">
-            <span v-if="exportingFinesPdf">Memuat...</span>
-            <span v-else>Cetak PDF Laporan Denda</span>
+          <button type="button" class="btn-secondary btn-add" :disabled="exportingFinesPdf" @click="previewFinesPdf" title="Cetak PDF Laporan Denda">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 9V2h12v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ exportingFinesPdf ? 'Memuat...' : 'Laporan Denda' }}</span>
           </button>
         </div>
         <div class="reports-grid">
@@ -516,6 +628,8 @@
             </table>
             <p v-if="topEbooks.length === 0" class="muted">Belum ada data bacaan ebook.</p>
           </div>
+        </div>
+      </div>
         </div>
       </div>
 
@@ -1730,11 +1844,56 @@ onMounted(() => {
 .stat-item.stat-warn .stat-tag { color: #b45309; }
 
 /* Tabs */
-.tabs-container { margin-bottom: 1.25rem; border-bottom: 2px solid #e2e8f0; }
-.tabs-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-.tab-btn { padding: 0.6rem 1rem; background: none; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #64748b; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; transition: color 0.2s ease, border-color 0.2s ease; }
-.tab-btn:hover { color: #475569; }
-.tab-btn.active { color: #059669; border-bottom-color: #059669; }
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
+  margin-bottom: 1.25rem;
+}
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
+}
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
+}
 .tab-icon { font-size: 1.1rem; line-height: 1; }
 .sub-nav { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0.65rem 0 0.85rem; }
 .sub-nav-btn { padding: 0.4rem 0.85rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
@@ -1750,6 +1909,22 @@ onMounted(() => {
 .btn-compact:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-secondary.btn-compact { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
 .btn-secondary.btn-compact:hover:not(:disabled) { background: #d1fae5; }
+.btn-icon-tool {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-icon-tool:hover:not(:disabled) { background: #d1fae5; transform: scale(1.05); }
+.btn-icon-tool:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .search-wrap { position: relative; display: inline-flex; }
 .search-input { padding: 0.5rem 2rem 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; min-width: 180px; transition: border-color 0.2s, box-shadow 0.2s; }
@@ -1762,6 +1937,17 @@ onMounted(() => {
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-add { display: inline-flex; align-items: center; gap: 0.4rem; }
+.btn-secondary.btn-add {
+  padding: 0.6rem 1.25rem;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-secondary.btn-add:hover:not(:disabled) { background: #d1fae5; }
+.btn-secondary.btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
 .import-result { margin-top: 0.75rem; padding: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
 .import-errors { margin: 0.5rem 0 0; padding-left: 1.1rem; color: #b91c1c; font-size: 0.8rem; max-height: 160px; overflow-y: auto; }
 .loading-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; padding: 0.5rem; background: #fff; }
@@ -1824,7 +2010,7 @@ onMounted(() => {
 .btn-action.btn-secondary:hover { background: #d1fae5; }
 .btn-delete { background: #fee2e2; color: #b91c1c; }
 .btn-delete:hover { background: #fecaca; }
-.btn-renew { background: #d1fae5; color: #047857; padding: 0.35rem 0.65rem; width: auto; height: auto; font-size: 0.8rem; font-weight: 500; }
+.btn-renew { background: #d1fae5; color: #047857; }
 .btn-renew:hover { background: #a7f3d0; }
 .badge-success { background: #dcfce7; color: #166534; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; }
 .badge-warning { background: #fef3c7; color: #92400e; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; }
@@ -1889,7 +2075,6 @@ onMounted(() => {
   .page-hero { margin-left: -0.5rem; margin-right: -0.5rem; padding: 1rem 0.75rem; }
   .hero-title { font-size: 1.25rem; }
   .hero-icon-wrap { width: 48px; height: 48px; }
-  .tab-btn { padding: 0.5rem 0.75rem; font-size: 0.85rem; }
   .data-table th, .data-table td { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
 }
 </style>

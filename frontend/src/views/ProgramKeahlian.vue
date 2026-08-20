@@ -53,8 +53,8 @@
                 <td>{{ item.classes_count ?? 0 }}</td>
                 <td><span class="status-chip" :class="item.status === 'Aktif' ? 'ok' : 'off'">{{ item.status }}</span></td>
                 <td class="col-aksi">
-                  <button type="button" class="btn-link" @click="openModal(item)">Edit</button>
-                  <button type="button" class="btn-link danger" @click="remove(item)">Hapus</button>
+                  <TableAction kind="edit" @click="openModal(item)" />
+                  <TableAction kind="delete" @click="remove(item)" />
                 </td>
               </tr>
             </tbody>
@@ -94,6 +94,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { programKeahlianApi } from '@/api/programKeahlian'
 import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'

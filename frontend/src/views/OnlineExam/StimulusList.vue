@@ -40,8 +40,8 @@
               <td>{{ stripHtml(s.content || '').slice(0, 80) }}{{ stripHtml(s.content || '').length > 80 ? '…' : '' }}</td>
               <td>{{ s.questions_count != null ? s.questions_count : '–' }} soal</td>
               <td>
-                <button type="button" class="btn-action btn-edit" @click="openForm(s)">Edit</button>
-                <button type="button" class="btn-action btn-delete" @click="confirmDelete(s)">Hapus</button>
+                <TableAction kind="edit" @click="openForm(s)" />
+                <TableAction kind="delete" @click="confirmDelete(s)" />
               </td>
             </tr>
           </tbody>
@@ -74,6 +74,7 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'

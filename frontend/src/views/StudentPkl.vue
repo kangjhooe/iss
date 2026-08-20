@@ -133,8 +133,8 @@
                     </td>
                     <td>{{ row.supervisor_notes || '—' }}</td>
                     <td v-if="canWriteJournal">
-                      <button type="button" class="sp-btn sp-btn--soft sp-btn--sm" @click="openJournalModal(row)">Edit</button>
-                      <button type="button" class="sp-btn sp-btn--soft sp-btn--sm" @click="removeJournal(row)">Hapus</button>
+                      <TableAction kind="edit" @click="openJournalModal(row)" />
+                      <TableAction kind="delete" @click="removeJournal(row)" />
                     </td>
                   </tr>
                 </tbody>
@@ -147,8 +147,8 @@
                 <p class="mobile-activities">{{ row.activities }}</p>
                 <div v-if="row.supervisor_notes" class="sp-muted">Pembimbing: {{ row.supervisor_notes }}</div>
                 <div v-if="canWriteJournal" class="sp-mobile-card-actions">
-                  <button type="button" class="sp-btn sp-btn--soft sp-btn--sm" @click="openJournalModal(row)">Edit</button>
-                  <button type="button" class="sp-btn sp-btn--soft sp-btn--sm" @click="removeJournal(row)">Hapus</button>
+                  <TableAction kind="edit" @click="openJournalModal(row)" />
+                  <TableAction kind="delete" @click="removeJournal(row)" />
                 </div>
               </article>
             </div>
@@ -207,6 +207,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { pklApi } from '@/api/pkl'

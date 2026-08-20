@@ -101,9 +101,9 @@
                 </td>
                 <td>
                   <div class="action-buttons">
-                    <button type="button" class="btn-action btn-edit" title="Transaksi" @click="openTxModal(m)">±</button>
-                    <button type="button" class="btn-action btn-edit" title="Edit" @click="openEditModal(m)">✎</button>
-                    <button type="button" class="btn-action btn-delete" title="Hapus" @click="deleteTarget = m">🗑</button>
+                    <TableAction kind="transaction" title="Transaksi" @click="openTxModal(m)" />
+                    <TableAction kind="edit" @click="openEditModal(m)" />
+                    <TableAction kind="delete" @click="deleteTarget = m" />
                   </div>
                 </td>
               </tr>
@@ -268,6 +268,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { uksMedicineApi } from '@/api/uks'

@@ -143,6 +143,7 @@ class WaliKelasController extends Controller
                 : 'Akun login siswa sudah tersedia / diperbarui.',
             'data' => new StudentResource($student),
             'user_created' => $result['user_created'],
+            'login_hint' => $this->studentAccountService->loginHintFor($student),
         ]);
     }
 
@@ -166,6 +167,7 @@ class WaliKelasController extends Controller
                 'message' => 'Sandi berhasil direset ke tanggal lahir (DDMMYYYY). Siswa wajib ganti sandi saat login berikutnya.',
                 'data' => new StudentResource($student),
                 'must_change_password' => (bool) $account->must_change_password,
+                'login_hint' => $this->studentAccountService->loginHintFor($student),
             ]);
         } catch (ValidationException $e) {
             throw $e;

@@ -46,12 +46,12 @@
               <td>{{ b.purpose }}</td>
               <td><span :class="'st-' + b.status">{{ statusLabel(b.status) }}</span></td>
               <td>
-                <button
+                <TableAction
                   v-if="['pending', 'approved'].includes(b.status)"
-                  type="button"
-                  class="btn-link danger"
+                  kind="cancel"
+                  title="Batalkan"
                   @click="cancel(b)"
-                >Batalkan</button>
+                />
               </td>
             </tr>
             <tr v-if="!myBookings.length">
@@ -114,6 +114,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'
 

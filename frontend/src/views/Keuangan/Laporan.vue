@@ -62,6 +62,19 @@
             </div>
           </div>
 
+          <div class="charts-grid">
+            <AppChart title="Terkumpul vs tunggakan" type="doughnut" :chart-data="financeShareChart" />
+            <AppChart title="Penerimaan per bulan" type="line" :chart-data="paymentsMonthChart" />
+            <AppChart
+              class="charts-span"
+              title="Per jenis biaya"
+              subtitle="Terkumpul dan sisa tagihan"
+              type="bar"
+              :chart-data="feeTypeChart"
+              :options="chartOptionsBarStacked"
+            />
+          </div>
+
           <div class="content-card">
             <h3 style="margin:0 0 1rem;font-size:1rem">Per jenis biaya</h3>
             <div v-if="!(summary.by_fee_type || []).length" class="empty-state">
@@ -99,10 +112,12 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import AppChart from '@/components/AppChart.vue'
 import { financeApi, financeInvoiceApi, financePaymentApi } from '@/api/finance'
+import { doughnutFromEntries, lineFromSeries, chartOptionsBarStacked } from '@/composables/useChart'
 import { formatRp, frequencyLabel } from './keuanganConstants'
 import { apiError } from './keuanganErrors'
 import './keuangan.css'
@@ -112,6 +127,39 @@ const loading = ref(false)
 const exporting = ref('')
 const error = ref('')
 const filters = reactive({ from: '', to: '' })
+
+const financeShareChart = computed(() => doughnutFromEntries([
+  { label: 'Terkumpul', value: summary.value?.collected || 0, color: '#059669' },
+  { label: 'Tunggakan', value: summary.value?.outstanding || 0, color: '#ef4444' },
+]))
+
+const paymentsMonthChart = computed(() => {
+  const rows = summary.value?.payments_by_month || []
+  if (!rows.length || !rows.some((r) => Number(r.amount) > 0)) return null
+  return lineFromSeries(rows.map((r) => r.label), rows.map((r) => Number(r.amount || 0)), 'Penerimaan')
+})
+
+const feeTypeChart = computed(() => {
+  const rows = (summary.value?.by_fee_type || []).slice(0, 8)
+  if (!rows.length) return null
+  return {
+    labels: rows.map((r) => r.fee_type?.name || '—'),
+    datasets: [
+      {
+        label: 'Terkumpul',
+        data: rows.map((r) => Number(r.amount_paid || 0)),
+        backgroundColor: '#059669',
+        borderRadius: 4,
+      },
+      {
+        label: 'Sisa',
+        data: rows.map((r) => Number(r.remaining || 0)),
+        backgroundColor: '#f59e0b',
+        borderRadius: 4,
+      },
+    ],
+  }
+})
 
 async function load() {
   loading.value = true

@@ -117,12 +117,22 @@
             <strong>{{ result.admin?.name }}</strong> ({{ result.admin?.email }}) telah dibuat.
           </p>
 
-          <div v-if="result.temporary_password" class="password-box">
-            <div>
-              <small>Sandi sementara admin</small>
-              <code>{{ result.temporary_password }}</code>
+          <div v-if="result.admin?.email || result.temporary_password" class="password-box">
+            <p class="cred-note">Simpan kredensial ini. Sandi hanya ditampilkan di halaman ini.</p>
+            <div v-if="result.admin?.email" class="cred-row">
+              <div>
+                <small>Email</small>
+                <code>{{ result.admin.email }}</code>
+              </div>
+              <button type="button" class="btn-secondary btn-compact" @click="copyText(result.admin.email, 'Email')">Salin</button>
             </div>
-            <button type="button" class="btn-secondary btn-compact" @click="copyPassword">Salin</button>
+            <div v-if="result.temporary_password" class="cred-row">
+              <div>
+                <small>Sandi sementara</small>
+                <code>{{ result.temporary_password }}</code>
+              </div>
+              <button type="button" class="btn-secondary btn-compact" @click="copyPassword">Salin</button>
+            </div>
           </div>
 
           <div class="checklist">
@@ -222,7 +232,7 @@ const handleNext = async () => {
     result.value = {
       institution: res.data?.data?.institution,
       admin: res.data?.data?.admin,
-      temporary_password: res.data?.temporary_password || null,
+      temporary_password: res.data?.temporary_password || form.value.admin_password || null,
       checklist: res.data?.checklist || []
     }
     step.value = 3
@@ -238,13 +248,17 @@ const handleNext = async () => {
   }
 }
 
-const copyPassword = async () => {
+const copyText = async (value, label = 'Teks') => {
   try {
-    await navigator.clipboard.writeText(result.value.temporary_password)
-    toast.success('Disalin', 'Sandi disalin ke clipboard')
+    await navigator.clipboard.writeText(String(value || ''))
+    toast.success('Disalin', `${label} disalin ke clipboard`)
   } catch {
-    toast.error('Gagal', 'Tidak dapat menyalin sandi')
+    toast.error('Gagal', `Tidak dapat menyalin ${label.toLowerCase()}`)
   }
+}
+
+const copyPassword = async () => {
+  await copyText(result.value.temporary_password, 'Sandi')
 }
 
 const resetWizard = () => {
@@ -411,14 +425,26 @@ const resetWizard = () => {
 
 .password-box {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 14px;
   margin: 16px 0;
+}
+
+.cred-note {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.cred-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .password-box small {

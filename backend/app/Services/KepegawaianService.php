@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Employee;
+use App\Models\EmployeeAttendance;
 use App\Models\EmployeeDecree;
 use App\Models\EmployeeLeaveRequest;
 use App\Models\EmployeeStructuralPosition;
@@ -17,6 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class KepegawaianService
 {
+    public function __construct(
+        protected StructuralDutySync $structuralDutySync
+    ) {}
+
     public function listLeaves(int $institutionId, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = EmployeeLeaveRequest::with([
@@ -99,11 +104,17 @@ class KepegawaianService
             $payload['approved_at'] = now();
         }
 
-        return EmployeeLeaveRequest::create($payload)->load([
+        $leave = EmployeeLeaveRequest::create($payload)->load([
             'employee:id,name,nip,nuptk,type,email',
             'requester:id,name',
             'approver:id,name',
         ]);
+
+        if ($leave->status === 'approved') {
+            $this->applyLeaveAttendance($leave);
+        }
+
+        return $leave;
     }
 
     public function decideLeave(EmployeeLeaveRequest $leave, string $action, int $userId, ?string $rejectionReason = null): EmployeeLeaveRequest
@@ -121,6 +132,7 @@ class KepegawaianService
                 'approved_at' => now(),
                 'rejection_reason' => null,
             ]);
+            $this->applyLeaveAttendance($leave->fresh());
         } elseif ($action === 'reject') {
             if (!$rejectionReason) {
                 throw ValidationException::withMessages([
@@ -154,12 +166,18 @@ class KepegawaianService
             ]);
         }
 
+        $wasApproved = $leave->status === 'approved';
+
         $leave->update([
             'status' => 'cancelled',
             'approved_by' => $userId,
             'approved_at' => now(),
             'notes' => trim(($leave->notes ? $leave->notes . "\n" : '') . 'Dibatalkan.'),
         ]);
+
+        if ($wasApproved) {
+            $this->clearLeaveAttendance($leave);
+        }
 
         return $leave->fresh([
             'employee:id,name,nip,nuptk,type,email',
@@ -314,16 +332,27 @@ class KepegawaianService
             }
 
             // End previous active holder of the same structural position at this institution.
-            EmployeeStructuralPosition::where('institution_id', $institutionId)
+            $previous = EmployeeStructuralPosition::with(['employee', 'position'])
+                ->where('institution_id', $institutionId)
                 ->where('structural_position_id', $position->id)
                 ->where(function ($q) {
                     $q->whereNull('ended_at')->orWhere('ended_at', '>=', now()->toDateString());
                 })
+                ->get();
+
+            EmployeeStructuralPosition::whereIn('id', $previous->pluck('id'))
                 ->update([
                     'ended_at' => date('Y-m-d', strtotime($data['started_at'] . ' -1 day')),
                 ]);
 
-            return EmployeeStructuralPosition::create([
+            foreach ($previous as $old) {
+                if ((int) $old->employee_id === (int) $employee->id) {
+                    continue;
+                }
+                $this->structuralDutySync->revoke($old->employee, $position->key);
+            }
+
+            $assignment = EmployeeStructuralPosition::create([
                 'institution_id' => $institutionId,
                 'employee_id' => $employee->id,
                 'structural_position_id' => $position->id,
@@ -339,6 +368,10 @@ class KepegawaianService
                 'decree:id,number,title,decree_date',
                 'creator:id,name',
             ]);
+
+            $this->structuralDutySync->grant($employee, $position->key, $data['started_at']);
+
+            return $assignment;
         });
     }
 
@@ -364,6 +397,11 @@ class KepegawaianService
                 : $assignment->notes,
         ]);
 
+        $assignment->loadMissing(['employee', 'position']);
+        if ($assignment->employee && $assignment->position?->key) {
+            $this->structuralDutySync->revoke($assignment->employee, $assignment->position->key);
+        }
+
         return $assignment->fresh([
             'employee:id,name,nip,nuptk,type,email',
             'position',
@@ -375,6 +413,60 @@ class KepegawaianService
     public function listStructuralPositions(): Collection
     {
         return StructuralPosition::active()->orderBy('sort_order')->orderBy('label')->get();
+    }
+
+    public function applyLeaveAttendance(EmployeeLeaveRequest $leave): void
+    {
+        if ($leave->status !== 'approved' || !$leave->start_date || !$leave->end_date) {
+            return;
+        }
+
+        $marker = $this->leaveAttendanceMarker($leave->id);
+        $label = $leave->leave_type_label;
+        $cursor = $leave->start_date->copy()->startOfDay();
+        $end = $leave->end_date->copy()->startOfDay();
+
+        while ($cursor->lte($end)) {
+            if (!$cursor->isWeekend()) {
+                EmployeeAttendance::updateOrCreate(
+                    [
+                        'institution_id' => $leave->institution_id,
+                        'employee_id' => $leave->employee_id,
+                        'date' => $cursor->toDateString(),
+                    ],
+                    [
+                        'status' => EmployeeAttendance::STATUS_CUTI,
+                        'check_in_time' => null,
+                        'check_out_time' => null,
+                        'notes' => $label . ' ' . $marker,
+                    ]
+                );
+            }
+            $cursor->addDay();
+        }
+    }
+
+    public function clearLeaveAttendance(EmployeeLeaveRequest $leave): void
+    {
+        if (!$leave->start_date || !$leave->end_date) {
+            return;
+        }
+
+        $marker = $this->leaveAttendanceMarker($leave->id);
+
+        EmployeeAttendance::query()
+            ->where('institution_id', $leave->institution_id)
+            ->where('employee_id', $leave->employee_id)
+            ->where('status', EmployeeAttendance::STATUS_CUTI)
+            ->whereDate('date', '>=', $leave->start_date->toDateString())
+            ->whereDate('date', '<=', $leave->end_date->toDateString())
+            ->where('notes', 'like', '%' . $marker . '%')
+            ->forceDelete();
+    }
+
+    protected function leaveAttendanceMarker(int $leaveId): string
+    {
+        return '[leave:' . $leaveId . ']';
     }
 
     /**

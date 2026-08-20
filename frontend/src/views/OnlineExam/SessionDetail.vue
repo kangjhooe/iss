@@ -1,18 +1,55 @@
 <template>
   <Layout>
     <div class="session-detail-page">
-      <header class="page-header">
-        <router-link :to="backLink" class="back-link">← {{ backLabel }}</router-link>
-        <h2>{{ session?.name }}</h2>
-        <span :class="['status-badge', session?.status]">{{ session?.status ? statusLabel(session.status, 'session') : '' }}</span>
+      <router-link :to="backLink" class="back-link">← {{ backLabel }}</router-link>
+
+      <header class="session-header">
+        <div class="header-title-row">
+          <h2>{{ session?.name || 'Sesi ujian' }}</h2>
+          <span v-if="session?.status" :class="['status-badge', session.status]">{{ statusLabel(session.status, 'session') }}</span>
+        </div>
+        <div v-if="session" class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Ujian</span>
+              <span class="meta-value">{{ session.exam?.name || '—' }}</span>
+            </div>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5V4.5A2.5 2.5 0 0 1 6.5 2H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 7h8M8 11h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Mapel</span>
+              <span class="meta-value">{{ session.exam?.subject?.name || '—' }}</span>
+            </div>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Durasi</span>
+              <span class="meta-value">{{ session.exam?.duration_minutes != null ? `${session.exam.duration_minutes} menit` : '—' }}</span>
+            </div>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Peserta</span>
+              <span class="meta-value">{{ participants.length }} siswa</span>
+            </div>
+          </div>
+        </div>
       </header>
 
       <div v-if="loading" class="content-card"><p>Memuat...</p></div>
       <template v-else-if="session">
-        <div class="content-card info">
-          <p><strong>Ujian</strong> {{ session.exam?.name }} — {{ session.exam?.subject?.name }}</p>
-          <p><strong>Durasi</strong> {{ session.exam?.duration_minutes }} menit</p>
-        </div>
 
         <!-- Hanya tampil dari menu Kontrol Ujian (fokus=kontrol) atau dari detail ujian (tanpa fokus) -->
         <div v-if="fokus !== 'peserta'" ref="controlSectionRef" class="content-card control-section" :class="{ 'section-focus': fokus === 'kontrol' }">
@@ -102,70 +139,93 @@
             Belum ada peserta.
             <router-link :to="{ path: `/ujian-online/sesi/${route.params.id}`, query: { fokus: 'peserta' } }">Tambah peserta</router-link>
           </div>
-          <div v-else class="table-scroll">
-            <table class="data-table monitor-table">
-              <thead>
-                <tr>
-                  <th>No.</th>
-                  <th>Nama</th>
-                  <th>Status</th>
-                  <th>Mulai</th>
-                  <th>Selesai</th>
-                  <th>Nilai</th>
-                  <th>Rilis</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(p, idx) in participants" :key="'mon-' + p.id">
-                  <td>{{ p.participant_order ?? idx + 1 }}</td>
-                  <td>
-                    <strong>{{ p.student?.name || '–' }}</strong>
-                    <div class="cell-meta">{{ p.nomor_peserta || p.student?.nisn || '–' }}</div>
-                  </td>
-                  <td>
-                    <span :class="['status-pill', p.status]">{{ participantStatusLabel(p.status) }}</span>
-                  </td>
-                  <td>{{ formatEntryPinTime(p.started_at) || '–' }}</td>
-                  <td>{{ formatEntryPinTime(p.submitted_at) || '–' }}</td>
-                  <td>
-                    <template v-if="p.score != null">
-                      {{ formatScore(p.score) }}
-                      <span v-if="p.score_max != null" class="score-max">/ {{ formatScore(p.score_max) }}</span>
-                    </template>
-                    <template v-else>–</template>
-                  </td>
-                  <td>{{ p.score_released ? 'Ya' : 'Tidak' }}</td>
-                  <td class="monitor-row-actions">
-                    <button
-                      type="button"
-                      class="btn-action"
-                      :disabled="p.status !== 'submitted'"
-                      @click="openGrading(p)"
-                    >
-                      Koreksi
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-action"
-                      :disabled="p.status !== 'submitted' || p.score == null || p.score_released"
-                      @click="releaseScore(p.id)"
-                    >
-                      Rilis
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-action btn-delete"
-                      :disabled="p.status === 'registered' || resetParticipantLoading === p.id"
-                      @click="resetParticipant(p)"
-                    >
-                      Reset
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <template v-else>
+            <div class="roster-toolbar">
+              <input v-model="rosterSearch" type="search" class="search-input" placeholder="Cari nama / NIS / nomor peserta..." />
+              <select v-model="rosterClassId" class="filter-select">
+                <option value="">Semua kelas</option>
+                <option v-for="c in rosterClassOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <p class="roster-meta">{{ rosterRangeLabel }}</p>
+            <div v-if="pagedParticipants.length" class="table-scroll">
+              <table class="data-table monitor-table">
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>Nama</th>
+                    <th>Kelas</th>
+                    <th>Status</th>
+                    <th>Mulai</th>
+                    <th>Selesai</th>
+                    <th>Nilai</th>
+                    <th>Rilis</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="group in monitorPageGroups" :key="'mon-g-' + group.key">
+                    <tr class="group-row">
+                      <td colspan="9">Kelas {{ group.name }}</td>
+                    </tr>
+                    <tr v-for="(p, i) in group.rows" :key="'mon-' + p.id">
+                      <td>{{ p.participant_order ?? (group.start + i + 1) }}</td>
+                      <td>
+                        <strong>{{ p.student?.name || '–' }}</strong>
+                        <div class="cell-meta">{{ p.nomor_peserta || p.student?.nisn || '–' }}</div>
+                      </td>
+                      <td>{{ p.student?.class?.name || '–' }}</td>
+                      <td>
+                        <span :class="['status-pill', p.status]">{{ participantStatusLabel(p.status) }}</span>
+                      </td>
+                      <td>{{ formatEntryPinTime(p.started_at) || '–' }}</td>
+                      <td>{{ formatEntryPinTime(p.submitted_at) || '–' }}</td>
+                      <td>
+                        <template v-if="p.score != null">
+                          {{ formatScore(p.score) }}
+                          <span v-if="p.score_max != null" class="score-max">/ {{ formatScore(p.score_max) }}</span>
+                        </template>
+                        <template v-else>–</template>
+                      </td>
+                      <td>{{ p.score_released ? 'Ya' : 'Tidak' }}</td>
+                      <td class="monitor-row-actions">
+                        <button
+                          type="button"
+                          class="btn-action"
+                          :disabled="p.status !== 'submitted'"
+                          @click="openGrading(p)"
+                        >
+                          Koreksi
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-action"
+                          :disabled="p.status !== 'submitted' || p.score == null || p.score_released"
+                          @click="releaseScore(p.id)"
+                        >
+                          Rilis
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-action btn-delete"
+                          :disabled="p.status === 'registered' || resetParticipantLoading === p.id"
+                          @click="resetParticipant(p)"
+                        >
+                          Reset
+                        </button>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="monitor-empty">Tidak ada peserta yang cocok.</p>
+            <div v-if="rosterLastPage > 1" class="pagination-bar">
+              <button type="button" class="btn-page" :disabled="rosterPage <= 1" @click="rosterPage--">Sebelumnya</button>
+              <span class="page-num">Halaman {{ rosterPage }} / {{ rosterLastPage }}</span>
+              <button type="button" class="btn-page" :disabled="rosterPage >= rosterLastPage" @click="rosterPage++">Selanjutnya</button>
+            </div>
+          </template>
         </div>
 
         <!-- Hanya tampil dari menu Peserta Ujian (fokus=peserta) atau dari detail ujian (tanpa fokus) -->
@@ -173,52 +233,76 @@
           <h3>Peserta ({{ participants.length }})</h3>
           <p v-if="fokus === 'peserta'" class="section-hint">Untuk mulai/akhiri ujian, monitoring, dan laporan, gunakan menu <router-link to="/ujian-online/sesi?fokus=kontrol">Kontrol Ujian</router-link>.</p>
           <div class="form-group">
-            <p>Tambahkan siswa dari data siswa. Pilih siswa lalu klik Tambah. Urutkan dengan seret baris atau tombol Naik/Turun; nomor peserta mengikuti urutan daftar.</p>
+            <p>Tambahkan siswa dari data siswa. Urutkan per kelas lalu abjad, atau seret baris jika seluruh daftar tampil di satu halaman.</p>
             <div class="button-row">
               <button type="button" class="btn-primary" @click="showAddModal = true">+ Tambah peserta</button>
+              <button type="button" class="btn-secondary" :disabled="reorderLoading || !participants.length" @click="sortParticipantsByClass">Urutkan per kelas</button>
               <button type="button" class="btn-secondary" :disabled="generateNumbersLoading || !participants.length" @click="generateParticipantNumbers">Generate nomor peserta</button>
               <button type="button" class="btn-secondary" :disabled="!participants.length" @click="openPrintCardsPreview">Cetak kartu peserta</button>
             </div>
+            <div class="roster-toolbar">
+              <input v-model="rosterSearch" type="search" class="search-input" placeholder="Cari nama / NIS / nomor peserta..." />
+              <select v-model="rosterClassId" class="filter-select">
+                <option value="">Semua kelas</option>
+                <option v-for="c in rosterClassOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <p class="roster-meta">{{ rosterRangeLabel }}<template v-if="!canReorder"> · kosongkan filter untuk mengubah urutan seret</template></p>
           </div>
+          <div v-if="pagedParticipants.length" class="table-scroll">
           <table class="data-table data-table-reorder">
             <thead>
               <tr>
-                <th class="col-reorder"></th>
+                <th v-if="canReorder" class="col-reorder"></th>
                 <th class="col-no">No.</th>
                 <th>Nomor peserta</th>
                 <th>Nama</th>
+                <th>Kelas</th>
                 <th>NISN</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="(p, idx) in participants"
-                :key="p.id"
-                :class="{ 'drag-over': dragOverIndex === idx, 'dragging': dragFromIndex === idx }"
-                @dragover.prevent="onDragOver($event, idx)"
-                @drop="onDrop($event, idx)"
-              >
-                <td class="col-reorder">
-                  <span class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" aria-hidden="true" @dragstart="onDragStart($event, idx)" @dragend="onDragEnd">⋮⋮</span>
-                  <div class="move-buttons">
-                    <button type="button" class="btn-move" title="Naik" :disabled="reorderLoading || idx === 0" @click.stop="moveUp(idx)">↑</button>
-                    <button type="button" class="btn-move" title="Turun" :disabled="reorderLoading || idx === participants.length - 1" @click.stop="moveDown(idx)">↓</button>
-                  </div>
-                </td>
-                <td class="col-no">{{ p.participant_order ?? idx + 1 }}</td>
-                <td class="col-nomor-peserta">{{ p.nomor_peserta || '–' }}</td>
-                <td>{{ p.student?.name }}</td>
-                <td>{{ p.student?.nisn || '–' }}</td>
-                <td>{{ participantStatusLabel(p.status) }}</td>
-                <td>
-                  <button type="button" class="btn-action" :disabled="p.status !== 'registered' || p.participant_order == null" @click="openEditParticipant(p)">Edit</button>
-                  <button type="button" class="btn-action btn-delete" @click="removeParticipant(p)" :disabled="p.status !== 'registered'">Hapus</button>
-                </td>
-              </tr>
+              <template v-for="group in participantPageGroups" :key="'p-g-' + group.key">
+                <tr class="group-row">
+                  <td :colspan="canReorder ? 8 : 7">Kelas {{ group.name }}</td>
+                </tr>
+                <tr
+                  v-for="(p, i) in group.rows"
+                  :key="p.id"
+                  :class="{ 'drag-over': dragOverIndex === participantIndex(p), 'dragging': dragFromIndex === participantIndex(p) }"
+                  @dragover.prevent="canReorder && onDragOver($event, participantIndex(p))"
+                  @drop="canReorder && onDrop($event, participantIndex(p))"
+                >
+                  <td v-if="canReorder" class="col-reorder">
+                    <span class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" aria-hidden="true" @dragstart="onDragStart($event, participantIndex(p))" @dragend="onDragEnd">⋮⋮</span>
+                    <div class="move-buttons">
+                      <button type="button" class="btn-move" title="Naik" :disabled="reorderLoading || participantIndex(p) === 0" @click.stop="moveUp(participantIndex(p))">↑</button>
+                      <button type="button" class="btn-move" title="Turun" :disabled="reorderLoading || participantIndex(p) === participants.length - 1" @click.stop="moveDown(participantIndex(p))">↓</button>
+                    </div>
+                  </td>
+                  <td class="col-no">{{ p.participant_order ?? (group.start + i + 1) }}</td>
+                  <td class="col-nomor-peserta">{{ p.nomor_peserta || '–' }}</td>
+                  <td>{{ p.student?.name }}</td>
+                  <td>{{ p.student?.class?.name || '–' }}</td>
+                  <td>{{ p.student?.nisn || '–' }}</td>
+                  <td>{{ participantStatusLabel(p.status) }}</td>
+                  <td>
+                    <TableAction kind="edit" :disabled="p.status !== 'registered' || p.participant_order == null" @click="openEditParticipant(p)" />
+                    <TableAction kind="delete" :disabled="p.status !== 'registered'" @click="removeParticipant(p)" />
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
+          </div>
+          <p v-else-if="participants.length" class="monitor-empty">Tidak ada peserta yang cocok.</p>
+          <div v-if="rosterLastPage > 1" class="pagination-bar">
+            <button type="button" class="btn-page" :disabled="rosterPage <= 1" @click="rosterPage--">Sebelumnya</button>
+            <span class="page-num">Halaman {{ rosterPage }} / {{ rosterLastPage }}</span>
+            <button type="button" class="btn-page" :disabled="rosterPage >= rosterLastPage" @click="rosterPage++">Selanjutnya</button>
+          </div>
         </div>
 
         <div v-if="showAddModal" class="modal-overlay" @click.self="closeAddModal">
@@ -351,6 +435,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { examApi } from '@/api/exam'
 import { classApi } from '@/api/class'
 import api from '@/api'
@@ -393,7 +478,86 @@ const generateNumbersLoading = ref(false)
 const reorderLoading = ref(false)
 const dragFromIndex = ref(null)
 const dragOverIndex = ref(null)
+const ROSTER_PAGE_SIZE = 20
+const rosterSearch = ref('')
+const rosterClassId = ref('')
+const rosterPage = ref(1)
 let refreshTimer = null
+
+function participantClass(p) {
+  return p?.student?.class || null
+}
+
+function groupByClass(rows, getClass) {
+  const groups = []
+  let current = null
+  let index = 0
+  for (const row of rows || []) {
+    const c = getClass(row)
+    const key = String(c?.id ?? c?.name ?? '')
+    const name = c?.name || 'Tanpa kelas'
+    if (!current || current.key !== key) {
+      current = { key, name, rows: [], start: index }
+      groups.push(current)
+    }
+    current.rows.push(row)
+    index += 1
+  }
+  return groups
+}
+
+const rosterClassOptions = computed(() => {
+  const map = new Map()
+  for (const p of participants.value) {
+    const c = participantClass(p)
+    if (!c?.id || map.has(c.id)) continue
+    map.set(c.id, {
+      id: c.id,
+      name: c.name || '—',
+      grade: c.grade == null || c.grade === '' ? 999 : Number(c.grade),
+    })
+  }
+  return [...map.values()].sort((a, b) => (a.grade - b.grade) || a.name.localeCompare(b.name, 'id', { numeric: true }))
+})
+
+const filteredParticipants = computed(() => {
+  const q = rosterSearch.value.trim().toLowerCase()
+  const cid = rosterClassId.value
+  return participants.value.filter((p) => {
+    if (cid && String(participantClass(p)?.id ?? '') !== String(cid)) return false
+    if (!q) return true
+    const hay = `${p.student?.name || ''} ${p.student?.nis || ''} ${p.student?.nisn || ''} ${p.nomor_peserta || ''}`.toLowerCase()
+    return hay.includes(q)
+  })
+})
+
+const rosterLastPage = computed(() => Math.max(1, Math.ceil(filteredParticipants.value.length / ROSTER_PAGE_SIZE)))
+const pagedParticipants = computed(() => {
+  const start = (rosterPage.value - 1) * ROSTER_PAGE_SIZE
+  return filteredParticipants.value.slice(start, start + ROSTER_PAGE_SIZE)
+})
+const rosterRangeLabel = computed(() => {
+  const total = filteredParticipants.value.length
+  if (!total) return '0 dari 0 peserta'
+  const start = (rosterPage.value - 1) * ROSTER_PAGE_SIZE + 1
+  const end = Math.min(rosterPage.value * ROSTER_PAGE_SIZE, total)
+  return `Menampilkan ${start}–${end} dari ${total} peserta`
+})
+const canReorder = computed(() => !rosterSearch.value && !rosterClassId.value && rosterLastPage.value === 1)
+const monitorPageGroups = computed(() => groupByClass(pagedParticipants.value, participantClass).map((group) => ({
+  ...group,
+  start: (rosterPage.value - 1) * ROSTER_PAGE_SIZE + group.start,
+})))
+const participantPageGroups = computed(() => monitorPageGroups.value)
+
+function participantIndex(p) {
+  return participants.value.findIndex((row) => row.id === p.id)
+}
+
+watch([rosterSearch, rosterClassId], () => { rosterPage.value = 1 })
+watch(rosterLastPage, (last) => {
+  if (rosterPage.value > last) rosterPage.value = last
+})
 
 const fokus = computed(() => route.query.fokus || '')
 
@@ -767,6 +931,19 @@ async function saveEditParticipant() {
   }
 }
 
+function sortParticipantsByClass() {
+  const sorted = [...participants.value].sort((a, b) => {
+    const ca = participantClass(a)
+    const cb = participantClass(b)
+    const grade = (ca?.grade ?? 999) - (cb?.grade ?? 999)
+    if (grade !== 0) return grade
+    const className = String(ca?.name || '').localeCompare(String(cb?.name || ''), 'id', { numeric: true })
+    if (className !== 0) return className
+    return String(a.student?.name || '').localeCompare(String(b.student?.name || ''), 'id')
+  })
+  applyReorder(sorted.map((p) => p.id))
+}
+
 function getOrderedIds() {
   return participants.value.map(p => p.id)
 }
@@ -946,9 +1123,39 @@ watch([loading, () => route.query.fokus], async ([isLoading, qFokus]) => {
   padding-left: max(1rem, env(safe-area-inset-left));
   padding-right: max(1rem, env(safe-area-inset-right));
 }
-.page-header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.back-link { color: #059669; text-decoration: none; }
-.status-badge { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+.back-link { display: inline-flex; align-items: center; color: #059669; text-decoration: none; font-weight: 600; margin-bottom: 12px; }
+.session-header {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.15rem 1.25rem 1.2rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.header-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.session-header h2 { margin: 0; font-size: clamp(1.15rem, 2.5vw, 1.45rem); color: #0f172a; letter-spacing: -0.02em; }
+.status-badge { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: 600; }
+.status-badge.draft { background: #f1f5f9; color: #475569; }
+.status-badge.scheduled { background: #dbeafe; color: #1d4ed8; }
+.status-badge.started { background: #dcfce7; color: #166534; }
+.status-badge.ended { background: #fee2e2; color: #991b1b; }
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+.meta-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.meta-icon {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #ecfdf5; color: #059669;
+}
+.meta-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; }
+.meta-value { font-size: 13.5px; font-weight: 600; color: #0f172a; line-height: 1.35; word-break: break-word; }
+@media (max-width: 768px) { .meta-grid { grid-template-columns: 1fr 1fr; } }
 .content-card { background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1rem; }
 .content-card.section-focus { outline: 2px solid #059669; outline-offset: 2px; }
 .control-section .button-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
@@ -1011,6 +1218,42 @@ watch([loading, () => route.query.fokus], async ([isLoading, qFokus]) => {
 .monitor-empty { padding: 1rem 0; color: #64748b; font-size: 0.9375rem; }
 .monitor-empty a { color: #059669; }
 .table-scroll { overflow-x: auto; }
+.roster-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+.roster-toolbar .search-input,
+.roster-toolbar .filter-select {
+  flex: 1;
+  min-width: 160px;
+}
+.roster-meta { margin: 0 0 8px; font-size: 0.8125rem; color: #64748b; }
+.group-row td {
+  background: #f1f5f9;
+  font-weight: 700;
+  font-size: 12px;
+  color: #334155;
+}
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.btn-page {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-page:disabled { opacity: 0.45; cursor: not-allowed; }
+.page-num { font-size: 12px; color: #475569; font-weight: 600; }
 .monitor-table .cell-meta { font-size: 0.75rem; color: #94a3b8; margin-top: 0.15rem; }
 .monitor-table .score-max { color: #64748b; font-size: 0.8125rem; }
 .monitor-row-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }

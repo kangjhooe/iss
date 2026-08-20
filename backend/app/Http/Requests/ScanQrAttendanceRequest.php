@@ -20,7 +20,7 @@ class ScanQrAttendanceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'qr_data' => ['required', 'string'],
+            'qr_data' => ['required', 'string', 'max:500'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'attendance_type' => ['required', 'in:student,employee'],

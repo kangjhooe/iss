@@ -7,6 +7,7 @@ use App\Models\FinanceFeeType;
 use App\Models\FinanceInvoice;
 use App\Models\FinancePayment;
 use App\Support\InstitutionContext;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +81,7 @@ class FinanceDashboardController extends Controller
 
             $paymentsTotal = (clone $paymentsQuery)->sum('amount');
             $paymentsCount = (clone $paymentsQuery)->count();
+            $paymentsByMonth = $this->paymentsByMonth($institutionId, $request->get('from'), $request->get('to'));
 
             $feeTypesCount = FinanceFeeType::forInstitution($institutionId)->active()->count();
             $arrearsCount = FinanceInvoice::forInstitution($institutionId)->outstanding()->count();
@@ -95,6 +97,7 @@ class FinanceDashboardController extends Controller
                         'count' => $paymentsCount,
                         'amount' => (float) $paymentsTotal,
                     ],
+                    'payments_by_month' => $paymentsByMonth,
                     'by_status' => $byStatus,
                     'by_fee_type' => $byFeeType,
                 ],
@@ -103,5 +106,49 @@ class FinanceDashboardController extends Controller
             Log::error('Finance summary failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal mengambil ringkasan keuangan.'], 500);
         }
+    }
+
+    /**
+     * @return list<array{month:string,label:string,amount:float,count:int}>
+     */
+    protected function paymentsByMonth(int $institutionId, mixed $from, mixed $to): array
+    {
+        $end = $to ? Carbon::parse($to)->endOfMonth() : now()->endOfMonth();
+        $start = $from ? Carbon::parse($from)->startOfMonth() : $end->copy()->startOfMonth()->subMonths(11);
+
+        if ($start->gt($end)) {
+            [$start, $end] = [$end->copy()->startOfMonth(), $start->copy()->endOfMonth()];
+        }
+
+        $rows = FinancePayment::forInstitution($institutionId)
+            ->whereHas('invoice', fn ($q) => $q->where('status', '!=', 'cancelled'))
+            ->whereDate('paid_at', '>=', $start->toDateString())
+            ->whereDate('paid_at', '<=', $end->toDateString())
+            ->get(['amount', 'paid_at']);
+
+        $monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        $bucket = [];
+        $cursor = $start->copy()->startOfMonth();
+        while ($cursor->lte($end)) {
+            $key = $cursor->format('Y-m');
+            $bucket[$key] = [
+                'month' => $key,
+                'label' => $monthNames[(int) $cursor->format('n') - 1] . ' ' . $cursor->format('Y'),
+                'amount' => 0.0,
+                'count' => 0,
+            ];
+            $cursor->addMonth();
+        }
+
+        foreach ($rows as $row) {
+            $key = Carbon::parse($row->paid_at)->format('Y-m');
+            if (!isset($bucket[$key])) {
+                continue;
+            }
+            $bucket[$key]['amount'] += (float) $row->amount;
+            $bucket[$key]['count']++;
+        }
+
+        return array_values($bucket);
     }
 }

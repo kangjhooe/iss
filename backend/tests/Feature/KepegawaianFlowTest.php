@@ -116,6 +116,56 @@ class KepegawaianFlowTest extends TestCase
         $this->assertContains('decree', $types);
         $this->assertContains('structural_position', $types);
         $this->assertContains('join', $types);
+
+        $this->assertDatabaseHas('employee_additional_duties', [
+            'employee_id' => $this->employee->id,
+            'additional_duty_id' => \App\Models\AdditionalDuty::where('key', 'waka_kurikulum')->value('id'),
+        ]);
+
+        $this->teacherUser->unsetRelation('permissions');
+        $this->assertTrue($this->teacherUser->fresh()->permissions()->where('key', 'class')->exists());
+
+        $assignmentId = $assignRes->json('data.id');
+        $this->postJson("/api/v1/employee-structural-positions/{$assignmentId}/end", [
+            'ended_at' => '2026-12-31',
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('employee_additional_duties', [
+            'employee_id' => $this->employee->id,
+            'additional_duty_id' => \App\Models\AdditionalDuty::where('key', 'waka_kurikulum')->value('id'),
+        ]);
+    }
+
+    public function test_approved_leave_fills_weekday_attendance_and_cancel_clears_it(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $leaveRes = $this->postJson('/api/v1/employee-leaves', [
+            'employee_id' => $this->employee->id,
+            'leave_type' => 'tahunan',
+            'start_date' => '2026-08-03',
+            'end_date' => '2026-08-05',
+            'reason' => 'Cuti uji absensi',
+            'status' => 'pending',
+        ]);
+        $leaveRes->assertCreated();
+        $leaveId = $leaveRes->json('data.id');
+
+        $this->postJson("/api/v1/employee-leaves/{$leaveId}/decide", [
+            'action' => 'approve',
+        ])->assertOk();
+
+        $this->assertEquals(3, \App\Models\EmployeeAttendance::query()
+            ->where('employee_id', $this->employee->id)
+            ->where('status', 'cuti')
+            ->count());
+
+        $this->postJson("/api/v1/employee-leaves/{$leaveId}/cancel")->assertOk();
+
+        $this->assertEquals(0, \App\Models\EmployeeAttendance::query()
+            ->where('employee_id', $this->employee->id)
+            ->where('status', 'cuti')
+            ->count());
     }
 
     public function test_teacher_can_submit_own_leave(): void

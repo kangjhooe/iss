@@ -31,8 +31,8 @@
               <td>{{ getSubjectName(s.subject_id) }}</td>
               <td>{{ s.questions_count != null ? s.questions_count : '–' }} soal</td>
               <td>
-                <button type="button" class="btn-action btn-edit" @click="openForm(s)">Edit</button>
-                <button type="button" class="btn-action btn-delete" @click="confirmDelete(s)">Hapus</button>
+                <TableAction kind="edit" @click="openForm(s)" />
+                <TableAction kind="delete" @click="confirmDelete(s)" />
               </td>
             </tr>
           </tbody>
@@ -71,6 +71,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'

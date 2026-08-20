@@ -68,9 +68,9 @@
               <td>{{ v.applications_count ?? 0 }}</td>
               <td><span class="status-chip" :class="v.status">{{ v.status }}</span></td>
               <td>
-                <button type="button" class="btn-link" @click="openVacancyModal(v)">Edit</button>
+                <TableAction kind="edit" @click="openVacancyModal(v)" />
                 <button type="button" class="btn-link" @click="tab = 'applications'; applicationFilters.bkk_vacancy_id = String(v.id); loadApplications()">Lamaran</button>
-                <button type="button" class="btn-link danger" @click="removeVacancy(v)">Hapus</button>
+                <TableAction kind="delete" @click="removeVacancy(v)" />
               </td>
             </tr>
           </tbody>
@@ -126,7 +126,7 @@
                 </select>
               </td>
               <td>
-                <button type="button" class="btn-link danger" @click="removeApplication(a)">Hapus</button>
+                <TableAction kind="delete" @click="removeApplication(a)" />
               </td>
             </tr>
           </tbody>
@@ -213,6 +213,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { bkkApi } from '@/api/bkk'
 import { industryPartnersApi } from '@/api/industryPartners'
 import { alumniApi } from '@/api/alumni'
@@ -435,6 +436,13 @@ onMounted(async () => {
   vertical-align: middle; color: #92400e; background: #fef3c7; border-radius: 999px;
 }
 .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+@media (max-width: 1024px) {
+  .header-content { flex-direction: column; align-items: stretch; }
+  .header-actions { width: 100%; }
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary { flex: 1; justify-content: center; }
+}
 .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .tabs button {
   border: 1px solid #d1d5db; background: #fff; padding: 0.45rem 0.9rem; border-radius: 999px; cursor: pointer;

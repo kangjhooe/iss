@@ -1,26 +1,28 @@
 <template>
   <Layout>
     <div class="inventory-page">
-      <!-- Tabs: operasional harian vs laporan vs pengaturan -->
-      <div class="tabs-container">
-        <div class="tabs-nav" role="tablist" aria-label="Modul Inventaris">
-          <button type="button" @click="switchMainTab('operasional')" :class="['tab-btn', { active: mainTab === 'operasional' }]">
-            <span>Operasional</span>
+      <div class="tab-shell">
+        <nav class="section-nav" role="tablist" aria-label="Modul Inventaris">
+          <button type="button" @click="switchMainTab('operasional')" :class="['sec-btn', { active: mainTab === 'operasional' }]">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-label">Operasional</span>
           </button>
-          <button type="button" @click="switchMainTab('laporan')" :class="['tab-btn', { active: mainTab === 'laporan' }]">
-            <span>Laporan</span>
+          <button type="button" @click="switchMainTab('laporan')" :class="['sec-btn', { active: mainTab === 'laporan' }]">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V5a1 1 0 0 1 1-1h10l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2"/><path d="M14 4v5h5M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-label">Laporan</span>
           </button>
-          <button type="button" @click="switchMainTab('pengaturan')" :class="['tab-btn', { active: mainTab === 'pengaturan' }]">
-            <span>Pengaturan</span>
+          <button type="button" @click="switchMainTab('pengaturan')" :class="['sec-btn', { active: mainTab === 'pengaturan' }]">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-label">Pengaturan</span>
           </button>
-        </div>
+        </nav>
+        <div class="tab-main">
         <div v-if="mainTab === 'operasional'" class="sub-nav" role="tablist" aria-label="Operasional inventaris">
           <button type="button" :class="['sub-nav-btn', { active: activeTab === 'items' }]" @click="activeTab = 'items'">Barang</button>
           <button type="button" :class="['sub-nav-btn', { active: activeTab === 'transactions' }]" @click="activeTab = 'transactions'">Transaksi</button>
           <button type="button" :class="['sub-nav-btn', { active: activeTab === 'maintenances' }]" @click="activeTab = 'maintenances'">Pemeliharaan</button>
           <button type="button" :class="['sub-nav-btn', { active: activeTab === 'loans' }]" @click="activeTab = 'loans'">Peminjaman</button>
         </div>
-      </div>
 
       <!-- ITEMS TAB -->
       <div v-show="activeTab === 'items'" class="tab-content">
@@ -123,9 +125,9 @@
                 </td>
                 <td>
                   <div class="action-buttons">
-                    <button @click="openItemModal(it)" class="btn-action btn-edit" title="Edit">Edit</button>
-                    <button @click="openTransactionModal(it)" class="btn-action btn-secondary" title="Transaksi">Transaksi</button>
-                    <button @click="deleteItem(it)" class="btn-action btn-delete" title="Hapus">Hapus</button>
+                    <TableAction kind="edit" @click="openItemModal(it)" />
+                    <TableAction kind="transaction" @click="openTransactionModal(it)" />
+                    <TableAction kind="delete" @click="deleteItem(it)" />
                   </div>
                 </td>
               </tr>
@@ -211,8 +213,8 @@
                 </td>
                 <td>
                   <div class="action-buttons">
-                    <button @click="openCategoryModal(cat)" class="btn-action btn-edit">Edit</button>
-                    <button @click="deleteCategory(cat)" class="btn-action btn-delete">Hapus</button>
+                    <TableAction kind="edit" @click="openCategoryModal(cat)" />
+                    <TableAction kind="delete" @click="deleteCategory(cat)" />
                   </div>
                 </td>
               </tr>
@@ -396,7 +398,7 @@
                 <td>{{ m.cost != null ? formatCurrency(m.cost) : '-' }}</td>
                 <td>
                   <div class="action-buttons">
-                    <button @click="openMaintenanceModal(m)" class="btn-action btn-edit">Edit</button>
+                    <TableAction kind="edit" @click="openMaintenanceModal(m)" />
                   </div>
                 </td>
               </tr>
@@ -492,13 +494,11 @@
                 </td>
                 <td>
                   <div class="action-buttons">
-                    <button
+                    <TableAction
                       v-if="ln.status === 'Dipinjam'"
+                      kind="return"
                       @click="openReturnLoanModal(ln)"
-                      class="btn-action btn-secondary"
-                    >
-                      Kembalikan
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>
@@ -961,6 +961,8 @@
             </table>
           </div>
         </template>
+      </div>
+        </div>
       </div>
 
       <!-- ITEM MODAL -->
@@ -1463,6 +1465,7 @@ import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import TableAction from '@/components/TableAction.vue'
 
 const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
@@ -2548,49 +2551,62 @@ onMounted(async () => {
   background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 
-.tabs-container {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e5e7eb;
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
   margin-bottom: 24px;
 }
-
-.tabs-nav {
+.section-nav {
   display: flex;
+  flex-direction: column;
   gap: 4px;
-  padding: 8px;
-}
-
-.tab-btn {
-  flex: 1;
-  padding: 12px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  transition: all 0.2s ease;
-  border-radius: 12px;
-}
-
-.tab-btn:hover {
+  padding: 12px;
   background: #f8fafc;
-  color: #059669;
+  border-right: 1px solid #eef2f7;
 }
-
-.tab-btn.active {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
+}
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
 }
 
 .sub-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 0 8px 8px;
+  padding: 0 0 12px;
 }
 
 .sub-nav-btn {
@@ -2618,11 +2634,7 @@ onMounted(async () => {
 }
 
 .tab-content {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e5e7eb;
-  padding: 24px;
+  padding: 8px 0 0;
 }
 
 .tab-header {
@@ -2985,6 +2997,18 @@ onMounted(async () => {
 
 .text-right {
   text-align: right;
+}
+
+@media (max-width: 1024px) {
+  .tab-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-header .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 900px) {

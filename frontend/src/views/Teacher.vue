@@ -496,11 +496,19 @@
                       <p>Memuat daftar tugas tambahan...</p>
                     </div>
                     <div v-else class="module-grid">
-                      <label v-for="duty in availableAdditionalDuties" :key="duty.id" class="module-option">
+                      <label v-for="duty in operationalDuties" :key="duty.id" class="module-option">
                         <input type="checkbox" :value="duty.id" v-model="form.additional_duty_ids" />
                         <span>{{ duty.label }}</span>
                       </label>
                     </div>
+                    <div v-if="assignedStructuralDuties.length" class="structural-duties-readonly">
+                      <h5>Jabatan struktural</h5>
+                      <div class="module-grid">
+                        <span v-for="duty in assignedStructuralDuties" :key="'st-' + duty.id" class="permission-tag">{{ duty.label }}</span>
+                      </div>
+                      <p class="form-hint">Jabatan ini diatur di menu <router-link to="/kepegawaian">Cuti, SK &amp; Jabatan</router-link> agar akses modul ikut berubah.</p>
+                    </div>
+                    <p v-else class="form-hint">Jabatan struktural (Kepala Sekolah, Waka, dll.) ditetapkan di menu Cuti, SK &amp; Jabatan — bukan dicentang di sini.</p>
                     <div v-if="isKaprogDutySelected" class="form-section kaprog-programs-section">
                       <h5>Jurusan yang diampu (Kaprog)</h5>
                       <div v-if="loadingProgramKeahlian" class="info-box">
@@ -1233,12 +1241,8 @@
                     <td>{{ request.assignment_title || '-' }}</td>
                     <td>
                       <div class="action-buttons assignment-actions">
-                        <button type="button" @click="approveAssignment(request)" class="btn-approve-text" title="Setujui">
-                          Setujui
-                        </button>
-                        <button type="button" @click="rejectAssignment(request)" class="btn-reject-text" title="Tolak">
-                          Tolak
-                        </button>
+                        <TableAction kind="approve" @click="approveAssignment(request)" />
+                        <TableAction kind="reject" @click="rejectAssignment(request)" />
                       </div>
                     </td>
                   </tr>
@@ -1250,7 +1254,7 @@
       </div>
 
       <!-- Import Result Modal -->
-      <div v-if="showImportResultModal" class="modal-overlay" @click="closeImportResultModal">
+      <div v-if="showImportResultModal" class="modal-overlay">
         <div class="modal-content view-modal" @click.stop>
           <div class="modal-header">
             <h3>Hasil Import Guru</h3>
@@ -1324,6 +1328,9 @@
                 <li v-for="(error, index) in importResult.errors" :key="index">{{ error }}</li>
               </ul>
             </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-primary" @click="closeImportResultModal">Tutup</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1343,12 +1350,24 @@
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
     />
+    <AccountCredentialsModal
+      :show="!!accountCredentials"
+      :title="accountCredentials?.title"
+      :name="accountCredentials?.name"
+      :login-label="accountCredentials?.loginLabel || 'Email'"
+      :login-value="accountCredentials?.loginValue"
+      :password="accountCredentials?.password"
+      :hint="accountCredentials?.hint"
+      :items="accountCredentials?.items || []"
+      @close="accountCredentials = null"
+    />
   </Layout>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import TeacherFilters from '@/components/teacher/TeacherFilters.vue'
 import TeacherTable from '@/components/teacher/TeacherTable.vue'
 import TeacherTableSkeleton from '@/components/TeacherTableSkeleton.vue'
@@ -1364,6 +1383,7 @@ import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import * as XLSX from 'xlsx'
 
@@ -1374,6 +1394,25 @@ const availableAdditionalDuties = computed(() => {
   const duties = referenceStore.additionalDuties
   if (isVocationalLevel(getActiveInstitutionLevel(authStore))) return duties
   return duties.filter(d => !VOCATIONAL_DUTY_KEYS.includes(d.key))
+})
+const STRUCTURAL_DUTY_KEYS = [
+  'kepala_sekolah',
+  'waka_kurikulum',
+  'waka_kesiswaan',
+  'waka_sarpras',
+  'waka_humas',
+  'kepala_tata_usaha',
+  'bendahara',
+  'ketua_perpus',
+  'kepala_lab',
+  'kepala_program_keahlian',
+  'kepala_bengkel',
+]
+const isStructuralDuty = (duty) => duty?.is_structural === true || STRUCTURAL_DUTY_KEYS.includes(duty?.key)
+const operationalDuties = computed(() => availableAdditionalDuties.value.filter(d => !isStructuralDuty(d)))
+const assignedStructuralDuties = computed(() => {
+  const selected = (form.value.additional_duty_ids || []).map(Number)
+  return availableAdditionalDuties.value.filter(d => isStructuralDuty(d) && selected.includes(Number(d.id)))
 })
 const loadingAdditionalDuties = computed(() => referenceStore.additionalDutiesLoading)
 const kaprogDutyId = computed(() => {
@@ -1441,6 +1480,7 @@ const importResult = ref({
 const resetPasswordForm = ref({ password: '', password_confirmation: '' })
 const resetPasswordLoading = ref(false)
 const resetPasswordError = ref('')
+const accountCredentials = ref(null)
 
 const form = ref({
   type: 'Guru',
@@ -1939,35 +1979,45 @@ const handleSubmit = async () => {
     }
     // additional_duty_ids always sent for guru (backend merges with permissions)
 
+    const wasUpdate = !!editingId.value
     if (editingId.value) {
       response = await employeeApi.update(editingId.value, payload)
-      toast.success('Berhasil', 'Data guru berhasil diperbarui')
     } else {
       response = await employeeApi.create(payload)
-      toast.success('Berhasil', 'Guru berhasil ditambahkan')
       const newTeacher = response?.data?.data
       if (newTeacher && typeof newTeacher === 'object') {
         teachers.value = [newTeacher, ...teachers.value]
       }
     }
 
+    const employeeData = response?.data?.data
     const generatedPassword = response?.data?.generated_password
+    const createdEmail = employeeData?.email || employeeData?.user_account?.email || payload.email
+    const createdName = employeeData?.name || payload.name
+    const userConflict = response?.data?.user_conflict
+
+    closeModal()
+    await loadTeachers()
+
     if (generatedPassword) {
-      toast.success(
-        'Password Akun Guru',
-        `Password awal: ${generatedPassword}. Harap simpan dan ganti setelah login.`
-      )
+      accountCredentials.value = {
+        title: 'Akun login berhasil dibuat',
+        name: createdName,
+        loginLabel: 'Email',
+        loginValue: createdEmail,
+        password: generatedPassword,
+        hint: 'Sandi hanya ditampilkan sekali. Simpan lalu minta pegawai mengganti setelah login.',
+      }
+    } else {
+      toast.success('Berhasil', wasUpdate ? 'Data guru berhasil diperbarui' : 'Guru berhasil ditambahkan')
     }
 
-    const userConflict = response?.data?.user_conflict
     if (userConflict?.email && userConflict?.role) {
       toast.warning(
         'Perhatian',
         `Email ${userConflict.email} sudah digunakan akun role ${userConflict.role}.`
       )
     }
-    closeModal()
-    await loadTeachers()
   } catch (err) {
     const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
     error.value = errorMsg
@@ -2077,8 +2127,17 @@ const submitResetPassword = async () => {
       password,
       password_confirmation
     })
-    toast.success('Berhasil', 'Sandi berhasil direset. Beri tahu pegawai sandi baru secara aman dan sarankan ganti sandi setelah login.')
+    const resetEmail = viewingTeacher.value?.user_account?.email || viewingTeacher.value?.email
+    const resetName = viewingTeacher.value?.name
     closeResetPasswordModal()
+    accountCredentials.value = {
+      title: 'Sandi berhasil direset',
+      name: resetName,
+      loginLabel: 'Email',
+      loginValue: resetEmail,
+      password,
+      hint: 'Berikan sandi ini kepada pegawai secara aman. Sarankan ganti sandi setelah login.',
+    }
   } catch (err) {
     const msg = err.response?.data?.message || err.formattedMessage || 'Gagal reset sandi'
     resetPasswordError.value = msg
@@ -4197,6 +4256,14 @@ onMounted(() => {
   font-size: 12px;
 }
 
+.structural-duties-readonly {
+  margin-top: 12px;
+}
+
+.structural-duties-readonly h5 {
+  margin: 0 0 8px;
+}
+
 /* Education Section Styles */
 .education-section {
   margin-top: 20px;
@@ -4715,7 +4782,7 @@ onMounted(() => {
 @media (max-width: 1024px) {
   .header-content {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 12px;
   }
 
@@ -4726,6 +4793,13 @@ onMounted(() => {
 
   .toolbar-actions {
     justify-content: flex-start;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .action-buttons-group {
+    flex-wrap: wrap;
+    max-width: 100%;
   }
 
   .filter-select {

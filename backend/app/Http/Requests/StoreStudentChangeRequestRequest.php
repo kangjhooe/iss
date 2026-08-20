@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Student;
 use App\Models\StudentChangeRequest;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -46,7 +47,13 @@ class StoreStudentChangeRequestRequest extends FormRequest
                 }
                 break;
             case 'nis':
-                $rules['new_value'] = ['nullable', 'string', 'max:50'];
+                $institutionId = Student::whereKey($studentId)->value('institution_id');
+                $rules['new_value'] = [
+                    'nullable',
+                    'string',
+                    'max:50',
+                    \App\Services\LocalNisService::uniqueRule($institutionId ? (int) $institutionId : null, $studentId),
+                ];
                 break;
             case 'nisn':
                 $rules['new_value'] = [

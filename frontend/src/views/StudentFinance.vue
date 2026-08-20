@@ -156,14 +156,12 @@
                   <td>{{ methodLabel(row.method) }}</td>
                   <td>{{ row.reference || '—' }}</td>
                   <td>
-                    <button
-                      type="button"
-                      class="sp-btn sp-btn--soft sp-btn--sm"
+                    <TableAction
+                      kind="print"
+                      title="Kwitansi"
                       :disabled="receiptLoadingId === row.id"
                       @click="openReceipt(row)"
-                    >
-                      {{ receiptLoadingId === row.id ? 'Membuka...' : 'Kwitansi' }}
-                    </button>
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -177,14 +175,12 @@
               <div class="sp-mobile-card-row"><span>Nominal</span><strong>{{ formatRp(row.amount) }}</strong></div>
               <div class="sp-mobile-card-row"><span>Metode</span><strong>{{ methodLabel(row.method) }}</strong></div>
               <div class="sp-mobile-card-actions">
-                <button
-                  type="button"
-                  class="sp-btn sp-btn--soft sp-btn--sm"
+                <TableAction
+                  kind="print"
+                  title="Kwitansi PDF"
                   :disabled="receiptLoadingId === row.id"
                   @click="openReceipt(row)"
-                >
-                  {{ receiptLoadingId === row.id ? 'Membuka...' : 'Kwitansi PDF' }}
-                </button>
+                />
               </div>
             </article>
           </div>
@@ -201,6 +197,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { studentFinanceApi } from '@/api/finance'

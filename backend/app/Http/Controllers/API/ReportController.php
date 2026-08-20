@@ -244,15 +244,15 @@ class ReportController extends Controller
             $query->where('academic_year_id', $academicYearId);
         }
 
-        // Filter by month/year if provided (filter by created_at or updated_at)
+        // Stok siswa sampai akhir bulan (bukan hanya yang baru dibuat di bulan itu).
+        // Contoh: Juli 30 siswa + Agustus masuk 3 → Agustus = 33.
         if ($month && $year) {
-            $query->whereYear('created_at', $year)
-                ->whereMonth('created_at', $month);
+            $query->where('created_at', '<=', $this->endOfMonth((int) $year, (int) $month));
         }
 
         // Get students with class relationship
         // Load the relationship to SchoolClass via class_id
-        $students = $query->with(['class' => function($q) {
+        $students = $query->with(['schoolClass' => function ($q) {
             $q->select('id', 'grade', 'name');
         }])->get();
         
@@ -268,11 +268,10 @@ class ReportController extends Controller
         foreach ($students as $student) {
             $grade = null;
             
-            // Try to get grade from class relationship (SchoolClass model via class_id)
-            // The relationship method is 'class()' which returns SchoolClass
-            $schoolClass = $student->class; // This calls the relationship
+            // Relasi schoolClass() dipakai karena kolom string `class` bentrok dengan relasi class().
+            $schoolClass = $student->schoolClass;
             
-            if ($schoolClass && is_object($schoolClass) && property_exists($schoolClass, 'grade') && $schoolClass->grade !== null) {
+            if ($schoolClass && is_object($schoolClass) && isset($schoolClass->grade) && $schoolClass->grade !== null) {
                 $grade = (int)$schoolClass->grade;
             } else {
                 // Fallback: try to extract from class field (string field in student table)
@@ -541,17 +540,20 @@ class ReportController extends Controller
         ];
     }
 
-    /**
-     * Ensure snapshot exists for current month (on-demand). For past months use stored snapshot only.
-     */
-    private function ensureCurrentMonthSnapshot(int $institutionId, string $institutionLevel, $academicYearId, int $year, int $month): void
+    private function endOfMonth(int $year, int $month): Carbon
     {
-        $now = Carbon::now();
-        if ($year !== (int) $now->format('Y') || $month !== (int) $now->format('n')) {
-            return;
-        }
-        $byGrade = $this->getStudentsByGrade($institutionId, $institutionLevel, $academicYearId, null, null);
-        [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
+        return Carbon::createFromDate($year, $month, 1)->endOfMonth();
+    }
+
+    private function persistSnapshot(
+        int $institutionId,
+        $academicYearId,
+        int $year,
+        int $month,
+        array $byGrade,
+        int $minGrade,
+        int $maxGrade
+    ): void {
         for ($grade = $minGrade; $grade <= $maxGrade; $grade++) {
             $g = $byGrade['grade_' . $grade] ?? ['male' => 0, 'female' => 0, 'total' => 0];
             StudentCountSnapshot::updateOrCreate(
@@ -568,6 +570,33 @@ class ReportController extends Controller
                     'total' => $g['total'],
                 ]
             );
+        }
+    }
+
+    /**
+     * Snapshot bulan berjalan + bulan sebelumnya (on-demand) dari stok siswa aktual.
+     */
+    private function ensureCurrentMonthSnapshot(int $institutionId, string $institutionLevel, $academicYearId, int $year, int $month): void
+    {
+        $now = Carbon::now();
+        $isCurrentMonth = $year === (int) $now->format('Y') && $month === (int) $now->format('n');
+        [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
+
+        if ($isCurrentMonth) {
+            $byGrade = $this->getStudentsByGrade($institutionId, $institutionLevel, $academicYearId, $month, $year);
+            $this->persistSnapshot($institutionId, $academicYearId, $year, $month, $byGrade, $minGrade, $maxGrade);
+        }
+
+        $prevMonth = $month === 1 ? 12 : $month - 1;
+        $prevYear = $month === 1 ? $year - 1 : $year;
+        $prevHasCounts = StudentCountSnapshot::where('institution_id', $institutionId)
+            ->where('year', $prevYear)
+            ->where('month', $prevMonth)
+            ->where('total', '>', 0)
+            ->exists();
+        if (!$prevHasCounts) {
+            $prevByGrade = $this->getStudentsByGrade($institutionId, $institutionLevel, $academicYearId, $prevMonth, $prevYear);
+            $this->persistSnapshot($institutionId, $academicYearId, $prevYear, $prevMonth, $prevByGrade, $minGrade, $maxGrade);
         }
     }
 
@@ -650,6 +679,45 @@ class ReportController extends Controller
     }
 
     /**
+     * Jumlah Awal diturunkan dari stok akhir agar input Excel/manual tidak pecah rumus baris.
+     */
+    private function derivedJumlahAwal(array $akhir, array $keluar, array $masuk): array
+    {
+        $male = max(0, (int) ($akhir['male'] ?? 0) - (int) ($masuk['male'] ?? 0) + (int) ($keluar['male'] ?? 0));
+        $female = max(0, (int) ($akhir['female'] ?? 0) - (int) ($masuk['female'] ?? 0) + (int) ($keluar['female'] ?? 0));
+
+        return [
+            'male' => $male,
+            'female' => $female,
+            'total' => $male + $female,
+        ];
+    }
+
+    /**
+     * Stok siswa per kelas untuk suatu bulan. Pakai snapshot jika ada angka,
+     * jika tidak hitung dari siswa yang sudah ada sampai akhir bulan itu.
+     */
+    private function resolveStockByMonth(
+        int $institutionId,
+        string $institutionLevel,
+        $academicYearId,
+        int $year,
+        int $month
+    ): array {
+        $live = $this->getStudentsByGrade($institutionId, $institutionLevel, $academicYearId, $month, $year);
+        $snapshot = $this->getSnapshotByMonth($institutionId, $year, $month);
+        $snapshotTotal = 0;
+        foreach ($snapshot as $row) {
+            $snapshotTotal += (int) ($row['total'] ?? 0);
+        }
+        if ($snapshotTotal > 0) {
+            return $snapshot;
+        }
+
+        return $live;
+    }
+
+    /**
      * Build students table detail for report: Kls, Jumlah Rombel, Jumlah Awal (L,P,Jml), Siswa Keluar, Siswa Masuk, Jumlah Akhir (L,P,Jml).
      */
     private function getStudentsTableDetail(
@@ -661,11 +729,7 @@ class ReportController extends Controller
         int $month
     ): array {
         [$minGrade, $maxGrade] = $this->getGradeRange($institutionLevel);
-        $prevMonth = $month === 1 ? 12 : $month - 1;
-        $prevYear = $month === 1 ? $year - 1 : $year;
-
-        $jumlahAwal = $this->getSnapshotByMonth($institutionId, $prevYear, $prevMonth);
-        $jumlahAkhir = $this->getSnapshotByMonth($institutionId, $year, $month);
+        $jumlahAkhir = $this->resolveStockByMonth($institutionId, $institutionLevel, $academicYearId, $year, $month);
         $mutations = $this->getMutationsByMonth($institutionId, $year, $month);
         $keluar = $mutations['keluar'];
         $masuk = $mutations['masuk'];
@@ -676,10 +740,12 @@ class ReportController extends Controller
         for ($grade = $minGrade; $grade <= $maxGrade; $grade++) {
             $key = 'grade_' . $grade;
             $jmlRomb = isset($byGrade[$key]) ? count($byGrade[$key]) : 0;
-            $awal = $jumlahAwal[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
             $akhir = $jumlahAkhir[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
             $k = $keluar[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
             $m = $masuk[$key] ?? ['male' => 0, 'female' => 0, 'total' => 0];
+            // Input Excel/manual masuk ke Jumlah Awal. Hanya mutasi pindah yang menggerakkan Masuk/Keluar.
+            // Awal + Masuk - Keluar = Akhir
+            $awal = $this->derivedJumlahAwal($akhir, $k, $m);
             $rows[$key] = [
                 'grade' => $grade,
                 'jml_romb' => $jmlRomb,

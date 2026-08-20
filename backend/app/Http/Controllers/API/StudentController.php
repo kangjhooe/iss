@@ -153,6 +153,7 @@ class StudentController extends Controller
             'gender',
             'tingkat',
             'account_status',
+            'missing_nis',
             'sort_by',
             'sort_dir',
         ]);
@@ -247,12 +248,13 @@ class StudentController extends Controller
                 'message' => 'Siswa berhasil ditambahkan'
                     . ($account ? '. Akun login dibuat (NIK + tanggal lahir DDMMYYYY).' : ''),
                 'data' => new StudentResource($student->loadMissing('userAccount')),
-                'login_hint' => $account ? [
-                    'login' => 'NIK',
-                    'default_password' => 'Tanggal lahir (DDMMYYYY)',
-                    'must_change_password' => true,
-                ] : null,
+                'user_created' => (bool) $account,
+                'login_hint' => $account ? $this->studentAccountService->loginHintFor($student) : null,
             ], 201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Failed to create student', [
                 'error' => $e->getMessage(),
@@ -519,11 +521,7 @@ class StudentController extends Controller
                     : 'Akun login siswa sudah tersedia / diperbarui.',
                 'data' => new StudentResource($student),
                 'user_created' => $result['user_created'],
-                'login_hint' => [
-                    'login' => 'NIK',
-                    'default_password' => 'Tanggal lahir (DDMMYYYY)',
-                    'must_change_password' => true,
-                ],
+                'login_hint' => $this->studentAccountService->loginHintFor($student),
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
@@ -565,6 +563,7 @@ class StudentController extends Controller
                 'message' => 'Sandi berhasil direset ke tanggal lahir (DDMMYYYY). Siswa wajib ganti sandi saat login berikutnya.',
                 'data' => new StudentResource($student),
                 'must_change_password' => (bool) $account->must_change_password,
+                'login_hint' => $this->studentAccountService->loginHintFor($student),
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Siswa tidak ditemukan'], 404);

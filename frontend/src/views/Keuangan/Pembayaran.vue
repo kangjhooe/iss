@@ -75,8 +75,8 @@
                   <td>{{ methodLabel(row.method) }}</td>
                   <td>{{ row.reference || '—' }}</td>
                   <td>
-                    <button type="button" class="btn-action btn-edit" @click="printReceipt(row)">Kwitansi</button>
-                    <button type="button" class="btn-action btn-danger" @click="remove(row)">Hapus</button>
+                    <TableAction kind="print" title="Kwitansi" @click="printReceipt(row)" />
+                    <TableAction kind="delete" @click="remove(row)" />
                   </td>
                 </tr>
               </tbody>
@@ -156,6 +156,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { financeInvoiceApi, financePaymentApi } from '@/api/finance'
 import {

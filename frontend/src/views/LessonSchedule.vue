@@ -2,18 +2,39 @@
   <Layout>
     <div class="schedule-page">
       <div class="toolbar">
-        <div class="tabs">
-          <button v-if="isTeacher" :class="['tab', { active: activeTab === 'my' }]" @click="switchTab('my')">Jadwal Saya</button>
-          <button :class="['tab', { active: activeTab === 'template' }]" @click="switchTab('template')">1. Template Jadwal</button>
-          <button :class="['tab', { active: activeTab === 'byClass' }]" @click="switchTab('byClass')">2. Jadwal per Kelas</button>
-          <button :class="['tab', { active: activeTab === 'print' }]" @click="switchTab('print')">Cetak PDF</button>
-          <button :class="['tab', { active: activeTab === 'list' }]" @click="switchTab('list')">Daftar Slot</button>
-          <button :class="['tab', { active: activeTab === 'copy' }]" @click="switchTab('copy')">Copy Jadwal</button>
-        </div>
         <div class="toolbar-actions">
           <router-link to="/subject" class="btn-secondary btn-compact">Mata Pelajaran</router-link>
         </div>
       </div>
+
+      <div class="tab-shell">
+        <nav class="section-nav" role="tablist" aria-label="Modul Jadwal">
+          <button v-if="isTeacher" type="button" :class="['sec-btn', { active: activeTab === 'my' }]" @click="switchTab('my')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-label">Jadwal Saya</span>
+          </button>
+          <button type="button" :class="['sec-btn', { active: activeTab === 'template' }]" @click="switchTab('template')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Template</span><span class="sec-hint">Langkah 1</span></span>
+          </button>
+          <button type="button" :class="['sec-btn', { active: activeTab === 'byClass' }]" @click="switchTab('byClass')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Per Kelas</span><span class="sec-hint">Langkah 2</span></span>
+          </button>
+          <button type="button" :class="['sec-btn', { active: activeTab === 'print' }]" @click="switchTab('print')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2"/><path d="M18 14H6v8h12v-8z" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-label">Cetak PDF</span>
+          </button>
+          <button type="button" :class="['sec-btn', { active: activeTab === 'list' }]" @click="switchTab('list')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-label">Daftar Slot</span>
+          </button>
+          <button type="button" :class="['sec-btn', { active: activeTab === 'copy' }]" @click="switchTab('copy')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-label">Copy Jadwal</span>
+          </button>
+        </nav>
+        <div class="tab-main">
 
       <!-- Tab: Jadwal Saya -->
       <template v-if="activeTab === 'my'">
@@ -284,9 +305,9 @@
                     <div class="slot-subject">{{ getSlot(day.day_of_week, period).subject?.name }}</div>
                     <div class="slot-teacher">{{ getSlot(day.day_of_week, period).employee?.name }}</div>
                     <div class="slot-room" v-if="getSlot(day.day_of_week, period).room">{{ getSlot(day.day_of_week, period).room?.name }}</div>
-                    <button type="button" class="slot-edit-btn" @click="editSlotFromMatrix(getSlot(day.day_of_week, period))" title="Edit">✎</button>
+                    <TableAction kind="edit" @click="editSlotFromMatrix(getSlot(day.day_of_week, period))" />
                   </template>
-                  <button v-else type="button" class="slot-add-btn" @click="openAddSlotFor(day.day_of_week, period)" title="Tambah">+</button>
+                  <TableAction v-else kind="add" @click="openAddSlotFor(day.day_of_week, period)" />
                 </td>
               </tr>
             </tbody>
@@ -383,8 +404,8 @@
                 <td>{{ row.employee?.name || '-' }}</td>
                 <td>{{ row.room?.name || '—' }}</td>
                 <td>
-                  <button type="button" class="btn-action btn-edit" @click="editSlot(row)">Edit</button>
-                  <button type="button" class="btn-action btn-delete" @click="deleteSlot(row.id)">Hapus</button>
+                  <TableAction kind="edit" @click="editSlot(row)" />
+                  <TableAction kind="delete" @click="deleteSlot(row.id)" />
                 </td>
               </tr>
             </tbody>
@@ -424,6 +445,8 @@
           <p v-if="copyResult" class="copy-result">{{ copyResult }}</p>
         </div>
       </template>
+        </div>
+      </div>
 
       <!-- Modal slot -->
       <div v-if="showSlotModal" class="modal-overlay" @click="closeSlotModal">
@@ -490,6 +513,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { subjectApi } from '@/api/subject'
 import { classApi } from '@/api/class'
@@ -1324,11 +1348,60 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.toolbar .tabs { margin-bottom: 0; }
-.toolbar-actions { display: flex; gap: 0.5rem; }
-.tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.tab { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; cursor: pointer; }
-.tab.active { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; border-color: #059669; }
+.toolbar-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
+}
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
+}
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.sec-hint { font-size: 11px; font-weight: 500; color: #94a3b8; }
+.sec-btn.active .sec-hint { color: #059669; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
+  .sec-hint { display: none; }
+}
 .filters-inline { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 6px; min-width: 160px; }
 .filter-select:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
@@ -1488,12 +1561,6 @@ onMounted(async () => {
     flex-direction: column;
     align-items: stretch;
     gap: 0.75rem;
-  }
-
-  .tabs {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap;
   }
 
   .filter-select {

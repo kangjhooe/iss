@@ -276,26 +276,22 @@
       </div>
 
       <!-- Main tabs: Permohonan | Laporan | Riwayat per guru -->
-      <div class="main-tabs">
-        <button :class="['main-tab', { active: activeTabMain === 'permohonan' }]" @click="activeTabMain = 'permohonan'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Permohonan</span>
+      <div class="tab-shell">
+      <nav class="section-nav" role="tablist" aria-label="Modul Mutasi Guru">
+        <button type="button" :class="['sec-btn', { active: activeTabMain === 'permohonan' }]" @click="activeTabMain = 'permohonan'">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="sec-label">Permohonan</span>
         </button>
-        <button :class="['main-tab', { active: activeTabMain === 'laporan' }]" @click="activeTabMain = 'laporan'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 17V7M15 17V12M21 21H3V3H21V21ZM5 19H19V5H5V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Laporan</span>
+        <button type="button" :class="['sec-btn', { active: activeTabMain === 'laporan' }]" @click="activeTabMain = 'laporan'">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 17V7M15 17V12M21 21H3V3H21V21ZM5 19H19V5H5V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="sec-label">Laporan</span>
         </button>
-        <button :class="['main-tab', { active: activeTabMain === 'riwayat' }]" @click="activeTabMain = 'riwayat'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Riwayat per Guru</span>
+        <button type="button" :class="['sec-btn', { active: activeTabMain === 'riwayat' }]" @click="activeTabMain = 'riwayat'">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="sec-label">Riwayat per Guru</span>
         </button>
-      </div>
+      </nav>
+      <div class="tab-main">
 
       <!-- Section: Permohonan -->
       <template v-if="activeTabMain === 'permohonan'">
@@ -762,6 +758,8 @@
           <p v-else-if="historyLoaded && historyList.length === 0" class="text-muted">Tidak ada riwayat mutasi untuk NIK ini.</p>
         </div>
       </template>
+      </div>
+      </div>
 
       <!-- Approve Modal -->
       <div v-if="showApproveModal" class="modal-overlay" @click="showApproveModal = false">
@@ -1950,37 +1948,55 @@ onMounted(async () => {
   border-radius: 6px;
 }
 
-.main-tabs {
-  display: flex;
-  gap: 8px;
+.tab-shell {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
   margin-bottom: 24px;
-  padding: 6px;
-  background: #f1f5f9;
-  border-radius: 12px;
-  width: fit-content;
 }
-.main-tab {
-  display: inline-flex;
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
   border: none;
-  border-radius: 8px;
   background: transparent;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 14px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  color: #64748b;
+  text-align: left;
 }
-.main-tab:hover {
-  color: #475569;
-  background: rgba(255, 255, 255, 0.8);
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
 }
-.main-tab.active {
-  color: #fff;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
 }
 
 .report-section, .history-section {
@@ -2827,6 +2843,23 @@ onMounted(async () => {
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary,
+  .header-actions .btn-compact {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 768px) {
   .page-header {
     padding: 18px;
@@ -2838,18 +2871,6 @@ onMounted(async () => {
   }
   .header-icon { width: 28px; height: 28px; }
   .page-title { font-size: 22px; }
-  .header-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .main-tabs {
-    width: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding: 6px 8px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .main-tab { white-space: nowrap; padding: 8px 14px; font-size: 13px; }
   .mutations-list {
     grid-template-columns: 1fr;
   }

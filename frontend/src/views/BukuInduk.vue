@@ -649,7 +649,24 @@ onMounted(() => load())
   font-size: 0.95rem;
 }
 .header-actions {
-  flex-shrink: 0;
+  flex-shrink: 1;
+}
+
+@media (max-width: 1024px) {
+  .header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .btn-primary.btn-compact {

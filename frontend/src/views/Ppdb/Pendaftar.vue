@@ -105,12 +105,12 @@
                   <td><span :class="['pay-badge', 'pay-' + (a.payment_status || 'unpaid')]">{{ paymentStatusLabels[a.payment_status] || 'Belum bayar' }}</span></td>
                   <td>{{ a.documents_verified ? '✓' : '-' }}</td>
                 <td>
-                  <router-link :to="`/ppdb/pendaftar/${a.id}`" class="btn-action btn-edit">Detail</router-link>
+                  <TableAction kind="view" :to="`/ppdb/pendaftar/${a.id}`" title="Detail" />
                   <button v-if="canSetResult(a)" type="button" class="btn-action btn-edit" @click="openResultModal(a)">Hasil</button>
                   <button v-if="canConfirmReReg(a)" type="button" class="btn-action btn-edit" @click="doConfirmReReg(a)">Daftar Ulang</button>
                   <button v-if="canConvertToStudent(a)" type="button" class="btn-action btn-primary-sm" @click="openConvertModal(a)">Jadikan Siswa</button>
-                  <button type="button" class="btn-action btn-edit" @click="openApplicantModal(a)">Edit</button>
-                  <button type="button" class="btn-action btn-delete" @click="confirmDeleteApplicant(a)">Hapus</button>
+                  <TableAction kind="edit" @click="openApplicantModal(a)" />
+                  <TableAction kind="delete" @click="confirmDeleteApplicant(a)" />
                 </td>
               </tr>
             </tbody>
@@ -353,6 +353,16 @@
       </div>
 
       <ConfirmDialog v-if="deleteApplicantTarget" :show="!!deleteApplicantTarget" title="Hapus Calon" message="Yakin menghapus data calon ini?" confirmText="Hapus" @confirm="doDeleteApplicant" @cancel="deleteApplicantTarget = null" />
+      <AccountCredentialsModal
+        :show="!!accountCredentials"
+        :title="accountCredentials?.title"
+        :name="accountCredentials?.name"
+        :login-label="accountCredentials?.loginLabel || 'NIK'"
+        :login-value="accountCredentials?.loginValue"
+        :password="accountCredentials?.password"
+        :hint="accountCredentials?.hint"
+        @close="accountCredentials = null"
+      />
     </div>
   </Layout>
 </template>
@@ -361,11 +371,14 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { ppdbPeriodApi, ppdbChannelApi, ppdbApplicantApi } from '@/api/ppdb'
 import { classApi } from '@/api/class'
 import { useToast } from '@/composables/useToast'
+import { studentLoginCredentials } from '@/utils/accountCredentials'
 import {
   statusApplicantLabels,
   paymentStatusLabels,
@@ -377,6 +390,7 @@ import {
 import './ppdb.css'
 
 const toast = useToast()
+const accountCredentials = ref(null)
 const route = useRoute()
 const router = useRouter()
 
@@ -748,10 +762,20 @@ async function submitConvert() {
     const res = await ppdbApplicantApi.convertToStudent(convertTarget.value.id, {
       class_id: convertForm.value.class_id || undefined,
     })
-    toast.success(res.data?.message || 'Calon berhasil dijadikan siswa')
     showConvertModal.value = false
+    const creds = studentLoginCredentials({
+      name: convertTarget.value.name,
+      nik: convertTarget.value.nik,
+      birth_date: convertTarget.value.birth_date,
+    }, res.data?.login_hint)
     convertTarget.value = null
     loadApplicants()
+    if (creds) {
+      creds.title = 'Akun login siswa dibuat'
+      accountCredentials.value = creds
+    } else {
+      toast.success(res.data?.message || 'Calon berhasil dijadikan siswa')
+    }
   } catch (e) {
     convertFormError.value = e.formattedMessage || 'Gagal menjadikan siswa'
   } finally {

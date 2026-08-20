@@ -2578,6 +2578,11 @@ watch(() => route.query.is_active, async () => {
     width: 100%;
   }
 
+  .action-buttons-group .btn-add {
+    width: 100%;
+    justify-content: center;
+  }
+
   .filters-inline {
     flex-direction: column;
     overflow: visible;

@@ -64,6 +64,7 @@ class Institution extends Model
         'location_radius',
         'teacher_appreciation_leaderboard_mode',
         'admission_label',
+        'nis_numbering',
     ];
 
     public const ADMISSION_LABEL_DEFAULT = 'PPDB';
@@ -118,6 +119,7 @@ class Institution extends Model
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
             'location_radius' => 'integer',
+            'nis_numbering' => 'array',
         ];
     }
 

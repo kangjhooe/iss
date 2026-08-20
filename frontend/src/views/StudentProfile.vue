@@ -18,23 +18,49 @@
 
       <template v-else>
         <section class="hero-card">
-          <div class="hero-avatar" aria-hidden="true">{{ initials }}</div>
-          <div class="hero-body">
-            <div v-if="loadingProfile" class="hero-loading">Memuat profil...</div>
-            <template v-else>
-              <h2 class="hero-name">{{ student?.name || 'Siswa' }}</h2>
-              <p class="hero-meta">
-                <span v-if="classLabel">{{ classLabel }}</span>
-                <span v-if="classLabel && student?.institution?.name" class="hero-dot">·</span>
-                <span v-if="student?.institution?.name">{{ student.institution.name }}</span>
-              </p>
-              <div class="hero-tags">
-                <span v-if="student?.nis" class="hero-tag">NIS {{ student.nis }}</span>
-                <span v-if="student?.nisn" class="hero-tag">NISN {{ student.nisn }}</span>
-                <span v-if="student?.status" class="hero-tag">{{ student.status }}</span>
+          <div v-if="loadingProfile" class="hero-loading">Memuat profil...</div>
+          <template v-else>
+              <div class="hero-top">
+                <div class="hero-avatar" aria-hidden="true">{{ initials }}</div>
+                <div>
+                  <h2 class="hero-name">{{ student?.name || 'Siswa' }}</h2>
+                  <p class="hero-meta">
+                    <span v-if="classLabel">{{ classLabel }}</span>
+                    <span v-if="classLabel && student?.institution?.name" class="hero-dot">·</span>
+                    <span v-if="student?.institution?.name">{{ student.institution.name }}</span>
+                  </p>
+                </div>
+              </div>
+              <div v-if="student?.nis || student?.nisn || student?.status" class="meta-grid">
+                <div v-if="student?.nis" class="meta-item">
+                  <span class="meta-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  </span>
+                  <div class="meta-body">
+                    <span class="meta-label">NIS</span>
+                    <span class="meta-value">{{ student.nis }}</span>
+                  </div>
+                </div>
+                <div v-if="student?.nisn" class="meta-item">
+                  <span class="meta-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/></svg>
+                  </span>
+                  <div class="meta-body">
+                    <span class="meta-label">NISN</span>
+                    <span class="meta-value">{{ student.nisn }}</span>
+                  </div>
+                </div>
+                <div v-if="student?.status" class="meta-item">
+                  <span class="meta-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <div class="meta-body">
+                    <span class="meta-label">Status</span>
+                    <span class="meta-value">{{ student.status }}</span>
+                  </div>
+                </div>
               </div>
             </template>
-          </div>
         </section>
 
         <div class="content-grid">
@@ -803,25 +829,35 @@ onMounted(async () => {
   border: 1px solid #fde68a; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
 }
 .hero-card {
-  display: flex; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 0;
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; margin-bottom: 0;
   border-radius: 16px; background: linear-gradient(120deg, #0d9488 0%, #059669 50%, #047857 100%);
   color: #fff; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
 }
+.hero-top { display: flex; align-items: center; gap: 16px; }
 .hero-avatar {
   width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;
   font-size: 18px; font-weight: 700; flex-shrink: 0;
 }
-.hero-body { min-width: 0; flex: 1; }
 .hero-loading { opacity: 0.85; font-style: italic; font-size: 14px; }
 .hero-name { margin: 0 0 4px; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
-.hero-meta { margin: 0 0 10px; font-size: 13px; opacity: 0.92; font-weight: 500; }
+.hero-meta { margin: 0; font-size: 13px; opacity: 0.92; font-weight: 500; }
 .hero-dot { margin: 0 6px; opacity: 0.7; }
-.hero-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.hero-tag {
-  font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 999px;
-  background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22);
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.2);
 }
+.meta-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.meta-icon {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: rgba(255,255,255,0.16); color: #fff;
+}
+.meta-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
+.meta-value { font-size: 13.5px; font-weight: 600; color: #fff; line-height: 1.35; word-break: break-word; }
 .content-grid {
   display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
   gap: 16px; align-items: start;
@@ -928,5 +964,6 @@ onMounted(async () => {
   .panel { padding: 16px; }
   .request-values { grid-template-columns: 1fr; }
   .value-arrow { display: none; }
+  .meta-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>

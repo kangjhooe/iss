@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Models\AdditionalDuty;
+use App\Services\StructuralDutySync;
 use App\Support\VocationalAccess;
 use Illuminate\Http\Request;
 
@@ -31,13 +32,15 @@ class AdditionalDutyController extends Controller
 
         $duties = $query->get();
 
-        $data = $duties->map(function (AdditionalDuty $duty) {
+        $structural = app(StructuralDutySync::class);
+        $data = $duties->map(function (AdditionalDuty $duty) use ($structural) {
             return [
                 'id' => $duty->id,
                 'key' => $duty->key,
                 'label' => $duty->label,
                 'description' => $duty->description,
                 'sort_order' => $duty->sort_order,
+                'is_structural' => $structural->isKey($duty->key),
                 'permission_keys' => $duty->permissions->pluck('key')->values()->all(),
             ];
         });

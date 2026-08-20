@@ -99,6 +99,16 @@ class Student extends Model
     }
 
     /**
+     * Siswa yang belum punya NIS lokal.
+     */
+    public function scopeMissingNis($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('nis')->orWhere('nis', '');
+        });
+    }
+
+    /**
      * Get the institution that owns the student.
      */
     public function institution()

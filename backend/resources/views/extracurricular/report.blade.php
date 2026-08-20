@@ -101,7 +101,13 @@
             text-transform: uppercase;
             font-size: 7.5px;
         }
-        .num { text-align: center; }
+        table.data tr.group-row td {
+            background: #e2e8f0;
+            font-weight: bold;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
         .right { text-align: right; }
         .muted { color: #64748b; }
         table.matrix th, table.matrix td { font-size: 7.5px; padding: 3px 2px; }
@@ -133,6 +139,8 @@
         $sessions = $data['sessions'] ?? [];
         $matrixSessions = $data['attendance_matrix']['sessions'] ?? [];
         $matrixRows = $data['attendance_matrix']['rows'] ?? [];
+        $attendanceGroups = \App\Support\StudentRosterSort::groupRows($matrixRows);
+        $perStudentGroups = \App\Support\StudentRosterSort::groupRows($perStudent);
         $instName = $institution->name ?? 'Institusi';
         $instAddr = collect([
             $institution->address ?? null,
@@ -264,21 +272,27 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($matrixRows as $i => $r)
-                    <tr>
-                        <td class="num">{{ $i + 1 }}</td>
-                        <td>{{ $r['name'] ?? '—' }}</td>
-                        <td>{{ $r['class']['name'] ?? '—' }}</td>
-                        @foreach($matrixSessions as $s)
-                            @php $st = $r['statuses'][(string) $s['id']] ?? null; @endphp
-                            <td class="num st-{{ $st ?: 'empty' }}">{{ $st ? ($statusCode[$st] ?? substr($st, 0, 1)) : '-' }}</td>
-                        @endforeach
-                        <td class="num">{{ $r['hadir'] ?? 0 }}</td>
-                        <td class="num">{{ $r['izin'] ?? 0 }}</td>
-                        <td class="num">{{ $r['sakit'] ?? 0 }}</td>
-                        <td class="num">{{ $r['alpha'] ?? 0 }}</td>
-                        <td class="num">{{ isset($r['hadir_pct']) ? $r['hadir_pct'] : '—' }}</td>
+                @php $no = 1; @endphp
+                @foreach($attendanceGroups as $group)
+                    <tr class="group-row">
+                        <td colspan="{{ 8 + count($matrixSessions) }}">Kelas {{ $group['name'] }} ({{ count($group['rows']) }} siswa)</td>
                     </tr>
+                    @foreach($group['rows'] as $r)
+                        <tr>
+                            <td class="num">{{ $no++ }}</td>
+                            <td>{{ $r['name'] ?? '—' }}</td>
+                            <td>{{ $r['class']['name'] ?? '—' }}</td>
+                            @foreach($matrixSessions as $s)
+                                @php $st = $r['statuses'][(string) $s['id']] ?? null; @endphp
+                                <td class="num st-{{ $st ?: 'empty' }}">{{ $st ? ($statusCode[$st] ?? substr($st, 0, 1)) : '-' }}</td>
+                            @endforeach
+                            <td class="num">{{ $r['hadir'] ?? 0 }}</td>
+                            <td class="num">{{ $r['izin'] ?? 0 }}</td>
+                            <td class="num">{{ $r['sakit'] ?? 0 }}</td>
+                            <td class="num">{{ $r['alpha'] ?? 0 }}</td>
+                            <td class="num">{{ isset($r['hadir_pct']) ? $r['hadir_pct'] : '—' }}</td>
+                        </tr>
+                    @endforeach
                 @endforeach
             </tbody>
         </table>
@@ -289,6 +303,7 @@
         $gradeMatrix = $data['grade_matrix'] ?? ['sessions' => [], 'rows' => []];
         $gradeSessions = $gradeMatrix['sessions'] ?? [];
         $gradeRows = $gradeMatrix['rows'] ?? [];
+        $gradeGroups = \App\Support\StudentRosterSort::groupRows($gradeRows);
     @endphp
     <div class="section-title">3. Rekap Nilai per Pertemuan ({{ count($gradeRows) }} peserta × {{ count($gradeSessions) }} pertemuan)</div>
     @if(count($gradeSessions) === 0 || count($gradeRows) === 0)
@@ -312,20 +327,26 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($gradeRows as $i => $r)
-                    <tr>
-                        <td class="num">{{ $i + 1 }}</td>
-                        <td>{{ $r['name'] ?? '—' }}</td>
-                        <td>{{ $r['class']['name'] ?? '—' }}</td>
-                        @foreach($gradeSessions as $s)
-                            @php $sc = $r['scores'][(string) $s['id']] ?? null; @endphp
-                            <td class="num">{{ $sc !== null ? $sc : '-' }}</td>
-                        @endforeach
-                        <td class="num">{{ $r['graded_sessions'] ?? 0 }}</td>
-                        <td class="num">{{ $r['average'] ?? '—' }}</td>
-                        <td class="num">{{ $r['score'] ?? '—' }}</td>
-                        <td class="num">{{ $r['predicate'] ?? '—' }}</td>
+                @php $no = 1; @endphp
+                @foreach($gradeGroups as $group)
+                    <tr class="group-row">
+                        <td colspan="{{ 7 + count($gradeSessions) }}">Kelas {{ $group['name'] }} ({{ count($group['rows']) }} siswa)</td>
                     </tr>
+                    @foreach($group['rows'] as $r)
+                        <tr>
+                            <td class="num">{{ $no++ }}</td>
+                            <td>{{ $r['name'] ?? '—' }}</td>
+                            <td>{{ $r['class']['name'] ?? '—' }}</td>
+                            @foreach($gradeSessions as $s)
+                                @php $sc = $r['scores'][(string) $s['id']] ?? null; @endphp
+                                <td class="num">{{ $sc !== null ? $sc : '-' }}</td>
+                            @endforeach
+                            <td class="num">{{ $r['graded_sessions'] ?? 0 }}</td>
+                            <td class="num">{{ $r['average'] ?? '—' }}</td>
+                            <td class="num">{{ $r['score'] ?? '—' }}</td>
+                            <td class="num">{{ $r['predicate'] ?? '—' }}</td>
+                        </tr>
+                    @endforeach
                 @endforeach
             </tbody>
         </table>
@@ -354,20 +375,26 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($perStudent as $i => $r)
-                    <tr>
-                        <td class="num">{{ $i + 1 }}</td>
-                        <td>{{ $r['name'] ?? '—' }}</td>
-                        <td>{{ $r['nis'] ?? '—' }}</td>
-                        <td>{{ $r['class']['name'] ?? '—' }}</td>
-                        <td class="num">{{ $r['hadir'] ?? 0 }}</td>
-                        <td class="num">{{ $r['izin'] ?? 0 }}</td>
-                        <td class="num">{{ $r['sakit'] ?? 0 }}</td>
-                        <td class="num">{{ $r['alpha'] ?? 0 }}</td>
-                        <td class="num">{{ isset($r['hadir_pct']) ? $r['hadir_pct'].'%' : '—' }}</td>
-                        <td class="num">{{ $r['score'] ?? '—' }}</td>
-                        <td class="num">{{ $r['predicate'] ?? '—' }}</td>
+                @php $no = 1; @endphp
+                @foreach($perStudentGroups as $group)
+                    <tr class="group-row">
+                        <td colspan="11">Kelas {{ $group['name'] }} ({{ count($group['rows']) }} siswa)</td>
                     </tr>
+                    @foreach($group['rows'] as $r)
+                        <tr>
+                            <td class="num">{{ $no++ }}</td>
+                            <td>{{ $r['name'] ?? '—' }}</td>
+                            <td>{{ $r['nis'] ?? '—' }}</td>
+                            <td>{{ $r['class']['name'] ?? '—' }}</td>
+                            <td class="num">{{ $r['hadir'] ?? 0 }}</td>
+                            <td class="num">{{ $r['izin'] ?? 0 }}</td>
+                            <td class="num">{{ $r['sakit'] ?? 0 }}</td>
+                            <td class="num">{{ $r['alpha'] ?? 0 }}</td>
+                            <td class="num">{{ isset($r['hadir_pct']) ? $r['hadir_pct'].'%' : '—' }}</td>
+                            <td class="num">{{ $r['score'] ?? '—' }}</td>
+                            <td class="num">{{ $r['predicate'] ?? '—' }}</td>
+                        </tr>
+                    @endforeach
                 @endforeach
             </tbody>
         </table>

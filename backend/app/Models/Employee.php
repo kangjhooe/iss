@@ -223,6 +223,15 @@ class Employee extends Model
             ->withTimestamps();
     }
 
+    public function activeAdditionalDuties()
+    {
+        return $this->additionalDuties()
+            ->where(function ($query) {
+                $query->whereNull('employee_additional_duties.ended_at')
+                    ->orWhere('employee_additional_duties.ended_at', '>', now());
+            });
+    }
+
     /**
      * Program keahlian yang diampu sebagai Kaprog.
      */

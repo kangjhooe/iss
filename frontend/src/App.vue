@@ -337,23 +337,60 @@ input, textarea, select {
   }
 }
 
-/* Responsive Action Buttons — jangan paksa column (bentrok dengan module-page.css) */
-@media (max-width: 768px) {
-  .action-buttons-group {
+/* Header + tombol aksi: stack di tablet agar tidak terpotong overflow/sidebar */
+@media (max-width: 1024px) {
+  .page-header .header-content,
+  .main-content .header-content {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .page-header .header-content > *,
+  .main-content .header-content > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .page-header .action-buttons-group,
+  .page-header .header-actions,
+  .main-content .page-header .action-buttons-group,
+  .main-content .page-header .header-actions {
     width: 100% !important;
-    gap: 8px !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
     flex-wrap: wrap !important;
+    flex-shrink: 1 !important;
+  }
+
+  .page-header .action-buttons-group .btn-compact,
+  .page-header .action-buttons-group .btn-add,
+  .page-header .header-actions > a,
+  .page-header .header-actions > button,
+  .page-header .header-content > .btn-primary,
+  .page-header .header-content > .btn-secondary,
+  .page-header .header-content > .btn-header {
+    min-width: 0;
+  }
+
+  .main-content .toolbar,
+  .main-content .tab-header,
+  .main-content .header-row {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .main-content .toolbar-actions,
+  .main-content .toolbar .header-actions,
+  .main-content .tab-header .btn-add,
+  .main-content .tab-header > .btn-primary {
+    max-width: 100%;
+    flex-shrink: 1;
   }
 }
 
-/* Responsive Page Headers */
 @media (max-width: 768px) {
-  .page-header .header-content {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 16px !important;
-  }
-
   .page-header h2 {
     font-size: var(--fs-title) !important;
   }

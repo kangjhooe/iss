@@ -196,8 +196,8 @@
                     <span v-if="d.year_entered" class="dest-item-year">{{ d.year_entered }}</span>
                   </div>
                   <div class="dest-item-actions">
-                    <button type="button" class="btn-icon btn-edit" @click="editDestination(d)" title="Ubah">✎</button>
-                    <button type="button" class="btn-icon btn-del" @click="confirmDeleteDest(d)" title="Hapus">⌫</button>
+                    <TableAction kind="edit" title="Ubah" @click="editDestination(d)" />
+                    <TableAction kind="delete" @click="confirmDeleteDest(d)" />
                   </div>
                 </div>
               </div>
@@ -294,6 +294,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { alumniApi } from '@/api/alumni'

@@ -285,11 +285,43 @@
 
       <!-- ========== DETAIL ========== -->
       <template v-else-if="viewMode === 'detail'">
-        <div v-if="detail" class="detail-meta">
-          <span class="meta-chip">{{ detailFilterLabel }}</span>
-          <span class="meta-chip">{{ detail.total }} pelanggaran</span>
-          <span class="meta-chip meta-good">{{ detail.achievements_total ?? detail.achievements?.length ?? 0 }} prestasi</span>
-          <span v-if="detail.truncated" class="meta-chip meta-warn">Ditampilkan maks. 2000 baris</span>
+        <div v-if="detail" class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Periode</span>
+              <span class="meta-value">{{ detailFilterLabel }}</span>
+            </div>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon meta-icon-warn" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Pelanggaran</span>
+              <span class="meta-value">{{ detail.total }} catatan</span>
+            </div>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10l-1.5 8.5a5 5 0 0 1-7 0L7 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Prestasi</span>
+              <span class="meta-value">{{ detail.achievements_total ?? detail.achievements?.length ?? 0 }} catatan</span>
+            </div>
+          </div>
+          <div v-if="detail.truncated" class="meta-item">
+            <span class="meta-icon meta-icon-warn" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </span>
+            <div class="meta-body">
+              <span class="meta-label">Catatan</span>
+              <span class="meta-value">Ditampilkan maks. 2000 baris</span>
+            </div>
+          </div>
         </div>
 
         <div class="nav-tabs-wrap">
@@ -332,17 +364,22 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(row, idx) in detail.by_student" :key="row.student_id ?? idx">
-                    <td>{{ idx + 1 }}</td>
-                    <td>{{ row.nis || '—' }}</td>
-                    <td>{{ row.student_name || '—' }}</td>
-                    <td>{{ row.class_name }}</td>
-                    <td class="td-num">{{ row.violation_count }}</td>
-                    <td class="td-num">{{ row.violation_points ?? row.total_points }}</td>
-                    <td class="td-num td-good">{{ row.achievement_count ?? 0 }}</td>
-                    <td class="td-num td-good">−{{ row.achievement_points ?? 0 }}</td>
-                    <td class="td-num td-total" :class="scoreClass(row.score)">{{ row.score ?? ((row.violation_points ?? row.total_points) - (row.achievement_points ?? 0)) }}</td>
-                  </tr>
+                  <template v-for="group in bkStudentGroups" :key="'bk-' + group.key">
+                    <tr class="group-row">
+                      <td colspan="9">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
+                    </tr>
+                    <tr v-for="(row, i) in group.rows" :key="row.student_id ?? (group.key + '-' + i)">
+                      <td>{{ group.start + i + 1 }}</td>
+                      <td>{{ row.nis || '—' }}</td>
+                      <td>{{ row.student_name || '—' }}</td>
+                      <td>{{ row.class_name }}</td>
+                      <td class="td-num">{{ row.violation_count }}</td>
+                      <td class="td-num">{{ row.violation_points ?? row.total_points }}</td>
+                      <td class="td-num td-good">{{ row.achievement_count ?? 0 }}</td>
+                      <td class="td-num td-good">−{{ row.achievement_points ?? 0 }}</td>
+                      <td class="td-num td-total" :class="scoreClass(row.score)">{{ row.score ?? ((row.violation_points ?? row.total_points) - (row.achievement_points ?? 0)) }}</td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
@@ -462,6 +499,22 @@ const summaryTab = ref('class')
 const detailTab = ref('students')
 const report = ref(null)
 const detail = ref(null)
+function groupRowsByClassName(rows) {
+  const groups = []
+  let current = null
+  let index = 0
+  for (const row of rows || []) {
+    const name = row.class_name || 'Tanpa kelas'
+    if (!current || current.name !== name) {
+      current = { key: name, name, rows: [], start: index }
+      groups.push(current)
+    }
+    current.rows.push(row)
+    index += 1
+  }
+  return groups
+}
+const bkStudentGroups = computed(() => groupRowsByClassName(detail.value?.by_student || []))
 const classes = ref([])
 const semesters = ref([])
 const institution = ref(null)
@@ -711,13 +764,15 @@ function buildPrintBodyHtml() {
   if (viewMode.value === 'detail') {
     if (!detail.value) return '<p>Tidak ada data.</p>'
 
-    const studentRows = (detail.value.by_student || []).map((row, idx) => {
-      const vPts = row.violation_points ?? row.total_points ?? 0
-      const aPts = row.achievement_points ?? 0
-      const score = row.score ?? (vPts - aPts)
-      return `
+    const studentRows = (bkStudentGroups.value || []).flatMap((group) => {
+      const header = `<tr class="group-row"><td colspan="9">Kelas ${escapeHtml(group.name)} (${group.rows.length} siswa)</td></tr>`
+      const body = group.rows.map((row, i) => {
+        const vPts = row.violation_points ?? row.total_points ?? 0
+        const aPts = row.achievement_points ?? 0
+        const score = row.score ?? (vPts - aPts)
+        return `
       <tr>
-        <td>${idx + 1}</td>
+        <td>${group.start + i + 1}</td>
         <td>${escapeHtml(row.nis || '—')}</td>
         <td>${escapeHtml(row.student_name || '—')}</td>
         <td>${escapeHtml(row.class_name)}</td>
@@ -727,6 +782,8 @@ function buildPrintBodyHtml() {
         <td class="num">−${escapeHtml(aPts)}</td>
         <td class="num"><strong>${escapeHtml(score)}</strong></td>
       </tr>`
+      }).join('')
+      return header + body
     }).join('') || '<tr><td colspan="9">Belum ada data</td></tr>'
 
     const listRows = (detail.value.items || []).map((row) => `
@@ -926,6 +983,7 @@ function printPdf() {
     table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 8px; }
     th, td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
     th { background: #eee; font-size: 10px; text-transform: uppercase; }
+    tr.group-row td { background: #e2e8f0; font-weight: 700; text-transform: none; }
     td.num, th.num { text-align: right; }
     .stats { display: flex; gap: 8px; margin-bottom: 12px; }
     .stat { flex: 1; border: 1px solid #333; padding: 8px; text-align: center; }
@@ -1204,28 +1262,26 @@ onMounted(async () => {
   margin-top: 0.15rem;
 }
 .report-section { margin-top: 0.5rem; }
-.detail-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 12px;
   margin-bottom: 1rem;
-}
-.meta-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.35rem 0.75rem;
+  padding: 0.9rem 1rem;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #334155;
+  border-radius: 12px;
 }
-.meta-warn {
-  border-color: #fde68a;
-  background: #fffbeb;
-  color: #92400e;
+.meta-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.meta-icon {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #ecfdf5; color: #059669;
 }
+.meta-icon-warn { background: #fff7ed; color: #c2410c; }
+.meta-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; }
+.meta-value { font-size: 13.5px; font-weight: 600; color: #0f172a; line-height: 1.35; word-break: break-word; }
+@media (max-width: 768px) { .meta-grid { grid-template-columns: 1fr 1fr; } }
 .table-card {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -1253,6 +1309,14 @@ onMounted(async () => {
   letter-spacing: 0.03em;
 }
 .data-table tbody tr:hover { background: #f8fafc; }
+.group-row td {
+  background: #f1f5f9;
+  font-weight: 700;
+  font-size: 12px;
+  color: #334155;
+  text-transform: none;
+  letter-spacing: 0;
+}
 .row-clickable { cursor: pointer; }
 .row-clickable:hover { background: #eff6ff !important; }
 .th-num, .td-num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -1265,11 +1329,6 @@ onMounted(async () => {
   margin: 0 0 0.75rem;
   font-size: 0.85rem;
   color: #64748b;
-}
-.meta-good {
-  background: #ecfdf5;
-  color: #047857;
-  border-color: #a7f3d0;
 }
 .td-action { text-align: right; }
 .link-btn {

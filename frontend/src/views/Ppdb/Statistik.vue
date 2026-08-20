@@ -44,6 +44,12 @@
             <p class="empty-stats-msg">Belum ada calon peserta didik pada periode ini.</p>
           </template>
           <template v-else>
+            <div class="charts-grid">
+              <AppChart title="Per status" type="doughnut" :chart-data="statusChart" />
+              <AppChart title="Kuota vs pendaftar" type="bar" :chart-data="channelChart" :options="chartOptionsBarGrouped" />
+              <AppChart class="charts-span" title="Pendaftar per hari" type="line" :chart-data="dailyChart" />
+            </div>
+
             <div class="stats-section">
               <h4>Per Status</h4>
               <div v-if="Object.keys(statsData.by_status || {}).length" class="stats-grid">
@@ -94,8 +100,10 @@
 import { ref, computed, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import AppChart from '@/components/AppChart.vue'
 import { ppdbPeriodApi, ppdbChannelApi } from '@/api/ppdb'
 import { useToast } from '@/composables/useToast'
+import { doughnutFromEntries, lineFromSeries, chartOptionsBarGrouped, CHART_PALETTE } from '@/composables/useChart'
 import { statusApplicantLabels } from './ppdbConstants'
 import './ppdb.css'
 
@@ -116,6 +124,49 @@ const channelRows = computed(() => {
     const pct = quota ? Math.round((count / quota) * 100) : 0
     return { ...row, quota, pct }
   })
+})
+
+const statusChart = computed(() => {
+  const byStatus = statsData.value?.by_status || {}
+  return doughnutFromEntries(
+    Object.entries(byStatus).map(([key, count], i) => ({
+      label: statusApplicantLabels[key] || key,
+      value: count,
+      color: CHART_PALETTE[i % CHART_PALETTE.length],
+    }))
+  )
+})
+
+const channelChart = computed(() => {
+  const rows = channelRows.value
+  if (!rows.length) return null
+  return {
+    labels: rows.map((r) => r.channel_name),
+    datasets: [
+      {
+        label: 'Pendaftar',
+        data: rows.map((r) => r.count),
+        backgroundColor: '#059669',
+        borderRadius: 4,
+      },
+      {
+        label: 'Kuota',
+        data: rows.map((r) => r.quota || 0),
+        backgroundColor: '#94a3b8',
+        borderRadius: 4,
+      },
+    ],
+  }
+})
+
+const dailyChart = computed(() => {
+  const rows = statsData.value?.by_day || []
+  if (!rows.length) return null
+  return lineFromSeries(
+    rows.map((r) => r.date),
+    rows.map((r) => r.count),
+    'Pendaftar'
+  )
 })
 
 async function loadPeriods() {
@@ -190,5 +241,16 @@ onMounted(async () => {
   font-size: 0.72rem;
   font-weight: 700;
   color: #1e293b;
+}
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.charts-span { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+  .charts-grid { grid-template-columns: 1fr; }
+  .charts-span { grid-column: auto; }
 }
 </style>

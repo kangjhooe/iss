@@ -1357,6 +1357,24 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
+@media (max-width: 1024px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-actions .btn-primary,
+  .toolbar-actions .btn-compact {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 768px) {
   .data-table th,
   .data-table td {

@@ -790,19 +790,27 @@ onMounted(() => {
   border-color: #cbd5e0;
 }
 
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .action-buttons-group {
+    width: 100%;
+  }
+
+  .action-buttons-group .btn-add,
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .btn-primary {
-    width: 100%;
   }
 }
 </style>

@@ -1,53 +1,38 @@
 <template>
   <Layout>
     <div class="facility-page">
-      <!-- Tabs Navigation -->
-      <div class="tabs-container">
-        <div class="tabs-nav">
-          <button 
-            @click="activeTab = 'land'" 
-            :class="['tab-btn', { active: activeTab === 'land' }]"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5304 5.21071 21.0391 5.58579 21.4142C5.96086 21.7893 6.46957 22 7 22H17C17.5304 22 18.0391 21.7893 18.4142 21.4142C18.7893 21.0391 19 20.5304 19 20V10M19 10L21 12M19 10L12 3L5 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Data Tanah</span>
+      <div class="tab-shell">
+        <nav class="section-nav" role="tablist" aria-label="Sarana prasarana">
+          <button type="button" @click="activeTab = 'land'" :class="['sec-btn', { active: activeTab === 'land' }]">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5304 5.21071 21.0391 5.58579 21.4142C5.96086 21.7893 6.46957 22 7 22H17C17.5304 22 18.0391 21.7893 18.4142 21.4142C18.7893 21.0391 19 20.5304 19 20V10M19 10L21 12M19 10L12 3L5 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-label">Data Tanah</span>
           </button>
-          <button 
-            @click="activeTab = 'building'" 
-            :class="['tab-btn', { active: activeTab === 'building' }]"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 21H21M5 21V7L13 2V7M5 21H19M19 21V11M9 9V13M13 9V13M17 9V13M9 17V21M13 17V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Data Gedung</span>
+          <button type="button" @click="activeTab = 'building'" :class="['sec-btn', { active: activeTab === 'building' }]">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 21H21M5 21V7L13 2V7M5 21H19M19 21V11M9 9V13M13 9V13M17 9V13M9 17V21M13 17V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-label">Data Gedung</span>
           </button>
-          <button 
-            @click="activeTab = 'room'" 
-            :class="['tab-btn', { active: activeTab === 'room' }]"
+          <button type="button" @click="activeTab = 'room'" :class="['sec-btn', { active: activeTab === 'room' }]">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-label">Data Ruangan</span>
+          </button>
+        </nav>
+        <div class="tab-main">
+        <div class="tab-toolbar">
+          <button
+            type="button"
+            class="btn-secondary btn-compact"
+            :disabled="exportingPdf"
+            title="Cetak laporan sarana prasarana (PDF)"
+            @click="exportPdf"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>Data Ruangan</span>
+            <span>{{ exportingPdf ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
           </button>
         </div>
-        <button
-          type="button"
-          class="btn-secondary btn-compact"
-          :disabled="exportingPdf"
-          title="Cetak laporan sarana prasarana (PDF)"
-          @click="exportPdf"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>{{ exportingPdf ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
-        </button>
-      </div>
 
       <!-- Tab Content: Land -->
       <div v-show="activeTab === 'land'" class="tab-content">
@@ -365,6 +350,8 @@
               <span>Tambah Ruangan</span>
             </button>
           </div>
+        </div>
+      </div>
         </div>
       </div>
 
@@ -1261,27 +1248,56 @@ onMounted(() => {
   background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
 
-.tabs-container {
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
+  margin-bottom: 24px;
+}
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e5e7eb;
-  margin-bottom: 24px;
-  padding-right: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
 }
-
-.tabs-nav {
-  display: flex;
-  gap: 4px;
-  padding: 8px;
-  border-bottom: none;
-  flex: 1;
-  min-width: 0;
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+.tab-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
 }
 
 .btn-compact {
@@ -1295,42 +1311,8 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.tab-btn {
-  flex: 1;
-  padding: 14px 24px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: #64748b;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 8px 8px 0 0;
-}
-
-.tab-btn:hover {
-  color: #059669;
-  background: #f8fafc;
-}
-
-.tab-btn.active {
-  color: #059669;
-  border-bottom-color: #059669;
-  font-weight: 600;
-  background: linear-gradient(to bottom, rgba(5, 150, 105, 0.06), transparent);
-}
-
 .tab-content {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e5e7eb;
-  padding: 24px;
+  padding: 0;
 }
 
 .tab-header {
@@ -1751,6 +1733,18 @@ onMounted(() => {
 .btn-danger:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .tab-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-header .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {

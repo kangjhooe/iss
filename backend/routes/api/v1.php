@@ -18,6 +18,7 @@ use App\Http\Controllers\API\LabBookingController;
 use App\Http\Controllers\API\LabUsageJournalController;
 use App\Http\Controllers\API\FeedbackTicketController;
 use App\Http\Controllers\API\FinanceDashboardController;
+use App\Http\Controllers\API\DashboardChartsController;
 use App\Http\Controllers\API\FinanceFeeTypeController;
 use App\Http\Controllers\API\FinanceInvoiceController;
 use App\Http\Controllers\API\FinancePaymentController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\API\InstitutionController;
 use App\Http\Controllers\API\ReportController;
 use App\Http\Controllers\API\SemesterController;
 use App\Http\Controllers\API\StudentController;
+use App\Http\Controllers\API\StudentNisController;
 use App\Http\Controllers\API\BukuIndukController;
 use App\Http\Controllers\API\AlumniController;
 use App\Http\Controllers\API\AlumniDestinationController;
@@ -255,6 +257,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     Route::get('/audit-logs/filter-options', [AuditLogController::class, 'filterOptions'])->name('audit-logs.filter-options');
     Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->name('audit-logs.export');
+    Route::get('/dashboard/charts', [DashboardChartsController::class, 'index'])->name('dashboard.charts');
 
     // Institution routes
     Route::middleware('module:institution')->group(function () {
@@ -277,10 +280,16 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/student', [StudentController::class, 'index']);
         Route::get('/student/export', [StudentController::class, 'export'])->name('student.export');
         Route::get('/student/account-status', [StudentController::class, 'accountStatus'])->name('student.account-status');
+        Route::get('/student/nis-numbering', [StudentNisController::class, 'show'])->name('student.nis-numbering.show');
+        Route::put('/student/nis-numbering', [StudentNisController::class, 'update'])->name('student.nis-numbering.update');
+        Route::post('/student/nis-numbering', [StudentNisController::class, 'update'])->name('student.nis-numbering.update-post');
+        Route::post('/student/generate-nis/preview', [StudentNisController::class, 'previewGenerate'])->name('student.generate-nis.preview');
+        Route::post('/student/generate-nis', [StudentNisController::class, 'generateBulk'])->name('student.generate-nis.bulk');
         Route::post('/student', [StudentController::class, 'store']);
         Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
         Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
         Route::post('/student/ensure-accounts-bulk', [StudentController::class, 'ensureAccountsBulk'])->name('student.ensure-accounts-bulk');
+        Route::post('/student/{id}/generate-nis', [StudentNisController::class, 'generateOne'])->name('student.generate-nis.one');
         Route::post('/student/graduate-bulk', [AlumniController::class, 'graduateBulk']);
         Route::post('/student/revoke-graduation-bulk', [AlumniController::class, 'revokeGraduationBulk']);
         Route::get('/alumni', [AlumniController::class, 'index']);
@@ -625,10 +634,16 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::put('/employee-attendances/{employee_attendance}', [EmployeeAttendanceController::class, 'update'])->name('employee-attendances.update');
     });
 
-    // QR Code Attendance
+    // QR Code Attendance: generate/cetak kartu (TU/admin), scan juga untuk guru mapel
     Route::middleware('module:attendance')->group(function () {
         Route::get('/qr-attendance/student/{student}/generate', [QrAttendanceController::class, 'generateStudentQr'])->name('qr-attendance.student.generate');
         Route::get('/qr-attendance/employee/{employee}/generate', [QrAttendanceController::class, 'generateEmployeeQr'])->name('qr-attendance.employee.generate');
+        Route::post('/qr-attendance/students/generate-bulk', [QrAttendanceController::class, 'generateStudentBulk'])->name('qr-attendance.student.generate-bulk');
+        Route::post('/qr-attendance/employees/generate-bulk', [QrAttendanceController::class, 'generateEmployeeBulk'])->name('qr-attendance.employee.generate-bulk');
+        Route::get('/qr-attendance/students/print-pdf', [QrAttendanceController::class, 'printStudentPdf'])->name('qr-attendance.student.print-pdf');
+        Route::get('/qr-attendance/employees/print-pdf', [QrAttendanceController::class, 'printEmployeePdf'])->name('qr-attendance.employee.print-pdf');
+    });
+    Route::middleware('module:attendance|teaching_journal')->group(function () {
         Route::post('/qr-attendance/scan', [QrAttendanceController::class, 'scanQrAttendance'])->name('qr-attendance.scan');
     });
 

@@ -32,13 +32,31 @@ class ExamParticipantResource extends JsonResource
             'score_released' => (bool) $this->score_released,
             'status' => $this->status,
             'created_at' => $this->created_at->toIso8601String(),
-            'student' => $this->whenLoaded('student', fn () => $this->student ? [
-                'id' => $this->student->id,
-                'name' => $this->student->name,
-                'nis' => $this->student->nis,
-                'nisn' => $this->student->nisn,
-                'email' => $this->student->email,
-            ] : null),
+            'student' => $this->whenLoaded('student', function () {
+                if (!$this->student) {
+                    return null;
+                }
+                $class = null;
+                if ($this->student->relationLoaded('class')) {
+                    $related = $this->student->getRelation('class');
+                    if ($related instanceof \App\Models\SchoolClass) {
+                        $class = [
+                            'id' => (int) $related->id,
+                            'name' => $related->name,
+                            'grade' => $related->grade !== null ? (int) $related->grade : null,
+                        ];
+                    }
+                }
+
+                return [
+                    'id' => $this->student->id,
+                    'name' => $this->student->name,
+                    'nis' => $this->student->nis,
+                    'nisn' => $this->student->nisn,
+                    'email' => $this->student->email,
+                    'class' => $class,
+                ];
+            }),
         ];
     }
 }

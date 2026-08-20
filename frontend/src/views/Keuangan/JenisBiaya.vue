@@ -85,8 +85,8 @@
                     </span>
                   </td>
                   <td>
-                    <button type="button" class="btn-action btn-edit" @click="openModal(row)">Edit</button>
-                    <button type="button" class="btn-action btn-danger" @click="remove(row)">Hapus</button>
+                    <TableAction kind="edit" @click="openModal(row)" />
+                    <TableAction kind="delete" @click="remove(row)" />
                   </td>
                 </tr>
               </tbody>
@@ -156,6 +156,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { financeFeeTypeApi } from '@/api/finance'
 import {

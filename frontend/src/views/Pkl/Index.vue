@@ -74,9 +74,9 @@
               <td>{{ p.placements_count ?? 0 }}</td>
               <td><span class="status-chip">{{ p.status }}</span></td>
               <td>
-                <button type="button" class="btn-link" @click="openPeriodModal(p)">Edit</button>
+                <TableAction kind="edit" @click="openPeriodModal(p)" />
                 <button type="button" class="btn-link" @click="tab = 'placements'; placementFilters.pkl_period_id = String(p.id); loadPlacements()">Penempatan</button>
-                <button type="button" class="btn-link danger" @click="removePeriod(p)">Hapus</button>
+                <TableAction kind="delete" @click="removePeriod(p)" />
               </td>
             </tr>
           </tbody>
@@ -134,8 +134,8 @@
               <td>
                 <button type="button" class="btn-link" @click="openMonitoring(item)">Monitor</button>
                 <button type="button" class="btn-link" @click="openJournals(item)">Jurnal</button>
-                <button type="button" class="btn-link" @click="openPlacementModal(item)">Edit</button>
-                <button type="button" class="btn-link danger" @click="removePlacement(item)">Hapus</button>
+                <TableAction kind="edit" @click="openPlacementModal(item)" />
+                <TableAction kind="delete" @click="removePlacement(item)" />
               </td>
             </tr>
           </tbody>
@@ -296,7 +296,7 @@
                 <span v-if="log.logged_by"> · {{ log.logged_by.name }}</span>
                 <p>{{ log.notes || '—' }}</p>
               </div>
-              <button type="button" class="btn-link danger" @click="removeMonitoring(log)">Hapus</button>
+              <TableAction kind="delete" @click="removeMonitoring(log)" />
             </li>
             <li v-if="!monitoringLogs.length" class="empty-inline">Belum ada catatan monitoring.</li>
           </ul>
@@ -339,6 +339,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { pklApi } from '@/api/pkl'
 import { industryPartnersApi } from '@/api/industryPartners'
 import { studentApi } from '@/api/student'

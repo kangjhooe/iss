@@ -36,48 +36,36 @@
         </div>
       </div>
 
-      <div class="nav-tabs-wrap">
-        <nav class="nav-tabs" aria-label="Navigasi modul Guru Piket">
-          <button type="button" :class="['nav-tab', { active: tab === 'hub' }]" @click="tab = 'hub'">
-            <span class="nav-tab-label">Hari Ini</span>
-            <span class="nav-tab-hint">Ringkasan & roster</span>
+      <div class="tab-shell">
+      <nav class="section-nav" aria-label="Navigasi modul Guru Piket">
+          <button type="button" :class="['sec-btn', { active: tab === 'hub' }]" @click="tab = 'hub'">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Hari Ini</span><span class="sec-hint">Ringkasan & roster</span></span>
           </button>
-          <button type="button" :class="['nav-tab', { active: tab === 'schedule' }]" @click="switchTab('schedule')">
-            <span class="nav-tab-label">Jadwal</span>
-            <span class="nav-tab-hint">Roster mingguan</span>
+          <button type="button" :class="['sec-btn', { active: tab === 'schedule' }]" @click="switchTab('schedule')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Jadwal</span><span class="sec-hint">Roster mingguan</span></span>
           </button>
-          <button type="button" :class="['nav-tab', { active: tab === 'logs' }]" @click="switchTab('logs')">
-            <span class="nav-tab-label">Log Kegiatan</span>
-            <span class="nav-tab-hint">Ringkasan tugas piket</span>
+          <button type="button" :class="['sec-btn', { active: tab === 'logs' }]" @click="switchTab('logs')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Log Kegiatan</span><span class="sec-hint">Ringkasan tugas piket</span></span>
           </button>
-          <button type="button" :class="['nav-tab', { active: tab === 'monitor' }]" @click="switchTab('monitor')">
-            <span class="nav-tab-label">
-              Kejadian
-              <span v-if="dashboard?.open_incidents" class="tab-badge">{{ dashboard.open_incidents }}</span>
-            </span>
-            <span class="nav-tab-hint">Lapor & tindak lanjut</span>
+          <button type="button" :class="['sec-btn', { active: tab === 'monitor' }]" @click="switchTab('monitor')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Kejadian</span><span class="sec-hint">Lapor & tindak lanjut</span></span>
+            <span v-if="dashboard?.open_incidents" class="sec-badge">{{ dashboard.open_incidents }}</span>
           </button>
-          <button
-            v-if="canViewReport"
-            type="button"
-            :class="['nav-tab', { active: tab === 'report' }]"
-            @click="tab = 'report'"
-          >
-            <span class="nav-tab-label">Laporan</span>
-            <span class="nav-tab-hint">Mingguan &amp; bulanan</span>
+          <button v-if="canViewReport" type="button" :class="['sec-btn', { active: tab === 'report' }]" @click="tab = 'report'">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Laporan</span><span class="sec-hint">Mingguan & bulanan</span></span>
           </button>
-          <button
-            v-if="canManage"
-            type="button"
-            :class="['nav-tab', { active: tab === 'settings' }]"
-            @click="switchTab('settings')"
-          >
-            <span class="nav-tab-label">Pengaturan</span>
-            <span class="nav-tab-hint">Ambang & opsi</span>
+          <button v-if="canManage" type="button" :class="['sec-btn', { active: tab === 'settings' }]" @click="switchTab('settings')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-text"><span class="sec-label">Pengaturan</span><span class="sec-hint">Ambang & opsi</span></span>
           </button>
-        </nav>
+      </nav>
+      <div class="tab-main">
         <p class="tab-description">{{ tabDescription }}</p>
-      </div>
 
       <p v-if="error" class="error-banner">{{ error }}</p>
       <p v-if="success" class="success-banner">{{ success }}</p>
@@ -261,8 +249,8 @@
                     <td>{{ formatTimeRange(s.start_time, s.end_time) }}</td>
                     <td v-if="canManage">
                       <div class="action-buttons">
-                        <button type="button" class="btn-action btn-edit" title="Edit" @click="openScheduleModal(s)">✎</button>
-                        <button type="button" class="btn-action btn-delete" title="Hapus" @click="removeSchedule(s)">🗑</button>
+                        <TableAction kind="edit" @click="openScheduleModal(s)" />
+                        <TableAction kind="delete" @click="removeSchedule(s)" />
                       </div>
                     </td>
                   </tr>
@@ -337,16 +325,14 @@
                   </td>
                   <td>
                     <div class="action-buttons">
-                      <button type="button" class="btn-sm" @click="openLogModal(log)">Edit</button>
-                      <button
+                      <TableAction kind="edit" @click="openLogModal(log)" />
+                      <TableAction
                         v-if="canManage && log.status !== 'reviewed'"
-                        type="button"
-                        class="btn-sm btn-success"
+                        kind="approve"
+                        title="Review"
                         @click="reviewLog(log)"
-                      >
-                        Review
-                      </button>
-                      <button type="button" class="btn-sm btn-danger" @click="removeLog(log)">Hapus</button>
+                      />
+                      <TableAction kind="delete" @click="removeLog(log)" />
                     </div>
                   </td>
                 </tr>
@@ -794,6 +780,8 @@
           </div>
         </template>
       </main>
+      </div>
+      </div>
     </div>
 
     <!-- Schedule modal -->
@@ -1157,6 +1145,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { piketApi } from '@/api/piket'
 import { useAuthStore } from '@/stores/auth'
 
@@ -2233,67 +2222,60 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.nav-tabs-wrap { margin-bottom: 1rem; }
-.nav-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+.tab-shell {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.4rem;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
+  margin-bottom: 1rem;
 }
-.nav-tab {
-  display: inline-flex;
+.section-nav {
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  flex: 1;
-  min-width: 120px;
-  padding: 0.55rem 0.9rem;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
   background: transparent;
+  border-radius: 10px;
   cursor: pointer;
-  text-align: left;
-  color: #475569;
-  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
-}
-.nav-tab:hover { background: #f1f5f9; color: #0f172a; }
-.nav-tab.active {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
-}
-.nav-tab-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.3;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.nav-tab-hint {
-  font-size: 0.7rem;
-  opacity: 0.85;
-  margin-top: 0.15rem;
   color: #64748b;
+  text-align: left;
 }
-.nav-tab.active .nav-tab-hint { color: rgba(255, 255, 255, 0.92); }
-.tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.25rem;
-  height: 1.25rem;
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  background: #f59e0b;
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
 }
-.nav-tab.active .tab-badge {
-  background: rgba(255, 255, 255, 0.25);
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.sec-hint { font-size: 11px; font-weight: 500; color: #94a3b8; }
+.sec-btn.active .sec-hint { color: #059669; }
+.sec-badge { background: #f97316; color: #fff; border-radius: 999px; font-size: 0.7rem; padding: 0.1rem 0.4rem; font-weight: 700; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
+  .sec-hint { display: none; }
 }
 .tab-description {
   margin: 0.75rem 0 0;
@@ -2307,11 +2289,7 @@ onMounted(async () => {
 }
 
 .page-main {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
-  padding: 1.25rem 1.5rem;
+  padding: 0;
 }
 
 .stat-cards {
@@ -3210,8 +3188,7 @@ onMounted(async () => {
     padding: 1rem;
     padding-bottom: calc(1rem + 80px);
   }
-  .page-main { padding: 1rem; }
-  .nav-tab { min-width: calc(50% - 0.35rem); flex: 1 1 calc(50% - 0.35rem); }
+  .page-main { padding: 0; }
   .form-row { grid-template-columns: 1fr; }
   .report-form-top { flex-direction: column; }
   .day-checkboxes { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -27,7 +27,11 @@ class ExamParticipantController extends Controller
         if ($exam_session->exam->institution_id != $this->resolveInstitutionId($request)) {
             return response()->json(['message' => 'Sesi ujian tidak ditemukan.'], 404);
         }
-        $participants = $exam_session->participants()->with(['student', 'examSession.exam.institution'])->orderByRaw('COALESCE(participant_order, 999999) ASC')->orderBy('id')->get();
+        $participants = $exam_session->participants()
+            ->with(['student.class', 'examSession.exam.institution'])
+            ->orderByRaw('COALESCE(participant_order, 999999) ASC')
+            ->orderBy('id')
+            ->get();
         return ExamParticipantResource::collection($participants);
     }
 

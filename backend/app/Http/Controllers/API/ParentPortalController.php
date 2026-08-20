@@ -173,12 +173,13 @@ class ParentPortalController extends Controller
                 $request->query('date_to') ?: null
             );
 
+            $statusOf = fn ($row) => strtolower((string) (is_array($row) ? ($row['status'] ?? '') : ''));
             $summary = [
                 'total' => $history->count(),
-                'hadir' => $history->where('status', 'Hadir')->count(),
-                'izin' => $history->where('status', 'Izin')->count(),
-                'sakit' => $history->where('status', 'Sakit')->count(),
-                'alpha' => $history->where('status', 'Alpha')->count(),
+                'hadir' => $history->filter(fn ($row) => $statusOf($row) === 'hadir')->count(),
+                'izin' => $history->filter(fn ($row) => $statusOf($row) === 'izin')->count(),
+                'sakit' => $history->filter(fn ($row) => $statusOf($row) === 'sakit')->count(),
+                'alpha' => $history->filter(fn ($row) => in_array($statusOf($row), ['alpha', 'alpa'], true))->count(),
             ];
 
             return response()->json([

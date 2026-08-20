@@ -155,6 +155,19 @@ class PpdbPeriodController extends Controller
             ->values()
             ->all();
 
+        $byDay = $ppdb_period->applicants()
+            ->get(['created_at', 'submitted_at'])
+            ->map(function ($row) {
+                $at = $row->submitted_at ?: $row->created_at;
+                return $at ? \Carbon\Carbon::parse($at)->toDateString() : null;
+            })
+            ->filter()
+            ->countBy()
+            ->sortKeys()
+            ->map(fn ($count, $date) => ['date' => $date, 'count' => (int) $count])
+            ->values()
+            ->all();
+
         return response()->json([
             'data' => [
                 'period' => [
@@ -164,6 +177,7 @@ class PpdbPeriodController extends Controller
                 'total' => $total,
                 'by_status' => $byStatus,
                 'by_channel' => $byChannel,
+                'by_day' => $byDay,
             ],
         ]);
     }

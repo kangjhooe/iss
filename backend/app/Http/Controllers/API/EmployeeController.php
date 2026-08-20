@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Support\InstitutionContext;
 use App\Support\TeacherAccess;
 use App\Support\VocationalAccess;
+use App\Services\StructuralDutySync;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,6 +27,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EmployeeController extends Controller
 {
+    public function __construct(
+        protected StructuralDutySync $structuralDutySync
+    ) {}
+
     /**
      * Display a listing of employees (guru/staff).
      *
@@ -103,7 +108,7 @@ class EmployeeController extends Controller
                 $query->where('employment_status', $request->employment_status);
             }
 
-            $perPage = min($request->get('per_page', 15), 100); // Max 100 per page
+            $perPage = min($request->get('per_page', 15), 500);
             $relations = ['institution:id,name'];
             if ($institutionId) {
                 $relations['assignments'] = function ($assignmentQuery) use ($institutionId) {
@@ -114,7 +119,8 @@ class EmployeeController extends Controller
 
             $employees = $query->select(['id', 'institution_id', 'nik', 'type', 'nip', 'nuptk', 'name', 'gender', 'subject', 'status', 'employment_status', 'notes', 'created_at'])
                 ->with($relations)
-                ->orderBy('created_at', 'desc')
+                ->orderBy('type')
+                ->orderBy('name')
                 ->paginate($perPage);
 
             if ($institutionId) {
@@ -449,8 +455,12 @@ class EmployeeController extends Controller
                 }
             }
 
-            // Sync additional duties (tugas tambahan)
-            $employee->additionalDuties()->sync($additionalDutyIds);
+            // Sync additional duties (tugas tambahan); jabatan struktural ikut dari Kepegawaian.
+            $additionalDutyIds = $this->structuralDutySync->applyDutyIds(
+                $employee,
+                $additionalDutyIds,
+                (int) $request->user()->id
+            );
             $this->syncKaprogPrograms($employee, $additionalDutyIds, $programKeahlianIds);
 
             $effectivePermissionKeys = $this->getEffectivePermissionKeys($employee, $permissionKeys);
@@ -662,7 +672,11 @@ class EmployeeController extends Controller
 
             // Sync additional duties (tugas tambahan) if provided
             if ($additionalDutyIds !== null) {
-                $employee->additionalDuties()->sync($additionalDutyIds);
+                $additionalDutyIds = $this->structuralDutySync->applyDutyIds(
+                    $employee,
+                    $additionalDutyIds,
+                    (int) $request->user()->id
+                );
             }
             if ($additionalDutyIds !== null || $programKeahlianIds !== null) {
                 $dutyIdsForKaprog = $additionalDutyIds !== null
@@ -1357,8 +1371,9 @@ class EmployeeController extends Controller
         if ($employee->type === 'Guru') {
             $manual = TeacherAccess::mergeTeachingDefaults($manual);
         }
-        $employee->load('additionalDuties.permissions');
-        $fromDuties = $employee->additionalDuties->flatMap(fn ($d) => $d->permissions->pluck('key'))->unique()->values()->all();
+        $employee->unsetRelation('additionalDuties');
+        $employee->load('activeAdditionalDuties.permissions');
+        $fromDuties = $employee->activeAdditionalDuties->flatMap(fn ($d) => $d->permissions->pluck('key'))->unique()->values()->all();
 
         return array_values(array_unique(array_merge($manual, $fromDuties)));
     }

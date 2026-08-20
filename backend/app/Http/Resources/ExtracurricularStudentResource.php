@@ -32,6 +32,7 @@ class ExtracurricularStudentResource extends JsonResource
                 'class' => $classModel ? [
                     'id' => $classModel->id,
                     'name' => $classModel->name,
+                    'grade' => $classModel->grade !== null ? (int) $classModel->grade : null,
                 ] : null,
             ] : null,
             'academic_year_id' => $this->academic_year_id,

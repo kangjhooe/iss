@@ -55,6 +55,9 @@
       </div>
 
       <div v-else class="sp-panel attendance-panel">
+        <div class="chart-solo">
+          <AppChart title="Komposisi kehadiran" type="doughnut" :chart-data="attendanceChart" />
+        </div>
         <div class="sp-table-wrap sp-table-desktop">
           <table class="sp-table">
             <thead>
@@ -112,7 +115,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import AppChart from '@/components/AppChart.vue'
 import { useAuthStore } from '@/stores/auth'
+import { doughnutFromCounts, countStatuses } from '@/composables/useChart'
 import { useToast } from '@/composables/useToast'
 import { semesterApi } from '@/api/semester'
 import { studentAttendanceApi } from '@/api/attendance'
@@ -127,6 +132,8 @@ const loadError = ref(false)
 const exporting = ref(false)
 const attendances = ref([])
 const semesters = ref([])
+
+const attendanceChart = computed(() => doughnutFromCounts(countStatuses(attendances.value)))
 
 const filters = ref({
   semester_id: '',
@@ -209,6 +216,11 @@ onMounted(async () => {
 .attendance-panel {
   padding: 0;
   overflow: hidden;
+}
+
+.chart-solo {
+  padding: 12px 16px 0;
+  max-width: 420px;
 }
 
 .sp-table-wrap {

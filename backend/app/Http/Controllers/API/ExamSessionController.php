@@ -82,7 +82,7 @@ class ExamSessionController extends Controller
         if ($exam_session->exam->institution_id != $this->resolveInstitutionId($request)) {
             return response()->json(['message' => 'Sesi ujian tidak ditemukan.'], 404);
         }
-        $exam_session->load(['exam.subject', 'participants.student']);
+        $exam_session->load(['exam.subject', 'participants.student.class']);
         return new ExamSessionResource($exam_session);
     }
 

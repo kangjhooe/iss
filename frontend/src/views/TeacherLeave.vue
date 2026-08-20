@@ -44,14 +44,12 @@
               <td>{{ item.duration_days }}</td>
               <td><span :class="['status-badge', `status-${item.status}`]">{{ item.status_label }}</span></td>
               <td>
-                <button
+                <TableAction
                   v-if="item.status === 'pending' || item.status === 'approved'"
-                  type="button"
-                  class="btn-sm"
+                  kind="cancel"
+                  title="Batalkan"
                   @click="cancel(item)"
-                >
-                  Batalkan
-                </button>
+                />
                 <span v-else class="muted">—</span>
               </td>
             </tr>
@@ -105,6 +103,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { useToast } from '@/composables/useToast'
 import { employeeLeaveApi } from '@/api/kepegawaian'

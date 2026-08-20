@@ -21,6 +21,7 @@ export function useStudentList() {
     tingkat: '',
     status: '',
     account_status: '',
+    missing_nis: '',
     only_trashed: false,
     sort_by: 'created_at',
     sort_dir: 'desc'
@@ -38,6 +39,7 @@ export function useStudentList() {
     }
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.account_status) params.account_status = filters.value.account_status
+    if (filters.value.missing_nis) params.missing_nis = 1
     if (filters.value.only_trashed) params.only_trashed = true
     if (filters.value.sort_by) params.sort_by = filters.value.sort_by
     if (filters.value.sort_dir) params.sort_dir = filters.value.sort_dir

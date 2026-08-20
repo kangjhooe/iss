@@ -88,11 +88,17 @@
                   <td><span :class="['pay-badge', 'pay-' + (a.payment_status || 'unpaid')]">{{ paymentStatusLabels[a.payment_status] || a.payment_status }}</span></td>
                   <td>{{ formatCurrency(a.payment_amount) }}</td>
                   <td>
-                    <router-link :to="`/ppdb/pendaftar/${a.id}`" class="btn-action btn-edit">Detail</router-link>
+                    <TableAction kind="view" title="Detail" :to="`/ppdb/pendaftar/${a.id}`" />
                     <button v-if="a.payment_status !== 'paid'" type="button" class="btn-action btn-primary-sm" :disabled="markingId === a.id" @click="markPaid(a)">
                       {{ markingId === a.id ? '...' : 'Tandai lunas' }}
                     </button>
-                    <button v-else type="button" class="btn-action btn-edit" :disabled="markingId === a.id" @click="markUnpaid(a)">Batalkan</button>
+                    <TableAction
+                      v-else
+                      kind="cancel"
+                      title="Batalkan"
+                      :disabled="markingId === a.id"
+                      @click="markUnpaid(a)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -115,6 +121,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { ppdbPeriodApi, ppdbApplicantApi } from '@/api/ppdb'
 import { useToast } from '@/composables/useToast'

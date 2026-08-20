@@ -19,6 +19,7 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Support\ExtracurricularAccess;
 use App\Support\InstitutionContext;
+use App\Support\StudentRosterSort;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -283,7 +284,9 @@ class ExtracurricularController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->get('status'));
         }
-        $participants = $query->orderBy('joined_at', 'desc')->get();
+        $participants = $query->get()
+            ->sort(fn ($a, $b) => StudentRosterSort::compareStudents($a->student, $b->student))
+            ->values();
 
         return response()->json([
             'data' => ExtracurricularStudentResource::collection($participants)->resolve(),
@@ -567,7 +570,9 @@ class ExtracurricularController extends Controller
         if ($semesterId) {
             $query->where('semester_id', $semesterId);
         }
-        $participants = $query->get()->sortBy(fn ($p) => $p->student?->name ?? '')->values();
+        $participants = $query->get()
+            ->sort(fn ($a, $b) => StudentRosterSort::compareStudents($a->student, $b->student))
+            ->values();
 
         $filename = 'peserta-ekskul-' . \Illuminate\Support\Str::slug($extracurricular->name) . '-' . date('Y-m-d-His') . '.csv';
 

@@ -51,8 +51,8 @@
               </td>
               <td>
                 <div class="action-buttons">
-                  <button @click="editSubject(item)" class="btn-action btn-edit" title="Edit">Edit</button>
-                  <button @click="confirmDelete(item)" class="btn-action btn-delete" title="Hapus">Hapus</button>
+                  <TableAction kind="edit" @click="editSubject(item)" />
+                  <TableAction kind="delete" @click="confirmDelete(item)" />
                 </div>
               </td>
             </tr>
@@ -114,6 +114,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { subjectApi } from '@/api/subject'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -265,6 +266,22 @@ onMounted(loadSubjects)
 .search-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
 .filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 6px; transition: border-color 0.2s, box-shadow 0.2s; }
 .filter-select:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-buttons-group {
+    width: 100%;
+  }
+
+  .action-buttons-group .btn-primary,
+  .toolbar-actions {
+    width: 100%;
+  }
+}
 
 @media (max-width: 768px) {
   .filters,

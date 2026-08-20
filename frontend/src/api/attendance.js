@@ -86,6 +86,18 @@ export const qrAttendanceApi = {
   generateEmployeeQr(employeeId) {
     return api.get(`/v1/qr-attendance/employee/${employeeId}/generate`)
   },
+  generateStudentBulk(data) {
+    return api.post('/v1/qr-attendance/students/generate-bulk', data)
+  },
+  generateEmployeeBulk(data) {
+    return api.post('/v1/qr-attendance/employees/generate-bulk', data)
+  },
+  printStudentPdf(params) {
+    return api.get('/v1/qr-attendance/students/print-pdf', { params, responseType: 'blob' })
+  },
+  printEmployeePdf(params) {
+    return api.get('/v1/qr-attendance/employees/print-pdf', { params, responseType: 'blob' })
+  },
   scanQr(data) {
     return api.post('/v1/qr-attendance/scan', data)
   },

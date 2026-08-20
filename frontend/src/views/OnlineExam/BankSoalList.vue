@@ -106,7 +106,7 @@
                   <div class="row-actions">
                     <button type="button" class="btn-action-text btn-manage" @click="goToManageSoal(b)">Kelola soal</button>
                     <router-link :to="`/ujian-online/bank-soal/${b.id}/stimulus`" class="btn-action-text btn-stimulus">Stimulus</router-link>
-                    <button type="button" class="btn-action-text btn-edit" @click="openForm(b)">Edit</button>
+                    <TableAction kind="edit" @click="openForm(b)" />
                     <div class="more-wrap">
                       <button
                         type="button"
@@ -299,6 +299,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { examApi } from '@/api/exam'
 import { subjectApi } from '@/api/subject'
 import { useToast } from '@/composables/useToast'
@@ -1251,6 +1252,25 @@ onUnmounted(() => {
 .btn-revoke:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions,
+  .action-buttons-group {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .btn-add-new,
+  .btn-add {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {

@@ -455,7 +455,7 @@ const router = createRouter({
       path: '/qr-attendance/scan',
       name: 'QrAttendanceScan',
       component: () => import('@/views/QrAttendanceScan.vue'),
-      meta: { requiresAuth: true, requiresModule: 'attendance' }
+      meta: { requiresAuth: true, requiresAnyModule: ['attendance', 'teaching_journal'] }
     },
     {
       path: '/qr-attendance/generate',

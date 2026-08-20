@@ -77,7 +77,7 @@
               <td>{{ a.check_in_time || '-' }}</td>
               <td>{{ a.check_out_time || '-' }}</td>
               <td>
-                <button @click="openEditModal(a)" class="btn-action btn-edit" title="Edit">✎</button>
+                <TableAction kind="edit" @click="openEditModal(a)" />
               </td>
             </tr>
           </tbody>
@@ -108,6 +108,10 @@
             <span>Izin: <strong>{{ rekapTotals.izin ?? 0 }}</strong></span>
             <span>Sakit: <strong>{{ rekapTotals.sakit ?? 0 }}</strong></span>
             <span>% Hadir: <strong>{{ rekapTotals.persentase_hadir ?? 0 }}%</strong></span>
+          </div>
+          <div v-if="rekapRows.length" class="charts-grid">
+            <AppChart title="Komposisi kehadiran" type="doughnut" :chart-data="attendanceShareChart" />
+            <AppChart title="Persentase hadir terendah" subtitle="Maks. 12 pegawai" type="bar" :chart-data="attendanceRateChart" />
           </div>
           <div v-if="rekapRows.length === 0" class="empty-state">
             <h3 class="empty-title">Belum ada data rekap</h3>
@@ -222,12 +226,22 @@
             </div>
             <div class="bulk-actions-inline">
               <button type="button" @click="fillStandardTimes" class="btn-outline btn-compact">Isi jam standar (07:00–15:00)</button>
+              <button type="button" @click="markBulkPageHadir" class="btn-outline btn-compact" :disabled="!pagedBulkEmployees.length">Tandai halaman ini Hadir</button>
             </div>
-            <p class="form-hint">Pilih pegawai dan status kehadiran. Default hadir dengan jam 07:00–15:00. Kosongkan status jika tidak perlu diisi.</p>
-            <div class="table-scroll">
+            <p class="form-hint">Pilih pegawai dan status kehadiran. Default hadir dengan jam 07:00–15:00. Kosongkan status jika tidak perlu diisi. Simpan mencakup semua pegawai, bukan hanya halaman ini.</p>
+            <div class="roster-toolbar">
+              <input v-model="bulkSearch" type="search" class="form-input" placeholder="Cari nama / NIP..." />
+              <select v-model="bulkType" class="form-select">
+                <option value="">Semua tipe</option>
+                <option v-for="t in bulkTypeOptions" :key="t" :value="t">{{ t }}</option>
+              </select>
+            </div>
+            <p class="roster-meta">{{ bulkRangeLabel }} · urut tipe, lalu abjad</p>
+            <div v-if="pagedBulkEmployees.length" class="table-scroll">
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th>No</th>
                     <th>Nama</th>
                     <th>Tipe</th>
                     <th>Status</th>
@@ -236,20 +250,29 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="e in employees" :key="e.id">
+                  <tr v-for="(e, i) in pagedBulkEmployees" :key="e.id">
+                    <td>{{ bulkStartIndex + i + 1 }}</td>
                     <td>{{ e.name }}</td>
                     <td>{{ e.type }}</td>
                     <td>
-                      <select v-model="bulkRows[e.id].status" class="form-select status-select">
+                      <select v-if="bulkRows[e.id]" v-model="bulkRows[e.id].status" class="form-select status-select">
                         <option value="">—</option>
                         <option v-for="(label, val) in statusOptions" :key="val" :value="val">{{ label }}</option>
                       </select>
                     </td>
-                    <td><input v-model="bulkRows[e.id].check_in_time" type="time" class="form-input time-input" /></td>
-                    <td><input v-model="bulkRows[e.id].check_out_time" type="time" class="form-input time-input" /></td>
+                    <td><input v-if="bulkRows[e.id]" v-model="bulkRows[e.id].check_in_time" type="time" class="form-input time-input" /></td>
+                    <td><input v-if="bulkRows[e.id]" v-model="bulkRows[e.id].check_out_time" type="time" class="form-input time-input" /></td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+            <p v-else class="form-hint">Tidak ada pegawai yang cocok.</p>
+            <div v-if="bulkLastPage > 1" class="pagination-bar">
+              <div class="pagination-buttons">
+                <button type="button" class="btn-page" :disabled="bulkPage <= 1" @click="bulkPage--">Sebelumnya</button>
+                <span class="page-num">Halaman {{ bulkPage }} / {{ bulkLastPage }}</span>
+                <button type="button" class="btn-page" :disabled="bulkPage >= bulkLastPage" @click="bulkPage++">Selanjutnya</button>
+              </div>
             </div>
             <p v-if="bulkError" class="form-error">{{ bulkError }}</p>
             <div class="modal-actions">
@@ -264,10 +287,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import AppChart from '@/components/AppChart.vue'
 import { useToast } from '@/composables/useToast'
+import { doughnutFromCounts, barFromSeries } from '@/composables/useChart'
 import { employeeAttendanceApi } from '@/api/attendance'
 import { employeeApi } from '@/api/teacher'
 import { employeeAttendanceStorage, isOnline, onNetworkStatusChange } from '@/utils/offlineStorage'
@@ -307,6 +333,15 @@ const rekapMeta = ref(null)
 const rekapLoading = ref(false)
 const rekapLoaded = ref(false)
 
+const attendanceShareChart = computed(() => doughnutFromCounts(rekapTotals.value))
+const attendanceRateChart = computed(() => {
+  const rows = [...(rekapRows.value || [])]
+    .sort((a, b) => (a.persentase_hadir ?? 0) - (b.persentase_hadir ?? 0))
+    .slice(0, 12)
+  if (!rows.length) return null
+  return barFromSeries(rows.map((r) => r.name), rows.map((r) => r.persentase_hadir ?? 0), '% Hadir', '#0d9488')
+})
+
 const showFormModal = ref(false)
 const showBulkModal = ref(false)
 const editingAttendance = ref(null)
@@ -325,6 +360,47 @@ const bulkDate = ref('')
 const bulkRows = ref({})
 const bulkError = ref('')
 const bulkSaving = ref(false)
+const BULK_PAGE_SIZE = 20
+const bulkSearch = ref('')
+const bulkType = ref('')
+const bulkPage = ref(1)
+
+const sortedEmployees = computed(() =>
+  [...employees.value].sort((a, b) => {
+    const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'id')
+    if (typeCmp !== 0) return typeCmp
+    return String(a.name || '').localeCompare(String(b.name || ''), 'id')
+  })
+)
+const bulkTypeOptions = computed(() =>
+  [...new Set(employees.value.map((e) => e.type).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'id'))
+)
+const filteredBulkEmployees = computed(() => {
+  const q = bulkSearch.value.trim().toLowerCase()
+  const type = bulkType.value
+  return sortedEmployees.value.filter((e) => {
+    if (type && e.type !== type) return false
+    if (!q) return true
+    return `${e.name || ''} ${e.nip || ''} ${e.nuptk || ''}`.toLowerCase().includes(q)
+  })
+})
+const bulkLastPage = computed(() => Math.max(1, Math.ceil(filteredBulkEmployees.value.length / BULK_PAGE_SIZE)))
+const pagedBulkEmployees = computed(() => {
+  const start = (bulkPage.value - 1) * BULK_PAGE_SIZE
+  return filteredBulkEmployees.value.slice(start, start + BULK_PAGE_SIZE)
+})
+const bulkStartIndex = computed(() => (bulkPage.value - 1) * BULK_PAGE_SIZE)
+const bulkRangeLabel = computed(() => {
+  const total = filteredBulkEmployees.value.length
+  if (!total) return '0 dari 0 pegawai'
+  const start = bulkStartIndex.value + 1
+  const end = Math.min(bulkPage.value * BULK_PAGE_SIZE, total)
+  return `Menampilkan ${start}–${end} dari ${total} pegawai`
+})
+watch([bulkSearch, bulkType], () => { bulkPage.value = 1 })
+watch(bulkLastPage, (last) => {
+  if (bulkPage.value > last) bulkPage.value = last
+})
 
 function formatDate(d) {
   if (!d) return '-'
@@ -528,6 +604,9 @@ const DEFAULT_CHECK_OUT = '15:00'
 function openBulkModal() {
   bulkDate.value = new Date().toISOString().slice(0, 10)
   bulkError.value = ''
+  bulkSearch.value = ''
+  bulkType.value = ''
+  bulkPage.value = 1
   bulkRows.value = {}
   employees.value.forEach((e) => {
     bulkRows.value[e.id] = {
@@ -539,6 +618,12 @@ function openBulkModal() {
     }
   })
   showBulkModal.value = true
+}
+
+function markBulkPageHadir() {
+  pagedBulkEmployees.value.forEach((e) => {
+    if (bulkRows.value[e.id]) bulkRows.value[e.id].status = 'hadir'
+  })
 }
 
 function fillStandardTimes() {
@@ -650,6 +735,15 @@ onMounted(async () => {
   font-size: 0.875rem;
   color: #065f46;
 }
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 900px) {
+  .charts-grid { grid-template-columns: 1fr; }
+}
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
 .filter-select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; }
 .loading-wrap { width: 100%; margin: 1rem 0; }
@@ -684,7 +778,19 @@ onMounted(async () => {
 .form-select, .form-input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
 .form-row { display: flex; gap: 1rem; }
 .form-row .form-group { flex: 1; }
-.bulk-actions-inline { margin-bottom: 0.75rem; }
+.bulk-actions-inline { margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 8px; }
+.roster-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.roster-toolbar .form-input,
+.roster-toolbar .form-select {
+  flex: 1;
+  min-width: 140px;
+}
+.roster-meta { color: #64748b; font-size: 0.8rem; margin: 0 0 8px; }
 .btn-outline { padding: 0.4rem 0.75rem; font-size: 0.85rem; border: 1px solid #059669; border-radius: 8px; background: #fff; color: #059669; cursor: pointer; }
 .btn-outline:hover { background: #e0f2fe; }
 .form-hint { color: #64748b; font-size: 0.85rem; margin-bottom: 0.75rem; }
@@ -706,9 +812,10 @@ onMounted(async () => {
   text-align: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .header-content {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .header-actions {
@@ -721,7 +828,9 @@ onMounted(async () => {
     flex: 1;
     justify-content: center;
   }
+}
 
+@media (max-width: 768px) {
   .filters-inline {
     flex-direction: column;
     align-items: stretch;

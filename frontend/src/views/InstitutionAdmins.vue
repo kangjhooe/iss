@@ -150,26 +150,6 @@
         </div>
       </div>
 
-      <!-- Password result modal -->
-      <div v-if="passwordResult" class="modal-overlay" @click.self="passwordResult = null">
-        <div class="modal-content modal-sm">
-          <div class="modal-header">
-            <h3>Sandi Sementara</h3>
-            <button type="button" class="btn-close" @click="passwordResult = null">×</button>
-          </div>
-          <div class="modal-body">
-            <p>Berikan sandi ini kepada admin secara aman. Sandi hanya ditampilkan sekali.</p>
-            <div class="password-box">
-              <code>{{ passwordResult }}</code>
-              <button type="button" class="btn-secondary btn-compact" @click="copyPassword">Salin</button>
-            </div>
-            <div class="modal-actions">
-              <button type="button" class="btn-primary" @click="passwordResult = null">Tutup</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <ConfirmDialog
         :show="confirmDialog.show"
         :title="confirmDialog.title"
@@ -179,6 +159,16 @@
         @confirm="handleConfirm"
         @cancel="handleCancel"
         @update:show="confirmDialog.show = $event"
+      />
+      <AccountCredentialsModal
+        :show="!!accountCredentials"
+        :title="accountCredentials?.title"
+        :name="accountCredentials?.name"
+        :login-label="accountCredentials?.loginLabel || 'Email'"
+        :login-value="accountCredentials?.loginValue"
+        :password="accountCredentials?.password"
+        :hint="accountCredentials?.hint"
+        @close="accountCredentials = null"
       />
     </div>
   </Layout>
@@ -190,6 +180,7 @@ import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { institutionAdminApi } from '@/api/institutionAdmin'
 import { institutionApi } from '@/api/institution'
 import { useAuthStore } from '@/stores/auth'
@@ -208,7 +199,7 @@ const admins = ref([])
 const institutions = ref([])
 const showCreateModal = ref(false)
 const formError = ref('')
-const passwordResult = ref(null)
+const accountCredentials = ref(null)
 let searchTimer = null
 
 const filters = ref({
@@ -291,12 +282,23 @@ const handleCreate = async () => {
       payload.password_confirmation = form.value.password_confirmation
     }
     const res = await institutionAdminApi.create(payload)
-    toast.success('Berhasil', res.data?.message || 'Admin berhasil dibuat')
+    const createdEmail = res.data?.data?.email || payload.email
+    const createdName = res.data?.data?.name || payload.name
+    const createdPassword = res.data?.temporary_password || payload.password
     closeCreateModal()
-    if (res.data?.temporary_password) {
-      passwordResult.value = res.data.temporary_password
-    }
     await loadAdmins()
+    if (createdPassword) {
+      accountCredentials.value = {
+        title: 'Akun admin berhasil dibuat',
+        name: createdName,
+        loginLabel: 'Email',
+        loginValue: createdEmail,
+        password: createdPassword,
+        hint: 'Sandi hanya ditampilkan sekali. Berikan kepada admin secara aman dan minta ganti setelah login.',
+      }
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Admin berhasil dibuat')
+    }
   } catch (err) {
     formError.value = err.response?.data?.message || 'Gagal membuat admin'
     if (err.response?.data?.errors) {
@@ -338,9 +340,17 @@ const handleResetPassword = async (admin) => {
   busyId.value = admin.id
   try {
     const res = await institutionAdminApi.resetPassword(admin.id)
-    toast.success('Berhasil', res.data?.message || 'Sandi berhasil direset')
     if (res.data?.temporary_password) {
-      passwordResult.value = res.data.temporary_password
+      accountCredentials.value = {
+        title: 'Sandi admin berhasil direset',
+        name: admin.name,
+        loginLabel: 'Email',
+        loginValue: admin.email,
+        password: res.data.temporary_password,
+        hint: 'Sandi lama tidak dapat digunakan. Berikan sandi baru kepada admin secara aman.',
+      }
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Sandi berhasil direset')
     }
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || 'Gagal reset sandi')
@@ -369,15 +379,6 @@ const handleToggleStatus = async (admin) => {
     toast.error('Gagal', err.response?.data?.message || 'Gagal memperbarui status')
   } finally {
     busyId.value = null
-  }
-}
-
-const copyPassword = async () => {
-  try {
-    await navigator.clipboard.writeText(passwordResult.value)
-    toast.success('Disalin', 'Sandi disalin ke clipboard')
-  } catch {
-    toast.error('Gagal', 'Tidak dapat menyalin sandi')
   }
 }
 
@@ -634,25 +635,6 @@ onMounted(async () => {
   margin-top: 8px;
 }
 
-.password-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px;
-  margin: 16px 0;
-}
-
-.password-box code {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  word-break: break-all;
-}
-
 .btn-primary,
 .btn-secondary {
   border-radius: 10px;
@@ -738,11 +720,6 @@ onMounted(async () => {
 
   .modal-content {
     max-width: 100%;
-  }
-
-  .password-box {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 

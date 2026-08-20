@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\StructuralDutySync;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -92,11 +93,24 @@ class EmployeeResource extends JsonResource
                 });
             }),
             'additional_duties' => $this->whenLoaded('additionalDuties', function () {
-                return $this->additionalDuties->map(fn ($d) => [
-                    'id' => $d->id,
-                    'key' => $d->key,
-                    'label' => $d->label,
-                ]);
+                $sync = app(StructuralDutySync::class);
+
+                return $this->additionalDuties
+                    ->filter(function ($d) {
+                        $ended = $d->pivot->ended_at ?? null;
+                        if (!$ended) {
+                            return true;
+                        }
+
+                        return (string) $ended > now()->toDateString();
+                    })
+                    ->map(fn ($d) => [
+                        'id' => $d->id,
+                        'key' => $d->key,
+                        'label' => $d->label,
+                        'is_structural' => $sync->isKey($d->key),
+                    ])
+                    ->values();
             }),
             'program_keahlians' => $this->whenLoaded('programKeahlians', function () {
                 return $this->programKeahlians->map(fn ($p) => [

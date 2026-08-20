@@ -367,9 +367,18 @@ class BkReportService
             return $row;
         }, $byStudentMap));
 
-        usort($byStudent, fn ($a, $b) => $b['score'] <=> $a['score']
-            ?: $b['violation_count'] <=> $a['violation_count']
-            ?: strcmp($a['student_name'] ?? '', $b['student_name'] ?? ''));
+        usort($byStudent, function ($a, $b) {
+            $class = strnatcasecmp((string) ($a['class_name'] ?? ''), (string) ($b['class_name'] ?? ''));
+            if ($class !== 0) {
+                return $class;
+            }
+            $score = ($b['score'] <=> $a['score']);
+            if ($score !== 0) {
+                return $score;
+            }
+
+            return strcasecmp((string) ($a['student_name'] ?? ''), (string) ($b['student_name'] ?? ''));
+        });
 
         return [
             'items' => $items,

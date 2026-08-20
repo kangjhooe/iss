@@ -18,4 +18,9 @@ class Permission extends Model
     {
         return $this->belongsToMany(User::class, 'user_permissions');
     }
+
+    public function additionalDuties()
+    {
+        return $this->belongsToMany(AdditionalDuty::class, 'additional_duty_permissions');
+    }
 }

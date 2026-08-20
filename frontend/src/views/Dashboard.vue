@@ -149,6 +149,22 @@
             </div>
           </div>
 
+          <!-- Charts ringkasan -->
+          <div class="charts-grid">
+            <AppChart
+              title="Komposisi siswa aktif"
+              :subtitle="genderChartSubtitle"
+              type="doughnut"
+              :chart-data="genderChart"
+            />
+            <AppChart
+              title="Pelanggaran 12 bulan terakhir"
+              :subtitle="violationsChartSubtitle"
+              type="bar"
+              :chart-data="violationsChart"
+            />
+          </div>
+
           <!-- Quick Actions -->
           <div class="quick-actions">
             <div class="section-header">
@@ -356,6 +372,7 @@
 import { ref, onMounted, computed } from 'vue'
 import Layout from '@/components/Layout.vue'
 import HelpSidebar from '@/components/HelpSidebar.vue'
+import AppChart from '@/components/AppChart.vue'
 import { useAuthStore } from '@/stores/auth'
 import { institutionApi } from '@/api/institution'
 import { studentApi } from '@/api/student'
@@ -365,7 +382,9 @@ import { subjectApi } from '@/api/subject'
 import { violationApi } from '@/api/violation'
 import { counselingApi } from '@/api/counseling'
 import { auditLogApi } from '@/api/auditLog'
+import { dashboardApi } from '@/api/dashboard'
 import { getInstitutionTypeLabel } from '@/utils/institution'
+import { doughnutFromEntries, barFromSeries } from '@/composables/useChart'
 
 const authStore = useAuthStore()
 const institution = ref(null)
@@ -381,6 +400,7 @@ const counselingPendingCount = ref(0)
 const loading = ref(true)
 const auditLogs = ref([])
 const auditLogsLoading = ref(false)
+const charts = ref(null)
 
 const formatNumber = (num) => {
   return new Intl.NumberFormat('id-ID').format(num)
@@ -411,6 +431,48 @@ const academicPeriodText = computed(() => {
   return parts.join(' · ')
 })
 
+const genderBreakdown = computed(() => {
+  const g = charts.value?.students_gender || {}
+  return {
+    male: g.male || 0,
+    female: g.female || 0,
+    other: g.other || 0,
+    total: g.total || 0,
+  }
+})
+
+const genderChartSubtitle = computed(() => {
+  const g = genderBreakdown.value
+  if (!g.total) return 'Belum ada siswa aktif'
+  const parts = [`Total ${formatNumber(g.total)} siswa`]
+  parts.push(`L ${formatNumber(g.male)}`)
+  parts.push(`P ${formatNumber(g.female)}`)
+  if (g.other) parts.push(`Lainnya ${formatNumber(g.other)}`)
+  return parts.join(' · ')
+})
+
+const genderChart = computed(() => doughnutFromEntries([
+  { label: `Laki-laki (${formatNumber(genderBreakdown.value.male)})`, value: genderBreakdown.value.male, color: '#0284c7' },
+  { label: `Perempuan (${formatNumber(genderBreakdown.value.female)})`, value: genderBreakdown.value.female, color: '#db2777' },
+  { label: `Lainnya (${formatNumber(genderBreakdown.value.other)})`, value: genderBreakdown.value.other, color: '#64748b' },
+]))
+
+const violationsTotal = computed(() =>
+  (charts.value?.violations_by_month || []).reduce((sum, row) => sum + (row.count || 0), 0)
+)
+
+const violationsChartSubtitle = computed(() => {
+  const total = violationsTotal.value
+  if (!total) return 'Tidak ada catatan dalam 12 bulan'
+  return `Total ${formatNumber(total)} catatan`
+})
+
+const violationsChart = computed(() => {
+  const rows = charts.value?.violations_by_month || []
+  if (!rows.length || !rows.some((r) => r.count > 0)) return null
+  return barFromSeries(rows.map((r) => r.label), rows.map((r) => r.count), 'Pelanggaran')
+})
+
 const formatAuditDate = (iso) => {
   if (!iso) return ''
   const d = new Date(iso)
@@ -428,7 +490,7 @@ onMounted(async () => {
     const now = new Date()
     const dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
     const dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
-    const [instRes, studentRes, teacherRes, classRes, subjectRes, violationRes, violationMonthRes, counselingRes, counselingPendingRes] = await Promise.all([
+    const [instRes, studentRes, teacherRes, classRes, subjectRes, violationRes, violationMonthRes, counselingRes, counselingPendingRes, chartsRes] = await Promise.all([
       institutionApi.getMy().catch((err) => {
         console.error('Dashboard institution:', err)
         institutionError.value = err.response?.data?.message || 'Gagal memuat data instansi.'
@@ -441,7 +503,8 @@ onMounted(async () => {
       violationApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
       violationApi.getAll({ per_page: 1, date_from: dateFrom, date_to: dateTo }).catch(() => ({ data: { meta: { total: 0 } } })),
       counselingApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
-      counselingApi.getAll({ per_page: 1, status: 'jadwal' }).catch(() => ({ data: { meta: { total: 0 } } }))
+      counselingApi.getAll({ per_page: 1, status: 'jadwal' }).catch(() => ({ data: { meta: { total: 0 } } })),
+      dashboardApi.getCharts().catch(() => ({ data: { data: null } })),
     ])
 
     let instData = instRes.data?.data ?? instRes.data ?? null
@@ -461,6 +524,7 @@ onMounted(async () => {
     violationCountThisMonth.value = violationMonthRes.data?.meta?.total ?? violationMonthRes.data?.data?.length ?? 0
     counselingCount.value = counselingRes.data?.meta?.total ?? counselingRes.data?.data?.length ?? 0
     counselingPendingCount.value = counselingPendingRes.data?.meta?.total ?? counselingPendingRes.data?.data?.length ?? 0
+    charts.value = chartsRes.data?.data ?? null
   } catch (error) {
     console.error('Error loading dashboard:', error)
     studentCount.value = 0
@@ -558,6 +622,13 @@ onMounted(async () => {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
@@ -912,6 +983,10 @@ onMounted(async () => {
     border-radius: 12px;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
   }
 
   .welcome-content {

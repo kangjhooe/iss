@@ -2084,22 +2084,25 @@ onMounted(() => {
   font-weight: 500;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .header-content {
     flex-direction: column;
+    align-items: stretch;
     gap: 16px;
   }
 
   .header-content h2 {
-    font-size: 20px;
-  }
-
-  .header-content p {
-    font-size: 13px;
+    font-size: 22px;
   }
 
   .header-actions {
     width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-content h2 {
+    font-size: 20px;
   }
 
   .btn-primary {

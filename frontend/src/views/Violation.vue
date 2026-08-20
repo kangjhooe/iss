@@ -1,6 +1,22 @@
 <template>
   <Layout>
     <div class="violation-page">
+      <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
+        <symbol id="vl-icon-edit" viewBox="0 0 24 24" fill="none">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="vl-icon-delete" viewBox="0 0 24 24" fill="none">
+          <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="vl-icon-check" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="vl-icon-x" viewBox="0 0 24 24" fill="none">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </symbol>
+      </svg>
       <div class="toolbar" v-if="showToolbar">
         <div class="toolbar-spacer"></div>
         <div class="header-actions toolbar-actions">
@@ -28,32 +44,40 @@
       </div>
 
       <!-- 4 tab operasional; master data di Pengaturan -->
-      <div class="nav-tabs-wrap">
-        <nav class="nav-tabs" aria-label="Navigasi modul Pelanggaran">
-          <button type="button" :class="['nav-tab', { active: mainTab === 'catatan' }]" @click="switchMainTab('catatan')">
-            <span class="nav-tab-label">Catatan</span>
-            <span class="nav-tab-hint">Pelanggaran & prestasi</span>
-          </button>
-          <button type="button" :class="['nav-tab', { active: mainTab === 'pending' }]" @click="switchMainTab('pending')">
-            <span class="nav-tab-label">Usulan</span>
-            <span class="nav-tab-hint">
-              Menunggu BK
-              <template v-if="pendingProposalCount"> ({{ pendingProposalCount }})</template>
+      <div class="tab-shell">
+      <nav class="section-nav" aria-label="Navigasi modul Pelanggaran">
+          <button type="button" :class="['sec-btn', { active: mainTab === 'catatan' }]" @click="switchMainTab('catatan')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-text">
+              <span class="sec-label">Catatan</span>
+              <span class="sec-hint">Pelanggaran & prestasi</span>
             </span>
           </button>
-          <button type="button" :class="['nav-tab', { active: mainTab === 'points' }]" @click="switchMainTab('points')">
-            <span class="nav-tab-label">Tindakan</span>
-            <span class="nav-tab-hint">Skor & tindakan BK</span>
+          <button type="button" :class="['sec-btn', { active: mainTab === 'pending' }]" @click="switchMainTab('pending')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span class="sec-text">
+              <span class="sec-label">Usulan</span>
+              <span class="sec-hint">Menunggu BK<template v-if="pendingProposalCount"> ({{ pendingProposalCount }})</template></span>
+            </span>
+            <span v-if="pendingProposalCount" class="sec-badge">{{ pendingProposalCount }}</span>
           </button>
-          <button type="button" :class="['nav-tab', { active: mainTab === 'settings' }]" @click="switchMainTab('settings')">
-            <span class="nav-tab-label">Pengaturan</span>
-            <span class="nav-tab-hint">Jenis & aturan</span>
+          <button type="button" :class="['sec-btn', { active: mainTab === 'points' }]" @click="switchMainTab('points')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+            <span class="sec-text">
+              <span class="sec-label">Tindakan</span>
+              <span class="sec-hint">Skor & tindakan BK</span>
+            </span>
           </button>
-        </nav>
+          <button type="button" :class="['sec-btn', { active: mainTab === 'settings' }]" @click="switchMainTab('settings')">
+            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" stroke="currentColor" stroke-width="2"/></svg></span>
+            <span class="sec-text">
+              <span class="sec-label">Pengaturan</span>
+              <span class="sec-hint">Jenis & aturan</span>
+            </span>
+          </button>
+      </nav>
+      <div class="tab-main">
         <p v-if="tabDescription" class="tab-description">{{ tabDescription }}</p>
-      </div>
-
-      <main class="page-main">
       <!-- Sub-nav: Catatan -->
       <div v-if="mainTab === 'catatan'" class="sub-nav" role="tablist" aria-label="Jenis catatan">
         <button
@@ -200,12 +224,20 @@
                 <td>
                   <div class="action-buttons">
                     <template v-if="v.status === 'pending'">
-                      <button type="button" class="btn-sm-approve" @click="approveViolation(v)">Setujui</button>
-                      <button type="button" class="btn-sm-reject" @click="openRejectModal(v)">Tolak</button>
+                      <button type="button" class="btn-action btn-approve" title="Setujui" aria-label="Setujui" @click="approveViolation(v)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-check"/></svg>
+                      </button>
+                      <button type="button" class="btn-action btn-delete" title="Tolak" aria-label="Tolak" @click="openRejectModal(v)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-x"/></svg>
+                      </button>
                     </template>
                     <template v-else>
-                      <button @click="openEditModal(v)" class="btn-action btn-edit" title="Edit" :disabled="v.status === 'ditolak'">✎</button>
-                      <button @click="confirmDelete(v)" class="btn-action btn-delete" title="Hapus">🗑</button>
+                      <button type="button" @click="openEditModal(v)" class="btn-action btn-edit" title="Edit" aria-label="Edit" :disabled="v.status === 'ditolak'">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                      </button>
+                      <button type="button" @click="confirmDelete(v)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+                      </button>
                     </template>
                   </div>
                 </td>
@@ -245,8 +277,12 @@
               <p class="type-point">Menambah skor: <strong>+{{ t.point_weight ?? 0 }}</strong></p>
             </div>
             <div class="type-actions">
-              <button @click="openEditTypeModal(t)" class="btn-action btn-edit">Edit</button>
-              <button @click="confirmDeleteType(t)" class="btn-action btn-delete">Hapus</button>
+              <button type="button" @click="openEditTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis pelanggaran">
+                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+              </button>
+              <button type="button" @click="confirmDeleteType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis pelanggaran">
+                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -515,14 +551,24 @@
                 <td><span class="status-badge" :class="`status-${a.status || 'dicatat'}`">{{ a.status || 'dicatat' }}</span></td>
                 <td>{{ a.giver?.name }}</td>
                 <td>
-                  <template v-if="a.status === 'pending'">
-                    <button type="button" class="btn-action btn-edit" @click="approveAchievement(a)">Setujui</button>
-                    <button type="button" class="btn-action btn-delete" @click="openRejectAchievement(a)">Tolak</button>
-                  </template>
-                  <template v-else>
-                    <button @click="openEditPrestasiModal(a)" class="btn-action btn-edit">Edit</button>
-                    <button @click="confirmDeleteAchievement(a)" class="btn-action btn-delete">Hapus</button>
-                  </template>
+                  <div class="action-buttons">
+                    <template v-if="a.status === 'pending'">
+                      <button type="button" class="btn-action btn-approve" title="Setujui" aria-label="Setujui" @click="approveAchievement(a)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-check"/></svg>
+                      </button>
+                      <button type="button" class="btn-action btn-delete" title="Tolak" aria-label="Tolak" @click="openRejectAchievement(a)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-x"/></svg>
+                      </button>
+                    </template>
+                    <template v-else>
+                      <button type="button" @click="openEditPrestasiModal(a)" class="btn-action btn-edit" title="Edit" aria-label="Edit">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                      </button>
+                      <button type="button" @click="confirmDeleteAchievement(a)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+                      </button>
+                    </template>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -552,8 +598,12 @@
               <span class="type-point">+{{ t.point_value }} poin</span>
             </div>
             <div class="type-actions">
-              <button @click="openEditAchievementTypeModal(t)" class="btn-action btn-edit">Edit</button>
-              <button @click="confirmDeleteAchievementType(t)" class="btn-action btn-delete">Hapus</button>
+              <button type="button" @click="openEditAchievementTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis prestasi">
+                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+              </button>
+              <button type="button" @click="confirmDeleteAchievementType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis prestasi">
+                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -586,15 +636,22 @@
                 <td><strong>{{ t.action_name }}</strong></td>
                 <td>{{ t.description || '-' }}</td>
                 <td>
-                  <button @click="openEditThresholdModal(t)" class="btn-action btn-edit">Edit</button>
-                  <button @click="confirmDeleteThreshold(t)" class="btn-action btn-delete">Hapus</button>
+                  <div class="action-buttons">
+                    <button type="button" @click="openEditThresholdModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit aturan">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                    </button>
+                    <button type="button" @click="confirmDeleteThreshold(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus aturan">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
       </template>
-      </main>
+      </div>
+      </div>
 
       <!-- Modal: Tolak usulan pelanggaran -->
       <div v-if="showRejectModal" class="modal-overlay" @click="showRejectModal = false">
@@ -2128,6 +2185,7 @@ onMounted(async () => {
 
 <style scoped>
 .violation-page {
+  position: relative;
   width: 100%;
   max-width: 100%;
   min-height: 100%;
@@ -2186,71 +2244,66 @@ onMounted(async () => {
 .header-actions {
   margin-left: auto;
 }
-.page-main {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  border: 1px solid #e2e8f0;
-  padding: 1.25rem 1.5rem;
-}
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
 }
-.nav-tabs-wrap {
+.tab-shell {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
   margin-bottom: 1.5rem;
 }
-.nav-tabs {
+.section-nav {
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
-  border-bottom: 2px solid #e2e8f0;
-}
-.nav-tab {
-  display: inline-flex;
   flex-direction: column;
-  align-items: flex-start;
-  flex: 1 1 140px;
-  min-width: 120px;
-  max-width: 220px;
-  padding: 0.55rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  gap: 4px;
+  padding: 12px;
   background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-  text-align: left;
-  color: #475569;
-}
-.nav-tab:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #0f172a;
-}
-.nav-tab.active {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
-}
-.nav-tab .nav-tab-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-.nav-tab .nav-tab-hint {
-  font-size: 0.7rem;
-  opacity: 0.85;
-  margin-top: 0.15rem;
   color: #64748b;
+  text-align: left;
 }
-.nav-tab.active .nav-tab-hint {
-  opacity: 0.92;
-  color: rgba(255,255,255,0.95);
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.sec-hint { font-size: 11px; font-weight: 500; color: #94a3b8; }
+.sec-btn.active .sec-hint { color: #059669; }
+.sec-badge { background: #f97316; color: #fff; border-radius: 999px; font-size: 0.7rem; padding: 0.1rem 0.4rem; font-weight: 700; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
+  .sec-hint { display: none; }
 }
 .tab-description {
   margin: 0.85rem 0 0;
@@ -2293,12 +2346,6 @@ onMounted(async () => {
   color: #047857;
   border-color: #6ee7b7;
   box-shadow: 0 1px 3px rgba(5, 150, 105, 0.12);
-}
-@media (max-width: 640px) {
-  .nav-tab {
-    flex: 1 1 calc(50% - 0.5rem);
-    max-width: none;
-  }
 }
 .filter-toggle {
   display: inline-flex;
@@ -2869,16 +2916,29 @@ onMounted(async () => {
 .table-points tbody tr.row-warning { background: #fffbeb; }
 .filters-inline { align-items: center; }
 .thresholds-hint { margin-bottom: 1rem; padding: 0.75rem 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #059669; }
-.action-buttons { display: flex; gap: 0.5rem; }
+.action-buttons { display: flex; flex-wrap: nowrap; gap: 0.35rem; align-items: center; }
 .btn-action {
-  padding: 0.35rem 0.6rem;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 0.85rem;
+  transition: transform 0.1s ease, background 0.15s ease;
 }
-.btn-edit { background: #dbeafe; color: #1d4ed8; }
+.btn-action:hover:not(:disabled) { transform: scale(1.05); }
+.btn-action:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-action svg { display: block; }
+.btn-edit { background: rgba(5, 150, 105, 0.12); color: #059669; }
+.btn-edit:hover:not(:disabled) { background: rgba(5, 150, 105, 0.2); }
+.btn-approve { background: #ecfdf5; color: #047857; }
+.btn-approve:hover { background: #d1fae5; }
 .btn-delete { background: #fee2e2; color: #b91c1c; }
+.btn-delete:hover { background: #fecaca; }
+.icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 .pagination-bar {
   display: flex;
   align-items: center;

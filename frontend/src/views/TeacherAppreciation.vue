@@ -1,6 +1,22 @@
 <template>
   <Layout>
     <div class="page">
+      <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
+        <symbol id="ta-icon-edit" viewBox="0 0 24 24" fill="none">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="ta-icon-delete" viewBox="0 0 24 24" fill="none">
+          <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="ta-icon-check" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <symbol id="ta-icon-x" viewBox="0 0 24 24" fill="none">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </symbol>
+      </svg>
       <header class="page-header">
         <div>
           <span class="eyebrow">Manajemen Guru</span>
@@ -25,16 +41,31 @@
         </div>
       </header>
 
-      <nav class="nav-tabs" aria-label="Apresiasi Guru">
-        <button type="button" :class="['nav-tab', { active: mainTab === 'catatan' }]" @click="switchMainTab('catatan')">Catatan</button>
-        <button type="button" :class="['nav-tab', { active: mainTab === 'usulan' }]" @click="switchMainTab('usulan')">
-          Usulan
-          <span v-if="pendingTotal" class="badge">{{ pendingTotal }}</span>
+      <div class="tab-shell">
+      <nav class="section-nav" aria-label="Apresiasi Guru">
+        <button type="button" :class="['sec-btn', { active: mainTab === 'catatan' }]" @click="switchMainTab('catatan')">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+          <span class="sec-label">Catatan</span>
         </button>
-        <button v-if="canManageFull" type="button" :class="['nav-tab', { active: mainTab === 'poin' }]" @click="switchMainTab('poin')">Poin</button>
-        <button v-if="canManageFull" type="button" :class="['nav-tab', { active: mainTab === 'laporan' }]" @click="switchMainTab('laporan')">Laporan</button>
-        <button v-if="canManageFull" type="button" :class="['nav-tab', { active: mainTab === 'pengaturan' }]" @click="switchMainTab('pengaturan')">Pengaturan</button>
+        <button type="button" :class="['sec-btn', { active: mainTab === 'usulan' }]" @click="switchMainTab('usulan')">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+          <span class="sec-label">Usulan</span>
+          <span v-if="pendingTotal" class="sec-badge">{{ pendingTotal }}</span>
+        </button>
+        <button v-if="canManageFull" type="button" :class="['sec-btn', { active: mainTab === 'poin' }]" @click="switchMainTab('poin')">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10l-1.5 8.5a5 5 0 0 1-7 0L7 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+          <span class="sec-label">Poin</span>
+        </button>
+        <button v-if="canManageFull" type="button" :class="['sec-btn', { active: mainTab === 'laporan' }]" @click="switchMainTab('laporan')">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/></svg></span>
+          <span class="sec-label">Laporan</span>
+        </button>
+        <button v-if="canManageFull" type="button" :class="['sec-btn', { active: mainTab === 'pengaturan' }]" @click="switchMainTab('pengaturan')">
+          <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" stroke="currentColor" stroke-width="2"/></svg></span>
+          <span class="sec-label">Pengaturan</span>
+        </button>
       </nav>
+      <div class="tab-main">
 
       <div v-if="mainTab === 'catatan' && canManageFull" class="sub-nav" role="tablist" aria-label="Jenis catatan">
         <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'achievements' }]" @click="switchTab('achievements')">Prestasi</button>
@@ -146,14 +177,24 @@
                 <td><span class="points">+{{ item.point_value }}</span></td>
                 <td><span :class="['status', item.status]">{{ statusLabel(item.status) }}</span></td>
                 <td class="actions">
-                  <template v-if="item.status === 'pending'">
-                    <button type="button" class="btn-sm btn-success" @click="approveItem(item)">Setujui</button>
-                    <button type="button" class="btn-sm btn-danger" @click="openReject(item)">Tolak</button>
-                  </template>
-                  <template v-else>
-                    <button type="button" class="btn-sm" @click="openEditAchievement(item)">Edit</button>
-                    <button type="button" class="btn-sm btn-danger" @click="deleteAchievement(item)">Hapus</button>
-                  </template>
+                  <div class="action-buttons">
+                    <template v-if="item.status === 'pending'">
+                      <button type="button" class="btn-action btn-approve" title="Setujui" aria-label="Setujui" @click="approveItem(item)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-check"/></svg>
+                      </button>
+                      <button type="button" class="btn-action btn-delete" title="Tolak" aria-label="Tolak" @click="openReject(item)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-x"/></svg>
+                      </button>
+                    </template>
+                    <template v-else>
+                      <button type="button" class="btn-action btn-edit" title="Edit" aria-label="Edit" @click="openEditAchievement(item)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-edit"/></svg>
+                      </button>
+                      <button type="button" class="btn-action btn-delete" title="Hapus" aria-label="Hapus" @click="deleteAchievement(item)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-delete"/></svg>
+                      </button>
+                    </template>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -221,14 +262,22 @@
                 <td>{{ item.reporter?.name || '-' }}</td>
                 <td><span :class="['status', item.status]">{{ statusLabel(item.status) }}</span></td>
                 <td class="actions">
-                  <template v-if="item.status === 'pending' && canManageFull">
-                    <button type="button" class="btn-sm btn-success" @click="approveViolation(item)">Setujui</button>
-                    <button type="button" class="btn-sm btn-danger" @click="openRejectViolation(item)">Tolak</button>
-                  </template>
-                  <template v-else-if="canManageFull && item.status !== 'pending'">
-                    <button type="button" class="btn-sm btn-danger" @click="deleteViolation(item)">Hapus</button>
-                  </template>
-                  <span v-else class="muted">Menunggu KS</span>
+                  <div class="action-buttons">
+                    <template v-if="item.status === 'pending' && canManageFull">
+                      <button type="button" class="btn-action btn-approve" title="Setujui" aria-label="Setujui" @click="approveViolation(item)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-check"/></svg>
+                      </button>
+                      <button type="button" class="btn-action btn-delete" title="Tolak" aria-label="Tolak" @click="openRejectViolation(item)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-x"/></svg>
+                      </button>
+                    </template>
+                    <template v-else-if="canManageFull && item.status !== 'pending'">
+                      <button type="button" class="btn-action btn-delete" title="Hapus" aria-label="Hapus" @click="deleteViolation(item)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-delete"/></svg>
+                      </button>
+                    </template>
+                    <span v-else class="muted">Menunggu KS</span>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -405,8 +454,14 @@
                 <td>{{ t.point_weight }}</td>
                 <td>{{ t.is_active ? 'Aktif' : 'Nonaktif' }}</td>
                 <td class="actions">
-                  <button type="button" class="btn-sm" @click="openEditViolationType(t)">Edit</button>
-                  <button type="button" class="btn-sm btn-danger" @click="deleteViolationType(t)">Hapus</button>
+                  <div class="action-buttons">
+                    <button type="button" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis pelanggaran" @click="openEditViolationType(t)">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-edit"/></svg>
+                    </button>
+                    <button type="button" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis pelanggaran" @click="deleteViolationType(t)">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-delete"/></svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -439,8 +494,14 @@
                 <td>{{ t.point_value }}</td>
                 <td>{{ t.is_active ? 'Aktif' : 'Nonaktif' }}</td>
                 <td class="actions">
-                  <button type="button" class="btn-sm" @click="openEditType(t)">Edit</button>
-                  <button type="button" class="btn-sm btn-danger" @click="deleteType(t)">Hapus</button>
+                  <div class="action-buttons">
+                    <button type="button" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis prestasi" @click="openEditType(t)">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-edit"/></svg>
+                    </button>
+                    <button type="button" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis prestasi" @click="deleteType(t)">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-delete"/></svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -471,8 +532,14 @@
                 <td>{{ r.description || '-' }}</td>
                 <td>{{ r.is_active ? 'Aktif' : 'Nonaktif' }}</td>
                 <td class="actions">
-                  <button type="button" class="btn-sm" @click="openEditReward(r)">Edit</button>
-                  <button type="button" class="btn-sm btn-danger" @click="deleteReward(r)">Hapus</button>
+                  <div class="action-buttons">
+                    <button type="button" class="btn-action btn-edit" title="Edit" aria-label="Edit aturan reward" @click="openEditReward(r)">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-edit"/></svg>
+                    </button>
+                    <button type="button" class="btn-action btn-delete" title="Hapus" aria-label="Hapus aturan reward" @click="deleteReward(r)">
+                      <svg width="18" height="18" aria-hidden="true"><use href="#ta-icon-delete"/></svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -672,6 +739,9 @@
           </div>
         </div>
       </template>
+
+      </div>
+      </div>
 
       <!-- Modal Pelanggaran -->
       <div v-if="showViolationModal" class="modal-overlay" @click.self="showViolationModal = false">
@@ -2330,6 +2400,7 @@ onMounted(async () => {
 
 <style scoped>
 .page {
+  position: relative;
   max-width: 100%;
   min-height: calc(100vh - 72px);
   background: #f8fafc;
@@ -2373,25 +2444,84 @@ onMounted(async () => {
   border: 1px solid #cbd5e1; background: #fff; border-radius: 6px;
   padding: 4px 10px; font-size: 12px; cursor: pointer; margin-right: 4px;
 }
+.action-buttons { display: flex; flex-wrap: nowrap; gap: 0.35rem; align-items: center; }
+.btn-action {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+.btn-action:hover { transform: scale(1.05); }
+.btn-action svg { display: block; }
+.btn-edit { background: rgba(5, 150, 105, 0.12); color: #059669; }
+.btn-edit:hover { background: rgba(5, 150, 105, 0.2); }
+.btn-approve { background: #ecfdf5; color: #047857; }
+.btn-approve:hover { background: #d1fae5; }
+.btn-delete { background: #fee2e2; color: #b91c1c; }
+.btn-delete:hover { background: #fecaca; }
+.icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 .report-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .btn-success { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
 .btn-danger { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
-.nav-tabs {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 4px;
-  margin-bottom: 16px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: 5px;
+.tab-shell {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  min-height: 360px;
+  margin-bottom: 16px;
 }
-.nav-tabs::-webkit-scrollbar { display: none; }
-.nav-tab {
+.section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8fafc;
+  border-right: 1px solid #eef2f7;
+}
+.sec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #64748b;
+  text-align: left;
+}
+.sec-btn:hover:not(.active) { background: #fff; color: #0f172a; }
+.sec-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0; }
+.sec-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; flex-shrink: 0;
+}
+.sec-btn.active .sec-icon { background: #d1fae5; color: #047857; }
+.sec-label { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; flex: 1; }
+.sec-badge { background: #f97316; color: #fff; border-radius: 999px; font-size: 0.7rem; padding: 0.1rem 0.4rem; font-weight: 700; }
+.tab-main { min-width: 0; padding: 14px 16px 16px; }
+@media (max-width: 768px) {
+  .tab-shell { grid-template-columns: 1fr; min-height: 0; }
+  .section-nav {
+    flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #eef2f7;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .sec-btn { width: auto; flex: 1 0 auto; }
+}
+.leaderboard-group-tabs .nav-tab {
   border: 0;
   background: transparent;
   border-radius: 8px;
@@ -2400,18 +2530,15 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 600;
   color: #475569;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
-.nav-tab:hover { background: #f8fafc; color: #0f172a; }
-.nav-tab.active { background: #ecfdf5; color: #047857; box-shadow: inset 0 0 0 1px #a7f3d0; }
+.leaderboard-group-tabs .nav-tab.active { background: #ecfdf5; color: #047857; box-shadow: inset 0 0 0 1px #a7f3d0; }
 .sub-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin: -4px 0 16px;
+  margin: 0 0 16px;
   padding: 5px;
-  background: #fff;
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
 }

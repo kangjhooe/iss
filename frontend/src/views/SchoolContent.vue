@@ -35,8 +35,8 @@
             <td>{{ p.is_published ? 'Published' : 'Draft' }}</td>
             <td>{{ formatDate(p.published_at) }}</td>
             <td>
-              <button type="button" class="btn-link" @click="openEdit(p)">Edit</button>
-              <button type="button" class="btn-link danger" @click="remove(p)">Hapus</button>
+              <TableAction kind="edit" @click="openEdit(p)" />
+              <TableAction kind="delete" @click="remove(p)" />
             </td>
           </tr>
         </tbody>
@@ -68,6 +68,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import { schoolPostsApi } from '@/api/schoolPosts'
 import { useToast } from '@/composables/useToast'
 

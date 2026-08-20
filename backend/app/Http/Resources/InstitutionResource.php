@@ -50,6 +50,7 @@ class InstitutionResource extends JsonResource
             'teacher_appreciation_leaderboard_mode' => $this->teacher_appreciation_leaderboard_mode
                 ?: Institution::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY,
             'admission_label' => $this->resolvedAdmissionLabel(),
+            'nis_numbering' => $this->nis_numbering,
             'users_count' => $this->whenLoaded('users', function () {
                 return $this->users->count();
             }),

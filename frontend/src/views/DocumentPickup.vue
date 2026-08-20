@@ -165,8 +165,8 @@
               <span v-if="item.received_by">Petugas: {{ item.received_by }}</span>
             </div>
             <div class="pickup-card-actions">
-              <button type="button" class="btn-card-action" @click="openEditModal(item)">Edit</button>
-              <button type="button" class="btn-card-action btn-card-danger" @click="confirmDelete(item)">Hapus</button>
+              <TableAction kind="edit" @click="openEditModal(item)" />
+              <TableAction kind="delete" @click="confirmDelete(item)" />
             </div>
           </article>
           <div v-if="pagination.last_page > 1" class="pagination pagination-mobile">
@@ -382,6 +382,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import Layout from '@/components/Layout.vue'
+import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import documentPickupApi from '@/api/documentPickup'
@@ -1118,6 +1119,18 @@ onMounted(() => {
   cursor: pointer;
 }
 .btn-card-danger { color: #dc2626; border-color: #fecaca; }
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-header {
+    width: 100%;
+    justify-content: center;
+  }
+}
 
 @media (max-width: 768px) {
   .table-desktop { display: none; }

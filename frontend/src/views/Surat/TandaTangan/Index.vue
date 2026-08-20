@@ -6,6 +6,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import SuratSubNav from '../components/SuratSubNav.vue'
+import TableAction from '@/components/TableAction.vue'
 import { asetTandaTanganService } from '../services/asetTandaTanganService'
 
 const toast = useToast()
@@ -190,7 +191,7 @@ onBeforeUnmount(clearFile)
                 <p>{{ item.jenis === 'stempel' ? 'Stempel' : 'Tanda tangan' }} · {{ item.pemilik_nama || '—' }}</p>
               </div>
             </div>
-            <button type="button" class="link-danger" @click="remove(item)">Hapus</button>
+            <TableAction kind="delete" @click="remove(item)" />
           </article>
           <p v-if="!loading && !filtered.length" class="empty">Belum ada aset</p>
         </aside>

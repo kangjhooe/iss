@@ -180,6 +180,10 @@
             <span>S: <strong>{{ rekapTotals.sakit ?? 0 }}</strong></span>
             <span>% Hadir (JP): <strong>{{ rekapTotals.persentase_hadir_jp ?? 0 }}%</strong></span>
           </div>
+          <div v-if="rekapRows.length" class="charts-grid">
+            <AppChart title="Komposisi kehadiran" type="doughnut" :chart-data="attendanceShareChart" />
+            <AppChart title="Persentase hadir terendah" subtitle="Maks. 12 siswa" type="bar" :chart-data="attendanceRateChart" />
+          </div>
           <div v-if="rekapRows.length === 0" class="empty-state">
             <h3 class="empty-title">Belum ada data rekap</h3>
             <p class="empty-desc">Pilih semester + kelas + mapel untuk rekap guru mapel (TTD guru mapel), atau semester + kelas saja untuk rekap wali kelas (TTD wali). Pastikan absensi sudah diisi dari tab Isi Absensi.</p>
@@ -235,7 +239,9 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import AppChart from '@/components/AppChart.vue'
 import { useToast } from '@/composables/useToast'
+import { doughnutFromCounts, barFromSeries } from '@/composables/useChart'
 import { studentAttendanceApi } from '@/api/attendance'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { semesterApi } from '@/api/semester'
@@ -353,6 +359,20 @@ const rekapTotals = ref({})
 const rekapMeta = ref(null)
 const rekapLoading = ref(false)
 const rekapLoaded = ref(false)
+
+const attendanceShareChart = computed(() => doughnutFromCounts(rekapTotals.value))
+const attendanceRateChart = computed(() => {
+  const rows = [...(rekapRows.value || [])]
+    .sort((a, b) => (a.persentase_hadir_jp ?? a.persentase_hadir ?? 0) - (b.persentase_hadir_jp ?? b.persentase_hadir ?? 0))
+    .slice(0, 12)
+  if (!rows.length) return null
+  return barFromSeries(
+    rows.map((r) => r.name),
+    rows.map((r) => r.persentase_hadir_jp ?? r.persentase_hadir ?? 0),
+    '% Hadir',
+    '#0d9488'
+  )
+})
 
 const pairSlots = computed(() => {
   if (!fillForm.value.pair_key) return []
@@ -968,6 +988,15 @@ onMounted(async () => {
   font-size: 0.875rem;
   color: #065f46;
 }
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 900px) {
+  .charts-grid { grid-template-columns: 1fr; }
+}
 .filters-inline { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
 .filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; transition: border-color 0.2s, box-shadow 0.2s; }
 .filter-wide { min-width: 220px; }
@@ -997,6 +1026,17 @@ onMounted(async () => {
   margin-bottom: 1rem;
   font-size: 0.875rem;
   text-align: center;
+}
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
