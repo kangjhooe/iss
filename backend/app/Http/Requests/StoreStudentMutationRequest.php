@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Models\Institution;
-use App\Models\Student;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreStudentMutationRequest extends FormRequest
@@ -57,17 +56,18 @@ class StoreStudentMutationRequest extends FormRequest
                 },
             ],
             'target_school_name' => 'required_if:external,true|nullable|string|max:255',
-            'nisn' => [
+            'nik' => [
                 'required',
                 'string',
+                'size:16',
+                'regex:/^[0-9]{16}$/',
                 function ($attribute, $value, $fail) use ($external) {
                     $institutionId = $this->user()->institution_id;
-                    $student = Student::where('nisn', $value)
-                        ->where('institution_id', $institutionId)
-                        ->where('status', 'Aktif')
-                        ->first();
-                    if (!$student) {
-                        $fail('Siswa dengan NISN tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+                    try {
+                        $student = app(\App\Services\StudentMutationService::class)
+                            ->findOutgoingStudentByNik($value, $institutionId);
+                    } catch (\InvalidArgumentException $e) {
+                        $fail($e->getMessage());
                         return;
                     }
                     if ($external) {
@@ -102,7 +102,9 @@ class StoreStudentMutationRequest extends FormRequest
             'target_npsn.size' => 'NPSN harus 8 digit.',
             'target_npsn.regex' => 'NPSN harus berupa 8 digit angka.',
             'target_school_name.required_if' => 'Nama sekolah tujuan wajib diisi untuk mutasi ke sekolah luar sistem.',
-            'nisn.required' => 'NISN siswa wajib diisi.',
+            'nik.required' => 'NIK siswa wajib diisi.',
+            'nik.size' => 'NIK harus 16 digit.',
+            'nik.regex' => 'NIK harus berupa 16 digit angka.',
         ];
     }
 }

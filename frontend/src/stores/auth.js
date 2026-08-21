@@ -50,6 +50,13 @@ export const useAuthStore = defineStore('auth', {
       if (!m?.launched || !m?.online_exam?.enforced) return true
       return m.online_exam?.entitled !== false
     },
+    hiddenModuleKeys: (state) => {
+      const keys = state.user?.hidden_module_keys
+        || state.user?.active_institution?.hidden_module_keys
+        || state.user?.institution?.hidden_module_keys
+        || []
+      return Array.isArray(keys) ? keys : []
+    },
   },
 
   actions: {

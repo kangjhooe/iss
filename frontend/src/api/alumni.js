@@ -32,6 +32,12 @@ export const alumniApi = {
   updateDestination(id, data) {
     return api.put(`/v1/alumni-destinations/${id}`, data)
   },
+  approveDestination(id) {
+    return api.post(`/v1/alumni-destinations/${id}/approve`)
+  },
+  rejectDestination(id) {
+    return api.post(`/v1/alumni-destinations/${id}/reject`)
+  },
   destroyDestination(id) {
     return api.delete(`/v1/alumni-destinations/${id}`)
   }

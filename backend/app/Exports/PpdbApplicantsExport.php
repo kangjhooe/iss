@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\PpdbApplicant;
+use App\Support\RegionAddress;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -35,7 +36,7 @@ class PpdbApplicantsExport implements FromCollection, WithHeadings
             'gender' => $a->gender === 'L' ? 'Laki-laki' : ($a->gender === 'P' ? 'Perempuan' : ''),
             'birth_place' => $a->birth_place ?? '',
             'birth_date' => $a->birth_date?->format('Y-m-d') ?? '',
-            'address' => $a->address ?? '',
+            'address' => RegionAddress::format($a) ?? ($a->address ?? ''),
             'phone' => $a->phone ?? '',
             'email' => $a->email ?? '',
             'previous_school' => $a->previous_school ?? '',

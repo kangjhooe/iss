@@ -85,6 +85,8 @@ class TeacherTest extends TestCase
                 'type' => 'Guru',
                 'name' => 'Guru Baru',
                 'gender' => 'L',
+                'birth_place' => 'Jakarta',
+                'birth_date' => '1988-03-12',
                 'status' => 'Aktif',
             ]);
 
@@ -101,7 +103,28 @@ class TeacherTest extends TestCase
         $this->assertDatabaseHas('employee', [
             'name' => 'Guru Baru',
             'nik' => $nik,
+            'birth_place' => 'Jakarta',
+            'birth_date' => '1988-03-12',
         ]);
+    }
+
+    public function test_create_teacher_requires_birth_place_and_date(): void
+    {
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+        $nik = str_pad((string) random_int(0, 9999999999999999), 16, '0', STR_PAD_LEFT);
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/v1/employee', [
+                'institution_id' => $this->institution->id,
+                'nik' => $nik,
+                'type' => 'Guru',
+                'name' => 'Guru Tanpa Lahir',
+                'gender' => 'L',
+                'status' => 'Aktif',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['birth_place', 'birth_date']);
     }
 
     /**
@@ -169,6 +192,39 @@ class TeacherTest extends TestCase
         ]);
     }
 
+    public function test_user_can_force_delete_trashed_teacher(): void
+    {
+        $employee = $this->createEmployee(['nik' => '3201999999999999']);
+        $employee->delete();
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/v1/employee/{$employee->id}/force");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('employee', ['id' => $employee->id]);
+
+        $replacement = $this->createEmployee(['nik' => '3201999999999999']);
+        $this->assertDatabaseHas('employee', [
+            'id' => $replacement->id,
+            'nik' => '3201999999999999',
+        ]);
+    }
+
+    public function test_force_delete_rejects_active_teacher(): void
+    {
+        $employee = $this->createEmployee();
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/v1/employee/{$employee->id}/force");
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('employee', ['id' => $employee->id]);
+    }
+
     /**
      * Test employee list with search filter.
      */
@@ -219,5 +275,48 @@ class TeacherTest extends TestCase
                 'religion' => 'Islam',
                 'join_date' => '2015-07-01',
             ]);
+    }
+
+    public function test_admin_can_search_other_school_employee_by_nik_with_minimal_fields(): void
+    {
+        $otherSchool = Institution::factory()->create(['name' => 'SMP Asal']);
+        $employee = $this->createEmployee([
+            'institution_id' => $otherSchool->id,
+            'nik' => '3201010101010099',
+            'name' => 'Guru Tamu',
+            'gender' => 'P',
+            'type' => 'Guru',
+        ]);
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/employee/search?nik=3201010101010099');
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $employee->id)
+            ->assertJsonPath('data.name', 'Guru Tamu')
+            ->assertJsonPath('data.nik', '3201010101010099')
+            ->assertJsonPath('data.institution.id', $otherSchool->id)
+            ->assertJsonPath('data.institution.name', 'SMP Asal')
+            ->assertJsonMissingPath('data.gender')
+            ->assertJsonMissingPath('data.type')
+            ->assertJsonMissingPath('data.institution.npsn');
+    }
+
+    public function test_teacher_cannot_search_employee_by_nik(): void
+    {
+        $teacher = User::factory()->create([
+            'institution_id' => $this->institution->id,
+            'role' => 'teacher',
+            'email_verified_at' => now(),
+        ]);
+        $this->createEmployee(['nik' => '3201010101010088']);
+
+        $token = $teacher->createToken('auth_token')->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/employee/search?nik=3201010101010088')
+            ->assertStatus(403);
     }
 }

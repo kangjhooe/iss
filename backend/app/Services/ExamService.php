@@ -2,13 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Exam;
 use App\Models\ExamAnswer;
 use App\Models\ExamParticipant;
 use App\Models\ExamQuestion;
 use App\Models\ExamSession;
-use App\Models\QuestionBank;
-use Illuminate\Support\Facades\DB;
 
 class ExamService
 {
@@ -132,73 +129,21 @@ class ExamService
      */
     public function computeAutoScoreForParticipant(ExamParticipant $participant): void
     {
+        $participant->loadMissing(['answers.questionBank.options', 'examSession.exam.examQuestions']);
+        $byQuestionId = $participant->examSession->exam->examQuestions->keyBy('question_bank_id');
+
         $total = 0;
         $max = 0;
         foreach ($participant->answers as $answer) {
-            $q = $answer->questionBank;
-            $max += (float) $q->weight;
-            if ($q->type === QuestionBank::TYPE_PG) {
-                $correct = $answer->question_option_id && $q->options()->where('id', $answer->question_option_id)->where('is_correct', true)->exists();
-                $total += $correct ? (float) $q->weight : 0;
-                if ($correct) {
-                    $answer->update(['score' => $q->weight, 'saved_at' => $answer->saved_at ?? now()]);
-                } else {
-                    $answer->update(['score' => 0, 'saved_at' => $answer->saved_at ?? now()]);
-                }
-            } elseif ($q->type === QuestionBank::TYPE_PG_KOMPLEKS) {
-                $options = $q->options->keyBy('id');
-                $selectedIds = $answer->selected_option_ids ?? [];
-                if (is_array($selectedIds)) {
-                    $selectedIds = array_map('intval', $selectedIds);
-                } else {
-                    $selectedIds = [];
-                }
-                $score = 0;
-                foreach ($selectedIds as $optId) {
-                    $opt = $options->get($optId);
-                    if ($opt && $opt->is_correct) {
-                        $score += (float) $opt->option_weight;
-                    }
-                }
-                $total += $score;
-                $answer->update([
-                    'score' => $score,
-                    'saved_at' => $answer->saved_at ?? now(),
-                ]);
-            } elseif ($q->type === QuestionBank::TYPE_MATCHING) {
-                $matchingData = $q->matching_data ?? [];
-                $correctPairs = isset($matchingData['correct']) ? $matchingData['correct'] : [];
-                $studentPairs = $answer->matching_answer ?? [];
-                $correctCount = 0;
-                foreach ($correctPairs as $pair) {
-                    $l = (string) ($pair['left_id'] ?? $pair['l'] ?? '');
-                    $r = (string) ($pair['right_id'] ?? $pair['r'] ?? '');
-                    foreach ($studentPairs as $sp) {
-                        $sl = (string) ($sp['left_id'] ?? $sp['l'] ?? '');
-                        $sr = (string) ($sp['right_id'] ?? $sp['r'] ?? '');
-                        if ($sl === $l && $sr === $r) {
-                            $correctCount++;
-                            break;
-                        }
-                    }
-                }
-                $totalPairs = count($correctPairs);
-                $score = $totalPairs > 0 ? (float) $q->weight * ($correctCount / $totalPairs) : 0;
-                $total += $score;
-                $answer->update([
-                    'score' => $score,
-                    'saved_at' => $answer->saved_at ?? now(),
-                ]);
-            } elseif ($q->type === QuestionBank::TYPE_ISIAN) {
-                $accepted = $q->acceptedIsianAnswers();
-                $trimAnswer = trim(mb_strtolower($answer->answer_text ?? ''));
-                $correct = $trimAnswer !== '' && in_array($trimAnswer, $accepted, true);
-                $total += $correct ? (float) $q->weight : 0;
-                $answer->update([
-                    'score' => $correct ? $q->weight : 0,
-                    'saved_at' => $answer->saved_at ?? now(),
-                ]);
+            $eq = $byQuestionId->get($answer->question_bank_id);
+            $snapshot = $eq
+                ? $eq->scoringPayload($answer->questionBank)
+                : ($answer->questionBank ? ExamQuestionSnapshot::capture($answer->questionBank) : null);
+            if (! $snapshot) {
+                continue;
             }
+            $max += (float) ($snapshot['weight'] ?? 0);
+            $total += ExamQuestionSnapshot::applyAutoScore($answer, $snapshot);
         }
         $participant->update([
             'score' => $total,
@@ -277,11 +222,19 @@ class ExamService
      */
     public function recomputeParticipantScore(ExamParticipant $participant): void
     {
+        $participant->loadMissing(['answers.questionBank.options', 'examSession.exam.examQuestions']);
+        $byQuestionId = $participant->examSession->exam->examQuestions->keyBy('question_bank_id');
+
         $total = 0;
         $max = 0;
         foreach ($participant->answers as $answer) {
-            $q = $answer->questionBank;
-            $max += (float) $q->weight;
+            $eq = $byQuestionId->get($answer->question_bank_id);
+            $snapshot = $eq
+                ? $eq->scoringPayload($answer->questionBank)
+                : ($answer->questionBank ? ExamQuestionSnapshot::capture($answer->questionBank) : null);
+            if ($snapshot) {
+                $max += (float) ($snapshot['weight'] ?? 0);
+            }
             $score = $answer->score !== null ? (float) $answer->score : 0;
             $total += $score;
         }
@@ -302,51 +255,32 @@ class ExamService
         }
         $questionBankId = (int) $order[$index];
         $exam = $participant->examSession->exam;
-        $q = QuestionBank::with(['stimulus', 'options'])->find($questionBankId);
-        if (!$q) {
+        $examQuestion = ExamQuestion::query()
+            ->where('exam_id', $exam->id)
+            ->where('question_bank_id', $questionBankId)
+            ->with(['questionBank.options', 'questionBank.stimulus', 'questionBank.bankSoal'])
+            ->first();
+
+        $snapshot = $examQuestion?->scoringPayload($examQuestion?->questionBank);
+        if (! $snapshot) {
             return null;
         }
-        $options = $q->options->toArray();
-        $shuffleOptions = $exam->shuffle_options && in_array($q->type, [QuestionBank::TYPE_PG, QuestionBank::TYPE_PG_KOMPLEKS], true) && count($options) > 0;
-        if ($shuffleOptions) {
-            shuffle($options);
-        }
+
         $saved = ExamAnswer::where('exam_participant_id', $participant->id)
             ->where('question_bank_id', $questionBankId)
             ->first();
 
-        $payload = [
-            'question_bank_id' => $q->id,
-            'type' => $q->type,
-            'body' => $q->body,
-            'weight' => (float) $q->weight,
-            'stimulus' => $q->stimulus ? [
-                'id' => $q->stimulus->id,
-                'content' => $q->stimulus->content,
-                'type' => $q->stimulus->type,
-            ] : null,
-            'index' => $index,
-            'total' => count($order),
-            'saved_answer_text' => $saved ? $saved->answer_text : null,
-            'saved_question_option_id' => $saved ? $saved->question_option_id : null,
-            'saved_selected_option_ids' => $saved && $saved->selected_option_ids ? $saved->selected_option_ids : null,
-            'saved_matching_answer' => $saved && $saved->matching_answer ? $saved->matching_answer : null,
-        ];
-
-        if ($q->type === QuestionBank::TYPE_MATCHING) {
-            $matching = $q->matching_data ?? ['left' => [], 'right' => []];
-            $left = $matching['left'] ?? [];
-            $right = $matching['right'] ?? [];
-            if ($exam->shuffle_options && count($right) > 0) {
-                shuffle($right);
-            }
-            $payload['matching_left'] = $left;
-            $payload['matching_right'] = $right;
-            $payload['options'] = [];
-        } else {
-            $payload['options'] = $options;
-        }
-
-        return $payload;
+        return ExamQuestionSnapshot::toAttemptPayload(
+            $snapshot,
+            $index,
+            count($order),
+            (bool) $exam->shuffle_options,
+            $saved ? [
+                'answer_text' => $saved->answer_text,
+                'question_option_id' => $saved->question_option_id,
+                'selected_option_ids' => $saved->selected_option_ids,
+                'matching_answer' => $saved->matching_answer,
+            ] : null
+        );
     }
 }

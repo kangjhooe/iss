@@ -25,12 +25,12 @@ export const studentMutationApi = {
   searchOriginInstitutions(q) {
     return api.get('/v1/student-mutations/origin-institutions', { params: { q } })
   },
-  lookupStudent(nisn) {
-    return api.get('/v1/student-mutations/lookup-student', { params: { nisn } })
+  lookupStudent(nik) {
+    return api.get('/v1/student-mutations/lookup-student', { params: { nik } })
   },
-  lookupStudentAtOrigin(originNpsn, nisn) {
+  lookupStudentAtOrigin(originNpsn, nik) {
     return api.get('/v1/student-mutations/lookup-student-at-origin', {
-      params: { origin_npsn: originNpsn, nisn }
+      params: { origin_npsn: originNpsn, nik }
     })
   },
   createPull(data) {
@@ -42,8 +42,8 @@ export const studentMutationApi = {
   getHistoryByStudent(studentId) {
     return api.get(`/v1/student-mutations/by-student/${studentId}`)
   },
-  getHistoryByNisn(nisn) {
-    return api.get('/v1/student-mutations/history-by-nisn', { params: { nisn } })
+  getHistoryByNik(nik) {
+    return api.get('/v1/student-mutations/history-by-nik', { params: { nik } })
   },
   /**
    * Export Buku Mutasi (PDF atau CSV). Params: from, to, type ('all'|'in'|'out'), format ('pdf'|'csv').

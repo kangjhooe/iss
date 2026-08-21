@@ -15,7 +15,7 @@
       <div class="header-content">
         <div class="header-badge">Cek Hasil PPDB</div>
         <h1>Cek Hasil Seleksi</h1>
-        <p class="header-desc">Masukkan nomor pendaftaran atau NISN untuk melihat status dan hasil seleksi PPDB.</p>
+        <p class="header-desc">Masukkan nomor pendaftaran atau NISN beserta tanggal lahir untuk melihat status dan hasil seleksi.</p>
       </div>
     </header>
 
@@ -40,9 +40,9 @@
             />
           </div>
         </div>
-        <div v-if="needsBirthDate" class="form-group">
+        <div class="form-group">
           <label class="form-label">Tanggal Lahir <span class="required">*</span></label>
-          <p class="form-hint">Wajib saat pencarian dengan NISN (verifikasi identitas).</p>
+          <p class="form-hint">Wajib untuk memverifikasi identitas calon (format sesuai akte/KK).</p>
           <input
             v-model="birthDate"
             type="date"
@@ -57,7 +57,7 @@
           </svg>
           {{ error }}
         </div>
-        <button type="submit" class="btn-submit" :disabled="loading || !searchQuery.trim() || (needsBirthDate && !birthDate)">
+        <button type="submit" class="btn-submit" :disabled="loading || !searchQuery.trim() || !birthDate">
           <span v-if="loading" class="btn-spinner"></span>
           <template v-else>
             <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -140,6 +140,10 @@
             <dt>Catatan bayar</dt>
             <dd>{{ result.payment_notes }}</dd>
           </div>
+          <div v-if="result.document_summary?.required_total" class="result-row">
+            <dt>Kelengkapan berkas</dt>
+            <dd>{{ result.document_summary.required_uploaded }}/{{ result.document_summary.required_total }} wajib</dd>
+          </div>
           <template v-if="result.student">
             <div class="result-row result-row-highlight">
               <dt>NIS (Siswa)</dt>
@@ -183,6 +187,9 @@
             </svg>
             Cetak Formulir Pendaftaran
           </button>
+          <button type="button" class="btn-print" :disabled="slipDownloading" @click="downloadSlipPdf">
+            {{ slipDownloading ? 'Menyiapkan PDF...' : 'Unduh bukti PDF' }}
+          </button>
         </div>
         <!-- Area cetak: hidden di layar, tampil saat print -->
         <div ref="printAreaRef" class="formulir-print-wrap">
@@ -217,7 +224,7 @@
                 <tr><td class="print-label">NISN</td><td>{{ result.nisn || '-' }}</td></tr>
                 <tr><td class="print-label">Jenis Kelamin</td><td>{{ result.gender === 'L' ? 'Laki-laki' : result.gender === 'P' ? 'Perempuan' : '-' }}</td></tr>
                 <tr><td class="print-label">Tempat, Tanggal Lahir</td><td>{{ result.birth_place || '-' }}, {{ result.birth_date || '-' }}</td></tr>
-                <tr><td class="print-label">Alamat</td><td>{{ result.address || '-' }}</td></tr>
+                <tr><td class="print-label">Alamat</td><td>{{ result.full_address || result.address || '-' }}</td></tr>
                 <tr><td class="print-label">Telepon / Email</td><td>{{ result.phone || '-' }} / {{ result.email || '-' }}</td></tr>
                 <tr><td class="print-label">Agama</td><td>{{ result.religion || '-' }}</td></tr>
                 <tr><td class="print-label">Sekolah Asal (NPSN)</td><td>{{ result.previous_school_npsn || '-' }}</td></tr>
@@ -268,13 +275,9 @@ const loading = ref(false)
 const error = ref('')
 const result = ref(null)
 const printAreaRef = ref(null)
+const slipDownloading = ref(false)
 const confirmReRegLoading = ref(false)
 const confirmReRegSuccess = ref(false)
-
-const needsBirthDate = computed(() => {
-  const q = searchQuery.value.trim()
-  return /^\d{10}$/.test(q)
-})
 
 const statusLabels = {
   draft: 'Draft',
@@ -288,6 +291,7 @@ const statusLabels = {
   re_registration: 'Daftar Ulang',
   converted: 'Jadi Siswa',
   cancelled: 'Dibatalkan',
+  accepted_elsewhere: 'Sudah diterima di sekolah lain',
 }
 
 function statusLabel(s) {
@@ -364,7 +368,10 @@ async function doConfirmReReg() {
   confirmReRegSuccess.value = false
   error.value = ''
   try {
-    const params = { registration_number: result.value.registration_number }
+    const params = {
+      registration_number: result.value.registration_number,
+      birth_date: birthDate.value,
+    }
     if (result.value.institution?.npsn) params.npsn = result.value.institution.npsn
     await ppdbPublicApi.confirmReRegistration(params)
     result.value = { ...result.value, re_registration_confirmed_at: true, status: 're_registration' }
@@ -383,26 +390,21 @@ async function check() {
     error.value = 'Masukkan nomor pendaftaran atau NISN.'
     return
   }
+  if (!birthDate.value) {
+    error.value = 'Tanggal lahir wajib diisi.'
+    return
+  }
   error.value = ''
   result.value = null
   loading.value = true
   try {
-    const params = {}
+    const params = { birth_date: birthDate.value }
     // Deteksi apakah input adalah nomor pendaftaran (mengandung tanda hubung) atau NISN (10 digit angka)
     if (query.includes('-')) {
-      // Format nomor pendaftaran: NPSN-period_id-seq (contoh: 10648387-1-00001)
       params.registration_number = query
     } else if (/^\d{10}$/.test(query)) {
-      // NISN adalah 10 digit angka — wajib tanggal lahir
-      if (!birthDate.value) {
-        error.value = 'Untuk pencarian dengan NISN, isi tanggal lahir.'
-        loading.value = false
-        return
-      }
       params.nisn = query
-      params.birth_date = birthDate.value
     } else {
-      // Coba sebagai nomor pendaftaran dulu
       params.registration_number = query
     }
     const res = await ppdbPublicApi.checkResult(params)
@@ -411,6 +413,34 @@ async function check() {
     error.value = e.response?.data?.message || e.formattedMessage || 'Data tidak ditemukan.'
   } finally {
     loading.value = false
+  }
+}
+
+async function downloadSlipPdf() {
+  const reg = result.value?.registration_number
+  if (!reg) return
+  slipDownloading.value = true
+  try {
+    const res = await ppdbPublicApi.downloadRegistrationSlip({
+      registration_number: reg,
+      birth_date: birthDate.value,
+      ...(result.value.institution?.npsn ? { npsn: result.value.institution.npsn } : {}),
+    })
+    const blob = res.data
+    if (blob.type && blob.type.includes('json')) {
+      toast.error('Gagal mengunduh', 'Bukti pendaftaran tidak dapat dibuat.')
+      return
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `bukti-pendaftaran-${reg}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    toast.error('Gagal mengunduh bukti', e.formattedMessage || 'Coba lagi.')
+  } finally {
+    slipDownloading.value = false
   }
 }
 
@@ -591,6 +621,7 @@ function printFormulir() {
 .status-reserve { background: #fef3c7; color: #92400e; }
 .status-failed, .status-rejected, .status-cancelled { background: #fee2e2; color: #991b1b; }
 .status-converted { background: #d1fae5; color: #047857; }
+.status-accepted_elsewhere { background: #ede9fe; color: #5b21b6; }
 .status-submitted, .status-verification, .status-verified, .status-re_registration { background: #ecfdf5; color: #047857; }
 .status-draft { background: #f1f5f9; color: #475569; }
 .result-actions {

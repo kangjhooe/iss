@@ -48,7 +48,7 @@
                     <td class="center">{{ $s->phone ?: '—' }}</td>
                     <td>{{ $s->guardian_name ?: '—' }}</td>
                     <td class="center">{{ $s->guardian_phone ?: '—' }}</td>
-                    <td>{{ $s->address ?: '—' }}</td>
+                    <td>{{ \App\Support\RegionAddress::format($s) ?: '—' }}</td>
                 </tr>
             @empty
                 <tr><td colspan="7" class="center">Belum ada data</td></tr>

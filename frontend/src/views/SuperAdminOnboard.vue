@@ -62,8 +62,7 @@
                 <input v-model="form.phone" type="text" class="form-control" maxlength="20" />
               </div>
               <div class="form-group full">
-                <label>Alamat</label>
-                <textarea v-model="form.address" class="form-control" rows="2"></textarea>
+                <AddressCascade v-model="form" />
               </div>
               <div class="form-group">
                 <label class="checkbox-label">
@@ -160,8 +159,10 @@
 <script setup>
 import { ref } from 'vue'
 import Layout from '@/components/Layout.vue'
+import AddressCascade from '@/components/AddressCascade.vue'
 import { institutionAdminApi } from '@/api/institutionAdmin'
 import { useToast } from '@/composables/useToast'
+import { ADDRESS_KEYS, emptyAddress } from '@/utils/addressFields'
 
 const toast = useToast()
 const step = ref(1)
@@ -178,7 +179,7 @@ const emptyForm = () => ({
   level: '',
   type: 'Swasta',
   phone: '',
-  address: '',
+  ...emptyAddress(),
   is_active: true,
   admin_name: '',
   admin_email: '',
@@ -218,7 +219,7 @@ const handleNext = async () => {
       level: form.value.level || null,
       type: form.value.type,
       phone: form.value.phone || null,
-      address: form.value.address || null,
+      ...Object.fromEntries(ADDRESS_KEYS.map((key) => [key, form.value[key] || null])),
       is_active: form.value.is_active,
       admin_name: form.value.admin_name.trim(),
       admin_email: form.value.admin_email.trim()

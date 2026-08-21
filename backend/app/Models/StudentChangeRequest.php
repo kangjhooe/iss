@@ -38,6 +38,15 @@ class StudentChangeRequest extends Model
      */
     public const SELF_EDITABLE_FIELDS = [
         'address',
+        'village',
+        'sub_district',
+        'district',
+        'province',
+        'postal_code',
+        'wilayah_province_code',
+        'wilayah_regency_code',
+        'wilayah_district_code',
+        'wilayah_village_code',
         'phone',
         'religion',
         'aspiration',

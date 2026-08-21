@@ -3,9 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Models\AppBranding;
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureNotInMaintenance
@@ -18,6 +20,7 @@ class EnsureNotInMaintenance
         'logout',
         'refresh-token',
         'forgot-password',
+        'password-reset-requests',
         'reset-password',
         'app-branding',
         'me',
@@ -27,17 +30,16 @@ class EnsureNotInMaintenance
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$this->isMaintenanceEnabled()) {
+        if (! $this->isMaintenanceEnabled()) {
             return $next($request);
         }
 
-        $user = $request->user();
+        $user = $this->resolveRequestUser($request);
         if ($user && $user->isSuperAdmin()) {
             return $next($request);
         }
 
-        // Super admin yang sedang impersonate tetap diizinkan (cookie impersonator valid)
-        if ($request->cookie(\App\Http\Middleware\AddTokenFromCookie::COOKIE_IMPERSONATOR)) {
+        if ($this->isValidSuperAdminImpersonation($request)) {
             return $next($request);
         }
 
@@ -69,15 +71,17 @@ class EnsureNotInMaintenance
         } elseif (str_starts_with($path, 'api/')) {
             $path = substr($path, 4);
         }
+
         return $path;
     }
 
     private function isMaintenanceEnabled(): bool
     {
         try {
-            if (!Schema::hasTable('app_branding') || !Schema::hasColumn('app_branding', 'maintenance_mode')) {
+            if (! Schema::hasTable('app_branding') || ! Schema::hasColumn('app_branding', 'maintenance_mode')) {
                 return false;
             }
+
             return (bool) AppBranding::query()->value('maintenance_mode');
         } catch (\Throwable $e) {
             return false;
@@ -96,5 +100,47 @@ class EnsureNotInMaintenance
         }
 
         return 'Sistem sedang dalam mode pemeliharaan. Silakan coba lagi nanti.';
+    }
+
+    private function resolveRequestUser(Request $request): ?User
+    {
+        $user = $request->user();
+        if ($user instanceof User) {
+            return $user;
+        }
+
+        $token = $request->bearerToken() ?: $request->cookie(AddTokenFromCookie::COOKIE_AUTH);
+        if (! is_string($token) || $token === '') {
+            return null;
+        }
+
+        return $this->userFromSanctumToken($token);
+    }
+
+    private function isValidSuperAdminImpersonation(Request $request): bool
+    {
+        $token = $request->cookie(AddTokenFromCookie::COOKIE_IMPERSONATOR);
+        if (! is_string($token) || $token === '') {
+            return false;
+        }
+
+        $admin = $this->userFromSanctumToken($token);
+
+        return $admin instanceof User && $admin->isSuperAdmin();
+    }
+
+    private function userFromSanctumToken(string $token): ?User
+    {
+        $tokenModel = PersonalAccessToken::findToken($token);
+        if (! $tokenModel) {
+            return null;
+        }
+        if ($tokenModel->expires_at && $tokenModel->expires_at->isPast()) {
+            return null;
+        }
+
+        $tokenable = $tokenModel->tokenable;
+
+        return $tokenable instanceof User ? $tokenable : null;
     }
 }

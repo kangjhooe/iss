@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Support\InstitutionContext;
 use App\Support\KaprogAccess;
+use App\Support\ReportAccess;
 use App\Support\TeacherMenuContext;
 use App\Support\WaliKelasAccess;
 use Illuminate\Http\Request;
@@ -95,6 +96,13 @@ class UserResource extends JsonResource
                     return false;
                 }
             })(),
+            'is_kepala_sekolah' => (function () {
+                try {
+                    return ReportAccess::isKepalaSekolah($this->resource);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })(),
             'bk_scope' => $bkScopeMode,
             'is_lab_responsible' => (function () use ($activeInstitutionId) {
                 try {
@@ -139,11 +147,13 @@ class UserResource extends JsonResource
                 || ($this->relationLoaded('studentProfile') && $this->studentProfile?->relationLoaded('institution') && $this->studentProfile?->institution),
                 function () {
                     $inst = $this->institution ?? $this->studentProfile?->institution;
+
                     return $inst ? new InstitutionResource($inst) : null;
                 }
             ),
             'student_profile' => $this->whenLoaded('studentProfile', function () {
                 $sp = $this->studentProfile;
+
                 return [
                     'id' => $sp->id,
                     'nik' => $sp->nik,

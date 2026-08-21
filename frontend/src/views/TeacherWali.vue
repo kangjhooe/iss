@@ -559,7 +559,7 @@
               <h4>Identitas</h4>
               <dl>
                 <div><dt>L/P</dt><dd>{{ genderLabel(profile.gender) }}</dd></div>
-                <div><dt>Alamat</dt><dd>{{ profile.address || '—' }}</dd></div>
+                <div><dt>Alamat</dt><dd>{{ formatFullAddress(profile) || profile.address || '—' }}</dd></div>
                 <div><dt>Email</dt><dd>{{ profile.email || '—' }}</dd></div>
               </dl>
             </div>
@@ -739,6 +739,7 @@ import { teacherApi } from '@/api/teacher'
 import { waliKelasApi } from '@/api/waliKelas'
 import { useToast } from '@/composables/useToast'
 import { studentLoginCredentials, mapStudentCreatedAccounts } from '@/utils/accountCredentials'
+import { formatFullAddress } from '@/utils/addressFields'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -879,7 +880,7 @@ const visibleActions = computed(() => {
   items.push({ title: 'Monitoring Absen', desc: 'Rekap 7/30 hari & alpa berulang', to: `/teacher/wali${q}${q ? '&' : '?'}panel=absensi`, tone: 'teal', icon: icons.attendance })
   if (canAccessBk.value) {
     items.push({ title: 'Rekap Pelanggaran', desc: 'Laporan BK siswa kelas wali', to: `/laporan-bk${q}`, tone: 'amber', icon: icons.violation })
-    items.push({ title: 'Poin & Prestasi', desc: 'Skor pelanggaran dan prestasi siswa', to: `/laporan-bk${q}${q ? '&' : '?'}tab=detail`, tone: 'violet', icon: icons.points })
+    items.push({ title: 'Poin & Prestasi', desc: 'Skor pelanggaran dan prestasi siswa', to: `/laporan-bk${q}${q ? '&' : '?'}tab=skor`, tone: 'violet', icon: icons.points })
   }
   items.push({ title: 'Monitoring Nilai', desc: 'Mapel kosong & di bawah KKM', to: `/teacher/wali${q}${q ? '&' : '?'}panel=nilai`, tone: 'sky', icon: icons.rekap })
   if (canAccessModule('grade_book')) {

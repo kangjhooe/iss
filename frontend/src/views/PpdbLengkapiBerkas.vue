@@ -33,6 +33,15 @@
               />
             </div>
             <div class="form-group">
+              <label>Tanggal Lahir <span class="required">*</span></label>
+              <input
+                v-model="birthDate"
+                type="date"
+                class="form-input"
+                @input="uploadError = ''"
+              />
+            </div>
+            <div class="form-group">
               <label>NPSN Sekolah (opsional)</label>
               <input
                 v-model="npsnSchool"
@@ -47,15 +56,35 @@
 
         <section class="form-section">
           <h3 class="section-title">Unggah Dokumen</h3>
-          <p class="section-hint">Nama berkas: misalnya "Foto 3x4", "Kartu Keluarga", "Akte Kelahiran". Maksimal 20 file per calon.</p>
+          <p class="section-hint">Pilih jenis berkas sesuai daftar sekolah, lalu unggah PDF/JPG/PNG (maks. 2 MB). Maksimal 20 file per calon.</p>
+          <div v-if="checklistLoading" class="checklist-status">Memuat daftar berkas...</div>
+          <div v-else-if="checklistError" class="field-error">{{ checklistError }}</div>
+          <ul v-if="checklistItems.length" class="checklist">
+            <li v-for="item in checklistItems" :key="item.key" :class="{ done: item.uploaded, required: item.required && !item.uploaded }">
+              <span class="check-mark">{{ item.uploaded ? '✓' : '○' }}</span>
+              <span>{{ item.label }}</span>
+              <span class="check-meta">{{ item.required ? 'Wajib' : 'Opsional' }}{{ item.uploaded ? ' · sudah unggah' : '' }}</span>
+            </li>
+          </ul>
+          <p v-else-if="checklistLoaded && !checklistItems.length" class="section-hint">Sekolah belum mengatur daftar berkas wajib. Isi nama berkas secara manual.</p>
           <div class="upload-row">
-            <div class="form-group flex-1">
+            <div v-if="checklistItems.length" class="form-group flex-1">
+              <label>Jenis berkas <span class="required">*</span></label>
+              <select v-model="selectedKey" class="form-input" @change="uploadError = ''">
+                <option value="">Pilih jenis</option>
+                <option v-for="item in checklistItems" :key="item.key" :value="item.key">
+                  {{ item.label }}{{ item.uploaded ? ' (ganti)' : '' }}
+                </option>
+                <option value="__other__">Lainnya</option>
+              </select>
+            </div>
+            <div v-if="needsCustomName" class="form-group flex-1">
               <label>Nama berkas <span class="required">*</span></label>
               <input
                 v-model="docName"
                 type="text"
                 class="form-input"
-                placeholder="Contoh: Foto 3x4"
+                placeholder="Contoh: Surat pindah"
                 @input="uploadError = ''"
               />
             </div>
@@ -101,23 +130,36 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ppdbPublicApi } from '@/api/ppdbPublic'
 
 const route = useRoute()
 const registrationNumber = ref('')
+const birthDate = ref('')
 const npsnSchool = ref('')
 const docName = ref('')
+const selectedKey = ref('')
 const fileInputRef = ref(null)
 const selectedFile = ref(null)
 const uploading = ref(false)
 const uploadError = ref('')
 const uploadSuccess = ref('')
 const uploadedList = ref([])
+const checklistLoading = ref(false)
+const checklistLoaded = ref(false)
+const checklistError = ref('')
+const checklistItems = ref([])
+
+const needsCustomName = computed(() => {
+  if (!checklistItems.value.length) return true
+  return selectedKey.value === '__other__'
+})
 
 const canUpload = computed(() => {
-  return registrationNumber.value.trim() && docName.value.trim() && selectedFile.value
+  if (!registrationNumber.value.trim() || !birthDate.value || !selectedFile.value) return false
+  if (needsCustomName.value) return !!docName.value.trim()
+  return !!selectedKey.value
 })
 
 function onFileSelect(e) {
@@ -127,9 +169,41 @@ function onFileSelect(e) {
 }
 
 function clearUploadForm() {
-  docName.value = ''
+  if (needsCustomName.value) docName.value = ''
   selectedFile.value = null
   if (fileInputRef.value) fileInputRef.value.value = ''
+}
+
+function checklistParams() {
+  const params = {
+    registration_number: registrationNumber.value.trim(),
+    birth_date: birthDate.value,
+  }
+  if (npsnSchool.value.trim()) params.npsn = npsnSchool.value.trim()
+  return params
+}
+
+async function loadChecklist() {
+  if (!registrationNumber.value.trim() || !birthDate.value) {
+    checklistItems.value = []
+    checklistLoaded.value = false
+    checklistError.value = ''
+    return
+  }
+  checklistLoading.value = true
+  checklistError.value = ''
+  try {
+    const res = await ppdbPublicApi.getDocumentChecklist(checklistParams())
+    const data = res.data?.data || res.data
+    checklistItems.value = data?.document_summary?.items || []
+    checklistLoaded.value = true
+  } catch (e) {
+    checklistItems.value = []
+    checklistLoaded.value = false
+    checklistError.value = e.response?.data?.message || e.formattedMessage || 'Nomor pendaftaran tidak ditemukan.'
+  } finally {
+    checklistLoading.value = false
+  }
 }
 
 async function uploadOne() {
@@ -140,14 +214,24 @@ async function uploadOne() {
   try {
     const formData = new FormData()
     formData.append('registration_number', registrationNumber.value.trim())
+    formData.append('birth_date', birthDate.value)
     if (npsnSchool.value.trim()) formData.append('npsn', npsnSchool.value.trim())
-    formData.append('name', docName.value.trim())
+    const key = selectedKey.value && selectedKey.value !== '__other__' ? selectedKey.value : ''
+    if (key) formData.append('document_key', key)
+    if (needsCustomName.value) formData.append('name', docName.value.trim())
     formData.append('file', selectedFile.value)
-    await ppdbPublicApi.uploadDocument(formData)
+    const res = await ppdbPublicApi.uploadDocument(formData)
+    const uploadedName = res.data?.data?.name || docName.value.trim() || 'Berkas'
     uploadedList.value.unshift({
-      name: docName.value.trim(),
+      name: uploadedName,
       at: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     })
+    if (res.data?.document_summary?.items) {
+      checklistItems.value = res.data.document_summary.items
+      checklistLoaded.value = true
+    } else {
+      await loadChecklist()
+    }
     uploadSuccess.value = 'Berkas berhasil diunggah.'
     clearUploadForm()
     setTimeout(() => { uploadSuccess.value = '' }, 3000)
@@ -164,9 +248,16 @@ async function uploadOne() {
   }
 }
 
+let checklistTimer = null
+watch([registrationNumber, birthDate, npsnSchool], () => {
+  if (checklistTimer) clearTimeout(checklistTimer)
+  checklistTimer = setTimeout(loadChecklist, 400)
+})
+
 onMounted(() => {
   const q = route.query
   if (q.registration_number) registrationNumber.value = q.registration_number
+  if (q.birth_date) birthDate.value = q.birth_date
   if (q.npsn) npsnSchool.value = q.npsn
 })
 </script>
@@ -276,6 +367,29 @@ onMounted(() => {
 .uploaded-list li { margin-bottom: 0.35rem; }
 .uploaded-name { font-weight: 500; }
 .uploaded-time { margin-left: 0.5rem; color: #94a3b8; font-size: 0.85rem; }
+.checklist-status { font-size: 0.9rem; color: #64748b; margin-bottom: 0.75rem; }
+.checklist {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #475569;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.checklist li.done { color: #047857; background: #ecfdf5; }
+.checklist li.required { color: #b91c1c; background: #fef2f2; }
+.check-mark { font-weight: 700; width: 1.1rem; }
+.check-meta { margin-left: auto; font-size: 0.78rem; color: #94a3b8; }
 
 .form-actions { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #f1f5f9; }
 .btn-outline {

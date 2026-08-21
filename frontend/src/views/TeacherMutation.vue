@@ -253,7 +253,10 @@
                     <span class="value">{{ pullTeacherPreview.institution.name }} ({{ pullTeacherPreview.institution.npsn }})</span>
                   </div>
                 </div>
-                <p class="student-preview-hint">Pastikan data benar sebelum menarik guru.</p>
+                <p v-if="pullTeacherPreview.in_trash" class="student-preview-warning">
+                  Guru ini ada di kotak sampah sekolah asal. Permohonan tetap dikirim. Jika sekolah asal menyetujui, guru dipulihkan langsung di sekolah Anda — tidak kembali ke daftar aktif sekolah asal.
+                </p>
+                <p v-else class="student-preview-hint">Pastikan data benar sebelum menarik guru.</p>
               </div>
             </template>
             <div class="form-group">
@@ -373,7 +376,11 @@
           <div class="card-body">
             <div class="detail-row detail-highlight">
               <span class="label">Guru</span>
-              <span class="value">{{ m.employee?.name }} <span class="value-muted">(NIK: {{ m.employee?.nik || '–' }})</span></span>
+              <span class="value">
+                {{ m.employee?.name }}
+                <span class="value-muted">(NIK: {{ m.employee?.nik || '–' }})</span>
+                <span v-if="m.employee?.in_trash" class="badge-trash">Kotak sampah</span>
+              </span>
             </div>
             <div class="detail-row">
               <span class="label">Sekolah asal</span>
@@ -1910,6 +1917,13 @@ onMounted(async () => {
   color: #047857;
 }
 
+.student-preview-warning {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #b45309;
+}
+
 .form-group-checkbox {
   margin-bottom: 12px;
 }
@@ -1935,6 +1949,16 @@ onMounted(async () => {
   font-weight: 600;
   color: #b45309;
   background: #fef3c7;
+  border-radius: 6px;
+}
+.badge-trash {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a3412;
+  background: #ffedd5;
   border-radius: 6px;
 }
 .badge-wali {

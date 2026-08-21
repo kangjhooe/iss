@@ -92,14 +92,23 @@ class PublicPpdbTest extends TestCase
             ]);
     }
 
+    public function test_public_ppdb_check_result_returns_422_when_missing_birth_date(): void
+    {
+        $this->getJson('/api/v1/public/ppdb/check-result?registration_number=PPDB-999-99999')
+            ->assertStatus(422)
+            ->assertJson([
+                'message' => 'Tanggal lahir wajib diisi (format YYYY-MM-DD).',
+            ]);
+    }
+
     /**
      * GET public/ppdb/check-result ketika data tidak ditemukan mengembalikan 404.
      */
     public function test_public_ppdb_check_result_returns_404_when_applicant_not_found(): void
     {
-        $response = $this->getJson('/api/v1/public/ppdb/check-result?registration_number=PPDB-999-99999');
+        $response = $this->getJson('/api/v1/public/ppdb/check-result?registration_number=PPDB-999-99999&birth_date=2011-01-01');
 
         $response->assertStatus(404)
-            ->assertJsonFragment(['message' => 'Data tidak ditemukan. Periksa nomor pendaftaran dan pilihan sekolah.']);
+            ->assertJsonFragment(['message' => 'Data tidak ditemukan. Periksa nomor pendaftaran atau NISN dan tanggal lahir.']);
     }
 }

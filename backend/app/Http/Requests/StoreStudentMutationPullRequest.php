@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Institution;
 use App\Models\Student;
+use App\Support\StudentIdentity;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreStudentMutationPullRequest extends FormRequest
@@ -19,13 +20,14 @@ class StoreStudentMutationPullRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
-     * User = admin sekolah TARGET (penarik). Body: origin_npsn (sekolah asal), nisn (siswa di sekolah asal).
+     * User = admin sekolah TARGET (penarik). Body: origin_npsn (sekolah asal), nik (siswa di sekolah asal).
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         $external = $this->boolean('external');
+        $targetInstitutionId = $this->user()?->institution_id;
 
         return [
             'external' => 'sometimes|boolean',
@@ -58,15 +60,15 @@ class StoreStudentMutationPullRequest extends FormRequest
                 },
             ],
             'origin_school_name' => 'required_if:external,true|nullable|string|max:255',
-            'nisn' => [
+            'nik' => [
                 'required',
                 'string',
-                function ($attribute, $value, $fail) use ($external) {
-                    $targetInstitutionId = $this->user()->institution_id;
+                'size:16',
+                'regex:/^[0-9]{16}$/',
+                function ($attribute, $value, $fail) use ($external, $targetInstitutionId) {
                     if ($external) {
-                        if (Student::where('institution_id', $targetInstitutionId)->where('nisn', $value)->exists()) {
-                            $fail('NISN tersebut sudah digunakan oleh siswa lain di sekolah Anda.');
-                        }
+                        $this->failIfIdentityTaken('nik', $value, $targetInstitutionId, $fail);
+
                         return;
                     }
                     $originNpsn = $this->input('origin_npsn');
@@ -74,12 +76,11 @@ class StoreStudentMutationPullRequest extends FormRequest
                     if (!$origin) {
                         return;
                     }
-                    $student = Student::where('nisn', $value)
-                        ->where('institution_id', $origin->id)
-                        ->where('status', 'Aktif')
-                        ->first();
-                    if (!$student) {
-                        $fail('Siswa dengan NISN tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
+                    try {
+                        $student = app(\App\Services\StudentMutationService::class)
+                            ->findPullableStudentByNik($value, $origin->id);
+                    } catch (\InvalidArgumentException $e) {
+                        $fail($e->getMessage());
                         return;
                     }
                     $pending = \App\Models\StudentMutation::where('student_id', $student->id)
@@ -92,11 +93,52 @@ class StoreStudentMutationPullRequest extends FormRequest
                     }
                 },
             ],
+            'nisn' => [
+                'nullable',
+                'string',
+                'size:10',
+                'regex:/^[0-9]{10}$/',
+                function ($attribute, $value, $fail) use ($external, $targetInstitutionId) {
+                    if (! $external || $value === null || trim((string) $value) === '') {
+                        return;
+                    }
+                    $this->failIfIdentityTaken('nisn', $value, $targetInstitutionId, $fail);
+                },
+            ],
             'student_name' => 'required_if:external,true|nullable|string|max:255',
             'student_gender' => 'required_if:external,true|nullable|string|in:L,P,Laki-laki,Perempuan,Laki,Perempuan',
             'student_grade' => 'nullable|string|max:20',
             'notes' => 'nullable|string|max:500',
         ];
+    }
+
+    /**
+     * @param  callable(string): void  $fail
+     */
+    protected function failIfIdentityTaken(string $field, mixed $value, ?int $targetInstitutionId, callable $fail): void
+    {
+        $label = $field === 'nik' ? 'NIK' : 'NISN';
+        $value = trim((string) $value);
+
+        $sameSchool = Student::withTrashed()
+            ->where('institution_id', $targetInstitutionId)
+            ->where($field, $value)
+            ->first();
+        if ($sameSchool) {
+            $fail($label.' tersebut sudah digunakan oleh siswa lain di sekolah Anda.');
+
+            return;
+        }
+
+        $occupant = StudentIdentity::activeOccupant($field, $value);
+        if (! $occupant) {
+            return;
+        }
+
+        $occupant->loadMissing('institution:id,name');
+        $where = $occupant->institution?->name ?: 'sekolah lain';
+        $trash = $occupant->trashed() ? ' (kotak sampah)' : '';
+        $fail($label." tersebut sudah terdaftar di {$where}{$trash}. Gunakan tarik siswa, jangan input manual.");
     }
 
     public function messages(): array
@@ -106,7 +148,11 @@ class StoreStudentMutationPullRequest extends FormRequest
             'origin_npsn.size' => 'NPSN harus 8 digit.',
             'origin_npsn.regex' => 'NPSN harus berupa 8 digit angka.',
             'origin_school_name.required_if' => 'Nama sekolah asal wajib diisi untuk mutasi masuk dari sekolah luar sistem.',
-            'nisn.required' => 'NISN siswa wajib diisi.',
+            'nik.required' => 'NIK siswa wajib diisi.',
+            'nik.size' => 'NIK harus 16 digit.',
+            'nik.regex' => 'NIK harus berupa 16 digit angka.',
+            'nisn.size' => 'NISN harus 10 digit.',
+            'nisn.regex' => 'NISN harus berupa 10 digit angka.',
             'student_name.required_if' => 'Nama siswa wajib diisi untuk mutasi masuk dari sekolah luar.',
             'student_gender.required_if' => 'Jenis kelamin siswa wajib diisi.',
         ];

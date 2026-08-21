@@ -16,6 +16,7 @@ class PpdbChannelResource extends JsonResource
             'name' => $this->name,
             'quota' => $this->quota,
             'requirements' => $this->requirements,
+            'required_documents' => \App\Support\PpdbDocumentChecklist::normalize($this->required_documents),
             'is_active' => $this->is_active,
             'sort_order' => $this->sort_order,
             'created_at' => $this->created_at?->toIso8601String(),

@@ -227,6 +227,7 @@
           @delete="deleteStudent"
           @add="openAddModal"
           @restore="handleRestoreStudent"
+          @force-delete="handleForceDeleteStudent"
         >
           <template #empty>
             <template v-if="filters.only_trashed">
@@ -234,7 +235,7 @@
                 <path d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <h3>Tidak ada data di kotak sampah</h3>
-              <p>Data siswa yang dihapus akan muncul di sini dan dapat dipulihkan</p>
+              <p>Data siswa yang dihapus akan muncul di sini. Pulihkan untuk mengembalikan, atau hapus permanen jika data salah.</p>
             </template>
             <template v-else>
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -296,7 +297,7 @@
               </div>
               <div>
                 <h3 class="form-modal-title">{{ showEditModal ? 'Edit' : 'Tambah' }} Siswa</h3>
-                <p class="form-modal-subtitle">{{ showEditModal ? 'Perbarui data siswa' : 'Isi data siswa baru' }}</p>
+                <p class="form-modal-subtitle">{{ addModalSubtitle }}</p>
               </div>
             </div>
             <button @click="closeModal" class="btn-close-modal" type="button" aria-label="Tutup">
@@ -305,8 +306,122 @@
               </svg>
             </button>
           </div>
+
+          <div v-if="showAddModal && !showEditModal" class="add-mode-switch">
+            <button
+              type="button"
+              :class="['add-mode-btn', { active: addMode === 'manual' }]"
+              @click="addMode = 'manual'"
+            >
+              Input manual
+            </button>
+            <button
+              type="button"
+              :class="['add-mode-btn', { active: addMode === 'feeder' }]"
+              @click="addMode = 'feeder'"
+            >
+              Tarik dari jenjang sebelumnya
+            </button>
+          </div>
+
+          <div v-if="showAddModal && !showEditModal && addMode === 'feeder'" class="form-modal-body feeder-panel">
+            <p class="form-hint">
+              Masukkan NPSN sekolah asal (jenjang sebelumnya). Arsip alumni di sekolah asal tetap tersimpan;
+              yang ditarik menjadi siswa baru di sekolah ini.
+            </p>
+            <div class="feeder-npsn-row">
+              <div class="form-group">
+                <label>NPSN sekolah asal</label>
+                <input
+                  v-model="feederNpsn"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="8"
+                  placeholder="8 digit NPSN"
+                  @input="feederNpsn = feederNpsn.replace(/\D/g, '').slice(0, 8)"
+                />
+              </div>
+              <button
+                type="button"
+                class="btn-outline"
+                :disabled="feederLoading || feederNpsn.length !== 8"
+                @click="loadFeederAlumni"
+              >
+                {{ feederLoading ? 'Memuat...' : 'Tampilkan alumni' }}
+              </button>
+            </div>
+            <p v-if="feederOrigin" class="feeder-origin">
+              {{ feederOrigin.name }}
+              <span class="text-muted">({{ feederOrigin.level }} · NPSN {{ feederOrigin.npsn }})</span>
+            </p>
+            <div v-if="feederAlumni.length" class="form-group">
+              <label>Cari nama atau NIK</label>
+              <input v-model="feederSearch" type="text" placeholder="Filter nama atau NIK..." />
+            </div>
+            <div v-if="filteredFeederAlumni.length" class="feeder-list-wrap">
+              <label class="feeder-select-all">
+                <input type="checkbox" :checked="feederAllSelected" @change="toggleSelectAllFeeder" />
+                Pilih semua yang bisa ditarik ({{ feederSelectable.length }})
+              </label>
+              <div class="feeder-list">
+                <label
+                  v-for="row in filteredFeederAlumni"
+                  :key="row.id"
+                  :class="['feeder-row', { disabled: row.already_enrolled }]"
+                >
+                  <input
+                    type="checkbox"
+                    :value="row.id"
+                    :disabled="row.already_enrolled"
+                    v-model="feederSelectedIds"
+                  />
+                  <span class="feeder-row-main">
+                    <strong>{{ row.name }}</strong>
+                    <span class="feeder-nisn">NIK {{ row.nik || '–' }}</span>
+                    <span v-if="row.nisn" class="feeder-nisn feeder-nisn-secondary">NISN {{ row.nisn }}</span>
+                  </span>
+                  <span class="feeder-row-meta">
+                    <span v-if="row.gender">{{ row.gender === 'P' ? 'P' : 'L' }}</span>
+                    <span v-if="row.graduation_year">Lulus {{ row.graduation_year }}</span>
+                    <span v-if="row.already_enrolled" class="feeder-already">Sudah terdaftar</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+            <p v-else-if="feederOrigin && !feederLoading" class="text-muted">Tidak ada alumni yang cocok.</p>
+            <div v-if="feederAlumni.length" class="feeder-class-row">
+              <div v-if="availableStudentGrades.length" class="form-group">
+                <label>Tingkat masuk</label>
+                <select v-model="feederTingkat">
+                  <option v-for="grade in availableStudentGrades" :key="grade" :value="grade">
+                    Kelas {{ grade }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Kelas (opsional)</label>
+                <select v-model="feederClassId">
+                  <option value="">Belum ditentukan</option>
+                  <option v-for="c in matchingFeederClassList" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div v-if="feederError" class="error-message">{{ feederError }}</div>
+            <div class="form-modal-footer feeder-footer">
+              <button type="button" @click="closeModal" class="btn-ghost">Batal</button>
+              <button
+                type="button"
+                class="btn-submit"
+                :disabled="feederSaving || !feederSelectedIds.length"
+                @click="submitFeederPull"
+              >
+                <span v-if="feederSaving" class="btn-spinner"></span>
+                <span>{{ feederSaving ? 'Menarik...' : `Tarik ${feederSelectedIds.length || ''} siswa` }}</span>
+              </button>
+            </div>
+          </div>
           
-          <form @submit.prevent="handleSubmit" class="form-modal-body">
+          <form v-else @submit.prevent="handleSubmit" class="form-modal-body">
             <!-- Tabs Navigation -->
             <div class="form-tabs-nav">
               <button 
@@ -437,6 +552,9 @@
                   </select>
                 </div>
               </div>
+
+              <p class="form-section-label">Alamat</p>
+              <AddressCascade v-model="form" street-label="Jalan / RT / RW" />
             </div>
 
             <!-- Tab 2: Tambahan -->
@@ -984,7 +1102,7 @@
                 </div>
                 <div class="biodata-item">
                   <span class="label">Alamat</span>
-                  <span class="value">{{ viewingStudent.address || '-' }}</span>
+                  <span class="value">{{ formatFullAddress(viewingStudent) || '-' }}</span>
                 </div>
                 <div class="biodata-item">
                   <span class="label">Telepon</span>
@@ -996,7 +1114,7 @@
                 </div>
                 <div class="biodata-item">
                   <span class="label">Kelas</span>
-                  <span class="value">{{ viewingStudent.class || '-' }}</span>
+                  <span class="value">{{ studentClassName(viewingStudent) || '-' }}</span>
                 </div>
                 <div class="biodata-item">
                   <span class="label">Tingkat</span>
@@ -1360,7 +1478,7 @@
               · {{ importPreview.invalid.length }} baris dilewati
             </template>
           </p>
-          <p class="hint">Akun login dibuat otomatis jika NIK (16 digit) dan tanggal lahir terisi. NIS yang kosong di Excel tidak diisi otomatis — generate lewat tombol Pratinjau NIS setelah import.</p>
+          <p class="hint">Siswa Aktif yang NIK atau NISN-nya sudah ada akan diperbarui. Siswa Pindah, Tidak Aktif, Lulus, Drop Out, atau yang ada di kotak sampah ditolak — bukan diaktifkan kembali. Akun login dibuat otomatis jika NIK (16 digit) dan tanggal lahir terisi.</p>
           <div v-if="importPreview.valid.length" class="import-preview-table-wrap">
             <table class="counseling-table">
               <thead>
@@ -1391,10 +1509,11 @@
             </ul>
             <p v-if="importPreview.invalid.length > 10" class="hint">…dan {{ importPreview.invalid.length - 10 }} kesalahan lain</p>
           </div>
-          <div v-if="importPreview.serverErrors?.length" class="import-invalid-box">
-            <strong>Error dari server</strong>
+          <div v-if="importPreview.serverErrors?.length" class="import-invalid-box import-reject-box">
+            <strong>Ditolak ({{ importPreview.serverErrors.length }} baris)</strong>
+            <p class="hint">Siswa tidak aktif, mutasi, alumni, atau yang sudah terdaftar di sekolah lain tidak diubah.</p>
             <ul>
-              <li v-for="(err, idx) in importPreview.serverErrors.slice(0, 10)" :key="'e'+idx">{{ err }}</li>
+              <li v-for="(err, idx) in importPreview.serverErrors" :key="'e'+idx">{{ err }}</li>
             </ul>
           </div>
         </div>
@@ -1601,7 +1720,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -1609,6 +1728,8 @@ import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import StudentTable from '@/components/student/StudentTable.vue'
 import StudentTableSkeleton from '@/components/StudentTableSkeleton.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import AddressCascade from '@/components/AddressCascade.vue'
+import { emptyAddress, excelAddressColumns, formatFullAddress, pickAddressFromExcel } from '@/utils/addressFields'
 import { useStudentList } from '@/composables/useStudentList'
 import { useAuthStore } from '@/stores/auth'
 import { studentApi } from '@/api/student'
@@ -2000,6 +2121,17 @@ async function generateNisForViewing() {
 }
 const showAddModal = ref(false)
 const showEditModal = ref(false)
+const addMode = ref('manual')
+const feederNpsn = ref('')
+const feederOrigin = ref(null)
+const feederAlumni = ref([])
+const feederSelectedIds = ref([])
+const feederSearch = ref('')
+const feederTingkat = ref(null)
+const feederClassId = ref('')
+const feederLoading = ref(false)
+const feederSaving = ref(false)
+const feederError = ref('')
 const showViewModal = ref(false)
 const viewingStudent = ref(null)
 const graduatingStudent = ref(false)
@@ -2018,6 +2150,38 @@ const availableStudentGrades = computed(() => {
   if (level === 'SMP' || level === 'MTs') return [7, 8, 9]
   if (level === 'SMA' || level === 'MA' || level === 'MAK' || level === 'SMK') return [10, 11, 12]
   return []
+})
+
+const addModalSubtitle = computed(() => {
+  if (showEditModal.value) return 'Perbarui data siswa'
+  if (addMode.value === 'feeder') return 'Tarik alumni jenjang sebelumnya menjadi siswa baru'
+  return 'Isi data siswa baru'
+})
+
+const filteredFeederAlumni = computed(() => {
+  const term = feederSearch.value.trim().toLowerCase()
+  if (!term) return feederAlumni.value
+  return feederAlumni.value.filter((row) => {
+    const name = (row.name || '').toLowerCase()
+    const nik = (row.nik || '').toLowerCase()
+    const nisn = (row.nisn || '').toLowerCase()
+    return name.includes(term) || nik.includes(term) || nisn.includes(term)
+  })
+})
+
+const feederSelectable = computed(() =>
+  filteredFeederAlumni.value.filter((row) => !row.already_enrolled)
+)
+
+const feederAllSelected = computed(() =>
+  feederSelectable.value.length > 0
+  && feederSelectable.value.every((row) => feederSelectedIds.value.includes(row.id))
+)
+
+const matchingFeederClassList = computed(() => {
+  if (!availableStudentGrades.value.length) return formClassList.value
+  if (feederTingkat.value === null || feederTingkat.value === '') return []
+  return formClassList.value.filter((c) => Number(c.grade) === Number(feederTingkat.value))
 })
 
 const canAccessCounseling = computed(() => {
@@ -2112,7 +2276,7 @@ const form = ref({
   gender: '',
   birth_date: '',
   birth_place: '',
-  address: '',
+  ...emptyAddress(),
   phone: '',
   email: '',
   religion: '',
@@ -2161,9 +2325,20 @@ const form = ref({
 })
 
 const matchingFormClassList = computed(() => {
-  if (!availableStudentGrades.value.length) return formClassList.value
-  if (form.value.tingkat === null || form.value.tingkat === '') return []
-  return formClassList.value.filter(c => Number(c.grade) === Number(form.value.tingkat))
+  const currentId = form.value.class_id
+  let list = formClassList.value
+  if (availableStudentGrades.value.length) {
+    if (form.value.tingkat === null || form.value.tingkat === '') {
+      list = []
+    } else {
+      list = formClassList.value.filter(c => Number(c.grade) === Number(form.value.tingkat))
+    }
+  }
+  if (currentId && !list.some(c => Number(c.id) === Number(currentId))) {
+    const current = formClassList.value.find(c => Number(c.id) === Number(currentId))
+    if (current) return [current, ...list]
+  }
+  return list
 })
 
 const documentForm = ref({
@@ -2189,20 +2364,35 @@ function sortClasses(list) {
 
 /** Load classes for form dropdown: by semester (add = active semester, edit = student semester). */
 async function loadFormClasses(semesterId) {
-  if (!semesterId) {
-    formClassList.value = []
-    return
-  }
   formClassListLoading.value = true
   formClassList.value = []
   try {
-    const res = await classApi.getAll({ semester_id: semesterId, per_page: 200 })
-    const list = res.data?.data ?? res.data ?? []
-    formClassList.value = sortClasses(list)
+    if (semesterId) {
+      const res = await classApi.getAll({ semester_id: semesterId, per_page: 200 })
+      const list = res.data?.data ?? res.data ?? []
+      formClassList.value = sortClasses(Array.isArray(list) ? list : [])
+    }
+    await ensureCurrentClassInList()
   } catch {
     formClassList.value = []
+    await ensureCurrentClassInList()
   } finally {
     formClassListLoading.value = false
+  }
+}
+
+async function ensureCurrentClassInList() {
+  const id = form.value.class_id
+  if (!id) return
+  if (formClassList.value.some(c => Number(c.id) === Number(id))) return
+  try {
+    const res = await classApi.get(id)
+    const row = res.data?.data ?? res.data
+    if (row?.id) {
+      formClassList.value = sortClasses([...formClassList.value, row])
+    }
+  } catch {
+    /* kelas lama sudah tidak ada — siswa bisa pilih kelas baru */
   }
 }
 
@@ -2227,6 +2417,8 @@ async function loadFilterClasses() {
 
 /** Open add modal: load institution, then classes for active semester, then show modal. */
 async function openAddModal() {
+  resetFeederForm()
+  addMode.value = 'manual'
   formClassListLoading.value = true
   formClassList.value = []
   try {
@@ -2235,6 +2427,7 @@ async function openAddModal() {
     const sid = myInstitution.value?.active_semester_id
     if (sid) await loadFormClasses(sid)
     else formClassList.value = []
+    feederTingkat.value = availableStudentGrades.value[0] ?? null
   } catch {
     formClassList.value = []
   } finally {
@@ -2262,7 +2455,7 @@ function onFormClassChange() {
     form.value.academic_year = ''
     return
   }
-  const c = formClassList.value.find(x => x.id === id)
+  const c = formClassList.value.find(x => Number(x.id) === Number(id))
   if (c) {
     form.value.class = c.name || ''
     form.value.semester_id = c.semester_id ?? form.value.semester_id
@@ -2275,7 +2468,7 @@ function onFormClassChange() {
 function onTingkatChange() {
   if (!form.value.class_id) return
 
-  const selectedClass = formClassList.value.find(c => c.id === form.value.class_id)
+  const selectedClass = formClassList.value.find(c => Number(c.id) === Number(form.value.class_id))
   if (selectedClass && Number(selectedClass.grade) !== Number(form.value.tingkat)) {
     form.value.class_id = null
     form.value.class = ''
@@ -2295,6 +2488,12 @@ const editStudent = async (student) => {
   form.value.academic_year = normalizeAcademicYearLabel(
     student.academic_year_detail?.code || student.academic_year
   )
+  if (form.value.class_id != null && form.value.class_id !== '') {
+    form.value.class_id = Number(form.value.class_id)
+  }
+  if (!form.value.class && student.class_detail?.name) {
+    form.value.class = student.class_detail.name
+  }
   // Format dates
   if (student.birth_date) {
     form.value.birth_date = student.birth_date.split('T')[0]
@@ -2384,6 +2583,27 @@ async function handleRestoreStudent(student) {
     loadStudents()
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || 'Gagal memulihkan siswa')
+  }
+}
+
+async function handleForceDeleteStudent(student) {
+  const confirmed = await showConfirm({
+    title: 'Hapus permanen',
+    message: `Hapus permanen ${student.name}? Nilai, absensi, dan berkas terkait ikut terhapus.`,
+    warning: 'NISN dan NIK akan dibebaskan. Tindakan ini tidak dapat dibatalkan.',
+    confirmText: 'Hapus permanen',
+  })
+  if (!confirmed) return
+
+  setDeleteLoading(true)
+  try {
+    await studentApi.forceDelete(student.id)
+    toast.success('Berhasil', 'Siswa dihapus secara permanen')
+    loadStudents()
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || err.formattedMessage || 'Gagal menghapus permanen siswa')
+  } finally {
+    setDeleteLoading(false)
   }
 }
 
@@ -2506,7 +2726,7 @@ const closeModal = () => {
     gender: '',
     birth_date: '',
     birth_place: '',
-    address: '',
+    ...emptyAddress(),
     phone: '',
     email: '',
     religion: '',
@@ -2561,7 +2781,99 @@ const closeModal = () => {
     fileInput.value.value = ''
   }
   error.value = ''
+  resetFeederForm()
+  addMode.value = 'manual'
 }
+
+function resetFeederForm() {
+  feederNpsn.value = ''
+  feederOrigin.value = null
+  feederAlumni.value = []
+  feederSelectedIds.value = []
+  feederSearch.value = ''
+  feederClassId.value = ''
+  feederLoading.value = false
+  feederSaving.value = false
+  feederError.value = ''
+}
+
+function toggleSelectAllFeeder() {
+  if (feederAllSelected.value) {
+    feederSelectedIds.value = []
+    return
+  }
+  feederSelectedIds.value = feederSelectable.value.map((row) => row.id)
+}
+
+async function loadFeederAlumni() {
+  feederError.value = ''
+  feederAlumni.value = []
+  feederSelectedIds.value = []
+  feederOrigin.value = null
+  const npsn = feederNpsn.value.replace(/\D/g, '')
+  if (npsn.length !== 8) {
+    feederError.value = 'NPSN sekolah asal harus 8 digit.'
+    return
+  }
+  feederLoading.value = true
+  try {
+    const res = await studentApi.feederAlumni({ origin_npsn: npsn })
+    feederOrigin.value = res.data?.origin ?? null
+    feederAlumni.value = res.data?.data ?? []
+    if (!feederTingkat.value) {
+      feederTingkat.value = availableStudentGrades.value[0] ?? null
+    }
+  } catch (err) {
+    feederError.value = err.formattedMessage || err.response?.data?.message || 'Gagal memuat daftar alumni.'
+  } finally {
+    feederLoading.value = false
+  }
+}
+
+async function submitFeederPull() {
+  feederError.value = ''
+  const npsn = feederNpsn.value.replace(/\D/g, '')
+  if (npsn.length !== 8) {
+    feederError.value = 'NPSN sekolah asal harus 8 digit.'
+    return
+  }
+  if (!feederSelectedIds.value.length) {
+    feederError.value = 'Pilih minimal satu alumni.'
+    return
+  }
+  feederSaving.value = true
+  try {
+    const res = await studentApi.pullFromFeeder({
+      origin_npsn: npsn,
+      student_ids: feederSelectedIds.value,
+      tingkat: feederTingkat.value || undefined,
+      class_id: feederClassId.value || undefined,
+    })
+    closeModal()
+    loadStudents()
+    const created = res.data?.created_count || 0
+    const skipped = res.data?.skipped_count || 0
+    const failed = res.data?.error_count || 0
+    let detail = res.data?.message || `${created} siswa berhasil ditarik.`
+    if (skipped || failed) {
+      detail += ` Lewati: ${skipped}, gagal: ${failed}.`
+    }
+    toast.success('Berhasil', detail)
+  } catch (err) {
+    feederError.value = err.formattedMessage || err.response?.data?.message || 'Gagal menarik alumni.'
+    toast.error('Gagal', feederError.value)
+  } finally {
+    feederSaving.value = false
+  }
+}
+
+watch(feederTingkat, () => {
+  if (!feederClassId.value) return
+  const selected = formClassList.value.find((c) => c.id === feederClassId.value)
+  if (selected && Number(selected.grade) !== Number(feederTingkat.value)) {
+    feederClassId.value = ''
+  }
+})
 
 const viewStudent = (student) => {
   viewingStudent.value = { ...student }
@@ -2672,6 +2984,12 @@ const formatDate = (dateString) => {
   })
 }
 
+function studentClassName(student) {
+  if (!student) return ''
+  const name = student.class_detail?.name || student.class || ''
+  return String(name).trim()
+}
+
 const formatCurrency = (amount) => {
   if (!amount) return '0'
   return new Intl.NumberFormat('id-ID').format(amount)
@@ -2731,7 +3049,8 @@ const exportToExcel = async () => {
       'Jenis Kelamin': student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : '',
       'Tempat Lahir': student.birth_place || '',
       'Tanggal Lahir': student.birth_date ? new Date(student.birth_date).toLocaleDateString('id-ID') : '',
-      'Alamat': student.address || '',
+      'Tingkat': student.tingkat ?? '',
+      ...excelAddressColumns(student),
       'No. Telepon': student.phone || '',
       'Email': student.email || '',
       'Agama': student.religion || '',
@@ -2743,8 +3062,7 @@ const exportToExcel = async () => {
       'Berat Badan (kg)': student.weight || '',
       'Sekolah Sebelumnya': student.previous_school || '',
       'Jenis Tempat Tinggal': formatResidenceType(student.residence_type) || '',
-      'Tingkat': student.tingkat ?? '',
-      'Kelas': student.class || '',
+      'Kelas': studentClassName(student),
       'Tahun Ajaran': student.academic_year || '',
       'Status': student.status || '',
       'Nama Ayah': student.father_name || '',
@@ -2783,7 +3101,8 @@ const exportToExcel = async () => {
     // Set column widths
     const colWidths = [
       { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 15 },
-      { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
+      { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 36 }, { wch: 22 },
+      { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
       { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
       { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
       { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 },
@@ -2824,7 +3143,13 @@ const downloadTemplate = () => {
         'Jenis Kelamin': 'L',
         'Tempat Lahir*': 'Jakarta',
         'Tanggal Lahir*': '2010-01-15',
+        'Tingkat*': '7',
         'Alamat': 'Jl. Contoh No. 123',
+        'Desa/Kelurahan/Pekon': 'Sukajaya',
+        'Kecamatan': 'Kedaton',
+        'Kabupaten/Kota': 'Bandar Lampung',
+        'Provinsi': 'Lampung',
+        'Kode Pos': '35141',
         'No. Telepon': '081234567890',
         'Email': 'ahmad@example.com',
         'Agama': 'Islam',
@@ -2836,7 +3161,6 @@ const downloadTemplate = () => {
         'Berat Badan (kg)': '45',
         'Sekolah Sebelumnya': 'SD Negeri 1',
         'Jenis Tempat Tinggal': 'tinggal_dengan_orang_tua',
-        'Tingkat*': '7',
         'Kelas': 'VII-A',
         'Tahun Ajaran': '2024/2025',
         'Status': 'Aktif',
@@ -2875,6 +3199,7 @@ const downloadTemplate = () => {
       { Keterangan: 'Kolom wajib: NIK*, Nama Lengkap*, Tempat Lahir*, Tanggal Lahir*, Tingkat*' },
       { Keterangan: 'Format Tanggal Lahir: YYYY-MM-DD (contoh: 2010-01-15)' },
       { Keterangan: 'Tingkat harus sesuai jenjang institusi (SD/MI: 1-6, SMP/MTs: 7-9, SMA/SMK/MA: 10-12)' },
+      { Keterangan: 'Alamat = jalan/RT/RW. Desa/Kelurahan/Pekon, Kecamatan, Kabupaten/Kota, Provinsi, dan Kode Pos opsional. File lama yang hanya punya kolom Alamat tetap bisa diimpor.' },
       { Keterangan: 'Jangan ubah nama header kolom agar import berhasil' },
     ]
     
@@ -2886,7 +3211,8 @@ const downloadTemplate = () => {
     // Set column widths
     const colWidths = [
       { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 15 },
-      { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 25 },
+      { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 36 }, { wch: 22 },
+      { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
       { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
       { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
       { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 },
@@ -2917,6 +3243,25 @@ const downloadTemplate = () => {
 function closeImportPreview() {
   if (importPreview.value.loading) return
   importPreview.value = { open: false, loading: false, valid: [], invalid: [], serverErrors: [] }
+}
+
+function asDigitId(val, { padTo = 0 } = {}) {
+  if (val === undefined || val === null || val === '') return null
+  let s
+  if (typeof val === 'number') {
+    if (!Number.isFinite(val)) return null
+    s = String(Math.trunc(val))
+  } else {
+    s = String(val).trim()
+    if (/^\d+\.0+$/.test(s)) s = s.replace(/\.0+$/, '')
+    s = s.replace(/[\s.\-]/g, '')
+  }
+  s = s.replace(/[^\d]/g, '')
+  if (!s) return null
+  if (padTo && s.length < padTo && s.length >= padTo - 2) {
+    s = s.padStart(padTo, '0')
+  }
+  return s
 }
 
 function mapImportExcelRows(jsonData) {
@@ -2982,14 +3327,15 @@ function mapImportExcelRows(jsonData) {
     }
 
     const item = {
-      nik: mapField('NIK'),
-      nis: mapField('NIS'),
-      nisn: mapField('NISN'),
+      excel_row: index + 2,
+      nik: asDigitId(mapField('NIK')),
+      nis: mapField('NIS') == null ? null : String(mapField('NIS')).trim() || null,
+      nisn: asDigitId(mapField('NISN'), { padTo: 10 }),
       name: mapField('Nama Lengkap'),
       gender: parseGender(mapField('Jenis Kelamin')),
       birth_place: mapField('Tempat Lahir'),
       birth_date: parseDate(mapField('Tanggal Lahir')),
-      address: mapField('Alamat'),
+      ...pickAddressFromExcel(mapField),
       phone: mapField('No. Telepon'),
       email: mapField('Email'),
       religion: mapField('Agama'),
@@ -3094,14 +3440,25 @@ async function confirmImportExcel() {
   try {
     const response = await studentApi.import(importPreview.value.valid)
     const successCount = response.data?.success_count || 0
+    const createdCount = response.data?.created_count || 0
+    const updatedCount = response.data?.updated_count || 0
     const errorCount = response.data?.error_count || 0
     const errors = response.data?.errors || []
+    const summaryParts = []
+    if (createdCount) summaryParts.push(`${createdCount} baru`)
+    if (updatedCount) summaryParts.push(`${updatedCount} diperbarui`)
+    const summary = summaryParts.length ? summaryParts.join(', ') : `${successCount} data`
     if (errorCount > 0) {
       importPreview.value.serverErrors = errors
-      toast.success('Sebagian berhasil', `Berhasil ${successCount}, gagal ${errorCount}. Periksa daftar error.`)
+      const rejectNote = `${errorCount} baris ditolak. Siswa pindah/tidak aktif/alumni tidak diimpor ulang — lihat alasan di bawah.`
+      if (successCount > 0) {
+        toast.warning('Sebagian ditolak', `Berhasil ${summary}. ${rejectNote}`, 8000)
+      } else {
+        toast.error('Impor ditolak', rejectNote, 8000)
+      }
       await loadStudents()
     } else {
-      toast.success('Berhasil', `Berhasil mengimpor ${successCount || importPreview.value.valid.length} data siswa`)
+      toast.success('Berhasil', `Berhasil mengimpor ${summary} siswa`)
       closeImportPreview()
       await loadStudents()
     }
@@ -3329,10 +3686,10 @@ const printPDF = async () => {
           <div class="biodata-item"><span class="label">Jenis Kelamin</span><span class="value">${student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : '-'}</span></div>
           <div class="biodata-item"><span class="label">Tempat Lahir</span><span class="value">${student.birth_place || '-'}</span></div>
           <div class="biodata-item"><span class="label">Tanggal Lahir</span><span class="value">${formatDate(student.birth_date)}</span></div>
-          <div class="biodata-item"><span class="label">Alamat</span><span class="value">${student.address || '-'}</span></div>
+          <div class="biodata-item"><span class="label">Alamat</span><span class="value">${formatFullAddress(student) || '-'}</span></div>
           <div class="biodata-item"><span class="label">Telepon</span><span class="value">${student.phone || '-'}</span></div>
           <div class="biodata-item"><span class="label">Email</span><span class="value">${student.email || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Kelas</span><span class="value">${student.class || '-'}</span></div>
+          <div class="biodata-item"><span class="label">Kelas</span><span class="value">${studentClassName(student) || '-'}</span></div>
           <div class="biodata-item"><span class="label">Tahun Ajaran</span><span class="value">${student.academic_year || '-'}</span></div>
           <div class="biodata-item"><span class="label">Status</span><span class="value">${student.status || '-'}</span></div>
         </div>
@@ -3730,6 +4087,17 @@ onMounted(() => {
 .import-invalid-box ul {
   margin: 8px 0 0;
   padding-left: 18px;
+}
+
+.import-reject-box {
+  background: #fef2f2;
+  border-color: #fecaca;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.import-reject-box .hint {
+  margin: 6px 0 0;
 }
 
 .btn-compact {
@@ -4285,6 +4653,131 @@ onMounted(() => {
   background: #ecfdf5;
 }
 
+.add-mode-switch {
+  display: flex;
+  gap: 8px;
+  padding: 16px 28px 0;
+  flex-shrink: 0;
+}
+
+.add-mode-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-mode-btn.active {
+  border-color: #059669;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.feeder-panel .form-hint {
+  margin: 0 0 16px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.feeder-npsn-row,
+.feeder-class-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.feeder-npsn-row .form-group,
+.feeder-class-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.feeder-origin {
+  margin: 0 0 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.feeder-select-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.feeder-list-wrap {
+  margin-bottom: 16px;
+}
+
+.feeder-list {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.feeder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+}
+
+.feeder-row:last-child {
+  border-bottom: none;
+}
+
+.feeder-row.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feeder-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.feeder-nisn {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.feeder-nisn-secondary {
+  color: #94a3b8;
+}
+
+.feeder-row-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.feeder-already {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.feeder-footer {
+  margin: 8px -28px -28px;
+  border-radius: 0 0 20px 20px;
+}
+
 .form-tab-btn svg {
   flex-shrink: 0;
   opacity: 0.85;
@@ -4293,6 +4786,20 @@ onMounted(() => {
 .form-tab-content {
   min-height: 280px;
   animation: formTabFade 0.2s ease-out;
+}
+
+.form-modal-body .form-section-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 8px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.form-modal-body :deep(.address-cascade) {
+  display: flex;
+  width: 100%;
 }
 
 @keyframes formTabFade {

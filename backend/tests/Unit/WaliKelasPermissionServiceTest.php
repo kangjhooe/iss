@@ -65,6 +65,7 @@ class WaliKelasPermissionServiceTest extends TestCase
             $this->assertContains($key, $keysAsWali);
         }
         $this->assertContains('bk_report', $keysAsWali);
+        $this->assertNotContains('report', $keysAsWali);
 
         $class->update(['teacher_id' => null]);
         $service->syncWaliKelasPermissionsForEmployee($employee->id);

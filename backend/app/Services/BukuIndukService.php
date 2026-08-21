@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AlumniDestination;
 use App\Models\ExtracurricularGrade;
 use App\Models\Grade;
 use App\Models\SchoolClass;
@@ -72,7 +73,10 @@ class BukuIndukService
             'attendance_summary' => $attendanceSummary,
             'grades_summary' => $gradesSummary,
             'extracurriculars' => $extracurriculars,
-            'alumni_destinations' => $student->alumniDestinations->sortByDesc('year_entered')->values(),
+            'alumni_destinations' => $student->alumniDestinations
+                ->filter(fn ($d) => ($d->status ?: AlumniDestination::STATUS_APPROVED) === AlumniDestination::STATUS_APPROVED)
+                ->sortByDesc('year_entered')
+                ->values(),
             'library_loans_summary' => $librarySummary,
             'health_records' => $this->buildHealthRecords($student),
             'printed_at' => now()->locale('id')->isoFormat('D MMMM YYYY HH:mm'),

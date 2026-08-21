@@ -3,10 +3,14 @@
     <div class="sp-page">
       <div class="sp-page-header">
         <div>
-          <p class="sp-subtitle">{{ classInfo || 'Jadwal pelajaran mingguan' }}</p>
+          <p class="sp-subtitle">{{ classInfo || 'Jadwal pelajaran' }}</p>
           <div v-if="activeSemester" class="sp-meta">
-            <span class="sp-meta-chip">Semester {{ activeSemester.name }}</span>
+            <span class="sp-meta-chip">{{ activeSemester.name }}</span>
           </div>
+        </div>
+        <div class="sp-tabs" role="tablist">
+          <button type="button" class="sp-tab" :class="{ 'is-active': view === 'today' }" @click="view = 'today'">Hari ini</button>
+          <button type="button" class="sp-tab" :class="{ 'is-active': view === 'week' }" @click="view = 'week'">Minggu ini</button>
         </div>
       </div>
 
@@ -22,13 +26,62 @@
         <p class="sp-empty-desc">Jadwal semester aktif belum tersedia untuk kelas Anda.</p>
       </div>
 
+      <template v-else-if="view === 'today'">
+        <section v-if="nextSlot" class="sp-next">
+          <div>
+            <div class="sp-next-kicker">{{ nextSlot.isCurrent ? 'Sedang berlangsung' : 'Jam berikutnya' }}</div>
+            <div class="sp-next-title">{{ slotSubject(nextSlot) }}</div>
+          </div>
+          <div class="sp-next-meta">
+            Jam {{ nextSlot.period }} · {{ nextSlot.start_time }}–{{ nextSlot.end_time }}
+            <template v-if="slotTeacher(nextSlot)"> · {{ slotTeacher(nextSlot) }}</template>
+          </div>
+        </section>
+
+        <div v-if="todayHoliday" class="sp-empty">
+          <h3 class="sp-empty-title">Libur</h3>
+          <p class="sp-empty-desc">Hari ini tidak ada jam pelajaran di jadwal kelas Anda.</p>
+        </div>
+        <div v-else-if="todaySlots.length" class="sp-slot-list">
+          <div
+            v-for="slot in todaySlots"
+            :key="slot.id || slot.period"
+            class="sp-slot"
+            :class="{ 'sp-now': isCurrentSlot(slot) }"
+          >
+            <div>
+              <span class="sp-slot-period">Jam {{ slot.period }}</span>
+              <span class="sp-slot-time">{{ slot.start_time }}–{{ slot.end_time }}</span>
+            </div>
+            <div>
+              <div class="sp-list-title">{{ slotSubject(slot) }}</div>
+              <div class="sp-list-meta">
+                <template v-if="slotTeacher(slot)">{{ slotTeacher(slot) }}</template>
+                <template v-if="slotTeacher(slot) && slotRoom(slot)"> · </template>
+                <template v-if="slotRoom(slot)">{{ slotRoom(slot) }}</template>
+                <template v-if="!slotTeacher(slot) && !slotRoom(slot)">—</template>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="sp-empty">
+          <h3 class="sp-empty-title">Tidak ada jadwal hari ini</h3>
+          <p class="sp-empty-desc">Buka tab Minggu ini untuk melihat jadwal lengkap.</p>
+        </div>
+      </template>
+
       <div v-else class="sp-panel schedule-panel">
         <div class="sp-table-wrap schedule-scroll">
           <table class="schedule-table">
             <thead>
               <tr>
                 <th class="col-period">Jam</th>
-                <th v-for="day in scheduleMatrix" :key="day.day_of_week" class="col-day">
+                <th
+                  v-for="day in scheduleMatrix"
+                  :key="day.day_of_week"
+                  class="col-day"
+                  :class="{ 'is-today': day.day_of_week === todayDayOfWeek }"
+                >
                   {{ day.day_name }}
                 </th>
               </tr>
@@ -36,13 +89,18 @@
             <tbody>
               <tr v-for="period in periodRange" :key="period">
                 <td class="col-period">{{ period }}</td>
-                <td v-for="day in scheduleMatrix" :key="day.day_of_week" class="col-day cell">
+                <td
+                  v-for="day in scheduleMatrix"
+                  :key="day.day_of_week"
+                  class="col-day cell"
+                  :class="{ 'is-today': day.day_of_week === todayDayOfWeek }"
+                >
                   <template v-if="getSlot(day, period)">
-                    <div class="slot-subject">{{ getSlot(day, period).subject?.name || '-' }}</div>
-                    <div class="slot-time">{{ getSlot(day, period).start_time }} - {{ getSlot(day, period).end_time }}</div>
-                    <div class="slot-room">{{ getSlot(day, period).room?.name || '-' }}</div>
+                    <div class="slot-subject">{{ slotSubject(getSlot(day, period)) }}</div>
+                    <div class="slot-time">{{ getSlot(day, period).start_time }} – {{ getSlot(day, period).end_time }}</div>
+                    <div v-if="slotTeacher(getSlot(day, period))" class="slot-room">{{ slotTeacher(getSlot(day, period)) }}</div>
+                    <div v-if="slotRoom(getSlot(day, period))" class="slot-room">{{ slotRoom(getSlot(day, period)) }}</div>
                   </template>
-                  <span v-else class="slot-empty">-</span>
                 </td>
               </tr>
             </tbody>
@@ -69,8 +127,14 @@ const classInfo = computed(() => {
 })
 
 const loading = ref(true)
+const view = ref('today')
 const activeSemester = ref(null)
 const scheduleRaw = ref(null)
+
+const todayDayOfWeek = (() => {
+  const js = new Date().getDay()
+  return js === 0 ? 7 : js
+})()
 
 const scheduleMatrix = computed(() => {
   const raw = scheduleRaw.value
@@ -79,15 +143,81 @@ const scheduleMatrix = computed(() => {
 })
 
 const periodRange = computed(() => {
-  const maxPeriod = 10
-  return Array.from({ length: maxPeriod }, (_, i) => i + 1)
+  const fromTemplate = Number(scheduleRaw.value?.template?.max_periods || 0)
+  const fromDays = Math.max(0, ...scheduleMatrix.value.map((d) => Number(d.periods) || 0))
+  let fromSlots = 0
+  for (const day of scheduleMatrix.value) {
+    const keys = Object.keys(day.slots || {}).map(Number).filter((n) => n > 0)
+    fromSlots = Math.max(fromSlots, ...keys, 0)
+  }
+  const max = fromTemplate || fromDays || fromSlots
+  return max ? Array.from({ length: max }, (_, i) => i + 1) : []
 })
+
+function unwrapSlot(slot) {
+  if (!slot) return null
+  return slot.data && typeof slot.data === 'object' ? slot.data : slot
+}
 
 function getSlot(dayRow, period) {
   const slots = dayRow.slots
   if (!slots || typeof slots !== 'object') return null
-  return slots[period] || null
+  return unwrapSlot(slots[period] || slots[String(period)])
 }
+
+function slotSubject(slot) {
+  return slot?.subject?.name || '-'
+}
+
+function slotTeacher(slot) {
+  return slot?.employee?.name || ''
+}
+
+function slotRoom(slot) {
+  return slot?.room?.name || ''
+}
+
+const todayRow = computed(() => scheduleMatrix.value.find((d) => Number(d.day_of_week) === todayDayOfWeek) || null)
+const todayHoliday = computed(() => !!todayRow.value?.is_holiday)
+
+const todaySlots = computed(() => {
+  const row = todayRow.value
+  if (!row || row.is_holiday) return []
+  return periodRange.value
+    .map((period) => {
+      const slot = getSlot(row, period)
+      return slot ? { ...slot, period: slot.period || period } : null
+    })
+    .filter(Boolean)
+})
+
+function parseTodayTime(t) {
+  if (!t) return null
+  const [h, m] = String(t).split(':').map((n) => Number(n))
+  if (Number.isNaN(h)) return null
+  const d = new Date()
+  d.setHours(h, Number.isNaN(m) ? 0 : m, 0, 0)
+  return d
+}
+
+function isCurrentSlot(slot) {
+  const start = parseTodayTime(slot.start_time)
+  const end = parseTodayTime(slot.end_time)
+  if (!start || !end) return false
+  const now = new Date()
+  return now >= start && now < end
+}
+
+const nextSlot = computed(() => {
+  const current = todaySlots.value.find((s) => isCurrentSlot(s))
+  if (current) return { ...current, isCurrent: true }
+  const now = new Date()
+  const upcoming = todaySlots.value.find((s) => {
+    const start = parseTodayTime(s.start_time)
+    return start && start > now
+  })
+  return upcoming ? { ...upcoming, isCurrent: false } : null
+})
 
 onMounted(async () => {
   try {
@@ -148,6 +278,11 @@ onMounted(async () => {
   letter-spacing: 0.04em;
 }
 
+.schedule-table th.is-today,
+.schedule-table td.is-today {
+  background: #ecfdf5;
+}
+
 .col-period {
   width: 52px;
   font-weight: 700;
@@ -173,10 +308,6 @@ onMounted(async () => {
 .slot-room {
   font-size: 11px;
   color: #64748b;
-}
-
-.slot-empty {
-  color: #cbd5e1;
 }
 
 @media (max-width: 768px) {

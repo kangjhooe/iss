@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Rules\NpsnReferensiRule;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -34,6 +35,7 @@ class UpdateInstitutionRequest extends FormRequest
         $nullableKeys = [
             'nss', 'level', 'address', 'village', 'sub_district', 'district', 'province',
             'province_code', 'district_code', 'postal_code', 'phone', 'email', 'website',
+            'wilayah_province_code', 'wilayah_regency_code', 'wilayah_district_code', 'wilayah_village_code',
             'principal_name', 'principal_nip', 'description', 'vision', 'mission',
             'active_academic_year_id', 'active_semester_id', 'latitude', 'longitude', 'location_radius',
             'npsn', 'name', 'foundation_name', 'type',
@@ -93,14 +95,9 @@ class UpdateInstitutionRequest extends FormRequest
             'nss' => 'nullable|string|max:255',
             'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MAK,MTs,MI,PAUD',
             'type' => 'sometimes|nullable|in:Negeri,Swasta',
-            'address' => 'nullable|string',
-            'village' => 'nullable|string|max:255',
-            'sub_district' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
+            ...RegionAddress::rules(),
             'province_code' => 'nullable|string|max:2',
             'district_code' => 'nullable|string|max:2',
-            'postal_code' => 'nullable|string|max:10',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'website' => 'nullable|string|max:255',

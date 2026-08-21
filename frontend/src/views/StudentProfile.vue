@@ -4,11 +4,24 @@
       <div class="sp-page-header page-header">
         <div class="page-header-main">
           <p class="sp-subtitle page-subtitle">
-            Data non-kunci bisa diubah langsung. Data kunci bisa diajukan dan menunggu persetujuan operator.
+            {{ profileMode === 'ubah'
+              ? 'Ubah data non-kunci, atau ajukan perubahan data kunci ke operator.'
+              : 'Ringkasan biodata Anda.' }}
           </p>
         </div>
-        <div v-if="pendingCount" class="pending-chip">
-          {{ pendingCount }} menunggu persetujuan
+        <div class="sp-actions">
+          <div v-if="pendingCount" class="pending-chip">
+            {{ pendingCount }} menunggu persetujuan
+          </div>
+          <button
+            v-if="student && !profileError"
+            type="button"
+            class="sp-btn"
+            :class="profileMode === 'ubah' ? 'sp-btn--ghost' : 'sp-btn--primary'"
+            @click="profileMode = profileMode === 'ubah' ? 'lihat' : 'ubah'"
+          >
+            {{ profileMode === 'ubah' ? 'Selesai' : 'Ubah data' }}
+          </button>
         </div>
       </div>
 
@@ -63,9 +76,9 @@
             </template>
         </section>
 
-        <div class="content-grid">
+        <div class="content-grid" :class="{ 'content-grid--single': profileMode === 'lihat' }">
           <div class="main-stack">
-            <section class="panel">
+            <section v-if="profileMode === 'lihat'" class="panel">
               <div class="panel-header">
                 <h2>Data Saat Ini</h2>
                 <span class="panel-hint panel-hint-icons" title="Gembok tertutup = butuh approval · Gembok terbuka = edit langsung">
@@ -133,7 +146,7 @@
               </template>
             </section>
 
-            <section class="panel">
+            <section v-if="profileMode === 'ubah'" class="panel">
               <div class="panel-header">
                 <h2>Edit Langsung</h2>
                 <span class="panel-hint">Tanpa persetujuan</span>
@@ -182,8 +195,7 @@
                     <input id="self_weight" v-model="selfForm.weight" type="number" min="0" max="500" />
                   </div>
                   <div class="form-group form-group-full">
-                    <label for="self_address">Alamat</label>
-                    <textarea id="self_address" v-model="selfForm.address" rows="2"></textarea>
+                    <AddressCascade v-model="selfForm" />
                   </div>
                 </div>
 
@@ -311,7 +323,7 @@
             </section>
           </div>
 
-          <div class="side-stack">
+          <div v-if="profileMode === 'ubah'" class="side-stack">
             <section class="panel">
               <div class="panel-header">
                 <h2>Ajukan Perubahan Data Kunci</h2>
@@ -430,12 +442,15 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
+import AddressCascade from '@/components/AddressCascade.vue'
+import { formatFullAddress } from '@/utils/addressFields'
 import { useToast } from '@/composables/useToast'
 import { studentChangeRequestApi } from '@/api/studentChangeRequest'
 
 const toast = useToast()
 
 const student = ref(null)
+const profileMode = ref('lihat')
 const profileError = ref('')
 const loadingProfile = ref(true)
 const approvalFields = ref([])
@@ -452,6 +467,8 @@ const form = ref({ field_name: '', new_value: '' })
 const SELF_KEYS = [
   'phone', 'religion', 'residence_type', 'aspiration', 'hobby', 'disability',
   'height', 'weight', 'address',
+  'village', 'sub_district', 'district', 'province', 'postal_code',
+  'wilayah_province_code', 'wilayah_regency_code', 'wilayah_district_code', 'wilayah_village_code',
   'previous_school', 'previous_school_npsn', 'previous_school_address',
   'father_status', 'mother_status', 'father_education', 'mother_education',
   'father_occupation', 'mother_occupation', 'father_income', 'mother_income',
@@ -630,6 +647,7 @@ const approvalSet = computed(() => new Set(approvalFields.value.length ? approva
 function makeItem(key, label, opts = {}) {
   let raw = student.value?.[key]
   if (key === 'class_label') raw = classLabel.value
+  if (key === 'address') raw = formatFullAddress(student.value)
   const value = formatProfileValue(raw, key === 'class_label' ? 'class' : key)
   return {
     key,
@@ -862,6 +880,7 @@ onMounted(async () => {
   display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
   gap: 16px; align-items: start;
 }
+.content-grid--single { grid-template-columns: 1fr; }
 .main-stack, .side-stack { display: flex; flex-direction: column; gap: 16px; }
 .panel {
   background: #fff; border-radius: 16px; border: 1px solid #e5e7eb;

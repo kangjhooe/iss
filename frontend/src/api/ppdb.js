@@ -97,4 +97,7 @@ export const ppdbApplicantApi = {
   downloadDocument(applicantId, documentId) {
     return api.get(`/v1/ppdb-applicants/${applicantId}/documents/${documentId}/download`, { responseType: 'blob' })
   },
+  downloadRegistrationSlip(id) {
+    return api.get(`/v1/ppdb-applicants/${id}/registration-slip`, { responseType: 'blob' })
+  },
 }

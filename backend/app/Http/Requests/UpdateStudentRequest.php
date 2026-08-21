@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\StudentIdentityNotTaken;
 use App\Models\Institution;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -50,6 +52,7 @@ class UpdateStudentRequest extends FormRequest
                     ->where(function ($query) use ($institutionId) {
                         return $query->where('institution_id', $institutionId);
                     }),
+                new StudentIdentityNotTaken('nik', $studentId),
             ],
             'nis' => [
                 'nullable',
@@ -67,12 +70,13 @@ class UpdateStudentRequest extends FormRequest
                     ->where(function ($query) use ($institutionId) {
                         return $query->where('institution_id', $institutionId);
                     }),
+                new StudentIdentityNotTaken('nisn', $studentId),
             ],
             'name' => 'sometimes|required|string|max:255',
             'gender' => 'sometimes|required|in:L,P',
             'birth_date' => 'sometimes|required|date',
             'birth_place' => 'sometimes|required|string|max:255',
-            'address' => 'nullable|string',
+            ...RegionAddress::rules(),
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',

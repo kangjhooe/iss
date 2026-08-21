@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RegionAddress;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -14,6 +15,15 @@ class IndustryPartner extends Model
         'name',
         'business_field',
         'address',
+        'village',
+        'sub_district',
+        'district',
+        'province',
+        'postal_code',
+        'wilayah_province_code',
+        'wilayah_regency_code',
+        'wilayah_district_code',
+        'wilayah_village_code',
         'city',
         'phone',
         'email',
@@ -22,6 +32,13 @@ class IndustryPartner extends Model
         'status',
         'notes',
     ];
+
+    protected $appends = ['full_address'];
+
+    public function getFullAddressAttribute(): ?string
+    {
+        return RegionAddress::format($this);
+    }
 
     public function institution()
     {

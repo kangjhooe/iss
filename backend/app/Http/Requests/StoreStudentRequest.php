@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\StudentIdentityNotTaken;
 use App\Models\Institution;
 use App\Models\SchoolClass;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -45,6 +47,7 @@ class StoreStudentRequest extends FormRequest
                 Rule::unique('student', 'nik')->where(function ($query) use ($institutionId) {
                     return $query->where('institution_id', $institutionId);
                 }),
+                new StudentIdentityNotTaken('nik'),
             ],
             'nis' => [
                 'nullable',
@@ -60,12 +63,13 @@ class StoreStudentRequest extends FormRequest
                 Rule::unique('student', 'nisn')->where(function ($query) use ($institutionId) {
                     return $query->where('institution_id', $institutionId);
                 }),
+                new StudentIdentityNotTaken('nisn'),
             ],
             'name' => 'required|string|max:255',
             'gender' => 'required|in:L,P',
             'birth_date' => 'required|date',
             'birth_place' => 'required|string|max:255',
-            'address' => 'nullable|string',
+            ...RegionAddress::rules(),
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',

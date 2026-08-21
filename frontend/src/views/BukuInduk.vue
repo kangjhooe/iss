@@ -39,7 +39,7 @@
             <div class="data-item"><span class="label">Tempat, Tanggal Lahir</span><span class="value">{{ data.student.birth_place || '-' }}, {{ formatDate(data.student.birth_date) }}</span></div>
             <div class="data-item"><span class="label">Agama</span><span class="value">{{ data.student.religion || '-' }}</span></div>
             <div class="data-item"><span class="label">No. KK</span><span class="value">{{ data.student.no_kk || '-' }}</span></div>
-            <div class="data-item"><span class="label">Alamat</span><span class="value">{{ data.student.address || '-' }}</span></div>
+            <div class="data-item"><span class="label">Alamat</span><span class="value">{{ formatFullAddress(data.student) || data.student.address || '-' }}</span></div>
             <div class="data-item"><span class="label">Telepon / Email</span><span class="value">{{ data.student.phone || '-' }} / {{ data.student.email || '-' }}</span></div>
             <div class="data-item"><span class="label">Tinggi / Berat</span><span class="value">{{ data.student.height ?? '-' }} cm / {{ data.student.weight ?? '-' }} kg</span></div>
             <div class="data-item"><span class="label">Sekolah Asal</span><span class="value">{{ data.student.previous_school || '-' }}</span></div>
@@ -425,6 +425,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { studentApi } from '@/api/student'
 import { useToast } from '@/composables/useToast'
+import { formatFullAddress } from '@/utils/addressFields'
 
 const route = useRoute()
 const toast = useToast()

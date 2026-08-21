@@ -38,6 +38,7 @@
             <tr>
                 <th class="num">No</th>
                 <th class="date">Tanggal</th>
+                <th>NIK</th>
                 <th>NISN</th>
                 <th>Nama Siswa</th>
                 <th class="num">JK</th>
@@ -60,6 +61,7 @@
             <tr>
                 <td class="num">{{ $index + 1 }}</td>
                 <td class="date">{{ $m->approved_at ? $m->approved_at->locale('id')->format('d/m/Y') : ($m->created_at ? $m->created_at->locale('id')->format('d/m/Y') : '-') }}</td>
+                <td>{{ $m->student?->nik ?? '-' }}</td>
                 <td>{{ $m->student?->nisn ?? '-' }}</td>
                 <td>{{ $m->student?->name ?? '-' }}</td>
                 <td class="num">{{ $m->student_gender ?? $m->student?->gender ?? '-' }}</td>
@@ -74,7 +76,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="13" style="text-align: center; padding: 12px;">Tidak ada data mutasi dalam periode ini.</td>
+                <td colspan="14" style="text-align: center; padding: 12px;">Tidak ada data mutasi dalam periode ini.</td>
             </tr>
             @endforelse
         </tbody>

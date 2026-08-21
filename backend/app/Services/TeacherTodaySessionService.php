@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Employee;
 use App\Models\Grade;
+use App\Models\Institution;
 use App\Models\LessonSchedule;
+use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\TeachingJournal;
@@ -149,6 +152,190 @@ class TeacherTodaySessionService
     }
 
     /**
+     * Data cetak lembar jurnal mengajar (satu sesi atau semua sesi tanggal itu).
+     *
+     * @return array{
+     *   date: string,
+     *   day_name: string,
+     *   teacher: ?Employee,
+     *   institution: ?Institution,
+     *   semester_name: ?string,
+     *   sessions: array<int, array>
+     * }
+     */
+    public function printDocuments(
+        int $institutionId,
+        int $employeeId,
+        int $semesterId,
+        ?string $date = null,
+        ?string $sessionKey = null
+    ): array {
+        $payload = $this->forTeacher($institutionId, $employeeId, $semesterId, $date);
+        $sessions = $payload['sessions'];
+
+        if ($sessionKey !== null && $sessionKey !== '') {
+            $sessions = array_values(array_filter(
+                $sessions,
+                fn (array $s) => ($s['key'] ?? '') === $sessionKey
+            ));
+        }
+
+        $documents = [];
+        foreach ($sessions as $session) {
+            $documents[] = $this->buildSessionDocument(
+                $institutionId,
+                $semesterId,
+                $payload['date'],
+                $session
+            );
+        }
+
+        return [
+            'date' => $payload['date'],
+            'day_name' => $payload['day_name'],
+            'teacher' => Employee::query()->find($employeeId),
+            'institution' => Institution::query()->find($institutionId),
+            'semester_name' => Semester::query()->where('id', $semesterId)->value('name'),
+            'sessions' => $documents,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $session
+     * @return array<string, mixed>
+     */
+    private function buildSessionDocument(
+        int $institutionId,
+        int $semesterId,
+        string $dateStr,
+        array $session
+    ): array {
+        $journalIds = array_values(array_filter(array_map('intval', $session['journal_ids'] ?? [])));
+        $journals = $journalIds === []
+            ? collect()
+            : TeachingJournal::query()->whereIn('id', $journalIds)->orderBy('period')->get();
+
+        $material = $journals
+            ->map(fn (TeachingJournal $j) => trim((string) ($j->material_taught ?? '')))
+            ->filter()
+            ->unique()
+            ->implode("\n\n");
+        $attendanceNotes = $journals
+            ->map(fn (TeachingJournal $j) => trim((string) ($j->attendance_notes ?? '')))
+            ->filter()
+            ->unique()
+            ->implode('; ');
+        $notes = $journals
+            ->map(fn (TeachingJournal $j) => trim((string) ($j->notes ?? '')))
+            ->filter()
+            ->unique()
+            ->implode("\n");
+
+        $primaryJournalId = (int) ($session['teaching_journal_id'] ?? 0);
+        $attendances = $primaryJournalId > 0
+            ? StudentAttendance::query()->where('teaching_journal_id', $primaryJournalId)->get()->keyBy('student_id')
+            : collect();
+
+        $students = Student::query()
+            ->where('class_id', (int) $session['class_id'])
+            ->where('institution_id', $institutionId)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'nis', 'name']);
+
+        $gradesToday = Grade::query()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', (int) $session['class_id'])
+            ->where('subject_id', (int) $session['subject_id'])
+            ->where('semester_id', $semesterId)
+            ->where('grade_type', 'like', 'penilaian_%')
+            ->whereDate('updated_at', $dateStr)
+            ->get();
+
+        $gradeColumns = $gradesToday
+            ->map(fn (Grade $g) => Grade::penilaianIndex((string) $g->grade_type))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $gradesByStudent = [];
+        foreach ($gradesToday as $grade) {
+            $idx = Grade::penilaianIndex((string) $grade->grade_type);
+            if ($idx === null) {
+                continue;
+            }
+            $gradesByStudent[(int) $grade->student_id][$idx] = $grade->value;
+        }
+
+        $nilaiAkhirByStudent = Grade::query()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', (int) $session['class_id'])
+            ->where('subject_id', (int) $session['subject_id'])
+            ->where('semester_id', $semesterId)
+            ->where('grade_type', Grade::TYPE_NILAI_AKHIR)
+            ->get()
+            ->keyBy('student_id');
+
+        $statusCounts = [
+            StudentAttendance::STATUS_HADIR => 0,
+            StudentAttendance::STATUS_ALPHA => 0,
+            StudentAttendance::STATUS_IZIN => 0,
+            StudentAttendance::STATUS_SAKIT => 0,
+            StudentAttendance::STATUS_DINAS_LUAR => 0,
+        ];
+        $recorded = 0;
+
+        $rows = $students->map(function (Student $student) use ($attendances, $gradesByStudent, $nilaiAkhirByStudent, &$statusCounts, &$recorded) {
+            $att = $attendances->get($student->id);
+            $status = $att?->status;
+            if ($status) {
+                $recorded++;
+                if (isset($statusCounts[$status])) {
+                    $statusCounts[$status]++;
+                }
+            }
+
+            return [
+                'nis' => $student->nis,
+                'name' => $student->name,
+                'status' => $status,
+                'status_label' => $status
+                    ? (StudentAttendance::STATUSES[$status] ?? $status)
+                    : '—',
+                'attendance_notes' => $att?->notes,
+                'grades' => $gradesByStudent[(int) $student->id] ?? [],
+                'nilai_akhir' => $nilaiAkhirByStudent->get($student->id)?->value,
+            ];
+        })->all();
+
+        return [
+            'class_name' => $session['class_name'] ?? null,
+            'subject_name' => $session['subject_name'] ?? null,
+            'room_name' => $session['room_name'] ?? null,
+            'period_label' => $session['period_label'] ?? null,
+            'start_time' => $session['start_time'] ?? null,
+            'end_time' => $session['end_time'] ?? null,
+            'journal' => [
+                'filled' => (bool) ($session['status']['journal_filled'] ?? false),
+                'material_taught' => $material,
+                'attendance_notes' => $attendanceNotes,
+                'notes' => $notes,
+            ],
+            'attendance' => [
+                'recorded' => $recorded,
+                'student_count' => count($rows),
+                'counts' => $statusCounts,
+                'filled' => (bool) ($session['status']['attendance_filled'] ?? false),
+            ],
+            'grade_columns' => $gradeColumns,
+            'daily_grade_filled' => (bool) ($session['status']['daily_grade_filled'] ?? false),
+            'students' => $rows,
+        ];
+    }
+
+    /**
      * @param  Collection<int, LessonSchedule>  $schedules
      * @return array<int, Collection<int, LessonSchedule>>
      */
@@ -160,6 +347,7 @@ class TeacherTodaySessionService
         foreach ($schedules as $schedule) {
             if ($current->isEmpty()) {
                 $current->push($schedule);
+
                 continue;
             }
 

@@ -18,11 +18,11 @@ class AuditLogController extends Controller
     {
         $user = $request->user();
         if (
-            !$user
+            ! $user
             || (
-                !$user->isSuperAdmin()
-                && !$user->isAdmin()
-                && !$user->isInstitutionAdmin()
+                ! $user->isSuperAdmin()
+                && ! $user->isAdmin()
+                && ! $user->isInstitutionAdmin()
             )
         ) {
             return response()->json(['message' => 'Unauthorized'], 403);
@@ -41,6 +41,7 @@ class AuditLogController extends Controller
         if (! $user->isSuperAdmin() && $user->institution_id) {
             $query->where('institution_id', $user->institution_id);
         }
+
         return $query;
     }
 
@@ -60,7 +61,7 @@ class AuditLogController extends Controller
         }
         if ($request->filled('module')) {
             $module = $request->get('module');
-            $query->where('auditable_type', 'like', '%' . $module);
+            $query->where('auditable_type', 'like', '%'.$module);
         }
         if ($request->filled('action')) {
             $query->where('action', $request->get('action'));
@@ -149,7 +150,7 @@ class AuditLogController extends Controller
         $query->with('user:id,name');
         $logs = $query->limit(10000)->get();
 
-        $filename = 'audit-log-' . now()->format('Y-m-d-His') . '.csv';
+        $filename = 'audit-log-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () use ($logs) {
             $out = fopen('php://output', 'w');
@@ -167,7 +168,7 @@ class AuditLogController extends Controller
             fclose($out);
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -180,6 +181,7 @@ class AuditLogController extends Controller
             'updated' => "{$type} diperbarui",
             'deleted' => "{$type} dihapus",
             'module_access.updated' => 'Akses modul diperbarui',
+            'institution_modules.updated' => 'Modul sekolah diperbarui',
         ];
 
         return $maps[$action] ?? $action;

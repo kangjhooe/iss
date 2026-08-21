@@ -174,8 +174,7 @@
                     <input id="self_major" v-model="selfForm.major" type="text" maxlength="255" placeholder="Jurusan pendidikan" />
                   </div>
                   <div class="form-group form-group-full">
-                    <label for="self_address">Alamat</label>
-                    <textarea id="self_address" v-model="selfForm.address" rows="3" placeholder="Alamat lengkap"></textarea>
+                    <AddressCascade v-model="selfForm" />
                   </div>
                   <div class="form-group form-group-full">
                     <label for="self_notes">Catatan</label>
@@ -337,6 +336,8 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
 import Layout from '@/components/Layout.vue'
+import AddressCascade from '@/components/AddressCascade.vue'
+import { emptyAddress, formatFullAddress, pickAddress } from '@/utils/addressFields'
 import { useToast } from '@/composables/useToast'
 import { teacherApi } from '@/api/teacher'
 import { teacherChangeRequestApi } from '@/api/teacherChangeRequest'
@@ -365,7 +366,7 @@ const selfForm = ref({
   religion: '',
   education_level: '',
   major: '',
-  address: '',
+  ...emptyAddress(),
   notes: ''
 })
 
@@ -374,7 +375,7 @@ const selfBaseline = ref({
   religion: '',
   education_level: '',
   major: '',
-  address: '',
+  ...emptyAddress(),
   notes: ''
 })
 
@@ -429,7 +430,11 @@ const DEFAULT_APPROVAL_FIELDS = [
   'certification_number', 'certification_issuing_authority'
 ]
 
-const DEFAULT_SELF_FIELDS = ['address', 'phone', 'religion', 'education_level', 'major', 'notes']
+const DEFAULT_SELF_FIELDS = [
+  'address', 'village', 'sub_district', 'district', 'province', 'postal_code',
+  'wilayah_province_code', 'wilayah_regency_code', 'wilayah_district_code', 'wilayah_village_code',
+  'phone', 'religion', 'education_level', 'major', 'notes'
+]
 
 function getFieldLabel(field) {
   return FIELD_LABELS[field] || field
@@ -506,7 +511,7 @@ function syncSelfFormFromTeacher() {
     religion: normalizeSelfValue(t.religion),
     education_level: normalizeSelfValue(t.education_level),
     major: normalizeSelfValue(t.major),
-    address: normalizeSelfValue(t.address),
+    ...pickAddressValues(t),
     notes: normalizeSelfValue(t.notes)
   }
   selfForm.value = { ...next }
@@ -531,8 +536,13 @@ const selfDirty = computed(() => {
 
 const approvalFieldSet = computed(() => new Set(approvalFields.value.length ? approvalFields.value : DEFAULT_APPROVAL_FIELDS))
 
+function pickAddressValues(source) {
+  const picked = pickAddress(source)
+  return Object.fromEntries(Object.entries(picked).map(([k, v]) => [k, normalizeSelfValue(v)]))
+}
+
 function makeItem(key, label) {
-  const raw = teacher.value?.[key]
+  const raw = key === 'address' ? formatFullAddress(teacher.value) : teacher.value?.[key]
   const value = formatProfileValue(raw, key)
   return {
     key,

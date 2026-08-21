@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Rules\StudentIdentityNotTaken;
 use App\Models\Student;
 use App\Models\StudentChangeRequest;
 use Illuminate\Foundation\Http\FormRequest;
@@ -43,7 +44,11 @@ class StoreStudentChangeRequestRequest extends FormRequest
             case 'guardian_nik':
                 $rules['new_value'] = ['nullable', 'string', 'size:16', 'regex:/^[0-9]{16}$/'];
                 if ($fieldName === 'nik') {
-                    $rules['new_value'][] = Rule::unique('student', 'nik')->ignore($studentId);
+                    $institutionId = Student::whereKey($studentId)->value('institution_id');
+                    $rules['new_value'][] = Rule::unique('student', 'nik')
+                        ->ignore($studentId)
+                        ->where(fn ($q) => $q->where('institution_id', $institutionId));
+                    $rules['new_value'][] = new StudentIdentityNotTaken('nik', $studentId);
                 }
                 break;
             case 'nis':
@@ -56,11 +61,15 @@ class StoreStudentChangeRequestRequest extends FormRequest
                 ];
                 break;
             case 'nisn':
+                $institutionId = Student::whereKey($studentId)->value('institution_id');
                 $rules['new_value'] = [
                     'nullable',
                     'string',
                     'max:20',
-                    Rule::unique('student', 'nisn')->ignore($studentId),
+                    Rule::unique('student', 'nisn')
+                        ->ignore($studentId)
+                        ->where(fn ($q) => $q->where('institution_id', $institutionId)),
+                    new StudentIdentityNotTaken('nisn', $studentId),
                 ];
                 break;
             case 'no_kk':

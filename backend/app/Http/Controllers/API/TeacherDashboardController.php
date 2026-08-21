@@ -17,8 +17,11 @@ use App\Models\TeachingJournal;
 use App\Services\TeacherTodaySessionService;
 use App\Support\InstitutionContext;
 use App\Support\WaliKelasAccess;
+use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -32,14 +35,14 @@ class TeacherDashboardController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user || !$user->isTeacherOrStaff()) {
+            if (! $user || ! $user->isTeacherOrStaff()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $user->load(['teacherProfile', 'employeeProfile']);
             $teacher = WaliKelasAccess::employeeFor($user);
 
-            if (!$teacher) {
+            if (! $teacher) {
                 return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);
             }
 
@@ -119,7 +122,7 @@ class TeacherDashboardController extends Controller
 
                 $seenPairs = [];
                 foreach ($schedules as $s) {
-                    $pairKey = $s->class_id . '-' . $s->subject_id;
+                    $pairKey = $s->class_id.'-'.$s->subject_id;
                     if (isset($seenPairs[$pairKey])) {
                         continue;
                     }
@@ -211,23 +214,23 @@ class TeacherDashboardController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user || !$user->isTeacherOrStaff()) {
+            if (! $user || ! $user->isTeacherOrStaff()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $teacher = WaliKelasAccess::employeeFor($user);
-            if (!$teacher) {
+            if (! $teacher) {
                 return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);
             }
 
             $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $institution = Institution::find($institutionId);
             $semesterId = (int) ($request->get('semester_id') ?: $institution?->active_semester_id);
-            if (!$semesterId) {
+            if (! $semesterId) {
                 return response()->json(['message' => 'Semester aktif tidak ditemukan.'], 422);
             }
 
@@ -262,19 +265,120 @@ class TeacherDashboardController extends Controller
     }
 
     /**
+     * Cetak PDF lembar jurnal mengajar (satu sesi atau semua sesi tanggal itu).
+     */
+    public function exportTodaySessionsPdf(Request $request): Response|JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if (! $user || ! $user->isTeacherOrStaff()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $teacher = WaliKelasAccess::employeeFor($user);
+            if (! $teacher) {
+                return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);
+            }
+
+            $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+            if (! $institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            $semesterId = (int) ($request->get('semester_id') ?: $institution?->active_semester_id);
+            if (! $semesterId) {
+                return response()->json(['message' => 'Semester aktif tidak ditemukan.'], 422);
+            }
+
+            $date = $request->get('date');
+            if ($date) {
+                try {
+                    Carbon::parse($date);
+                } catch (\Exception $e) {
+                    return response()->json(['message' => 'Format tanggal tidak valid.'], 422);
+                }
+            }
+
+            $sessionKey = trim((string) $request->get('session_key', ''));
+            $data = app(TeacherTodaySessionService::class)->printDocuments(
+                $institutionId,
+                (int) $teacher->id,
+                $semesterId,
+                $date,
+                $sessionKey !== '' ? $sessionKey : null
+            );
+
+            if ($sessionKey !== '' && $data['sessions'] === []) {
+                return response()->json(['message' => 'Sesi mengajar tidak ditemukan.'], 404);
+            }
+            if ($data['sessions'] === []) {
+                return response()->json(['message' => 'Tidak ada jadwal mengajar pada tanggal ini.'], 422);
+            }
+
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $signatureDate = now()->locale('id')->translatedFormat('d F Y');
+
+            $pdf = DomPDF::loadView('teaching_journal.session_print', [
+                'institution' => $data['institution'] ?? $institution,
+                'teacher' => $data['teacher'],
+                'date' => $data['date'],
+                'day_name' => $data['day_name'],
+                'semester_name' => $data['semester_name'],
+                'sessions' => $data['sessions'],
+                'printed_at' => $printedAt,
+                'printed_by' => $user?->name,
+                'signature_date' => $signatureDate,
+            ])->setPaper('a4', 'portrait');
+
+            $dateLabel = $data['date'] ?? now()->toDateString();
+            if (count($data['sessions']) === 1) {
+                $first = $data['sessions'][0];
+                $slug = $this->slugFilename(
+                    ($first['class_name'] ?? 'kelas').'-'.($first['subject_name'] ?? 'mapel')
+                );
+                $filename = 'lembar-jurnal-'.$slug.'-'.$dateLabel.'.pdf';
+            } else {
+                $filename = 'lembar-jurnal-'.$dateLabel.'.pdf';
+            }
+
+            return $pdf->stream($filename, ['Attachment' => false]);
+        } catch (\Exception $e) {
+            Log::error('Failed to export teacher today session PDF', [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Gagal mencetak lembar jurnal mengajar.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function slugFilename(string $value): string
+    {
+        $slug = preg_replace('/[^A-Za-z0-9_-]+/', '-', $value) ?: 'sesi';
+        $slug = trim($slug, '-');
+
+        return $slug !== '' ? strtolower($slug) : 'sesi';
+    }
+
+    /**
      * Daftar siswa kelas wali (hanya kelas di mana guru adalah wali kelas).
      */
     public function classStudents(Request $request, int $id)
     {
         $user = $request->user();
 
-        if (!$user || !$user->isTeacherOrStaff()) {
+        if (! $user || ! $user->isTeacherOrStaff()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $teacher = WaliKelasAccess::employeeFor($user);
 
-        if (!$teacher) {
+        if (! $teacher) {
             return response()->json(['message' => 'Profil guru tidak ditemukan'], 404);
         }
 
@@ -286,7 +390,7 @@ class TeacherDashboardController extends Controller
             ], 403);
         }
 
-        if (!InstitutionContext::canAccessInstitution($user, (int) $class->institution_id)) {
+        if (! InstitutionContext::canAccessInstitution($user, (int) $class->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -339,7 +443,7 @@ class TeacherDashboardController extends Controller
 
         $allowedSorts = ['name', 'nis', 'nisn', 'nik', 'gender', 'status'];
         $sortBy = (string) $request->get('sort_by', 'name');
-        if (!in_array($sortBy, $allowedSorts, true)) {
+        if (! in_array($sortBy, $allowedSorts, true)) {
             $sortBy = 'name';
         }
         $sortDir = strtolower((string) $request->get('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
@@ -424,7 +528,7 @@ class TeacherDashboardController extends Controller
             'log_status' => null,
         ];
 
-        if (!$institutionId || !Schema::hasTable('piket_schedules')) {
+        if (! $institutionId || ! Schema::hasTable('piket_schedules')) {
             return $empty;
         }
 
@@ -439,7 +543,7 @@ class TeacherDashboardController extends Controller
                 ->orderBy('shift')
                 ->first();
 
-            if (!$schedule) {
+            if (! $schedule) {
                 return $empty;
             }
 

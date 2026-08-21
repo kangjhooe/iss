@@ -65,6 +65,22 @@ class Exam extends Model
         return $this->hasMany(ExamQuestion::class, 'exam_id')->orderBy('sort_order');
     }
 
+    /**
+     * Paket soal tidak boleh diubah setelah ada sesi yang berjalan atau selesai.
+     */
+    public function questionsAreLocked(): bool
+    {
+        if ($this->relationLoaded('sessions')) {
+            return $this->sessions->contains(
+                fn ($s) => in_array($s->status, [ExamSession::STATUS_STARTED, ExamSession::STATUS_ENDED], true)
+            );
+        }
+
+        return $this->sessions()
+            ->whereIn('status', [ExamSession::STATUS_STARTED, ExamSession::STATUS_ENDED])
+            ->exists();
+    }
+
     public function scopeForInstitution($query, int $institutionId)
     {
         return $query->where('institution_id', $institutionId);

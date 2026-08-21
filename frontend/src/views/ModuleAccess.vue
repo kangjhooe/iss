@@ -11,12 +11,12 @@
           </div>
           <div>
             <h1>Akses Modul</h1>
-            <p class="header-desc">Atur modul yang dapat diakses setiap guru</p>
+            <p class="header-desc">{{ headerDesc }}</p>
           </div>
         </div>
         <button
-          v-if="!loading && !error && unsavedCount > 0"
-          @click="saveAll"
+          v-if="!loading && !error && saveEnabled"
+          @click="saveCurrentTab"
           :disabled="saving"
           class="btn-save-header"
         >
@@ -46,6 +46,54 @@
       </div>
 
       <template v-else>
+        <div class="tabs" role="tablist">
+          <button
+            type="button"
+            class="tab"
+            :class="{ 'tab--on': activeTab === 'school' }"
+            role="tab"
+            :aria-selected="activeTab === 'school'"
+            @click="activeTab = 'school'"
+          >
+            Modul sekolah
+          </button>
+          <button
+            type="button"
+            class="tab"
+            :class="{ 'tab--on': activeTab === 'teachers' }"
+            role="tab"
+            :aria-selected="activeTab === 'teachers'"
+            @click="activeTab = 'teachers'"
+          >
+            Akses guru
+          </button>
+        </div>
+
+        <div v-if="activeTab === 'school'" class="school-modules">
+          <p class="school-hint">
+            Matikan modul yang tidak dipakai sekolah ini. Modul berwarna tampil di menu pengguna yang berhak. Laporan hanya untuk admin dan kepala sekolah.
+          </p>
+          <div class="summary school-summary">
+            <span class="summary-pill">{{ visibleSchoolCount }} dari {{ availableModules.length }} modul ditampilkan</span>
+          </div>
+          <div class="modules school-module-list">
+            <label
+              v-for="module in availableModules"
+              :key="module.key"
+              class="module-chip"
+              :class="{ 'module-chip--on': isSchoolModuleVisible(module.key) }"
+            >
+              <input
+                type="checkbox"
+                :checked="isSchoolModuleVisible(module.key)"
+                @change="toggleSchoolModule(module.key)"
+              />
+              <span>{{ module.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <template v-else>
         <div class="toolbar">
           <div class="summary">
             <span class="summary-pill">
@@ -61,7 +109,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              {{ availableModules.length }} modul
+              {{ teacherAssignableModules.length }} modul
             </span>
           </div>
           <div class="search-wrap">
@@ -118,7 +166,7 @@
               <h4>Akses Modul</h4>
               <div class="modules">
                 <label
-                  v-for="module in availableModules"
+                  v-for="module in teacherAssignableModules"
                   :key="module.key"
                   class="module-chip"
                   :class="{ 'module-chip--on': isModuleEnabled(teacher.id, module.key) }"
@@ -135,13 +183,14 @@
             </section>
           </article>
         </div>
+        </template>
 
         <Transition name="slide-up">
-          <div v-if="unsavedCount > 0 && !saving" class="save-bar">
-            <span>{{ unsavedCount }} perubahan belum disimpan</span>
+          <div v-if="saveEnabled && !saving" class="save-bar">
+            <span>{{ saveBarLabel }}</span>
             <div class="save-bar-actions">
-              <button @click="discardChanges" class="btn-ghost">Batal</button>
-              <button @click="saveAll" class="btn-primary">Simpan</button>
+              <button @click="discardCurrentTab" class="btn-ghost">Batal</button>
+              <button @click="saveCurrentTab" class="btn-primary">Simpan</button>
             </div>
           </div>
         </Transition>
@@ -158,6 +207,7 @@ import { permissionApi } from '@/api/permissions'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel, VOCATIONAL_PERMISSION_KEYS } from '@/utils/institution'
+import { PRINCIPAL_ONLY_MODULES } from '@/utils/moduleAccess'
 
 const toast = useToast()
 const authStore = useAuthStore()
@@ -169,6 +219,44 @@ const searchQuery = ref('')
 const teachers = ref([])
 const availableModules = ref([])
 const pendingChanges = ref({}) // { userId: { permission_keys: [...] } }
+const activeTab = ref('school')
+const savedHiddenKeys = ref([])
+const pendingHiddenKeys = ref(null)
+
+const headerDesc = computed(() =>
+  activeTab.value === 'school'
+    ? 'Pilih modul yang ditampilkan di sekolah ini'
+    : 'Atur modul yang dapat diakses setiap guru'
+)
+
+const teacherAssignableModules = computed(() =>
+  availableModules.value.filter(m => isSchoolModuleVisible(m.key) && !PRINCIPAL_ONLY_MODULES.includes(m.key))
+)
+
+const currentHiddenKeys = computed(() =>
+  pendingHiddenKeys.value ?? savedHiddenKeys.value
+)
+
+const visibleSchoolCount = computed(() =>
+  availableModules.value.filter(m => isSchoolModuleVisible(m.key)).length
+)
+
+const schoolDirty = computed(() => {
+  if (!pendingHiddenKeys.value) return false
+  const a = [...pendingHiddenKeys.value].sort()
+  const b = [...savedHiddenKeys.value].sort()
+  return JSON.stringify(a) !== JSON.stringify(b)
+})
+
+const saveEnabled = computed(() =>
+  activeTab.value === 'school' ? schoolDirty.value : unsavedCount.value > 0
+)
+
+const saveBarLabel = computed(() =>
+  activeTab.value === 'school'
+    ? 'Perubahan modul sekolah belum disimpan'
+    : `${unsavedCount.value} perubahan belum disimpan`
+)
 
 const filteredTeachers = computed(() => {
   if (!searchQuery.value) return teachers.value
@@ -218,14 +306,37 @@ function discardChanges() {
   toast.info('Dibatalkan', 'Perubahan belum disimpan telah dibatalkan')
 }
 
+function discardSchoolChanges() {
+  pendingHiddenKeys.value = null
+  toast.info('Dibatalkan', 'Perubahan modul sekolah telah dibatalkan')
+}
+
+function discardCurrentTab() {
+  if (activeTab.value === 'school') discardSchoolChanges()
+  else discardChanges()
+}
+
+function isSchoolModuleVisible(moduleKey) {
+  return !currentHiddenKeys.value.includes(moduleKey)
+}
+
+function toggleSchoolModule(moduleKey) {
+  const next = [...currentHiddenKeys.value]
+  const index = next.indexOf(moduleKey)
+  if (index > -1) next.splice(index, 1)
+  else next.push(moduleKey)
+  pendingHiddenKeys.value = next
+}
+
 const loadData = async () => {
   loading.value = true
   error.value = ''
   
   try {
-    const [modulesRes, teachersRes] = await Promise.all([
+    const [modulesRes, teachersRes, visibilityRes] = await Promise.all([
       permissionApi.getAll(),
-      permissionApi.getTeachers()
+      permissionApi.getTeachers(),
+      permissionApi.getInstitutionVisibility()
     ])
     
     const modules = modulesRes.data.data || []
@@ -234,6 +345,8 @@ const loadData = async () => {
       : modules.filter(m => !VOCATIONAL_PERMISSION_KEYS.includes(m.key))
     teachers.value = teachersRes.data.data || []
     pendingChanges.value = {}
+    savedHiddenKeys.value = visibilityRes.data.data?.hidden_keys || []
+    pendingHiddenKeys.value = null
   } catch (err) {
     error.value = err.response?.data?.message || 'Gagal memuat data'
     console.error(err)
@@ -280,6 +393,49 @@ const hasChanges = (userId) => {
   const changed = [...pendingChanges.value[userId].permission_keys].sort()
   
   return JSON.stringify(original) !== JSON.stringify(changed)
+}
+
+const saveSchoolVisibility = async () => {
+  if (!schoolDirty.value) {
+    toast.info('Info', 'Tidak ada perubahan yang perlu disimpan')
+    return
+  }
+
+  saving.value = true
+  try {
+    const hiddenKeys = pendingHiddenKeys.value ?? savedHiddenKeys.value
+    await permissionApi.updateInstitutionVisibility(hiddenKeys)
+    savedHiddenKeys.value = [...hiddenKeys]
+    pendingHiddenKeys.value = null
+    if (authStore.user) {
+      authStore.user.hidden_module_keys = [...hiddenKeys]
+      if (authStore.user.active_institution) {
+        authStore.user.active_institution.hidden_module_keys = [...hiddenKeys]
+      }
+      if (authStore.user.institution) {
+        authStore.user.institution.hidden_module_keys = [...hiddenKeys]
+      }
+    }
+    try {
+      await authStore.fetchUser()
+    } catch {
+      // menu sudah memakai hidden_module_keys lokal
+    }
+    toast.success('Berhasil', 'Modul sekolah berhasil diperbarui')
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Gagal menyimpan modul sekolah')
+    console.error(err)
+  } finally {
+    saving.value = false
+  }
+}
+
+const saveCurrentTab = async () => {
+  if (activeTab.value === 'school') {
+    await saveSchoolVisibility()
+    return
+  }
+  await saveAll()
 }
 
 const saveAll = async () => {
@@ -362,6 +518,46 @@ onMounted(() => {
   font-size: 14px;
   color: #64748b;
   margin: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 2px;
+}
+
+.tab {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -3px;
+}
+
+.tab--on {
+  color: #047857;
+  border-bottom-color: #059669;
+}
+
+.school-hint {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.school-summary {
+  margin-bottom: 16px;
+}
+
+.school-module-list {
+  padding-bottom: 24px;
 }
 
 .btn-save-header {

@@ -11,6 +11,9 @@
             </div>
           </div>
           <div class="header-actions">
+            <button v-if="applicant" type="button" class="btn-header-secondary" :disabled="slipDownloading" @click="downloadSlip">
+              {{ slipDownloading ? 'Menyiapkan...' : 'Unduh bukti PDF' }}
+            </button>
             <router-link to="/ppdb/pendaftar" class="btn-header-primary">← Kembali</router-link>
           </div>
         </div>
@@ -86,7 +89,7 @@
                 <div><dt>NISN</dt><dd>{{ applicant.nisn || '—' }}</dd></div>
                 <div><dt>Jenis kelamin</dt><dd>{{ applicant.gender === 'P' ? 'Perempuan' : 'Laki-laki' }}</dd></div>
                 <div><dt>Tempat, tgl lahir</dt><dd>{{ applicant.birth_place || '—' }}, {{ formatDate(applicant.birth_date) }}</dd></div>
-                <div class="full"><dt>Alamat</dt><dd>{{ applicant.address || '—' }}</dd></div>
+                <div class="full"><dt>Alamat</dt><dd>{{ formatFullAddress(applicant) || applicant.address || '—' }}</dd></div>
                 <div><dt>Telepon</dt><dd>{{ applicant.phone || '—' }}</dd></div>
                 <div><dt>Email</dt><dd>{{ applicant.email || '—' }}</dd></div>
                 <div><dt>Agama</dt><dd>{{ applicant.religion || '—' }}</dd></div>
@@ -103,6 +106,10 @@
                 <div><dt>Ibu</dt><dd>{{ applicant.mother_name || '—' }} {{ applicant.mother_phone ? '(' + applicant.mother_phone + ')' : '' }}</dd></div>
                 <div class="full"><dt>Wali</dt><dd>{{ applicant.guardian_name || '—' }} {{ applicant.guardian_relation ? '— ' + applicant.guardian_relation : '' }}</dd></div>
               </dl>
+              <p v-if="applicant.status === 'accepted_elsewhere'" class="elsewhere-note">
+                Calon ini sudah terdaftar sebagai siswa di sekolah lain. Seleksi di sekolah ini ditutup.
+                <template v-if="applicant.notes"> {{ applicant.notes }}</template>
+              </p>
               <p v-if="applicant.student_id" class="converted-note">
                 Sudah jadi siswa: NIS {{ applicant.student?.nis }} — {{ applicant.student?.name }}
               </p>
@@ -146,7 +153,32 @@
             <p>
               <strong>Status berkas:</strong>
               {{ applicant.documents_verified ? 'Terverifikasi' : 'Belum verifikasi' }}
+              <template v-if="applicant.document_summary?.required_total">
+                — {{ applicant.document_summary.required_uploaded }}/{{ applicant.document_summary.required_total }} wajib
+              </template>
             </p>
+            <div v-if="applicant.document_summary?.items?.length" class="checklist-table-wrap">
+              <table class="checklist-table">
+                <thead>
+                  <tr>
+                    <th>Jenis</th>
+                    <th>Wajib</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in applicant.document_summary.items" :key="item.key">
+                    <td>{{ item.label }}</td>
+                    <td>{{ item.required ? 'Ya' : 'Tidak' }}</td>
+                    <td>
+                      <span :class="item.uploaded ? 'ok' : (item.required ? 'missing' : 'muted')">
+                        {{ item.uploaded ? 'Sudah' : 'Belum' }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <div v-if="applicant.documents?.length" class="doc-list">
               <ul>
                 <li v-for="d in applicant.documents" :key="d.id">
@@ -156,7 +188,7 @@
               </ul>
             </div>
             <p v-else class="muted">Belum ada dokumen terunggah.</p>
-            <div class="form-group verify-box">
+            <div v-if="applicant.status !== 'accepted_elsewhere' && applicant.status !== 'converted'" class="form-group verify-box">
               <label>Verifikasi berkas</label>
               <label class="check-label"><input v-model="verificationForm.documents_verified" type="checkbox" /> Dokumen lengkap & valid</label>
               <textarea v-model="verificationForm.verification_notes" rows="2" placeholder="Catatan verifikasi"></textarea>
@@ -247,6 +279,7 @@ import { ppdbApplicantApi, ppdbPeriodApi } from '@/api/ppdb'
 import { classApi } from '@/api/class'
 import { useToast } from '@/composables/useToast'
 import { studentLoginCredentials } from '@/utils/accountCredentials'
+import { formatFullAddress } from '@/utils/addressFields'
 import {
   statusApplicantLabels,
   paymentStatusLabels,
@@ -285,6 +318,7 @@ const convertForm = ref({ class_id: '' })
 const convertClasses = ref([])
 const convertFormError = ref('')
 const convertFormSubmitting = ref(false)
+const slipDownloading = ref(false)
 
 async function loadApplicant() {
   loading.value = true
@@ -324,6 +358,29 @@ async function downloadDocument(d) {
     URL.revokeObjectURL(url)
   } catch (e) {
     toast.error('Gagal mengunduh berkas', e.formattedMessage || 'Coba lagi.')
+  }
+}
+
+async function downloadSlip() {
+  if (!applicant.value?.id) return
+  slipDownloading.value = true
+  try {
+    const res = await ppdbApplicantApi.downloadRegistrationSlip(applicant.value.id)
+    const blob = res.data
+    if (blob.type && blob.type.includes('json')) {
+      toast.error('Gagal mengunduh bukti', 'Bukti pendaftaran tidak dapat dibuat.')
+      return
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `bukti-pendaftaran-${applicant.value.registration_number || applicant.value.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    toast.error('Gagal mengunduh bukti', e.formattedMessage || 'Coba lagi.')
+  } finally {
+    slipDownloading.value = false
   }
 }
 
@@ -496,9 +553,16 @@ onMounted(loadApplicant)
 .info-grid dt { font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 0.15rem; }
 .info-grid dd { margin: 0; color: #334155; font-size: 0.95rem; }
 .converted-note { margin: 1rem 0 0; padding: 0.75rem; background: #ecfdf5; border-radius: 10px; color: #047857; font-weight: 500; }
+.elsewhere-note { margin: 1rem 0 0; padding: 0.75rem; background: #f5f3ff; border-radius: 10px; color: #5b21b6; font-weight: 500; }
 .verify-box { margin-top: 1rem; max-width: 480px; }
 .check-label { display: flex !important; align-items: center; gap: 0.5rem; font-weight: 500 !important; margin-bottom: 0.5rem !important; }
 .muted { color: #94a3b8; }
+.ok { color: #047857; font-weight: 600; }
+.missing { color: #b91c1c; font-weight: 600; }
+.checklist-table-wrap { margin: 0.75rem 0; overflow-x: auto; }
+.checklist-table { width: 100%; max-width: 520px; border-collapse: collapse; font-size: 0.9rem; }
+.checklist-table th, .checklist-table td { border: 1px solid #e2e8f0; padding: 0.4rem 0.6rem; text-align: left; }
+.checklist-table th { background: #f8fafc; color: #475569; font-size: 0.75rem; text-transform: uppercase; }
 .btn-compact { margin-top: 0.5rem; }
 .detail-hero .btn-compact { margin-top: 0; }
 .pay-badge {

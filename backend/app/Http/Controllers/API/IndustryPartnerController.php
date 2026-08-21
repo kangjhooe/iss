@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Models\IndustryPartner;
+use App\Support\RegionAddress;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -29,6 +30,9 @@ class IndustryPartnerController extends Controller
                         $inner->where('name', 'like', $s)
                             ->orWhere('business_field', 'like', $s)
                             ->orWhere('city', 'like', $s)
+                            ->orWhere('district', 'like', $s)
+                            ->orWhere('province', 'like', $s)
+                            ->orWhere('village', 'like', $s)
                             ->orWhere('pic_name', 'like', $s);
                     });
                 })
@@ -53,7 +57,7 @@ class IndustryPartnerController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $data = $this->validatePartner($request);
+            $data = $this->syncCityFromDistrict($this->validatePartner($request));
             $data['institution_id'] = $institutionId;
             $partner = IndustryPartner::create($data);
 
@@ -85,7 +89,7 @@ class IndustryPartnerController extends Controller
         }
 
         try {
-            $data = $this->validatePartner($request, false);
+            $data = $this->syncCityFromDistrict($this->validatePartner($request, false));
             $industry_partner->update($data);
 
             return response()->json([
@@ -122,6 +126,7 @@ class IndustryPartnerController extends Controller
         return $request->validate([
             'name' => ($creating ? 'required' : 'sometimes') . '|string|max:255',
             'business_field' => 'nullable|string|max:255',
+            ...RegionAddress::rules(),
             'address' => 'nullable|string|max:500',
             'city' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:50',
@@ -131,6 +136,15 @@ class IndustryPartnerController extends Controller
             'status' => ['nullable', Rule::in(['Aktif', 'Nonaktif'])],
             'notes' => 'nullable|string|max:5000',
         ]);
+    }
+
+    private function syncCityFromDistrict(array $data): array
+    {
+        if (! empty($data['district'])) {
+            $data['city'] = $data['district'];
+        }
+
+        return $data;
     }
 
     private function denyIfOutsideInstitution(Request $request, int $recordInstitutionId): ?JsonResponse

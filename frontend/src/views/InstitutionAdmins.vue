@@ -12,6 +12,45 @@
         </div>
       </div>
 
+      <section v-if="pendingRequests.length" class="reset-requests">
+        <div class="reset-requests-header">
+          <div>
+            <h3>Permintaan reset sandi</h3>
+            <p>Sekolah mengajukan reset. Reset sandi, lalu kirim ke email mereka secara manual.</p>
+          </div>
+          <span class="reset-count">{{ pendingRequests.length }} menunggu</span>
+        </div>
+        <div class="reset-list">
+          <article v-for="item in pendingRequests" :key="item.id" class="reset-card">
+            <div class="reset-card-main">
+              <strong>{{ item.institution?.name || item.user?.name || item.email }}</strong>
+              <span>{{ item.user?.name || 'Admin' }} · {{ item.email }}</span>
+              <span>NPSN {{ item.npsn }}{{ item.contact_phone ? ` · ${item.contact_phone}` : '' }}</span>
+              <span v-if="item.note" class="reset-note">{{ item.note }}</span>
+              <span class="reset-time">{{ formatRequestTime(item.created_at) }}</span>
+            </div>
+            <div class="reset-card-actions">
+              <button
+                type="button"
+                class="btn-action btn-ok"
+                :disabled="busyRequestId === item.id"
+                @click="handleProcessRequest(item)"
+              >
+                Reset sandi
+              </button>
+              <button
+                type="button"
+                class="btn-action btn-warn"
+                :disabled="busyRequestId === item.id"
+                @click="handleRejectRequest(item)"
+              >
+                Tolak
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <div class="filters filters-inline">
         <input
           v-model="filters.search"
@@ -183,6 +222,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { institutionAdminApi } from '@/api/institutionAdmin'
 import { institutionApi } from '@/api/institution'
+import { passwordResetRequestApi } from '@/api/passwordResetRequest'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
@@ -197,6 +237,8 @@ const saving = ref(false)
 const busyId = ref(null)
 const admins = ref([])
 const institutions = ref([])
+const pendingRequests = ref([])
+const busyRequestId = ref(null)
 const showCreateModal = ref(false)
 const formError = ref('')
 const accountCredentials = ref(null)
@@ -215,6 +257,77 @@ const form = ref({
   password: '',
   password_confirmation: ''
 })
+
+const loadPendingRequests = async () => {
+  try {
+    const res = await passwordResetRequestApi.getAll({ status: 'pending', per_page: 50 })
+    pendingRequests.value = res.data?.data || []
+  } catch {
+    pendingRequests.value = []
+  }
+}
+
+const formatRequestTime = (iso) => {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const handleProcessRequest = async (item) => {
+  const confirmed = await showConfirm({
+    title: 'Reset Sandi Admin',
+    message: `Reset sandi untuk "${item.user?.name || item.email}" (${item.institution?.name || item.npsn})? Sandi baru akan digenerate otomatis.`,
+    warning: 'Kirim sandi baru ke email sekolah secara manual. Sistem tidak mengirim email.'
+  })
+  if (!confirmed) return
+
+  busyRequestId.value = item.id
+  try {
+    const res = await passwordResetRequestApi.process(item.id)
+    await loadPendingRequests()
+    if (res.data?.temporary_password) {
+      accountCredentials.value = {
+        title: 'Sandi admin berhasil direset',
+        name: item.user?.name || item.email,
+        loginLabel: 'Email',
+        loginValue: item.email,
+        password: res.data.temporary_password,
+        hint: 'Kirim sandi ini ke email sekolah secara manual. Sistem tidak mengirim email.',
+      }
+    } else {
+      toast.success('Berhasil', res.data?.message || 'Sandi berhasil direset')
+    }
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Gagal memproses permintaan')
+  } finally {
+    busyRequestId.value = null
+  }
+}
+
+const handleRejectRequest = async (item) => {
+  const confirmed = await showConfirm({
+    title: 'Tolak Permintaan',
+    message: `Tolak permintaan reset sandi dari "${item.institution?.name || item.email}"?`,
+    warning: 'Sekolah dapat mengajukan ulang jika masih memerlukan reset.'
+  })
+  if (!confirmed) return
+
+  busyRequestId.value = item.id
+  try {
+    const res = await passwordResetRequestApi.reject(item.id)
+    toast.success('Berhasil', res.data?.message || 'Permintaan ditolak')
+    await loadPendingRequests()
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || 'Gagal menolak permintaan')
+  } finally {
+    busyRequestId.value = null
+  }
+}
 
 const loadInstitutions = async () => {
   try {
@@ -347,11 +460,12 @@ const handleResetPassword = async (admin) => {
         loginLabel: 'Email',
         loginValue: admin.email,
         password: res.data.temporary_password,
-        hint: 'Sandi lama tidak dapat digunakan. Berikan sandi baru kepada admin secara aman.',
+        hint: 'Sandi lama tidak dapat digunakan. Kirim sandi baru ke email sekolah secara manual.',
       }
     } else {
       toast.success('Berhasil', res.data?.message || 'Sandi berhasil direset')
     }
+    await loadPendingRequests()
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || 'Gagal reset sandi')
   } finally {
@@ -386,7 +500,7 @@ onMounted(async () => {
   if (route.query.institution_id) {
     filters.value.institution_id = String(route.query.institution_id)
   }
-  await Promise.all([loadInstitutions(), loadAdmins()])
+  await Promise.all([loadInstitutions(), loadAdmins(), loadPendingRequests()])
 })
 </script>
 
@@ -419,6 +533,92 @@ onMounted(async () => {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.reset-requests {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+
+.reset-requests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.reset-requests-header h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #9a3412;
+}
+
+.reset-requests-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #c2410c;
+}
+
+.reset-count {
+  flex-shrink: 0;
+  background: #ea580c;
+  color: white;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reset-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  background: white;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.reset-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.reset-card-main strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.reset-card-main span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.reset-note {
+  color: #334155 !important;
+}
+
+.reset-time {
+  color: #94a3b8 !important;
+}
+
+.reset-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .filters-inline {
@@ -683,6 +883,14 @@ onMounted(async () => {
     flex: 1;
     justify-content: center;
     text-align: center;
+  }
+
+  .reset-card {
+    flex-direction: column;
+  }
+
+  .reset-card-actions {
+    flex-direction: row;
   }
 
   .filters-inline {

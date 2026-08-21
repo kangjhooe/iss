@@ -22,6 +22,9 @@ export const studentApi = {
   restore(id) {
     return api.post(`/v1/student/${id}/restore`)
   },
+  forceDelete(id) {
+    return api.delete(`/v1/student/${id}/force`)
+  },
   import(data) {
     return api.post('/v1/student/import', { students: data })
   },
@@ -77,5 +80,11 @@ export const studentApi = {
   },
   generateNis(id) {
     return api.post(`/v1/student/${id}/generate-nis`)
+  },
+  feederAlumni(params) {
+    return api.get('/v1/student/feeder-alumni', { params })
+  },
+  pullFromFeeder(data) {
+    return api.post('/v1/student/pull-from-feeder', data)
   }
 }

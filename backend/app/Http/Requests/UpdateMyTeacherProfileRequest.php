@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\TeacherChangeRequest;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateMyTeacherProfileRequest extends FormRequest
@@ -20,14 +21,14 @@ class UpdateMyTeacherProfileRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return array_merge(RegionAddress::rules(), [
             'address' => ['sometimes', 'nullable', 'string'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'religion' => ['sometimes', 'nullable', 'string', 'max:50'],
             'education_level' => ['sometimes', 'nullable', 'in:SMA,D3,S1,S2,S3'],
             'major' => ['sometimes', 'nullable', 'string', 'max:255'],
             'notes' => ['sometimes', 'nullable', 'string'],
-        ];
+        ]);
     }
 
     public function withValidator($validator): void

@@ -27,6 +27,7 @@ use App\Services\StudentMutationService;
 use App\Services\StudentService;
 use App\Services\ViolationService;
 use App\Services\WaliKelasDashboardService;
+use App\Support\RegionAddress;
 use App\Support\WaliKelasAccess;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
@@ -668,7 +669,7 @@ class WaliKelasController extends Controller
             ->where('class_id', $classId)
             ->where('status', 'Aktif')
             ->orderBy('name')
-            ->get(['id', 'name', 'nis', 'nisn', 'phone', 'guardian_name', 'guardian_phone', 'address']);
+            ->get(['id', 'name', 'nis', 'nisn', 'phone', 'guardian_name', 'guardian_phone', 'address', 'village', 'sub_district', 'district', 'province', 'postal_code']);
 
         $institution = Institution::find($class->institution_id);
 
@@ -688,7 +689,7 @@ class WaliKelasController extends Controller
                         $s->phone,
                         $s->guardian_name,
                         $s->guardian_phone,
-                        $s->address,
+                        RegionAddress::format($s) ?: ($s->address ?: ''),
                     ]);
                 }
                 fclose($out);

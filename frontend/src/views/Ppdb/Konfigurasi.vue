@@ -111,6 +111,7 @@
                   <th>Kode</th>
                   <th>Nama</th>
                   <th>Kuota</th>
+                  <th>Berkas</th>
                   <th>Aktif</th>
                   <th>Aksi</th>
                 </tr>
@@ -120,6 +121,7 @@
                   <td><code>{{ c.code }}</code></td>
                   <td>{{ c.name }}</td>
                   <td>{{ c.quota ?? '-' }}</td>
+                  <td>{{ (c.required_documents || []).length || '—' }}</td>
                   <td>{{ c.is_active ? 'Ya' : 'Tidak' }}</td>
                   <td>
                     <TableAction kind="edit" @click="openChannelModal(c)" />
@@ -225,6 +227,31 @@
               <textarea v-model="channelForm.requirements" rows="2" placeholder="Teks persyaratan"></textarea>
             </div>
             <div class="form-group">
+              <label>Berkas yang harus diunggah</label>
+              <p class="field-hint">Centang jenis berkas untuk jalur ini. Kosongkan semua jika tidak memakai daftar.</p>
+              <div class="doc-preset-list">
+                <div v-for="doc in channelForm.docPresets" :key="doc.key" class="doc-preset-row">
+                  <label class="doc-preset-label">
+                    <input v-model="doc.enabled" type="checkbox" />
+                    {{ doc.label }}
+                  </label>
+                  <label v-if="doc.enabled" class="doc-required-label">
+                    <input v-model="doc.required" type="checkbox" />
+                    Wajib
+                  </label>
+                </div>
+              </div>
+              <div v-for="(doc, i) in channelForm.customDocuments" :key="'custom-' + i" class="doc-custom-row">
+                <input v-model="doc.label" type="text" maxlength="80" placeholder="Nama berkas lain" />
+                <label class="doc-required-label">
+                  <input v-model="doc.required" type="checkbox" />
+                  Wajib
+                </label>
+                <button type="button" class="btn-link-danger" @click="channelForm.customDocuments.splice(i, 1)">Hapus</button>
+              </div>
+              <button type="button" class="btn-link" @click="addCustomDocument">+ Berkas lain</button>
+            </div>
+            <div class="form-group">
               <label><input v-model="channelForm.is_active" type="checkbox" /> Aktif</label>
             </div>
             <div v-if="channelFormError" class="error-message">{{ channelFormError }}</div>
@@ -252,7 +279,7 @@ import { ppdbPeriodApi, ppdbChannelApi } from '@/api/ppdb'
 import { institutionApi } from '@/api/institution'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { useToast } from '@/composables/useToast'
-import { statusPeriodLabel, formatDate } from './ppdbConstants'
+import { statusPeriodLabel, formatDate, PPDB_DOCUMENT_PRESETS } from './ppdbConstants'
 import './ppdb.css'
 
 const toast = useToast()
@@ -277,7 +304,7 @@ const periodFormSubmitting = ref(false)
 
 const showChannelModal = ref(false)
 const editingChannel = ref(null)
-const channelForm = ref({ code: '', name: '', quota: null, requirements: '', is_active: true })
+const channelForm = ref(emptyChannelForm())
 const channelFormError = ref('')
 const channelFormSubmitting = ref(false)
 
@@ -399,13 +426,59 @@ async function doDeletePeriod() {
   }
 }
 
+function emptyChannelForm() {
+  return {
+    code: '',
+    name: '',
+    quota: '',
+    requirements: '',
+    is_active: true,
+    docPresets: PPDB_DOCUMENT_PRESETS.map((p) => ({ ...p, enabled: false, required: true })),
+    customDocuments: [],
+  }
+}
+
+function channelFormFromChannel(c) {
+  const saved = Array.isArray(c?.required_documents) ? c.required_documents : []
+  const byKey = Object.fromEntries(saved.map((d) => [d.key, d]))
+  return {
+    code: c.code,
+    name: c.name,
+    quota: c.quota ?? '',
+    requirements: c.requirements || '',
+    is_active: c.is_active ?? true,
+    docPresets: PPDB_DOCUMENT_PRESETS.map((p) => ({
+      ...p,
+      enabled: !!byKey[p.key],
+      required: byKey[p.key] ? byKey[p.key].required !== false : true,
+    })),
+    customDocuments: saved
+      .filter((d) => !PPDB_DOCUMENT_PRESETS.some((p) => p.key === d.key))
+      .map((d) => ({ key: d.key || '', label: d.label || '', required: d.required !== false })),
+  }
+}
+
+function requiredDocumentsPayload() {
+  const presets = (channelForm.value.docPresets || [])
+    .filter((d) => d.enabled)
+    .map((d) => ({ key: d.key, label: d.label, required: !!d.required }))
+  const custom = (channelForm.value.customDocuments || [])
+    .filter((d) => (d.label || '').trim())
+    .map((d) => ({
+      key: d.key || undefined,
+      label: d.label.trim(),
+      required: d.required !== false,
+    }))
+  return [...presets, ...custom]
+}
+
+function addCustomDocument() {
+  channelForm.value.customDocuments.push({ key: '', label: '', required: true })
+}
+
 function openChannelModal(c = null) {
   editingChannel.value = c
-  if (c) {
-    channelForm.value = { code: c.code, name: c.name, quota: c.quota ?? '', requirements: c.requirements || '', is_active: c.is_active ?? true }
-  } else {
-    channelForm.value = { code: '', name: '', quota: '', requirements: '', is_active: true }
-  }
+  channelForm.value = c ? channelFormFromChannel(c) : emptyChannelForm()
   channelFormError.value = ''
   showChannelModal.value = true
 }
@@ -414,8 +487,14 @@ async function submitChannel() {
   channelFormError.value = ''
   channelFormSubmitting.value = true
   try {
-    const payload = { ...channelForm.value }
-    if (payload.quota === '') payload.quota = null
+    const payload = {
+      code: channelForm.value.code,
+      name: channelForm.value.name,
+      quota: channelForm.value.quota === '' ? null : channelForm.value.quota,
+      requirements: channelForm.value.requirements,
+      is_active: channelForm.value.is_active,
+      required_documents: requiredDocumentsPayload(),
+    }
     if (editingChannel.value) {
       await ppdbChannelApi.update(editingChannel.value.id, payload)
       toast.success('Jalur berhasil diperbarui')
@@ -494,4 +573,35 @@ onMounted(() => {
 }
 .label-preview { margin: 0; font-size: 0.9rem; color: #64748b; }
 .btn-compact { padding: 0.55rem 1rem; }
+.field-hint { margin: 0 0 0.6rem; font-size: 0.8rem; color: #64748b; }
+.doc-preset-list { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.6rem; }
+.doc-preset-row, .doc-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.doc-preset-label, .doc-required-label { display: flex; align-items: center; gap: 0.4rem; font-weight: 500; font-size: 0.9rem; color: #334155; }
+.doc-custom-row input[type="text"] {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.btn-link {
+  background: none;
+  border: none;
+  color: #059669;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+.btn-link-danger {
+  background: none;
+  border: none;
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
 </style>

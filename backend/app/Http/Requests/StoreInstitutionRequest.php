@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Rules\NpsnReferensiRule;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreInstitutionRequest extends FormRequest
@@ -36,12 +37,7 @@ class StoreInstitutionRequest extends FormRequest
             'nss' => 'nullable|string|max:255',
             'level' => 'nullable|in:TK,SD,SMP,SMA,SMK,MA,MAK,MTs,MI,PAUD',
             'type' => 'required|in:Negeri,Swasta',
-            'address' => 'nullable|string',
-            'village' => 'nullable|string|max:255',
-            'sub_district' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'postal_code' => 'nullable|string|max:10',
+            ...RegionAddress::rules(),
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'website' => 'nullable|url|max:255',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -38,7 +39,7 @@ class StoreTeacherRequest extends FormRequest
             'gender' => 'required|in:L,P',
             'birth_date' => 'nullable|date',
             'birth_place' => 'nullable|string|max:255',
-            'address' => 'nullable|string',
+            ...RegionAddress::rules(),
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',

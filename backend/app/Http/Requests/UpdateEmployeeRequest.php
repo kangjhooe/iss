@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -43,9 +44,9 @@ class UpdateEmployeeRequest extends FormRequest
             ],
             'name' => 'sometimes|required|string|max:255',
             'gender' => 'sometimes|required|in:L,P',
-            'birth_date' => 'nullable|date',
-            'birth_place' => 'nullable|string|max:255',
-            'address' => 'nullable|string',
+            'birth_date' => 'sometimes|required|date',
+            'birth_place' => 'sometimes|required|string|max:255',
+            ...RegionAddress::rules(),
             'phone' => 'nullable|string|max:20',
             'email' => [
                 'nullable',
@@ -105,6 +106,8 @@ class UpdateEmployeeRequest extends FormRequest
             'name.required' => 'Nama pegawai wajib diisi',
             'gender.required' => 'Jenis kelamin wajib diisi',
             'gender.in' => 'Jenis kelamin harus L atau P',
+            'birth_date.required' => 'Tanggal lahir wajib diisi',
+            'birth_place.required' => 'Tempat lahir wajib diisi',
             'nuptk.unique' => 'NUPTK sudah terdaftar',
             'email.email' => 'Format email tidak valid',
             'notes.required' => 'Catatan wajib diisi untuk status Cuti, Mengundurkan Diri, Pensiun, atau Pindah',

@@ -78,8 +78,12 @@ class StoreTeacherMutationPullRequest extends FormRequest
                 'regex:/^[0-9]{16}$/',
                 function ($attribute, $value, $fail) use ($external) {
                     if ($external) {
-                        if (Employee::where('nik', $value)->exists()) {
-                            $fail('NIK tersebut sudah digunakan oleh guru lain di sistem.');
+                        $existing = Employee::withTrashed()->where('nik', $value)->first();
+                        if ($existing) {
+                            $existing->loadMissing('institution:id,name');
+                            $where = $existing->institution?->name ?: 'sekolah lain';
+                            $trash = $existing->trashed() ? ' (kotak sampah)' : '';
+                            $fail("NIK tersebut sudah terdaftar di {$where}{$trash}. Gunakan tarik guru, jangan input manual.");
                         }
                         return;
                     }
@@ -88,13 +92,11 @@ class StoreTeacherMutationPullRequest extends FormRequest
                     if (!$origin) {
                         return;
                     }
-                    $employee = Employee::where('nik', $value)
-                        ->where('institution_id', $origin->id)
-                        ->where('type', 'Guru')
-                        ->where('status', 'Aktif')
-                        ->first();
-                    if (!$employee) {
-                        $fail('Guru dengan NIK tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
+                    try {
+                        $employee = app(\App\Services\TeacherMutationService::class)
+                            ->findPullableTeacherByNik($value, $origin->id);
+                    } catch (\InvalidArgumentException $e) {
+                        $fail($e->getMessage());
                         return;
                     }
                     $pending = TeacherMutation::where('employee_id', $employee->id)

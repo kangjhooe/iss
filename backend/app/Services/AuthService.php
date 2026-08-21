@@ -31,7 +31,7 @@ class AuthService
 
             // Auto-verify email in development/local environment
             $emailVerifiedAt = $this->shouldSkipEmailVerification() ? now() : null;
-            
+
             $user = User::create([
                 'institution_id' => $institution->id,
                 'name' => $data['name'],
@@ -46,7 +46,7 @@ class AuthService
             $refreshToken = $user->createToken('refresh_token', ['refresh'])->plainTextToken;
 
             // Send email verification only if not in development
-            if (!$this->shouldSkipEmailVerification()) {
+            if (! $this->shouldSkipEmailVerification()) {
                 $this->sendVerificationEmail($user);
             }
 
@@ -107,7 +107,7 @@ class AuthService
             ]);
         }
 
-        if (!$passwordValid) {
+        if (! $passwordValid) {
             if ($user) {
                 $user->incrementFailedLoginAttempts();
             }
@@ -120,21 +120,21 @@ class AuthService
         }
 
         // Auto-verify email in development if not verified
-        if ($this->shouldSkipEmailVerification() && !$user->isEmailVerified()) {
+        if ($this->shouldSkipEmailVerification() && ! $user->isEmailVerified()) {
             $user->update(['email_verified_at' => now()]);
             Log::info('Auto-verified user email in development', ['user_id' => $user->id]);
         }
-        
+
         // Students may use synthetic email — skip verification for student role
         $skipEmailVerification = $this->shouldSkipEmailVerification() || $user->isStudent();
-        if (!$skipEmailVerification && !$user->isEmailVerified()) {
+        if (! $skipEmailVerification && ! $user->isEmailVerified()) {
             throw ValidationException::withMessages([
                 $loginField => ['Email Anda belum diverifikasi. Silakan cek email untuk link verifikasi.'],
             ]);
         }
 
         // Check if user's institution is active (skip for super admin)
-        if (!$user->isSuperAdmin() && $user->institution && !$user->institution->is_active) {
+        if (! $user->isSuperAdmin() && $user->institution && ! $user->institution->is_active) {
             throw ValidationException::withMessages([
                 $loginField => ['Akun institusi Anda tidak aktif. Silakan hubungi administrator.'],
             ]);
@@ -163,8 +163,8 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
-            // Return silently for security (don't reveal if email exists)
+        if (! $user || $user->isInstitutionAdmin()) {
+            // Institution admins reset via super admin, not email.
             return;
         }
 
@@ -203,7 +203,7 @@ class AuthService
             ->where('email', $email)
             ->first();
 
-        if (!$resetRecord) {
+        if (! $resetRecord) {
             throw ValidationException::withMessages([
                 'email' => ['Token reset password tidak valid atau sudah kedaluwarsa.'],
             ]);
@@ -218,7 +218,7 @@ class AuthService
         }
 
         // Verify token
-        if (!Hash::check($token, $resetRecord->token)) {
+        if (! Hash::check($token, $resetRecord->token)) {
             throw ValidationException::withMessages([
                 'token' => ['Token reset password tidak valid.'],
             ]);
@@ -226,9 +226,9 @@ class AuthService
 
         // Update user password
         $user = User::where('email', $email)->first();
-        if (!$user) {
+        if (! $user || $user->isInstitutionAdmin()) {
             throw ValidationException::withMessages([
-                'email' => ['Email tidak terdaftar.'],
+                'token' => ['Token reset password tidak valid atau sudah kedaluwarsa.'],
             ]);
         }
 
@@ -253,7 +253,7 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'email' => ['Email tidak terdaftar.'],
             ]);
@@ -264,9 +264,9 @@ class AuthService
         }
 
         // Verify token from cache
-        $storedToken = cache()->get('email_verification_' . $user->id);
+        $storedToken = cache()->get('email_verification_'.$user->id);
 
-        if (!$storedToken || $storedToken !== $token) {
+        if (! $storedToken || $storedToken !== $token) {
             throw ValidationException::withMessages([
                 'token' => ['Token verifikasi tidak valid atau sudah kedaluwarsa.'],
             ]);
@@ -278,7 +278,7 @@ class AuthService
         ]);
 
         // Delete verification token
-        cache()->forget('email_verification_' . $user->id);
+        cache()->forget('email_verification_'.$user->id);
 
         Log::info('Email verified', ['user_id' => $user->id]);
     }
@@ -290,7 +290,7 @@ class AuthService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'email' => ['Email tidak terdaftar.'],
             ]);
@@ -314,7 +314,7 @@ class AuthService
             ->where('name', 'refresh_token')
             ->first();
 
-        if (!$token) {
+        if (! $token) {
             throw ValidationException::withMessages([
                 'refresh_token' => ['Refresh token tidak valid.'],
             ]);
@@ -331,7 +331,7 @@ class AuthService
 
         // Get user
         $user = User::find($token->tokenable_id);
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'refresh_token' => ['User tidak ditemukan.'],
             ]);
@@ -352,10 +352,10 @@ class AuthService
     {
         $verificationToken = Str::random(64);
         $frontendUrl = config('frontend.url');
-        $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
+        $verificationUrl = $frontendUrl.'/verify-email?token='.$verificationToken.'&email='.urlencode($user->email);
 
         // Store verification token
-        cache()->put('email_verification_' . $user->id, $verificationToken, now()->addHours(24));
+        cache()->put('email_verification_'.$user->id, $verificationToken, now()->addHours(24));
 
         try {
             $user->notify(new VerifyEmailNotification($verificationUrl));
@@ -372,7 +372,7 @@ class AuthService
      */
     protected function shouldSkipEmailVerification(): bool
     {
-        return config('app.env') === 'local' 
+        return config('app.env') === 'local'
             || config('app.env') === 'development'
             || env('SKIP_EMAIL_VERIFICATION', false) === true;
     }

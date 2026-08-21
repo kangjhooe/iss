@@ -285,8 +285,8 @@ class ClassController extends Controller
                     continue;
                 }
 
-                // Check if student is already in another class
-                if ($student->class_id && $student->class_id != $class->id) {
+                $currentClass = $student->schoolClass;
+                if ($currentClass && (int) $currentClass->id !== (int) $class->id) {
                     $errors[] = "Siswa {$student->name} sudah berada di kelas lain";
                     continue;
                 }
@@ -351,7 +351,7 @@ class ClassController extends Controller
 
         $query = Student::where('institution_id', $class->institution_id)
             ->where('status', 'Aktif')
-            ->whereNull('class_id'); // Only students without class
+            ->withoutAssignedClass();
 
         if ($class->grade === null) {
             $query->whereNull('tingkat');
@@ -359,7 +359,7 @@ class ClassController extends Controller
             $query->where('tingkat', $class->grade);
         }
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
@@ -367,11 +367,6 @@ class ClassController extends Controller
                   ->orWhere('nisn', 'like', '%' . $search . '%');
             });
         }
-
-        // Exclude students already in this class
-        $query->whereDoesntHave('class', function($q) use ($class) {
-            $q->where('id', $class->id);
-        });
 
         $perPage = min($request->get('per_page', 50), 100);
         $students = $query->orderBy('name', 'asc')->paginate($perPage);

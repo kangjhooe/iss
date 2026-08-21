@@ -203,6 +203,48 @@ class TeacherMutationTest extends TestCase
         $this->assertSame($this->target->id, (int) $this->teacher->institution_id);
     }
 
+    public function test_pull_trashed_teacher_restores_at_target_on_approve(): void
+    {
+        $this->teacher->delete();
+        $this->assertSoftDeleted('employee', ['id' => $this->teacher->id]);
+
+        Sanctum::actingAs($this->targetAdmin);
+
+        $this->getJson('/api/v1/teacher-mutations/lookup-teacher-at-origin?origin_npsn='.$this->origin->npsn.'&nik='.$this->teacher->nik)
+            ->assertOk()
+            ->assertJsonPath('data.in_trash', true)
+            ->assertJsonPath('data.name', 'Guru Mutasi');
+
+        $create = $this->postJson('/api/v1/teacher-mutations/pull', [
+            'origin_npsn' => $this->origin->npsn,
+            'nik' => $this->teacher->nik,
+        ]);
+        $create->assertCreated()
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.employee.in_trash', true);
+
+        Sanctum::actingAs($this->originAdmin);
+        $this->postJson('/api/v1/teacher-mutations/'.$create->json('data.id').'/approve', [
+            'action' => 'approve',
+        ])->assertOk()->assertJsonPath('data.status', 'approved');
+
+        $this->teacher->refresh();
+        $this->assertFalse($this->teacher->trashed());
+        $this->assertSame($this->target->id, (int) $this->teacher->institution_id);
+        $this->assertSame('Aktif', $this->teacher->status);
+    }
+
+    public function test_outgoing_lookup_rejects_trashed_teacher(): void
+    {
+        $this->teacher->delete();
+
+        Sanctum::actingAs($this->originAdmin);
+
+        $this->getJson('/api/v1/teacher-mutations/lookup-teacher?nik='.$this->teacher->nik)
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Guru ada di kotak sampah. Pulihkan dulu dari Data Guru, lalu ajukan mutasi.');
+    }
+
     public function test_cancel_pending_then_approve_cancel_rolls_back(): void
     {
         Sanctum::actingAs($this->originAdmin);

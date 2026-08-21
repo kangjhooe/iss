@@ -31,7 +31,11 @@ class ExamResource extends JsonResource
             ] : null),
             'participants_count' => $this->whenLoaded('sessions', fn () => $this->sessions->sum('participants_count')),
             'sessions' => ExamSessionResource::collection($this->whenLoaded('sessions')),
-            'exam_questions' => $this->whenLoaded('examQuestions'),
+            'exam_questions' => ExamQuestionResource::collection($this->whenLoaded('examQuestions')),
+            'questions_locked' => $this->when(
+                $this->relationLoaded('sessions'),
+                fn () => $this->questionsAreLocked()
+            ),
         ];
     }
 }

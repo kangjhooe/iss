@@ -680,3 +680,263 @@ a.sp-stat:hover {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+.sp-stats--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sp-stats--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sp-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.sp-tab {
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.sp-tab.is-active {
+  background: #fff;
+  color: #047857;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.sp-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.sp-next-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #047857;
+}
+
+.sp-next-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #064e3b;
+}
+
+.sp-next-meta {
+  font-size: 13px;
+  color: #047857;
+}
+
+.sp-now {
+  outline: 2px solid #059669;
+  background: #ecfdf5 !important;
+}
+
+.sp-grade-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.sp-grade-card {
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sp-grade-card.is-ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.sp-grade-card.is-warn {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.sp-grade-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sp-grade-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.sp-grade-score {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.sp-grade-card.is-warn .sp-grade-score {
+  color: #dc2626;
+}
+
+.sp-grade-card.is-ok .sp-grade-score {
+  color: #059669;
+}
+
+.sp-grade-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.sp-day-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.sp-day-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sp-day-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.sp-day-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-day-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.sp-day-row:first-child {
+  border-top: none;
+}
+
+.sp-banner-debt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  text-decoration: none;
+}
+
+.sp-banner-debt strong {
+  font-size: 15px;
+}
+
+.sp-more-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sp-more-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sp-more-link:hover {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.sp-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sp-slot {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sp-slot-period {
+  font-size: 11px;
+  font-weight: 800;
+  color: #047857;
+}
+
+.sp-slot-time {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: none;
+}
+
+@media (max-width: 768px) {
+  .sp-stats--4,
+  .sp-stats--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sp-day-row {
+    grid-template-columns: 1fr auto;
+  }
+}

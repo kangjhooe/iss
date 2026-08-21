@@ -66,7 +66,7 @@
         </div>
         
         <div class="forgot-password-link">
-          <router-link to="/forgot-password" class="link">Lupa password?</router-link>
+          <router-link to="/forgot-password" class="link">Lupa sandi?</router-link>
         </div>
         
         <button type="submit" :disabled="loading" class="btn-primary">

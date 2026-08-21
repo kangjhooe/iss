@@ -34,13 +34,20 @@ class QuestionBankController extends Controller
                 if (!$bank) {
                     return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
                 }
-                $query = QuestionBank::query()->where('bank_soal_id', $bank->id)->with(['subject', 'stimulus', 'options']);
+                $query = QuestionBank::query()->where('bank_soal_id', $bank->id);
             } else {
-                $query = QuestionBank::forInstitution($institutionId)->with(['subject', 'stimulus', 'options']);
+                $query = QuestionBank::forInstitution($institutionId);
             }
+
+            $compact = $request->boolean('compact');
+            $query->with($compact ? ['bankSoal'] : ['subject', 'stimulus', 'options', 'bankSoal'])
+                ->withCount('examQuestions');
 
             if ($request->filled('subject_id')) {
                 $query->where('subject_id', $request->get('subject_id'));
+            }
+            if ($request->filled('grade')) {
+                $query->whereHas('bankSoal', fn ($q) => $q->where('grade', $request->get('grade')));
             }
             if ($request->filled('stimulus_id')) {
                 $stimulusId = $request->get('stimulus_id');
@@ -366,6 +373,11 @@ class QuestionBankController extends Controller
         $bankAccessible = $question_bank->bank_soal_id && BankSoal::accessibleBy($request)->where('id', $question_bank->bank_soal_id)->exists();
         if (!$sameInstitution && !$bankAccessible) {
             return response()->json(['message' => 'Soal tidak ditemukan.'], 404);
+        }
+        if ($question_bank->examQuestions()->exists()) {
+            return response()->json([
+                'message' => 'Soal ini terpasang di paket ujian. Lepas dari ujian terlebih dahulu, atau biarkan di bank — ujian yang sudah dipasang tidak berubah jika soal diedit.',
+            ], 422);
         }
         $question_bank->delete();
         return response()->json(['message' => 'Soal dihapus.']);

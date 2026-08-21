@@ -1,76 +1,100 @@
 <template>
   <Layout>
     <div class="attendance-student-page">
-      <div class="page-header">
-        <div class="header-content">
-          <div>
-            <h1 class="page-title">Absensi Siswa</h1>
-            <p class="page-subtitle">Isi absensi untuk tanggal selain alur harian, atau buka tab Rekap &amp; Laporan untuk cetak. PDF mapel ditandatangani guru mapel; rekap kelas (tanpa mapel) ditandatangani wali kelas. Absen hari ini lebih cepat lewat Jam Mengajar Hari Ini.</p>
-          </div>
-          <div v-if="activeTab === 'rekap'" class="header-actions">
-            <button type="button" class="btn-secondary btn-compact" :disabled="exporting || loadingRekap" @click="exportRekap('csv')">
-              {{ exporting === 'csv' ? 'Mengekspor...' : 'Export CSV' }}
-            </button>
-            <button type="button" class="btn-primary btn-compact" :disabled="exporting || loadingRekap" @click="exportRekap('pdf')">
-              {{ exporting === 'pdf' ? 'Mengekspor...' : 'Cetak Rekap PDF' }}
-            </button>
-          </div>
-        </div>
+      <div class="page-intro">
+        <p v-if="activeTab === 'isi'" class="page-lead">
+          Isi absensi di luar alur harian. Untuk hari ini, lebih cepat lewat
+          <router-link to="/teacher/today">Jam Mengajar Hari Ini</router-link>.
+        </p>
+        <p v-else class="page-lead">
+          Pilih semester + kelas + mapel untuk rekap guru mapel, atau semester + kelas saja untuk rekap wali kelas.
+        </p>
       </div>
 
       <div class="section-tabs" role="tablist">
-        <button type="button" role="tab" :class="['sec-btn', { active: activeTab === 'isi' }]" @click="activeTab = 'isi'">Isi Absensi</button>
-        <button type="button" role="tab" :class="['sec-btn', { active: activeTab === 'rekap' }]" @click="switchToRekap">Rekap & Laporan</button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="activeTab === 'isi'"
+          :class="['sec-btn', { active: activeTab === 'isi' }]"
+          @click="activeTab = 'isi'"
+        >
+          Isi Absensi
+        </button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="activeTab === 'rekap'"
+          :class="['sec-btn', { active: activeTab === 'rekap' }]"
+          @click="switchToRekap"
+        >
+          Rekap &amp; Laporan
+        </button>
       </div>
 
       <template v-if="activeTab === 'isi'">
         <div class="fill-panel">
           <div class="fill-filters">
-            <select v-model="fillForm.semester_id" class="filter-select" @change="onSemesterChange">
-              <option value="">Pilih Semester</option>
-              <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-            </select>
+            <label class="field">
+              <span class="field-label">Semester</span>
+              <select v-model="fillForm.semester_id" class="filter-select" @change="onSemesterChange">
+                <option value="">Pilih Semester</option>
+                <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+              </select>
+            </label>
 
-            <select
-              v-model="fillForm.pair_key"
-              class="filter-select filter-wide"
-              :disabled="!fillForm.semester_id || loadLoading"
-              @change="onPairChange"
-            >
-              <option value="">Pilih Kelas + Mapel</option>
-              <option v-for="p in teachingPairs" :key="`${p.class_id}-${p.subject_id}`" :value="`${p.class_id}-${p.subject_id}`">
-                {{ p.class_name }} · {{ p.subject_name }}
-              </option>
-            </select>
+            <label class="field field-wide">
+              <span class="field-label">Kelas + Mapel</span>
+              <select
+                v-model="fillForm.pair_key"
+                class="filter-select"
+                :disabled="!fillForm.semester_id || loadLoading"
+                @change="onPairChange"
+              >
+                <option value="">Pilih Kelas + Mapel</option>
+                <option v-for="p in teachingPairs" :key="`${p.class_id}-${p.subject_id}`" :value="`${p.class_id}-${p.subject_id}`">
+                  {{ p.class_name }} · {{ p.subject_name }}
+                </option>
+              </select>
+            </label>
 
-            <select
-              v-model="fillForm.session_key"
-              class="filter-select filter-wide"
-              :disabled="!fillForm.pair_key || !sessionOptions.length"
-              @change="resetPreparedSession"
-            >
-              <option value="">Pilih Slot Jadwal</option>
-              <option v-for="opt in sessionOptions" :key="opt.key" :value="opt.key">
-                {{ opt.label }}
-              </option>
-            </select>
+            <label class="field field-wide">
+              <span class="field-label">Slot Jadwal</span>
+              <select
+                v-model="fillForm.session_key"
+                class="filter-select"
+                :disabled="!fillForm.pair_key || !sessionOptions.length"
+                @change="resetPreparedSession"
+              >
+                <option value="">Pilih Slot Jadwal</option>
+                <option v-for="opt in sessionOptions" :key="opt.key" :value="opt.key">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </label>
 
-            <input
-              v-model="fillForm.date"
-              type="date"
-              class="filter-select"
-              :disabled="!fillForm.session_key"
-              @change="onDateChange"
-            />
+            <label class="field">
+              <span class="field-label">Tanggal</span>
+              <input
+                v-model="fillForm.date"
+                type="date"
+                class="filter-select"
+                :disabled="!fillForm.session_key"
+                @change="onDateChange"
+              />
+            </label>
 
-            <button
-              type="button"
-              class="btn-primary btn-compact"
-              :disabled="!canPrepare || attendanceLoading"
-              @click="prepareSession"
-            >
-              {{ attendanceLoading ? 'Memuat...' : 'Muat Daftar Siswa' }}
-            </button>
+            <div class="field field-action">
+              <span class="field-label">&nbsp;</span>
+              <button
+                type="button"
+                class="btn-primary btn-compact"
+                :disabled="!canPrepare || attendanceLoading"
+                @click="prepareSession"
+              >
+                {{ attendanceLoading ? 'Memuat...' : 'Muat Daftar Siswa' }}
+              </button>
+            </div>
           </div>
 
           <p v-if="loadError" class="form-error">{{ loadError }}</p>
@@ -145,24 +169,48 @@
       </template>
 
       <template v-else>
-        <div class="toolbar">
-          <div class="filters filters-inline">
-            <select v-model="filters.semester_id" @change="onRekapSemesterChange" class="filter-select">
-              <option value="">Semua Semester</option>
-              <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-            </select>
-            <select v-model="filters.class_id" @change="onRekapClassChange" class="filter-select">
-              <option value="">Semua Kelas</option>
-              <option v-for="c in rekapClasses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
-            </select>
-            <select v-model="filters.subject_id" @change="onRekapFilterChange" class="filter-select">
-              <option value="">Semua Mapel</option>
-              <option v-for="s in rekapSubjects" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-            </select>
-            <input v-model="filters.date_from" type="date" class="filter-select" title="Dari tanggal" @change="onRekapFilterChange" />
-            <input v-model="filters.date_to" type="date" class="filter-select" title="Sampai tanggal" @change="onRekapFilterChange" />
+        <div class="rekap-panel">
+          <div class="rekap-toolbar">
+            <div class="toolbar-fields">
+              <label class="field">
+                <span class="field-label">Semester</span>
+                <select v-model="filters.semester_id" @change="onRekapSemesterChange" class="filter-select">
+                  <option value="">Semua Semester</option>
+                  <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Kelas</span>
+                <select v-model="filters.class_id" @change="onRekapClassChange" class="filter-select">
+                  <option value="">Semua Kelas</option>
+                  <option v-for="c in rekapClasses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Mapel</span>
+                <select v-model="filters.subject_id" @change="onRekapFilterChange" class="filter-select">
+                  <option value="">Semua Mapel</option>
+                  <option v-for="s in rekapSubjects" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Dari</span>
+                <input v-model="filters.date_from" type="date" class="filter-select" @change="onRekapFilterChange" />
+              </label>
+              <label class="field">
+                <span class="field-label">Sampai</span>
+                <input v-model="filters.date_to" type="date" class="filter-select" @change="onRekapFilterChange" />
+              </label>
+            </div>
+            <div class="rekap-actions">
+              <button type="button" class="btn-secondary btn-compact" :disabled="exporting || loadingRekap" @click="exportRekap('csv')">
+                {{ exporting === 'csv' ? 'Mengekspor...' : 'Export CSV' }}
+              </button>
+              <button type="button" class="btn-primary btn-compact" :disabled="exporting || loadingRekap" @click="exportRekap('pdf')">
+                {{ exporting === 'pdf' ? 'Mengekspor...' : 'Cetak Rekap PDF' }}
+              </button>
+            </div>
           </div>
-        </div>
 
         <div v-if="rekapLoading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="8" :columns="10" />
@@ -228,6 +276,7 @@
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       </template>
     </div>
@@ -908,44 +957,114 @@ onMounted(async () => {
 .attendance-student-page {
   width: 100%;
   max-width: 100%;
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem 2rem;
   margin: 0 auto;
-  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
 }
-.page-header { margin-bottom: 1rem; }
-.header-content { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.page-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem 0; }
-.page-subtitle { color: #64748b; margin: 0; font-size: 0.9rem; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
-.toolbar .filters { margin-bottom: 0; flex: 1; min-width: 200px; }
-.section-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-.sec-btn {
-  padding: 0.45rem 0.9rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  color: #475569;
-  cursor: pointer;
+.page-intro {
+  margin-bottom: 0.85rem;
+}
+.page-lead {
+  margin: 0;
+  color: #64748b;
   font-size: 0.9rem;
+  line-height: 1.5;
+  max-width: 52rem;
 }
-.sec-btn.active {
-  background: #059669;
-  border-color: #059669;
-  color: #fff;
+.page-lead a {
+  color: #047857;
+  font-weight: 600;
+  text-decoration: none;
 }
-.fill-panel {
+.page-lead a:hover {
+  text-decoration: underline;
+}
+.section-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 1rem;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 1rem 1.25rem 1.25rem;
 }
-.fill-filters {
+.sec-btn {
+  padding: 0.45rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sec-btn:hover:not(.active) {
+  background: #f8fafc;
+  color: #0f172a;
+}
+.sec-btn.active {
+  background: #059669;
+  color: #fff;
+}
+.fill-panel,
+.rekap-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.15rem 1.25rem;
+}
+.fill-filters,
+.toolbar-fields {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  align-items: flex-end;
+}
+.fill-filters {
+  margin-bottom: 0.85rem;
+}
+.rekap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.rekap-toolbar .toolbar-fields {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+.rekap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: center;
-  margin-bottom: 0.75rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 140px;
+  flex: 1 1 140px;
+}
+.field-wide {
+  min-width: 220px;
+  flex: 1 1 220px;
+}
+.field-action {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.field-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #64748b;
 }
 .hint-text { color: #64748b; font-size: 0.9rem; margin: 0.25rem 0 0.75rem; }
 .day-warning {
@@ -997,10 +1116,20 @@ onMounted(async () => {
 @media (max-width: 900px) {
   .charts-grid { grid-template-columns: 1fr; }
 }
-.filters-inline { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
-.filter-select { padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 140px; transition: border-color 0.2s, box-shadow 0.2s; }
-.filter-wide { min-width: 220px; }
-.filter-select:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1); }
+.filter-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fff;
+  min-height: 38px;
+}
+.filter-select:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
 .loading-wrap { width: 100%; margin: 1rem 0; }
 .empty-state { text-align: center; padding: 2rem; background: #f8fafc; border-radius: 12px; }
 .empty-title { font-size: 1.25rem; margin: 0 0 0.5rem 0; }
@@ -1008,15 +1137,24 @@ onMounted(async () => {
 .table-container { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-.data-table th { font-weight: 600; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #065f46; }
-.btn-primary.btn-compact, .btn-secondary.btn-compact { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+.data-table th { font-weight: 600; background: #ecfdf5; color: #065f46; }
+.btn-primary.btn-compact,
+.btn-secondary.btn-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  min-height: 38px;
+}
 .table-scroll { max-height: 55vh; overflow-y: auto; margin-bottom: 1rem; }
 .status-select { min-width: 120px; padding: 0.4rem 0.5rem; }
 .notes-input { width: 100%; max-width: 180px; padding: 0.4rem 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px; }
 .form-error { color: #dc2626; font-size: 0.9rem; margin-bottom: 0.75rem; }
 .form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem; }
 .btn-secondary { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
-.btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; cursor: pointer; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25); }
+.btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #059669; color: #fff; cursor: pointer; }
 .btn-primary:disabled, .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
 .offline-indicator {
   background: #fef3c7;
@@ -1028,58 +1166,54 @@ onMounted(async () => {
   text-align: center;
 }
 
-@media (max-width: 1024px) {
-  .header-content {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .header-actions {
-    width: 100%;
-  }
-}
-
 @media (max-width: 768px) {
-  .fill-filters,
-  .filters-inline {
-    flex-direction: column;
-    align-items: stretch;
+  .attendance-student-page {
+    padding: 1rem;
   }
-
-  .filter-select,
-  .filter-wide {
-    min-width: 0;
+  .section-tabs {
+    display: flex;
     width: 100%;
   }
-
+  .sec-btn {
+    flex: 1;
+    text-align: center;
+  }
+  .fill-filters,
+  .toolbar-fields,
+  .rekap-actions {
+    width: 100%;
+  }
+  .field,
+  .field-wide {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .field-action .field-label {
+    display: none;
+  }
+  .field-action .btn-compact,
+  .rekap-actions .btn-compact {
+    width: 100%;
+    justify-content: center;
+  }
   .table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-
   .status-select {
     min-width: 100px;
   }
-
   .notes-input {
     max-width: none;
     min-width: 120px;
   }
-
   .form-actions {
     flex-direction: column-reverse;
   }
-
   .form-actions .btn-primary,
   .form-actions .btn-secondary {
     width: 100%;
     justify-content: center;
-  }
-
-  .section-tabs {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap;
   }
 }
 </style>

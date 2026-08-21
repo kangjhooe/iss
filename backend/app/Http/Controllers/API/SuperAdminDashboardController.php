@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\FeedbackTicket;
 use App\Models\Institution;
 use App\Models\InstitutionChangeRequest;
+use App\Models\PasswordResetRequest;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -20,7 +21,7 @@ class SuperAdminDashboardController extends Controller
     public function index(Request $request)
     {
         try {
-            if (!$request->user()?->isSuperAdmin()) {
+            if (! $request->user()?->isSuperAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -30,15 +31,17 @@ class SuperAdminDashboardController extends Controller
             $studentCount = Student::where('status', 'Aktif')->count();
             $teacherCount = Employee::where('type', 'Guru')->where('status', 'Aktif')->count();
             $pendingRequestsCount = InstitutionChangeRequest::where('status', 'pending')->count();
+            $pendingPasswordResetCount = 0;
+            $pendingPasswordResets = collect();
             $openFeedbackCount = 0;
             $openFeedbackTickets = collect();
 
             try {
                 $openFeedbackCount = FeedbackTicket::open()->count();
                 $openFeedbackTickets = FeedbackTicket::with([
-                        'institution:id,name,npsn',
-                        'submitter:id,name,email',
-                    ])
+                    'institution:id,name,npsn',
+                    'submitter:id,name,email',
+                ])
                     ->open()
                     ->orderByDesc('created_at')
                     ->limit(5)
@@ -66,10 +69,42 @@ class SuperAdminDashboardController extends Controller
                 ]);
             }
 
-            $pendingRequests = InstitutionChangeRequest::with([
+            try {
+                $pendingPasswordResetCount = PasswordResetRequest::pending()->count();
+                $pendingPasswordResets = PasswordResetRequest::with([
                     'institution:id,name,npsn',
-                    'requester:id,name,email',
+                    'user:id,name,email',
                 ])
+                    ->pending()
+                    ->orderByDesc('created_at')
+                    ->limit(5)
+                    ->get()
+                    ->map(fn ($r) => [
+                        'id' => $r->id,
+                        'email' => $r->email,
+                        'npsn' => $r->npsn,
+                        'created_at' => $r->created_at?->toIso8601String(),
+                        'institution' => $r->institution ? [
+                            'id' => $r->institution->id,
+                            'name' => $r->institution->name,
+                            'npsn' => $r->institution->npsn,
+                        ] : null,
+                        'user' => $r->user ? [
+                            'id' => $r->user->id,
+                            'name' => $r->user->name,
+                            'email' => $r->user->email,
+                        ] : null,
+                    ]);
+            } catch (\Exception $resetError) {
+                Log::warning('Failed to load password reset requests for dashboard', [
+                    'error' => $resetError->getMessage(),
+                ]);
+            }
+
+            $pendingRequests = InstitutionChangeRequest::with([
+                'institution:id,name,npsn',
+                'requester:id,name,email',
+            ])
                 ->where('status', 'pending')
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
@@ -142,9 +177,11 @@ class SuperAdminDashboardController extends Controller
                         'students' => $studentCount,
                         'teachers' => $teacherCount,
                         'pending_requests' => $pendingRequestsCount,
+                        'pending_password_resets' => $pendingPasswordResetCount,
                         'open_feedback' => $openFeedbackCount,
                     ],
                     'pending_requests' => $pendingRequests,
+                    'pending_password_resets' => $pendingPasswordResets,
                     'open_feedback_tickets' => $openFeedbackTickets,
                     'recent_institutions' => $recentInstitutions,
                     'inactive_institutions' => $inactiveInstitutions,

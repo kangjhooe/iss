@@ -89,7 +89,7 @@ class TeacherMutationController extends Controller
                 );
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
-                    'employee:id,nik,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email,deleted_at',
                     'requester:id,name,email',
                     'approver:id,name',
                 ]);
@@ -104,7 +104,7 @@ class TeacherMutationController extends Controller
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
                     'targetInstitution:id,name,npsn,level',
-                    'employee:id,nik,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email,deleted_at',
                     'requester:id,name,email',
                 ]);
             }
@@ -153,7 +153,7 @@ class TeacherMutationController extends Controller
                 );
                 $mutation->load([
                     'targetInstitution:id,name,npsn,level',
-                    'employee:id,nik,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email,deleted_at',
                     'requester:id,name,email',
                     'approver:id,name',
                 ]);
@@ -168,7 +168,7 @@ class TeacherMutationController extends Controller
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
                     'targetInstitution:id,name,npsn,level',
-                    'employee:id,nik,nuptk,nip,name,gender,status,email',
+                    'employee:id,nik,nuptk,nip,name,gender,status,email,deleted_at',
                     'requester:id,name,email',
                 ]);
             }
@@ -206,7 +206,7 @@ class TeacherMutationController extends Controller
         $teacher_mutation->load([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nik,nuptk,nip,name,gender,status,email,institution_id',
+            'employee:id,nik,nuptk,nip,name,gender,status,email,institution_id,deleted_at',
             'requester:id,name,email',
             'approver:id,name',
         ]);

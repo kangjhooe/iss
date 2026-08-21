@@ -64,7 +64,7 @@ class StudentMutationController extends Controller
     }
 
     /**
-     * Create mutation request from origin school (NPSN tujuan + NISN siswa).
+     * Create mutation request from origin school (NPSN tujuan + NIK siswa).
      * Jika external=true: sekolah tujuan belum terdaftar, NPSN + nama dicatat manual, status langsung approved.
      */
     public function store(StoreStudentMutationRequest $request)
@@ -82,13 +82,13 @@ class StudentMutationController extends Controller
                     $institutionId,
                     $request->validated('target_npsn'),
                     $request->validated('target_school_name'),
-                    $request->validated('nisn'),
+                    $request->validated('nik'),
                     $user->id,
                     $request->validated('notes')
                 );
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
-                    'student:id,nisn,nis,name,gender,status',
+                    'student:id,nik,nisn,nis,name,gender,status,deleted_at',
                     'requester:id,name,email',
                     'approver:id,name',
                 ]);
@@ -96,14 +96,14 @@ class StudentMutationController extends Controller
                 $mutation = $this->mutationService->createFromOrigin(
                     $institutionId,
                     $request->validated('target_npsn'),
-                    $request->validated('nisn'),
+                    $request->validated('nik'),
                     $user->id,
                     $request->validated('notes')
                 );
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
                     'targetInstitution:id,name,npsn,level',
-                    'student:id,nisn,nis,name,gender,status',
+                    'student:id,nik,nisn,nis,name,gender,status,deleted_at',
                     'requester:id,name,email',
                 ]);
             }
@@ -142,15 +142,16 @@ class StudentMutationController extends Controller
                     $request->validated('origin_npsn'),
                     $request->validated('origin_school_name'),
                     $request->validated('student_name'),
-                    $request->validated('nisn'),
+                    $request->validated('nik'),
                     $request->validated('student_gender'),
                     $request->validated('student_grade'),
                     $user->id,
-                    $request->validated('notes')
+                    $request->validated('notes'),
+                    $request->validated('nisn')
                 );
                 $mutation->load([
                     'targetInstitution:id,name,npsn,level',
-                    'student:id,nisn,nis,name,gender,status',
+                    'student:id,nik,nisn,nis,name,gender,status,deleted_at',
                     'requester:id,name,email',
                     'approver:id,name',
                 ]);
@@ -158,14 +159,14 @@ class StudentMutationController extends Controller
                 $mutation = $this->mutationService->createFromTarget(
                     $targetInstitutionId,
                     $request->validated('origin_npsn'),
-                    $request->validated('nisn'),
+                    $request->validated('nik'),
                     $user->id,
                     $request->validated('notes')
                 );
                 $mutation->load([
                     'originInstitution:id,name,npsn,level',
                     'targetInstitution:id,name,npsn,level',
-                    'student:id,nisn,nis,name,gender,status',
+                    'student:id,nik,nisn,nis,name,gender,status,deleted_at',
                     'requester:id,name,email',
                 ]);
             }
@@ -203,7 +204,7 @@ class StudentMutationController extends Controller
         $student_mutation->load([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'student:id,nisn,nis,name,gender,status,institution_id',
+            'student:id,nik,nisn,nis,name,gender,status,institution_id,deleted_at',
             'requester:id,name,email',
             'approver:id,name',
         ]);
@@ -330,7 +331,7 @@ class StudentMutationController extends Controller
     }
 
     /**
-     * Lookup student by NISN at current institution (preview before submitting mutation out).
+     * Lookup student by NIK at current institution (preview before submitting mutation out).
      */
     public function lookupStudent(Request $request)
     {
@@ -340,12 +341,12 @@ class StudentMutationController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
-            $nisn = trim((string) $request->get('nisn', ''));
-            if ($nisn === '') {
-                return response()->json(['message' => 'NISN wajib diisi.'], 422);
+            $nik = trim((string) $request->get('nik', ''));
+            if ($nik === '' || !preg_match('/^[0-9]{16}$/', $nik)) {
+                return response()->json(['message' => 'NIK wajib diisi (16 digit angka).'], 422);
             }
 
-            $student = $this->mutationService->lookupStudentByNisn($institutionId, $nisn);
+            $student = $this->mutationService->lookupStudentByNik($institutionId, $nik);
 
             return response()->json(['data' => $student]);
         } catch (\InvalidArgumentException $e) {
@@ -360,7 +361,7 @@ class StudentMutationController extends Controller
     }
 
     /**
-     * Lookup student at origin school by NPSN + NISN (preview before pull).
+     * Lookup student at origin school by NPSN + NIK (preview before pull).
      */
     public function lookupStudentAtOrigin(Request $request)
     {
@@ -371,15 +372,15 @@ class StudentMutationController extends Controller
             }
 
             $originNpsn = trim((string) $request->get('origin_npsn', ''));
-            $nisn = trim((string) $request->get('nisn', ''));
+            $nik = trim((string) $request->get('nik', ''));
             if (strlen($originNpsn) !== 8) {
                 return response()->json(['message' => 'NPSN sekolah asal harus 8 digit.'], 422);
             }
-            if ($nisn === '') {
-                return response()->json(['message' => 'NISN wajib diisi.'], 422);
+            if ($nik === '' || !preg_match('/^[0-9]{16}$/', $nik)) {
+                return response()->json(['message' => 'NIK wajib diisi (16 digit angka).'], 422);
             }
 
-            $student = $this->mutationService->lookupStudentAtOriginByNpsn($originNpsn, $nisn, $institutionId);
+            $student = $this->mutationService->lookupStudentAtOriginByNpsn($originNpsn, $nik, $institutionId);
 
             return response()->json(['data' => $student]);
         } catch (\InvalidArgumentException $e) {
@@ -559,7 +560,7 @@ class StudentMutationController extends Controller
                     $out = fopen('php://output', 'w');
                     fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
                     fputcsv($out, [
-                        'No', 'Tanggal', 'NISN', 'Nama Siswa', 'JK', 'Kelas', 'Jenis', 'Sekolah Asal', 'NPSN Asal',
+                        'No', 'Tanggal', 'NIK', 'NISN', 'Nama Siswa', 'JK', 'Kelas', 'Jenis', 'Sekolah Asal', 'NPSN Asal',
                         'Sekolah Tujuan', 'NPSN Tujuan', 'Alasan/Keterangan', 'Disetujui oleh',
                     ]);
                     foreach ($mutations as $idx => $m) {
@@ -571,6 +572,7 @@ class StudentMutationController extends Controller
                         fputcsv($out, [
                             $idx + 1,
                             $tanggal,
+                            $m->student?->nik ?? '',
                             $m->student?->nisn ?? '',
                             $m->student?->name ?? '',
                             $m->student_gender ?? $m->student?->gender ?? '',
@@ -638,25 +640,25 @@ class StudentMutationController extends Controller
     }
 
     /**
-     * Riwayat mutasi per siswa by NISN.
+     * Riwayat mutasi per siswa by NIK.
      */
-    public function historyByNisn(Request $request)
+    public function historyByNik(Request $request)
     {
         try {
             $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
-            $nisn = $request->get('nisn');
-            if (!$nisn || !is_string($nisn)) {
-                return response()->json(['message' => 'NISN wajib diisi.'], 422);
+            $nik = $request->get('nik');
+            if (!$nik || !is_string($nik) || !preg_match('/^[0-9]{16}$/', trim($nik))) {
+                return response()->json(['message' => 'NIK wajib diisi (16 digit angka).'], 422);
             }
-            $list = $this->mutationService->historyByNisn(trim($nisn), $institutionId);
+            $list = $this->mutationService->historyByNik(trim($nik), $institutionId);
             return StudentMutationResource::collection($list);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
-            Log::error('Student mutation history by NISN failed', ['error' => $e->getMessage()]);
+            Log::error('Student mutation history by NIK failed', ['error' => $e->getMessage()]);
             return response()->json([
                 'message' => 'Gagal mengambil riwayat mutasi.',
                 'error' => config('app.debug') ? $e->getMessage() : null,

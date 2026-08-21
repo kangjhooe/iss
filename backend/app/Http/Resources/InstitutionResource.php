@@ -3,9 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Models\Institution;
+use App\Support\RegionAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class InstitutionResource extends JsonResource
 {
@@ -32,6 +32,11 @@ class InstitutionResource extends JsonResource
             'province_code' => $this->province_code,
             'district_code' => $this->district_code,
             'postal_code' => $this->postal_code,
+            'wilayah_province_code' => $this->wilayah_province_code,
+            'wilayah_regency_code' => $this->wilayah_regency_code,
+            'wilayah_district_code' => $this->wilayah_district_code,
+            'wilayah_village_code' => $this->wilayah_village_code,
+            'full_address' => RegionAddress::format($this->resource),
             'phone' => $this->phone,
             'email' => $this->email,
             'website' => $this->website,
@@ -40,8 +45,8 @@ class InstitutionResource extends JsonResource
             'description' => $this->description,
             'vision' => $this->vision,
             'mission' => $this->mission,
-            'logo' => $this->logo ? asset('storage/' . $this->logo) : null,
-            'cover_image' => $this->cover_image ? asset('storage/' . $this->cover_image) : null,
+            'logo' => $this->logo ? asset('storage/'.$this->logo) : null,
+            'cover_image' => $this->cover_image ? asset('storage/'.$this->cover_image) : null,
             'is_active' => $this->is_active,
             'is_demo' => (bool) ($this->is_demo ?? false),
             'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
@@ -51,6 +56,7 @@ class InstitutionResource extends JsonResource
                 ?: Institution::TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY,
             'admission_label' => $this->resolvedAdmissionLabel(),
             'nis_numbering' => $this->nis_numbering,
+            'hidden_module_keys' => \App\Support\InstitutionModuleVisibility::normalize($this->hidden_module_keys),
             'users_count' => $this->whenLoaded('users', function () {
                 return $this->users->count();
             }),

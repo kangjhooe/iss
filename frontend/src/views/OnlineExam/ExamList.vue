@@ -24,7 +24,7 @@
       </div>
       <div v-else-if="exams.length === 0" class="empty-state content-card">
         <h3>Belum ada ujian</h3>
-        <p>Buat ujian baru, lalu tambah soal dari bank soal dan buat sesi.</p>
+        <p>Buat ujian baru, lalu pilih soal dari bank (boleh lintas tingkat, selama mapel sama).</p>
         <router-link to="/ujian-online/exams/buat" class="btn-primary btn-compact btn-add">Buat Ujian</router-link>
       </div>
       <div v-else class="table-wrap content-card">

@@ -46,11 +46,17 @@
             <button type="button" class="filter-quick-btn" :class="{ active: applicantFilters.needs_result }" @click="setFilterNeedsResult">
               Perlu set hasil
             </button>
-            <button v-if="selectedApplicantIds.length" type="button" class="btn-bulk-verify" :disabled="bulkVerifying" @click="doBulkVerification">
-              {{ bulkVerifying ? 'Memproses...' : 'Tandai verified (' + selectedApplicantIds.length + ')' }}
+            <button v-if="selectedForVerify.length" type="button" class="btn-bulk-verify" :disabled="bulkVerifying" @click="doBulkVerification">
+              {{ bulkVerifying ? 'Memproses...' : 'Tandai verified (' + selectedForVerify.length + ')' }}
             </button>
             <button v-if="selectedForResult.length" type="button" class="btn-bulk-verify" :disabled="bulkResulting" @click="openBulkResultModal">
               Set hasil ({{ selectedForResult.length }})
+            </button>
+            <button v-if="selectedForReReg.length" type="button" class="btn-bulk-verify" :disabled="bulkReReging" @click="showBulkReRegConfirm = true">
+              {{ bulkReReging ? 'Memproses...' : 'Daftar ulang (' + selectedForReReg.length + ')' }}
+            </button>
+            <button v-if="selectedForConvert.length" type="button" class="btn-bulk-verify" :disabled="convertFormSubmitting" @click="openBulkConvertModal">
+              Jadikan siswa ({{ selectedForConvert.length }})
             </button>
             <button type="button" class="btn-export" :disabled="exportingApplicants" @click="exportApplicants('csv')">
               {{ exportingApplicants ? 'Mengekspor...' : 'Export CSV' }}
@@ -103,7 +109,7 @@
                   <td>{{ a.rank ?? '-' }}</td>
                   <td><span :class="['status-badge', 'status-' + a.status]">{{ statusApplicantLabels[a.status] || a.status }}</span></td>
                   <td><span :class="['pay-badge', 'pay-' + (a.payment_status || 'unpaid')]">{{ paymentStatusLabels[a.payment_status] || 'Belum bayar' }}</span></td>
-                  <td>{{ a.documents_verified ? '✓' : '-' }}</td>
+                  <td>{{ documentSummaryLabel(a) }}</td>
                 <td>
                   <TableAction kind="view" :to="`/ppdb/pendaftar/${a.id}`" title="Detail" />
                   <button v-if="canSetResult(a)" type="button" class="btn-action btn-edit" @click="openResultModal(a)">Hasil</button>
@@ -179,10 +185,7 @@
                 <input v-model="applicantForm.birth_date" type="date" />
               </div>
             </div>
-            <div class="form-group">
-              <label>Alamat</label>
-              <textarea v-model="applicantForm.address" rows="2"></textarea>
-            </div>
+            <AddressCascade v-model="applicantForm" />
             <div class="form-row">
               <div class="form-group">
                 <label>Telepon</label>
@@ -301,11 +304,11 @@
         </div>
       </div>
 
-      <div v-if="showConvertModal" class="modal-overlay" @click="showConvertModal = false">
+      <div v-if="showConvertModal" class="modal-overlay" @click="closeConvertModal">
         <div class="modal-content form-modal" @click.stop>
           <div class="modal-header">
-            <h3>Jadikan Siswa — {{ convertTarget?.registration_number }}</h3>
-            <button type="button" class="btn-close" @click="showConvertModal = false">×</button>
+            <h3>{{ convertBulk ? ('Jadikan Siswa — ' + selectedForConvert.length + ' calon') : ('Jadikan Siswa — ' + (convertTarget?.registration_number || '')) }}</h3>
+            <button type="button" class="btn-close" @click="closeConvertModal">×</button>
           </div>
           <form class="modal-body" @submit.prevent="submitConvert">
             <div class="form-group">
@@ -317,7 +320,7 @@
             </div>
             <div v-if="convertFormError" class="error-message">{{ convertFormError }}</div>
             <div class="modal-footer">
-              <button type="button" class="btn-secondary" @click="showConvertModal = false">Batal</button>
+              <button type="button" class="btn-secondary" @click="closeConvertModal">Batal</button>
               <button type="submit" class="btn-primary" :disabled="convertFormSubmitting">{{ convertFormSubmitting ? 'Memproses...' : 'Jadikan Siswa' }}</button>
             </div>
           </form>
@@ -353,6 +356,15 @@
       </div>
 
       <ConfirmDialog v-if="deleteApplicantTarget" :show="!!deleteApplicantTarget" title="Hapus Calon" message="Yakin menghapus data calon ini?" confirmText="Hapus" @confirm="doDeleteApplicant" @cancel="deleteApplicantTarget = null" />
+      <ConfirmDialog
+        v-if="showBulkReRegConfirm"
+        :show="showBulkReRegConfirm"
+        title="Daftar ulang massal"
+        :message="'Konfirmasi daftar ulang untuk ' + selectedForReReg.length + ' calon yang lulus/cadangan?'"
+        confirmText="Konfirmasi"
+        @confirm="doBulkReReg"
+        @cancel="showBulkReRegConfirm = false"
+      />
       <AccountCredentialsModal
         :show="!!accountCredentials"
         :title="accountCredentials?.title"
@@ -374,18 +386,23 @@ import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
+import AddressCascade from '@/components/AddressCascade.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { ppdbPeriodApi, ppdbChannelApi, ppdbApplicantApi } from '@/api/ppdb'
 import { classApi } from '@/api/class'
 import { useToast } from '@/composables/useToast'
 import { studentLoginCredentials } from '@/utils/accountCredentials'
+import { pickAddress } from '@/utils/addressFields'
 import {
   statusApplicantLabels,
   paymentStatusLabels,
   canSetResult,
   canConfirmReReg,
   canConvertToStudent,
+  canBulkVerify,
+  canBulkSelect,
   emptyApplicantForm,
+  documentSummaryLabel,
 } from './ppdbConstants'
 import './ppdb.css'
 
@@ -411,6 +428,9 @@ const applicantFilters = ref({
 const selectedApplicantIds = ref([])
 const bulkVerifying = ref(false)
 const bulkResulting = ref(false)
+const bulkReReging = ref(false)
+const showBulkReRegConfirm = ref(false)
+const convertBulk = ref(false)
 const exportingApplicants = ref(false)
 const showBulkResultModal = ref(false)
 const bulkResultForm = ref({ status: 'passed', result_notes: '' })
@@ -438,10 +458,22 @@ const convertFormSubmitting = ref(false)
 const deleteApplicantTarget = ref(null)
 
 const eligibleIds = computed(() =>
-  applicants.value.filter(a => isSelectable(a)).map(a => a.id)
+  applicants.value.filter(a => canBulkSelect(a)).map(a => a.id)
+)
+const selectedApplicants = computed(() =>
+  applicants.value.filter(a => selectedApplicantIds.value.includes(a.id))
+)
+const selectedForVerify = computed(() =>
+  selectedApplicants.value.filter(a => canBulkVerify(a))
 )
 const selectedForResult = computed(() =>
-  applicants.value.filter(a => selectedApplicantIds.value.includes(a.id) && canSetResult(a))
+  selectedApplicants.value.filter(a => canSetResult(a))
+)
+const selectedForReReg = computed(() =>
+  selectedApplicants.value.filter(a => canConfirmReReg(a))
+)
+const selectedForConvert = computed(() =>
+  selectedApplicants.value.filter(a => canConvertToStudent(a))
 )
 const allEligibleSelected = computed(() =>
   eligibleIds.value.length > 0 && eligibleIds.value.every(id => selectedApplicantIds.value.includes(id))
@@ -451,7 +483,7 @@ const someEligibleSelected = computed(() =>
 )
 
 function isSelectable(a) {
-  return a.status === 'submitted' || a.status === 'verification' || canSetResult(a)
+  return canBulkSelect(a)
 }
 
 function applyQueryFilters() {
@@ -521,14 +553,14 @@ function toggleSelectAllApplicants(e) {
 }
 
 async function doBulkVerification() {
-  if (!selectedApplicantIds.value.length) return
+  if (!selectedForVerify.value.length) return
   bulkVerifying.value = true
   try {
     await ppdbApplicantApi.bulkVerification({
-      applicant_ids: selectedApplicantIds.value,
+      applicant_ids: selectedForVerify.value.map(a => a.id),
       documents_verified: true,
     })
-    toast.success(selectedApplicantIds.value.length + ' calon ditandai verified')
+    toast.success(selectedForVerify.value.length + ' calon ditandai verified')
     selectedApplicantIds.value = []
     loadApplicants()
   } catch (e) {
@@ -635,6 +667,7 @@ function openApplicantModal(a = null) {
   if (a) {
     applicantForm.value = {
       ...emptyApplicantForm(),
+      ...pickAddress(a),
       ppdb_period_id: a.ppdb_period_id,
       ppdb_channel_id: a.ppdb_channel_id,
       name: a.name,
@@ -643,7 +676,6 @@ function openApplicantModal(a = null) {
       gender: a.gender,
       birth_date: a.birth_date || '',
       birth_place: a.birth_place || '',
-      address: a.address || '',
       phone: a.phone || '',
       email: a.email || '',
       religion: a.religion || '',
@@ -740,27 +772,100 @@ async function doConfirmReReg(a) {
   }
 }
 
-function openConvertModal(a) {
-  convertTarget.value = a
-  convertForm.value = { class_id: '' }
-  convertFormError.value = ''
+async function doBulkReReg() {
+  const targets = [...selectedForReReg.value]
+  if (!targets.length) {
+    showBulkReRegConfirm.value = false
+    return
+  }
+  bulkReReging.value = true
+  showBulkReRegConfirm.value = false
+  let ok = 0
+  const errors = []
+  for (const a of targets) {
+    try {
+      await ppdbApplicantApi.confirmReRegistration(a.id)
+      ok++
+    } catch (e) {
+      errors.push((a.registration_number || a.name) + ': ' + (e.response?.data?.message || e.formattedMessage || 'gagal'))
+    }
+  }
+  bulkReReging.value = false
+  selectedApplicantIds.value = []
+  loadApplicants()
+  if (ok) toast.success(ok + ' calon dikonfirmasi daftar ulang')
+  if (errors.length) toast.error('Sebagian gagal', errors.slice(0, 3).join(' '))
+}
+
+function loadConvertClasses(applicant) {
   convertClasses.value = []
-  const period = periods.value.find(p => p.id === a.ppdb_period_id) || a.period
+  const period = periods.value.find(p => p.id === applicant?.ppdb_period_id) || applicant?.period
   if (period?.academic_year_id) {
     classApi.getAll({ academic_year_id: period.academic_year_id, per_page: 200 }).then((res) => {
       convertClasses.value = res.data.data || []
     }).catch(() => {})
   }
+}
+
+function closeConvertModal() {
+  showConvertModal.value = false
+  convertBulk.value = false
+  convertTarget.value = null
+  convertFormError.value = ''
+}
+
+function openConvertModal(a) {
+  convertBulk.value = false
+  convertTarget.value = a
+  convertForm.value = { class_id: '' }
+  convertFormError.value = ''
+  loadConvertClasses(a)
+  showConvertModal.value = true
+}
+
+function openBulkConvertModal() {
+  if (!selectedForConvert.value.length) return
+  convertBulk.value = true
+  convertTarget.value = selectedForConvert.value[0]
+  convertForm.value = { class_id: '' }
+  convertFormError.value = ''
+  loadConvertClasses(selectedForConvert.value[0])
   showConvertModal.value = true
 }
 
 async function submitConvert() {
-  if (!convertTarget.value) return
   convertFormError.value = ''
   convertFormSubmitting.value = true
+  const classId = convertForm.value.class_id || undefined
   try {
+    if (convertBulk.value) {
+      const targets = [...selectedForConvert.value]
+      let ok = 0
+      const errors = []
+      for (const a of targets) {
+        try {
+          await ppdbApplicantApi.convertToStudent(a.id, { class_id: classId })
+          ok++
+        } catch (e) {
+          errors.push((a.registration_number || a.name) + ': ' + (e.response?.data?.message || e.formattedMessage || 'gagal'))
+        }
+      }
+      showConvertModal.value = false
+      convertTarget.value = null
+      convertBulk.value = false
+      selectedApplicantIds.value = []
+      loadApplicants()
+      if (ok) toast.success(ok + ' calon dijadikan siswa')
+      if (errors.length) {
+        convertFormError.value = errors.slice(0, 3).join(' ')
+        toast.error('Sebagian gagal', errors.slice(0, 3).join(' '))
+      }
+      return
+    }
+
+    if (!convertTarget.value) return
     const res = await ppdbApplicantApi.convertToStudent(convertTarget.value.id, {
-      class_id: convertForm.value.class_id || undefined,
+      class_id: classId,
     })
     showConvertModal.value = false
     const creds = studentLoginCredentials({

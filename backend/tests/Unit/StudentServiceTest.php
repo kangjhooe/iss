@@ -155,6 +155,35 @@ class StudentServiceTest extends TestCase
         ]);
     }
 
+    public function test_force_delete_student_from_trash(): void
+    {
+        $institution = Institution::factory()->create();
+        $student = Student::factory()->create([
+            'institution_id' => $institution->id,
+            'nisn' => '9988776655',
+        ]);
+
+        $this->studentService->delete($student);
+        $trashed = Student::withTrashed()->find($student->id);
+
+        $this->studentService->forceDelete($trashed);
+
+        $this->assertDatabaseMissing('student', [
+            'id' => $student->id,
+        ]);
+    }
+
+    public function test_force_delete_rejects_student_not_in_trash(): void
+    {
+        $institution = Institution::factory()->create();
+        $student = Student::factory()->create([
+            'institution_id' => $institution->id,
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->studentService->forceDelete($student);
+    }
+
     /**
      * Test list respects per page limit.
      */
@@ -207,6 +236,94 @@ class StudentServiceTest extends TestCase
         );
 
         $this->assertEquals(2, $result->total());
+    }
+
+    public function test_list_without_class_filter_ignores_empty_class_string_if_class_id_is_set(): void
+    {
+        $institution = Institution::factory()->create();
+        $class = \App\Models\SchoolClass::create([
+            'institution_id' => $institution->id,
+            'academic_year' => '2025/2026',
+            'name' => '11 IPA 1',
+            'grade' => 11,
+            'status' => 'Aktif',
+        ]);
+
+        Student::factory()->create([
+            'institution_id' => $institution->id,
+            'class_id' => $class->id,
+            'class' => null,
+            'status' => 'Aktif',
+        ]);
+        $unassigned = Student::factory()->create([
+            'institution_id' => $institution->id,
+            'class_id' => null,
+            'class' => null,
+            'status' => 'Aktif',
+        ]);
+
+        $result = $this->studentService->list(
+            ['class_id' => '__none__'],
+            $institution->id,
+            15
+        );
+
+        $this->assertEquals(1, $result->total());
+        $this->assertEquals($unassigned->id, $result->items()[0]->id);
+    }
+
+    public function test_list_without_class_filter_includes_students_whose_class_was_deleted(): void
+    {
+        $institution = Institution::factory()->create();
+        $class = \App\Models\SchoolClass::create([
+            'institution_id' => $institution->id,
+            'academic_year' => '2025/2026',
+            'name' => 'Kelas Lama',
+            'grade' => 11,
+            'status' => 'Aktif',
+        ]);
+        $student = Student::factory()->create([
+            'institution_id' => $institution->id,
+            'class_id' => $class->id,
+            'class' => null,
+            'status' => 'Aktif',
+        ]);
+        $class->delete();
+
+        $result = $this->studentService->list(
+            ['class_id' => '__none__'],
+            $institution->id,
+            15
+        );
+
+        $this->assertEquals(1, $result->total());
+        $this->assertEquals($student->id, $result->items()[0]->id);
+    }
+
+    public function test_list_resolves_class_name_from_linked_class(): void
+    {
+        $institution = Institution::factory()->create();
+        $class = \App\Models\SchoolClass::create([
+            'institution_id' => $institution->id,
+            'academic_year' => '2025/2026',
+            'name' => '11 IPA 1',
+            'grade' => 11,
+            'status' => 'Aktif',
+        ]);
+        Student::factory()->create([
+            'institution_id' => $institution->id,
+            'class_id' => $class->id,
+            'class' => null,
+        ]);
+
+        $result = $this->studentService->list(
+            ['class_id' => $class->id],
+            $institution->id,
+            15
+        );
+
+        $this->assertEquals(1, $result->total());
+        $this->assertSame('11 IPA 1', $result->items()[0]->resolvedClassName());
     }
 
     public function test_list_filters_students_without_tingkat(): void

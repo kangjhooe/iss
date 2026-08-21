@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Http\Rules\NpsnReferensiRule;
+use App\Http\Rules\StudentIdentityNotTaken;
 use App\Http\Rules\UniqueNisnPerPpdbPeriod;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,17 +22,23 @@ class StorePpdbApplicantRequest extends FormRequest
             'ppdb_period_id' => 'required|exists:ppdb_periods,id',
             'ppdb_channel_id' => 'required|exists:ppdb_channels,id',
             'name' => 'required|string|max:255',
-            'nik' => 'nullable|string|max:20',
+            'nik' => array_filter([
+                'nullable',
+                'string',
+                'max:20',
+                $this->filled('nik') ? new StudentIdentityNotTaken('nik') : null,
+            ]),
             'nisn' => array_filter([
                 'nullable',
                 'string',
                 'max:20',
                 $this->filled('nisn') ? new UniqueNisnPerPpdbPeriod((int) $this->input('ppdb_period_id')) : null,
+                $this->filled('nisn') ? new StudentIdentityNotTaken('nisn') : null,
             ]),
             'gender' => 'required|in:L,P',
             'birth_date' => 'nullable|date',
             'birth_place' => 'nullable|string|max:255',
-            'address' => 'nullable|string',
+            ...RegionAddress::rules(),
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',

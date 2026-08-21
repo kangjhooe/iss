@@ -9,6 +9,14 @@
         </div>
         <div class="welcome-actions">
           <input v-model="selectedDate" type="date" class="date-input" @change="loadSessions" />
+          <button
+            type="button"
+            class="profile-link profile-btn"
+            :disabled="printingAll || !sessions.length"
+            @click="printPdf()"
+          >
+            {{ printingAll ? 'Menyiapkan...' : 'Cetak semua' }}
+          </button>
           <router-link
             v-if="canAccessModule('teaching_journal')"
             :to="recapAttendanceTo"
@@ -70,12 +78,22 @@
                 <h2>{{ activeSession.subject_name }} · {{ activeSession.class_name }}</h2>
                 <p>{{ activeSession.period_label }} · {{ formatDate(selectedDate) }}</p>
               </div>
-              <router-link
-                class="link-mapel"
-                :to="`/teacher/mapel?class_id=${activeSession.class_id}&subject_id=${activeSession.subject_id}`"
-              >
-                Buka Hub Mapel
-              </router-link>
+              <div class="wizard-header-actions">
+                <button
+                  type="button"
+                  class="btn-secondary btn-sm"
+                  :disabled="printingSession"
+                  @click="printPdf(activeSession.key)"
+                >
+                  {{ printingSession ? 'Menyiapkan...' : 'Cetak PDF' }}
+                </button>
+                <router-link
+                  class="link-mapel"
+                  :to="`/teacher/mapel?class_id=${activeSession.class_id}&subject_id=${activeSession.subject_id}`"
+                >
+                  Buka Hub Mapel
+                </router-link>
+              </div>
             </div>
 
             <div class="steps" role="tablist">
@@ -174,6 +192,14 @@
                   >
                     Lanjut ke Nilai Harian →
                   </button>
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    :disabled="printingSession"
+                    @click="printPdf(activeSession.key)"
+                  >
+                    {{ printingSession ? 'Menyiapkan...' : 'Cetak PDF' }}
+                  </button>
                 </div>
               </template>
             </div>
@@ -230,6 +256,14 @@
                   <div class="form-actions">
                     <button type="button" class="btn-primary" :disabled="gradeSaving" @click="saveGrades">
                       {{ gradeSaving ? 'Menyimpan...' : 'Simpan Nilai Harian' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-secondary"
+                      :disabled="printingSession"
+                      @click="printPdf(activeSession.key)"
+                    >
+                      {{ printingSession ? 'Menyiapkan...' : 'Cetak PDF Pertemuan' }}
                     </button>
                   </div>
                 </div>
@@ -327,6 +361,8 @@ const gradeSaving = ref(false)
 const gradeError = ref('')
 const gradeIndex = ref(1)
 const assessmentCount = ref(1)
+const printingSession = ref(false)
+const printingAll = ref(false)
 const assessmentOptions = computed(() => {
   const n = Math.max(1, assessmentCount.value)
   return Array.from({ length: n }, (_, i) => i + 1)
@@ -557,6 +593,88 @@ async function saveGrades() {
   }
 }
 
+function openPdfPreview(blob, title) {
+  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+  const win = window.open('', '_blank')
+  if (!win) {
+    toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+    URL.revokeObjectURL(url)
+    return false
+  }
+  const safeTitle = String(title || 'Preview PDF').replace(/</g, '')
+  win.document.write(`<!DOCTYPE html><html><head><title>${safeTitle}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
+      .toolbar {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 10px 14px; background: #0f172a; color: #f8fafc;
+        border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
+      }
+      .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
+      .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
+      .actions { display: flex; gap: 8px; flex-shrink: 0; }
+      .actions button {
+        border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
+        cursor: pointer; font-size: 13px;
+      }
+      .btn-print { background: #059669; color: #fff; }
+      .btn-close { background: #334155; color: #e2e8f0; }
+      iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
+    </style></head><body>
+    <div class="toolbar">
+      <h1>${safeTitle}<span class="hint">Preview cetak</span></h1>
+      <div class="actions">
+        <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
+        <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
+      </div>
+    </div>
+    <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
+  </body></html>`)
+  win.document.close()
+  setTimeout(() => URL.revokeObjectURL(url), 120_000)
+  return true
+}
+
+async function printPdf(sessionKey = null) {
+  const printing = sessionKey ? printingSession : printingAll
+  printing.value = true
+  try {
+    const params = { date: selectedDate.value }
+    if (sessionKey) params.session_key = sessionKey
+    const res = await teacherApi.exportTodaySessionsPdf(params)
+    const contentType = res.headers?.['content-type'] || ''
+    if (res.status !== 200 || contentType.includes('application/json')) {
+      const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
+      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
+      throw new Error(json.message || 'Gagal mencetak lembar jurnal mengajar.')
+    }
+    const blob = res.data instanceof Blob
+      ? res.data
+      : new Blob([res.data], { type: 'application/pdf' })
+    const title = sessionKey
+      ? `Lembar Jurnal — ${activeSession.value?.subject_name || ''} ${activeSession.value?.class_name || ''}`.trim()
+      : `Lembar Jurnal — ${formatDate(selectedDate.value)}`
+    if (openPdfPreview(blob, title)) {
+      toast.success('Preview PDF dibuka')
+    }
+  } catch (e) {
+    let message = e.response?.data?.message || e.formattedMessage || e.message || 'PDF tidak dapat dibuka.'
+    const data = e.response?.data
+    if (data instanceof Blob) {
+      try {
+        const json = JSON.parse(await data.text())
+        message = json.message || message
+      } catch {
+        // biarkan pesan sebelumnya
+      }
+    }
+    toast.error('Gagal mencetak PDF', message)
+  } finally {
+    printing.value = false
+  }
+}
+
 watch(currentStep, async (step) => {
   if (step === 'grade' && activeSession.value && !gradeRows.value.length) {
     await loadGrades()
@@ -646,7 +764,12 @@ watch(activeKey, async (key) => {
 .wizard-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
 .wizard-header h2 { margin: 0 0 4px; font-size: 16px; }
 .wizard-header p { margin: 0; font-size: 13px; color: #64748b; }
+.wizard-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .link-mapel { font-size: 13px; font-weight: 600; color: #0d9488; text-decoration: none; }
+.profile-btn {
+  font-family: inherit; cursor: pointer;
+}
+.profile-btn:disabled { opacity: .6; cursor: not-allowed; }
 .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .step-btn {
   border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 999px; padding: 7px 12px;

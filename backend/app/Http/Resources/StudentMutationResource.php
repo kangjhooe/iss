@@ -57,14 +57,22 @@ class StudentMutationResource extends JsonResource
                 'level' => $this->targetInstitution->level,
             ] : null),
             'is_external_target' => $this->target_institution_id === null,
-            'student' => $this->whenLoaded('student', fn () => [
-                'id' => $this->student->id,
-                'nisn' => $this->student->nisn,
-                'nis' => $this->student->nis,
-                'name' => $this->student->name,
-                'gender' => $this->student->gender,
-                'status' => $this->student->status,
-            ]),
+            'student' => $this->whenLoaded('student', function () {
+                if (! $this->student) {
+                    return null;
+                }
+
+                return [
+                    'id' => $this->student->id,
+                    'nik' => $this->student->nik,
+                    'nisn' => $this->student->nisn,
+                    'nis' => $this->student->nis,
+                    'name' => $this->student->name,
+                    'gender' => $this->student->gender,
+                    'status' => $this->student->status,
+                    'in_trash' => $this->student->trashed(),
+                ];
+            }),
             'requester' => $this->whenLoaded('requester', fn () => [
                 'id' => $this->requester->id,
                 'name' => $this->requester->name,

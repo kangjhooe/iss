@@ -31,7 +31,7 @@
         </div>
       </div>
 
-      <!-- Form: NPSN tujuan + NISN (sekolah asal mengajukan) -->
+      <!-- Form: NPSN tujuan + NIK (sekolah asal mengajukan) -->
       <div v-if="showFormModal" class="modal-overlay" @click="showFormModal = false">
         <div class="modal-content form-modal" @click.stop>
           <div class="modal-header">
@@ -84,20 +84,21 @@
               </div>
             </template>
             <div class="form-group">
-              <label>NISN Siswa *</label>
+              <label>NIK Siswa *</label>
               <div class="nisn-search-row">
                 <input
-                  v-model="form.nisn"
+                  v-model="form.nik"
                   type="text"
-                  placeholder="NISN siswa yang akan dimutasikan"
+                  placeholder="16 digit NIK siswa yang akan dimutasikan"
+                  maxlength="16"
                   required
-                  @input="onFormNisnInput"
+                  @input="onFormNikInput"
                   @keydown.enter.prevent="lookupFormStudent"
                 />
                 <button
                   type="button"
                   class="btn-secondary btn-lookup"
-                  :disabled="formLookupLoading || !form.nisn?.trim()"
+                  :disabled="formLookupLoading || form.nik?.replace(/\D/g, '').length !== 16"
                   @click="lookupFormStudent"
                 >
                   {{ formLookupLoading ? 'Mencari...' : 'Cari Siswa' }}
@@ -109,7 +110,8 @@
               <div class="student-preview-title">Konfirmasi data siswa</div>
               <div class="student-preview-grid">
                 <div><span class="label">Nama</span><span class="value">{{ formStudentPreview.name }}</span></div>
-                <div><span class="label">NISN</span><span class="value">{{ formStudentPreview.nisn }}</span></div>
+                <div><span class="label">NIK</span><span class="value">{{ formStudentPreview.nik }}</span></div>
+                <div><span class="label">NISN</span><span class="value">{{ formStudentPreview.nisn || '–' }}</span></div>
                 <div><span class="label">NIS</span><span class="value">{{ formStudentPreview.nis || '–' }}</span></div>
                 <div><span class="label">JK</span><span class="value">{{ formatGender(formStudentPreview.gender) }}</span></div>
                 <div><span class="label">Kelas</span><span class="value">{{ formStudentPreview.class_name || formStudentPreview.tingkat || '–' }}</span></div>
@@ -140,7 +142,7 @@
             <button @click="showPullModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitPull" class="modal-body">
-            <p class="form-hint">Masukkan NPSN sekolah asal dan NISN siswa, atau catat mutasi masuk dari sekolah yang belum terdaftar (input manual + data siswa).</p>
+            <p class="form-hint">Masukkan NPSN sekolah asal dan NIK siswa, atau catat mutasi masuk dari sekolah yang belum terdaftar (input manual + data siswa).</p>
             <div class="form-group form-group-checkbox">
               <label class="checkbox-label">
                 <input v-model="pullForm.external" type="checkbox" />
@@ -173,8 +175,25 @@
                 <input v-model="pullForm.student_name" type="text" placeholder="Nama lengkap siswa" required />
               </div>
               <div class="form-group">
-                <label>NISN Siswa *</label>
-                <input v-model="pullForm.nisn" type="text" placeholder="NISN siswa (10 digit)" required />
+                <label>NIK Siswa *</label>
+                <input
+                  v-model="pullForm.nik"
+                  type="text"
+                  placeholder="16 digit NIK siswa"
+                  maxlength="16"
+                  required
+                  @input="pullForm.nik = pullForm.nik.replace(/\D/g, '').slice(0, 16)"
+                />
+              </div>
+              <div class="form-group">
+                <label>NISN Siswa (opsional)</label>
+                <input
+                  v-model="pullForm.nisn"
+                  type="text"
+                  placeholder="NISN siswa (10 digit, jika ada)"
+                  maxlength="10"
+                  @input="pullForm.nisn = pullForm.nisn.replace(/\D/g, '').slice(0, 10)"
+                />
               </div>
               <div class="form-group">
                 <label>Jenis Kelamin *</label>
@@ -204,20 +223,21 @@
                 <p v-else-if="pullForm.origin_npsn.length === 8 && !originInstitution && originNpsnSearchDone" class="text-muted">Sekolah tidak ditemukan atau jenjang berbeda</p>
               </div>
               <div class="form-group">
-                <label>NISN Siswa *</label>
+                <label>NIK Siswa *</label>
                 <div class="nisn-search-row">
                   <input
-                    v-model="pullForm.nisn"
+                    v-model="pullForm.nik"
                     type="text"
-                    placeholder="NISN siswa di sekolah asal"
+                    placeholder="16 digit NIK siswa di sekolah asal"
+                    maxlength="16"
                     required
-                    @input="onPullNisnInput"
+                    @input="onPullNikInput"
                     @keydown.enter.prevent="lookupPullStudent"
                   />
                   <button
                     type="button"
                     class="btn-secondary btn-lookup"
-                    :disabled="pullLookupLoading || !pullForm.nisn?.trim() || pullForm.origin_npsn.length !== 8"
+                    :disabled="pullLookupLoading || pullForm.nik?.replace(/\D/g, '').length !== 16 || pullForm.origin_npsn.length !== 8"
                     @click="lookupPullStudent"
                   >
                     {{ pullLookupLoading ? 'Mencari...' : 'Cari Siswa' }}
@@ -229,7 +249,8 @@
                 <div class="student-preview-title">Konfirmasi data siswa</div>
                 <div class="student-preview-grid">
                   <div><span class="label">Nama</span><span class="value">{{ pullStudentPreview.name }}</span></div>
-                  <div><span class="label">NISN</span><span class="value">{{ pullStudentPreview.nisn }}</span></div>
+                  <div><span class="label">NIK</span><span class="value">{{ pullStudentPreview.nik }}</span></div>
+                  <div><span class="label">NISN</span><span class="value">{{ pullStudentPreview.nisn || '–' }}</span></div>
                   <div><span class="label">NIS</span><span class="value">{{ pullStudentPreview.nis || '–' }}</span></div>
                   <div><span class="label">JK</span><span class="value">{{ formatGender(pullStudentPreview.gender) }}</span></div>
                   <div><span class="label">Kelas</span><span class="value">{{ pullStudentPreview.class_name || pullStudentPreview.tingkat || '–' }}</span></div>
@@ -239,7 +260,10 @@
                     <span class="value">{{ pullStudentPreview.institution.name }} ({{ pullStudentPreview.institution.npsn }})</span>
                   </div>
                 </div>
-                <p class="student-preview-hint">Pastikan data benar sebelum menarik siswa.</p>
+                <p v-if="pullStudentPreview.in_trash" class="student-preview-warning">
+                  Siswa ini ada di kotak sampah sekolah asal. Permohonan tetap dikirim. Jika sekolah asal menyetujui, siswa dipulihkan langsung di sekolah Anda — tidak kembali ke daftar aktif sekolah asal.
+                </p>
+                <p v-else class="student-preview-hint">Pastikan data benar sebelum menarik siswa.</p>
               </div>
             </template>
             <div class="form-group">
@@ -360,7 +384,11 @@
           <div class="card-body">
             <div class="detail-row detail-highlight">
               <span class="label">Siswa</span>
-              <span class="value">{{ m.student?.name }} <span class="value-muted">(NISN: {{ m.student?.nisn }})</span></span>
+              <span class="value">
+                {{ m.student?.name }}
+                <span class="value-muted">(NIK: {{ m.student?.nik || '–' }})</span>
+                <span v-if="m.student?.in_trash" class="badge-trash">Kotak sampah</span>
+              </span>
             </div>
             <div class="detail-row">
               <span class="label">Sekolah asal</span>
@@ -567,6 +595,7 @@
                   <tr>
                     <th class="col-no">No</th>
                     <th>Tanggal</th>
+                    <th>NIK</th>
                     <th>NISN</th>
                     <th>Nama Siswa</th>
                     <th class="col-jk">JK</th>
@@ -581,6 +610,7 @@
                   <tr v-for="(m, idx) in reportData" :key="m.id">
                     <td class="col-no">{{ reportRowNumber(idx) }}</td>
                     <td class="col-date">{{ formatDateShort(m.approved_at || m.created_at) }}</td>
+                    <td>{{ m.student?.nik || '–' }}</td>
                     <td>{{ m.student?.nisn || '–' }}</td>
                     <td class="col-name">{{ m.student?.name || '–' }}</td>
                     <td class="col-jk">{{ m.student_gender || m.student?.gender || '–' }}</td>
@@ -621,7 +651,7 @@
                 <div class="card-body">
                   <div class="detail-row">
                     <span class="label">Siswa:</span>
-                    <span class="value">{{ m.student?.name || '–' }} <span class="value-muted">({{ m.student?.nisn || '–' }})</span></span>
+                    <span class="value">{{ m.student?.name || '–' }} <span class="value-muted">(NIK: {{ m.student?.nik || '–' }})</span></span>
                   </div>
                   <div class="detail-row" v-if="m.student_grade || m.student_gender || m.student?.gender">
                     <span class="label">Kelas / JK:</span>
@@ -695,11 +725,19 @@
       <!-- Section: Riwayat per siswa -->
       <template v-if="activeTabMain === 'riwayat'">
         <div class="history-section">
-          <form @submit.prevent="loadHistoryByNisn" class="history-form card-form">
+          <form @submit.prevent="loadHistoryByNik" class="history-form card-form">
             <div class="form-row history-search-row">
               <div class="form-group form-group-flex">
-                <label>NISN Siswa</label>
-                <input v-model="historyNisn" type="text" placeholder="Masukkan NISN siswa..." required class="input-with-icon" />
+                <label>NIK Siswa</label>
+                <input
+                  v-model="historyNik"
+                  type="text"
+                  placeholder="Masukkan 16 digit NIK siswa..."
+                  maxlength="16"
+                  required
+                  class="input-with-icon"
+                  @input="historyNik = historyNik.replace(/\D/g, '').slice(0, 16)"
+                />
               </div>
               <button type="submit" class="btn-primary btn-search" :disabled="historyLoading">
                 <svg v-if="!historyLoading" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -722,7 +760,7 @@
                 <span v-if="m.is_external_origin" class="badge-external">Masuk dari luar</span>
               </div>
               <div class="card-body">
-                <div class="detail-row"><span class="label">Siswa:</span> <span class="value">{{ m.student?.name }} ({{ m.student?.nisn }})</span></div>
+                <div class="detail-row"><span class="label">Siswa:</span> <span class="value">{{ m.student?.name }} (NIK: {{ m.student?.nik || '–' }})</span></div>
                 <div class="detail-row" v-if="m.student_grade || m.student_gender">
                   <span class="label">Kelas / JK:</span>
                   <span class="value">{{ m.student_grade ?? '-' }} / {{ m.student_gender ?? m.student?.gender ?? '-' }}</span>
@@ -732,7 +770,7 @@
               </div>
             </div>
           </div>
-          <p v-else-if="historyLoaded && historyList.length === 0" class="text-muted">Tidak ada riwayat mutasi untuk NISN ini.</p>
+          <p v-else-if="historyLoaded && historyList.length === 0" class="text-muted">Tidak ada riwayat mutasi untuk NIK ini.</p>
         </div>
       </template>
       </div>
@@ -750,7 +788,7 @@
             <div v-if="selectedMutation" class="approval-details">
               <div class="detail-row">
                 <span class="label">Siswa:</span>
-                <span class="value">{{ selectedMutation.student?.name }} ({{ selectedMutation.student?.nisn }})</span>
+                <span class="value">{{ selectedMutation.student?.name }} (NIK: {{ selectedMutation.student?.nik || '–' }})</span>
               </div>
               <div class="detail-row">
                 <span class="label">Sekolah tujuan:</span>
@@ -808,7 +846,7 @@
             <div v-if="selectedMutation" class="approval-details">
               <div class="detail-row">
                 <span class="label">Siswa:</span>
-                <span class="value">{{ selectedMutation.student?.name }} ({{ selectedMutation.student?.nisn }})</span>
+                <span class="value">{{ selectedMutation.student?.name }} (NIK: {{ selectedMutation.student?.nik || '–' }})</span>
               </div>
             </div>
             <div class="form-group">
@@ -838,7 +876,7 @@
             <div v-if="selectedMutation" class="approval-details">
               <div class="detail-row">
                 <span class="label">Siswa:</span>
-                <span class="value">{{ selectedMutation.student?.name }} ({{ selectedMutation.student?.nisn }})</span>
+                <span class="value">{{ selectedMutation.student?.name }} (NIK: {{ selectedMutation.student?.nik || '–' }})</span>
               </div>
               <div class="detail-row" v-if="selectedMutation.cancel_reason">
                 <span class="label">Alasan batal:</span>
@@ -901,7 +939,7 @@ const form = ref({
   external: false,
   target_npsn: '',
   target_school_name: '',
-  nisn: '',
+  nik: '',
   notes: ''
 })
 const targetInstitution = ref(null)
@@ -917,6 +955,7 @@ const pullForm = ref({
   external: false,
   origin_npsn: '',
   origin_school_name: '',
+  nik: '',
   nisn: '',
   student_name: '',
   student_gender: '',
@@ -985,7 +1024,7 @@ const reportPeriodLabel = computed(() => {
   return `Semua periode · ${typeLabel}`
 })
 
-const historyNisn = ref('')
+const historyNik = ref('')
 const historyLoading = ref(false)
 const historyLoaded = ref(false)
 const historyList = ref([])
@@ -1087,7 +1126,8 @@ function onNpsnInput() {
   }
 }
 
-function onFormNisnInput() {
+function onFormNikInput() {
+  form.value.nik = form.value.nik.replace(/\D/g, '').slice(0, 16)
   formStudentPreview.value = null
   formLookupError.value = ''
 }
@@ -1095,14 +1135,14 @@ function onFormNisnInput() {
 async function lookupFormStudent() {
   formLookupError.value = ''
   formStudentPreview.value = null
-  const nisn = form.value.nisn?.trim()
-  if (!nisn) {
-    formLookupError.value = 'Masukkan NISN terlebih dahulu.'
+  const nik = form.value.nik?.replace(/\D/g, '') || ''
+  if (nik.length !== 16) {
+    formLookupError.value = 'Masukkan NIK 16 digit terlebih dahulu.'
     return
   }
   formLookupLoading.value = true
   try {
-    const res = await studentMutationApi.lookupStudent(nisn)
+    const res = await studentMutationApi.lookupStudent(nik)
     formStudentPreview.value = res.data?.data ?? null
     if (!formStudentPreview.value) {
       formLookupError.value = 'Data siswa tidak ditemukan.'
@@ -1145,7 +1185,8 @@ function onOriginNpsnInput() {
   }
 }
 
-function onPullNisnInput() {
+function onPullNikInput() {
+  pullForm.value.nik = pullForm.value.nik.replace(/\D/g, '').slice(0, 16)
   pullStudentPreview.value = null
   pullLookupError.value = ''
 }
@@ -1154,18 +1195,18 @@ async function lookupPullStudent() {
   pullLookupError.value = ''
   pullStudentPreview.value = null
   const npsn = pullForm.value.origin_npsn?.trim()
-  const nisn = pullForm.value.nisn?.trim()
+  const nik = pullForm.value.nik?.replace(/\D/g, '') || ''
   if (!npsn || npsn.length !== 8) {
     pullLookupError.value = 'NPSN sekolah asal harus 8 digit terlebih dahulu.'
     return
   }
-  if (!nisn) {
-    pullLookupError.value = 'Masukkan NISN terlebih dahulu.'
+  if (nik.length !== 16) {
+    pullLookupError.value = 'Masukkan NIK 16 digit terlebih dahulu.'
     return
   }
   pullLookupLoading.value = true
   try {
-    const res = await studentMutationApi.lookupStudentAtOrigin(npsn, nisn)
+    const res = await studentMutationApi.lookupStudentAtOrigin(npsn, nik)
     pullStudentPreview.value = res.data?.data ?? null
     if (!pullStudentPreview.value) {
       pullLookupError.value = 'Data siswa tidak ditemukan.'
@@ -1185,7 +1226,7 @@ function formatGender(gender) {
 }
 
 function resetFormModal() {
-  form.value = { external: false, target_npsn: '', target_school_name: '', nisn: '', notes: '' }
+  form.value = { external: false, target_npsn: '', target_school_name: '', nik: '', notes: '' }
   targetInstitution.value = null
   formStudentPreview.value = null
   formLookupError.value = ''
@@ -1194,7 +1235,7 @@ function resetFormModal() {
 }
 
 function resetPullModal() {
-  pullForm.value = { external: false, origin_npsn: '', origin_school_name: '', nisn: '', student_name: '', student_gender: '', student_grade: '', notes: '' }
+  pullForm.value = { external: false, origin_npsn: '', origin_school_name: '', nik: '', nisn: '', student_name: '', student_gender: '', student_grade: '', notes: '' }
   originInstitution.value = null
   pullStudentPreview.value = null
   pullLookupError.value = ''
@@ -1208,8 +1249,8 @@ async function submitPull() {
     pullFormError.value = 'NPSN sekolah asal harus 8 digit.'
     return
   }
-  if (!pullForm.value.nisn?.trim()) {
-    pullFormError.value = 'NISN siswa wajib diisi.'
+  if (!pullForm.value.nik || pullForm.value.nik.replace(/\D/g, '').length !== 16) {
+    pullFormError.value = 'NIK siswa wajib diisi (16 digit).'
     return
   }
   if (pullForm.value.external) {
@@ -1233,7 +1274,7 @@ async function submitPull() {
   try {
     const payload = {
       origin_npsn: pullForm.value.origin_npsn,
-      nisn: pullForm.value.nisn.trim(),
+      nik: pullForm.value.nik.replace(/\D/g, ''),
       notes: pullForm.value.notes?.trim() || undefined
     }
     if (pullForm.value.external) {
@@ -1242,6 +1283,9 @@ async function submitPull() {
       payload.student_name = pullForm.value.student_name?.trim()
       payload.student_gender = pullForm.value.student_gender
       payload.student_grade = pullForm.value.student_grade?.trim() || undefined
+      if (pullForm.value.nisn?.trim()) {
+        payload.nisn = pullForm.value.nisn.replace(/\D/g, '').slice(0, 10)
+      }
     }
     const wasExternal = !!pullForm.value.external
     await studentMutationApi.createPull(payload)
@@ -1427,13 +1471,14 @@ async function exportBukuMutasi(format) {
   }
 }
 
-async function loadHistoryByNisn() {
-  if (!historyNisn.value?.trim()) return
+async function loadHistoryByNik() {
+  const nik = historyNik.value?.replace(/\D/g, '') || ''
+  if (nik.length !== 16) return
   historyLoading.value = true
   historyError.value = ''
   historyLoaded.value = false
   try {
-    const res = await studentMutationApi.getHistoryByNisn(historyNisn.value.trim())
+    const res = await studentMutationApi.getHistoryByNik(nik)
     historyList.value = res.data?.data ?? res.data ?? []
     historyLoaded.value = true
   } catch (err) {
@@ -1454,8 +1499,8 @@ async function submitMutation() {
     formError.value = 'Nama sekolah tujuan wajib diisi untuk mutasi ke sekolah luar sistem.'
     return
   }
-  if (!form.value.nisn?.trim()) {
-    formError.value = 'NISN siswa wajib diisi.'
+  if (!form.value.nik || form.value.nik.replace(/\D/g, '').length !== 16) {
+    formError.value = 'NIK siswa wajib diisi (16 digit).'
     return
   }
   if (!formStudentPreview.value) {
@@ -1469,7 +1514,7 @@ async function submitMutation() {
       external: form.value.external || undefined,
       target_npsn: form.value.target_npsn,
       target_school_name: form.value.external ? form.value.target_school_name?.trim() : undefined,
-      nisn: form.value.nisn.trim(),
+      nik: form.value.nik.replace(/\D/g, ''),
       notes: form.value.notes?.trim() || undefined
     })
     toast.success('Berhasil', wasExternal ? 'Mutasi keluar ke sekolah luar sistem telah dicatat. Status siswa: Pindah.' : 'Permohonan mutasi telah dikirim. Menunggu persetujuan sekolah tujuan.')
@@ -1862,6 +1907,13 @@ onMounted(async () => {
   color: #047857;
 }
 
+.student-preview-warning {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #b45309;
+}
+
 .form-group-checkbox {
   margin-bottom: 12px;
 }
@@ -1887,6 +1939,16 @@ onMounted(async () => {
   font-weight: 600;
   color: #b45309;
   background: #fef3c7;
+  border-radius: 6px;
+}
+.badge-trash {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a3412;
+  background: #ffedd5;
   border-radius: 6px;
 }
 .badge-wali {

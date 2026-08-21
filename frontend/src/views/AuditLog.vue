@@ -142,7 +142,8 @@ function actionLabel(action) {
     created: 'Tambah',
     updated: 'Ubah',
     deleted: 'Hapus',
-    'module_access.updated': 'Akses modul'
+    'module_access.updated': 'Akses modul',
+    'institution_modules.updated': 'Modul sekolah'
   }
   return labels[action] || action
 }

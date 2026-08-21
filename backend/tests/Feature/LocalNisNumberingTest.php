@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\LocalNisService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -226,6 +228,16 @@ class LocalNisNumberingTest extends TestCase
         $this->putJson('/api/v1/student/'.$other->id, [
             'nis' => '202600001',
         ])->assertStatus(422);
+    }
+
+    public function test_next_explains_missing_sequence_table(): void
+    {
+        Schema::dropIfExists('institution_nis_sequences');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Tabel penomoran NIS belum tersedia');
+
+        app(LocalNisService::class)->next($this->institution->fresh('activeAcademicYear'));
     }
 
     public function test_prefix_preset_requires_prefix(): void

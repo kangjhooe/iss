@@ -96,6 +96,7 @@
                   :class="{ 'nav-subitem--active': child.active }"
                 >
                   <span>{{ child.label }}</span>
+                  <span v-if="child.badgeCount" class="nav-count-badge">{{ child.badgeCount }}</span>
                 </router-link>
               </div>
             </Transition>
@@ -165,7 +166,7 @@
     <main class="main-content">
       <header class="topbar">
         <div class="topbar-content">
-          <h1>{{ pageTitle }}</h1>
+          <h1 v-if="showTopbarTitle">{{ pageTitle }}</h1>
           <div class="topbar-actions">
             <div
               v-if="authStore.canSwitchInstitution"
@@ -317,6 +318,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { appName } from '@/config/app'
 import { isVocationalLevel, getActiveInstitutionLevel } from '@/utils/institution'
+import { hasModuleAccess as userHasModuleAccess, isInstitutionModuleHidden } from '@/utils/moduleAccess'
+import { resolvePageTitle, routeHasPageHeading } from '@/utils/pageTitles'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import AppLogo from '@/components/AppLogo.vue'
 
@@ -463,6 +466,7 @@ const IconFeedback = () => h('svg', { class: 'nav-icon', width: 20, height: 20, 
   h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
 const openFeedbackCount = ref(0)
+const pendingPasswordResetCount = ref(0)
 const IconExam = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
@@ -495,31 +499,28 @@ const IconIndustry = () => h('svg', { class: 'nav-icon', width: 20, height: 20, 
 ])
 
 const canAccessModule = (moduleKey) => {
-  const role = authStore.user?.role
-  if (!role) return false
   if (moduleKey === 'online_exam' && !authStore.isOnlineExamEntitled) {
     return false
   }
-  if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') {
-    return true
-  }
-  if ((authStore.user?.permissions || []).includes(moduleKey)) return true
-  if (moduleKey === 'guru_piket' && (authStore.user?.is_piket_scheduled || authStore.user?.is_piket_on_duty)) {
-    return true
-  }
-  return false
+  return userHasModuleAccess(authStore.user, moduleKey)
 }
 
 const isLabResponsible = () => !!authStore.user?.is_lab_responsible
 const isExtracurricularSupervisor = () => !!authStore.user?.is_extracurricular_supervisor
-const canAccessExtracurricular = () => canAccessModule('extracurricular') || isExtracurricularSupervisor()
+const canAccessExtracurricular = () =>
+  canAccessModule('extracurricular')
+  || (!isInstitutionModuleHidden(authStore.user, 'extracurricular') && isExtracurricularSupervisor())
 const canAccessPiket = () =>
   canAccessModule('guru_piket')
   || canAccessModule('guru_piket_manage')
-  || !!authStore.user?.is_piket_scheduled
-  || !!authStore.user?.is_piket_on_duty
+  || (
+    !isInstitutionModuleHidden(authStore.user, 'guru_piket')
+    && (authStore.user?.is_piket_scheduled || authStore.user?.is_piket_on_duty)
+  )
 
-const canAccessLabManagement = () => canAccessModule('facility') || isLabResponsible()
+const canAccessLabManagement = () =>
+  canAccessModule('facility')
+  || (!isInstitutionModuleHidden(authStore.user, 'facility') && isLabResponsible())
 
 function getDashboardTo() {
   const role = authStore.user?.role
@@ -589,7 +590,7 @@ const menuEntries = computed(() => {
       addVisible({ type: 'group', key: 'sistem', label: 'Sistem', icon: IconSettings, children: [
         { to: '/super-admin/onboard', label: 'Onboarding Sekolah', visible: true },
         { to: '/institution', label: 'Kelola Institusi', visible: true },
-        { to: '/super-admin/institution-admins', label: 'Admin Institusi', visible: true },
+        { to: '/super-admin/institution-admins', label: 'Admin Institusi', visible: true, badgeCount: pendingPasswordResetCount.value || null },
         { to: '/academic-year', label: 'Tahun Ajaran', visible: true },
         { to: '/institution-change-requests', label: 'Request Perubahan', visible: true },
         { to: '/super-admin/app-branding', label: 'Branding Aplikasi', visible: true },
@@ -612,20 +613,22 @@ const menuEntries = computed(() => {
       { type: 'link', key: 'student-schedule', to: '/student/jadwal', label: 'Jadwal Saya', icon: IconAcademic },
       { type: 'link', key: 'student-attendance', to: '/student/absensi', label: 'Absensi Saya', icon: IconAttendance },
       { type: 'link', key: 'student-grades', to: '/student/nilai', label: 'Nilai Saya', icon: IconGrade },
-      { type: 'link', key: 'student-exam', to: '/ujian-ikuti', label: 'Ikuti Ujian', icon: IconAcademic },
-      { type: 'link', key: 'student-violations', to: '/student/pelanggaran-prestasi', label: 'Pelanggaran & Prestasi', icon: IconStudents },
+      { type: 'link', key: 'student-exam', to: '/ujian-ikuti', label: 'Ikuti Ujian', icon: IconExam },
+      { type: 'link', key: 'student-finance', to: '/student/keuangan', label: 'Tagihan', icon: IconFinance },
       { type: 'link', key: 'student-points', to: '/student/poin', label: 'Poin Saya', icon: IconPoints },
-      { type: 'link', key: 'student-counseling', to: '/student/konseling', label: 'Konseling', icon: IconCounseling },
-      { type: 'link', key: 'student-uks', to: '/student/uks', label: 'Kunjungan UKS', icon: IconUks },
-      { type: 'link', key: 'student-extracurricular', to: '/student/ekstrakurikuler', label: 'Ekstrakurikuler', icon: IconStudents },
-      { type: 'link', key: 'student-finance', to: '/student/keuangan', label: 'Tagihan & Pembayaran', icon: IconFinance },
+      { type: 'link', key: 'student-violations', to: '/student/pelanggaran-prestasi', label: 'Pelanggaran & Prestasi', icon: IconStudents },
       ...(isVocationalInstitution.value
         ? [
             { type: 'link', key: 'student-pkl', to: '/student/pkl', label: 'PKL / Jurnal', icon: IconIndustry },
             { type: 'link', key: 'student-bkk', to: '/student/bkk', label: 'BKK / Lowongan', icon: IconIndustry },
           ]
         : []),
-      { type: 'link', key: 'student-ebooks', to: '/student/ebooks', label: 'Perpustakaan Digital', icon: IconLibrary },
+      addVisible({ type: 'group', key: 'student-lainnya', label: 'Lainnya', icon: IconLayanan, children: [
+        { to: '/student/ebooks', label: 'Perpustakaan Digital', visible: true },
+        { to: '/student/ekstrakurikuler', label: 'Ekstrakurikuler', visible: true },
+        { to: '/student/konseling', label: 'Konseling', visible: true },
+        { to: '/student/uks', label: 'Kunjungan UKS', visible: true },
+      ]}),
       { type: 'link', key: 'student-profile', to: '/student/profil', label: 'Profil Saya', icon: IconSettings }
     ]
   }
@@ -873,7 +876,7 @@ const menuEntries = computed(() => {
     ...(!hasManagedLabs
       ? [addVisible({ type: 'group', key: 'laboratorium', label: 'Laboratorium', icon: IconLab, children: [
           { to: '/lab', label: canAccessModule('facility') ? 'Manajemen Lab' : 'Lab Saya', visible: canAccessLabManagement() },
-          { to: '/lab-booking', label: 'Booking Lab', visible: role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility') }
+          { to: '/lab-booking', label: 'Booking Lab', visible: !isInstitutionModuleHidden(authStore.user, 'facility') && (role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility')) }
         ]})]
       : []),
     ...(canAccessModule('library')
@@ -1052,118 +1055,13 @@ const isBottomNavActive = (path) => {
   return route.path.startsWith(path)
 }
 
-const pageTitle = computed(() => {
-  const titles = {
-    Dashboard: 'Dashboard',
-    TeacherDashboard: 'Dashboard Guru',
-    TeacherLeave: 'Cuti Saya',
-    TeacherMyPoints: 'Poin & Prestasi Saya',
-    TeacherWali: 'Wali Kelas',
-    TeacherMapel: 'Mata Pelajaran',
-    TeacherToday: 'Jam Mengajar Hari Ini',
-    TeacherAppreciation: 'Apresiasi Guru',
-    GuruPiket: 'Guru Piket',
-    StudentDashboard: 'Dashboard Siswa',
-    StudentSchedule: 'Jadwal Saya',
-    StudentGrades: 'Nilai Saya',
-    StudentViolations: 'Pelanggaran & Prestasi',
-    StudentCounseling: 'Konseling',
-    StudentUks: 'Kunjungan UKS',
-    StudentExtracurricular: 'Ekstrakurikuler',
-    StudentPoints: 'Poin Saya',
-    StudentProfile: 'Profil Saya',
-    SuperAdminDashboard: 'Dashboard Super Admin',
-    AppBranding: 'Branding Aplikasi',
-    InstitutionAdmins: 'Admin Institusi',
-    SuperAdminOnboard: 'Onboarding Sekolah',
-    AdoptionMonitoring: 'Monitoring Adopsi',
-    BroadcastAnnouncements: 'Broadcast',
-    SuperAdminReleaseNotes: 'Catatan Rilis',
-    SuperAdminTemplates: 'Library Template Surat',
-    AggregateReport: 'Laporan Agregat',
-    SystemSettings: 'Pengaturan Sistem',
-    SuperAdminMonetization: 'Monetisasi',
-    BillingOverview: 'Paket & Add-on',
-    Institution: authStore.user?.role === 'super_admin' ? 'Kelola Institusi' : 'Profil Instansi',
-    Student: 'Data Siswa',
-    Teacher: 'Data Pegawai',
-    Kepegawaian: 'Cuti, SK & Jabatan',
-    Facility: 'Sarana Prasarana',
-    Lab: authStore.user?.is_lab_responsible && !(authStore.user?.permissions || []).includes('facility') && authStore.user?.role !== 'admin' && authStore.user?.role !== 'institution_admin' && authStore.user?.role !== 'super_admin'
-      ? 'Lab Saya'
-      : 'Manajemen Lab',
-    LabDetail: 'Detail Lab',
-    LabBookingRequest: 'Booking Lab',
-    Inventory: 'Inventaris',
-    Class: 'Kelas',
-    ProgramKeahlian: 'Program Keahlian',
-    Report: 'Laporan & Statistik',
-    AcademicYear: 'Tahun Ajaran',
-    InstitutionChangeRequests: 'Request Perubahan',
-    FeedbackTickets: authStore.user?.role === 'super_admin' ? 'Inbox Feedback' : 'Lapor Bug & Request Fitur',
-    StudentChangeRequestsAdmin: 'Permintaan Perubahan Siswa',
-    ModuleAccess: 'Akses Modul',
-    StudentMutation: 'Mutasi Siswa',
-    TeacherMutation: 'Mutasi Pegawai',
-    Notifications: 'Notifikasi',
-    AccountSettings: 'Pengaturan Akun',
-    AuditLog: 'Audit Log',
-    Alumni: 'Alumni',
-    LuluskanSiswa: 'Luluskan Siswa',
-    NaikKelas: 'Naik Kelas',
-    Violation: 'Pelanggaran',
-    Counseling: 'Konseling',
-    LaporanBk: 'Laporan BK',
-    Uks: 'Kunjungan UKS',
-    UksStock: 'Stok Obat UKS',
-    LaporanUks: 'Laporan UKS',
-    StudentAttendance: 'Absensi Saya',
-    StudentFinance: 'Tagihan & Pembayaran',
-    StudentPkl: 'PKL / Jurnal',
-    StudentBkk: 'BKK / Lowongan',
-    ParentDashboard: 'Portal Orang Tua',
-    ParentAnnouncements: 'Pengumuman',
-    ParentChildSchedule: 'Jadwal Anak',
-    ParentChildGrades: 'Nilai Anak',
-    ParentChildAttendance: 'Absensi Anak',
-    ParentChildViolations: 'Pelanggaran Anak',
-    SchoolContent: 'Berita & Galeri',
-    StudentEbooks: 'Perpustakaan Digital',
-    Extracurricular: 'Ekstrakurikuler',
-    ExtracurricularDetail: 'Detail Ekstrakurikuler',
-    IndustryPartners: 'Mitra DU/DI',
-    Pkl: 'PKL / Prakerin',
-    Bkk: 'BKK / Bursa Kerja',
-    LessonSchedule: 'Jadwal Pelajaran',
-    TeachingJournal: 'Jurnal Mengajar',
-    AttendanceStudent: 'Absensi Siswa',
-    AttendanceEmployee: 'Absensi Guru & Staff',
-    QrAttendanceScan: 'Scan QR Absensi',
-    QrCodeGenerate: 'Kartu QR Absensi',
-    GradeBook: 'Buku Nilai',
-    Raport: 'Raport Siswa',
-    OnlineExamList: 'Ujian Online',
-    OnlineExamCreate: 'Buat Ujian',
-    OnlineExamDetail: 'Detail Ujian',
-    OnlineExamEdit: 'Edit Ujian',
-    OnlineExamSessions: 'Sesi Ujian',
-    OnlineExamSessionDetail: 'Detail Sesi Ujian',
-    OnlineExamBank: 'Bank Soal',
-    OnlineExamBankStimulus: 'Stimulus Soal',
-    ExamTake: 'Ikuti Ujian',
-    Correspondence: 'Buat Surat',
-    CorrespondenceTemplates: 'Template Surat',
-    CorrespondenceKop: 'Manajemen KOP',
-    CorrespondenceTandaTangan: 'Tanda Tangan & Stempel',
-    CorrespondenceWorkflow: 'Arsip Persuratan',
-    DigitalArchive: 'Arsip Digital',
-    AcademicCalendar: 'Kalender Akademik',
-    BukuTamu: 'Buku Tamu',
-    DocumentPickup: 'Pengambilan Ijazah',
-    Library: 'Perpustakaan'
-  }
-  return titles[route.name] || 'Dashboard'
-})
+const pageTitle = computed(() => resolvePageTitle(route.name, authStore))
+const showTopbarTitle = computed(() => !routeHasPageHeading(route.name))
+
+watch(pageTitle, (title) => {
+  if (typeof document === 'undefined' || route.name === 'SchoolPublic') return
+  document.title = title ? `${title} · ${appName}` : appName
+}, { immediate: true })
 
 const showNotificationBell = computed(() => {
   const role = authStore.user?.role
@@ -1187,6 +1085,12 @@ async function fetchUnreadNotificationCount() {
       openFeedbackCount.value = countRes.data?.count ?? 0
     } catch {
       openFeedbackCount.value = 0
+    }
+    try {
+      const resetRes = await import('@/api/passwordResetRequest').then(m => m.passwordResetRequestApi.getPendingCount())
+      pendingPasswordResetCount.value = resetRes.data?.count ?? 0
+    } catch {
+      pendingPasswordResetCount.value = 0
     }
   }
 }
@@ -1631,7 +1535,10 @@ const handleLogout = async () => {
 }
 
 .nav-subitem {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 6px 10px;
   color: #94a3b8;
   text-decoration: none;
@@ -1862,6 +1769,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 
 .institution-switcher {

@@ -10,15 +10,15 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 
 class StudentService
 {
     public function __construct(
         protected StudentAccountService $studentAccountService,
-        protected LocalNisService $localNisService = new LocalNisService()
-    ) {
-    }
+        protected LocalNisService $localNisService = new LocalNisService
+    ) {}
 
     /** Sentinel values for "tanpa kelas / tanpa tingkat" filters. */
     public const UNASSIGNED_VALUES = ['__none__', 'unassigned', 'none'];
@@ -87,9 +87,9 @@ class StudentService
     {
         $query = Student::query();
 
-        if (!empty($filters['only_trashed'])) {
+        if (! empty($filters['only_trashed'])) {
             $query->onlyTrashed();
-        } elseif (!empty($filters['with_trashed'])) {
+        } elseif (! empty($filters['with_trashed'])) {
             $query->withTrashed();
         }
 
@@ -108,29 +108,26 @@ class StudentService
         if (isset($filters['search']) && $filters['search'] !== '') {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('nik', 'like', '%' . $search . '%')
-                  ->orWhere('nis', 'like', '%' . $search . '%')
-                  ->orWhere('nisn', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('nik', 'like', '%'.$search.'%')
+                    ->orWhere('nis', 'like', '%'.$search.'%')
+                    ->orWhere('nisn', 'like', '%'.$search.'%');
             });
         }
 
-        if (isset($filters['class']) && $filters['class'] !== '' && !self::isUnassignedFilter($filters['class'])) {
+        if (isset($filters['class']) && $filters['class'] !== '' && ! self::isUnassignedFilter($filters['class'])) {
             $query->where('class', $filters['class']);
         }
 
         if (array_key_exists('class_id', $filters) && $filters['class_id'] !== '' && $filters['class_id'] !== null) {
             if (self::isUnassignedFilter($filters['class_id'])) {
-                $query->where(function ($q) {
-                    $q->whereNull('class_id')
-                      ->orWhere('class_id', 0);
-                });
+                $query->withoutAssignedClass();
             } else {
                 $query->where('class_id', $filters['class_id']);
             }
         }
 
-        if (!empty($filters['class_ids']) && is_array($filters['class_ids'])) {
+        if (! empty($filters['class_ids']) && is_array($filters['class_ids'])) {
             $query->whereIn('class_id', $filters['class_ids']);
         }
 
@@ -164,7 +161,7 @@ class StudentService
 
         $this->applyAccountStatusFilter($query, $filters['account_status'] ?? null);
 
-        if (!empty($filters['missing_nis']) && filter_var($filters['missing_nis'], FILTER_VALIDATE_BOOLEAN)) {
+        if (! empty($filters['missing_nis']) && filter_var($filters['missing_nis'], FILTER_VALIDATE_BOOLEAN)) {
             $query->missingNis();
         }
     }
@@ -198,11 +195,13 @@ class StudentService
 
         if ($status === 'ready' || $status === 'with_account') {
             $query->whereExists($hasAccount);
+
             return;
         }
 
         if ($status === 'missing' || $status === 'without_account') {
             $query->where($eligibleNikBirth)->whereNotExists($hasAccount);
+
             return;
         }
 
@@ -285,7 +284,7 @@ class StudentService
         $query = $this->buildListQuery($filters, $institutionId)
             ->select(['id', 'institution_id', 'nik', 'name', 'email', 'birth_date']);
 
-        if (!empty($studentIds)) {
+        if (! empty($studentIds)) {
             $ids = array_values(array_unique(array_map('intval', $studentIds)));
             $query->whereIn('id', $ids);
         }
@@ -301,7 +300,7 @@ class StudentService
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortDir = strtolower((string) ($filters['sort_dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        if (!in_array($sortBy, self::ALLOWED_SORTS, true)) {
+        if (! in_array($sortBy, self::ALLOWED_SORTS, true)) {
             $sortBy = 'created_at';
         }
 
@@ -311,6 +310,33 @@ class StudentService
         }
 
         $query->orderBy($sortBy, $sortDir)->orderBy('id', 'asc');
+    }
+
+    /**
+     * Keep student.class in sync with the linked class name when class_id is set.
+     */
+    protected function syncClassLabel(array $data): array
+    {
+        if (! array_key_exists('class_id', $data)) {
+            return $data;
+        }
+
+        $classId = $data['class_id'] ? (int) $data['class_id'] : null;
+        if (! $classId) {
+            $data['class_id'] = null;
+            if (! array_key_exists('class', $data) || $data['class'] === '' || $data['class'] === null) {
+                $data['class'] = null;
+            }
+
+            return $data;
+        }
+
+        $name = \App\Models\SchoolClass::whereKey($classId)->value('name');
+        if (is_string($name) && trim($name) !== '') {
+            $data['class'] = $name;
+        }
+
+        return $data;
     }
 
     /**
@@ -328,7 +354,7 @@ class StudentService
             }
         }
 
-        if (!empty($data['academic_year']) && is_string($data['academic_year'])) {
+        if (! empty($data['academic_year']) && is_string($data['academic_year'])) {
             if (preg_match('/(\d{4}\/\d{4})/', $data['academic_year'], $matches)) {
                 $data['academic_year'] = $matches[1];
             }
@@ -342,11 +368,11 @@ class StudentService
      */
     public function create(array $data): Student
     {
-        $data = $this->syncAcademicYearLabel($data);
+        $data = $this->syncClassLabel($this->syncAcademicYearLabel($data));
 
-        if (!$this->localNisService->hasNis($data['nis'] ?? null) && !empty($data['institution_id'])) {
+        if (! $this->localNisService->hasNis($data['nis'] ?? null) && ! empty($data['institution_id'])) {
             $institution = Institution::with('activeAcademicYear')->find($data['institution_id']);
-            if ($institution) {
+            if ($institution && $this->localNisService->sequencesAvailable()) {
                 try {
                     $data['nis'] = $this->localNisService->next(
                         $institution,
@@ -395,11 +421,11 @@ class StudentService
         $oldStatus = $student->status;
         $previousNik = $student->nik;
 
-        $data = $this->syncAcademicYearLabel($data);
+        $data = $this->syncClassLabel($this->syncAcademicYearLabel($data));
 
         // Update student
         $student->update($data);
-        
+
         // Refresh to get updated values
         $student->refresh();
 
@@ -500,11 +526,44 @@ class StudentService
     }
 
     /**
+     * Permanently delete a student that is already in the trash.
+     */
+    public function forceDelete(Student $student): void
+    {
+        if (! $student->trashed()) {
+            throw new InvalidArgumentException('Hanya data di kotak sampah yang dapat dihapus permanen.');
+        }
+
+        $studentId = $student->id;
+        $nisn = $student->nisn;
+        $nik = $student->nik;
+
+        DB::transaction(function () use ($student) {
+            $this->studentAccountService->deleteLoginAccount($student);
+
+            foreach ($student->documents()->get(['id', 'file_path']) as $document) {
+                if ($document->file_path && Storage::disk('public')->exists($document->file_path)) {
+                    Storage::disk('public')->delete($document->file_path);
+                }
+            }
+            Storage::disk('public')->deleteDirectory('student_documents/'.$student->id);
+
+            $student->forceDelete();
+        });
+
+        Log::info('Student permanently deleted', [
+            'student_id' => $studentId,
+            'nisn' => $nisn,
+            'nik' => $nik,
+        ]);
+    }
+
+    /**
      * Create class history record.
      */
     protected function createClassHistory(Student $student, ?int $classId, ?int $academicYearId, ?int $semesterId = null, string $status = 'masuk'): ?ClassStudentHistory
     {
-        if (!$classId || !$academicYearId) {
+        if (! $classId || ! $academicYearId) {
             return null;
         }
 
@@ -514,17 +573,18 @@ class StudentService
             ? $student->academicYear
             : \App\Models\AcademicYear::find($academicYearId);
 
-        if (!$class || !$academicYear) {
+        if (! $class || ! $academicYear) {
             Log::warning('Cannot create class history - class or academic year not found', [
                 'student_id' => $student->id,
                 'class_id' => $classId,
                 'academic_year_id' => $academicYearId,
             ]);
+
             return null;
         }
 
         // Use semester_id from student if not provided
-        if (!$semesterId) {
+        if (! $semesterId) {
             $semesterId = $student->semester_id;
         }
 
@@ -545,7 +605,7 @@ class StudentService
      */
     protected function endPreviousHistory(int $studentId, ?int $classId, ?int $academicYearId): void
     {
-        if (!$classId || !$academicYearId) {
+        if (! $classId || ! $academicYearId) {
             return;
         }
 
@@ -577,21 +637,21 @@ class StudentService
             $query->where('institution_id', $institutionId);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('nisn', 'like', '%' . $search . '%')
-                    ->orWhere('nis', 'like', '%' . $search . '%')
-                    ->orWhere('nik', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('nisn', 'like', '%'.$search.'%')
+                    ->orWhere('nis', 'like', '%'.$search.'%')
+                    ->orWhere('nik', 'like', '%'.$search.'%');
             });
         }
 
-        if (!empty($filters['graduation_year'])) {
+        if (! empty($filters['graduation_year'])) {
             $query->byGraduationYear((int) $filters['graduation_year']);
         }
 
-        if (!empty($filters['class_id'])) {
+        if (! empty($filters['class_id'])) {
             $query->where('class_id', $filters['class_id']);
         }
 
@@ -669,7 +729,7 @@ class StudentService
     /**
      * Luluskan banyak siswa sekaligus.
      *
-     * @param array<int> $studentIds
+     * @param  array<int>  $studentIds
      * @return array{success: int, failed: array<array{id: int, reason: string}>}
      */
     public function graduateBulk(array $studentIds, ?int $graduationYear = null): array
@@ -680,8 +740,9 @@ class StudentService
 
         foreach ($studentIds as $id) {
             $student = Student::find($id);
-            if (!$student) {
+            if (! $student) {
                 $failed[] = ['id' => $id, 'reason' => 'Siswa tidak ditemukan.'];
+
                 continue;
             }
             try {
@@ -737,7 +798,7 @@ class StudentService
     /**
      * Batalkan kelulusan banyak siswa sekaligus.
      *
-     * @param array<int> $studentIds
+     * @param  array<int>  $studentIds
      * @return array{success: int, failed: array<array{id: int, reason: string}>}
      */
     public function revokeGraduationBulk(array $studentIds, ?string $reason = null): array
@@ -747,8 +808,9 @@ class StudentService
 
         foreach ($studentIds as $id) {
             $student = Student::find($id);
-            if (!$student) {
+            if (! $student) {
                 $failed[] = ['id' => $id, 'reason' => 'Siswa tidak ditemukan.'];
+
                 continue;
             }
             try {
@@ -800,7 +862,7 @@ class StudentService
             }
         }
 
-        if (!$classId || !$academicYearId) {
+        if (! $classId || ! $academicYearId) {
             return;
         }
 
@@ -817,7 +879,7 @@ class StudentService
             $previous->update([
                 'end_date' => null,
                 'status' => 'Aktif',
-                'notes' => trim(($previous->notes ? $previous->notes . ' | ' : '') . 'Dibuka kembali setelah batal lulus'),
+                'notes' => trim(($previous->notes ? $previous->notes.' | ' : '').'Dibuka kembali setelah batal lulus'),
             ]);
         }
     }
@@ -836,6 +898,7 @@ class StudentService
                 return (int) $m[0] + 1; // e.g. 2024/2025 -> 2025
             }
         }
+
         return (int) date('Y');
     }
 
@@ -850,6 +913,7 @@ class StudentService
         if ($institutionId) {
             $query->where('institution_id', $institutionId);
         }
+
         return $query->select('graduation_year')->distinct()->orderByDesc('graduation_year')->pluck('graduation_year')->map(fn ($y) => (int) $y)->values()->all();
     }
 
@@ -857,7 +921,7 @@ class StudentService
      * Naik kelas: pindahkan siswa dari kelas/tahun ajaran sumber ke kelas/tahun ajaran tujuan.
      * Hanya siswa dengan status Aktif. Riwayat kelas otomatis tercatat dengan status naik_kelas.
      *
-     * @param array<int>|null $studentIds Jika null, semua siswa Aktif di kelas sumber akan dinaikkan.
+     * @param  array<int>|null  $studentIds  Jika null, semua siswa Aktif di kelas sumber akan dinaikkan.
      * @return array{success: int, failed: array<array{id: int, reason: string}>}
      */
     public function promoteBulk(
@@ -873,17 +937,17 @@ class StudentService
             ->where('institution_id', $institutionId)
             ->where('academic_year_id', $targetAcademicYearId)
             ->first();
-        if (!$targetClass) {
+        if (! $targetClass) {
             throw new \InvalidArgumentException('Kelas tujuan tidak ditemukan atau tidak sesuai tahun ajaran.');
         }
 
         $targetAcademicYear = \App\Models\AcademicYear::find($targetAcademicYearId);
-        if (!$targetAcademicYear) {
+        if (! $targetAcademicYear) {
             throw new \InvalidArgumentException('Tahun ajaran tujuan tidak ditemukan.');
         }
 
         $targetSemesterId = $targetSemesterId ?? \App\Models\Semester::where('academic_year_id', $targetAcademicYearId)->orderBy('id')->value('id');
-        if ($targetSemesterId && !\App\Models\Semester::where('id', $targetSemesterId)->where('academic_year_id', $targetAcademicYearId)->exists()) {
+        if ($targetSemesterId && ! \App\Models\Semester::where('id', $targetSemesterId)->where('academic_year_id', $targetAcademicYearId)->exists()) {
             throw new \InvalidArgumentException('Semester tujuan tidak termasuk dalam tahun ajaran tujuan.');
         }
 

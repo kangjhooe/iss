@@ -16,6 +16,7 @@ class PpdbChannel extends Model
         'name',
         'quota',
         'requirements',
+        'required_documents',
         'is_active',
         'sort_order',
     ];
@@ -24,6 +25,7 @@ class PpdbChannel extends Model
     {
         return [
             'is_active' => 'boolean',
+            'required_documents' => 'array',
         ];
     }
 

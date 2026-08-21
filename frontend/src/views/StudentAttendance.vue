@@ -6,7 +6,7 @@
       </div>
 
       <div class="sp-page-header">
-        <p class="sp-subtitle">Riwayat kehadiran berdasarkan jurnal mengajar</p>
+        <p class="sp-subtitle">Rekap kehadiran dari jurnal mengajar guru</p>
         <div class="sp-actions">
           <button
             type="button"
@@ -49,65 +49,64 @@
         </div>
       </div>
 
-      <div v-else-if="!attendances.length" class="sp-empty">
-        <h3 class="sp-empty-title">Belum ada absensi</h3>
-        <p class="sp-empty-desc">Belum ada data absensi untuk filter yang dipilih.</p>
-      </div>
-
-      <div v-else class="sp-panel attendance-panel">
-        <div class="chart-solo">
-          <AppChart title="Komposisi kehadiran" type="doughnut" :chart-data="attendanceChart" />
-        </div>
-        <div class="sp-table-wrap sp-table-desktop">
-          <table class="sp-table">
-            <thead>
-              <tr>
-                <th>Tanggal</th>
-                <th>Semester</th>
-                <th>Kelas</th>
-                <th>Mata Pelajaran</th>
-                <th>Guru</th>
-                <th>Jam ke</th>
-                <th>Status</th>
-                <th>Catatan</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in attendances" :key="row.id">
-                <td>{{ formatDate(row.date) }}</td>
-                <td>{{ row.semester_name || '-' }}</td>
-                <td>{{ row.class_name || '-' }}</td>
-                <td>{{ row.subject_name || '-' }}</td>
-                <td>{{ row.teacher_name || '-' }}</td>
-                <td>{{ row.period ?? '-' }}</td>
-                <td>
-                  <span class="sp-badge" :class="'sp-badge--' + (row.status || 'hadir')">
-                    {{ row.status_label || row.status || 'Hadir' }}
-                  </span>
-                </td>
-                <td>{{ row.notes || '-' }}</td>
-              </tr>
-            </tbody>
-          </table>
+      <template v-else>
+        <div class="sp-stats sp-stats--4">
+          <div class="sp-stat sp-stat--ok">
+            <div>
+              <span class="sp-stat-label">Hadir</span>
+              <span class="sp-stat-value">{{ statusCounts.hadir }}</span>
+            </div>
+          </div>
+          <div class="sp-stat">
+            <div>
+              <span class="sp-stat-label">Izin</span>
+              <span class="sp-stat-value">{{ statusCounts.izin }}</span>
+            </div>
+          </div>
+          <div class="sp-stat sp-stat--warn">
+            <div>
+              <span class="sp-stat-label">Sakit</span>
+              <span class="sp-stat-value">{{ statusCounts.sakit }}</span>
+            </div>
+          </div>
+          <div class="sp-stat" :class="{ 'sp-stat--warn': statusCounts.alpha }">
+            <div>
+              <span class="sp-stat-label">Alpha</span>
+              <span class="sp-stat-value">{{ statusCounts.alpha }}</span>
+            </div>
+          </div>
         </div>
 
-        <div class="sp-mobile-cards">
-          <article v-for="row in attendances" :key="'m-' + row.id" class="sp-mobile-card">
-            <div class="sp-mobile-card-title">{{ row.subject_name || 'Absensi' }}</div>
-            <div class="sp-mobile-card-row"><span>Tanggal</span><strong>{{ formatDate(row.date) }}</strong></div>
-            <div class="sp-mobile-card-row"><span>Guru</span><strong>{{ row.teacher_name || '-' }}</strong></div>
-            <div class="sp-mobile-card-row"><span>Jam ke</span><strong>{{ row.period ?? '-' }}</strong></div>
-            <div class="sp-mobile-card-row">
-              <span>Status</span>
-              <strong>
+        <div v-if="!dayGroups.length" class="sp-empty">
+          <h3 class="sp-empty-title">Belum ada absensi</h3>
+          <p class="sp-empty-desc">Belum ada data absensi untuk filter yang dipilih.</p>
+        </div>
+
+        <div v-else class="sp-slot-list">
+          <article v-for="group in dayGroups" :key="group.date" class="sp-day-group">
+            <div class="sp-day-head">
+              <span class="sp-day-title">{{ formatDate(group.date) }}</span>
+              <span class="sp-badge" :class="'sp-badge--' + group.summaryStatus">{{ group.summaryLabel }}</span>
+              <span class="sp-list-meta">{{ group.rows.length }} jam</span>
+            </div>
+            <div class="sp-day-body">
+              <div v-for="row in group.rows" :key="row.id" class="sp-day-row">
+                <div>
+                  <strong>{{ row.subject_name || 'Pelajaran' }}</strong>
+                  <div class="sp-list-meta">
+                    Jam ke {{ row.period ?? '—' }}
+                    <template v-if="row.teacher_name"> · {{ row.teacher_name }}</template>
+                  </div>
+                  <div v-if="row.notes" class="sp-list-meta">{{ row.notes }}</div>
+                </div>
                 <span class="sp-badge" :class="'sp-badge--' + (row.status || 'hadir')">
                   {{ row.status_label || row.status || 'Hadir' }}
                 </span>
-              </strong>
+              </div>
             </div>
           </article>
         </div>
-      </div>
+      </template>
     </div>
   </Layout>
 </template>
@@ -115,9 +114,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
-import AppChart from '@/components/AppChart.vue'
 import { useAuthStore } from '@/stores/auth'
-import { doughnutFromCounts, countStatuses } from '@/composables/useChart'
+import { countStatuses, ATTENDANCE_LABELS } from '@/composables/useChart'
 import { useToast } from '@/composables/useToast'
 import { semesterApi } from '@/api/semester'
 import { studentAttendanceApi } from '@/api/attendance'
@@ -133,19 +131,51 @@ const exporting = ref(false)
 const attendances = ref([])
 const semesters = ref([])
 
-const attendanceChart = computed(() => doughnutFromCounts(countStatuses(attendances.value)))
-
 const filters = ref({
   semester_id: '',
   date_from: '',
   date_to: ''
 })
 
+const STATUS_RANK = { alpha: 4, sakit: 3, izin: 2, dinas_luar: 1, hadir: 0 }
+
+const statusCounts = computed(() => countStatuses(attendances.value))
+
+const dayGroups = computed(() => {
+  const map = new Map()
+  for (const row of attendances.value) {
+    const key = String(row.date || '').slice(0, 10) || 'tanpa-tanggal'
+    if (!map.has(key)) map.set(key, [])
+    map.get(key).push(row)
+  }
+  return [...map.entries()]
+    .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+    .map(([date, rows]) => {
+      const sorted = [...rows].sort((a, b) => (a.period || 0) - (b.period || 0))
+      let summaryStatus = 'hadir'
+      let rank = -1
+      for (const row of sorted) {
+        const status = String(row.status || 'hadir').toLowerCase()
+        const next = STATUS_RANK[status] ?? 0
+        if (next > rank) {
+          rank = next
+          summaryStatus = status
+        }
+      }
+      return {
+        date,
+        rows: sorted,
+        summaryStatus,
+        summaryLabel: ATTENDANCE_LABELS[summaryStatus] || summaryStatus,
+      }
+    })
+})
+
 function formatDate(val) {
   if (!val) return '-'
   const d = new Date(val)
   if (Number.isNaN(d.getTime())) return val
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function cleanParams() {
@@ -157,13 +187,22 @@ function cleanParams() {
 }
 
 async function loadSemesters() {
+  let active = null
+  try {
+    const res = await semesterApi.getActive()
+    const data = res.data?.data ?? res.data
+    active = Array.isArray(data) ? data[0] : data
+  } catch {
+    active = null
+  }
   try {
     const res = await semesterApi.getAll({ per_page: 100 })
     const list = res.data?.data ?? res.data ?? []
     semesters.value = Array.isArray(list) ? list : (list?.data ?? [])
   } catch {
-    semesters.value = []
+    semesters.value = active ? [active] : []
   }
+  if (active?.id) filters.value.semester_id = active.id
 }
 
 async function loadAttendances() {
@@ -211,19 +250,3 @@ onMounted(async () => {
   await loadAttendances()
 })
 </script>
-
-<style scoped>
-.attendance-panel {
-  padding: 0;
-  overflow: hidden;
-}
-
-.chart-solo {
-  padding: 12px 16px 0;
-  max-width: 420px;
-}
-
-.sp-table-wrap {
-  border: none;
-}
-</style>

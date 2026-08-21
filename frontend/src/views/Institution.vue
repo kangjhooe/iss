@@ -82,7 +82,7 @@
                     {{ inst.is_active !== false ? 'Aktif' : 'Dibekukan' }}
                   </span>
                 </td>
-                <td>{{ displayValue(inst.address) }}</td>
+                <td>{{ displayValue(formatFullAddress(inst) || inst.address) }}</td>
                 <td>{{ formatDate(inst.created_at) }}</td>
                 <td>
                   <div class="action-buttons">
@@ -509,32 +509,8 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label>Alamat</label>
-              <textarea v-model="form.address" rows="3"></textarea>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Desa/Kelurahan</label>
-                <input v-model="form.village" />
-              </div>
-              <div class="form-group">
-                <label>Kecamatan</label>
-                <input v-model="form.sub_district" />
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Kabupaten/Kota</label>
-                <input v-model="form.district" />
-              </div>
-              <div class="form-group">
-                <label>Provinsi</label>
-                <input v-model="form.province" />
-              </div>
-            </div>
+            <div class="form-section-label">Alamat</div>
+            <AddressCascade v-model="form" />
             <div class="form-section-label">Kode untuk nomor peserta ujian (format YY-PP-KK-J-SSSS-NNN)</div>
             <div class="form-row">
               <div class="form-group">
@@ -550,10 +526,6 @@
             </div>
 
             <div class="form-row">
-              <div class="form-group">
-                <label>Kode Pos</label>
-                <input v-model="form.postal_code" />
-              </div>
               <div class="form-group">
                 <label>Telepon</label>
                 <input v-model="form.phone" />
@@ -784,32 +756,8 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label>Alamat</label>
-              <textarea v-model="form.address" rows="3"></textarea>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Desa/Kelurahan</label>
-                <input v-model="form.village" />
-              </div>
-              <div class="form-group">
-                <label>Kecamatan</label>
-                <input v-model="form.sub_district" />
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Kabupaten/Kota</label>
-                <input v-model="form.district" />
-              </div>
-              <div class="form-group">
-                <label>Provinsi</label>
-                <input v-model="form.province" />
-              </div>
-            </div>
+            <div class="form-section-label">Alamat</div>
+            <AddressCascade v-model="form" />
             <div class="form-section-label">Kode untuk nomor peserta ujian (format YY-PP-KK-J-SSSS-NNN)</div>
             <div class="form-row">
               <div class="form-group">
@@ -825,10 +773,6 @@
             </div>
 
             <div class="form-row">
-              <div class="form-group">
-                <label>Kode Pos</label>
-                <input v-model="form.postal_code" />
-              </div>
               <div class="form-group">
                 <label>Telepon</label>
                 <input v-model="form.phone" />
@@ -989,6 +933,8 @@ import { getInstitutionTypeLabel, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AddressCascade from '@/components/AddressCascade.vue'
+import { emptyAddress, formatFullAddress } from '@/utils/addressFields'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 
@@ -1063,14 +1009,9 @@ const form = ref({
   nss: '',
   level: '',
   type: 'Swasta',
-  address: '',
-  village: '',
-  sub_district: '',
-  district: '',
-  province: '',
+  ...emptyAddress(),
   province_code: '',
   district_code: '',
-  postal_code: '',
   phone: '',
   email: '',
   website: '',
@@ -1301,6 +1242,7 @@ const getValidationRules = (mode = 'update') => {
 const INSTITUTION_PAYLOAD_KEYS = [
   'name', 'foundation_name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
   'province_code', 'district_code',
+  'wilayah_province_code', 'wilayah_regency_code', 'wilayah_district_code', 'wilayah_village_code',
   'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
   'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
   'active_academic_year_id', 'active_semester_id'
@@ -1466,6 +1408,10 @@ const handleUpdate = async () => {
       if (updatedData.province !== undefined) institution.value.province = updatedData.province
       if (updatedData.province_code !== undefined) institution.value.province_code = updatedData.province_code
       if (updatedData.district_code !== undefined) institution.value.district_code = updatedData.district_code
+      if (updatedData.wilayah_province_code !== undefined) institution.value.wilayah_province_code = updatedData.wilayah_province_code
+      if (updatedData.wilayah_regency_code !== undefined) institution.value.wilayah_regency_code = updatedData.wilayah_regency_code
+      if (updatedData.wilayah_district_code !== undefined) institution.value.wilayah_district_code = updatedData.wilayah_district_code
+      if (updatedData.wilayah_village_code !== undefined) institution.value.wilayah_village_code = updatedData.wilayah_village_code
       if (updatedData.postal_code !== undefined) institution.value.postal_code = updatedData.postal_code
     }
     
@@ -1727,14 +1673,9 @@ const resetForm = () => {
     nss: '',
     level: '',
     type: 'Swasta',
-    address: '',
-    village: '',
-    sub_district: '',
-    district: '',
-    province: '',
+    ...emptyAddress(),
     province_code: '',
     district_code: '',
-    postal_code: '',
     phone: '',
     email: '',
     website: '',

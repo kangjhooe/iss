@@ -47,7 +47,7 @@
                 <div v-if="item.phone || item.email" class="cell-sub">{{ item.phone || item.email }}</div>
               </td>
               <td>{{ item.business_field || '—' }}</td>
-              <td>{{ item.city || '—' }}</td>
+              <td>{{ item.district || item.city || '—' }}</td>
               <td>{{ item.pic_name || '—' }}</td>
               <td><span class="status-chip" :class="item.status === 'Aktif' ? 'ok' : 'off'">{{ item.status }}</span></td>
               <td class="col-aksi">
@@ -67,10 +67,7 @@
             <input v-model="form.name" required maxlength="255" />
             <label>Bidang usaha</label>
             <input v-model="form.business_field" maxlength="255" />
-            <label>Kota</label>
-            <input v-model="form.city" maxlength="100" />
-            <label>Alamat</label>
-            <textarea v-model="form.address" rows="2"></textarea>
+            <AddressCascade v-model="form" />
             <div class="form-row">
               <div>
                 <label>Telepon</label>
@@ -114,7 +111,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
+import AddressCascade from '@/components/AddressCascade.vue'
 import { industryPartnersApi } from '@/api/industryPartners'
+import { emptyAddress, pickAddress } from '@/utils/addressFields'
 import '@/assets/module-page.css'
 
 const list = ref([])
@@ -123,19 +122,23 @@ const showModal = ref(false)
 const saving = ref(false)
 const error = ref('')
 const filters = reactive({ search: '', status: '' })
-const form = reactive({
-  id: null,
-  name: '',
-  business_field: '',
-  city: '',
-  address: '',
-  phone: '',
-  email: '',
-  pic_name: '',
-  pic_phone: '',
-  status: 'Aktif',
-  notes: '',
-})
+function blankForm() {
+  return {
+    id: null,
+    name: '',
+    business_field: '',
+    ...emptyAddress(),
+    city: '',
+    phone: '',
+    email: '',
+    pic_name: '',
+    pic_phone: '',
+    status: 'Aktif',
+    notes: '',
+  }
+}
+
+const form = ref(blankForm())
 
 let debounceTimer = null
 function debounceLoad() {
@@ -161,29 +164,39 @@ async function loadList() {
 
 function openModal(item = null) {
   error.value = ''
-  Object.assign(form, {
-    id: item?.id || null,
-    name: item?.name || '',
-    business_field: item?.business_field || '',
-    city: item?.city || '',
-    address: item?.address || '',
-    phone: item?.phone || '',
-    email: item?.email || '',
-    pic_name: item?.pic_name || '',
-    pic_phone: item?.pic_phone || '',
-    status: item?.status || 'Aktif',
-    notes: item?.notes || '',
-  })
+  if (!item) {
+    form.value = blankForm()
+    showModal.value = true
+    return
+  }
+  const address = pickAddress(item)
+  if (!address.district && item.city) {
+    address.district = item.city
+  }
+  form.value = {
+    ...blankForm(),
+    id: item.id || null,
+    name: item.name || '',
+    business_field: item.business_field || '',
+    ...address,
+    city: item.city || address.district || '',
+    phone: item.phone || '',
+    email: item.email || '',
+    pic_name: item.pic_name || '',
+    pic_phone: item.pic_phone || '',
+    status: item.status || 'Aktif',
+    notes: item.notes || '',
+  }
   showModal.value = true
 }
 
 async function save() {
   saving.value = true
   error.value = ''
-  const payload = { ...form }
+  const payload = { ...form.value }
   delete payload.id
   try {
-    if (form.id) await industryPartnersApi.update(form.id, payload)
+    if (form.value.id) await industryPartnersApi.update(form.value.id, payload)
     else await industryPartnersApi.create(payload)
     showModal.value = false
     await loadList()
@@ -236,7 +249,7 @@ onMounted(loadList)
   position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem;
 }
 .modal-card {
-  background: #fff; border-radius: 12px; padding: 1.25rem; width: min(520px, 100%); max-height: 90vh; overflow: auto;
+  background: #fff; border-radius: 12px; padding: 1.25rem; width: min(640px, 100%); max-height: 90vh; overflow: auto;
 }
 .modal-card label { display: block; margin: 0.75rem 0 0.25rem; font-size: 0.85rem; font-weight: 600; }
 .modal-card input, .modal-card select, .modal-card textarea {

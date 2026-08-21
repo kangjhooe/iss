@@ -285,4 +285,33 @@ class StudentAccountService
 
         return $result;
     }
+
+    /**
+     * Hapus akun login siswa (role=student) agar NIK/email bisa dipakai lagi.
+     */
+    public function deleteLoginAccount(Student $student): void
+    {
+        $account = $this->findAccount($student);
+        if (! $account || $account->role !== 'student') {
+            return;
+        }
+
+        $account->tokens()->delete();
+
+        try {
+            $account->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            $account->forceFill([
+                'is_active' => false,
+                'login_nik' => null,
+                'email' => 'deleted.'.$account->id.'.'.($account->email ?: 'siswa.local'),
+            ])->save();
+
+            Log::warning('Student login account could not be deleted; deactivated instead', [
+                'student_id' => $student->id,
+                'user_id' => $account->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 }

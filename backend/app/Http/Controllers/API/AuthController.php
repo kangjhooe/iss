@@ -4,20 +4,21 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AddTokenFromCookie;
+use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RefreshTokenRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
-use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Institution;
 use App\Models\User;
-use App\Services\MonetizationService;
-use App\Support\InstitutionContext;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
+use App\Services\MonetizationService;
+use App\Support\InstitutionContext;
+use App\Support\InstitutionModuleVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,7 @@ class AuthController extends Controller
     {
         $minutes = 24 * 60; // 24 jam
         $secure = request()->secure();
+
         return Cookie::make(
             AddTokenFromCookie::COOKIE_AUTH,
             $token,
@@ -52,6 +54,7 @@ class AuthController extends Controller
     {
         $minutes = 30 * 24 * 60;
         $secure = request()->secure();
+
         return Cookie::make(
             InstitutionContext::COOKIE_ACTIVE_INSTITUTION,
             (string) $institutionId,
@@ -68,6 +71,7 @@ class AuthController extends Controller
     private function clearActiveInstitutionCookie(): \Symfony\Component\HttpFoundation\Cookie
     {
         $secure = request()->secure();
+
         return Cookie::make(
             InstitutionContext::COOKIE_ACTIVE_INSTITUTION,
             '',
@@ -88,6 +92,7 @@ class AuthController extends Controller
     {
         $minutes = 30 * 24 * 60; // 30 hari
         $secure = request()->secure();
+
         return Cookie::make(
             AddTokenFromCookie::COOKIE_REFRESH,
             $token,
@@ -108,6 +113,7 @@ class AuthController extends Controller
     {
         $secure = request()->secure();
         $domain = env('COOKIE_DOMAIN');
+
         return [
             Cookie::make(AddTokenFromCookie::COOKIE_AUTH, '', -1, '/', $domain, $secure, true, false, 'lax'),
             Cookie::make(AddTokenFromCookie::COOKIE_REFRESH, '', -1, '/', $domain, $secure, true, false, 'lax'),
@@ -120,10 +126,11 @@ class AuthController extends Controller
     private function isMaintenanceEnabled(): bool
     {
         try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('app_branding')
-                || !\Illuminate\Support\Facades\Schema::hasColumn('app_branding', 'maintenance_mode')) {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('app_branding')
+                || ! \Illuminate\Support\Facades\Schema::hasColumn('app_branding', 'maintenance_mode')) {
                 return false;
             }
+
             return (bool) \App\Models\AppBranding::query()->value('maintenance_mode');
         } catch (\Throwable $e) {
             return false;
@@ -140,6 +147,7 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
             // ignore
         }
+
         return 'Sistem sedang dalam mode pemeliharaan. Silakan coba lagi nanti.';
     }
 
@@ -150,10 +158,13 @@ class AuthController extends Controller
      *     path="/api/v1/register",
      *     summary="Registrasi institusi dan admin",
      *     tags={"Authentication"},
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"npsn","institution_name","name","email","phone","password","password_confirmation"},
+     *
      *             @OA\Property(property="npsn", type="string", example="12345678"),
      *             @OA\Property(property="institution_name", type="string", example="Sekolah Contoh"),
      *             @OA\Property(property="name", type="string", example="Admin Sekolah"),
@@ -163,14 +174,18 @@ class AuthController extends Controller
      *             @OA\Property(property="password_confirmation", type="string", format="password", example="Password123!")
      *         )
      *     ),
+     *
      *     @OA\Response(response=201, description="Registrasi berhasil",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="message", type="string", example="Registrasi berhasil. Silakan cek email untuk verifikasi."),
      *             @OA\Property(property="user", type="object"),
      *             @OA\Property(property="token", type="string", example="1|..."),
      *             @OA\Property(property="refresh_token", type="string", example="2|...")
      *         )
      *     ),
+     *
      *     @OA\Response(response=422, description="Validasi gagal")
      * )
      */
@@ -204,15 +219,15 @@ class AuthController extends Controller
             $refreshToken = $user->createToken('refresh_token', ['refresh'])->plainTextToken;
 
             // Send email verification only if not in development
-            if (!$this->shouldSkipEmailVerification()) {
+            if (! $this->shouldSkipEmailVerification()) {
                 $verificationToken = Str::random(64);
                 $frontendUrl = config('frontend.url');
-                $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
-                
+                $verificationUrl = $frontendUrl.'/verify-email?token='.$verificationToken.'&email='.urlencode($user->email);
+
                 // Store verification token (you might want to create a separate table for this)
                 // For now, we'll use a simple approach with cache or database
-                cache()->put('email_verification_' . $user->id, $verificationToken, now()->addHours(24));
-                
+                cache()->put('email_verification_'.$user->id, $verificationToken, now()->addHours(24));
+
                 try {
                     $user->notify(new VerifyEmailNotification($verificationUrl));
                 } catch (\Exception $e) {
@@ -238,6 +253,7 @@ class AuthController extends Controller
             ], 201);
             $response->cookie($this->makeAuthCookie($accessToken));
             $response->cookie($this->makeRefreshCookie($refreshToken));
+
             return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
@@ -263,22 +279,29 @@ class AuthController extends Controller
      *     path="/api/v1/login",
      *     summary="Login pengguna",
      *     tags={"Authentication"},
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"email","password"},
+     *
      *             @OA\Property(property="email", type="string", format="email", example="admin@sekolah.id"),
      *             @OA\Property(property="password", type="string", format="password", example="Password123!")
      *         )
      *     ),
+     *
      *     @OA\Response(response=200, description="Login berhasil",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="message", type="string", example="Login berhasil"),
      *             @OA\Property(property="user", type="object"),
      *             @OA\Property(property="token", type="string", example="1|..."),
      *             @OA\Property(property="refresh_token", type="string", example="2|...")
      *         )
      *     ),
+     *
      *     @OA\Response(response=422, description="Kredensial salah atau email belum diverifikasi")
      * )
      */
@@ -304,7 +327,7 @@ class AuthController extends Controller
             }
 
             // Maintenance mode: only super_admin may login
-            if ($user && !$user->isSuperAdmin() && $this->isMaintenanceEnabled()) {
+            if ($user && ! $user->isSuperAdmin() && $this->isMaintenanceEnabled()) {
                 throw ValidationException::withMessages([
                     $loginField => [$this->maintenanceMessage()],
                 ]);
@@ -328,7 +351,7 @@ class AuthController extends Controller
                 ]);
             }
 
-            if (!$passwordValid) {
+            if (! $passwordValid) {
                 if ($user) {
                     $user->incrementFailedLoginAttempts();
                 }
@@ -341,14 +364,14 @@ class AuthController extends Controller
             }
 
             // Auto-verify email in development if not verified
-            if ($this->shouldSkipEmailVerification() && !$user->isEmailVerified()) {
+            if ($this->shouldSkipEmailVerification() && ! $user->isEmailVerified()) {
                 $user->update(['email_verified_at' => now()]);
                 Log::info('Auto-verified user email in development', ['user_id' => $user->id]);
             }
-            
+
             // Students use NIK login (may have synthetic email) — skip email verification
             $skipEmailVerification = $this->shouldSkipEmailVerification() || $user->isStudent() || $user->isParent();
-            if (!$skipEmailVerification && !$user->isEmailVerified()) {
+            if (! $skipEmailVerification && ! $user->isEmailVerified()) {
                 throw ValidationException::withMessages([
                     $loginField => ['Email Anda belum diverifikasi. Silakan cek email untuk link verifikasi.'],
                 ]);
@@ -356,12 +379,12 @@ class AuthController extends Controller
 
             // Check if user's institution is active (skip for super admin)
             // Students may have institution only via student_profile
-            if (!$user->isSuperAdmin()) {
+            if (! $user->isSuperAdmin()) {
                 $institution = $user->institution;
-                if (!$institution && $user->isStudent()) {
+                if (! $institution && $user->isStudent()) {
                     $institution = $user->studentProfile?->institution;
                 }
-                if ($institution && !$institution->is_active) {
+                if ($institution && ! $institution->is_active) {
                     throw ValidationException::withMessages([
                         $loginField => ['Akun institusi Anda tidak aktif. Silakan hubungi administrator.'],
                     ]);
@@ -386,13 +409,13 @@ class AuthController extends Controller
                 } catch (\Exception $e) {
                     Log::warning('Could not load permissions', [
                         'user_id' => $user->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             } catch (\Exception $e) {
                 Log::error('Error loading user relationships', [
                     'user_id' => $user->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
 
@@ -425,9 +448,10 @@ class AuthController extends Controller
             ]);
             $response->cookie($this->makeAuthCookie($accessToken));
             $response->cookie($this->makeRefreshCookie($refreshToken));
-            if (!empty($userPayload['active_institution_id'])) {
+            if (! empty($userPayload['active_institution_id'])) {
                 $response->cookie($this->makeActiveInstitutionCookie((int) $userPayload['active_institution_id']));
             }
+
             return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
@@ -461,6 +485,7 @@ class AuthController extends Controller
             foreach ($this->clearAuthCookies() as $cookie) {
                 $response->cookie($cookie);
             }
+
             return $response;
         } catch (\Exception $e) {
             Log::error('Logout failed', [
@@ -521,7 +546,7 @@ class AuthController extends Controller
             ]);
 
             $institutionId = (int) $validated['institution_id'];
-            if (!InstitutionContext::canAccessInstitution($user, $institutionId)) {
+            if (! InstitutionContext::canAccessInstitution($user, $institutionId)) {
                 return response()->json([
                     'message' => 'Anda tidak memiliki akses ke sekolah ini',
                 ], 403);
@@ -598,6 +623,7 @@ class AuthController extends Controller
         }
 
         $monetizationFeatures = app(MonetizationService::class)->featuresForInstitution($institution);
+        $hiddenModuleKeys = InstitutionModuleVisibility::hiddenKeys($activeId);
 
         return [
             'available_institutions' => $available->values()->all(),
@@ -614,9 +640,11 @@ class AuthController extends Controller
                 'active_academic_year' => $activeAcademicYear,
                 'active_semester' => $activeSemester,
                 'monetization' => $monetizationFeatures,
+                'hidden_module_keys' => $hiddenModuleKeys,
             ] : null,
             // Shortcut global: sekolah memakai ini untuk menyembunyikan menu billing/add-on
             'monetization' => $monetizationFeatures,
+            'hidden_module_keys' => $hiddenModuleKeys,
         ];
     }
 
@@ -633,13 +661,13 @@ class AuthController extends Controller
         ];
 
         $token = $request->cookie(AddTokenFromCookie::COOKIE_IMPERSONATOR);
-        if (!$token) {
+        if (! $token) {
             return $inactive;
         }
 
         $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
         $admin = $tokenModel?->tokenable;
-        if (!$admin instanceof User || !$admin->isSuperAdmin()) {
+        if (! $admin instanceof User || ! $admin->isSuperAdmin()) {
             return $inactive;
         }
 
@@ -710,7 +738,7 @@ class AuthController extends Controller
             $user = $request->user();
             $validated = $request->validated();
 
-            if (!Hash::check($validated['current_password'], $user->password)) {
+            if (! Hash::check($validated['current_password'], $user->password)) {
                 throw ValidationException::withMessages([
                     'current_password' => ['Sandi saat ini salah.'],
                 ]);
@@ -752,8 +780,8 @@ class AuthController extends Controller
             $validated = $request->validated();
             $user = User::where('email', $validated['email'])->first();
 
-            if (!$user) {
-                // Return success even if user doesn't exist (security best practice)
+            if (! $user || $user->isInstitutionAdmin()) {
+                // Institution admins reset via super admin, not email. Same message either way.
                 return response()->json([
                     'message' => 'Jika email terdaftar, link reset password telah dikirim.',
                 ]);
@@ -761,7 +789,7 @@ class AuthController extends Controller
 
             // Generate reset token
             $token = Str::random(64);
-            
+
             // Store token in password_reset_tokens table
             DB::table('password_reset_tokens')->updateOrInsert(
                 ['email' => $user->email],
@@ -811,7 +839,7 @@ class AuthController extends Controller
                 ->where('email', $validated['email'])
                 ->first();
 
-            if (!$resetRecord) {
+            if (! $resetRecord) {
                 throw ValidationException::withMessages([
                     'email' => ['Token reset password tidak valid atau sudah kedaluwarsa.'],
                 ]);
@@ -826,7 +854,7 @@ class AuthController extends Controller
             }
 
             // Verify token
-            if (!Hash::check($validated['token'], $resetRecord->token)) {
+            if (! Hash::check($validated['token'], $resetRecord->token)) {
                 throw ValidationException::withMessages([
                     'token' => ['Token reset password tidak valid.'],
                 ]);
@@ -834,9 +862,9 @@ class AuthController extends Controller
 
             // Update user password
             $user = User::where('email', $validated['email'])->first();
-            if (!$user) {
+            if (! $user || $user->isInstitutionAdmin()) {
                 throw ValidationException::withMessages([
-                    'email' => ['Email tidak terdaftar.'],
+                    'token' => ['Token reset password tidak valid atau sudah kedaluwarsa.'],
                 ]);
             }
 
@@ -882,7 +910,7 @@ class AuthController extends Controller
 
             $user = User::where('email', $request->email)->first();
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'message' => 'Email tidak terdaftar.',
                 ], 404);
@@ -895,9 +923,9 @@ class AuthController extends Controller
             }
 
             // Verify token from cache
-            $storedToken = cache()->get('email_verification_' . $user->id);
-            
-            if (!$storedToken || $storedToken !== $request->token) {
+            $storedToken = cache()->get('email_verification_'.$user->id);
+
+            if (! $storedToken || $storedToken !== $request->token) {
                 return response()->json([
                     'message' => 'Token verifikasi tidak valid atau sudah kedaluwarsa.',
                 ], 400);
@@ -909,7 +937,7 @@ class AuthController extends Controller
             ]);
 
             // Delete verification token
-            cache()->forget('email_verification_' . $user->id);
+            cache()->forget('email_verification_'.$user->id);
 
             Log::info('Email verified', ['user_id' => $user->id]);
 
@@ -940,7 +968,7 @@ class AuthController extends Controller
 
             $user = User::where('email', $request->email)->first();
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'message' => 'Email tidak terdaftar.',
                 ], 404);
@@ -955,9 +983,9 @@ class AuthController extends Controller
             // Generate new verification token
             $verificationToken = Str::random(64);
             $frontendUrl = config('frontend.url');
-            $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
-            
-            cache()->put('email_verification_' . $user->id, $verificationToken, now()->addHours(24));
+            $verificationUrl = $frontendUrl.'/verify-email?token='.$verificationToken.'&email='.urlencode($user->email);
+
+            cache()->put('email_verification_'.$user->id, $verificationToken, now()->addHours(24));
 
             try {
                 $user->notify(new VerifyEmailNotification($verificationUrl));
@@ -1004,7 +1032,7 @@ class AuthController extends Controller
                 ->where('name', 'refresh_token')
                 ->first();
 
-            if (!$token) {
+            if (! $token) {
                 return response()->json([
                     'message' => 'Refresh token tidak valid.',
                 ], 401);
@@ -1014,6 +1042,7 @@ class AuthController extends Controller
             $tokenCreatedAt = \Carbon\Carbon::parse($token->created_at);
             if ($tokenCreatedAt->addDays(30)->isPast()) {
                 DB::table('personal_access_tokens')->where('id', $token->id)->delete();
+
                 return response()->json([
                     'message' => 'Refresh token sudah kedaluwarsa. Silakan login ulang.',
                 ], 401);
@@ -1021,7 +1050,7 @@ class AuthController extends Controller
 
             // Get user
             $user = User::find($token->tokenable_id);
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'message' => 'User tidak ditemukan.',
                 ], 404);
@@ -1037,6 +1066,7 @@ class AuthController extends Controller
                 'token' => $accessToken,
             ]);
             $response->cookie($this->makeAuthCookie($accessToken));
+
             return $response;
         } catch (\Exception $e) {
             Log::error('Refresh token failed', [
@@ -1055,7 +1085,7 @@ class AuthController extends Controller
      */
     private function shouldSkipEmailVerification(): bool
     {
-        return config('app.env') === 'local' 
+        return config('app.env') === 'local'
             || config('app.env') === 'development'
             || env('SKIP_EMAIL_VERIFICATION', false) === true;
     }

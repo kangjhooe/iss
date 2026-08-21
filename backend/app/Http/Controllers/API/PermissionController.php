@@ -7,10 +7,11 @@ use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\User;
 use App\Support\InstitutionContext;
+use App\Support\InstitutionModuleVisibility;
+use App\Support\ReportAccess;
 use App\Support\VocationalAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
 
 class PermissionController extends Controller
 {
@@ -46,7 +47,7 @@ class PermissionController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin()) {
+            if (! $user->isAdminOrSuperAdmin() && ! $user->isInstitutionAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -65,6 +66,7 @@ class PermissionController extends Controller
             $teachers = $employeesQuery->get()
                 ->map(function (Employee $employee) {
                     $account = $employee->userAccount;
+
                     return [
                         'id' => $account->id,
                         'name' => $account->name,
@@ -104,11 +106,11 @@ class PermissionController extends Controller
             $request->validate([
                 'permission_keys' => 'required|array',
                 'permission_keys.*' => 'string|exists:permissions,key',
-        ]);
+            ]);
 
             $user = $request->user();
-            
-            if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin()) {
+
+            if (! $user->isAdminOrSuperAdmin() && ! $user->isInstitutionAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -119,13 +121,13 @@ class PermissionController extends Controller
                 ->where('institution_id', $targetUser->institution_id)
                 ->exists();
 
-            if (!$isEmployeeRole && !$isEmployeeByEmail) {
+            if (! $isEmployeeRole && ! $isEmployeeByEmail) {
                 return response()->json([
                     'message' => 'Hanya dapat mengatur permissions untuk akun pegawai (guru/staff)',
                 ], 422);
             }
 
-            if (!$user->isAdminOrSuperAdmin() && $targetUser->institution_id !== $user->institution_id) {
+            if (! $user->isAdminOrSuperAdmin() && $targetUser->institution_id !== $user->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -133,8 +135,16 @@ class PermissionController extends Controller
                 $targetUser->institution_id,
                 $request->input('permission_keys', [])
             );
-            $permissionIds = Permission::whereIn('key', $permissionKeys)->pluck('id')->all();
             $oldKeys = $targetUser->permissions()->pluck('key')->toArray();
+            $hiddenKeys = InstitutionModuleVisibility::hiddenKeys($targetUser->institution_id);
+            $visibleRequested = array_values(array_filter(
+                $permissionKeys,
+                fn (string $key) => ! in_array($key, $hiddenKeys, true)
+            ));
+            $keptHidden = array_values(array_intersect($oldKeys, $hiddenKeys));
+            $permissionKeys = array_values(array_unique(array_merge($visibleRequested, $keptHidden)));
+            $permissionKeys = ReportAccess::sanitizeKeysForUser($targetUser, $permissionKeys);
+            $permissionIds = Permission::whereIn('key', $permissionKeys)->pluck('id')->all();
             $targetUser->permissions()->sync($permissionIds);
 
             \App\Models\AuditLog::logManual(
@@ -177,5 +187,88 @@ class PermissionController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Modul yang disembunyikan untuk institusi aktif.
+     */
+    public function getInstitutionVisibility(Request $request)
+    {
+        $user = $request->user();
+        if (! $user->isAdminOrSuperAdmin() && ! $user->isInstitutionAdmin()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $institutionId = $this->resolveManagedInstitutionId($request, $user);
+        if (! $institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan'], 422);
+        }
+
+        return response()->json([
+            'data' => [
+                'hidden_keys' => InstitutionModuleVisibility::hiddenKeys($institutionId),
+            ],
+        ]);
+    }
+
+    /**
+     * Simpan modul yang disembunyikan admin sekolah.
+     */
+    public function updateInstitutionVisibility(Request $request)
+    {
+        $user = $request->user();
+        if (! $user->isAdminOrSuperAdmin() && ! $user->isInstitutionAdmin()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'hidden_keys' => 'present|array',
+            'hidden_keys.*' => 'string|exists:permissions,key',
+        ]);
+
+        $institutionId = $this->resolveManagedInstitutionId($request, $user);
+        if (! $institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan'], 422);
+        }
+
+        $institution = \App\Models\Institution::query()->findOrFail($institutionId);
+        $oldKeys = InstitutionModuleVisibility::normalize($institution->hidden_module_keys);
+        $hiddenKeys = InstitutionModuleVisibility::sanitizeHiddenKeys(
+            $institutionId,
+            $request->input('hidden_keys', [])
+        );
+
+        $institution->update(['hidden_module_keys' => $hiddenKeys === [] ? null : $hiddenKeys]);
+        $request->attributes->remove('hidden_module_keys_'.$institutionId);
+
+        \App\Models\AuditLog::logManual(
+            $request,
+            'institution_modules.updated',
+            \App\Models\Institution::class,
+            $institution->id,
+            ['hidden_keys' => $oldKeys],
+            ['hidden_keys' => $hiddenKeys],
+            $institution->id
+        );
+
+        return response()->json([
+            'message' => 'Modul sekolah berhasil diperbarui',
+            'data' => [
+                'hidden_keys' => $hiddenKeys,
+            ],
+        ]);
+    }
+
+    private function resolveManagedInstitutionId(Request $request, User $user): ?int
+    {
+        if ($user->isAdminOrSuperAdmin()) {
+            return InstitutionContext::resolveForUser(
+                $user,
+                $request,
+                $request->get('institution_id')
+            );
+        }
+
+        return $user->institution_id ? (int) $user->institution_id : null;
     }
 }

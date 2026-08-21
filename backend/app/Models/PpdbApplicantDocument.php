@@ -12,6 +12,7 @@ class PpdbApplicantDocument extends Model
     protected $fillable = [
         'ppdb_applicant_id',
         'name',
+        'document_key',
         'file_path',
         'file_name',
         'file_size',

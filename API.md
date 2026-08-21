@@ -100,11 +100,14 @@ Admin sekolah lapor bug / request fitur; Super Admin update status.
 
 ## Mutasi Siswa
 
+Mutasi antar institusi berdasarkan NIK (jenjang sama: SD-MI, SMP-MTs, SMA-MA-SMK-MAK, PAUD-TK). Push dari sekolah asal atau pull dari sekolah tujuan.
+
 - `GET|POST /api/v1/student-mutations`
 - `GET /api/v1/student-mutations/{id}`
 - `GET /api/v1/student-mutations/target-institutions`, `origin-institutions`
+- `GET /api/v1/student-mutations/lookup-student`, `lookup-student-at-origin`
 - `POST /api/v1/student-mutations/pull`, `POST .../approve`
-- `GET /api/v1/student-mutations/report`, `export`, `by-student/{id}`, `history-by-nisn`
+- `GET /api/v1/student-mutations/report`, `export`, `by-student/{id}`, `history-by-nik`
 
 ## Mutasi Guru (modul `teacher`)
 

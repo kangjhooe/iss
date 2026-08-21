@@ -1,140 +1,142 @@
 <?php
 
+use App\Http\Controllers\API\AcademicCalendarController;
 use App\Http\Controllers\API\AcademicYearController;
+use App\Http\Controllers\API\AchievementController;
+use App\Http\Controllers\API\AchievementTypeController;
+use App\Http\Controllers\API\AdditionalDutyController;
+use App\Http\Controllers\API\AlumniController;
+use App\Http\Controllers\API\AlumniDestinationController;
+use App\Http\Controllers\API\AppBrandingController;
+use App\Http\Controllers\API\AsetTandaTanganController;
+use App\Http\Controllers\API\AttachmentController;
+use App\Http\Controllers\API\AuditLogController;
 use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\BankSoalController;
+use App\Http\Controllers\API\BkkApplicationController;
+use App\Http\Controllers\API\BkkVacancyController;
+use App\Http\Controllers\API\BkReportController;
+use App\Http\Controllers\API\BukuIndukController;
 use App\Http\Controllers\API\ClassController;
 use App\Http\Controllers\API\CorrespondenceController;
-use App\Http\Controllers\API\AttachmentController;
-use App\Http\Controllers\API\CorrespondenceStatisticsController;
 use App\Http\Controllers\API\CorrespondenceExportController;
 use App\Http\Controllers\API\CorrespondenceImportController;
+use App\Http\Controllers\API\CorrespondenceStatisticsController;
+use App\Http\Controllers\API\CounselingController;
+use App\Http\Controllers\API\CounselingTypeController;
+use App\Http\Controllers\API\DashboardChartsController;
+use App\Http\Controllers\API\DigitalArchiveController;
 use App\Http\Controllers\API\DispositionController;
-use App\Http\Controllers\API\SuratController;
-use App\Http\Controllers\API\TemplateSuratController;
-use App\Http\Controllers\API\KopSuratController;
-use App\Http\Controllers\API\AsetTandaTanganController;
+use App\Http\Controllers\API\DocumentPickupController;
+use App\Http\Controllers\API\EmployeeAttendanceController;
+use App\Http\Controllers\API\EmployeeCareerHistoryController;
+use App\Http\Controllers\API\EmployeeController;
+use App\Http\Controllers\API\EmployeeDecreeController;
+use App\Http\Controllers\API\EmployeeInstitutionAssignmentController;
+use App\Http\Controllers\API\EmployeeLeaveController;
+use App\Http\Controllers\API\EmployeeStructuralPositionController;
+use App\Http\Controllers\API\ExamAttemptController;
+use App\Http\Controllers\API\ExamControlController;
+use App\Http\Controllers\API\ExamController;
+use App\Http\Controllers\API\ExamParticipantController;
+use App\Http\Controllers\API\ExamSessionController;
+use App\Http\Controllers\API\ExtracurricularActivityController;
+use App\Http\Controllers\API\ExtracurricularController;
 use App\Http\Controllers\API\FacilityController;
-use App\Http\Controllers\API\LabBookingController;
-use App\Http\Controllers\API\LabUsageJournalController;
 use App\Http\Controllers\API\FeedbackTicketController;
 use App\Http\Controllers\API\FinanceDashboardController;
-use App\Http\Controllers\API\DashboardChartsController;
 use App\Http\Controllers\API\FinanceFeeTypeController;
 use App\Http\Controllers\API\FinanceInvoiceController;
 use App\Http\Controllers\API\FinancePaymentController;
-use App\Http\Controllers\API\StudentFinanceController;
-use App\Http\Controllers\API\ParentPortalController;
-use App\Http\Controllers\API\SchoolPostController;
-use App\Http\Controllers\API\InstitutionChangeRequestController;
-use App\Http\Controllers\API\StudentChangeRequestController;
-use App\Http\Controllers\API\TeacherChangeRequestController;
-use App\Http\Controllers\API\InstitutionController;
-use App\Http\Controllers\API\ReportController;
-use App\Http\Controllers\API\SemesterController;
-use App\Http\Controllers\API\StudentController;
-use App\Http\Controllers\API\StudentNisController;
-use App\Http\Controllers\API\BukuIndukController;
-use App\Http\Controllers\API\AlumniController;
-use App\Http\Controllers\API\AlumniDestinationController;
-use App\Http\Controllers\API\IndustryPartnerController;
-use App\Http\Controllers\API\PklPeriodController;
-use App\Http\Controllers\API\PklPlacementController;
-use App\Http\Controllers\API\PklJournalController;
-use App\Http\Controllers\API\ProgramKeahlianController;
-use App\Http\Controllers\API\BkkVacancyController;
-use App\Http\Controllers\API\BkkApplicationController;
-use App\Http\Controllers\API\NotificationController;
-use App\Http\Controllers\API\StudentMutationController;
-use App\Http\Controllers\API\TeacherMutationController;
-use App\Http\Controllers\API\ViolationController;
-use App\Http\Controllers\API\ViolationTypeController;
-use App\Http\Controllers\API\CounselingController;
-use App\Http\Controllers\API\CounselingTypeController;
-use App\Http\Controllers\API\BkReportController;
-use App\Http\Controllers\API\UksVisitController;
-use App\Http\Controllers\API\UksVisitTypeController;
-use App\Http\Controllers\API\UksReportController;
-use App\Http\Controllers\API\UksMedicineController;
-use App\Http\Controllers\API\AchievementController;
-use App\Http\Controllers\API\AchievementTypeController;
-use App\Http\Controllers\API\PointThresholdController;
-use App\Http\Controllers\API\StudentActionLogController;
-use App\Http\Controllers\API\StudentPointController;
-use App\Http\Controllers\API\TeacherAchievementTypeController;
-use App\Http\Controllers\API\TeacherAchievementController;
-use App\Http\Controllers\API\TeacherPointRewardController;
-use App\Http\Controllers\API\TeacherRewardLogController;
-use App\Http\Controllers\API\TeacherPointController;
-use App\Http\Controllers\API\MyTeacherAppreciationController;
-use App\Http\Controllers\API\TeacherViolationTypeController;
-use App\Http\Controllers\API\TeacherViolationController;
-use App\Http\Controllers\API\PiketController;
-use App\Http\Controllers\API\EmployeeController;
-use App\Http\Controllers\API\EmployeeInstitutionAssignmentController;
-use App\Http\Controllers\API\EmployeeLeaveController;
-use App\Http\Controllers\API\EmployeeDecreeController;
-use App\Http\Controllers\API\EmployeeStructuralPositionController;
-use App\Http\Controllers\API\EmployeeCareerHistoryController;
-use App\Http\Controllers\API\InventoryController;
-use App\Http\Controllers\API\InventoryCategoryController;
-use App\Http\Controllers\API\InventoryTransactionController;
-use App\Http\Controllers\API\InventoryMaintenanceController;
-use App\Http\Controllers\API\InventoryLoanController;
-use App\Http\Controllers\API\InventoryReportController;
-use App\Http\Controllers\API\TeacherDashboardController;
-use App\Http\Controllers\API\WaliKelasController;
-use App\Http\Controllers\API\SuperAdminDashboardController;
-use App\Http\Controllers\API\InstitutionAdminController;
-use App\Http\Controllers\API\SuperAdminAdoptionController;
-use App\Http\Controllers\API\SuperAdminBroadcastController;
-use App\Http\Controllers\API\SuperAdminReleaseController;
-use App\Http\Controllers\API\PublicReleaseController;
-use App\Http\Controllers\API\SuperAdminReportController;
-use App\Http\Controllers\API\SuperAdminDatabaseBackupController;
-use App\Http\Controllers\API\SuperAdminImpersonationController;
-use App\Http\Controllers\API\SuperAdminMonetizationController;
-use App\Http\Controllers\API\InstitutionMonetizationController;
-use App\Http\Controllers\API\PermissionController;
-use App\Http\Controllers\API\AdditionalDutyController;
-use App\Http\Controllers\API\AuditLogController;
-use App\Http\Controllers\API\SubjectController;
-use App\Http\Controllers\API\LessonScheduleController;
-use App\Http\Controllers\API\LessonScheduleTemplateController;
-use App\Http\Controllers\API\TeachingJournalController;
 use App\Http\Controllers\API\GradeController;
 use App\Http\Controllers\API\GradeRemedialController;
-use App\Http\Controllers\API\DigitalArchiveController;
-use App\Http\Controllers\API\StudentAttendanceController;
-use App\Http\Controllers\API\EmployeeAttendanceController;
-use App\Http\Controllers\API\QrAttendanceController;
 use App\Http\Controllers\API\GuestVisitController;
-use App\Http\Controllers\API\DocumentPickupController;
-use App\Http\Controllers\API\ExtracurricularController;
-use App\Http\Controllers\API\ExtracurricularActivityController;
+use App\Http\Controllers\API\IndustryPartnerController;
+use App\Http\Controllers\API\InstitutionAdminController;
+use App\Http\Controllers\API\InstitutionChangeRequestController;
+use App\Http\Controllers\API\InstitutionController;
+use App\Http\Controllers\API\InstitutionMonetizationController;
+use App\Http\Controllers\API\InventoryCategoryController;
+use App\Http\Controllers\API\InventoryController;
+use App\Http\Controllers\API\InventoryLoanController;
+use App\Http\Controllers\API\InventoryMaintenanceController;
+use App\Http\Controllers\API\InventoryReportController;
+use App\Http\Controllers\API\InventoryTransactionController;
+use App\Http\Controllers\API\KopSuratController;
+use App\Http\Controllers\API\LabBookingController;
+use App\Http\Controllers\API\LabUsageJournalController;
+use App\Http\Controllers\API\LessonScheduleController;
+use App\Http\Controllers\API\LessonScheduleTemplateController;
 use App\Http\Controllers\API\LibraryBookCategoryController;
 use App\Http\Controllers\API\LibraryBookController;
 use App\Http\Controllers\API\LibraryBookCopyController;
-use App\Http\Controllers\API\LibraryLoanController;
 use App\Http\Controllers\API\LibraryFinePaymentController;
+use App\Http\Controllers\API\LibraryLoanController;
 use App\Http\Controllers\API\LibraryReportController;
-use App\Http\Controllers\API\AcademicCalendarController;
-use App\Http\Controllers\API\PpdbPeriodController;
-use App\Http\Controllers\API\PpdbChannelController;
+use App\Http\Controllers\API\MyTeacherAppreciationController;
+use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\ParentPortalController;
+use App\Http\Controllers\API\PasswordResetRequestController;
+use App\Http\Controllers\API\PermissionController;
+use App\Http\Controllers\API\PiketController;
+use App\Http\Controllers\API\PklJournalController;
+use App\Http\Controllers\API\PklPeriodController;
+use App\Http\Controllers\API\PklPlacementController;
+use App\Http\Controllers\API\PointThresholdController;
 use App\Http\Controllers\API\PpdbApplicantController;
+use App\Http\Controllers\API\PpdbChannelController;
 use App\Http\Controllers\API\PpdbDashboardController;
-use App\Http\Controllers\API\PublicPpdbController;
+use App\Http\Controllers\API\PpdbPeriodController;
+use App\Http\Controllers\API\ProgramKeahlianController;
 use App\Http\Controllers\API\PublicLibraryController;
+use App\Http\Controllers\API\PublicPpdbController;
+use App\Http\Controllers\API\PublicReleaseController;
 use App\Http\Controllers\API\PublicSchoolController;
-use App\Http\Controllers\API\AppBrandingController;
-use App\Http\Controllers\API\ExamController;
-use App\Http\Controllers\API\ExamSessionController;
-use App\Http\Controllers\API\ExamControlController;
-use App\Http\Controllers\API\ExamParticipantController;
-use App\Http\Controllers\API\ExamAttemptController;
-use App\Http\Controllers\API\QuestionStimulusController;
-use App\Http\Controllers\API\QuestionBankController;
+use App\Http\Controllers\API\QrAttendanceController;
+use App\Http\Controllers\API\RegionController;
 use App\Http\Controllers\API\QuestionAssetController;
-use App\Http\Controllers\API\BankSoalController;
+use App\Http\Controllers\API\QuestionBankController;
+use App\Http\Controllers\API\QuestionStimulusController;
+use App\Http\Controllers\API\ReportController;
+use App\Http\Controllers\API\SchoolPostController;
+use App\Http\Controllers\API\SemesterController;
+use App\Http\Controllers\API\StudentActionLogController;
+use App\Http\Controllers\API\StudentAttendanceController;
+use App\Http\Controllers\API\StudentChangeRequestController;
+use App\Http\Controllers\API\StudentController;
+use App\Http\Controllers\API\StudentFinanceController;
+use App\Http\Controllers\API\StudentMutationController;
+use App\Http\Controllers\API\StudentNisController;
+use App\Http\Controllers\API\StudentPointController;
+use App\Http\Controllers\API\SubjectController;
+use App\Http\Controllers\API\SuperAdminAdoptionController;
+use App\Http\Controllers\API\SuperAdminBroadcastController;
+use App\Http\Controllers\API\SuperAdminDashboardController;
+use App\Http\Controllers\API\SuperAdminDatabaseBackupController;
+use App\Http\Controllers\API\SuperAdminImpersonationController;
+use App\Http\Controllers\API\SuperAdminMonetizationController;
+use App\Http\Controllers\API\SuperAdminReleaseController;
+use App\Http\Controllers\API\SuperAdminReportController;
+use App\Http\Controllers\API\SuratController;
+use App\Http\Controllers\API\TeacherAchievementController;
+use App\Http\Controllers\API\TeacherAchievementTypeController;
+use App\Http\Controllers\API\TeacherChangeRequestController;
+use App\Http\Controllers\API\TeacherDashboardController;
+use App\Http\Controllers\API\TeacherMutationController;
+use App\Http\Controllers\API\TeacherPointController;
+use App\Http\Controllers\API\TeacherPointRewardController;
+use App\Http\Controllers\API\TeacherRewardLogController;
+use App\Http\Controllers\API\TeacherViolationController;
+use App\Http\Controllers\API\TeacherViolationTypeController;
+use App\Http\Controllers\API\TeachingJournalController;
+use App\Http\Controllers\API\TemplateSuratController;
+use App\Http\Controllers\API\UksMedicineController;
+use App\Http\Controllers\API\UksReportController;
+use App\Http\Controllers\API\UksVisitController;
+use App\Http\Controllers\API\UksVisitTypeController;
+use App\Http\Controllers\API\ViolationController;
+use App\Http\Controllers\API\ViolationTypeController;
+use App\Http\Controllers\API\WaliKelasController;
 use Illuminate\Support\Facades\Route;
 
 // API Info route
@@ -147,6 +149,7 @@ Route::get('/', function () {
                 'POST /api/v1/register' => 'Register new institution',
                 'POST /api/v1/login' => 'Login user',
                 'POST /api/v1/forgot-password' => 'Request password reset',
+                'POST /api/v1/password-reset-requests' => 'Request school password reset via admin',
                 'POST /api/v1/reset-password' => 'Reset password',
                 'POST /api/v1/verify-email' => 'Verify email address',
                 'POST /api/v1/resend-verification' => 'Resend verification email',
@@ -193,6 +196,7 @@ Route::middleware('throttle:5,1')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/password-reset-requests', [PasswordResetRequestController::class, 'store']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
     Route::post('/resend-verification', [AuthController::class, 'resendVerificationEmail']);
@@ -203,7 +207,9 @@ Route::middleware('throttle:5,1')->group(function () {
 Route::get('/public/ppdb/periods', [PublicPpdbController::class, 'openPeriods'])->name('public.ppdb.periods');
 Route::get('/public/ppdb/channels', [PublicPpdbController::class, 'openChannels'])->name('public.ppdb.channels');
 Route::middleware('throttle:15,1')->get('/public/ppdb/prefill', [PublicPpdbController::class, 'prefill'])->name('public.ppdb.prefill');
-    Route::middleware('throttle:10,1')->get('/public/ppdb/check-result', [PublicPpdbController::class, 'checkResult'])->name('public.ppdb.check-result');
+Route::middleware('throttle:10,1')->get('/public/ppdb/check-result', [PublicPpdbController::class, 'checkResult'])->name('public.ppdb.check-result');
+Route::middleware('throttle:20,1')->get('/public/ppdb/document-checklist', [PublicPpdbController::class, 'documentChecklist'])->name('public.ppdb.document-checklist');
+Route::middleware('throttle:10,1')->get('/public/ppdb/registration-slip', [PublicPpdbController::class, 'registrationSlip'])->name('public.ppdb.registration-slip');
 Route::middleware('throttle:10,1')->post('/public/ppdb/confirm-re-registration', [PublicPpdbController::class, 'confirmReRegistration'])->name('public.ppdb.confirm-re-registration');
 Route::middleware('throttle:10,1')->post('/public/ppdb/documents', [PublicPpdbController::class, 'uploadDocument'])->name('public.ppdb.upload-document');
 Route::middleware('throttle:10,1')->post('/public/ppdb/register', [PublicPpdbController::class, 'register'])->name('public.ppdb.register');
@@ -220,6 +226,12 @@ Route::middleware('throttle:60,1')->prefix('exam/attempt')->group(function () {
 Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])->name('public.school.show');
 Route::get('/public/school/posts', [SchoolPostController::class, 'publicByNpsn'])->name('public.school.posts');
 Route::middleware('throttle:30,1')->get('/public/npsn-lookup', [PublicSchoolController::class, 'lookupNpsnReferensi'])->name('public.npsn-lookup');
+Route::middleware('throttle:60,1')->prefix('public/regions')->group(function () {
+    Route::get('/provinces', [RegionController::class, 'provinces'])->name('public.regions.provinces');
+    Route::get('/regencies', [RegionController::class, 'regencies'])->name('public.regions.regencies');
+    Route::get('/districts', [RegionController::class, 'districts'])->name('public.regions.districts');
+    Route::get('/villages', [RegionController::class, 'villages'])->name('public.regions.villages');
+});
 Route::middleware('throttle:5,1')->post('/public/guest-visit', [PublicSchoolController::class, 'storeGuestVisit'])->name('public.guest-visit.store');
 
 // Public perpustakaan digital (ebook publik by NPSN, tanpa login)
@@ -253,6 +265,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::get('/permissions', [PermissionController::class, 'index']);
     Route::get('/permissions/teachers', [PermissionController::class, 'getTeachers']);
     Route::put('/permissions/users/{userId}', [PermissionController::class, 'updateUserPermissions']);
+    Route::get('/permissions/institution-visibility', [PermissionController::class, 'getInstitutionVisibility']);
+    Route::put('/permissions/institution-visibility', [PermissionController::class, 'updateInstitutionVisibility']);
     Route::get('/additional-duties', [AdditionalDutyController::class, 'index']);
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     Route::get('/audit-logs/filter-options', [AuditLogController::class, 'filterOptions'])->name('audit-logs.filter-options');
@@ -286,6 +300,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/student/generate-nis/preview', [StudentNisController::class, 'previewGenerate'])->name('student.generate-nis.preview');
         Route::post('/student/generate-nis', [StudentNisController::class, 'generateBulk'])->name('student.generate-nis.bulk');
         Route::post('/student', [StudentController::class, 'store']);
+        Route::get('/student/feeder-alumni', [StudentController::class, 'feederAlumni'])->name('student.feeder-alumni');
+        Route::post('/student/pull-from-feeder', [StudentController::class, 'pullFromFeeder'])->name('student.pull-from-feeder');
         Route::post('/student/promote', [StudentController::class, 'promote'])->name('student.promote');
         Route::post('/student/import', [StudentController::class, 'import'])->name('student.import');
         Route::post('/student/ensure-accounts-bulk', [StudentController::class, 'ensureAccountsBulk'])->name('student.ensure-accounts-bulk');
@@ -302,6 +318,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/student/{id}/reset-password', [StudentController::class, 'resetPassword'])->name('student.reset-password');
         Route::delete('/student/{id}', [StudentController::class, 'destroy']);
         Route::post('/student/{id}/restore', [StudentController::class, 'restore']);
+        Route::delete('/student/{id}/force', [StudentController::class, 'forceDestroy']);
         Route::post('/student/{id}/graduate', [AlumniController::class, 'graduate']);
         Route::post('/student/{id}/revoke-graduation', [AlumniController::class, 'revokeGraduation']);
         Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
@@ -312,6 +329,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/alumni/students/{studentId}/destinations', [AlumniDestinationController::class, 'indexByStudent'])->name('alumni.destinations.by-student');
         Route::post('/alumni-destinations', [AlumniDestinationController::class, 'store'])->name('alumni-destinations.store');
         Route::put('/alumni-destinations/{alumni_destination}', [AlumniDestinationController::class, 'update'])->name('alumni-destinations.update');
+        Route::post('/alumni-destinations/{alumni_destination}/approve', [AlumniDestinationController::class, 'approve'])->name('alumni-destinations.approve');
+        Route::post('/alumni-destinations/{alumni_destination}/reject', [AlumniDestinationController::class, 'reject'])->name('alumni-destinations.reject');
         Route::delete('/alumni-destinations/{alumni_destination}', [AlumniDestinationController::class, 'destroy'])->name('alumni-destinations.destroy');
         // Student mutation (mutasi siswa)
         Route::get('/student-mutations/target-institutions', [StudentMutationController::class, 'searchTargetInstitutions'])->name('student-mutations.target-institutions');
@@ -326,7 +345,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/student-mutations/report', [StudentMutationController::class, 'report'])->name('student-mutations.report');
         Route::get('/student-mutations/export', [StudentMutationController::class, 'export'])->name('student-mutations.export');
         Route::get('/student-mutations/by-student/{student_id}', [StudentMutationController::class, 'historyByStudent'])->name('student-mutations.by-student');
-        Route::get('/student-mutations/history-by-nisn', [StudentMutationController::class, 'historyByNisn'])->name('student-mutations.history-by-nisn');
+        Route::get('/student-mutations/history-by-nik', [StudentMutationController::class, 'historyByNik'])->name('student-mutations.history-by-nik');
         Route::post('/student-mutations', [StudentMutationController::class, 'store']);
         Route::get('/student-mutations/{student_mutation}', [StudentMutationController::class, 'show']);
     });
@@ -701,6 +720,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::put('/employee/{id}', [EmployeeController::class, 'update']);
         Route::delete('/employee/{id}', [EmployeeController::class, 'destroy']);
         Route::post('/employee/{id}/restore', [EmployeeController::class, 'restore']);
+        Route::delete('/employee/{id}/force', [EmployeeController::class, 'forceDestroy']);
         Route::post('/employee/{id}/reset-password', [EmployeeController::class, 'resetPasswordByAdmin'])->name('employee.reset-password');
         Route::post('/employee/import', [EmployeeController::class, 'import'])->name('employee.import');
         Route::post('/employee/{id}/documents', [EmployeeController::class, 'uploadDocument'])->name('employee.upload-document');
@@ -774,7 +794,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     // Index route accessible to all authenticated users (for selecting academic years)
     Route::get('/academic-years', [AcademicYearController::class, 'index'])->name('academic-years.index');
     Route::get('/academic-years/{id}', [AcademicYearController::class, 'show'])->name('academic-years.show');
-    
+
     // Super Admin only routes for managing academic years
     Route::middleware(\App\Http\Middleware\EnsureSuperAdmin::class)->group(function () {
         Route::get('/academic-years/active', [AcademicYearController::class, 'active'])->name('academic-years.active');
@@ -856,13 +876,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/lands', [FacilityController::class, 'createLand']);
         Route::put('/lands/{id}', [FacilityController::class, 'updateLand']);
         Route::delete('/lands/{id}', [FacilityController::class, 'deleteLand']);
-        
+
         // Building routes
         Route::get('/buildings', [FacilityController::class, 'getBuildings']);
         Route::post('/buildings', [FacilityController::class, 'createBuilding']);
         Route::put('/buildings/{id}', [FacilityController::class, 'updateBuilding']);
         Route::delete('/buildings/{id}', [FacilityController::class, 'deleteBuilding']);
-        
+
         // Room routes
         Route::get('/rooms', [FacilityController::class, 'getRooms']);
         Route::get('/rooms/{id}', [FacilityController::class, 'getRoom']);
@@ -901,28 +921,28 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::prefix('inventory')->middleware('module:inventory')->group(function () {
         // Category routes
         Route::apiResource('categories', InventoryCategoryController::class);
-        
+
         // Item routes
         Route::apiResource('items', InventoryController::class);
         Route::post('/items/{id}/restore', [InventoryController::class, 'restore']);
-        
+
         // Transaction routes
         Route::get('/transactions', [InventoryTransactionController::class, 'index'])->name('inventory.transactions.index');
         Route::post('/transactions', [InventoryTransactionController::class, 'store'])->name('inventory.transactions.store');
         Route::get('/transactions/{transaction}', [InventoryTransactionController::class, 'show'])->name('inventory.transactions.show');
-        
+
         // Maintenance routes
         Route::get('/maintenances', [InventoryMaintenanceController::class, 'index'])->name('inventory.maintenances.index');
         Route::post('/maintenances', [InventoryMaintenanceController::class, 'store'])->name('inventory.maintenances.store');
         Route::get('/maintenances/{maintenance}', [InventoryMaintenanceController::class, 'show'])->name('inventory.maintenances.show');
         Route::put('/maintenances/{maintenance}', [InventoryMaintenanceController::class, 'update'])->name('inventory.maintenances.update');
-        
+
         // Loan routes
         Route::get('/loans', [InventoryLoanController::class, 'index'])->name('inventory.loans.index');
         Route::post('/loans', [InventoryLoanController::class, 'store'])->name('inventory.loans.store');
         Route::get('/loans/{loan}', [InventoryLoanController::class, 'show'])->name('inventory.loans.show');
         Route::post('/loans/{loan}/return', [InventoryLoanController::class, 'return'])->name('inventory.loans.return');
-        
+
         // Report routes
         Route::prefix('reports')->group(function () {
             Route::get('/statistics', [InventoryReportController::class, 'statistics'])->name('inventory.reports.statistics');
@@ -946,6 +966,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     // Teacher dashboard
     Route::get('/teacher/dashboard', [TeacherDashboardController::class, 'index'])->name('teacher.dashboard');
     Route::get('/teacher/today-sessions', [TeacherDashboardController::class, 'todaySessions'])->name('teacher.today-sessions');
+    Route::get('/teacher/today-sessions/export-pdf', [TeacherDashboardController::class, 'exportTodaySessionsPdf'])->name('teacher.today-sessions.export-pdf');
     Route::get('/teacher/dashboard/classes/{id}/students', [TeacherDashboardController::class, 'classStudents'])
         ->name('teacher.dashboard.class-students');
 
@@ -987,6 +1008,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::get('/super-admin/institution-admins', [InstitutionAdminController::class, 'index'])->name('super-admin.institution-admins.index');
     Route::post('/super-admin/institution-admins', [InstitutionAdminController::class, 'store'])->name('super-admin.institution-admins.store');
     Route::post('/super-admin/institution-admins/{id}/reset-password', [InstitutionAdminController::class, 'resetPassword'])->name('super-admin.institution-admins.reset-password');
+    Route::get('/password-reset-requests/pending-count', [PasswordResetRequestController::class, 'pendingCount'])->name('password-reset-requests.pending-count');
+    Route::get('/password-reset-requests', [PasswordResetRequestController::class, 'index'])->name('password-reset-requests.index');
+    Route::post('/password-reset-requests/{id}/process', [PasswordResetRequestController::class, 'process'])->name('password-reset-requests.process');
+    Route::post('/password-reset-requests/{id}/reject', [PasswordResetRequestController::class, 'reject'])->name('password-reset-requests.reject');
     Route::post('/super-admin/institution-admins/{id}/status', [InstitutionAdminController::class, 'updateStatus'])->name('super-admin.institution-admins.status');
     Route::post('/super-admin/onboard', [InstitutionAdminController::class, 'onboard'])->name('super-admin.onboard');
 
@@ -1212,6 +1237,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('ppdb-applicants/{ppdb_applicant}/payment', [PpdbApplicantController::class, 'setPayment'])->name('ppdb-applicants.payment');
         Route::post('ppdb-applicants/{ppdb_applicant}/confirm-re-registration', [PpdbApplicantController::class, 'confirmReRegistration'])->name('ppdb-applicants.confirm-re-registration');
         Route::post('ppdb-applicants/{ppdb_applicant}/convert-to-student', [PpdbApplicantController::class, 'convertToStudent'])->name('ppdb-applicants.convert-to-student');
+        Route::get('ppdb-applicants/{ppdb_applicant}/registration-slip', [PpdbApplicantController::class, 'registrationSlip'])->name('ppdb-applicants.registration-slip');
         Route::post('ppdb-applicants/{ppdb_applicant}/documents', [PpdbApplicantController::class, 'uploadDocument'])->name('ppdb-applicants.upload-document');
         Route::delete('ppdb-applicants/{ppdb_applicant}/documents/{documentId}', [PpdbApplicantController::class, 'deleteDocument'])->name('ppdb-applicants.delete-document');
         Route::get('ppdb-applicants/{ppdb_applicant}/documents/{documentId}/download', [PpdbApplicantController::class, 'downloadDocument'])->name('ppdb-applicants.download-document');

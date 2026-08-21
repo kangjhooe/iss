@@ -190,14 +190,20 @@ class ExamParticipantController extends Controller
             return response()->json(['message' => 'Peserta tidak ditemukan.'], 404);
         }
         $items = $exam_participant->answers()->with('questionBank')->orderBy('id')->get();
-        $list = $items->map(function ($a) {
-            $q = $a->questionBank;
+        $exam = $exam_participant->examSession->exam;
+        $exam->loadMissing('examQuestions');
+        $byQuestionId = $exam->examQuestions->keyBy('question_bank_id');
+        $list = $items->map(function ($a) use ($byQuestionId) {
+            $eq = $byQuestionId->get($a->question_bank_id);
+            $snapshot = $eq
+                ? $eq->scoringPayload($a->questionBank)
+                : ($a->questionBank ? \App\Services\ExamQuestionSnapshot::capture($a->questionBank) : null);
             return [
                 'id' => $a->id,
                 'question_bank_id' => $a->question_bank_id,
-                'type' => $q->type,
-                'body' => $q->body,
-                'weight' => (float) $q->weight,
+                'type' => $snapshot['type'] ?? $a->questionBank?->type,
+                'body' => $snapshot['body'] ?? $a->questionBank?->body,
+                'weight' => (float) ($snapshot['weight'] ?? $a->questionBank?->weight ?? 0),
                 'answer_text' => $a->answer_text,
                 'question_option_id' => $a->question_option_id,
                 'score' => $a->score !== null ? (float) $a->score : null,

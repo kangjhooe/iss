@@ -159,7 +159,7 @@ async function submit() {
       router.push(`/ujian-online/exams/${encodeURIComponent(form.code)}`)
     } else {
       const res = await examApi.createExam(payload)
-      toast.success('Berhasil', 'Ujian dibuat. Selanjutnya: guru atur soal dari bank soal, admin atur jadwal lewat sesi.')
+      toast.success('Berhasil', 'Ujian dibuat. Selanjutnya: pilih soal dari bank (boleh lintas tingkat), lalu atur sesi.')
       const created = res.data?.data ?? res.data
       const code = created?.code
       if (code) router.push(`/ujian-online/exams/${encodeURIComponent(code)}`)

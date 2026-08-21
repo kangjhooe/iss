@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\RegionAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -32,6 +33,16 @@ class StudentResource extends JsonResource
             'birth_date' => $this->birth_date?->format('Y-m-d'),
             'birth_place' => $this->birth_place,
             'address' => $this->address,
+            'village' => $this->village,
+            'sub_district' => $this->sub_district,
+            'district' => $this->district,
+            'province' => $this->province,
+            'postal_code' => $this->postal_code,
+            'wilayah_province_code' => $this->wilayah_province_code,
+            'wilayah_regency_code' => $this->wilayah_regency_code,
+            'wilayah_district_code' => $this->wilayah_district_code,
+            'wilayah_village_code' => $this->wilayah_village_code,
+            'full_address' => RegionAddress::format($this->resource),
             'phone' => $this->phone,
             'email' => $this->email,
             'religion' => $this->religion,
@@ -46,12 +57,15 @@ class StudentResource extends JsonResource
             'previous_school_address' => $this->previous_school_address,
             'residence_type' => $this->residence_type,
             'tingkat' => $this->tingkat,
-            'class' => $this->getRawOriginal('class'), // string column; use class_detail for relation
+            'class' => $this->resolvedClassName(),
             'class_id' => $this->class_id,
             'class_detail' => $this->when(
-                $this->relationLoaded('class') && $this->getRelation('class') instanceof \App\Models\SchoolClass,
+                ($this->relationLoaded('class') && $this->getRelation('class') instanceof \App\Models\SchoolClass)
+                    || ($this->relationLoaded('schoolClass') && $this->getRelation('schoolClass') instanceof \App\Models\SchoolClass),
                 function () {
-                    $classModel = $this->getRelation('class');
+                    $classModel = $this->relationLoaded('class') && $this->getRelation('class') instanceof \App\Models\SchoolClass
+                        ? $this->getRelation('class')
+                        : $this->getRelation('schoolClass');
                     return [
                         'id' => $classModel->id,
                         'name' => $classModel->name,
@@ -158,6 +172,9 @@ class StudentResource extends JsonResource
                     'program_or_position' => $d->program_or_position,
                     'year_entered' => $d->year_entered,
                     'notes' => $d->notes,
+                    'status' => $d->status ?: 'approved',
+                    'source' => $d->source ?: 'manual',
+                    'is_pending' => $d->status === 'pending',
                 ];
             }),
             'alumni_destinations' => $this->whenLoaded('alumniDestinations', function () {
@@ -169,6 +186,8 @@ class StudentResource extends JsonResource
                         'program_or_position' => $d->program_or_position,
                         'year_entered' => $d->year_entered,
                         'notes' => $d->notes,
+                        'status' => $d->status ?: 'approved',
+                        'source' => $d->source ?: 'manual',
                         'created_at' => $d->created_at?->toIso8601String(),
                     ];
                 });

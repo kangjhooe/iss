@@ -20,6 +20,21 @@ class AlumniDestination extends Model
         'Lainnya' => 'Lainnya',
     ];
 
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_APPROVED = 'approved';
+
+    public const STATUS_REJECTED = 'rejected';
+
+    public const SOURCE_MANUAL = 'manual';
+
+    public const SOURCE_AUTO_ENROLLMENT = 'auto_enrollment';
+
+    protected $attributes = [
+        'status' => self::STATUS_APPROVED,
+        'source' => self::SOURCE_MANUAL,
+    ];
+
     protected $fillable = [
         'institution_id',
         'student_id',
@@ -28,12 +43,19 @@ class AlumniDestination extends Model
         'program_or_position',
         'year_entered',
         'notes',
+        'status',
+        'source',
+        'related_student_id',
+        'related_institution_id',
+        'reviewed_by',
+        'reviewed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'year_entered' => 'integer',
+            'reviewed_at' => 'datetime',
         ];
     }
 
@@ -45,6 +67,31 @@ class AlumniDestination extends Model
     public function student()
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function relatedStudent()
+    {
+        return $this->belongsTo(Student::class, 'related_student_id');
+    }
+
+    public function relatedInstitution()
+    {
+        return $this->belongsTo(Institution::class, 'related_institution_id');
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isAutoEnrollment(): bool
+    {
+        return $this->source === self::SOURCE_AUTO_ENROLLMENT;
     }
 
     public function scopeForInstitution($query, int $institutionId)

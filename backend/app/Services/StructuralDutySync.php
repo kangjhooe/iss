@@ -8,6 +8,7 @@ use App\Models\Permission;
 use App\Models\StructuralPosition;
 use App\Models\User;
 use App\Support\KaprogAccess;
+use App\Support\ReportAccess;
 use App\Support\TeacherAccess;
 
 /**
@@ -106,7 +107,7 @@ class StructuralDutySync
         foreach ($newStructural as $dutyId) {
             $key = AdditionalDuty::query()->where('id', $dutyId)->value('key');
             $position = $key ? StructuralPosition::query()->where('key', $key)->first() : null;
-            if (!$position) {
+            if (! $position) {
                 continue;
             }
 
@@ -116,6 +117,7 @@ class StructuralDutySync
                 ->exists();
             if ($alreadyActive) {
                 $this->grant($employee, $key, now()->toDateString());
+
                 continue;
             }
 
@@ -132,7 +134,7 @@ class StructuralDutySync
     public function grant(Employee $employee, string $positionKey, string $startedAt): void
     {
         $duty = AdditionalDuty::query()->where('key', $positionKey)->first();
-        if (!$duty) {
+        if (! $duty) {
             return;
         }
 
@@ -172,7 +174,7 @@ class StructuralDutySync
     public function revoke(Employee $employee, string $positionKey): void
     {
         $duty = AdditionalDuty::query()->where('key', $positionKey)->first();
-        if (!$duty) {
+        if (! $duty) {
             return;
         }
 
@@ -195,12 +197,12 @@ class StructuralDutySync
      */
     public function refreshAccess(Employee $employee): void
     {
-        if (!$employee->email) {
+        if (! $employee->email) {
             return;
         }
 
         $user = User::query()->where('email', $employee->email)->first();
-        if (!$user || !in_array($user->role, ['teacher', 'staff'], true)) {
+        if (! $user || ! in_array($user->role, ['teacher', 'staff'], true)) {
             return;
         }
 
@@ -218,6 +220,8 @@ class StructuralDutySync
         if ($user->role === 'teacher' || $employee->type === 'Guru') {
             $effective = TeacherAccess::mergeTeachingDefaults($effective);
         }
+
+        $effective = ReportAccess::sanitizeKeysForEmployee($employee, $effective);
 
         $permissionIds = Permission::query()->whereIn('key', $effective)->pluck('id')->all();
         $user->permissions()->sync($permissionIds);

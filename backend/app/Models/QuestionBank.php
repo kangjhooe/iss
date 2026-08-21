@@ -68,6 +68,11 @@ class QuestionBank extends Model
         return $this->hasMany(QuestionOption::class, 'question_bank_id')->orderBy('sort_order');
     }
 
+    public function examQuestions()
+    {
+        return $this->hasMany(ExamQuestion::class, 'question_bank_id');
+    }
+
     public function scopeForInstitution($query, int $institutionId)
     {
         return $query->where('institution_id', $institutionId);

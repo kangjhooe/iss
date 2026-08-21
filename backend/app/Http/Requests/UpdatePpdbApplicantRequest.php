@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Rules\NpsnReferensiRule;
 use App\Http\Rules\UniqueNisnPerPpdbPeriod;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,7 +33,7 @@ class UpdatePpdbApplicantRequest extends FormRequest
             'gender' => 'sometimes|in:L,P',
             'birth_date' => 'nullable|date',
             'birth_place' => 'nullable|string|max:255',
-            'address' => 'nullable|string',
+            ...RegionAddress::rules(),
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'religion' => 'nullable|string|max:50',
@@ -57,7 +58,7 @@ class UpdatePpdbApplicantRequest extends FormRequest
             'guardian_name' => 'nullable|string|max:255',
             'guardian_phone' => 'nullable|string|max:50',
             'guardian_relation' => 'nullable|string|max:100',
-            'status' => 'nullable|in:draft,submitted,verification,verified,rejected,passed,reserve,failed,re_registration,converted,cancelled',
+            'status' => 'nullable|in:draft,submitted,verification,verified,rejected,passed,reserve,failed,re_registration,converted,cancelled,accepted_elsewhere',
             'documents_verified' => 'nullable|boolean',
             'verification_notes' => 'nullable|string',
             'notes' => 'nullable|string',

@@ -161,6 +161,12 @@ class BankSoalController extends Controller
         if (!$this->canAccessBank($request, $bank_soal)) {
             return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
         }
+        $usedInExam = $bank_soal->questions()->whereHas('examQuestions')->exists();
+        if ($usedInExam) {
+            return response()->json([
+                'message' => 'Bank tidak bisa dihapus karena ada soal yang terpasang di ujian. Lepas soal dari paket ujian terlebih dahulu.',
+            ], 422);
+        }
         $bank_soal->delete();
         return response()->json(['message' => 'Bank soal dihapus.']);
     }

@@ -25,24 +25,17 @@ class TeacherMutationService
      */
     public function lookupTeacherByNik(int $institutionId, string $nik): array
     {
-        $employee = Employee::where('nik', $nik)
-            ->where('institution_id', $institutionId)
-            ->where('type', 'Guru')
-            ->where('status', 'Aktif')
-            ->first();
-
-        if (!$employee) {
-            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
-        }
+        $employee = $this->findOutgoingTeacherByNik($nik, $institutionId);
 
         return $this->formatTeacherLookup($employee);
     }
 
     /**
-     * Lookup active teacher at origin school by NPSN + NIK (for pull confirmation preview).
+     * Lookup teacher at origin school by NPSN + NIK (for pull confirmation preview).
+     * Guru aktif di kotak sampah sekolah asal tetap bisa ditarik (menunggu persetujuan asal).
      * Tidak ada batasan jenjang untuk mutasi guru.
      *
-     * @return array{id: int, nik: string|null, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, institution: array{id: int, name: string, npsn: string|null, level: string|null}}
+     * @return array{id: int, nik: string|null, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, in_trash: bool, institution: array{id: int, name: string, npsn: string|null, level: string|null}}
      */
     public function lookupTeacherAtOriginByNpsn(string $originNpsn, string $nik, int $excludeInstitutionId): array
     {
@@ -54,15 +47,7 @@ class TeacherMutationService
             throw new \InvalidArgumentException('Sekolah asal harus berbeda dengan sekolah Anda.');
         }
 
-        $employee = Employee::where('nik', $nik)
-            ->where('institution_id', $origin->id)
-            ->where('type', 'Guru')
-            ->where('status', 'Aktif')
-            ->first();
-
-        if (!$employee) {
-            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
-        }
+        $employee = $this->findPullableTeacherByNik($nik, $origin->id);
 
         $data = $this->formatTeacherLookup($employee);
         $data['institution'] = [
@@ -76,9 +61,82 @@ class TeacherMutationService
     }
 
     /**
+     * Guru aktif di sekolah sendiri untuk pengajuan mutasi keluar (bukan dari kotak sampah).
+     */
+    public function findOutgoingTeacherByNik(string $nik, int $institutionId): Employee
+    {
+        $employee = Employee::withTrashed()
+            ->where('nik', $nik)
+            ->where('institution_id', $institutionId)
+            ->where('type', 'Guru')
+            ->first();
+
+        if (! $employee) {
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+        }
+        if ($employee->trashed()) {
+            throw new \InvalidArgumentException('Guru ada di kotak sampah. Pulihkan dulu dari Data Guru, lalu ajukan mutasi.');
+        }
+        if ($employee->status !== 'Aktif') {
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+        }
+
+        return $employee;
+    }
+
+    /**
+     * Guru yang boleh ditarik sekolah lain: aktif, atau aktif yang masuk kotak sampah.
+     */
+    public function findPullableTeacherByNik(string $nik, int $institutionId): Employee
+    {
+        $employee = Employee::withTrashed()
+            ->where('nik', $nik)
+            ->where('institution_id', $institutionId)
+            ->where('type', 'Guru')
+            ->first();
+
+        if (! $employee) {
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah asal.');
+        }
+        if ($employee->trashed()) {
+            if ($employee->status !== 'Aktif') {
+                throw new \InvalidArgumentException('Guru ada di kotak sampah sekolah asal dengan status '.$employee->status.'. Hanya guru aktif yang dihapus yang dapat ditarik.');
+            }
+
+            return $employee;
+        }
+        if ($employee->status !== 'Aktif') {
+            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
+        }
+
+        return $employee;
+    }
+
+    /**
+     * NIK unik global, termasuk data di kotak sampah.
+     */
+    protected function assertNikAvailableForNewTeacher(string $nik, int $targetInstitutionId): void
+    {
+        $existing = Employee::withTrashed()->where('nik', $nik)->first();
+        if (! $existing) {
+            return;
+        }
+
+        $existing->loadMissing('institution:id,name,npsn');
+        if ((int) $existing->institution_id === (int) $targetInstitutionId) {
+            throw new \InvalidArgumentException('NIK tersebut sudah digunakan oleh guru lain di sistem.');
+        }
+
+        $where = $existing->institution?->name ?: 'sekolah lain';
+        $trash = $existing->trashed() ? ' (kotak sampah)' : '';
+
+        throw new \InvalidArgumentException("NIK tersebut sudah terdaftar di {$where}{$trash}. Gunakan tarik guru, jangan input manual.");
+    }
+
+    /**
      * Minimal confirmation fields only (no email / contact PII).
      *
-     * @return array{id: int, nik: string|null, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null}
+     * @return array{id: int, nik: string|null, nuptk: string|null, nip: string|null, name: string, gender: string|null, status: string|null, in_trash: bool}
      */
     protected function formatTeacherLookup(Employee $employee): array
     {
@@ -90,6 +148,7 @@ class TeacherMutationService
             'name' => $employee->name,
             'gender' => $employee->gender,
             'status' => $employee->status,
+            'in_trash' => $employee->trashed(),
         ];
     }
 
@@ -116,21 +175,11 @@ class TeacherMutationService
     }
 
     /**
-     * Cari guru aktif di institusi berdasarkan NIK.
+     * Cari guru aktif di institusi berdasarkan NIK (pengajuan keluar).
      */
     protected function findActiveTeacherByNik(string $nik, int $institutionId): Employee
     {
-        $employee = Employee::where('nik', $nik)
-            ->where('institution_id', $institutionId)
-            ->where('type', 'Guru')
-            ->where('status', 'Aktif')
-            ->first();
-
-        if (!$employee) {
-            throw new \InvalidArgumentException('Guru dengan NIK tersebut tidak ditemukan di sekolah terkait atau status tidak aktif.');
-        }
-
-        return $employee;
+        return $this->findOutgoingTeacherByNik($nik, $institutionId);
     }
 
     /**
@@ -238,7 +287,7 @@ class TeacherMutationService
             throw new \InvalidArgumentException('Sekolah asal harus berbeda dengan sekolah tujuan.');
         }
 
-        $employee = $this->findActiveTeacherByNik($nik, $origin->id);
+        $employee = $this->findPullableTeacherByNik($nik, $origin->id);
 
         $this->assertNoPendingMutation($employee->id);
 
@@ -275,10 +324,8 @@ class TeacherMutationService
     ): TeacherMutation {
         $target = Institution::findOrFail($targetInstitutionId);
 
-        if (Employee::where('nik', $nik)->exists()) {
-            throw new \InvalidArgumentException('NIK tersebut sudah digunakan oleh guru lain di sistem.');
-        }
-        if ($teacherNuptk !== null && $teacherNuptk !== '' && Employee::where('nuptk', $teacherNuptk)->exists()) {
+        $this->assertNikAvailableForNewTeacher($nik, $targetInstitutionId);
+        if ($teacherNuptk !== null && $teacherNuptk !== '' && Employee::withTrashed()->where('nuptk', $teacherNuptk)->exists()) {
             throw new \InvalidArgumentException('NUPTK tersebut sudah digunakan oleh guru lain di sistem.');
         }
 
@@ -339,7 +386,7 @@ class TeacherMutationService
         $query = TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nik,nuptk,nip,name,gender,status,email',
+            'employee:id,nik,nuptk,nip,name,gender,status,email,deleted_at',
             'requester:id,name,email',
             'approver:id,name',
             'cancelRequester:id,name',
@@ -458,6 +505,12 @@ class TeacherMutationService
         DB::beginTransaction();
         try {
             $employee = $mutation->employee;
+            if (! $employee) {
+                throw new \InvalidArgumentException('Data guru tidak ditemukan.');
+            }
+            if ($employee->trashed()) {
+                $employee->restore();
+            }
 
             // Jalur eksternal seharusnya sudah auto-approved saat dibuat; ini jaring pengaman
             // bila suatu saat ada mutasi eksternal yang tersimpan sebagai pending.
@@ -801,7 +854,7 @@ class TeacherMutationService
         $query = TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nik,nuptk,nip,name,gender,status',
+            'employee:id,nik,nuptk,nip,name,gender,status,deleted_at',
             'requester:id,name',
             'approver:id,name',
         ])->activeApproved()->orderBy('approved_at', 'desc');
@@ -851,7 +904,7 @@ class TeacherMutationService
         $query = TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nik,nuptk,nip,name,gender,status',
+            'employee:id,nik,nuptk,nip,name,gender,status,deleted_at',
             'approver:id,name',
         ])->activeApproved()->orderBy('approved_at', 'asc');
 
@@ -902,7 +955,7 @@ class TeacherMutationService
         return TeacherMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'employee:id,nik,nuptk,nip,name',
+            'employee:id,nik,nuptk,nip,name,deleted_at',
             'requester:id,name',
             'approver:id,name',
         ])->where('employee_id', $employeeId)->orderBy('created_at', 'desc')->get();

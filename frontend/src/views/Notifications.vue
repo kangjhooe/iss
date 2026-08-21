@@ -81,7 +81,9 @@
             >{{ n.data?.action === 're_registration' ? 'Buka daftar ulang →' : 'Buka PPDB →' }}</router-link>
             <router-link v-else-if="n.type === 'teacher_mutation'" to="/teacher-mutation" class="notification-link">Buka Mutasi Guru →</router-link>
             <router-link v-else-if="n.type === 'student_mutation'" to="/student-mutation" class="notification-link">Buka Mutasi Siswa →</router-link>
+            <router-link v-else-if="n.type === 'alumni_destination'" to="/alumni" class="notification-link">Buka Alumni →</router-link>
             <router-link v-else-if="n.type === 'feedback_ticket'" to="/feedback" class="notification-link">Buka Feedback →</router-link>
+            <router-link v-else-if="n.type === 'password_reset_request'" to="/super-admin/institution-admins" class="notification-link">Buka permintaan reset →</router-link>
             <span v-else-if="n.type === 'broadcast'" class="notification-badge">Pengumuman sistem</span>
           </div>
           <button

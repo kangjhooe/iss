@@ -80,13 +80,11 @@ class StoreTeacherMutationRequest extends FormRequest
                         $fail('Sekolah asal tidak ditemukan.');
                         return;
                     }
-                    $employee = Employee::where('nik', $value)
-                        ->where('institution_id', $institutionId)
-                        ->where('type', 'Guru')
-                        ->where('status', 'Aktif')
-                        ->first();
-                    if (!$employee) {
-                        $fail('Guru dengan NIK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+                    try {
+                        $employee = app(\App\Services\TeacherMutationService::class)
+                            ->findOutgoingTeacherByNik($value, $institutionId);
+                    } catch (\InvalidArgumentException $e) {
+                        $fail($e->getMessage());
                         return;
                     }
                     $pending = TeacherMutation::where('employee_id', $employee->id)

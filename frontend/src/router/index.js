@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
+import { hasModuleAccess, hasAnyModuleAccess } from '@/utils/moduleAccess'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -542,6 +543,9 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'class' }
     },
     {
+      path: '/program-keahlian',
+      name: 'ProgramKeahlian',
+      component: () => import('@/views/ProgramKeahlian.vue'),
       meta: { requiresAuth: true, requiresModule: 'class', requiresVocational: true }
     },
     {
@@ -866,35 +870,6 @@ const getDefaultRoute = (role) => {
     return '/parent/dashboard'
   }
   return '/dashboard'
-}
-
-const hasModuleAccess = (user, moduleKey) => {
-  if (!user) return false
-  if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'institution_admin') {
-    return true
-  }
-  // school_content also allowed via institution module for admins already covered above
-  if (moduleKey === 'school_content' && (user.permissions || []).includes('institution')) {
-    return true
-  }
-  if ((user.permissions || []).includes(moduleKey)) return true
-  // Guru terjadwal piket boleh akses modul operasional (bukan manage)
-  if (moduleKey === 'guru_piket' && (user.is_piket_scheduled || user.is_piket_on_duty)) {
-    return true
-  }
-  return false
-}
-
-const hasAnyModuleAccess = (user, moduleKeys) => {
-  if (!user || !Array.isArray(moduleKeys) || !moduleKeys.length) return false
-  if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'institution_admin') {
-    return true
-  }
-  if (moduleKeys.some(k => hasModuleAccess(user, k))) return true
-  if (moduleKeys.includes('guru_piket') && (user.is_piket_scheduled || user.is_piket_on_duty)) {
-    return true
-  }
-  return false
 }
 
 router.beforeEach(async (to, from, next) => {

@@ -10,9 +10,11 @@ use App\Http\Resources\ExamResource;
 use App\Models\Exam;
 use App\Models\QuestionBank;
 use App\Models\Subject;
+use App\Services\ExamQuestionSnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ExamController extends Controller
@@ -77,7 +79,7 @@ class ExamController extends Controller
         if (!$institutionId || $exam->institution_id != $institutionId) {
             return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
         }
-        $exam->load(['subject', 'sessions', 'examQuestions.questionBank']);
+        $exam->load(['subject', 'sessions', 'examQuestions.questionBank.bankSoal']);
         return new ExamResource($exam);
     }
 
@@ -96,7 +98,7 @@ class ExamController extends Controller
         if (!$exam) {
             return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
         }
-        $exam->load(['subject', 'sessions', 'examQuestions.questionBank']);
+        $exam->load(['subject', 'sessions', 'examQuestions.questionBank.bankSoal']);
         return new ExamResource($exam);
     }
 
@@ -145,8 +147,10 @@ class ExamController extends Controller
     }
 
     /**
-     * Attach questions to exam (replace existing).
-     * Hanya soal yang institution_id-nya sama dengan ujian yang boleh dilampirkan.
+     * Attach questions to exam (replace existing package).
+     * Soal disalin ke paket ujian; edit di bank tidak mengubah ujian ini.
+     * Tingkat bank tidak membatasi — ujian kelas 9 boleh memakai soal dari rak kelas 7.
+     * Mapel soal harus sama dengan mapel ujian (jika ujian punya mapel).
      */
     public function attachQuestions(Request $request, Exam $exam): JsonResponse
     {
@@ -154,27 +158,49 @@ class ExamController extends Controller
         if (!$institutionId || $exam->institution_id != $institutionId) {
             return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
         }
-        $request->validate(['question_bank_ids' => 'required|array', 'question_bank_ids.*' => 'exists:question_bank,id']);
-        $ids = array_map('intval', $request->input('question_bank_ids'));
+        if ($exam->questionsAreLocked()) {
+            return response()->json([
+                'message' => 'Paket soal terkunci karena sesi sudah berjalan atau selesai. Reset sesi ke draf jika paket perlu diubah.',
+            ], 422);
+        }
+        $request->validate([
+            'question_bank_ids' => 'required|array|min:1',
+            'question_bank_ids.*' => 'integer|exists:question_bank,id',
+        ]);
+        $ids = array_values(array_unique(array_map('intval', $request->input('question_bank_ids'))));
 
-        $allowedIds = QuestionBank::where('institution_id', $institutionId)
+        $questions = QuestionBank::query()
+            ->where('institution_id', $institutionId)
             ->whereIn('id', $ids)
-            ->pluck('id')
-            ->flip()
-            ->all();
+            ->with(['options', 'stimulus', 'bankSoal'])
+            ->get()
+            ->keyBy('id');
+
         foreach ($ids as $qbId) {
-            if (!isset($allowedIds[$qbId])) {
+            if (! $questions->has($qbId)) {
                 return response()->json([
                     'message' => 'Beberapa soal tidak ditemukan atau bukan milik institusi Anda.',
                 ], 422);
             }
+            if ($exam->subject_id && (int) $questions->get($qbId)->subject_id !== (int) $exam->subject_id) {
+                return response()->json([
+                    'message' => 'Soal harus dari mata pelajaran yang sama dengan ujian. Tingkat kelas tidak membatasi.',
+                ], 422);
+            }
         }
 
-        $exam->examQuestions()->delete();
-        foreach ($ids as $i => $qbId) {
-            $exam->examQuestions()->create(['question_bank_id' => $qbId, 'sort_order' => $i]);
-        }
-        $exam->load(['examQuestions.questionBank']);
-        return response()->json(['message' => 'Soal berhasil diset.', 'exam' => new ExamResource($exam)]);
+        DB::transaction(function () use ($exam, $ids, $questions) {
+            $exam->examQuestions()->delete();
+            foreach ($ids as $i => $qbId) {
+                $exam->examQuestions()->create([
+                    'question_bank_id' => $qbId,
+                    'sort_order' => $i,
+                    'snapshot' => ExamQuestionSnapshot::capture($questions->get($qbId)),
+                ]);
+            }
+        });
+
+        $exam->load(['subject', 'sessions', 'examQuestions.questionBank.bankSoal']);
+        return response()->json(['message' => 'Paket soal ujian disimpan.', 'exam' => new ExamResource($exam)]);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
+use App\Models\AdditionalDuty;
 use App\Models\Institution;
 use App\Services\BkReportService;
 use App\Support\WaliKelasAccess;
@@ -34,10 +35,11 @@ class BkReportController extends Controller
 
             $filters = $this->resolveFilters($request, $institutionId, $user);
             if ($filters === null) {
-                return response()->json(['data' => $this->emptySummaryPayload($request)]);
+                return response()->json(['data' => $this->emptySummaryPayload($request, $institutionId)]);
             }
             $data = $this->bkReportService->getSummary($institutionId, $filters);
             $data['scope'] = $this->scopeMeta($user);
+            $data['signers'] = $this->signersMeta($institutionId);
 
             return response()->json(['data' => $data]);
         } catch (\Exception $e) {
@@ -64,19 +66,14 @@ class BkReportController extends Controller
 
             $filters = $this->resolveFilters($request, $institutionId, $user);
             if ($filters === null) {
-                return response()->json(['data' => [
-                    'items' => [],
-                    'achievements' => [],
-                    'by_student' => [],
-                    'total' => 0,
-                    'achievements_total' => 0,
-                    'truncated' => false,
-                    'scope' => $this->scopeMeta($user),
-                ]]);
+                return response()->json(['data' => $this->emptyDetailPayload($user, $institutionId)]);
             }
-            $filters['apply_year_filter'] = true;
+            if (!empty($filters['year'])) {
+                $filters['apply_year_filter'] = true;
+            }
             $data = $this->bkReportService->getViolationDetail($institutionId, $filters);
             $data['scope'] = $this->scopeMeta($user);
+            $data['signers'] = $this->signersMeta($institutionId);
 
             return response()->json(['data' => $data]);
         } catch (\Exception $e) {
@@ -154,10 +151,13 @@ class BkReportController extends Controller
                 $data = [
                     'items' => [],
                     'achievements' => [],
+                    'counseling' => [],
                     'by_student' => [],
                 ];
             } else {
-                $filters['apply_year_filter'] = true;
+                if (!empty($filters['year'])) {
+                    $filters['apply_year_filter'] = true;
+                }
                 $data = $this->bkReportService->getViolationDetail($institutionId, $filters);
             }
             $filename = 'laporan-bk-detail-skor-siswa-'.now()->format('Y-m-d').'.csv';
@@ -229,6 +229,26 @@ class BkReportController extends Controller
                     ]);
                 }
 
+                fputcsv($out, []);
+                fputcsv($out, ['=== DAFTAR KONSELING ===']);
+                fputcsv($out, [
+                    'Tanggal', 'NIS', 'NISN', 'Nama Siswa', 'Kelas',
+                    'Jenis Konseling', 'Status', 'Konselor', 'Ringkasan',
+                ]);
+                foreach ($data['counseling'] ?? [] as $row) {
+                    fputcsv($out, [
+                        $row['session_date'],
+                        $row['nis'],
+                        $row['nisn'],
+                        $row['student_name'],
+                        $row['class_name'],
+                        $row['counseling_type'],
+                        $row['status'],
+                        $row['counselor_name'],
+                        $row['summary'],
+                    ]);
+                }
+
                 fclose($out);
             }, $filename, [
                 'Content-Type' => 'text/csv; charset=UTF-8',
@@ -293,9 +313,50 @@ class BkReportController extends Controller
     }
 
     /**
+     * @return array{principal: array{role: string, name: ?string, nip: ?string}, bk: array{role: string, name: ?string, nip: ?string}}
+     */
+    protected function signersMeta(int $institutionId): array
+    {
+        $institution = Institution::find($institutionId);
+        $bk = AdditionalDuty::resolveActiveHolder('koordinator_bk', $institutionId);
+
+        return [
+            'principal' => [
+                'role' => Institution::principalTitleForLevel($institution?->level),
+                'name' => $institution?->principal_name,
+                'nip' => $institution?->principal_nip,
+            ],
+            'bk' => [
+                'role' => 'Guru Bimbingan Konseling',
+                'name' => $bk?->name,
+                'nip' => $bk?->nip,
+            ],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    protected function emptySummaryPayload(Request $request): array
+    protected function emptyDetailPayload($user, int $institutionId): array
+    {
+        return [
+            'items' => [],
+            'achievements' => [],
+            'counseling' => [],
+            'by_student' => [],
+            'total' => 0,
+            'achievements_total' => 0,
+            'counseling_total' => 0,
+            'truncated' => false,
+            'scope' => $this->scopeMeta($user),
+            'signers' => $this->signersMeta($institutionId),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function emptySummaryPayload(Request $request, ?int $institutionId = null): array
     {
         $user = $request->user();
         $year = (int) ($request->input('year') ?: now()->year);
@@ -327,6 +388,10 @@ class BkReportController extends Controller
             'top_achievement_types' => [],
             'filters' => [],
             'scope' => $this->scopeMeta($user),
+            'signers' => $institutionId ? $this->signersMeta($institutionId) : [
+                'principal' => ['role' => Institution::principalTitleForLevel(null), 'name' => null, 'nip' => null],
+                'bk' => ['role' => 'Guru Bimbingan Konseling', 'name' => null, 'nip' => null],
+            ],
         ];
     }
 }

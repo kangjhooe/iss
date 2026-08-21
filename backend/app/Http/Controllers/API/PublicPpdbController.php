@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
 use App\Helpers\FileUploadRules;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\PublicPpdbRegisterRequest;
 use App\Models\Institution;
 use App\Models\PpdbApplicant;
-use App\Models\PpdbApplicantDocument;
 use App\Models\PpdbChannel;
 use App\Models\PpdbPeriod;
 use App\Models\Student;
 use App\Notifications\PpdbApplicantMailNotification;
 use App\Notifications\PpdbRegistrationNotification;
-use App\Support\PpdbDocumentStorage;
+use App\Services\PpdbRegistrationSlipService;
+use App\Support\PpdbDocumentChecklist;
+use App\Support\RegionAddress;
+use App\Support\SafeNotify;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -31,12 +33,12 @@ class PublicPpdbController extends Controller
         $institutionId = $request->get('institution_id') ? (int) $request->institution_id : null;
         $npsn = $request->get('npsn');
 
-        if (!$institutionId && $npsn) {
+        if (! $institutionId && $npsn) {
             $institution = Institution::where('npsn', $npsn)->first();
             $institutionId = $institution?->id;
         }
 
-        if (!$institutionId) {
+        if (! $institutionId) {
             return response()->json([
                 'message' => 'institution_id atau npsn wajib diisi.',
             ], 422);
@@ -72,10 +74,11 @@ class PublicPpdbController extends Controller
                 'phone' => $institution->phone,
                 'email' => $institution->email,
                 'website' => $institution->website,
-                'logo' => $institution->logo ? asset('storage/' . $institution->logo) : null,
+                'logo' => $institution->logo ? asset('storage/'.$institution->logo) : null,
                 'admission_label' => $institution->resolvedAdmissionLabel(),
             ];
         }
+
         return response()->json([
             'data' => $periods->map(fn ($p) => [
                 'id' => $p->id,
@@ -100,12 +103,12 @@ class PublicPpdbController extends Controller
         $institutionId = $request->get('institution_id') ? (int) $request->institution_id : null;
         $npsn = $request->get('npsn');
 
-        if (!$institutionId && $npsn) {
+        if (! $institutionId && $npsn) {
             $institution = Institution::where('npsn', $npsn)->first();
             $institutionId = $institution?->id;
         }
 
-        if (!$institutionId) {
+        if (! $institutionId) {
             return response()->json(['message' => 'institution_id atau npsn wajib diisi.'], 422);
         }
 
@@ -113,10 +116,17 @@ class PublicPpdbController extends Controller
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'code', 'name', 'quota', 'requirements']);
+            ->get(['id', 'code', 'name', 'quota', 'requirements', 'required_documents']);
 
         return response()->json([
-            'data' => $channels,
+            'data' => $channels->map(fn ($c) => [
+                'id' => $c->id,
+                'code' => $c->code,
+                'name' => $c->name,
+                'quota' => $c->quota,
+                'requirements' => $c->requirements,
+                'required_documents' => PpdbDocumentChecklist::normalize($c->required_documents),
+            ]),
         ]);
     }
 
@@ -132,7 +142,7 @@ class PublicPpdbController extends Controller
         $previousSchoolNpsn = $request->get('previous_school_npsn') ? trim((string) $request->previous_school_npsn) : '';
         $nisn = $request->get('nisn') ? trim((string) $request->nisn) : '';
 
-        if (!$institutionId || $previousSchoolNpsn === '' || $nisn === '') {
+        if (! $institutionId || $previousSchoolNpsn === '' || $nisn === '') {
             return response()->json([
                 'found' => false,
                 'message' => 'institution_id, previous_school_npsn, dan nisn wajib diisi.',
@@ -140,12 +150,12 @@ class PublicPpdbController extends Controller
         }
 
         $targetInstitution = Institution::where('id', $institutionId)->where('is_active', true)->first();
-        if (!$targetInstitution) {
+        if (! $targetInstitution) {
             return response()->json(['found' => false, 'message' => 'Sekolah tujuan tidak ditemukan.'], 404);
         }
 
         $originInstitution = Institution::where('npsn', $previousSchoolNpsn)->where('is_active', true)->first();
-        if (!$originInstitution) {
+        if (! $originInstitution) {
             return response()->json(['found' => false, 'data' => null]);
         }
 
@@ -153,7 +163,7 @@ class PublicPpdbController extends Controller
             ->where('nisn', $nisn)
             ->first();
 
-        if (!$student) {
+        if (! $student) {
             return response()->json(['found' => false, 'data' => null]);
         }
 
@@ -186,60 +196,22 @@ class PublicPpdbController extends Controller
 
     /**
      * Cek hasil PPDB oleh calon (tanpa auth).
-     * - registration_number: cukup nomor (bersifat rahasia).
-     * - nisn: wajib birth_date (YYYY-MM-DD) yang cocok.
+     * Wajib: tanggal lahir + (nomor pendaftaran atau NISN).
      * Optional: institution_id atau npsn (NPSN sekolah).
      */
     public function checkResult(Request $request): JsonResponse
     {
-        $registrationNumber = $request->get('registration_number') ? trim((string) $request->registration_number) : '';
-        $nisn = $request->get('nisn') ? trim((string) $request->nisn) : '';
-        if ($registrationNumber === '' && $nisn === '') {
-            return response()->json(['message' => 'Isi nomor pendaftaran atau NISN.'], 422);
+        $applicant = $this->resolvePublicApplicant($request);
+        if ($applicant instanceof JsonResponse) {
+            return $applicant;
         }
 
-        $birthDate = $request->get('birth_date') ? trim((string) $request->birth_date) : '';
-        if ($registrationNumber === '' && $nisn !== '' && $birthDate === '') {
-            return response()->json([
-                'message' => 'Untuk pencarian dengan NISN, tanggal lahir wajib diisi (format YYYY-MM-DD).',
-            ], 422);
-        }
-
-        $institutionId = $request->get('institution_id') ? (int) $request->institution_id : null;
-        $npsnSchool = $request->get('npsn');
-
-        if (!$institutionId && $npsnSchool) {
-            $institution = Institution::where('npsn', $npsnSchool)->first();
-            $institutionId = $institution?->id;
-        }
-
-        $query = PpdbApplicant::query()
-            ->with([
-                'period:id,name,institution_id,open_date,close_date,registration_fee,re_registration_fee',
-                'channel:id,name',
-                'student:id,nis,name',
-            ]);
-
-        if ($registrationNumber !== '') {
-            $query->where('registration_number', $registrationNumber);
-        } else {
-            $query->where('nisn', $nisn)->orderByDesc('created_at');
-            if ($birthDate !== '') {
-                $query->whereDate('birth_date', $birthDate);
-            }
-        }
-
-        if ($institutionId) {
-            $query->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId));
-        }
-
-        $applicant = $query->first();
-
-        if (!$applicant) {
-            return response()->json([
-                'message' => 'Data tidak ditemukan. Periksa nomor pendaftaran dan pilihan sekolah.',
-            ], 404);
-        }
+        $applicant->load([
+            'period:id,name,institution_id,open_date,close_date,registration_fee,re_registration_fee',
+            'channel:id,name,required_documents',
+            'documents:id,ppdb_applicant_id,name,document_key',
+            'student:id,nis,name',
+        ]);
 
         // Load institution for print header
         $institution = null;
@@ -259,7 +231,11 @@ class PublicPpdbController extends Controller
                     ? (float) $applicant->period->re_registration_fee
                     : null,
             ] : null,
-            'channel' => $applicant->channel ? ['name' => $applicant->channel->name] : null,
+            'channel' => $applicant->channel ? [
+                'name' => $applicant->channel->name,
+                'required_documents' => PpdbDocumentChecklist::normalize($applicant->channel->required_documents),
+            ] : null,
+            'document_summary' => PpdbDocumentChecklist::summarize($applicant->channel, $applicant->documents),
             'status' => $applicant->status,
             'rank' => $applicant->rank,
             'announcement_at' => $applicant->announcement_at?->format('Y-m-d H:i'),
@@ -277,7 +253,17 @@ class PublicPpdbController extends Controller
             'gender' => $applicant->gender,
             'birth_date' => $applicant->birth_date?->format('Y-m-d'),
             'birth_place' => $applicant->birth_place,
-            'address' => $applicant->address,
+            'address' => RegionAddress::format($applicant) ?: $applicant->address,
+            'full_address' => RegionAddress::format($applicant),
+            'village' => $applicant->village,
+            'sub_district' => $applicant->sub_district,
+            'district' => $applicant->district,
+            'province' => $applicant->province,
+            'postal_code' => $applicant->postal_code,
+            'wilayah_province_code' => $applicant->wilayah_province_code,
+            'wilayah_regency_code' => $applicant->wilayah_regency_code,
+            'wilayah_district_code' => $applicant->wilayah_district_code,
+            'wilayah_village_code' => $applicant->wilayah_village_code,
             'phone' => $applicant->phone,
             'email' => $applicant->email,
             'religion' => $applicant->religion,
@@ -325,7 +311,7 @@ class PublicPpdbController extends Controller
                 'phone' => $institution->phone,
                 'email' => $institution->email,
                 'website' => $institution->website,
-                'logo' => $institution->logo ? asset('storage/' . $institution->logo) : null,
+                'logo' => $institution->logo ? asset('storage/'.$institution->logo) : null,
             ];
         }
 
@@ -334,39 +320,18 @@ class PublicPpdbController extends Controller
 
     /**
      * Konfirmasi daftar ulang oleh calon (tanpa auth).
-     * Body/query: registration_number (wajib), optional: npsn atau institution_id (untuk scope).
+     * Wajib: registration_number + birth_date. Optional: npsn atau institution_id.
      */
     public function confirmReRegistration(Request $request): JsonResponse
     {
-        $registrationNumber = $request->get('registration_number') ? trim((string) $request->registration_number) : '';
-        if ($registrationNumber === '') {
-            return response()->json(['message' => 'Nomor pendaftaran wajib diisi.'], 422);
+        $applicant = $this->resolvePublicApplicant($request, true);
+        if ($applicant instanceof JsonResponse) {
+            return $applicant;
         }
 
-        $institutionId = $request->get('institution_id') ? (int) $request->institution_id : null;
-        $npsnSchool = $request->get('npsn');
-        if (!$institutionId && $npsnSchool) {
-            $institution = Institution::where('npsn', $npsnSchool)->first();
-            $institutionId = $institution?->id;
-        }
+        $applicant->load(['period:id,institution_id']);
 
-        $query = PpdbApplicant::query()
-            ->with(['period:id,institution_id'])
-            ->where('registration_number', $registrationNumber);
-
-        if ($institutionId) {
-            $query->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId));
-        }
-
-        $applicant = $query->first();
-
-        if (!$applicant) {
-            return response()->json([
-                'message' => 'Data tidak ditemukan. Periksa nomor pendaftaran.',
-            ], 404);
-        }
-
-        if (!in_array($applicant->status, ['passed', 'reserve', 're_registration'], true)) {
+        if (! in_array($applicant->status, ['passed', 'reserve', 're_registration'], true)) {
             return response()->json([
                 'message' => 'Hanya calon yang lulus atau cadangan yang dapat konfirmasi daftar ulang.',
             ], 422);
@@ -380,7 +345,7 @@ class PublicPpdbController extends Controller
 
         // Idempotent: jika sudah dikonfirmasi, tetap kembalikan sukses
         $wasAlreadyConfirmed = (bool) $applicant->re_registration_confirmed_at;
-        if (!$wasAlreadyConfirmed) {
+        if (! $wasAlreadyConfirmed) {
             $applicant->update([
                 'status' => 're_registration',
                 're_registration_confirmed_at' => now(),
@@ -400,57 +365,30 @@ class PublicPpdbController extends Controller
 
     /**
      * Upload dokumen calon oleh pendaftar (tanpa auth).
-     * Form: registration_number (wajib), npsn (opsional), file, name, description (opsional).
+     * Form: registration_number, birth_date (wajib), npsn (opsional), file, name, description (opsional).
      */
     public function uploadDocument(Request $request): JsonResponse
     {
-        $registrationNumber = $request->get('registration_number') ? trim((string) $request->registration_number) : '';
-        if ($registrationNumber === '') {
-            return response()->json(['message' => 'Nomor pendaftaran wajib diisi.'], 422);
+        $applicant = $this->resolvePublicApplicant($request, true);
+        if ($applicant instanceof JsonResponse) {
+            return $applicant;
         }
 
-        $institutionId = $request->get('institution_id') ? (int) $request->institution_id : null;
-        $npsnSchool = $request->get('npsn');
-        if (!$institutionId && $npsnSchool) {
-            $institution = Institution::where('npsn', $npsnSchool)->first();
-            $institutionId = $institution?->id;
-        }
-
-        $query = PpdbApplicant::query()
-            ->with(['period:id,institution_id'])
-            ->where('registration_number', $registrationNumber);
-
-        if ($institutionId) {
-            $query->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId));
-        }
-
-        $applicant = $query->first();
-
-        if (!$applicant) {
-            return response()->json([
-                'message' => 'Data tidak ditemukan. Periksa nomor pendaftaran.',
-            ], 404);
-        }
+        $applicant->load(['period:id,institution_id']);
 
         // Hanya calon yang belum jadi siswa yang boleh upload berkas (submitted, verification, verified, draft)
         $allowedStatuses = ['draft', 'submitted', 'verification', 'verified'];
-        if (!in_array($applicant->status, $allowedStatuses, true)) {
+        if (! in_array($applicant->status, $allowedStatuses, true)) {
             return response()->json([
                 'message' => 'Berkas hanya dapat diunggah selama masa pendaftaran atau verifikasi. Jika sudah lulus atau jadi siswa, silakan hubungi sekolah.',
             ], 422);
         }
 
-        $documentCount = $applicant->documents()->count();
-        if ($documentCount >= 20) {
-            return response()->json([
-                'message' => 'Maksimal 20 file dokumen per calon.',
-            ], 400);
-        }
-
         $rules = array_merge(
             FileUploadRules::rules(FileUploadRules::TYPE_MIXED, FileUploadRules::SIZE_SMALL, true, 'file'),
             [
-                'name' => 'required|string|max:255',
+                'name' => 'nullable|required_without:document_key|string|max:255',
+                'document_key' => 'nullable|string|max:64',
                 'description' => 'nullable|string',
             ]
         );
@@ -463,37 +401,94 @@ class PublicPpdbController extends Controller
         $request->validate($rules, $messages);
 
         try {
-            $file = $request->file('file');
-            $originalName = $file->getClientOriginalName();
-            $extension = $file->getClientOriginalExtension();
-            $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
-            $fileName = time() . '_' . $safeName . '.' . $extension;
-            $filePath = PpdbDocumentStorage::store($file, (int) $applicant->id, $fileName);
+            $document = $applicant->storeUploadedDocument(
+                $request->file('file'),
+                $request->input('document_key'),
+                $request->input('name'),
+                $request->input('description')
+            );
 
-            $document = $applicant->documents()->create([
-                'name' => $request->name,
-                'file_path' => $filePath,
-                'file_name' => $originalName,
-                'file_size' => $file->getSize(),
-                'mime_type' => $file->getMimeType(),
-                'description' => $request->description,
-            ]);
+            $applicant->load(['channel', 'documents']);
 
             return response()->json([
                 'message' => 'Dokumen berhasil diunggah.',
                 'data' => [
                     'id' => $document->id,
                     'name' => $document->name,
+                    'document_key' => $document->document_key,
                     'file_name' => $document->file_name,
                     'file_size' => $document->file_size,
                 ],
+                'document_summary' => PpdbDocumentChecklist::summarize($applicant->channel, $applicant->documents),
             ], 201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\OverflowException $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
             Log::error('Public PPDB uploadDocument failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal mengunggah dokumen. Silakan coba lagi.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Daftar berkas wajib + status unggah untuk nomor pendaftaran (tanpa auth).
+     */
+    public function documentChecklist(Request $request): JsonResponse
+    {
+        $applicant = $this->resolvePublicApplicant($request, true);
+        if ($applicant instanceof JsonResponse) {
+            return $applicant;
+        }
+
+        $applicant->load([
+            'channel:id,name,required_documents',
+            'documents:id,ppdb_applicant_id,name,document_key',
+        ]);
+
+        return response()->json([
+            'data' => [
+                'registration_number' => $applicant->registration_number,
+                'name' => $applicant->name,
+                'status' => $applicant->status,
+                'channel' => $applicant->channel ? [
+                    'id' => $applicant->channel->id,
+                    'name' => $applicant->channel->name,
+                    'required_documents' => PpdbDocumentChecklist::normalize($applicant->channel->required_documents),
+                ] : null,
+                'document_summary' => PpdbDocumentChecklist::summarize($applicant->channel, $applicant->documents),
+                'documents' => $applicant->documents->map(fn ($d) => [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'document_key' => $d->document_key,
+                ]),
+            ],
+        ]);
+    }
+
+    /**
+     * Unduh PDF bukti pendaftaran. Wajib nomor pendaftaran + tanggal lahir.
+     */
+    public function registrationSlip(Request $request, PpdbRegistrationSlipService $service)
+    {
+        $applicant = $this->resolvePublicApplicant($request, true);
+        if ($applicant instanceof JsonResponse) {
+            return $applicant;
+        }
+
+        try {
+            return $service->download($applicant);
+        } catch (\Exception $e) {
+            Log::error('Public PPDB registrationSlip failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal membuat bukti pendaftaran. Silakan coba lagi.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -505,7 +500,7 @@ class PublicPpdbController extends Controller
     public function register(PublicPpdbRegisterRequest $request): JsonResponse
     {
         $period = PpdbPeriod::find($request->ppdb_period_id);
-        if (!$period) {
+        if (! $period) {
             return response()->json(['message' => 'Periode PPDB tidak ditemukan.'], 404);
         }
 
@@ -527,7 +522,7 @@ class PublicPpdbController extends Controller
         }
 
         $channel = PpdbChannel::find($request->ppdb_channel_id);
-        if (!$channel || $channel->institution_id !== $period->institution_id) {
+        if (! $channel || $channel->institution_id !== $period->institution_id) {
             return response()->json([
                 'message' => 'Jalur pendaftaran tidak valid untuk periode ini.',
             ], 422);
@@ -542,56 +537,58 @@ class PublicPpdbController extends Controller
 
         try {
             $applicant = PpdbApplicant::create($data);
-            $applicant->load(['period:id,name', 'channel:id,name']);
-
-            $this->notifyInstitutionAdmins($applicant, 'new_registration');
-            $this->notifyApplicantByEmail($applicant, 'registered');
-
-            return response()->json([
-                'message' => 'Pendaftaran berhasil. Simpan nomor pendaftaran Anda.',
-                'data' => [
-                    'id' => $applicant->id,
-                    'registration_number' => $applicant->registration_number,
-                    'name' => $applicant->name,
-                    'period' => $applicant->period?->name,
-                    'channel' => $applicant->channel?->name,
-                ],
-            ], 201);
         } catch (\Exception $e) {
             Log::error('Public PPDB register failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal menyimpan pendaftaran. Silakan coba lagi.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+
+        $applicant->load(['period:id,name', 'channel:id,name']);
+        $this->notifyInstitutionAdmins($applicant, 'new_registration');
+        $this->notifyApplicantByEmail($applicant, 'registered');
+
+        return response()->json([
+            'message' => 'Pendaftaran berhasil. Simpan nomor pendaftaran Anda.',
+            'data' => [
+                'id' => $applicant->id,
+                'registration_number' => $applicant->registration_number,
+                'name' => $applicant->name,
+                'period' => $applicant->period?->name,
+                'channel' => $applicant->channel?->name,
+            ],
+        ], 201);
     }
 
     /**
-     * Nomor pendaftaran diawali NPSN agar cek hasil cukup input nomor saja.
+     * Nomor pendaftaran diawali NPSN (identifikasi, bukan rahasia).
      * Format: {NPSN}-{period_id}-{seq} contoh 10648387-1-00002
      */
     private function generateRegistrationNumber(PpdbPeriod $period): string
     {
         $institution = $period->institution;
         $npsn = $institution && $institution->npsn ? trim((string) $institution->npsn) : '0';
-        $prefix = $npsn . '-' . $period->id . '-';
+        $prefix = $npsn.'-'.$period->id.'-';
 
         $last = PpdbApplicant::where('ppdb_period_id', $period->id)
-            ->where('registration_number', 'like', $prefix . '%')
+            ->where('registration_number', 'like', $prefix.'%')
             ->orderByDesc('id')
             ->value('registration_number');
 
         $seq = 1;
-        if ($last && preg_match('/^' . preg_quote($prefix, '/') . '(\d+)$/', $last, $m)) {
+        if ($last && preg_match('/^'.preg_quote($prefix, '/').'(\d+)$/', $last, $m)) {
             $seq = (int) $m[1] + 1;
         }
-        return $prefix . str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
+
+        return $prefix.str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
     }
 
     private function notifyInstitutionAdmins(PpdbApplicant $applicant, string $action = 'new_registration'): void
     {
         $period = $applicant->period;
-        if (!$period) {
+        if (! $period) {
             return;
         }
 
@@ -602,7 +599,7 @@ class PublicPpdbController extends Controller
         foreach ($userIds as $userId) {
             $user = \App\Models\User::find($userId);
             if ($user) {
-                $user->notify(new PpdbRegistrationNotification($applicant, $action));
+                SafeNotify::send($user, new PpdbRegistrationNotification($applicant, $action));
             }
         }
     }
@@ -610,11 +607,65 @@ class PublicPpdbController extends Controller
     private function notifyApplicantByEmail(PpdbApplicant $applicant, string $action): void
     {
         $email = trim((string) ($applicant->email ?? ''));
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        Notification::route('mail', $email)
-            ->notify(new PpdbApplicantMailNotification($applicant, $action));
+        SafeNotify::send(
+            Notification::route('mail', $email),
+            new PpdbApplicantMailNotification($applicant, $action)
+        );
+    }
+
+    /**
+     * Identitas publik: tanggal lahir wajib, plus nomor pendaftaran atau NISN.
+     *
+     * @return PpdbApplicant|JsonResponse
+     */
+    private function resolvePublicApplicant(Request $request, bool $requireRegistrationNumber = false): PpdbApplicant|JsonResponse
+    {
+        $registrationNumber = trim((string) $request->input('registration_number', ''));
+        $nisn = trim((string) $request->input('nisn', ''));
+        $birthDate = trim((string) $request->input('birth_date', ''));
+
+        if ($requireRegistrationNumber && $registrationNumber === '') {
+            return response()->json(['message' => 'Nomor pendaftaran wajib diisi.'], 422);
+        }
+
+        if ($registrationNumber === '' && $nisn === '') {
+            return response()->json(['message' => 'Isi nomor pendaftaran atau NISN.'], 422);
+        }
+
+        if ($birthDate === '' || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate)) {
+            return response()->json([
+                'message' => 'Tanggal lahir wajib diisi (format YYYY-MM-DD).',
+            ], 422);
+        }
+
+        $institutionId = $request->input('institution_id') ? (int) $request->input('institution_id') : null;
+        $npsnSchool = $request->input('npsn');
+        if (! $institutionId && $npsnSchool) {
+            $institutionId = Institution::where('npsn', $npsnSchool)->value('id');
+        }
+
+        $query = PpdbApplicant::query()->whereDate('birth_date', $birthDate);
+        if ($registrationNumber !== '') {
+            $query->where('registration_number', $registrationNumber);
+        } else {
+            $query->where('nisn', $nisn)->orderByDesc('created_at');
+        }
+
+        if ($institutionId) {
+            $query->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId));
+        }
+
+        $applicant = $query->first();
+        if (! $applicant) {
+            return response()->json([
+                'message' => 'Data tidak ditemukan. Periksa nomor pendaftaran atau NISN dan tanggal lahir.',
+            ], 404);
+        }
+
+        return $applicant;
     }
 }

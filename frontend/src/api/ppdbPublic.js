@@ -25,4 +25,10 @@ export const ppdbPublicApi = {
   uploadDocument(formData) {
     return api.post('/v1/public/ppdb/documents', formData)
   },
+  getDocumentChecklist(params) {
+    return api.get('/v1/public/ppdb/document-checklist', { params })
+  },
+  downloadRegistrationSlip(params) {
+    return api.get('/v1/public/ppdb/registration-slip', { params, responseType: 'blob' })
+  },
 }

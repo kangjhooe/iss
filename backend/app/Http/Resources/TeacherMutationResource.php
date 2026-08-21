@@ -55,16 +55,23 @@ class TeacherMutationResource extends JsonResource
                 'level' => $this->targetInstitution->level,
             ] : null),
             'is_external_target' => $this->target_institution_id === null,
-            'employee' => $this->whenLoaded('employee', fn () => [
-                'id' => $this->employee->id,
-                'nik' => $this->employee->nik,
-                'nuptk' => $this->employee->nuptk,
-                'nip' => $this->employee->nip,
-                'name' => $this->employee->name,
-                'gender' => $this->employee->gender,
-                'status' => $this->employee->status,
-                'email' => $this->employee->email,
-            ]),
+            'employee' => $this->whenLoaded('employee', function () {
+                if (! $this->employee) {
+                    return null;
+                }
+
+                return [
+                    'id' => $this->employee->id,
+                    'nik' => $this->employee->nik,
+                    'nuptk' => $this->employee->nuptk,
+                    'nip' => $this->employee->nip,
+                    'name' => $this->employee->name,
+                    'gender' => $this->employee->gender,
+                    'status' => $this->employee->status,
+                    'email' => $this->employee->email,
+                    'in_trash' => $this->employee->trashed(),
+                ];
+            }),
             'requester' => $this->whenLoaded('requester', fn () => [
                 'id' => $this->requester->id,
                 'name' => $this->requester->name,

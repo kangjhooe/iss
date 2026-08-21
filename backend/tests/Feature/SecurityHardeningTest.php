@@ -178,14 +178,29 @@ class SecurityHardeningTest extends TestCase
         $this->getJson('/api/v1/public/ppdb/check-result?nisn=9876543210')
             ->assertStatus(422);
 
+        $this->getJson('/api/v1/public/ppdb/check-result?registration_number=55555555-1-00001')
+            ->assertStatus(422);
+
         $this->getJson('/api/v1/public/ppdb/check-result?nisn=9876543210&birth_date=2011-05-20')
             ->assertOk()
             ->assertJsonPath('data.name', 'Calon Cek')
             ->assertJsonPath('data.nisn', '9876543210');
 
-        $this->getJson('/api/v1/public/ppdb/check-result?registration_number=55555555-1-00001')
+        $this->getJson('/api/v1/public/ppdb/check-result?registration_number=55555555-1-00001&birth_date=2010-01-01')
+            ->assertStatus(404);
+
+        $this->getJson('/api/v1/public/ppdb/check-result?registration_number=55555555-1-00001&birth_date=2011-05-20')
             ->assertOk()
             ->assertJsonPath('data.name', 'Calon Cek');
+
+        $this->postJson('/api/v1/public/ppdb/confirm-re-registration', [
+            'registration_number' => '55555555-1-00001',
+        ])->assertStatus(422);
+
+        $this->postJson('/api/v1/public/ppdb/confirm-re-registration', [
+            'registration_number' => '55555555-1-00001',
+            'birth_date' => '2011-05-20',
+        ])->assertOk();
     }
 
     public function test_teacher_cannot_access_audit_logs(): void

@@ -7,6 +7,7 @@ use App\Models\Institution;
 use App\Models\InstitutionNisSequence;
 use App\Models\Student;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 use InvalidArgumentException;
@@ -14,14 +15,21 @@ use InvalidArgumentException;
 class LocalNisService
 {
     public const PRESET_TAHUN_URUT = 'tahun_urut';
+
     public const PRESET_TAHUN2_URUT = 'tahun2_urut';
+
     public const PRESET_URUT_SAJA = 'urut_saja';
+
     public const PRESET_PREFIX_TAHUN_URUT = 'prefix_tahun_urut';
+
     public const PRESET_PREFIX_TAHUN2_URUT = 'prefix_tahun2_urut';
+
     public const PRESET_NPSN4_TAHUN_URUT = 'npsn4_tahun_urut';
+
     public const PRESET_CUSTOM = 'custom';
 
     public const RESET_YEARLY = 'yearly';
+
     public const RESET_NEVER = 'never';
 
     public const PRESET_PATTERNS = [
@@ -43,6 +51,11 @@ class LocalNisService
             'reset' => self::RESET_YEARLY,
             'pattern' => '',
         ];
+    }
+
+    public function sequencesAvailable(): bool
+    {
+        return Schema::hasTable('institution_nis_sequences');
     }
 
     public function presetOptions(): array
@@ -92,7 +105,7 @@ class LocalNisService
         $merged = array_merge($defaults, is_array($settings) ? $settings : []);
 
         $preset = (string) ($merged['preset'] ?? $defaults['preset']);
-        if (!array_key_exists($preset, self::PRESET_PATTERNS)) {
+        if (! array_key_exists($preset, self::PRESET_PATTERNS)) {
             $preset = $defaults['preset'];
         }
 
@@ -100,7 +113,7 @@ class LocalNisService
         $seqDigits = max(3, min(6, $seqDigits));
 
         $reset = (string) ($merged['reset'] ?? $defaults['reset']);
-        if (!in_array($reset, [self::RESET_YEARLY, self::RESET_NEVER], true)) {
+        if (! in_array($reset, [self::RESET_YEARLY, self::RESET_NEVER], true)) {
             $reset = $defaults['reset'];
         }
 
@@ -148,7 +161,7 @@ class LocalNisService
     public function previewAssignments(int $institutionId, ?array $studentIds = null, int $limit = 500): array
     {
         $institution = Institution::with('activeAcademicYear')->find($institutionId);
-        if (!$institution) {
+        if (! $institution) {
             throw new InvalidArgumentException('Institusi tidak ditemukan.');
         }
 
@@ -184,11 +197,12 @@ class LocalNisService
         }
 
         $institution = Institution::with('activeAcademicYear')->find($institutionId);
-        if (!$institution) {
+        if (! $institution) {
             throw new InvalidArgumentException('Institusi tidak ditemukan.');
         }
 
         $settings = $this->settingsFor($institution);
+        $this->assertSequencesAvailable();
         $this->assertCanGenerate($institution, $settings);
 
         $limit = max(1, min(2000, $limit));
@@ -202,7 +216,7 @@ class LocalNisService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$seqRow) {
+            if (! $seqRow) {
                 $seqRow = InstitutionNisSequence::create([
                     'institution_id' => $institution->id,
                     'period_key' => $periodKey,
@@ -267,6 +281,7 @@ class LocalNisService
     {
         $institution->loadMissing('activeAcademicYear');
         $settings = $this->settingsFor($institution);
+        $this->assertSequencesAvailable();
         $this->assertCanGenerate($institution, $settings);
 
         $yearCode = $this->yearCode($institution, $academicYearId);
@@ -279,7 +294,7 @@ class LocalNisService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$row) {
+            if (! $row) {
                 $row = InstitutionNisSequence::create([
                     'institution_id' => $institution->id,
                     'period_key' => $periodKey,
@@ -324,7 +339,7 @@ class LocalNisService
         }
 
         $institution = Institution::with('activeAcademicYear')->find($student->institution_id);
-        if (!$institution) {
+        if (! $institution) {
             throw new InvalidArgumentException('Institusi siswa tidak ditemukan.');
         }
 
@@ -364,7 +379,7 @@ class LocalNisService
         if ($academicYearId) {
             $year = AcademicYear::find($academicYearId);
         }
-        if (!$year) {
+        if (! $year) {
             $institution->loadMissing('activeAcademicYear');
             $year = $institution->activeAcademicYear;
         }
@@ -392,7 +407,7 @@ class LocalNisService
             $query->where('status', 'Aktif');
         }
 
-        if (!empty($studentIds)) {
+        if (! empty($studentIds)) {
             $query->whereIn('id', $studentIds);
         }
 
@@ -458,17 +473,30 @@ class LocalNisService
 
     private function currentSeq(int $institutionId, string $periodKey): int
     {
+        if (! $this->sequencesAvailable()) {
+            return 0;
+        }
+
         return (int) InstitutionNisSequence::query()
             ->where('institution_id', $institutionId)
             ->where('period_key', $periodKey)
             ->value('last_seq');
     }
 
+    private function assertSequencesAvailable(): void
+    {
+        if (! $this->sequencesAvailable()) {
+            throw new InvalidArgumentException(
+                'Tabel penomoran NIS belum tersedia di database. Jalankan migrasi, lalu coba lagi.'
+            );
+        }
+    }
+
     private function assertCanGenerate(Institution $institution, array $settings): void
     {
         if ($settings['preset'] === self::PRESET_CUSTOM) {
             $pattern = $settings['pattern'];
-            if ($pattern === '' || !preg_match('/\{SEQ(?::[1-8])?\}/', $pattern)) {
+            if ($pattern === '' || ! preg_match('/\{SEQ(?::[1-8])?\}/', $pattern)) {
                 throw new InvalidArgumentException('Pola kustom NIS harus berisi {SEQ} atau {SEQ:n}.');
             }
             $stripped = preg_replace('/\{(YYYY|YY|PREFIX|NPSN4|SEQ(?::[1-8])?)\}/', '', $pattern) ?? '';
@@ -482,7 +510,7 @@ class LocalNisService
             throw new InvalidArgumentException('Kode sekolah (prefix) wajib diisi untuk format NIS ini.');
         }
 
-        if ($settings['preset'] === self::PRESET_NPSN4_TAHUN_URUT && !$institution->npsn) {
+        if ($settings['preset'] === self::PRESET_NPSN4_TAHUN_URUT && ! $institution->npsn) {
             throw new InvalidArgumentException('NPSN institusi wajib diisi untuk format NIS ini.');
         }
 

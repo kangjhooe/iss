@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\StudentChangeRequest;
+use App\Support\RegionAddress;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateMyStudentProfileRequest extends FormRequest
@@ -14,7 +15,7 @@ class UpdateMyStudentProfileRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return array_merge(RegionAddress::rules(), [
             'address' => ['sometimes', 'nullable', 'string'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'religion' => ['sometimes', 'nullable', 'string', 'max:50'],
@@ -48,7 +49,7 @@ class UpdateMyStudentProfileRequest extends FormRequest
             'guardian_occupation' => ['sometimes', 'nullable', 'string', 'max:255'],
             'guardian_income' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'notes' => ['sometimes', 'nullable', 'string'],
-        ];
+        ]);
     }
 
     public function withValidator($validator): void

@@ -118,8 +118,21 @@ class User extends Authenticatable
      */
     public function hasModuleAccess(string $moduleKey): bool
     {
-        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+        if ($this->isSuperAdmin()) {
             return true;
+        }
+
+        $institutionId = $this->currentInstitutionId();
+        if ($institutionId && \App\Support\InstitutionModuleVisibility::isHidden($institutionId, $moduleKey)) {
+            return false;
+        }
+
+        if ($this->isAdmin() || $this->isInstitutionAdmin()) {
+            return true;
+        }
+
+        if ($moduleKey === \App\Support\ReportAccess::MODULE_KEY) {
+            return \App\Support\ReportAccess::canAccess($this);
         }
 
         return \App\Support\InstitutionContext::hasEffectivePermission($this, $moduleKey);
@@ -359,7 +372,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!\App\Support\InstitutionContext::canAccessInstitution($this, (int) $room->institution_id)) {
+        if (! \App\Support\InstitutionContext::canAccessInstitution($this, (int) $room->institution_id)) {
             return false;
         }
 
@@ -383,7 +396,7 @@ class User extends Authenticatable
         }
 
         $employee = $this->employeeProfile()->first();
-        if (!$employee) {
+        if (! $employee) {
             return false;
         }
 
@@ -415,7 +428,7 @@ class User extends Authenticatable
     public function managedLabRoomIds(): array
     {
         $employee = $this->employeeProfile()->first();
-        if (!$employee) {
+        if (! $employee) {
             return [];
         }
 
@@ -445,7 +458,7 @@ class User extends Authenticatable
      */
     public function isLocked(): bool
     {
-        if (!$this->locked_until) {
+        if (! $this->locked_until) {
             return false;
         }
 
@@ -468,7 +481,7 @@ class User extends Authenticatable
      */
     public function lockedMinutesRemaining(): int
     {
-        if (!$this->locked_until || !$this->locked_until->isFuture()) {
+        if (! $this->locked_until || ! $this->locked_until->isFuture()) {
             return 0;
         }
 
@@ -483,7 +496,7 @@ class User extends Authenticatable
     public function incrementFailedLoginAttempts(): void
     {
         $this->increment('failed_login_attempts');
-        
+
         // Lock account after 5 failed attempts for 30 minutes
         if ($this->failed_login_attempts >= 5) {
             $this->locked_until = now()->addMinutes(30);
@@ -604,6 +617,7 @@ class User extends Authenticatable
         if ($institutionId === null) {
             return $query->whereNull('institution_id');
         }
+
         return $query->where('institution_id', $institutionId);
     }
 
@@ -614,7 +628,7 @@ class User extends Authenticatable
     {
         return $query->where(function ($q) {
             $q->whereNull('locked_until')
-              ->orWhere('locked_until', '<=', now());
+                ->orWhere('locked_until', '<=', now());
         });
     }
 }

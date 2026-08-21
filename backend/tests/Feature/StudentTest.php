@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Institution;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -201,5 +202,138 @@ class StudentTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
+    }
+
+    public function test_admin_can_force_delete_trashed_student(): void
+    {
+        $student = Student::factory()->create([
+            'institution_id' => $this->institution->id,
+            'nisn' => '1122334455',
+            'nik' => '3201010101010001',
+        ]);
+        $student->delete();
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/v1/student/{$student->id}/force");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('student', ['id' => $student->id]);
+
+        $replacement = Student::factory()->create([
+            'institution_id' => $this->institution->id,
+            'nisn' => '1122334455',
+            'nik' => '3201010101010001',
+        ]);
+        $this->assertDatabaseHas('student', [
+            'id' => $replacement->id,
+            'nisn' => '1122334455',
+        ]);
+    }
+
+    public function test_force_delete_rejects_active_student(): void
+    {
+        $student = Student::factory()->create([
+            'institution_id' => $this->institution->id,
+        ]);
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/v1/student/{$student->id}/force");
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('student', ['id' => $student->id]);
+    }
+
+    public function test_cannot_force_delete_other_institution_student(): void
+    {
+        $otherInstitution = Institution::factory()->create();
+        $otherStudent = Student::factory()->create([
+            'institution_id' => $otherInstitution->id,
+        ]);
+        $otherStudent->delete();
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/v1/student/{$otherStudent->id}/force");
+
+        $response->assertStatus(403);
+        $this->assertSoftDeleted('student', ['id' => $otherStudent->id]);
+    }
+
+    public function test_student_list_shows_linked_class_name_when_string_column_empty(): void
+    {
+        $class = SchoolClass::create([
+            'institution_id' => $this->institution->id,
+            'academic_year' => '2025/2026',
+            'name' => '11 IPA 1',
+            'grade' => 11,
+            'status' => 'Aktif',
+        ]);
+        $student = Student::create([
+            'institution_id' => $this->institution->id,
+            'nisn' => '1122334455',
+            'name' => 'Siswa Kelas 11',
+            'gender' => 'L',
+            'status' => 'Aktif',
+            'tingkat' => 11,
+            'class_id' => $class->id,
+            'class' => null,
+        ]);
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/student?class_id='.$class->id);
+
+        $response->assertStatus(200);
+        $row = collect($response->json('data'))->firstWhere('id', $student->id);
+        $this->assertNotNull($row);
+        $this->assertSame('11 IPA 1', $row['class']);
+        $this->assertSame($class->id, $row['class_detail']['id']);
+    }
+
+    public function test_unassigned_class_filter_skips_students_that_still_have_class_id(): void
+    {
+        $class = SchoolClass::create([
+            'institution_id' => $this->institution->id,
+            'academic_year' => '2025/2026',
+            'name' => '11 IPA 1',
+            'grade' => 11,
+            'status' => 'Aktif',
+        ]);
+        Student::create([
+            'institution_id' => $this->institution->id,
+            'nisn' => '1122334456',
+            'name' => 'Masih Terikat Kelas',
+            'gender' => 'L',
+            'status' => 'Aktif',
+            'tingkat' => 11,
+            'class_id' => $class->id,
+            'class' => null,
+        ]);
+        $unassigned = Student::create([
+            'institution_id' => $this->institution->id,
+            'nisn' => '1122334457',
+            'name' => 'Belum Ada Kelas',
+            'gender' => 'P',
+            'status' => 'Aktif',
+            'tingkat' => 11,
+            'class_id' => null,
+            'class' => null,
+        ]);
+
+        $token = $this->user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/student?class_id=__none__');
+
+        $response->assertStatus(200);
+        $ids = collect($response->json('data'))->pluck('id');
+        $this->assertTrue($ids->contains($unassigned->id));
+        $this->assertCount(1, $ids);
     }
 }

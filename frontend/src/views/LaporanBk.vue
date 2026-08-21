@@ -2,77 +2,99 @@
   <Layout>
     <div class="laporan-bk-page">
       <div class="toolbar">
-        <div class="mode-tabs">
-          <button type="button" :class="['mode-tab', { active: viewMode === 'ringkasan' }]" @click="switchMode('ringkasan')">
+        <div class="mode-tabs" role="tablist" aria-label="Tampilan laporan BK">
+          <button type="button" role="tab" :class="['mode-tab', { active: viewTab === 'ringkasan' }]" @click="switchTab('ringkasan')">
             Ringkasan
           </button>
-          <button type="button" :class="['mode-tab', { active: viewMode === 'detail' }]" @click="switchMode('detail')">
-            Detail & Skor
+          <button type="button" role="tab" :class="['mode-tab', { active: viewTab === 'skor' }]" @click="switchTab('skor')">
+            Skor siswa
+          </button>
+          <button type="button" role="tab" :class="['mode-tab', { active: viewTab === 'catatan' }]" @click="switchTab('catatan')">
+            Catatan
           </button>
         </div>
         <div class="header-actions">
-          <button type="button" class="btn-secondary btn-compact" :disabled="exporting || loading" @click="exportCsv">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>{{ exporting ? 'Mengekspor...' : (viewMode === 'detail' ? 'Export Detail CSV' : 'Export Rekap CSV') }}</span>
-          </button>
-          <button type="button" class="btn-secondary btn-compact" :disabled="printing || loading" @click="printPdf">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>{{ printing ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
-          </button>
-          <button type="button" class="btn-primary btn-compact" :disabled="loading" @click="reload">
-            <span>Muat Ulang</span>
-          </button>
+          <div class="export-wrap" ref="exportWrapRef">
+            <button type="button" class="btn-secondary btn-compact" :disabled="exporting || printing || loading" @click.stop="exportOpen = !exportOpen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="6" r="1.4" fill="currentColor"/>
+                <circle cx="12" cy="12" r="1.4" fill="currentColor"/>
+                <circle cx="12" cy="18" r="1.4" fill="currentColor"/>
+              </svg>
+              <span>{{ exporting || printing ? 'Menyiapkan...' : 'Cetak / Export' }}</span>
+            </button>
+            <div v-if="exportOpen" class="export-menu" role="menu">
+              <button type="button" role="menuitem" :disabled="printing || loading" @click="printPdf">Cetak PDF</button>
+              <button type="button" role="menuitem" :disabled="exporting || loading" @click="exportCsv">
+                {{ isDetailTab ? 'Export detail CSV' : 'Export rekap CSV' }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <p class="toolbar-hint">
-        <template v-if="isHomeroomScoped">
-          Menampilkan laporan BK untuk siswa di kelas yang Anda walikan saja.
-        </template>
-        <template v-else-if="viewMode === 'ringkasan'">
-          Rekap agregat pelanggaran, prestasi, dan konseling. Skor = poin pelanggaran − poin prestasi.
-        </template>
-        <template v-else>
-          Detail pelanggaran & prestasi, plus rekap skor per siswa (pelanggaran − prestasi).
-        </template>
+        <template v-if="isHomeroomScoped">Menampilkan siswa di kelas yang Anda walikan saja.</template>
+        <template v-else-if="viewTab === 'ringkasan'">Rekap kelas. Skor bersih = poin pelanggaran − poin prestasi.</template>
+        <template v-else-if="viewTab === 'skor'">Skor per siswa = poin pelanggaran − poin prestasi.</template>
+        <template v-else>Catatan pelanggaran, prestasi, dan konseling sesuai filter.</template>
       </p>
 
-      <div class="filters filters-inline">
-        <select v-model="filters.academic_year_id" class="filter-select" @change="onPeriodChange">
-          <option value="">Semua Tahun Ajaran</option>
-          <option v-for="y in academicYears" :key="y.id" :value="String(y.id)">{{ y.name }}</option>
-        </select>
-        <select v-model="filters.semester_id" class="filter-select" @change="reload">
-          <option value="">Semua Semester</option>
-          <option v-for="s in filteredSemesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-        </select>
-        <select v-model="filters.class_id" class="filter-select" @change="reload" :disabled="isHomeroomScoped && classes.length <= 1">
-          <option v-if="!isHomeroomScoped" value="">Semua Kelas</option>
-          <option v-for="c in classes" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
-        </select>
+      <div class="filters">
+        <label class="filter-field">
+          <span>Tahun ajaran</span>
+          <select v-model="filters.academic_year_id" class="filter-select" @change="onPeriodChange">
+            <option value="">Semua</option>
+            <option v-for="y in academicYears" :key="y.id" :value="String(y.id)">{{ y.name }}</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Semester</span>
+          <select v-model="filters.semester_id" class="filter-select" @change="reload">
+            <option value="">Semua</option>
+            <option v-for="s in filteredSemesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Kelas</span>
+          <select v-model="filters.class_id" class="filter-select" @change="reload" :disabled="isHomeroomScoped && classes.length <= 1">
+            <option v-if="!isHomeroomScoped" value="">Semua kelas</option>
+            <option v-for="c in classes" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+          </select>
+        </label>
+        <button type="button" class="btn-ghost" :class="{ active: periodAdvanced }" @click="periodAdvanced = !periodAdvanced">
+          Periode lanjutan
+        </button>
+      </div>
 
-        <template v-if="viewMode === 'detail'">
+      <div v-if="periodAdvanced" class="filters filters-advanced">
+        <label class="filter-field">
+          <span>Bulan</span>
           <select v-model="filters.month" class="filter-select" @change="reload">
-            <option value="">Semua Bulan</option>
+            <option value="">Semua bulan</option>
             <option v-for="m in 12" :key="m" :value="String(m)">{{ monthFullLabel(m) }}</option>
           </select>
+        </label>
+        <label class="filter-field">
+          <span>Tahun kalender</span>
           <select v-model="filters.year" class="filter-select" @change="reload">
             <option v-for="y in chartYears" :key="y" :value="String(y)">{{ y }}</option>
           </select>
-        </template>
-        <template v-else>
-          <select v-model="filters.year" class="filter-select" @change="reload" title="Tahun kalender untuk tren bulanan">
-            <option v-for="y in chartYears" :key="y" :value="String(y)">Tren {{ y }}</option>
-          </select>
-        </template>
+        </label>
+      </div>
+
+      <div v-if="activeChips.length" class="filter-chips">
+        <button
+          v-for="chip in activeChips"
+          :key="chip.key"
+          type="button"
+          class="filter-chip"
+          :disabled="chip.disabled"
+          @click="clearChip(chip.key)"
+        >
+          {{ chip.label }}
+          <span v-if="!chip.disabled" aria-hidden="true">×</span>
+        </button>
       </div>
 
       <div v-if="loading" class="loading-state">
@@ -81,57 +103,32 @@
       </div>
 
       <!-- ========== RINGKASAN ========== -->
-      <template v-else-if="viewMode === 'ringkasan' && report">
+      <template v-else-if="viewTab === 'ringkasan' && report">
         <div class="stat-cards">
-          <div class="stat-card">
-            <span class="stat-label">Total Pelanggaran</span>
+          <button type="button" class="stat-card" @click="openNotes('violations')">
+            <span class="stat-label">Pelanggaran</span>
             <span class="stat-value">{{ report.summary?.total_violations ?? 0 }}</span>
-          </div>
-          <div class="stat-card stat-card-good">
-            <span class="stat-label">Total Prestasi</span>
+            <span class="stat-sub">{{ report.summary?.total_violation_points ?? 0 }} poin</span>
+          </button>
+          <button type="button" class="stat-card stat-card-good" @click="openNotes('achievements')">
+            <span class="stat-label">Prestasi</span>
             <span class="stat-value">{{ report.summary?.total_achievements ?? 0 }}</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Poin Pelanggaran</span>
-            <span class="stat-value">{{ report.summary?.total_violation_points ?? 0 }}</span>
-          </div>
-          <div class="stat-card stat-card-good">
-            <span class="stat-label">Poin Prestasi</span>
-            <span class="stat-value">−{{ report.summary?.total_achievement_points ?? 0 }}</span>
-          </div>
-          <div class="stat-card stat-card-score">
-            <span class="stat-label">Skor Bersih</span>
+            <span class="stat-sub">−{{ report.summary?.total_achievement_points ?? 0 }} poin</span>
+          </button>
+          <button type="button" class="stat-card stat-card-score" @click="switchTab('skor')">
+            <span class="stat-label">Skor bersih</span>
             <span class="stat-value">{{ report.summary?.net_score ?? 0 }}</span>
             <span class="stat-sub">pelanggaran − prestasi</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Total Konseling</span>
+          </button>
+          <button type="button" class="stat-card" @click="openNotes('counseling')">
+            <span class="stat-label">Konseling</span>
             <span class="stat-value">{{ report.summary?.total_counseling ?? 0 }}</span>
-          </div>
+            <span class="stat-sub">sesi tercatat</span>
+          </button>
         </div>
 
-        <div class="nav-tabs-wrap">
-          <nav class="nav-tabs" aria-label="Tab ringkasan BK">
-            <button type="button" :class="['nav-tab', { active: summaryTab === 'class' }]" @click="summaryTab = 'class'">
-              <span class="nav-tab-label">Per Kelas</span>
-              <span class="nav-tab-hint">Klik baris untuk detail</span>
-            </button>
-            <button type="button" :class="['nav-tab', { active: summaryTab === 'month' }]" @click="summaryTab = 'month'">
-              <span class="nav-tab-label">Per Bulan</span>
-              <span class="nav-tab-hint">Tren tahun {{ report.by_month?.year }}</span>
-            </button>
-            <button type="button" :class="['nav-tab', { active: summaryTab === 'types' }]" @click="summaryTab = 'types'">
-              <span class="nav-tab-label">Jenis Pelanggaran</span>
-              <span class="nav-tab-hint">Top jenis terbanyak</span>
-            </button>
-            <button type="button" :class="['nav-tab', { active: summaryTab === 'achievements' }]" @click="summaryTab = 'achievements'">
-              <span class="nav-tab-label">Jenis Prestasi</span>
-              <span class="nav-tab-hint">Top prestasi</span>
-            </button>
-          </nav>
-        </div>
-
-        <section v-if="summaryTab === 'class'" class="report-section">
+        <section class="report-section">
+          <h3 class="section-title">Per kelas</h3>
           <div v-if="!report.by_class?.length" class="empty-state">
             <h3 class="empty-title">Belum ada data</h3>
             <p class="empty-desc">Tidak ada pelanggaran, prestasi, atau konseling untuk filter yang dipilih.</p>
@@ -160,7 +157,7 @@
                     <td class="td-num td-good">{{ row.achievement_count ?? 0 }}</td>
                     <td class="td-num">{{ row.counseling_count }}</td>
                     <td class="td-action">
-                      <button type="button" class="link-btn" @click.stop="drillToClass(row)">Lihat detail →</button>
+                      <button type="button" class="link-btn" @click.stop="drillToClass(row)">Skor siswa →</button>
                     </td>
                   </tr>
                 </tbody>
@@ -169,227 +166,132 @@
           </div>
         </section>
 
-        <section v-else-if="summaryTab === 'month'" class="report-section">
-          <div class="charts-row">
-            <div class="chart-box">
-              <h4>Tren per bulan ({{ report.by_month?.year }})</h4>
-              <div class="chart-wrap" v-if="monthChartData">
-                <Bar :data="monthChartData" :options="chartOptionsBar" />
-              </div>
-            </div>
+        <section class="report-section">
+          <div class="section-head">
+            <h3 class="section-title">Tren {{ report.by_month?.year }}</h3>
+            <select v-model="filters.year" class="filter-select filter-select-sm" @change="reloadSummaryOnly" title="Tahun kalender untuk grafik tren">
+              <option v-for="y in chartYears" :key="'t'+y" :value="String(y)">{{ y }}</option>
+            </select>
           </div>
-          <div class="table-card" style="margin-top: 1rem">
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Bulan</th>
-                    <th class="th-num">Pelanggaran</th>
-                    <th class="th-num">Prestasi</th>
-                    <th class="th-num">Konseling</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="m in report.by_month?.months || []"
-                    :key="m.month"
-                    class="row-clickable"
-                    @click="drillToMonth(m)"
-                  >
-                    <td>{{ monthFullLabel(m.month) }}</td>
-                    <td class="td-num">{{ m.violation_count }}</td>
-                    <td class="td-num td-good">{{ m.achievement_count ?? 0 }}</td>
-                    <td class="td-num">{{ m.counseling_count }}</td>
-                    <td class="td-action">
-                      <button type="button" class="link-btn" @click.stop="drillToMonth(m)">Lihat detail →</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          <div class="chart-box" v-if="monthChartData">
+            <div class="chart-wrap">
+              <Bar :data="monthChartData" :options="chartOptionsBar" />
             </div>
           </div>
         </section>
 
-        <section v-else-if="summaryTab === 'types'" class="report-section">
-          <div class="charts-row">
-            <div class="chart-box chart-box--pie">
-              <h4>Distribusi jenis pelanggaran</h4>
-              <div class="chart-wrap chart-wrap-pie" v-if="typeChartData">
-                <Doughnut :data="typeChartData" :options="chartOptionsDoughnut" />
+        <div class="split-tables">
+          <section class="report-section">
+            <h3 class="section-title">Jenis pelanggaran</h3>
+            <div v-if="report.top_violation_types?.length" class="table-card">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Jenis</th>
+                      <th class="th-num">Jumlah</th>
+                      <th class="th-num">Poin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in report.top_violation_types" :key="row.violation_type_id ?? row.type_name">
+                      <td>{{ row.type_name }}</td>
+                      <td class="td-num">{{ row.count }}</td>
+                      <td class="td-num">{{ row.total_points }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <p v-else class="empty-desc">Belum ada data jenis pelanggaran.</p>
             </div>
-          </div>
-          <div v-if="report.top_violation_types?.length" class="table-card" style="margin-top: 1rem">
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Jenis Pelanggaran</th>
-                    <th>Kategori</th>
-                    <th class="th-num">Jumlah</th>
-                    <th class="th-num">Total Poin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(row, idx) in report.top_violation_types" :key="row.violation_type_id ?? row.type_name">
-                    <td>{{ idx + 1 }}</td>
-                    <td>{{ row.type_name }}</td>
-                    <td><span class="badge">{{ row.category }}</span></td>
-                    <td class="td-num">{{ row.count }}</td>
-                    <td class="td-num">{{ row.total_points }}</td>
-                  </tr>
-                </tbody>
-              </table>
+            <p v-else class="empty-desc muted">Belum ada catatan pelanggaran.</p>
+          </section>
+          <section class="report-section">
+            <h3 class="section-title">Jenis prestasi</h3>
+            <div v-if="report.top_achievement_types?.length" class="table-card">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Jenis</th>
+                      <th class="th-num">Jumlah</th>
+                      <th class="th-num">Poin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in report.top_achievement_types" :key="row.achievement_type_id ?? row.type_name">
+                      <td>{{ row.type_name }}</td>
+                      <td class="td-num">{{ row.count }}</td>
+                      <td class="td-num td-good">{{ row.total_points }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-          <div v-else class="empty-state">
-            <h3 class="empty-title">Belum ada data</h3>
-            <p class="empty-desc">Tidak ada catatan pelanggaran untuk filter yang dipilih.</p>
-          </div>
-        </section>
-
-        <section v-else class="report-section">
-          <div v-if="report.top_achievement_types?.length" class="table-card">
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Jenis Prestasi</th>
-                    <th>Kategori</th>
-                    <th class="th-num">Jumlah</th>
-                    <th class="th-num">Total Poin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(row, idx) in report.top_achievement_types" :key="row.achievement_type_id ?? row.type_name">
-                    <td>{{ idx + 1 }}</td>
-                    <td>{{ row.type_name }}</td>
-                    <td><span class="badge">{{ row.category || '—' }}</span></td>
-                    <td class="td-num">{{ row.count }}</td>
-                    <td class="td-num td-good">{{ row.total_points }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div v-else class="empty-state">
-            <h3 class="empty-title">Belum ada data prestasi</h3>
-            <p class="empty-desc">Tidak ada catatan prestasi untuk filter yang dipilih.</p>
-          </div>
-        </section>
+            <p v-else class="empty-desc muted">Belum ada catatan prestasi.</p>
+          </section>
+        </div>
       </template>
 
-      <!-- ========== DETAIL ========== -->
-      <template v-else-if="viewMode === 'detail'">
-        <div v-if="detail" class="meta-grid">
-          <div class="meta-item">
-            <span class="meta-icon" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            </span>
-            <div class="meta-body">
-              <span class="meta-label">Periode</span>
-              <span class="meta-value">{{ detailFilterLabel }}</span>
-            </div>
-          </div>
-          <div class="meta-item">
-            <span class="meta-icon meta-icon-warn" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            </span>
-            <div class="meta-body">
-              <span class="meta-label">Pelanggaran</span>
-              <span class="meta-value">{{ detail.total }} catatan</span>
-            </div>
-          </div>
-          <div class="meta-item">
-            <span class="meta-icon" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10l-1.5 8.5a5 5 0 0 1-7 0L7 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-            </span>
-            <div class="meta-body">
-              <span class="meta-label">Prestasi</span>
-              <span class="meta-value">{{ detail.achievements_total ?? detail.achievements?.length ?? 0 }} catatan</span>
-            </div>
-          </div>
-          <div v-if="detail.truncated" class="meta-item">
-            <span class="meta-icon meta-icon-warn" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-            </span>
-            <div class="meta-body">
-              <span class="meta-label">Catatan</span>
-              <span class="meta-value">Ditampilkan maks. 2000 baris</span>
-            </div>
-          </div>
+      <!-- ========== SKOR SISWA ========== -->
+      <template v-else-if="viewTab === 'skor'">
+        <p class="section-hint">Contoh: 40 poin pelanggaran − 20 poin prestasi = <strong>20</strong>.</p>
+        <div v-if="!detail?.by_student?.length" class="empty-state">
+          <h3 class="empty-title">Belum ada data</h3>
+          <p class="empty-desc">Tidak ada siswa dengan pelanggaran atau prestasi untuk filter ini.</p>
         </div>
-
-        <div class="nav-tabs-wrap">
-          <nav class="nav-tabs" aria-label="Tab detail BK">
-            <button type="button" :class="['nav-tab', { active: detailTab === 'students' }]" @click="detailTab = 'students'">
-              <span class="nav-tab-label">Rekap Skor Siswa</span>
-              <span class="nav-tab-hint">Pelanggaran − prestasi</span>
-            </button>
-            <button type="button" :class="['nav-tab', { active: detailTab === 'list' }]" @click="detailTab = 'list'">
-              <span class="nav-tab-label">Daftar Pelanggaran</span>
-              <span class="nav-tab-hint">Transaksi per tanggal</span>
-            </button>
-            <button type="button" :class="['nav-tab', { active: detailTab === 'achievements' }]" @click="detailTab = 'achievements'">
-              <span class="nav-tab-label">Daftar Prestasi</span>
-              <span class="nav-tab-hint">Poin pengurang</span>
-            </button>
-          </nav>
-        </div>
-
-        <section v-if="detailTab === 'students'" class="report-section">
-          <p class="section-hint">Skor = poin pelanggaran − poin prestasi. Contoh: 40 − 20 = <strong>20</strong>.</p>
-          <div v-if="!detail?.by_student?.length" class="empty-state">
-            <h3 class="empty-title">Belum ada data</h3>
-            <p class="empty-desc">Tidak ada siswa dengan pelanggaran atau prestasi untuk filter ini.</p>
-          </div>
-          <div v-else class="table-card">
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>NIS</th>
-                    <th>Nama</th>
-                    <th>Kelas</th>
-                    <th class="th-num">Jml Pelanggaran</th>
-                    <th class="th-num">Poin Pelanggaran</th>
-                    <th class="th-num">Jml Prestasi</th>
-                    <th class="th-num">Poin Prestasi</th>
-                    <th class="th-num">Skor</th>
+        <div v-else class="table-card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>NIS</th>
+                  <th>Nama</th>
+                  <th class="th-num">Pelanggaran</th>
+                  <th class="th-num">Prestasi</th>
+                  <th class="th-num">Skor</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="group in bkStudentGroups" :key="'bk-' + group.key">
+                  <tr class="group-row">
+                    <td colspan="6">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
                   </tr>
-                </thead>
-                <tbody>
-                  <template v-for="group in bkStudentGroups" :key="'bk-' + group.key">
-                    <tr class="group-row">
-                      <td colspan="9">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
-                    </tr>
-                    <tr v-for="(row, i) in group.rows" :key="row.student_id ?? (group.key + '-' + i)">
-                      <td>{{ group.start + i + 1 }}</td>
-                      <td>{{ row.nis || '—' }}</td>
-                      <td>{{ row.student_name || '—' }}</td>
-                      <td>{{ row.class_name }}</td>
-                      <td class="td-num">{{ row.violation_count }}</td>
-                      <td class="td-num">{{ row.violation_points ?? row.total_points }}</td>
-                      <td class="td-num td-good">{{ row.achievement_count ?? 0 }}</td>
-                      <td class="td-num td-good">−{{ row.achievement_points ?? 0 }}</td>
-                      <td class="td-num td-total" :class="scoreClass(row.score)">{{ row.score ?? ((row.violation_points ?? row.total_points) - (row.achievement_points ?? 0)) }}</td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
+                  <tr v-for="(row, i) in group.rows" :key="row.student_id ?? (group.key + '-' + i)">
+                    <td>{{ group.start + i + 1 }}</td>
+                    <td>{{ row.nis || '—' }}</td>
+                    <td>{{ row.student_name || '—' }}</td>
+                    <td class="td-num">{{ row.violation_points ?? row.total_points }} <span class="td-muted">({{ row.violation_count }})</span></td>
+                    <td class="td-num td-good">−{{ row.achievement_points ?? 0 }} <span class="td-muted">({{ row.achievement_count ?? 0 }})</span></td>
+                    <td class="td-num td-total" :class="scoreClass(row.score)">{{ row.score ?? ((row.violation_points ?? row.total_points) - (row.achievement_points ?? 0)) }}</td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
-        </section>
+        </div>
+      </template>
 
-        <section v-else-if="detailTab === 'list'" class="report-section">
+      <!-- ========== CATATAN ========== -->
+      <template v-else-if="viewTab === 'catatan'">
+        <div class="notes-tabs" role="tablist" aria-label="Jenis catatan">
+          <button type="button" :class="['notes-tab', { active: notesKind === 'violations' }]" @click="notesKind = 'violations'">
+            Pelanggaran ({{ detail?.total ?? 0 }})
+          </button>
+          <button type="button" :class="['notes-tab', { active: notesKind === 'achievements' }]" @click="notesKind = 'achievements'">
+            Prestasi ({{ detail?.achievements_total ?? detail?.achievements?.length ?? 0 }})
+          </button>
+          <button type="button" :class="['notes-tab', { active: notesKind === 'counseling' }]" @click="notesKind = 'counseling'">
+            Konseling ({{ detail?.counseling_total ?? detail?.counseling?.length ?? 0 }})
+          </button>
+        </div>
+
+        <p v-if="detail?.truncated" class="section-hint">Ditampilkan maksimal 2000 baris per jenis catatan.</p>
+
+        <section v-if="notesKind === 'violations'" class="report-section">
           <div v-if="!detail?.items?.length" class="empty-state">
             <h3 class="empty-title">Belum ada pelanggaran</h3>
-            <p class="empty-desc">Tidak ada catatan untuk filter kelas/bulan yang dipilih.</p>
+            <p class="empty-desc">Tidak ada catatan untuk filter yang dipilih.</p>
           </div>
           <div v-else class="table-card">
             <div class="table-wrap">
@@ -401,10 +303,8 @@
                     <th>Nama</th>
                     <th>Kelas</th>
                     <th>Jenis</th>
-                    <th>Kategori</th>
                     <th class="th-num">Poin</th>
                     <th>Status</th>
-                    <th>Pelapor</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -414,10 +314,8 @@
                     <td>{{ row.student_name || '—' }}</td>
                     <td>{{ row.class_name }}</td>
                     <td>{{ row.violation_type }}</td>
-                    <td><span class="badge">{{ row.category }}</span></td>
                     <td class="td-num">{{ row.point_weight }}</td>
                     <td><span class="badge">{{ statusLabel(row.status) }}</span></td>
-                    <td>{{ row.reporter_name || '—' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -425,7 +323,7 @@
           </div>
         </section>
 
-        <section v-else class="report-section">
+        <section v-else-if="notesKind === 'achievements'" class="report-section">
           <div v-if="!(detail?.achievements?.length)" class="empty-state">
             <h3 class="empty-title">Belum ada prestasi</h3>
             <p class="empty-desc">Tidak ada catatan prestasi untuk filter yang dipilih.</p>
@@ -441,7 +339,6 @@
                     <th>Kelas</th>
                     <th>Jenis Prestasi</th>
                     <th class="th-num">Poin</th>
-                    <th>Pemberi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -452,7 +349,41 @@
                     <td>{{ row.class_name }}</td>
                     <td>{{ row.achievement_type }}</td>
                     <td class="td-num td-good">−{{ row.point_value }}</td>
-                    <td>{{ row.giver_name || '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section v-else class="report-section">
+          <div v-if="!(detail?.counseling?.length)" class="empty-state">
+            <h3 class="empty-title">Belum ada konseling</h3>
+            <p class="empty-desc">Tidak ada sesi konseling untuk filter yang dipilih.</p>
+          </div>
+          <div v-else class="table-card">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>NIS</th>
+                    <th>Nama</th>
+                    <th>Kelas</th>
+                    <th>Jenis</th>
+                    <th>Status</th>
+                    <th>Konselor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in detail.counseling" :key="row.id">
+                    <td>{{ formatDate(row.session_date) }}</td>
+                    <td>{{ row.nis || '—' }}</td>
+                    <td>{{ row.student_name || '—' }}</td>
+                    <td>{{ row.class_name }}</td>
+                    <td>{{ row.counseling_type }}</td>
+                    <td><span class="badge">{{ counselingStatusLabel(row.status) }}</span></td>
+                    <td>{{ row.counselor_name || '—' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -463,17 +394,17 @@
 
       <div v-else-if="!loading" class="empty-state">
         <h3 class="empty-title">Gagal memuat laporan</h3>
-        <p class="empty-desc">Coba muat ulang atau periksa koneksi.</p>
+        <p class="empty-desc">Coba ubah filter atau periksa koneksi.</p>
       </div>
     </div>
   </Layout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Bar, Doughnut } from 'vue-chartjs'
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
+import { Bar } from 'vue-chartjs'
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
 import Layout from '@/components/Layout.vue'
 import { bkReportApi } from '@/api/bkReport'
 import { institutionApi } from '@/api/institution'
@@ -484,7 +415,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
 import { useToast } from '@/composables/useToast'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const toast = useToast()
 const route = useRoute()
@@ -494,37 +425,24 @@ const authStore = useAuthStore()
 const loading = ref(true)
 const exporting = ref(false)
 const printing = ref(false)
-const viewMode = ref('ringkasan') // ringkasan | detail
-const summaryTab = ref('class')
-const detailTab = ref('students')
+const exportOpen = ref(false)
+const exportWrapRef = ref(null)
+const viewTab = ref('ringkasan') // ringkasan | skor | catatan
+const notesKind = ref('violations') // violations | achievements | counseling
+const periodAdvanced = ref(false)
 const report = ref(null)
 const detail = ref(null)
-function groupRowsByClassName(rows) {
-  const groups = []
-  let current = null
-  let index = 0
-  for (const row of rows || []) {
-    const name = row.class_name || 'Tanpa kelas'
-    if (!current || current.name !== name) {
-      current = { key: name, name, rows: [], start: index }
-      groups.push(current)
-    }
-    current.rows.push(row)
-    index += 1
-  }
-  return groups
-}
-const bkStudentGroups = computed(() => groupRowsByClassName(detail.value?.by_student || []))
+const signers = ref({ principal: {}, bk: {} })
 const classes = ref([])
 const semesters = ref([])
 const institution = ref(null)
 
 const isHomeroomScoped = computed(() => authStore.user?.bk_scope === 'homeroom')
 const homeroomClassIds = computed(() => (authStore.user?.homeroom_class_ids || []).map(Number))
+const isDetailTab = computed(() => viewTab.value !== 'ringkasan')
 
 const now = new Date()
 const currentYear = now.getFullYear()
-const currentMonth = now.getMonth() + 1
 const chartYears = [currentYear, currentYear - 1, currentYear - 2]
 
 const filters = ref({
@@ -555,12 +473,21 @@ const STATUS_LABELS = {
   selesai: 'Selesai',
 }
 
+const COUNSELING_STATUS_LABELS = {
+  berlangsung: 'Berlangsung',
+  selesai: 'Selesai',
+}
+
 function monthFullLabel(m) {
   return MONTH_NAMES[m] || `Bulan ${m}`
 }
 
 function statusLabel(s) {
   return STATUS_LABELS[s] || s || '—'
+}
+
+function counselingStatusLabel(s) {
+  return COUNSELING_STATUS_LABELS[s] || s || '—'
 }
 
 function scoreClass(score) {
@@ -579,14 +506,57 @@ function formatDate(iso) {
   return `${d}/${m}/${y}`
 }
 
-const detailFilterLabel = computed(() => {
-  const parts = []
+function groupRowsByClassName(rows) {
+  const groups = []
+  let current = null
+  let index = 0
+  for (const row of rows || []) {
+    const name = row.class_name || 'Tanpa kelas'
+    if (!current || current.name !== name) {
+      current = { key: name, name, rows: [], start: index }
+      groups.push(current)
+    }
+    current.rows.push(row)
+    index += 1
+  }
+  return groups
+}
+
+const bkStudentGroups = computed(() => groupRowsByClassName(detail.value?.by_student || []))
+
+const selectedClassName = computed(() => {
   const cls = classes.value.find(c => String(c.id) === String(filters.value.class_id))
-  parts.push(cls?.name || 'Semua kelas')
-  if (filters.value.month) {
+  return cls?.name || ''
+})
+
+const activeChips = computed(() => {
+  const chips = []
+  if (filters.value.class_id && selectedClassName.value) {
+    chips.push({
+      key: 'class',
+      label: `Kelas ${selectedClassName.value}`,
+      disabled: isHomeroomScoped.value && classes.value.length <= 1,
+    })
+  }
+  if (periodAdvanced.value && filters.value.month) {
+    chips.push({
+      key: 'month',
+      label: `${monthFullLabel(Number(filters.value.month))} ${filters.value.year}`,
+      disabled: false,
+    })
+  }
+  return chips
+})
+
+const periodLabel = computed(() => {
+  const parts = []
+  parts.push(selectedClassName.value || 'Semua kelas')
+  const yearName = academicYears.value.find(y => String(y.id) === String(filters.value.academic_year_id))?.name
+  if (yearName) parts.push(yearName)
+  const semName = filteredSemesters.value.find(s => String(s.id) === String(filters.value.semester_id))?.name
+  if (semName) parts.push(semName)
+  if (periodAdvanced.value && filters.value.month) {
     parts.push(`${monthFullLabel(Number(filters.value.month))} ${filters.value.year}`)
-  } else {
-    parts.push(`Tahun ${filters.value.year || currentYear}`)
   }
   return parts.join(' · ')
 })
@@ -598,7 +568,14 @@ function cleanParams({ forDetail = false } = {}) {
     class_id: filters.value.class_id,
     year: filters.value.year,
   }
-  if (forDetail && filters.value.month) {
+  const applyCalendarPeriod = periodAdvanced.value && !!filters.value.month
+  if (forDetail) {
+    if (applyCalendarPeriod) {
+      params.month = filters.value.month
+    } else {
+      delete params.year
+    }
+  } else if (applyCalendarPeriod) {
     params.month = filters.value.month
   }
   Object.keys(params).forEach((k) => {
@@ -636,19 +613,6 @@ const monthChartData = computed(() => {
   }
 })
 
-const typeChartData = computed(() => {
-  const types = report.value?.top_violation_types
-  if (!types?.length) return null
-  const palette = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b', '#14b8a6']
-  return {
-    labels: types.map(t => t.type_name),
-    datasets: [{
-      data: types.map(t => t.count),
-      backgroundColor: types.map((_, i) => palette[i % palette.length]),
-    }],
-  }
-})
-
 const chartOptionsBar = {
   responsive: true,
   maintainAspectRatio: false,
@@ -656,10 +620,8 @@ const chartOptionsBar = {
   scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
 }
 
-const chartOptionsDoughnut = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: { legend: { position: 'right' } },
+function captureSigners(payload) {
+  if (payload?.signers) signers.value = payload.signers
 }
 
 async function loadSummary() {
@@ -667,6 +629,7 @@ async function loadSummary() {
   try {
     const res = await bkReportApi.getSummary(cleanParams({ forDetail: false }))
     report.value = res.data?.data ?? null
+    captureSigners(report.value)
   } catch (e) {
     report.value = null
     toast.error('Gagal memuat ringkasan', e.formattedMessage || 'Periksa koneksi dan coba lagi.')
@@ -680,6 +643,7 @@ async function loadDetail() {
   try {
     const res = await bkReportApi.getViolationDetail(cleanParams({ forDetail: true }))
     detail.value = res.data?.data ?? null
+    captureSigners(detail.value)
   } catch (e) {
     detail.value = null
     toast.error('Gagal memuat detail', e.formattedMessage || 'Periksa koneksi dan coba lagi.')
@@ -688,46 +652,69 @@ async function loadDetail() {
   }
 }
 
+function invalidateCache() {
+  report.value = null
+  detail.value = null
+}
+
 async function reload() {
-  if (viewMode.value === 'detail') await loadDetail()
+  invalidateCache()
+  if (isDetailTab.value) await loadDetail()
   else await loadSummary()
 }
 
-async function switchMode(mode) {
-  if (viewMode.value === mode) return
-  viewMode.value = mode
-  if (mode === 'detail' && !filters.value.month) {
-    filters.value.month = String(currentMonth)
+async function reloadSummaryOnly() {
+  report.value = null
+  await loadSummary()
+}
+
+async function switchTab(tab) {
+  if (viewTab.value === tab) return
+  viewTab.value = tab
+  if (tab === 'ringkasan') {
+    if (!report.value) await loadSummary()
+  } else if (!detail.value) {
+    await loadDetail()
   }
-  await reload()
+}
+
+async function openNotes(kind) {
+  notesKind.value = kind
+  await switchTab('catatan')
 }
 
 async function drillToClass(row) {
   if (row.class_id) {
     filters.value.class_id = String(row.class_id)
   }
-  if (!filters.value.month) {
-    filters.value.month = String(currentMonth)
-  }
-  viewMode.value = 'detail'
-  detailTab.value = 'students'
+  report.value = null
+  detail.value = null
+  viewTab.value = 'skor'
   await loadDetail()
 }
 
-async function drillToMonth(m) {
-  filters.value.month = String(m.month)
-  if (report.value?.by_month?.year) {
-    filters.value.year = String(report.value.by_month.year)
+async function clearChip(key) {
+  if (key === 'class') {
+    if (isHomeroomScoped.value && classes.value.length <= 1) return
+    filters.value.class_id = ''
   }
-  viewMode.value = 'detail'
-  detailTab.value = 'students'
-  await loadDetail()
+  if (key === 'month') {
+    filters.value.month = ''
+  }
+  await reload()
+}
+
+function closeExportMenu(event) {
+  if (exportWrapRef.value && !exportWrapRef.value.contains(event.target)) {
+    exportOpen.value = false
+  }
 }
 
 async function exportCsv() {
+  exportOpen.value = false
   exporting.value = true
   try {
-    const isDetail = viewMode.value === 'detail'
+    const isDetail = isDetailTab.value
     const res = isDetail
       ? await bkReportApi.exportViolations(cleanParams({ forDetail: true }))
       : await bkReportApi.export(cleanParams({ forDetail: false }))
@@ -737,7 +724,7 @@ async function exportCsv() {
     link.setAttribute(
       'download',
       isDetail
-        ? `laporan-bk-detail-pelanggaran-${new Date().toISOString().slice(0, 10)}.csv`
+        ? `laporan-bk-detail-${new Date().toISOString().slice(0, 10)}.csv`
         : `laporan-bk-per-kelas-${new Date().toISOString().slice(0, 10)}.csv`
     )
     document.body.appendChild(link)
@@ -761,7 +748,7 @@ function escapeHtml(str) {
 }
 
 function buildPrintBodyHtml() {
-  if (viewMode.value === 'detail') {
+  if (isDetailTab.value) {
     if (!detail.value) return '<p>Tidak ada data.</p>'
 
     const studentRows = (bkStudentGroups.value || []).flatMap((group) => {
@@ -812,6 +799,18 @@ function buildPrintBodyHtml() {
       </tr>
     `).join('') || '<tr><td colspan="7">Belum ada data</td></tr>'
 
+    const counselingRows = (detail.value.counseling || []).map((row) => `
+      <tr>
+        <td>${escapeHtml(formatDate(row.session_date))}</td>
+        <td>${escapeHtml(row.nis || '—')}</td>
+        <td>${escapeHtml(row.student_name || '—')}</td>
+        <td>${escapeHtml(row.class_name)}</td>
+        <td>${escapeHtml(row.counseling_type)}</td>
+        <td>${escapeHtml(counselingStatusLabel(row.status))}</td>
+        <td>${escapeHtml(row.counselor_name || '—')}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="7">Belum ada data</td></tr>'
+
     return `
       <p class="note">Skor = poin pelanggaran − poin prestasi. Contoh: 40 − 20 = 20.</p>
       <h2>1. Rekap Skor per Siswa</h2>
@@ -845,10 +844,19 @@ function buildPrintBodyHtml() {
         </thead>
         <tbody>${achRows}</tbody>
       </table>
+      <h2>4. Daftar Konseling</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th>
+            <th>Jenis</th><th>Status</th><th>Konselor</th>
+          </tr>
+        </thead>
+        <tbody>${counselingRows}</tbody>
+      </table>
     `
   }
 
-  // Ringkasan
   if (!report.value) return '<p>Tidak ada data.</p>'
   const s = report.value.summary || {}
   const classRows = (report.value.by_class || []).map((row) => `
@@ -893,8 +901,6 @@ function buildPrintBodyHtml() {
     <div class="stats">
       <div class="stat"><div class="stat-label">Total Pelanggaran</div><div class="stat-value">${s.total_violations ?? 0}</div></div>
       <div class="stat"><div class="stat-label">Total Prestasi</div><div class="stat-value">${s.total_achievements ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Poin Pelanggaran</div><div class="stat-value">${s.total_violation_points ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Poin Prestasi</div><div class="stat-value">−${s.total_achievement_points ?? 0}</div></div>
       <div class="stat"><div class="stat-label">Skor Bersih</div><div class="stat-value">${s.net_score ?? 0}</div></div>
       <div class="stat"><div class="stat-label">Total Konseling</div><div class="stat-value">${s.total_counseling ?? 0}</div></div>
     </div>
@@ -923,7 +929,8 @@ function buildPrintBodyHtml() {
 }
 
 function printPdf() {
-  const hasData = viewMode.value === 'detail' ? !!detail.value : !!report.value
+  exportOpen.value = false
+  const hasData = isDetailTab.value ? !!detail.value : !!report.value
   if (!hasData) {
     toast.error('Gagal', 'Tidak ada data untuk dicetak')
     return
@@ -941,24 +948,23 @@ function printPdf() {
       inst.province,
       inst.postal_code,
     ].filter(Boolean).join(', ')
-    const title = viewMode.value === 'detail'
-      ? 'Laporan BK — Detail & Skor Siswa'
+    const title = isDetailTab.value
+      ? 'Laporan BK — Skor Siswa & Catatan'
       : 'Laporan BK — Ringkasan'
-    const periodLabel = viewMode.value === 'detail'
-      ? detailFilterLabel.value
-      : [
-          classes.value.find(c => String(c.id) === String(filters.value.class_id))?.name || 'Semua kelas',
-          academicYears.value.find(y => String(y.id) === String(filters.value.academic_year_id))?.name || 'Semua tahun ajaran',
-          `Tren ${filters.value.year || currentYear}`,
-        ].join(' · ')
-
     const createdAt = new Date().toLocaleDateString('id-ID', {
       day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
     })
     const placeDate = `${inst.district || inst.city || '........................'}, ${new Date().toLocaleDateString('id-ID', {
       day: 'numeric', month: 'long', year: 'numeric',
     })}`
-    const filename = `Laporan_BK_${viewMode.value === 'detail' ? 'Detail' : 'Ringkasan'}_${new Date().toISOString().slice(0, 10)}.pdf`
+    const filename = `Laporan_BK_${isDetailTab.value ? 'Detail' : 'Ringkasan'}_${new Date().toISOString().slice(0, 10)}.pdf`
+
+    const principalRole = signers.value?.principal?.role || getPrincipalTitle(inst.level)
+    const principalName = signers.value?.principal?.name || inst.principal_name || ''
+    const principalNip = signers.value?.principal?.nip || inst.principal_nip || ''
+    const bkRole = signers.value?.bk?.role || 'Guru Bimbingan Konseling'
+    const bkName = signers.value?.bk?.name || ''
+    const bkNip = signers.value?.bk?.nip || ''
 
     const content = `<!DOCTYPE html>
 <html lang="id">
@@ -990,11 +996,18 @@ function printPdf() {
     .stat-label { font-size: 9px; text-transform: uppercase; color: #555; }
     .stat-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
     .note { font-size: 10px; color: #444; margin: 0 0 10px; }
-    .footer { display: flex; justify-content: space-between; margin-top: 28px; page-break-inside: avoid; }
-    .footer-right { text-align: center; min-width: 220px; }
+    .printed-at { font-size: 9px; color: #555; margin-top: 18px; }
+    .sig-wrap { display: table; width: 100%; margin-top: 28px; page-break-inside: avoid; }
+    .sig-col { display: table-cell; width: 50%; vertical-align: top; }
+    .sig { text-align: center; min-width: 220px; }
+    .sig-col-right { text-align: right; }
+    .sig-col-right .sig { display: inline-block; text-align: center; }
+    .sig-place, .sig-role { font-size: 10px; line-height: 1.35; }
     .sig-space { height: 56px; }
+    .sig-name { font-size: 11px; font-weight: 700; text-decoration: underline; }
+    .sig-nip { font-size: 9px; margin-top: 2px; }
     @media print {
-      @page { size: A4 ${viewMode.value === 'detail' ? 'landscape' : 'portrait'}; margin: 10mm 12mm 10mm 10mm; }
+      @page { size: A4 ${isDetailTab.value ? 'landscape' : 'portrait'}; margin: 10mm 12mm 10mm 10mm; }
       body { margin: 0; padding-right: 1px; }
     }
   </style>
@@ -1020,18 +1033,27 @@ function printPdf() {
   </header>
   <h1>${escapeHtml(title)}</h1>
   <div class="subtitle">Bimbingan Konseling</div>
-  <div class="period"><strong>Periode / Filter:</strong> ${escapeHtml(periodLabel)}</div>
+  <div class="period"><strong>Periode / Filter:</strong> ${escapeHtml(periodLabel.value)}</div>
   ${buildPrintBodyHtml()}
-  <div class="footer">
-    <div>
-      <strong>Dibuat pada:</strong><br>${escapeHtml(createdAt)}
+  <div class="printed-at">Dicetak pada: ${escapeHtml(createdAt)}</div>
+  <div class="sig-wrap">
+    <div class="sig-col">
+      <div class="sig">
+        <div class="sig-place">&nbsp;</div>
+        <div class="sig-role">Mengetahui,<br>${escapeHtml(principalRole)}</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">${escapeHtml(principalName || '___________________')}</div>
+        <div class="sig-nip">NIP. ${escapeHtml(principalNip || '___________________')}</div>
+      </div>
     </div>
-    <div class="footer-right">
-      ${escapeHtml(placeDate)}<br>
-      ${escapeHtml(getPrincipalTitle(inst.level))}
-      <div class="sig-space"></div>
-      <strong>${escapeHtml(inst.principal_name || '___________________')}</strong>
-      <br>NIP. ${escapeHtml(inst.principal_nip || '___________________')}
+    <div class="sig-col sig-col-right">
+      <div class="sig">
+        <div class="sig-place">${escapeHtml(placeDate)}</div>
+        <div class="sig-role">${escapeHtml(bkRole)}</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">${escapeHtml(bkName || '___________________')}</div>
+        <div class="sig-nip">NIP. ${escapeHtml(bkNip || '___________________')}</div>
+      </div>
     </div>
   </div>
 </body>
@@ -1111,6 +1133,7 @@ async function loadDefaults() {
 }
 
 onMounted(async () => {
+  document.addEventListener('click', closeExportMenu)
   await Promise.all([
     loadDefaults(),
     referenceStore.getAcademicYears(),
@@ -1121,11 +1144,19 @@ onMounted(async () => {
   if (qClassId && classes.value.some((c) => String(c.id) === qClassId)) {
     filters.value.class_id = qClassId
   }
-  if (route.query.tab === 'detail') {
-    await switchMode('detail')
-  } else {
-    await loadSummary()
+  const qTab = String(route.query.tab || '')
+  if (qTab === 'detail' || qTab === 'skor') viewTab.value = 'skor'
+  else if (qTab === 'catatan') viewTab.value = 'catatan'
+  const qNotes = String(route.query.notes || '')
+  if (['violations', 'achievements', 'counseling'].includes(qNotes)) {
+    notesKind.value = qNotes
   }
+  if (isDetailTab.value) await loadDetail()
+  else await loadSummary()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeExportMenu)
 })
 </script>
 
@@ -1178,11 +1209,44 @@ onMounted(async () => {
   gap: 0.5rem;
   flex-wrap: wrap;
 }
-.filters-inline {
+.export-wrap { position: relative; }
+.export-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 200px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15,23,42,.12); padding: .35rem;
+}
+.export-menu button {
+  display: block; width: 100%; text-align: left; border: none; background: transparent;
+  padding: .55rem .7rem; border-radius: 8px; cursor: pointer; color: #0f172a; font-size: .88rem;
+}
+.export-menu button:hover { background: #eff6ff; color: #1d4ed8; }
+.export-menu button:disabled { opacity: .55; cursor: not-allowed; }
+.filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
+  gap: 0.65rem 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+}
+.filters-advanced {
+  padding: 0.75rem 0.85rem;
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  margin-bottom: 0.85rem;
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.filter-field span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 .filter-select {
   padding: 0.5rem 0.75rem;
@@ -1193,9 +1257,46 @@ onMounted(async () => {
   color: #334155;
   min-width: 0;
 }
+.filter-select-sm { font-size: 0.8rem; padding: 0.3rem 0.5rem; }
+.btn-ghost {
+  border: 1px dashed #cbd5e1;
+  background: #fff;
+  color: #475569;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-ghost.active {
+  border-style: solid;
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e40af;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.filter-chip:disabled { cursor: default; opacity: 0.85; }
 .stat-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
@@ -1207,7 +1308,10 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  text-align: left;
+  cursor: pointer;
 }
+.stat-card:hover { border-color: #93c5fd; box-shadow: 0 0 0 3px #dbeafe; }
 .stat-card-good { border-color: #a7f3d0; background: #f0fdf4; }
 .stat-card-score { border-color: #fde68a; background: #fffbeb; }
 .stat-sub { font-size: 0.7rem; color: #64748b; }
@@ -1223,65 +1327,46 @@ onMounted(async () => {
   font-weight: 700;
   color: #0f172a;
 }
-.nav-tabs-wrap { margin-bottom: 1rem; }
-.nav-tabs {
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+.section-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  color: #334155;
+}
+.section-head .section-title { margin: 0; }
+.split-tables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.notes-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  background: #fff;
+  margin-bottom: 0.85rem;
+}
+.notes-tab {
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.35rem;
-}
-.nav-tab {
-  flex: 1;
-  min-width: 140px;
-  text-align: left;
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  padding: 0.65rem 0.9rem;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.nav-tab:hover { background: #f1f5f9; }
-.nav-tab.active {
-  background: #eff6ff;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
-}
-.nav-tab-label {
-  display: block;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  font-size: 0.9rem;
-  color: #1e293b;
+  color: #475569;
+  cursor: pointer;
 }
-.nav-tab-hint {
-  display: block;
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 0.15rem;
+.notes-tab.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
 }
 .report-section { margin-top: 0.5rem; }
-.meta-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 8px 12px;
-  margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-}
-.meta-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-.meta-icon {
-  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 8px; background: #ecfdf5; color: #059669;
-}
-.meta-icon-warn { background: #fff7ed; color: #c2410c; }
-.meta-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.meta-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; }
-.meta-value { font-size: 13.5px; font-weight: 600; color: #0f172a; line-height: 1.35; word-break: break-word; }
-@media (max-width: 768px) { .meta-grid { grid-template-columns: 1fr 1fr; } }
 .table-card {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -1322,6 +1407,7 @@ onMounted(async () => {
 .th-num, .td-num { text-align: right; font-variant-numeric: tabular-nums; }
 .td-total { font-weight: 700; }
 .td-good { color: #059669; font-weight: 600; }
+.td-muted { color: #94a3b8; font-weight: 500; font-size: 0.75rem; }
 .score-bad { color: #b91c1c; }
 .score-warn { color: #c2410c; }
 .score-good { color: #047857; }
@@ -1350,24 +1436,13 @@ onMounted(async () => {
   color: #475569;
   text-transform: capitalize;
 }
-.charts-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
 .chart-box {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 1rem 1.15rem;
 }
-.chart-box h4 {
-  margin: 0 0 0.75rem;
-  font-size: 0.95rem;
-  color: #334155;
-}
-.chart-wrap { height: 280px; }
-.chart-wrap-pie { height: 260px; }
+.chart-wrap { height: 260px; }
 .empty-state {
   text-align: center;
   padding: 2.5rem 1rem;
@@ -1385,6 +1460,7 @@ onMounted(async () => {
   color: #64748b;
   font-size: 0.9rem;
 }
+.empty-desc.muted { padding: 0.75rem 0; }
 .loading-state {
   display: flex;
   flex-direction: column;
@@ -1402,7 +1478,7 @@ onMounted(async () => {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.btn-primary, .btn-secondary {
+.btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -1410,24 +1486,20 @@ onMounted(async () => {
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 600;
-  border: none;
-  cursor: pointer;
-}
-.btn-compact { white-space: nowrap; }
-.btn-primary { background: #2563eb; color: #fff; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-secondary {
   background: #fff;
   color: #334155;
   border: 1px solid #e2e8f0;
+  cursor: pointer;
 }
+.btn-compact { white-space: nowrap; }
 .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
 @media (max-width: 900px) {
+  .split-tables { grid-template-columns: 1fr; }
   .stat-cards { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
   .laporan-bk-page { padding: 1rem; }
   .stat-cards { grid-template-columns: 1fr; }
-  .chart-wrap, .chart-wrap-pie { height: 220px; }
+  .chart-wrap { height: 220px; }
 }
 </style>

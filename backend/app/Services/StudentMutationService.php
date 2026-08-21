@@ -8,6 +8,7 @@ use App\Models\StudentMutation;
 use App\Models\User;
 use App\Notifications\StudentMutationNotification;
 use App\Services\LocalNisService;
+use App\Support\StudentIdentity;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,31 +17,24 @@ use Illuminate\Support\Facades\Log;
 class StudentMutationService
 {
     /**
-     * Lookup active student by NISN at the given institution (for mutation confirmation preview).
+     * Lookup active student by NIK at the given institution (for mutation confirmation preview).
      *
-     * @return array{id: int, nisn: string|null, nis: string|null, name: string, gender: string|null, status: string|null, tingkat: int|null, class_name: string|null}
+     * @return array{id: int, nik: string|null, nisn: string|null, nis: string|null, name: string, gender: string|null, status: string|null, tingkat: int|null, class_name: string|null}
      */
-    public function lookupStudentByNisn(int $institutionId, string $nisn): array
+    public function lookupStudentByNik(int $institutionId, string $nik): array
     {
-        $student = Student::with('class:id,name,grade')
-            ->where('nisn', $nisn)
-            ->where('institution_id', $institutionId)
-            ->where('status', 'Aktif')
-            ->first();
-
-        if (!$student) {
-            throw new \InvalidArgumentException('Siswa dengan NISN tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
-        }
+        $student = $this->findOutgoingStudentByNik($nik, $institutionId);
 
         return $this->formatStudentLookup($student);
     }
 
     /**
-     * Lookup active student at origin school by NPSN + NISN (for pull confirmation preview).
+     * Lookup student at origin school by NPSN + NIK (for pull confirmation preview).
+     * Siswa aktif di kotak sampah sekolah asal tetap bisa ditarik (menunggu persetujuan asal).
      *
-     * @return array{id: int, nisn: string|null, nis: string|null, name: string, gender: string|null, status: string|null, tingkat: int|null, class_name: string|null, institution: array{id: int, name: string, npsn: string|null, level: string|null}}
+     * @return array{id: int, nik: string|null, nisn: string|null, nis: string|null, name: string, gender: string|null, status: string|null, tingkat: int|null, class_name: string|null, in_trash: bool, institution: array{id: int, name: string, npsn: string|null, level: string|null}}
      */
-    public function lookupStudentAtOriginByNpsn(string $originNpsn, string $nisn, int $excludeInstitutionId): array
+    public function lookupStudentAtOriginByNpsn(string $originNpsn, string $nik, int $excludeInstitutionId): array
     {
         $origin = Institution::where('npsn', $originNpsn)->where('is_active', true)->first();
         if (!$origin) {
@@ -55,15 +49,7 @@ class StudentMutationService
             throw new \InvalidArgumentException('Mutasi hanya dapat dilakukan antar jenjang yang sama (SD-MI, SMP-MTs, SMA-MA-SMK-MAK, PAUD-TK).');
         }
 
-        $student = Student::with('class:id,name,grade')
-            ->where('nisn', $nisn)
-            ->where('institution_id', $origin->id)
-            ->where('status', 'Aktif')
-            ->first();
-
-        if (!$student) {
-            throw new \InvalidArgumentException('Siswa dengan NISN tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
-        }
+        $student = $this->findPullableStudentByNik($nik, $origin->id);
 
         $data = $this->formatStudentLookup($student);
         $data['institution'] = [
@@ -77,7 +63,100 @@ class StudentMutationService
     }
 
     /**
-     * @return array{id: int, nisn: string|null, nis: string|null, name: string, gender: string|null, status: string|null, tingkat: int|null, class_name: string|null}
+     * Siswa aktif di sekolah sendiri untuk pengajuan mutasi keluar (bukan dari kotak sampah).
+     */
+    public function findOutgoingStudentByNik(string $nik, int $institutionId): Student
+    {
+        $student = Student::withTrashed()
+            ->with('class:id,name,grade')
+            ->where('nik', $nik)
+            ->where('institution_id', $institutionId)
+            ->first();
+
+        if (! $student) {
+            throw new \InvalidArgumentException('Siswa dengan NIK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+        }
+        if ($student->trashed()) {
+            throw new \InvalidArgumentException('Siswa ada di kotak sampah. Pulihkan dulu dari Data Siswa, lalu ajukan mutasi.');
+        }
+        if ($student->status !== 'Aktif') {
+            throw new \InvalidArgumentException('Siswa dengan NIK tersebut tidak ditemukan di sekolah Anda atau status tidak aktif.');
+        }
+
+        return $student;
+    }
+
+    /**
+     * Siswa yang boleh ditarik sekolah lain: aktif, atau aktif yang masuk kotak sampah.
+     * Alumni (Lulus) tidak ditarik lewat mutasi.
+     */
+    public function findPullableStudentByNik(string $nik, int $institutionId): Student
+    {
+        $student = Student::withTrashed()
+            ->with('class:id,name,grade')
+            ->where('nik', $nik)
+            ->where('institution_id', $institutionId)
+            ->first();
+
+        if (! $student) {
+            throw new \InvalidArgumentException('Siswa dengan NIK tersebut tidak ditemukan di sekolah asal.');
+        }
+        if ($student->status === 'Lulus') {
+            throw new \InvalidArgumentException('Siswa berstatus Lulus tidak dapat ditarik. Data alumni tidak dimutasikan.');
+        }
+        if ($student->trashed()) {
+            if ($student->status !== 'Aktif') {
+                throw new \InvalidArgumentException('Siswa ada di kotak sampah sekolah asal dengan status '.$student->status.'. Hanya siswa aktif yang dihapus yang dapat ditarik.');
+            }
+
+            return $student;
+        }
+        if ($student->status !== 'Aktif') {
+            throw new \InvalidArgumentException('Siswa dengan NIK tersebut tidak ditemukan di sekolah asal atau status tidak aktif.');
+        }
+
+        return $student;
+    }
+
+    /**
+     * NIK (dan NISN bila diisi) tidak boleh dipakai siswa aktif di sekolah manapun.
+     * Alumni (Lulus) di sekolah lain boleh didaftarkan sebagai siswa baru.
+     */
+    protected function assertIdentityAvailableForNewStudent(string $nik, int $targetInstitutionId, ?string $nisn = null): void
+    {
+        $this->assertFieldAvailableForNewStudent('nik', $nik, $targetInstitutionId);
+        if ($nisn !== null && trim($nisn) !== '') {
+            $this->assertFieldAvailableForNewStudent('nisn', $nisn, $targetInstitutionId);
+        }
+    }
+
+    protected function assertFieldAvailableForNewStudent(string $field, string $value, int $targetInstitutionId): void
+    {
+        $label = $field === 'nik' ? 'NIK' : 'NISN';
+        $value = trim($value);
+
+        $sameSchool = Student::withTrashed()
+            ->where('institution_id', $targetInstitutionId)
+            ->where($field, $value)
+            ->first();
+        if ($sameSchool) {
+            throw new \InvalidArgumentException($label.' tersebut sudah digunakan oleh siswa lain di sekolah Anda.');
+        }
+
+        $occupant = StudentIdentity::activeOccupant($field, $value);
+        if (! $occupant) {
+            return;
+        }
+
+        $occupant->loadMissing('institution:id,name');
+        $where = $occupant->institution?->name ?: 'sekolah lain';
+        $trash = $occupant->trashed() ? ' (kotak sampah)' : '';
+
+        throw new \InvalidArgumentException($label." tersebut sudah terdaftar di {$where}{$trash}. Gunakan tarik siswa, jangan input manual.");
+    }
+
+    /**
+     * @return array{id: int, nik: string|null, nisn: string|null, nis: string|null, name: string, gender: string|null, status: string|null, tingkat: int|null, class_name: string|null, in_trash: bool}
      */
     protected function formatStudentLookup(Student $student): array
     {
@@ -85,6 +164,7 @@ class StudentMutationService
 
         return [
             'id' => $student->id,
+            'nik' => $student->nik,
             'nisn' => $student->nisn,
             'nis' => $student->nis,
             'name' => $student->name,
@@ -92,6 +172,7 @@ class StudentMutationService
             'status' => $student->status,
             'tingkat' => $grade !== null ? (is_numeric($grade) ? (int) $grade : $grade) : null,
             'class_name' => $student->class?->name,
+            'in_trash' => $student->trashed(),
         ];
     }
 
@@ -234,9 +315,9 @@ class StudentMutationService
     }
 
     /**
-     * Create mutation request from origin school (admin asal: pilih NPSN tujuan + NISN siswa).
+     * Create mutation request from origin school (admin asal: pilih NPSN tujuan + NIK siswa).
      */
-    public function createFromOrigin(int $originInstitutionId, string $targetNpsn, string $nisn, int $requestedBy, ?string $notes = null): StudentMutation
+    public function createFromOrigin(int $originInstitutionId, string $targetNpsn, string $nik, int $requestedBy, ?string $notes = null): StudentMutation
     {
         $target = Institution::where('npsn', $targetNpsn)->where('is_active', true)->firstOrFail();
         if ((int) $target->id === (int) $originInstitutionId) {
@@ -248,10 +329,7 @@ class StudentMutationService
             throw new \InvalidArgumentException('Mutasi hanya dapat dilakukan antar jenjang yang sama.');
         }
 
-        $student = Student::where('nisn', $nisn)
-            ->where('institution_id', $originInstitutionId)
-            ->where('status', 'Aktif')
-            ->firstOrFail();
+        $student = $this->findOutgoingStudentByNik($nik, $originInstitutionId);
 
         $this->assertNoPendingMutation($student->id);
 
@@ -278,14 +356,11 @@ class StudentMutationService
         int $originInstitutionId,
         string $targetNpsn,
         string $targetSchoolName,
-        string $nisn,
+        string $nik,
         int $requestedBy,
         ?string $notes = null
     ): StudentMutation {
-        $student = Student::where('nisn', $nisn)
-            ->where('institution_id', $originInstitutionId)
-            ->where('status', 'Aktif')
-            ->firstOrFail();
+        $student = $this->findOutgoingStudentByNik($nik, $originInstitutionId);
 
         $this->assertNoPendingMutation($student->id);
 
@@ -346,7 +421,7 @@ class StudentMutationService
      * Create mutation request from target school (admin tujuan: tarik siswa dari sekolah asal).
      * initiated_by = 'target'.
      */
-    public function createFromTarget(int $targetInstitutionId, string $originNpsn, string $nisn, int $requestedBy, ?string $notes = null): StudentMutation
+    public function createFromTarget(int $targetInstitutionId, string $originNpsn, string $nik, int $requestedBy, ?string $notes = null): StudentMutation
     {
         $origin = Institution::where('npsn', $originNpsn)->where('is_active', true)->firstOrFail();
         if ((int) $origin->id === (int) $targetInstitutionId) {
@@ -358,10 +433,7 @@ class StudentMutationService
             throw new \InvalidArgumentException('Mutasi hanya dapat dilakukan antar jenjang yang sama.');
         }
 
-        $student = Student::where('nisn', $nisn)
-            ->where('institution_id', $origin->id)
-            ->where('status', 'Aktif')
-            ->firstOrFail();
+        $student = $this->findPullableStudentByNik($nik, $origin->id);
 
         $this->assertNoPendingMutation($student->id);
 
@@ -389,17 +461,16 @@ class StudentMutationService
         string $originNpsn,
         string $originSchoolName,
         string $studentName,
-        string $studentNisn,
+        string $studentNik,
         string $studentGender,
         ?string $studentGrade,
         int $requestedBy,
-        ?string $notes = null
+        ?string $notes = null,
+        ?string $studentNisn = null
     ): StudentMutation {
         $target = Institution::with('activeAcademicYear')->findOrFail($targetInstitutionId);
 
-        if (Student::where('institution_id', $targetInstitutionId)->where('nisn', $studentNisn)->exists()) {
-            throw new \InvalidArgumentException('NISN tersebut sudah digunakan oleh siswa lain di sekolah Anda.');
-        }
+        $this->assertIdentityAvailableForNewStudent($studentNik, $targetInstitutionId, $studentNisn);
 
         $gender = preg_match('/^(L|l|Laki|Male)/i', $studentGender) ? 'L' : 'P';
 
@@ -407,7 +478,8 @@ class StudentMutationService
         try {
             $student = Student::create([
                 'institution_id' => $targetInstitutionId,
-                'nisn' => $studentNisn,
+                'nik' => $studentNik,
+                'nisn' => $studentNisn !== null && trim($studentNisn) !== '' ? trim($studentNisn) : null,
                 'name' => $studentName,
                 'gender' => $gender,
                 'tingkat' => is_numeric($studentGrade) ? (int) $studentGrade : null,
@@ -466,7 +538,7 @@ class StudentMutationService
         $query = StudentMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'student:id,nisn,nis,name,gender,status',
+            'student:id,nik,nisn,nis,name,gender,status,deleted_at',
             'requester:id,name,email',
             'approver:id,name',
             'cancelRequester:id,name',
@@ -506,6 +578,12 @@ class StudentMutationService
         DB::beginTransaction();
         try {
             $student = $mutation->student;
+            if (! $student) {
+                throw new \InvalidArgumentException('Data siswa tidak ditemukan.');
+            }
+            if ($student->trashed()) {
+                $student->restore();
+            }
 
             if ($mutation->isExternalTarget()) {
                 $student->load('class');
@@ -544,17 +622,7 @@ class StudentMutationService
 
             $target = Institution::with('activeAcademicYear')->find($mutation->target_institution_id);
 
-            // NISN must not already exist for another active student at target institution
-            if ($student->nisn) {
-                $duplicate = Student::where('institution_id', $target->id)
-                    ->where('nisn', $student->nisn)
-                    ->where('id', '!=', $student->id)
-                    ->exists();
-                if ($duplicate) {
-                    DB::rollBack();
-                    throw new \InvalidArgumentException('NISN siswa sudah digunakan oleh siswa lain di sekolah tujuan. Mutasi tidak dapat disetujui.');
-                }
-            }
+            $this->assertIdentityFreeAtInstitution($student, $target->id, 'sekolah tujuan. Mutasi tidak dapat disetujui.');
 
             // Simpan grade dan gender siswa sebelum pindah (untuk laporan per kelas/L-P)
             $student->load('class');
@@ -755,17 +823,7 @@ class StudentMutationService
                     throw new \InvalidArgumentException('Sekolah asal tidak ditemukan.');
                 }
 
-                // Pastikan NISN belum dipakai siswa aktif lain di sekolah asal
-                if ($student->nisn) {
-                    $duplicate = Student::where('institution_id', $origin->id)
-                        ->where('nisn', $student->nisn)
-                        ->where('id', '!=', $student->id)
-                        ->where('status', 'Aktif')
-                        ->exists();
-                    if ($duplicate) {
-                        throw new \InvalidArgumentException('NISN siswa sudah digunakan di sekolah asal. Pembatalan tidak dapat disetujui.');
-                    }
-                }
+                $this->assertIdentityFreeAtInstitution($student, $origin->id, 'sekolah asal. Pembatalan tidak dapat disetujui.');
 
                 $student->institution_id = $origin->id;
                 $student->class_id = null;
@@ -842,7 +900,7 @@ class StudentMutationService
         $query = StudentMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'student:id,nisn,nis,name,gender,status',
+            'student:id,nik,nisn,nis,name,gender,status,deleted_at',
             'requester:id,name',
             'approver:id,name',
         ])->activeApproved()->orderBy('approved_at', 'desc');
@@ -892,7 +950,7 @@ class StudentMutationService
         $query = StudentMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'student:id,nisn,nis,name,gender,status',
+            'student:id,nik,nisn,nis,name,gender,status,deleted_at',
             'approver:id,name',
         ])->activeApproved()->orderBy('approved_at', 'asc');
 
@@ -924,7 +982,7 @@ class StudentMutationService
      */
     public function historyForStudent(int $studentId, int $userInstitutionId): \Illuminate\Database\Eloquent\Collection
     {
-        $student = Student::find($studentId);
+        $student = Student::withTrashed()->find($studentId);
         if (!$student) {
             throw new \InvalidArgumentException('Siswa tidak ditemukan.');
         }
@@ -943,21 +1001,62 @@ class StudentMutationService
         return StudentMutation::with([
             'originInstitution:id,name,npsn,level',
             'targetInstitution:id,name,npsn,level',
-            'student:id,nisn,nis,name',
+            'student:id,nik,nisn,nis,name,deleted_at',
             'requester:id,name',
             'approver:id,name',
         ])->where('student_id', $studentId)->orderBy('created_at', 'desc')->get();
     }
 
     /**
-     * Mutation history by NISN (student must be in user's institution or in a mutation involving it).
+     * NIK/NISN siswa tidak boleh bentrok dengan siswa lain di institusi tujuan/asal.
      */
-    public function historyByNisn(string $nisn, int $userInstitutionId): \Illuminate\Database\Eloquent\Collection
+    protected function assertIdentityFreeAtInstitution(Student $student, int $institutionId, string $suffix): void
     {
-        $student = Student::where('nisn', $nisn)->first();
-        if (!$student) {
-            throw new \InvalidArgumentException('Siswa dengan NISN tersebut tidak ditemukan.');
+        if ($student->nik) {
+            $duplicate = Student::withTrashed()
+                ->where('institution_id', $institutionId)
+                ->where('nik', $student->nik)
+                ->where('id', '!=', $student->id)
+                ->exists();
+            if ($duplicate) {
+                throw new \InvalidArgumentException('NIK siswa sudah digunakan oleh siswa lain di '.$suffix);
+            }
         }
-        return $this->historyForStudent($student->id, $userInstitutionId);
+        if ($student->nisn) {
+            $duplicate = Student::withTrashed()
+                ->where('institution_id', $institutionId)
+                ->where('nisn', $student->nisn)
+                ->where('id', '!=', $student->id)
+                ->exists();
+            if ($duplicate) {
+                throw new \InvalidArgumentException('NISN siswa sudah digunakan oleh siswa lain di '.$suffix);
+            }
+        }
+    }
+
+    /**
+     * Mutation history by NIK (student must be in user's institution or in a mutation involving it).
+     */
+    public function historyByNik(string $nik, int $userInstitutionId): \Illuminate\Database\Eloquent\Collection
+    {
+        $students = Student::withTrashed()->where('nik', $nik)->get();
+        if ($students->isEmpty()) {
+            throw new \InvalidArgumentException('Siswa dengan NIK tersebut tidak ditemukan.');
+        }
+
+        $local = $students->firstWhere('institution_id', $userInstitutionId);
+        if ($local) {
+            return $this->historyForStudent($local->id, $userInstitutionId);
+        }
+
+        foreach ($students as $candidate) {
+            try {
+                return $this->historyForStudent($candidate->id, $userInstitutionId);
+            } catch (\InvalidArgumentException $e) {
+                continue;
+            }
+        }
+
+        throw new \InvalidArgumentException('Anda tidak berwenang melihat riwayat mutasi siswa ini.');
     }
 }

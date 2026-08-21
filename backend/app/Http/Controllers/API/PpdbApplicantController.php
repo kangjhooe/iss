@@ -2,23 +2,28 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Exports\PpdbApplicantsExport;
+use App\Helpers\FileUploadRules;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePpdbApplicantRequest;
 use App\Http\Requests\UpdatePpdbApplicantRequest;
 use App\Http\Resources\PpdbApplicantResource;
 use App\Models\AuditLog;
 use App\Models\PpdbApplicant;
-use App\Exports\PpdbApplicantsExport;
 use App\Models\PpdbApplicantDocument;
 use App\Models\PpdbPeriod;
-use App\Models\StudentDocument;
-use App\Models\Semester;
 use App\Models\SchoolClass;
-use App\Helpers\FileUploadRules;
-use App\Services\StudentService;
-use App\Services\StudentAccountService;
+use App\Models\Semester;
+use App\Models\Student;
+use App\Models\StudentDocument;
 use App\Notifications\PpdbApplicantMailNotification;
+use App\Services\PpdbAcceptedElsewhereService;
+use App\Services\PpdbRegistrationSlipService;
+use App\Services\StudentAccountService;
+use App\Services\StudentService;
 use App\Support\PpdbDocumentStorage;
+use App\Support\RegionAddress;
+use App\Support\SafeNotify;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -39,12 +44,16 @@ class PpdbApplicantController extends Controller
             if ($user->isSuperAdmin() && $request->filled('institution_id')) {
                 $institutionId = (int) $request->institution_id;
             }
-            if (!$institutionId && !$user->isSuperAdmin()) {
+            if (! $institutionId && ! $user->isSuperAdmin()) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $query = PpdbApplicant::query()
-                ->with(['period:id,name,open_date,close_date,status,institution_id', 'channel:id,code,name'])
+                ->with([
+                    'period:id,name,open_date,close_date,status,institution_id',
+                    'channel:id,code,name,required_documents',
+                    'documents:id,ppdb_applicant_id,name,document_key',
+                ])
                 ->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId));
 
             if ($request->filled('ppdb_period_id')) {
@@ -64,7 +73,7 @@ class PpdbApplicantController extends Controller
                 $query->where('payment_status', $request->payment_status);
             }
             if ($request->filled('search')) {
-                $term = '%' . $request->search . '%';
+                $term = '%'.$request->search.'%';
                 $query->where(function ($q) use ($term) {
                     $q->where('name', 'like', $term)
                         ->orWhere('registration_number', 'like', $term)
@@ -82,6 +91,7 @@ class PpdbApplicantController extends Controller
             return PpdbApplicantResource::collection($applicants);
         } catch (\Exception $e) {
             Log::error('PpdbApplicant index failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal mengambil data calon peserta didik.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -94,7 +104,7 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = PpdbPeriod::findOrFail($request->ppdb_period_id);
-            if ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin()) {
+            if ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -106,11 +116,13 @@ class PpdbApplicantController extends Controller
 
             $applicant = PpdbApplicant::create($data);
             $applicant->load(['period', 'channel']);
+
             return (new PpdbApplicantResource($applicant))
                 ->response()
                 ->setStatusCode(201);
         } catch (\Exception $e) {
             Log::error('PpdbApplicant store failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal menambahkan calon peserta didik.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -122,10 +134,11 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $ppdb_applicant->load(['period.academicYear', 'channel', 'documents']);
+
         return new PpdbApplicantResource($ppdb_applicant);
     }
 
@@ -134,16 +147,25 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $data = $request->validated();
+            if ($ppdb_applicant->isSelectionLocked() && array_key_exists('status', $data) && $data['status'] !== $ppdb_applicant->status) {
+                return response()->json([
+                    'message' => $ppdb_applicant->status === PpdbApplicant::STATUS_ACCEPTED_ELSEWHERE
+                        ? 'Calon ini sudah terdaftar sebagai siswa di sekolah lain. Status tidak dapat diubah.'
+                        : 'Status calon ini sudah final dan tidak dapat diubah.',
+                ], 422);
+            }
             $ppdb_applicant->update($data);
             $ppdb_applicant->load(['period', 'channel', 'documents']);
+
             return new PpdbApplicantResource($ppdb_applicant);
         } catch (\Exception $e) {
             Log::error('PpdbApplicant update failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal memperbarui calon peserta didik.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -155,7 +177,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -163,6 +185,7 @@ class PpdbApplicantController extends Controller
             PpdbDocumentStorage::delete($doc->file_path);
         }
         $ppdb_applicant->delete();
+
         return response()->json(['message' => 'Calon peserta didik berhasil dihapus.']);
     }
 
@@ -170,8 +193,12 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($locked = $this->selectionLockedResponse($ppdb_applicant)) {
+            return $locked;
         }
 
         $request->validate([
@@ -194,6 +221,7 @@ class PpdbApplicantController extends Controller
             'status' => $ppdb_applicant->status,
         ], $ppdb_applicant->period?->institution_id);
         $ppdb_applicant->load(['period', 'channel', 'documents']);
+
         return new PpdbApplicantResource($ppdb_applicant);
     }
 
@@ -207,7 +235,7 @@ class PpdbApplicantController extends Controller
         if ($user->isSuperAdmin() && $request->filled('institution_id')) {
             $institutionId = (int) $request->institution_id;
         }
-        if (!$institutionId && !$user->isSuperAdmin()) {
+        if (! $institutionId && ! $user->isSuperAdmin()) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
@@ -226,7 +254,13 @@ class PpdbApplicantController extends Controller
             ->get();
 
         $updated = 0;
+        $skipped = [];
         foreach ($applicants as $applicant) {
+            if ($applicant->isSelectionLocked() || ! in_array($applicant->status, ['submitted', 'verification', 'verified'], true)) {
+                $skipped[] = $applicant->registration_number;
+
+                continue;
+            }
             $oldStatus = $applicant->status;
             $applicant->update([
                 'documents_verified' => $request->documents_verified,
@@ -243,8 +277,9 @@ class PpdbApplicantController extends Controller
         }
 
         return response()->json([
-            'message' => $updated . ' calon berhasil diperbarui.',
+            'message' => $updated.' calon berhasil diperbarui.',
             'updated_count' => $updated,
+            'skipped' => $skipped,
         ]);
     }
 
@@ -258,7 +293,7 @@ class PpdbApplicantController extends Controller
         if ($user->isSuperAdmin() && $request->filled('institution_id')) {
             $institutionId = (int) $request->institution_id;
         }
-        if (!$institutionId && !$user->isSuperAdmin()) {
+        if (! $institutionId && ! $user->isSuperAdmin()) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
@@ -271,7 +306,7 @@ class PpdbApplicantController extends Controller
 
         $ids = array_unique(array_map('intval', $request->applicant_ids));
         $applicants = PpdbApplicant::query()
-            ->with(['period', 'channel'])
+            ->with(['period.institution', 'channel'])
             ->whereIn('id', $ids)
             ->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId))
             ->get();
@@ -283,12 +318,13 @@ class PpdbApplicantController extends Controller
         $status = $request->status;
         $updated = 0;
         $skipped = [];
+        $toNotify = [];
 
         if ($status === 'passed') {
             $byChannel = $applicants->groupBy('ppdb_channel_id');
             foreach ($byChannel as $channelId => $group) {
                 $channel = $group->first()->channel;
-                if (!$channel || $channel->quota === null || (int) $channel->quota <= 0) {
+                if (! $channel || $channel->quota === null || (int) $channel->quota <= 0) {
                     continue;
                 }
                 $periodId = $group->first()->ppdb_period_id;
@@ -301,15 +337,16 @@ class PpdbApplicantController extends Controller
                 $newPassers = $group->filter(fn ($a) => $a->status !== 'passed')->count();
                 if ($alreadyPassed + $newPassers > (int) $channel->quota) {
                     return response()->json([
-                        'message' => 'Kuota jalur "' . $channel->name . '" tidak cukup untuk ' . $newPassers . ' calon (kuota ' . (int) $channel->quota . ', sudah terisi ' . $alreadyPassed . ').',
+                        'message' => 'Kuota jalur "'.$channel->name.'" tidak cukup untuk '.$newPassers.' calon (kuota '.(int) $channel->quota.', sudah terisi '.$alreadyPassed.').',
                     ], 422);
                 }
             }
         }
 
         foreach ($applicants as $applicant) {
-            if (!in_array($applicant->status, ['verified', 'submitted', 'verification', 'passed', 'reserve', 'failed'], true)) {
+            if ($applicant->isSelectionLocked() || ! in_array($applicant->status, ['verified', 'submitted', 'verification', 'passed', 'reserve', 'failed'], true)) {
                 $skipped[] = $applicant->registration_number;
+
                 continue;
             }
 
@@ -331,10 +368,15 @@ class PpdbApplicantController extends Controller
                 'status' => $status,
             ], $institutionId);
             $updated++;
+            $toNotify[] = $applicant->fresh(['period.institution', 'channel']);
+        }
+
+        foreach ($toNotify as $applicant) {
+            $this->notifyApplicantResultEmail($applicant);
         }
 
         return response()->json([
-            'message' => $updated . ' calon berhasil diperbarui.',
+            'message' => $updated.' calon berhasil diperbarui.',
             'updated_count' => $updated,
             'skipped' => $skipped,
         ]);
@@ -347,7 +389,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -401,6 +443,7 @@ class PpdbApplicantController extends Controller
         ], $period->institution_id);
 
         $ppdb_applicant->load(['period', 'channel', 'documents']);
+
         return new PpdbApplicantResource($ppdb_applicant);
     }
 
@@ -408,8 +451,12 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($locked = $this->selectionLockedResponse($ppdb_applicant)) {
+            return $locked;
         }
 
         if ($ppdb_applicant->status !== 'draft') {
@@ -423,6 +470,7 @@ class PpdbApplicantController extends Controller
             'submitted_at' => now(),
         ]);
         $ppdb_applicant->load(['period', 'channel', 'documents']);
+
         return new PpdbApplicantResource($ppdb_applicant);
     }
 
@@ -437,12 +485,16 @@ class PpdbApplicantController extends Controller
             if ($user->isSuperAdmin() && $request->filled('institution_id')) {
                 $institutionId = (int) $request->institution_id;
             }
-            if (!$institutionId && !$user->isSuperAdmin()) {
+            if (! $institutionId && ! $user->isSuperAdmin()) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $query = PpdbApplicant::query()
-                ->with(['period:id,name,open_date,close_date,status,institution_id', 'channel:id,code,name'])
+                ->with([
+                    'period:id,name,open_date,close_date,status,institution_id',
+                    'channel:id,code,name,required_documents',
+                    'documents:id,ppdb_applicant_id,name,document_key',
+                ])
                 ->whereHas('period', fn ($q) => $q->where('institution_id', $institutionId));
 
             if ($request->filled('ppdb_period_id')) {
@@ -462,7 +514,7 @@ class PpdbApplicantController extends Controller
                 $query->where('payment_status', $request->payment_status);
             }
             if ($request->filled('search')) {
-                $term = '%' . $request->search . '%';
+                $term = '%'.$request->search.'%';
                 $query->where(function ($q) use ($term) {
                     $q->where('name', 'like', $term)
                         ->orWhere('registration_number', 'like', $term)
@@ -517,10 +569,11 @@ class PpdbApplicantController extends Controller
                 return $this->exportExcel($applicants, $colKeys, $headers, $periodName);
             }
 
-            $filename = 'calon-ppdb-' . Str::slug($periodName) . '-' . date('Y-m-d-His') . '.csv';
+            $filename = 'calon-ppdb-'.Str::slug($periodName).'-'.date('Y-m-d-His').'.csv';
+
             return response()->streamDownload(function () use ($applicants, $colKeys, $headers) {
                 $out = fopen('php://output', 'w');
-                fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+                fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
                 fputcsv($out, $headers);
                 foreach ($applicants as $a) {
                     $row = $this->exportRow($a, $colKeys);
@@ -532,6 +585,7 @@ class PpdbApplicantController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('PpdbApplicant export failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal mengekspor data calon.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -546,8 +600,12 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($locked = $this->selectionLockedResponse($ppdb_applicant)) {
+            return $locked;
         }
 
         $request->validate([
@@ -569,7 +627,7 @@ class PpdbApplicantController extends Controller
                 $totalPassed = $currentPassedCount + ($isNewlyPassed ? 1 : 0);
                 if ($totalPassed > (int) $channel->quota) {
                     return response()->json([
-                        'message' => 'Kuota jalur "' . $channel->name . '" sudah terpenuhi (' . (int) $channel->quota . '). Tidak dapat menambah calon lulus.',
+                        'message' => 'Kuota jalur "'.$channel->name.'" sudah terpenuhi ('.(int) $channel->quota.'). Tidak dapat menambah calon lulus.',
                     ], 422);
                 }
             }
@@ -600,12 +658,7 @@ class PpdbApplicantController extends Controller
             'rank' => $updates['rank'] ?? null,
         ], $period->institution_id);
         $ppdb_applicant->load(['period.institution', 'channel', 'documents']);
-
-        $email = trim((string) ($ppdb_applicant->email ?? ''));
-        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            Notification::route('mail', $email)
-                ->notify(new PpdbApplicantMailNotification($ppdb_applicant, 'result'));
-        }
+        $this->notifyApplicantResultEmail($ppdb_applicant);
 
         return new PpdbApplicantResource($ppdb_applicant);
     }
@@ -617,11 +670,15 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!in_array($ppdb_applicant->status, ['passed', 'reserve'], true)) {
+        if ($locked = $this->selectionLockedResponse($ppdb_applicant)) {
+            return $locked;
+        }
+
+        if (! in_array($ppdb_applicant->status, ['passed', 'reserve'], true)) {
             return response()->json([
                 'message' => 'Hanya calon yang lulus atau cadangan yang dapat konfirmasi daftar ulang.',
             ], 422);
@@ -632,6 +689,7 @@ class PpdbApplicantController extends Controller
             're_registration_confirmed_at' => now(),
         ]);
         $ppdb_applicant->load(['period', 'channel', 'documents']);
+
         return new PpdbApplicantResource($ppdb_applicant);
     }
 
@@ -642,8 +700,14 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($ppdb_applicant->status === PpdbApplicant::STATUS_ACCEPTED_ELSEWHERE) {
+            return response()->json([
+                'message' => 'Calon ini sudah terdaftar sebagai siswa di sekolah lain.',
+            ], 422);
         }
 
         if ($ppdb_applicant->student_id) {
@@ -653,41 +717,59 @@ class PpdbApplicantController extends Controller
             ], 422);
         }
 
-        if ($ppdb_applicant->status !== 're_registration' && !$ppdb_applicant->re_registration_confirmed_at) {
+        if ($ppdb_applicant->status !== 're_registration' && ! $ppdb_applicant->re_registration_confirmed_at) {
             return response()->json([
                 'message' => 'Calon harus sudah konfirmasi daftar ulang sebelum dijadikan siswa.',
             ], 422);
         }
 
         $request->validate([
-            'class_id' => 'nullable|exists:class,id',
+            'class_id' => 'nullable|integer',
         ]);
 
         $period->load('academicYear');
-        $institutionId = $period->institution_id;
-        $academicYearId = $period->academic_year_id;
-        $semester = Semester::where('academic_year_id', $academicYearId)->orderBy('order')->first();
-        $semesterId = $semester?->id;
+        $institutionId = (int) $period->institution_id;
+        $academicYearId = $period->academic_year_id ? (int) $period->academic_year_id : null;
 
+        $identityError = $this->convertIdentityConflict($ppdb_applicant);
+        if ($identityError) {
+            return response()->json(['message' => $identityError], 422);
+        }
+
+        $classId = $request->filled('class_id') ? (int) $request->class_id : null;
+        $classModel = null;
+        if ($classId) {
+            $classModel = $this->resolveConvertClass($classId, $institutionId, $academicYearId);
+            if (! $classModel) {
+                return response()->json([
+                    'message' => 'Kelas tidak valid untuk sekolah atau tahun ajaran periode PPDB ini.',
+                ], 422);
+            }
+        }
+
+        $semester = $academicYearId
+            ? Semester::where('academic_year_id', $academicYearId)->orderBy('order')->first()
+            : null;
         $academicYear = $period->academicYear;
-        $classId = $request->class_id ? (int) $request->class_id : null;
-        $classModel = $classId ? SchoolClass::find($classId) : null;
+        $nisn = trim((string) ($ppdb_applicant->nisn ?? ''));
+        $nik = trim((string) ($ppdb_applicant->nik ?? ''));
+
         $studentData = [
             'institution_id' => $institutionId,
             'academic_year_id' => $academicYearId,
-            'semester_id' => $semesterId,
-            'class_id' => $classId,
+            'semester_id' => $semester?->id,
+            'class_id' => $classModel?->id,
             'tingkat' => $classModel?->grade,
             'class' => $classModel?->name,
             'academic_year' => $academicYear->code ?? $academicYear->name ?? null,
             'nis' => null,
-            'nisn' => $ppdb_applicant->nisn,
-            'nik' => $ppdb_applicant->nik,
+            'nisn' => $nisn !== '' ? $nisn : null,
+            'nik' => $nik !== '' ? $nik : null,
             'name' => $ppdb_applicant->name,
             'gender' => $ppdb_applicant->gender,
             'birth_date' => $ppdb_applicant->birth_date,
             'birth_place' => $ppdb_applicant->birth_place,
-            'address' => $ppdb_applicant->address,
+            ...RegionAddress::values($ppdb_applicant),
             'phone' => $ppdb_applicant->phone,
             'email' => $ppdb_applicant->email,
             'religion' => $ppdb_applicant->religion,
@@ -701,47 +783,103 @@ class PpdbApplicantController extends Controller
             'status' => 'Aktif',
         ];
 
-        $studentService = app(StudentService::class);
-        $student = $studentService->create($studentData);
-        $accountService = app(StudentAccountService::class);
-        $account = $accountService->findAccount($student);
+        try {
+            $payload = DB::transaction(function () use ($request, $ppdb_applicant, $studentData, $institutionId) {
+                $locked = PpdbApplicant::query()
+                    ->whereKey($ppdb_applicant->id)
+                    ->lockForUpdate()
+                    ->first();
 
-        foreach ($ppdb_applicant->documents as $doc) {
-            $destPath = 'student_documents/' . $student->id . '/' . basename($doc->file_path);
-            if (PpdbDocumentStorage::copyToStudentDocuments($doc->file_path, $destPath)) {
-                StudentDocument::create([
+                if (! $locked) {
+                    throw new \RuntimeException('Calon tidak ditemukan.');
+                }
+                if ($locked->student_id) {
+                    return [
+                        'already' => true,
+                        'student_id' => (int) $locked->student_id,
+                    ];
+                }
+
+                $locked->load('documents');
+                $student = app(PpdbAcceptedElsewhereService::class)->withExceptApplicant((int) $locked->id, function () use ($studentData) {
+                    return app(StudentService::class)->create($studentData);
+                });
+                $accountService = app(StudentAccountService::class);
+                $account = $accountService->findAccount($student);
+
+                foreach ($locked->documents as $doc) {
+                    $destPath = 'student_documents/'.$student->id.'/'.basename($doc->file_path);
+                    if (PpdbDocumentStorage::copyToStudentDocuments($doc->file_path, $destPath)) {
+                        StudentDocument::create([
+                            'student_id' => $student->id,
+                            'name' => $doc->name,
+                            'file_path' => $destPath,
+                            'file_name' => $doc->file_name,
+                            'file_size' => $doc->file_size,
+                            'mime_type' => $doc->mime_type,
+                            'description' => 'Dari PPDB: '.($doc->description ?? ''),
+                        ]);
+                    }
+                }
+
+                $locked->update([
                     'student_id' => $student->id,
-                    'name' => $doc->name,
-                    'file_path' => $destPath,
-                    'file_name' => $doc->file_name,
-                    'file_size' => $doc->file_size,
-                    'mime_type' => $doc->mime_type,
-                    'description' => 'Dari PPDB: ' . ($doc->description ?? ''),
+                    'status' => 'converted',
                 ]);
-            }
+
+                AuditLog::logManual($request, 'ppdb_applicant_convert_to_student', PpdbApplicant::class, $locked->id, [
+                    'student_id' => null,
+                    'status' => 're_registration',
+                ], [
+                    'student_id' => $student->id,
+                    'status' => 'converted',
+                ], $institutionId);
+
+                return [
+                    'already' => false,
+                    'student' => $student,
+                    'account' => $account,
+                    'account_service' => $accountService,
+                    'applicant' => $locked,
+                ];
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::warning('PPDB convert to student failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal menjadikan siswa. Periksa NIK/NISN yang mungkin sudah terpakai.',
+            ], 422);
         }
 
-        $ppdb_applicant->update([
-            'student_id' => $student->id,
-            'status' => 'converted',
-        ]);
+        if ($payload['already'] ?? false) {
+            return response()->json([
+                'message' => 'Calon ini sudah dijadikan siswa.',
+                'data' => ['student_id' => $payload['student_id']],
+            ], 422);
+        }
 
-        AuditLog::logManual($request, 'ppdb_applicant_convert_to_student', PpdbApplicant::class, $ppdb_applicant->id, [
-            'student_id' => null,
-            'status' => 're_registration',
-        ], [
-            'student_id' => $student->id,
-            'status' => 'converted',
-        ], $institutionId);
+        /** @var \App\Models\Student $student */
+        $student = $payload['student'];
+        $account = $payload['account'];
+        $accountService = $payload['account_service'];
+        $hasAccount = (bool) $account;
+        $nikOk = preg_match('/^\d{16}$/', $nik);
+
+        $message = 'Calon berhasil dijadikan siswa.';
+        if (! $hasAccount && ! $nikOk) {
+            $message = 'Calon berhasil dijadikan siswa. Akun login belum dibuat karena NIK belum lengkap (16 digit).';
+        } elseif (! $hasAccount) {
+            $message = 'Calon berhasil dijadikan siswa. Akun login belum dapat dibuat.';
+        }
 
         return response()->json([
-            'message' => 'Calon berhasil dijadikan siswa.',
+            'message' => $message,
             'data' => [
                 'student_id' => $student->id,
                 'nis' => $student->nis,
-                'applicant' => new PpdbApplicantResource($ppdb_applicant->fresh(['period', 'channel', 'student'])),
+                'applicant' => new PpdbApplicantResource($payload['applicant']->fresh(['period', 'channel', 'student'])),
             ],
-            'login_hint' => $account ? $accountService->loginHintFor($student) : null,
+            'login_hint' => $hasAccount ? $accountService->loginHintFor($student) : null,
         ]);
     }
 
@@ -750,21 +888,15 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
                 return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
-            $documentCount = $ppdb_applicant->documents()->count();
-            if ($documentCount >= 20) {
-                return response()->json([
-                    'message' => 'Maksimal 20 file dokumen per calon peserta didik',
-                ], 400);
             }
 
             $rules = array_merge(
                 FileUploadRules::studentDocument(),
                 [
-                    'name' => 'required|string|max:255',
+                    'name' => 'nullable|required_without:document_key|string|max:255',
+                    'document_key' => 'nullable|string|max:64',
                     'description' => 'nullable|string',
                 ]
             );
@@ -776,27 +908,25 @@ class PpdbApplicantController extends Controller
             );
             $request->validate($rules, $messages);
 
-            $file = $request->file('file');
-            $originalName = $file->getClientOriginalName();
-            $extension = $file->getClientOriginalExtension();
-            $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
-            $fileName = time() . '_' . $safeName . '.' . $extension;
-            $filePath = PpdbDocumentStorage::store($file, (int) $ppdb_applicant->id, $fileName);
-
-            $document = $ppdb_applicant->documents()->create([
-                'name' => $request->name,
-                'file_path' => $filePath,
-                'file_name' => $originalName,
-                'file_size' => $file->getSize(),
-                'mime_type' => $file->getMimeType(),
-                'description' => $request->description,
-            ]);
+            try {
+                $document = $ppdb_applicant->storeUploadedDocument(
+                    $request->file('file'),
+                    $request->input('document_key'),
+                    $request->input('name'),
+                    $request->input('description')
+                );
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            } catch (\OverflowException $e) {
+                return response()->json(['message' => $e->getMessage()], 400);
+            }
 
             return response()->json([
                 'message' => 'Dokumen berhasil diunggah.',
                 'data' => [
                     'id' => $document->id,
                     'name' => $document->name,
+                    'document_key' => $document->document_key,
                     'file_name' => $document->file_name,
                     'file_size' => $document->file_size,
                     'mime_type' => $document->mime_type,
@@ -806,6 +936,7 @@ class PpdbApplicantController extends Controller
             throw $e;
         } catch (\Exception $e) {
             Log::error('PpdbApplicant uploadDocument failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal mengunggah dokumen.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -818,18 +949,20 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $document = PpdbApplicantDocument::where('ppdb_applicant_id', $ppdb_applicant->id)->findOrFail($documentId);
             PpdbDocumentStorage::delete($document->file_path);
             $document->delete();
+
             return response()->json(['message' => 'Dokumen berhasil dihapus.']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Dokumen tidak ditemukan.'], 404);
         } catch (\Exception $e) {
             Log::error('PpdbApplicant deleteDocument failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal menghapus dokumen.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -842,21 +975,43 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (!$period || ($user->institution_id !== $period->institution_id && !$user->isSuperAdmin())) {
+            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $document = PpdbApplicantDocument::where('ppdb_applicant_id', $ppdb_applicant->id)->findOrFail($documentId);
-            if (!PpdbDocumentStorage::exists($document->file_path)) {
+            if (! PpdbDocumentStorage::exists($document->file_path)) {
                 return response()->json(['message' => 'File dokumen tidak ditemukan.'], 404);
             }
+
             return PpdbDocumentStorage::download($document->file_path, $document->file_name);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Dokumen tidak ditemukan.'], 404);
         } catch (\Exception $e) {
             Log::error('PpdbApplicant downloadDocument failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal mengunduh dokumen.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function registrationSlip(Request $request, PpdbApplicant $ppdb_applicant, PpdbRegistrationSlipService $service)
+    {
+        $user = $request->user();
+        $period = $ppdb_applicant->period;
+        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        try {
+            return $service->download($ppdb_applicant);
+        } catch (\Exception $e) {
+            Log::error('PpdbApplicant registrationSlip failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal membuat bukti pendaftaran.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -875,7 +1030,7 @@ class PpdbApplicantController extends Controller
             'gender' => $a->gender === 'L' ? 'Laki-laki' : ($a->gender === 'P' ? 'Perempuan' : ''),
             'birth_place' => $a->birth_place ?? '',
             'birth_date' => $a->birth_date?->format('Y-m-d') ?? '',
-            'address' => $a->address ?? '',
+            'address' => RegionAddress::format($a) ?? ($a->address ?? ''),
             'phone' => $a->phone ?? '',
             'email' => $a->email ?? '',
             'previous_school' => $a->previous_school ?? '',
@@ -898,6 +1053,7 @@ class PpdbApplicantController extends Controller
         foreach ($colKeys as $key) {
             $row[] = $map[$key] ?? '';
         }
+
         return $row;
     }
 
@@ -906,15 +1062,16 @@ class PpdbApplicantController extends Controller
      */
     private function exportExcel($applicants, array $colKeys, array $headers, string $periodName)
     {
-        $filename = 'calon-ppdb-' . Str::slug($periodName) . '-' . date('Y-m-d-His') . '.xlsx';
+        $filename = 'calon-ppdb-'.Str::slug($periodName).'-'.date('Y-m-d-His').'.xlsx';
         $export = new PpdbApplicantsExport($applicants, $colKeys, $headers);
+
         return app(ExcelManager::class)->download($export, $filename, ExcelManager::XLSX);
     }
 
     private function generateRegistrationNumber(int $periodId): string
     {
         $last = PpdbApplicant::where('ppdb_period_id', $periodId)
-            ->where('registration_number', 'like', 'PPDB-' . $periodId . '-%')
+            ->where('registration_number', 'like', 'PPDB-'.$periodId.'-%')
             ->orderByDesc('id')
             ->value('registration_number');
 
@@ -922,6 +1079,67 @@ class PpdbApplicantController extends Controller
         if ($last && preg_match('/PPDB-\d+-(\d+)$/', $last, $m)) {
             $seq = (int) $m[1] + 1;
         }
-        return 'PPDB-' . $periodId . '-' . str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
+
+        return 'PPDB-'.$periodId.'-'.str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function notifyApplicantResultEmail(PpdbApplicant $applicant): void
+    {
+        $email = trim((string) ($applicant->email ?? ''));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        SafeNotify::send(
+            Notification::route('mail', $email),
+            new PpdbApplicantMailNotification($applicant, 'result')
+        );
+    }
+
+    private function convertIdentityConflict(PpdbApplicant $applicant): ?string
+    {
+        $service = app(PpdbAcceptedElsewhereService::class);
+        $message = $service->identityConflictMessage($applicant->nisn, $applicant->nik);
+        if (! $message) {
+            return null;
+        }
+
+        $existing = $service->findExistingStudent($applicant->nisn, $applicant->nik);
+        if ($existing) {
+            $service->markApplicant($applicant, $existing);
+        }
+
+        return $message;
+    }
+
+    private function selectionLockedResponse(PpdbApplicant $applicant): ?JsonResponse
+    {
+        if (! $applicant->isSelectionLocked()) {
+            return null;
+        }
+
+        $message = $applicant->status === PpdbApplicant::STATUS_ACCEPTED_ELSEWHERE
+            ? 'Calon ini sudah terdaftar sebagai siswa di sekolah lain. Status tidak dapat diubah.'
+            : 'Status calon ini sudah final dan tidak dapat diubah.';
+
+        return response()->json(['message' => $message], 422);
+    }
+
+    private function resolveConvertClass(int $classId, int $institutionId, ?int $academicYearId): ?SchoolClass
+    {
+        $class = SchoolClass::query()
+            ->whereKey($classId)
+            ->where('institution_id', $institutionId)
+            ->first();
+
+        if (! $class) {
+            return null;
+        }
+
+        if ($academicYearId && $class->academic_year_id && (int) $class->academic_year_id !== $academicYearId) {
+            return null;
+        }
+
+        return $class;
     }
 }

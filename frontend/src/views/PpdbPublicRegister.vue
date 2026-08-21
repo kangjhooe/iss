@@ -77,7 +77,7 @@
           <p class="next-steps-title">Langkah selanjutnya</p>
           <ul class="next-steps-list">
             <li>Simpan atau foto nomor pendaftaran di atas.</li>
-            <li>Lengkapi berkas (foto, KK, akte kelahiran) jika sekolah meminta.</li>
+            <li>Lengkapi berkas sesuai daftar yang diminta sekolah.</li>
             <li>Cek hasil seleksi nanti dengan nomor pendaftaran atau NISN.</li>
           </ul>
         </div>
@@ -96,6 +96,9 @@
           </router-link>
           <button type="button" class="btn-success-secondary btn-print" @click="printFormulir">
             Cetak formulir
+          </button>
+          <button type="button" class="btn-success-secondary btn-print" :disabled="slipDownloading" @click="downloadSlipPdf">
+            {{ slipDownloading ? 'Menyiapkan PDF...' : 'Unduh bukti PDF' }}
           </button>
         </div>
         <!-- Area cetak: hidden di layar, tampil saat print -->
@@ -131,7 +134,7 @@
                 <tr><td class="print-label">NISN</td><td>{{ form.nisn }}</td></tr>
                 <tr><td class="print-label">Jenis Kelamin</td><td>{{ form.gender === 'L' ? 'Laki-laki' : 'Perempuan' }}</td></tr>
                 <tr><td class="print-label">Tempat, Tanggal Lahir</td><td>{{ form.birth_place }}, {{ form.birth_date }}</td></tr>
-                <tr><td class="print-label">Alamat</td><td>{{ form.address }}</td></tr>
+                <tr><td class="print-label">Alamat</td><td>{{ formatFullAddress(form) || form.address }}</td></tr>
                 <tr><td class="print-label">Telepon / Email</td><td>{{ form.phone }} / {{ form.email }}</td></tr>
                 <tr><td class="print-label">Agama</td><td>{{ form.religion }}</td></tr>
                 <tr><td class="print-label">Sekolah Asal (NPSN)</td><td>{{ form.previous_school_npsn }}</td></tr>
@@ -297,14 +300,11 @@
                 <input v-model="form.birth_place" type="text" class="form-input" />
               </div>
               <div class="form-group">
-                <label>Tanggal Lahir</label>
-                <input v-model="form.birth_date" type="date" class="form-input" />
+              <label>Tanggal Lahir <span class="required">*</span></label>
+              <input v-model="form.birth_date" type="date" required class="form-input" />
               </div>
             </div>
-            <div class="form-group">
-              <label>Alamat</label>
-              <textarea v-model="form.address" rows="3" class="form-input" placeholder="Alamat lengkap"></textarea>
-            </div>
+            <AddressCascade v-model="form" />
             <div class="form-grid">
               <div class="form-group">
                 <label>Telepon / HP</label>
@@ -384,6 +384,8 @@ import { ppdbPublicApi } from '@/api/ppdbPublic'
 import { schoolPublicApi } from '@/api/schoolPublic'
 import { useToast } from '@/composables/useToast'
 import { getNssLabel } from '@/utils/institution'
+import { emptyAddress, formatFullAddress } from '@/utils/addressFields'
+import AddressCascade from '@/components/AddressCascade.vue'
 
 const toast = useToast()
 const route = useRoute()
@@ -413,7 +415,7 @@ const form = ref({
   gender: 'L',
   birth_date: '',
   birth_place: '',
-  address: '',
+  ...emptyAddress(),
   phone: '',
   email: '',
   religion: '',
@@ -436,6 +438,7 @@ const submitting = ref(false)
 const submitted = ref(false)
 const submittedData = ref(null)
 const printAreaRef = ref(null)
+const slipDownloading = ref(false)
 const copyDone = ref(false)
 let copyDoneTimer = null
 
@@ -449,10 +452,15 @@ const params = computed(() => {
 const linkLengkapiBerkas = computed(() => {
   const reg = submittedData.value?.registration_number
   const n = institution.value?.npsn
+  const birth = form.value.birth_date
   if (!reg) return { path: '/lengkapi-berkas-ppdb' }
   return {
     path: '/lengkapi-berkas-ppdb',
-    query: { registration_number: reg, ...(n ? { npsn: n } : {}) },
+    query: {
+      registration_number: reg,
+      ...(birth ? { birth_date: birth } : {}),
+      ...(n ? { npsn: n } : {}),
+    },
   }
 })
 
@@ -589,6 +597,10 @@ async function tryPrefillByNisn() {
 
 async function submit() {
   formError.value = ''
+  if (!form.value.birth_date) {
+    formError.value = 'Tanggal lahir wajib diisi.'
+    return
+  }
   submitting.value = true
   try {
     const res = await ppdbPublicApi.register(form.value)
@@ -616,6 +628,34 @@ function copyRegistrationNumber() {
     copyDone.value = true
     copyDoneTimer = setTimeout(() => { copyDone.value = false }, 2500)
   }).catch(() => {})
+}
+
+async function downloadSlipPdf() {
+  const reg = submittedData.value?.registration_number
+  if (!reg) return
+  slipDownloading.value = true
+  try {
+    const res = await ppdbPublicApi.downloadRegistrationSlip({
+      registration_number: reg,
+      ...(form.value.birth_date ? { birth_date: form.value.birth_date } : {}),
+      ...(institution.value?.npsn ? { npsn: institution.value.npsn } : {}),
+    })
+    const blob = res.data
+    if (blob.type && blob.type.includes('json')) {
+      toast.error('Gagal mengunduh', 'Bukti pendaftaran tidak dapat dibuat.')
+      return
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `bukti-pendaftaran-${reg}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    toast.error('Gagal mengunduh bukti', e.formattedMessage || 'Coba lagi.')
+  } finally {
+    slipDownloading.value = false
+  }
 }
 
 function printFormulir() {

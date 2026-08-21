@@ -67,7 +67,7 @@
             </div>
             <div class="help-step">
               <span class="help-step-num">3</span>
-              <span>Untuk admin: aktifkan modul yang dipakai di <strong>Akses Modul</strong>.</span>
+              <span>Untuk admin: sembunyikan modul yang tidak dipakai di <strong>Akses Modul</strong>.</span>
             </div>
           </div>
         </section>
@@ -174,7 +174,7 @@
               <span class="help-card-icon help-card-icon--indigo">💻</span>
               <div class="help-card-body">
                 <div class="help-card-title">Ujian Online</div>
-                <p class="help-card-desc">4 menu: Daftar Ujian, Bank Soal (cari/filter, preview, duplikat, urutan, import Excel, alias isian, 1 stimulus multi-soal), Peserta Ujian, Kontrol Ujian (monitoring live, koreksi, rilis nilai, export). Status Beta.</p>
+                <p class="help-card-desc">4 menu: Daftar Ujian (pilih soal lintas rak/tingkat, paket disalin saat dipasang), Bank Soal (gudang jangka panjang; tingkat hanya label rak), Peserta Ujian, Kontrol Ujian (monitoring live, koreksi, rilis nilai, export). Status Beta.</p>
               </div>
             </div>
           </div>
@@ -226,14 +226,14 @@
               <span class="help-card-icon help-card-icon--emerald">👤</span>
               <div class="help-card-body">
                 <div class="help-card-title">Data Siswa</div>
-                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Generate NIS lokal lewat pratinjau: cek nomor dulu, batal atau terapkan. Buku Induk per siswa bisa diakses dari detail siswa.</p>
+                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Tambah siswa bisa input manual atau tarik alumni jenjang sebelumnya (NPSN sekolah asal, centang nama + NIK). Itu bukan mutasi: arsip di sekolah asal tetap ada. Generate NIS lokal lewat pratinjau. Buku Induk per siswa dari detail siswa.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--amber">↔️</span>
               <div class="help-card-body">
                 <div class="help-card-title">Mutasi</div>
-                <p class="help-card-desc">Pindah masuk/keluar. Notifikasi mutasi bisa dilihat di ikon lonceng (header).</p>
+                <p class="help-card-desc">Pindah masuk/keluar dengan NIK siswa (16 digit). NISN tetap tercatat di data siswa. Notifikasi mutasi bisa dilihat di ikon lonceng (header).</p>
               </div>
             </div>
             <div class="help-card">
@@ -254,7 +254,7 @@
               <span class="help-card-icon help-card-icon--orange">🎓</span>
               <div class="help-card-body">
                 <div class="help-card-title">Alumni</div>
-                <p class="help-card-desc">Data lulusan per tahun. Filter, destinasi lanjut, & arsip.</p>
+                <p class="help-card-desc">Data lulusan per tahun. Filter, destinasi lanjut (termasuk usulan otomatis jika alumni terdaftar di jenjang berikutnya), & arsip.</p>
               </div>
             </div>
           </div>
@@ -287,7 +287,7 @@
               <span class="help-card-icon help-card-icon--blue">📊</span>
               <div class="help-card-body">
                 <div class="help-card-title">Laporan BK</div>
-                <p class="help-card-desc">Rekap per kelas/bulan + detail siapa saja yang melanggar (filter kelas & bulan). Bisa diekspor CSV atau cetak PDF.</p>
+                <p class="help-card-desc">Tiga tampilan: ringkasan per kelas, skor siswa, dan catatan (pelanggaran/prestasi/konseling). Cetak PDF dengan TTD guru BK (kanan) dan kepala sekolah (mengetahui, kiri).</p>
               </div>
             </div>
           </div>
@@ -607,7 +607,7 @@
               <span class="help-card-icon help-card-icon--fuchsia">📊</span>
               <div class="help-card-body">
                 <div class="help-card-title">Laporan</div>
-                <p class="help-card-desc">Statistik siswa, guru, pelanggaran, dan lainnya. Ekspor untuk dinas.</p>
+                <p class="help-card-desc">Statistik siswa, guru, pelanggaran, dan lainnya. Hanya admin dan kepala sekolah. Ekspor untuk dinas.</p>
               </div>
             </div>
           </div>
@@ -626,7 +626,7 @@
               <span class="help-card-icon help-card-icon--slate">🔐</span>
               <div class="help-card-body">
                 <div class="help-card-title">Akses Modul</div>
-                <p class="help-card-desc">Aktif/nonaktif modul per instansi. Hanya admin instansi.</p>
+                <p class="help-card-desc">Sembunyikan modul yang tidak dipakai sekolah, lalu atur akses per guru. Hanya admin instansi.</p>
               </div>
             </div>
             <div class="help-card">

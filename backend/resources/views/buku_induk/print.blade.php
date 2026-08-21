@@ -69,7 +69,7 @@
         <tr class="border"><td class="label">Tempat, Tanggal Lahir</td><td>{{ $student->birth_place ?? '-' }}, {{ $fmtDate($student->birth_date) }}</td></tr>
         <tr class="border"><td class="label">Agama</td><td>{{ $student->religion ?? '-' }}</td></tr>
         <tr class="border"><td class="label">No. KK</td><td>{{ $student->no_kk ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Alamat</td><td>{{ $student->address ?? '-' }}</td></tr>
+        <tr class="border"><td class="label">Alamat</td><td>{{ \App\Support\RegionAddress::format($student) ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Telepon</td><td>{{ $student->phone ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Email</td><td>{{ $student->email ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Tinggi / Berat</td><td>{{ $student->height ?? '-' }} cm / {{ $student->weight ?? '-' }} kg</td></tr>

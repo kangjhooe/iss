@@ -2,19 +2,21 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\Auditable;
 
 class Institution extends Model
 {
-    use HasFactory, SoftDeletes, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $table = 'institution';
 
     public const TEACHER_APPRECIATION_LEADERBOARD_GURU_ONLY = 'guru_only';
+
     public const TEACHER_APPRECIATION_LEADERBOARD_COMBINED = 'combined';
+
     public const TEACHER_APPRECIATION_LEADERBOARD_SEPARATED = 'separated';
 
     public const TEACHER_APPRECIATION_LEADERBOARD_MODES = [
@@ -43,6 +45,10 @@ class Institution extends Model
         'province',
         'province_code',
         'postal_code',
+        'wilayah_province_code',
+        'wilayah_regency_code',
+        'wilayah_district_code',
+        'wilayah_village_code',
         'phone',
         'email',
         'website',
@@ -65,6 +71,7 @@ class Institution extends Model
         'teacher_appreciation_leaderboard_mode',
         'admission_label',
         'nis_numbering',
+        'hidden_module_keys',
     ];
 
     public const ADMISSION_LABEL_DEFAULT = 'PPDB';
@@ -82,6 +89,7 @@ class Institution extends Model
     public function resolvedAdmissionLabel(): string
     {
         $label = trim((string) ($this->admission_label ?? ''));
+
         return $label !== '' ? $label : self::ADMISSION_LABEL_DEFAULT;
     }
 
@@ -120,6 +128,7 @@ class Institution extends Model
             'longitude' => 'decimal:8',
             'location_radius' => 'integer',
             'nis_numbering' => 'array',
+            'hidden_module_keys' => 'array',
         ];
     }
 
@@ -554,6 +563,7 @@ class Institution extends Model
             return null;
         }
         $level = strtoupper($level);
+
         return match ($level) {
             'SD', 'MI' => 'dasar',
             'SMP', 'MTs' => 'menengah',
@@ -570,7 +580,35 @@ class Institution extends Model
     {
         $my = self::getMutasiLevelGroup($this->level);
         $their = self::getMutasiLevelGroup($other->level);
+
         return $my !== null && $my === $their;
+    }
+
+    /**
+     * Jenjang sebelumnya yang alumni-nya boleh ditarik sebagai siswa baru.
+     * SD/MI ← PAUD/TK, SMP/MTs ← SD/MI, SMA/MA/SMK/MAK ← SMP/MTs.
+     */
+    public function canPullAlumniFrom(Institution $origin): bool
+    {
+        $target = self::getMutasiLevelGroup($this->level);
+        $from = self::getMutasiLevelGroup($origin->level);
+
+        return match ($target) {
+            'dasar' => $from === 'paud',
+            'menengah' => $from === 'dasar',
+            'atas' => $from === 'menengah',
+            default => false,
+        };
+    }
+
+    public function defaultEntryGrade(): ?int
+    {
+        return match (self::getMutasiLevelGroup($this->level)) {
+            'dasar' => 1,
+            'menengah' => 7,
+            'atas' => 10,
+            default => null,
+        };
     }
 
     /**
@@ -581,6 +619,7 @@ class Institution extends Model
         if ($this->level === null) {
             return '0';
         }
+
         return match (strtoupper($this->level)) {
             'SD', 'MI' => '1',
             'SMP', 'MTs' => '2',

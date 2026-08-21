@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\RegionAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -31,6 +32,16 @@ class PpdbApplicantResource extends JsonResource
             'birth_date' => $this->birth_date?->format('Y-m-d'),
             'birth_place' => $this->birth_place,
             'address' => $this->address,
+            'village' => $this->village,
+            'sub_district' => $this->sub_district,
+            'district' => $this->district,
+            'province' => $this->province,
+            'postal_code' => $this->postal_code,
+            'wilayah_province_code' => $this->wilayah_province_code,
+            'wilayah_regency_code' => $this->wilayah_regency_code,
+            'wilayah_district_code' => $this->wilayah_district_code,
+            'wilayah_village_code' => $this->wilayah_village_code,
+            'full_address' => RegionAddress::format($this->resource),
             'phone' => $this->phone,
             'email' => $this->email,
             'religion' => $this->religion,
@@ -46,6 +57,13 @@ class PpdbApplicantResource extends JsonResource
             'guardian_relation' => $this->guardian_relation,
             'documents_verified' => $this->documents_verified,
             'verification_notes' => $this->verification_notes,
+            'document_summary' => $this->when(
+                $this->relationLoaded('channel') || $this->relationLoaded('documents'),
+                fn () => \App\Support\PpdbDocumentChecklist::summarize(
+                    $this->channel,
+                    $this->relationLoaded('documents') ? $this->documents : []
+                )
+            ),
             'submitted_at' => $this->submitted_at?->toIso8601String(),
             'notes' => $this->notes,
             'payment_status' => $this->payment_status ?? 'unpaid',
@@ -56,6 +74,7 @@ class PpdbApplicantResource extends JsonResource
             'documents' => $this->whenLoaded('documents', fn () => $this->documents->map(fn ($d) => [
                 'id' => $d->id,
                 'name' => $d->name,
+                'document_key' => $d->document_key,
                 'file_name' => $d->file_name,
                 'file_size' => $d->file_size,
                 'mime_type' => $d->mime_type,

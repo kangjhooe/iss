@@ -2,7 +2,7 @@
   <Layout>
     <div class="sp-page">
       <div class="sp-page-header">
-        <p class="sp-subtitle">Nilai per semester dan unduh raport CSV</p>
+        <p class="sp-subtitle">Nilai per mata pelajaran pada semester yang dipilih</p>
         <div class="sp-actions">
           <div v-if="semesters.length" class="semester-select-wrap">
             <label for="semester-select">Semester</label>
@@ -11,20 +11,19 @@
               <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </div>
-          <button
-            v-if="grades.length"
-            type="button"
-            class="sp-btn sp-btn--primary"
-            :disabled="downloadingRaport"
-            @click="downloadRaport"
-          >
-            {{ downloadingRaport ? 'Mengunduh...' : 'Download Raport' }}
-          </button>
         </div>
       </div>
 
       <div v-if="loading" class="sp-loading">
         <p>Memuat nilai...</p>
+      </div>
+
+      <div v-else-if="loadError" class="sp-empty">
+        <h3 class="sp-empty-title">Gagal memuat nilai</h3>
+        <p class="sp-empty-desc">Periksa koneksi lalu coba lagi.</p>
+        <div class="sp-empty-actions">
+          <button type="button" class="sp-btn sp-btn--soft" @click="loadGrades">Coba lagi</button>
+        </div>
       </div>
 
       <div v-else-if="!selectedSemesterId" class="sp-empty">
@@ -37,62 +36,51 @@
         <p class="sp-empty-desc">Belum ada nilai untuk semester ini.</p>
       </div>
 
-      <div v-else class="sp-panel grades-panel">
-        <div class="sp-table-wrap sp-table-desktop">
-          <table class="sp-table">
-            <thead>
-              <tr>
-                <th>Mata Pelajaran</th>
-                <th>Rata Penilaian</th>
-                <th>UTS</th>
-                <th>UAS</th>
-                <th>Nilai Akhir</th>
-                <th>KKM</th>
-                <th>Predikat</th>
-                <th>Ketuntasan</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="g in grades" :key="g.subject_id">
-                <td class="subject-name">
-                  {{ g.subject?.name || '-' }}
-                  <div v-if="penilaianDetail(g)" class="penilaian-detail">{{ penilaianDetail(g) }}</div>
-                </td>
-                <td>{{ g.rata_penilaian ?? '-' }}</td>
-                <td>{{ g.uts ?? '-' }}</td>
-                <td>{{ g.uas ?? '-' }}</td>
-                <td class="nilai-akhir">{{ g.nilai_akhir ?? '-' }}</td>
-                <td>{{ g.kkm ?? '-' }}</td>
-                <td>
-                  <span v-if="g.predicate" class="pred-chip" :class="`pred-${g.predicate}`">{{ g.predicate }}</span>
-                  <span v-else>-</span>
-                </td>
-                <td>
-                  <span
-                    v-if="g.tuntas_label"
-                    class="sp-badge"
-                    :class="g.is_tuntas ? 'sp-badge--ok' : 'sp-badge--danger'"
-                  >{{ g.tuntas_label }}</span>
-                  <span v-else>-</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <template v-else>
+        <div class="sp-stats sp-stats--2">
+          <div class="sp-stat sp-stat--ok">
+            <div>
+              <span class="sp-stat-label">Tuntas</span>
+              <span class="sp-stat-value">{{ tuntasCount }}</span>
+            </div>
+          </div>
+          <div class="sp-stat" :class="{ 'sp-stat--warn': belumTuntasCount }">
+            <div>
+              <span class="sp-stat-label">Belum tuntas</span>
+              <span class="sp-stat-value">{{ belumTuntasCount }}</span>
+            </div>
+          </div>
         </div>
 
-        <div class="sp-mobile-cards">
-          <article v-for="g in grades" :key="'m-' + g.subject_id" class="sp-mobile-card">
-            <div class="sp-mobile-card-title">{{ g.subject?.name || '-' }}</div>
-            <div class="sp-mobile-card-row"><span>Rata Penilaian</span><strong>{{ g.rata_penilaian ?? '-' }}</strong></div>
-            <div class="sp-mobile-card-row"><span>UTS</span><strong>{{ g.uts ?? '-' }}</strong></div>
-            <div class="sp-mobile-card-row"><span>UAS</span><strong>{{ g.uas ?? '-' }}</strong></div>
-            <div class="sp-mobile-card-row"><span>Nilai Akhir</span><strong>{{ g.nilai_akhir ?? '-' }}</strong></div>
-            <div class="sp-mobile-card-row"><span>KKM</span><strong>{{ g.kkm ?? '-' }}</strong></div>
-            <div class="sp-mobile-card-row"><span>Predikat</span><strong>{{ g.predicate || '-' }}</strong></div>
-            <div class="sp-mobile-card-row"><span>Ketuntasan</span><strong>{{ g.tuntas_label || '-' }}</strong></div>
+        <div class="sp-grade-grid">
+          <article
+            v-for="g in grades"
+            :key="g.subject_id"
+            class="sp-grade-card"
+            :class="{ 'is-warn': g.is_tuntas === false, 'is-ok': g.is_tuntas === true }"
+          >
+            <div class="sp-grade-card-top">
+              <div class="sp-grade-name">{{ g.subject?.name || '-' }}</div>
+              <div class="sp-grade-score">{{ g.nilai_akhir ?? '-' }}</div>
+            </div>
+            <div class="sp-grade-meta">
+              <span>KKM {{ g.kkm ?? '—' }}</span>
+              <span v-if="g.predicate" class="pred-chip" :class="`pred-${g.predicate}`">{{ g.predicate }}</span>
+              <span
+                v-if="g.tuntas_label"
+                class="sp-badge"
+                :class="g.is_tuntas ? 'sp-badge--ok' : 'sp-badge--danger'"
+              >{{ g.tuntas_label }}</span>
+            </div>
+            <div class="grade-breakdown">
+              <span>Penilaian {{ g.rata_penilaian ?? '—' }}</span>
+              <span>UTS {{ g.uts ?? '—' }}</span>
+              <span>UAS {{ g.uas ?? '—' }}</span>
+            </div>
+            <div v-if="penilaianDetail(g)" class="penilaian-detail">{{ penilaianDetail(g) }}</div>
           </article>
         </div>
-      </div>
+      </template>
     </div>
   </Layout>
 </template>
@@ -103,18 +91,19 @@ import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { gradeBookApi } from '@/api/gradeBook'
 import { semesterApi } from '@/api/semester'
-import { useToast } from '@/composables/useToast'
 
-const toast = useToast()
 const authStore = useAuthStore()
 
 const studentId = computed(() => authStore.user?.student_profile?.id)
 
 const loading = ref(false)
-const downloadingRaport = ref(false)
+const loadError = ref(false)
 const semesters = ref([])
 const selectedSemesterId = ref('')
 const grades = ref([])
+
+const tuntasCount = computed(() => grades.value.filter((g) => g.is_tuntas === true).length)
+const belumTuntasCount = computed(() => grades.value.filter((g) => g.is_tuntas === false).length)
 
 onMounted(async () => {
   let active = null
@@ -144,6 +133,7 @@ async function loadGrades() {
   }
   loading.value = true
   try {
+    loadError.value = false
     const res = await gradeBookApi.getByStudentSemester({
       student_id: studentId.value,
       semester_id: selectedSemesterId.value
@@ -151,6 +141,7 @@ async function loadGrades() {
     const list = res.data?.data ?? res.data ?? []
     grades.value = Array.isArray(list) ? list : (list?.data ?? [])
   } catch {
+    loadError.value = true
     grades.value = []
   } finally {
     loading.value = false
@@ -173,35 +164,6 @@ function penilaianDetail(g) {
     .filter(Boolean)
   return parts.length ? parts.join(' · ') : ''
 }
-
-async function downloadRaport() {
-  if (!studentId.value || !selectedSemesterId.value) return
-  downloadingRaport.value = true
-  try {
-    const res = await gradeBookApi.exportStudentRaport({
-      student_id: studentId.value,
-      semester_id: selectedSemesterId.value
-    })
-    const blob = res.data
-    const disposition = res.headers?.['content-disposition']
-    let filename = 'raport.csv'
-    if (disposition && /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.test(disposition)) {
-      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-      if (match && match[1]) filename = match[1].replace(/['"]/g, '').trim()
-    }
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (err) {
-    const msg = err?.formattedMessage || err?.response?.data?.message || 'Raport tidak dapat diunduh. Periksa koneksi dan coba lagi.'
-    toast.error('Gagal mengunduh raport', msg)
-  } finally {
-    downloadingRaport.value = false
-  }
-}
 </script>
 
 <style scoped>
@@ -219,29 +181,19 @@ async function downloadRaport() {
   text-transform: uppercase;
 }
 
-.grades-panel {
-  padding: 0;
-  overflow: hidden;
-}
-
-.sp-table-wrap {
-  border: none;
-}
-
-.subject-name {
-  font-weight: 600;
+.grade-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .penilaian-detail {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 11px;
-  color: #64748b;
-  font-weight: 400;
-}
-
-.nilai-akhir {
-  font-weight: 800;
-  color: #0f172a;
+  color: #94a3b8;
 }
 
 .pred-chip {

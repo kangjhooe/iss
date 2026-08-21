@@ -27,6 +27,13 @@ class QuestionBankResource extends JsonResource
             'matching_data' => $this->when($this->type === 'matching', $this->matching_data),
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
+            'exams_count' => $this->when(isset($this->exam_questions_count), fn () => (int) $this->exam_questions_count),
+            'bank' => $this->whenLoaded('bankSoal', fn () => $this->bankSoal ? [
+                'id' => $this->bankSoal->id,
+                'code' => $this->bankSoal->code,
+                'name' => $this->bankSoal->name,
+                'grade' => $this->bankSoal->grade,
+            ] : null),
             'stimulus' => $this->whenLoaded('stimulus', fn () => new QuestionStimulusResource($this->stimulus)),
             'options' => $this->whenLoaded('options', fn () => $this->options->map(fn ($o) => [
                 'id' => $o->id,

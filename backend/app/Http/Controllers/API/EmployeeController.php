@@ -8,17 +8,17 @@ use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
 use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
-use App\Models\EmployeeEducation;
-use App\Models\EmployeeDocument;
 use App\Models\Institution;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\StructuralDutySync;
 use App\Support\InstitutionContext;
+use App\Support\ReportAccess;
 use App\Support\TeacherAccess;
 use App\Support\VocationalAccess;
-use App\Services\StructuralDutySync;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -39,12 +39,16 @@ class EmployeeController extends Controller
      *     summary="Daftar pegawai (guru/staff)",
      *     tags={"Teacher"},
      *     security={{"sanctum":{}}},
+     *
      *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="Cari nama/NIP/NUPTK"),
      *     @OA\Parameter(name="status", in="query", required=false, @OA\Schema(type="string"), description="Filter status (Aktif/Pensiun/dll)"),
      *     @OA\Parameter(name="type", in="query", required=false, @OA\Schema(type="string"), description="Filter tipe (Guru/Staff/dll)"),
      *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer"), description="Jumlah per halaman (max 100)"),
+     *
      *     @OA\Response(response=200, description="Berhasil",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="data", type="array", @OA\Items(
      *                 @OA\Property(property="id", type="integer"),
      *                 @OA\Property(property="name", type="string"),
@@ -54,6 +58,7 @@ class EmployeeController extends Controller
      *             ))
      *         )
      *     ),
+     *
      *     @OA\Response(response=401, description="Unauthorized")
      * )
      */
@@ -71,7 +76,7 @@ class EmployeeController extends Controller
             }
 
             // Filter berdasarkan institusi aktif (induk / non-induk)
-            if (!$user->isAdminOrSuperAdmin()) {
+            if (! $user->isAdminOrSuperAdmin()) {
                 $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
             } elseif ($request->has('institution_id')) {
                 $institutionId = $request->institution_id;
@@ -89,10 +94,10 @@ class EmployeeController extends Controller
 
             if ($request->has('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%')
-                      ->orWhere('nip', 'like', '%' . $search . '%')
-                      ->orWhere('nuptk', 'like', '%' . $search . '%');
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('nip', 'like', '%'.$search.'%')
+                        ->orWhere('nuptk', 'like', '%'.$search.'%');
                 });
             }
 
@@ -156,7 +161,7 @@ class EmployeeController extends Controller
                 $query->withTrashed();
             }
 
-            if (!$user->isAdminOrSuperAdmin()) {
+            if (! $user->isAdminOrSuperAdmin()) {
                 $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
             } elseif ($request->has('institution_id')) {
                 $institutionId = $request->institution_id;
@@ -175,9 +180,9 @@ class EmployeeController extends Controller
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%')
-                      ->orWhere('nip', 'like', '%' . $search . '%')
-                      ->orWhere('nuptk', 'like', '%' . $search . '%');
+                    $q->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('nip', 'like', '%'.$search.'%')
+                        ->orWhere('nuptk', 'like', '%'.$search.'%');
                 });
             }
 
@@ -234,7 +239,7 @@ class EmployeeController extends Controller
             $user = $request->user();
             $institutionId = null;
 
-            if (!$user->isAdminOrSuperAdmin()) {
+            if (! $user->isAdminOrSuperAdmin()) {
                 $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
             } elseif ($request->filled('institution_id')) {
                 $institutionId = (int) $request->institution_id;
@@ -242,12 +247,12 @@ class EmployeeController extends Controller
                 $institutionId = InstitutionContext::resolveForUser($user, $request, null);
             }
 
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $institution = Institution::find($institutionId);
-            if (!$institution) {
+            if (! $institution) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 404);
             }
 
@@ -263,9 +268,9 @@ class EmployeeController extends Controller
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('nip', 'like', '%' . $search . '%')
-                        ->orWhere('nuptk', 'like', '%' . $search . '%');
+                    $q->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('nip', 'like', '%'.$search.'%')
+                        ->orWhere('nuptk', 'like', '%'.$search.'%');
                 });
             }
             if ($request->filled('type')) {
@@ -289,16 +294,16 @@ class EmployeeController extends Controller
 
             $filterParts = [];
             if ($request->filled('search')) {
-                $filterParts[] = 'Pencarian: ' . $request->search;
+                $filterParts[] = 'Pencarian: '.$request->search;
             }
             if ($request->filled('type')) {
-                $filterParts[] = 'Tipe: ' . $request->type;
+                $filterParts[] = 'Tipe: '.$request->type;
             }
             if ($request->filled('status')) {
-                $filterParts[] = 'Status: ' . $request->status;
+                $filterParts[] = 'Status: '.$request->status;
             }
             if ($request->filled('employment_status')) {
-                $filterParts[] = 'Kepegawaian: ' . $request->employment_status;
+                $filterParts[] = 'Kepegawaian: '.$request->employment_status;
             }
 
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
@@ -310,7 +315,7 @@ class EmployeeController extends Controller
                 'printed_at' => $printedAt,
             ])->setPaper('a4', 'landscape');
 
-            $filename = 'Data_Guru_' . date('Y-m-d_His') . '.pdf';
+            $filename = 'Data_Guru_'.date('Y-m-d_His').'.pdf';
 
             return $pdf->stream($filename, ['Attachment' => false]);
         } catch (\Exception $e) {
@@ -328,6 +333,7 @@ class EmployeeController extends Controller
 
     /**
      * Search employee by NIK (for non-induk requests).
+     * Cross-school lookup is intentional; response is limited to confirmation fields.
      */
     public function searchByNik(Request $request)
     {
@@ -336,13 +342,13 @@ class EmployeeController extends Controller
         ]);
 
         $user = $request->user();
-        if (!$user->isInstitutionAdmin() && !$user->isAdminOrSuperAdmin()) {
+        if (! $user->isInstitutionAdmin() && ! $user->isAdminOrSuperAdmin()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $employee = Employee::with('institution:id,name,npsn')->where('nik', $request->nik)->first();
+        $employee = Employee::with('institution:id,name')->where('nik', $request->nik)->first();
 
-        if (!$employee) {
+        if (! $employee) {
             return response()->json(['message' => 'Pegawai tidak ditemukan'], 404);
         }
 
@@ -351,12 +357,9 @@ class EmployeeController extends Controller
                 'id' => $employee->id,
                 'nik' => $employee->nik,
                 'name' => $employee->name,
-                'gender' => $employee->gender,
-                'type' => $employee->type,
                 'institution' => $employee->institution ? [
                     'id' => $employee->institution->id,
                     'name' => $employee->institution->name,
-                    'npsn' => $employee->institution->npsn,
                 ] : null,
             ],
         ]);
@@ -370,10 +373,13 @@ class EmployeeController extends Controller
      *     summary="Tambah pegawai (guru/staff)",
      *     tags={"Teacher"},
      *     security={{"sanctum":{}}},
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"nik","type","name","gender"},
+     *
      *             @OA\Property(property="institution_id", type="integer", description="ID institusi (untuk super admin)"),
      *             @OA\Property(property="nik", type="string", example="1234567890123456", description="NIK 16 digit"),
      *             @OA\Property(property="type", type="string", enum={"Guru","Staff","Tenaga Administrasi", "Tenaga Kebersihan","Tenaga Keamanan","Lainnya"}, example="Guru"),
@@ -384,23 +390,27 @@ class EmployeeController extends Controller
      *             @OA\Property(property="status", type="string", example="Aktif")
      *         )
      *     ),
+     *
      *     @OA\Response(response=201, description="Pegawai berhasil ditambahkan",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="message", type="string", example="Pegawai berhasil ditambahkan"),
      *             @OA\Property(property="data", type="object")
      *         )
      *     ),
+     *
      *     @OA\Response(response=422, description="Validasi gagal")
      * )
      */
     public function store(StoreEmployeeRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? $request->institution_id 
+            $institutionId = $request->user()->isAdminOrSuperAdmin()
+                ? $request->institution_id
                 : $request->user()->institution_id;
 
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
@@ -428,19 +438,19 @@ class EmployeeController extends Controller
             }
             $userRole = $validated['user_role'] ?? null;
             unset($validated['permission_keys'], $validated['user_role']);
-            if (!$request->user()->isAdminOrSuperAdmin() && !$request->user()->isInstitutionAdmin()) {
+            if (! $request->user()->isAdminOrSuperAdmin() && ! $request->user()->isInstitutionAdmin()) {
                 $permissionKeys = null;
             }
-            if (!empty($validated['email']) && $userRole === null) {
+            if (! empty($validated['email']) && $userRole === null) {
                 $userRole = $validated['type'] === 'Guru' ? 'teacher' : 'staff';
             }
 
             $employee = Employee::create($validated);
 
             // Save educations
-            if (!empty($educations)) {
+            if (! empty($educations)) {
                 foreach ($educations as $index => $education) {
-                    if (!empty($education['level'])) {
+                    if (! empty($education['level'])) {
                         $employee->educations()->create([
                             'level' => $education['level'],
                             'school_name' => $education['school_name'] ?? null,
@@ -478,16 +488,16 @@ class EmployeeController extends Controller
                 'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties', 'programKeahlians'])),
             ];
 
-            if (!empty($accountResult['user_created'])) {
+            if (! empty($accountResult['user_created'])) {
                 $response['user_created'] = true;
                 $response['generated_password'] = $accountResult['generated_password'];
             }
 
-            if (!empty($accountResult['user_updated'])) {
+            if (! empty($accountResult['user_updated'])) {
                 $response['user_updated'] = true;
             }
 
-            if (!empty($accountResult['user_conflict'])) {
+            if (! empty($accountResult['user_conflict'])) {
                 $response['user_conflict'] = $accountResult['user_conflict'];
             }
 
@@ -512,7 +522,9 @@ class EmployeeController extends Controller
      *     summary="Detail pegawai",
      *     tags={"Teacher"},
      *     security={{"sanctum":{}}},
+     *
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *
      *     @OA\Response(response=200, description="Berhasil", @OA\JsonContent(@OA\Property(property="data", type="object"))),
      *     @OA\Response(response=404, description="Pegawai tidak ditemukan")
      * )
@@ -530,13 +542,13 @@ class EmployeeController extends Controller
             );
 
             // Jika bukan admin/super admin, hanya bisa melihat pegawai dari institusi sendiri atau non-induk yang disetujui
-            if (!$user->isAdminOrSuperAdmin() && $currentInstitutionId != $employee->institution_id) {
+            if (! $user->isAdminOrSuperAdmin() && $currentInstitutionId != $employee->institution_id) {
                 $hasApprovedAssignment = $employee->assignments()
                     ->where('institution_id', $currentInstitutionId)
                     ->where('status', 'approved')
                     ->exists();
 
-                if (!$hasApprovedAssignment) {
+                if (! $hasApprovedAssignment) {
                     return response()->json(['message' => 'Unauthorized'], 403);
                 }
             }
@@ -587,13 +599,17 @@ class EmployeeController extends Controller
      *     summary="Perbarui pegawai",
      *     tags={"Teacher"},
      *     security={{"sanctum":{}}},
+     *
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *
      *     @OA\RequestBody(@OA\JsonContent(
+     *
      *         @OA\Property(property="name", type="string"),
      *         @OA\Property(property="status", type="string"),
      *         @OA\Property(property="nip", type="string"),
      *         @OA\Property(property="nuptk", type="string")
      *     )),
+     *
      *     @OA\Response(response=200, description="Pegawai berhasil diperbarui"),
      *     @OA\Response(response=404, description="Pegawai tidak ditemukan")
      * )
@@ -605,12 +621,12 @@ class EmployeeController extends Controller
             $previousEmail = $employee->email;
 
             // Jika bukan admin, hanya bisa update pegawai dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $validated = $request->validated();
-            
+
             // Extract educations if provided
             $educations = $validated['educations'] ?? null;
             unset($validated['educations']);
@@ -639,10 +655,10 @@ class EmployeeController extends Controller
                 $userRole = $validated['user_role'];
             }
             unset($validated['permission_keys'], $validated['user_role']);
-            if (!$request->user()->isAdminOrSuperAdmin() && !$request->user()->isInstitutionAdmin()) {
+            if (! $request->user()->isAdminOrSuperAdmin() && ! $request->user()->isInstitutionAdmin()) {
                 $permissionKeys = null;
             }
-            if (!empty($validated['email'] ?? $employee->email) && $userRole === null) {
+            if (! empty($validated['email'] ?? $employee->email) && $userRole === null) {
                 $userRole = $employee->type === 'Guru' ? 'teacher' : 'staff';
             }
 
@@ -652,10 +668,10 @@ class EmployeeController extends Controller
             if ($educations !== null) {
                 // Delete existing educations
                 $employee->educations()->delete();
-                
+
                 // Create new educations
                 foreach ($educations as $index => $education) {
-                    if (!empty($education['level'])) {
+                    if (! empty($education['level'])) {
                         $employee->educations()->create([
                             'level' => $education['level'],
                             'school_name' => $education['school_name'] ?? null,
@@ -709,16 +725,16 @@ class EmployeeController extends Controller
                 'data' => new EmployeeResource($employee->load(['institution', 'educations', 'documents', 'userAccount.permissions', 'additionalDuties', 'programKeahlians'])),
             ];
 
-            if (!empty($accountResult['user_created'])) {
+            if (! empty($accountResult['user_created'])) {
                 $response['user_created'] = true;
                 $response['generated_password'] = $accountResult['generated_password'];
             }
 
-            if (!empty($accountResult['user_updated'])) {
+            if (! empty($accountResult['user_updated'])) {
                 $response['user_updated'] = true;
             }
 
-            if (!empty($accountResult['user_conflict'])) {
+            if (! empty($accountResult['user_conflict'])) {
                 $response['user_conflict'] = $accountResult['user_conflict'];
             }
 
@@ -749,28 +765,28 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($id);
             $user = $request->user();
 
-            if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin()) {
+            if (! $user->isAdminOrSuperAdmin() && ! $user->isInstitutionAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $employee->institution_id) {
+            if (! $user->isAdminOrSuperAdmin() && $user->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            if (!$employee->email || !$employee->hasUserAccount()) {
+            if (! $employee->email || ! $employee->hasUserAccount()) {
                 return response()->json([
                     'message' => 'Pegawai ini belum memiliki akun login.',
                 ], 422);
             }
 
             $accountUser = User::where('email', $employee->email)->first();
-            if (!$accountUser) {
+            if (! $accountUser) {
                 return response()->json([
                     'message' => 'Akun login tidak ditemukan.',
                 ], 404);
             }
 
-            if (!in_array($accountUser->role, ['teacher', 'staff'], true)) {
+            if (! in_array($accountUser->role, ['teacher', 'staff'], true)) {
                 return response()->json([
                     'message' => 'Hanya dapat mereset sandi akun pegawai (guru/staff).',
                 ], 422);
@@ -815,7 +831,9 @@ class EmployeeController extends Controller
      *     summary="Hapus pegawai",
      *     tags={"Teacher"},
      *     security={{"sanctum":{}}},
+     *
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *
      *     @OA\Response(response=200, description="Pegawai berhasil dihapus"),
      *     @OA\Response(response=404, description="Pegawai tidak ditemukan")
      * )
@@ -826,7 +844,7 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($id);
 
             // Jika bukan admin, hanya bisa hapus pegawai dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -865,7 +883,7 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::withTrashed()->findOrFail($id);
 
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -895,6 +913,111 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Permanently delete an employee from the trash.
+     */
+    public function forceDestroy(Request $request, $id)
+    {
+        try {
+            $employee = Employee::withTrashed()->findOrFail($id);
+
+            if (! $request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $employee->institution_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if (! $employee->trashed()) {
+                return response()->json([
+                    'message' => 'Hanya data di kotak sampah yang dapat dihapus permanen.',
+                ], 422);
+            }
+
+            $filePaths = $employee->documents()->pluck('file_path')->filter()->all();
+            $employeeId = $employee->id;
+            $nik = $employee->nik;
+
+            DB::transaction(function () use ($employee, $request) {
+                $this->releaseEmployeeUserAccount($employee, $request->user());
+                $employee->forceDelete();
+            });
+
+            foreach ($filePaths as $filePath) {
+                if (Storage::disk('public')->exists($filePath)) {
+                    Storage::disk('public')->delete($filePath);
+                }
+            }
+            Storage::disk('public')->deleteDirectory('employee_documents/'.$employeeId);
+
+            Log::info('Employee permanently deleted', [
+                'employee_id' => $employeeId,
+                'nik' => $nik,
+                'user_id' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Pegawai dihapus secara permanen',
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Pegawai tidak ditemukan',
+            ], 404);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to permanently delete employee', [
+                'employee_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat menghapus permanen pegawai',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Hapus atau nonaktifkan akun login guru/staf agar email/NIK bisa dipakai lagi.
+     */
+    protected function releaseEmployeeUserAccount(Employee $employee, User $actor): void
+    {
+        if (empty($employee->email)) {
+            return;
+        }
+
+        $user = User::where('email', $employee->email)->first();
+        if (! $user) {
+            return;
+        }
+
+        if ((int) $user->id === (int) $actor->id) {
+            throw new \InvalidArgumentException('Tidak dapat menghapus permanen data yang terhubung dengan akun Anda.');
+        }
+
+        if (! in_array($user->role, ['teacher', 'staff'], true)) {
+            return;
+        }
+
+        $user->tokens()->delete();
+
+        try {
+            $user->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            $user->forceFill([
+                'is_active' => false,
+                'login_nik' => null,
+                'email' => 'deleted.'.$user->id.'.'.$user->email,
+            ])->save();
+
+            Log::warning('Employee login account could not be deleted; deactivated instead', [
+                'employee_id' => $employee->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Upload document for employee.
      */
     public function uploadDocument(Request $request, $id)
@@ -903,7 +1026,7 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($id);
 
             // Jika bukan admin, hanya bisa upload dokumen pegawai dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -911,7 +1034,7 @@ class EmployeeController extends Controller
             $documentCount = $employee->documents()->count();
             if ($documentCount >= 20) {
                 return response()->json([
-                    'message' => 'Maksimal 20 file dokumen per pegawai'
+                    'message' => 'Maksimal 20 file dokumen per pegawai',
                 ], 400);
             }
 
@@ -929,7 +1052,7 @@ class EmployeeController extends Controller
                 'file',
                 false
             );
-            
+
             $request->validate($rules, $messages);
 
             $file = $request->file('file');
@@ -937,8 +1060,8 @@ class EmployeeController extends Controller
             $originalName = $file->getClientOriginalName();
             $extension = $file->getClientOriginalExtension();
             $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
-            $fileName = time() . '_' . $safeName . '.' . $extension;
-            $filePath = $file->storeAs('employee_documents/' . $employee->id, $fileName, 'public');
+            $fileName = time().'_'.$safeName.'.'.$extension;
+            $filePath = $file->storeAs('employee_documents/'.$employee->id, $fileName, 'public');
 
             $document = $employee->documents()->create([
                 'name' => $request->name,
@@ -990,7 +1113,7 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($id);
 
             // Jika bukan admin, hanya bisa hapus dokumen pegawai dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -1039,13 +1162,13 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($id);
 
             // Jika bukan admin, hanya bisa download dokumen pegawai dari institusi sendiri
-            if (!$request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $document = $employee->documents()->findOrFail($documentId);
 
-            if (!Storage::disk('public')->exists($document->file_path)) {
+            if (! Storage::disk('public')->exists($document->file_path)) {
                 return response()->json([
                     'message' => 'File tidak ditemukan',
                 ], 404);
@@ -1077,18 +1200,18 @@ class EmployeeController extends Controller
     {
         try {
             $employeesData = $request->input('employees', []);
-            
-            if (empty($employeesData) || !is_array($employeesData)) {
+
+            if (empty($employeesData) || ! is_array($employeesData)) {
                 return response()->json([
                     'message' => 'Data pegawai tidak valid',
                 ], 400);
             }
 
-            $institutionId = $request->user()->isAdmin() 
+            $institutionId = $request->user()->isAdmin()
                 ? $request->input('institution_id')
                 : $request->user()->institution_id;
 
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
             }
 
@@ -1100,58 +1223,133 @@ class EmployeeController extends Controller
 
             foreach ($employeesData as $index => $employeeData) {
                 try {
-                    // Validasi data minimal
-                    if (empty($employeeData['name'])) {
-                        $errors[] = "Baris " . ($index + 1) . ": Nama Lengkap wajib diisi";
+                    $rowNumber = $index + 1;
+                    $name = trim((string) ($employeeData['name'] ?? ''));
+                    $nik = preg_replace('/\D+/', '', (string) ($employeeData['nik'] ?? ''));
+                    $typeRaw = trim((string) ($employeeData['type'] ?? ''));
+                    $genderRaw = strtoupper(trim((string) ($employeeData['gender'] ?? '')));
+                    $birthPlace = trim((string) ($employeeData['birth_place'] ?? ''));
+                    $birthDate = trim((string) ($employeeData['birth_date'] ?? ''));
+                    $email = trim((string) ($employeeData['email'] ?? ''));
+
+                    $allowedTypes = ['Guru', 'Staff', 'Tenaga Administrasi', 'Tenaga Kebersihan', 'Tenaga Keamanan', 'Lainnya'];
+                    $matchedType = null;
+                    foreach ($allowedTypes as $allowedType) {
+                        if (strcasecmp($allowedType, $typeRaw) === 0) {
+                            $matchedType = $allowedType;
+                            break;
+                        }
+                    }
+
+                    if ($name === '') {
+                        $errors[] = 'Baris '.$rowNumber.': Nama Lengkap wajib diisi';
+                        $errorCount++;
+                        continue;
+                    }
+                    if ($nik === '') {
+                        $errors[] = 'Baris '.$rowNumber.': NIK wajib diisi';
+                        $errorCount++;
+                        continue;
+                    }
+                    if (! preg_match('/^[0-9]{16}$/', $nik)) {
+                        $errors[] = 'Baris '.$rowNumber.': Format NIK tidak valid (harus 16 digit)';
+                        $errorCount++;
+                        continue;
+                    }
+                    if ($typeRaw === '') {
+                        $errors[] = 'Baris '.$rowNumber.': Tipe Pegawai wajib diisi';
+                        $errorCount++;
+                        continue;
+                    }
+                    if ($matchedType === null) {
+                        $errors[] = 'Baris '.$rowNumber.': Tipe Pegawai tidak valid (Guru, Staff, Tenaga Administrasi, Tenaga Kebersihan, Tenaga Keamanan, atau Lainnya)';
+                        $errorCount++;
+                        continue;
+                    }
+                    if (! in_array($genderRaw, ['L', 'P'], true)) {
+                        $errors[] = 'Baris '.$rowNumber.': Jenis kelamin wajib diisi (L atau P)';
+                        $errorCount++;
+                        continue;
+                    }
+                    if ($birthPlace === '') {
+                        $errors[] = 'Baris '.$rowNumber.': Tempat Lahir wajib diisi';
+                        $errorCount++;
+                        continue;
+                    }
+                    if ($birthDate === '' || strtotime($birthDate) === false) {
+                        $errors[] = 'Baris '.$rowNumber.': Tanggal Lahir wajib diisi (format YYYY-MM-DD)';
+                        $errorCount++;
+                        continue;
+                    }
+                    if ($matchedType === 'Guru' && $email === '') {
+                        $errors[] = 'Baris '.$rowNumber.': Email wajib diisi untuk guru';
+                        $errorCount++;
+                        continue;
+                    }
+                    if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $errors[] = 'Baris '.$rowNumber.': Format email tidak valid';
                         $errorCount++;
                         continue;
                     }
 
-                    if (empty($employeeData['nik'])) {
-                        $errors[] = "Baris " . ($index + 1) . ": NIK wajib diisi";
-                        $errorCount++;
-                        continue;
-                    }
-                    if (!preg_match('/^[0-9]{16}$/', $employeeData['nik'])) {
-                        $errors[] = "Baris " . ($index + 1) . ": Format NIK tidak valid";
-                        $errorCount++;
-                        continue;
-                    }
+                    $employeeData['name'] = $name;
+                    $employeeData['nik'] = $nik;
+                    $employeeData['type'] = $matchedType;
+                    $employeeData['gender'] = $genderRaw;
+                    $employeeData['birth_place'] = $birthPlace;
+                    $employeeData['birth_date'] = date('Y-m-d', strtotime($birthDate));
+                    $employeeData['email'] = $email !== '' ? $email : null;
 
-                    // Set default type jika tidak ada
-                    if (empty($employeeData['type'])) {
-                        $employeeData['type'] = 'Guru';
-                    }
+                    $payload = array_intersect_key($employeeData, array_flip([
+                        'type', 'nik', 'nip', 'nuptk', 'name', 'gender', 'birth_place', 'birth_date',
+                        'address', 'village', 'sub_district', 'district', 'province', 'postal_code',
+                        'phone', 'email', 'religion', 'employment_status', 'education_level',
+                        'major', 'subject', 'status', 'join_date', 'notes', 'certification_status',
+                        'certification_date', 'teacher_registration_number', 'certification_number',
+                        'certification_issuing_authority',
+                    ]));
 
-                    if ($employeeData['type'] === 'Guru' && empty($employeeData['email'])) {
-                        $errors[] = "Baris " . ($index + 1) . ": Email wajib diisi untuk guru";
-                        $errorCount++;
-                        continue;
+                    foreach (['address', 'village', 'sub_district', 'district', 'province', 'postal_code'] as $field) {
+                        if (! array_key_exists($field, $payload) || $payload[$field] === null || $payload[$field] === '') {
+                            unset($payload[$field]);
+                        }
+                    }
+                    if (
+                        array_key_exists('village', $payload)
+                        || array_key_exists('sub_district', $payload)
+                        || array_key_exists('district', $payload)
+                        || array_key_exists('province', $payload)
+                    ) {
+                        $payload['wilayah_province_code'] = null;
+                        $payload['wilayah_regency_code'] = null;
+                        $payload['wilayah_district_code'] = null;
+                        $payload['wilayah_village_code'] = null;
                     }
 
                     // Cek apakah pegawai sudah ada berdasarkan NIK (global)
-                    $existingEmployee = Employee::where('nik', $employeeData['nik'])->first();
+                    $existingEmployee = Employee::where('nik', $payload['nik'])->first();
                     $employee = null;
                     $previousEmail = null;
 
                     if ($existingEmployee) {
                         if ($existingEmployee->institution_id !== $institutionId) {
-                            $errors[] = "Baris " . ($index + 1) . ": NIK sudah terdaftar di institusi lain";
+                            $errors[] = 'Baris '.$rowNumber.': NIK sudah terdaftar di institusi lain';
                             $errorCount++;
+
                             continue;
                         }
 
                         // Update jika sudah ada di institusi yang sama
                         $previousEmail = $existingEmployee->email;
-                        $existingEmployee->update(array_merge($employeeData, [
+                        $existingEmployee->update(array_merge($payload, [
                             'institution_id' => $institutionId,
                         ]));
                         $employee = $existingEmployee;
                         $successCount++;
                     } else {
                         // Create jika belum ada
-                        $employee = Employee::create(array_merge($employeeData, [
-                            'institution_id' => $institutionId
+                        $employee = Employee::create(array_merge($payload, [
+                            'institution_id' => $institutionId,
                         ]));
                         $successCount++;
                     }
@@ -1160,27 +1358,27 @@ class EmployeeController extends Controller
                         $importRole = $employee->type === 'Guru' ? 'teacher' : 'staff';
                         $accountResult = $this->ensureEmployeeUserAccount($employee, $previousEmail, null, $importRole);
 
-                        if (!empty($accountResult['generated_password'])) {
+                        if (! empty($accountResult['generated_password'])) {
                             $createdAccounts[] = [
-                                'row' => $index + 1,
+                                'row' => $rowNumber,
                                 'email' => $employee->email,
                                 'password' => $accountResult['generated_password'],
                             ];
                         }
 
-                        if (!empty($accountResult['user_conflict'])) {
+                        if (! empty($accountResult['user_conflict'])) {
                             $accountConflicts[] = [
-                                'row' => $index + 1,
+                                'row' => $rowNumber,
                                 'email' => $accountResult['user_conflict']['email'],
                                 'role' => $accountResult['user_conflict']['role'],
                             ];
                         }
                     }
                 } catch (\Exception $e) {
-                    $errors[] = "Baris " . ($index + 1) . ": " . $e->getMessage();
+                    $errors[] = 'Baris '.$rowNumber.': '.$e->getMessage();
                     $errorCount++;
                     Log::error('Failed to import employee', [
-                        'row' => $index + 1,
+                        'row' => $rowNumber,
                         'error' => $e->getMessage(),
                         'data' => $employeeData,
                     ]);
@@ -1275,6 +1473,7 @@ class EmployeeController extends Controller
                     );
                 }
                 $result['user_updated'] = true;
+
                 return $result;
             }
             if ($previousUser) {
@@ -1282,6 +1481,7 @@ class EmployeeController extends Controller
                     'email' => $previousEmail,
                     'role' => $previousUser->role,
                 ];
+
                 return $result;
             }
         }
@@ -1353,6 +1553,7 @@ class EmployeeController extends Controller
 
         if ($keys->isEmpty()) {
             $user->permissions()->sync([]);
+
             return;
         }
 
@@ -1375,7 +1576,10 @@ class EmployeeController extends Controller
         $employee->load('activeAdditionalDuties.permissions');
         $fromDuties = $employee->activeAdditionalDuties->flatMap(fn ($d) => $d->permissions->pluck('key'))->unique()->values()->all();
 
-        return array_values(array_unique(array_merge($manual, $fromDuties)));
+        return ReportAccess::sanitizeKeysForEmployee(
+            $employee,
+            array_values(array_unique(array_merge($manual, $fromDuties)))
+        );
     }
 
     /**

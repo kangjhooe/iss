@@ -22,6 +22,9 @@ export const authApi = {
   forgotPassword(email) {
     return api.post('/v1/forgot-password', { email })
   },
+  requestPasswordReset(data) {
+    return api.post('/v1/password-reset-requests', data)
+  },
   resetPassword(data) {
     return api.post('/v1/reset-password', data)
   },

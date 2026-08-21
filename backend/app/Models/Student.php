@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Services\AlumniDestinationSync;
+use App\Services\PpdbAcceptedElsewhereService;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\Auditable;
 
 class Student extends Model
 {
@@ -28,6 +30,15 @@ class Student extends Model
         'birth_date',
         'birth_place',
         'address',
+        'village',
+        'sub_district',
+        'district',
+        'province',
+        'postal_code',
+        'wilayah_province_code',
+        'wilayah_regency_code',
+        'wilayah_district_code',
+        'wilayah_village_code',
         'phone',
         'email',
         'religion',
@@ -77,6 +88,20 @@ class Student extends Model
         'notes',
         'class_id',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (Student $student) {
+            app(PpdbAcceptedElsewhereService::class)->markForStudent($student);
+            app(AlumniDestinationSync::class)->proposeFromEnrollment($student);
+        });
+
+        static::updated(function (Student $student) {
+            if ($student->wasChanged(['nisn', 'nik'])) {
+                app(PpdbAcceptedElsewhereService::class)->markForStudent($student);
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -131,6 +156,43 @@ class Student extends Model
     public function schoolClass()
     {
         return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
+    /**
+     * Siswa yang belum terhubung ke kelas aktif (class_id kosong, 0, atau kelas sudah dihapus).
+     */
+    public function scopeWithoutAssignedClass($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('class_id')
+                ->orWhere('class_id', 0)
+                ->orWhereDoesntHave('class');
+        });
+    }
+
+    /**
+     * Nama kelas untuk tampilan: utamakan relasi class_id, baru kolom teks lama.
+     */
+    public function resolvedClassName(): ?string
+    {
+        $related = null;
+        if ($this->relationLoaded('class')) {
+            $rel = $this->getRelation('class');
+            $related = $rel instanceof SchoolClass ? $rel : null;
+        } elseif ($this->relationLoaded('schoolClass')) {
+            $rel = $this->getRelation('schoolClass');
+            $related = $rel instanceof SchoolClass ? $rel : null;
+        }
+
+        $fromRelation = is_string($related?->name) ? trim($related->name) : '';
+        if ($fromRelation !== '') {
+            return $fromRelation;
+        }
+
+        $raw = $this->getRawOriginal('class');
+        $fromColumn = is_string($raw) ? trim($raw) : '';
+
+        return $fromColumn !== '' ? $fromColumn : null;
     }
 
     /**
@@ -281,7 +343,10 @@ class Student extends Model
      */
     public function currentAlumniDestination()
     {
-        return $this->hasOne(AlumniDestination::class)->latest('year_entered')->latest('id');
+        return $this->hasOne(AlumniDestination::class)
+            ->where('status', '!=', AlumniDestination::STATUS_REJECTED)
+            ->latest('year_entered')
+            ->latest('id');
     }
 
     /**

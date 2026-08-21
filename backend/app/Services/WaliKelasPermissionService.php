@@ -20,7 +20,6 @@ class WaliKelasPermissionService
     /**
      * Permission keys khusus wali kelas (bukan paket mengajar umum).
      * - bk_report: laporan BK read-only untuk siswa di kelasnya saja
-     * - report: laporan umum sekolah
      *
      * Modul `grade_book` / `teaching_journal` / `schedule` milik semua guru mapel
      * (lihat TeacherAccess), sengaja tidak masuk daftar ini agar tidak dicabut
@@ -30,12 +29,12 @@ class WaliKelasPermissionService
      * manajemen kelas & data siswa penuh milik admin/TU.
      * Roster siswa kelas wali tersedia lewat dashboard guru.
      * Modul `violation` / `counseling` tidak diberikan: itu akses BK penuh.
+     * Modul `report` (laporan umum sekolah) hanya untuk admin & kepala sekolah.
      */
     public static function waliKelasPermissionKeys(): array
     {
         return [
             'bk_report',
-            'report',
         ];
     }
 
@@ -49,6 +48,7 @@ class WaliKelasPermissionService
             'violation',
             'counseling',
             'class',
+            'report',
         ];
     }
 
@@ -60,16 +60,17 @@ class WaliKelasPermissionService
     public function syncWaliKelasPermissionsForEmployee(int $employeeId): void
     {
         $employee = Employee::find($employeeId);
-        if (!$employee || !$employee->email) {
+        if (! $employee || ! $employee->email) {
             return;
         }
 
         $user = User::where('email', $employee->email)->first();
-        if (!$user) {
+        if (! $user) {
             Log::debug('Wali kelas permission: no user account for employee', [
                 'employee_id' => $employeeId,
                 'email' => $employee->email,
             ]);
+
             return;
         }
 
@@ -79,6 +80,7 @@ class WaliKelasPermissionService
 
         if ($isStillWali) {
             $this->grantWaliKelasPermissionsToEmployee($employeeId);
+
             return;
         }
 
@@ -93,16 +95,17 @@ class WaliKelasPermissionService
     public function grantWaliKelasPermissionsToEmployee(int $employeeId): void
     {
         $employee = Employee::find($employeeId);
-        if (!$employee || !$employee->email) {
+        if (! $employee || ! $employee->email) {
             return;
         }
 
         $user = User::where('email', $employee->email)->first();
-        if (!$user) {
+        if (! $user) {
             Log::debug('Wali kelas permission: no user account for employee', [
                 'employee_id' => $employeeId,
                 'email' => $employee->email,
             ]);
+
             return;
         }
 
@@ -143,12 +146,12 @@ class WaliKelasPermissionService
     public function revokeWaliOnlyPermissionsFromEmployee(int $employeeId): void
     {
         $employee = Employee::find($employeeId);
-        if (!$employee || !$employee->email) {
+        if (! $employee || ! $employee->email) {
             return;
         }
 
         $user = User::where('email', $employee->email)->first();
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -162,7 +165,7 @@ class WaliKelasPermissionService
 
         $toRevoke = array_values(array_filter(
             $keysToRemove,
-            fn (string $key) => !in_array($key, $dutyKeys, true)
+            fn (string $key) => ! in_array($key, $dutyKeys, true)
         ));
 
         $remainingKeys = TeacherAccess::mergeTeachingDefaults(

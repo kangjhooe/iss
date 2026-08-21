@@ -19,13 +19,13 @@ class PpdbChannelController extends Controller
         try {
             $user = $request->user();
             $institutionId = $user->institution_id;
-            if (!$institutionId && !$user->isSuperAdmin()) {
+            if (! $institutionId && ! $user->isSuperAdmin()) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
             if ($user->isSuperAdmin() && $request->has('institution_id')) {
                 $institutionId = $request->institution_id;
             }
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Pilih institusi.'], 403);
             }
 
@@ -39,6 +39,7 @@ class PpdbChannelController extends Controller
             return PpdbChannelResource::collection($channels);
         } catch (\Exception $e) {
             Log::error('PpdbChannel index failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal mengambil data jalur PPDB.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -51,7 +52,7 @@ class PpdbChannelController extends Controller
         try {
             $user = $request->user();
             $institutionId = $user->institution_id;
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
@@ -59,6 +60,7 @@ class PpdbChannelController extends Controller
             $data['institution_id'] = $institutionId;
             $data['is_active'] = $data['is_active'] ?? true;
             $data['sort_order'] = $data['sort_order'] ?? 0;
+            $data['required_documents'] = \App\Support\PpdbDocumentChecklist::normalize($data['required_documents'] ?? []);
 
             // Unique code per institution
             if (PpdbChannel::where('institution_id', $institutionId)->where('code', $data['code'])->exists()) {
@@ -68,11 +70,13 @@ class PpdbChannelController extends Controller
             }
 
             $channel = PpdbChannel::create($data);
+
             return (new PpdbChannelResource($channel))
                 ->response()
                 ->setStatusCode(201);
         } catch (\Exception $e) {
             Log::error('PpdbChannel store failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal menambahkan jalur PPDB.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -83,9 +87,10 @@ class PpdbChannelController extends Controller
     public function show(Request $request, PpdbChannel $ppdb_channel): PpdbChannelResource|JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $ppdb_channel->institution_id && !$user->isSuperAdmin()) {
+        if ($user->institution_id !== $ppdb_channel->institution_id && ! $user->isSuperAdmin()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         return new PpdbChannelResource($ppdb_channel);
     }
 
@@ -93,11 +98,14 @@ class PpdbChannelController extends Controller
     {
         try {
             $user = $request->user();
-            if ($user->institution_id !== $ppdb_channel->institution_id && !$user->isSuperAdmin()) {
+            if ($user->institution_id !== $ppdb_channel->institution_id && ! $user->isSuperAdmin()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             $data = $request->validated();
+            if (array_key_exists('required_documents', $data)) {
+                $data['required_documents'] = \App\Support\PpdbDocumentChecklist::normalize($data['required_documents']);
+            }
             if (isset($data['code']) && $data['code'] !== $ppdb_channel->code) {
                 if (PpdbChannel::where('institution_id', $ppdb_channel->institution_id)->where('code', $data['code'])->exists()) {
                     return response()->json([
@@ -107,9 +115,11 @@ class PpdbChannelController extends Controller
             }
 
             $ppdb_channel->update($data);
+
             return new PpdbChannelResource($ppdb_channel->fresh());
         } catch (\Exception $e) {
             Log::error('PpdbChannel update failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Gagal memperbarui jalur PPDB.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
@@ -120,7 +130,7 @@ class PpdbChannelController extends Controller
     public function destroy(Request $request, PpdbChannel $ppdb_channel): JsonResponse
     {
         $user = $request->user();
-        if ($user->institution_id !== $ppdb_channel->institution_id && !$user->isSuperAdmin()) {
+        if ($user->institution_id !== $ppdb_channel->institution_id && ! $user->isSuperAdmin()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -131,6 +141,7 @@ class PpdbChannelController extends Controller
         }
 
         $ppdb_channel->delete();
+
         return response()->json(['message' => 'Jalur PPDB berhasil dihapus.']);
     }
 }

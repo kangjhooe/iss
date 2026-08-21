@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\RegionAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -33,6 +34,16 @@ class TeacherResource extends JsonResource
             'birth_date' => $this->birth_date?->format('Y-m-d'),
             'birth_place' => $this->birth_place,
             'address' => $this->address,
+            'village' => $this->village,
+            'sub_district' => $this->sub_district,
+            'district' => $this->district,
+            'province' => $this->province,
+            'postal_code' => $this->postal_code,
+            'wilayah_province_code' => $this->wilayah_province_code,
+            'wilayah_regency_code' => $this->wilayah_regency_code,
+            'wilayah_district_code' => $this->wilayah_district_code,
+            'wilayah_village_code' => $this->wilayah_village_code,
+            'full_address' => RegionAddress::format($this->resource),
             'phone' => $this->phone,
             'email' => $this->email,
             'religion' => $this->religion,

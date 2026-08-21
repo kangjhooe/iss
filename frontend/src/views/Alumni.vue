@@ -95,7 +95,13 @@
                 <td>{{ item.class_detail?.name || item.class || '-' }}</td>
                 <td>{{ item.graduation_year || '-' }}</td>
                 <td>
-                  <span v-if="item.current_alumni_destination" class="dest-badge" :title="destinationFull(item.current_alumni_destination)">
+                  <span
+                    v-if="item.current_alumni_destination"
+                    class="dest-badge"
+                    :class="{ 'dest-badge-pending': item.current_alumni_destination.is_pending }"
+                    :title="destinationFull(item.current_alumni_destination)"
+                  >
+                    <template v-if="item.current_alumni_destination.is_pending">Menunggu: </template>
                     {{ destinationTypeLabel(item.current_alumni_destination.destination_type) }}:
                     {{ item.current_alumni_destination.destination_name }}
                   </span>
@@ -103,25 +109,18 @@
                 </td>
                 <td class="col-aksi">
                   <div class="action-buttons">
-                    <button type="button" class="btn-action btn-dest" @click="openDestinations(item)" title="Kelola destinasi">
-                      Destinasi
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-action btn-revoke"
-                      :disabled="revokingId === item.id"
+                    <TableAction kind="manage" title="Kelola destinasi" @click="openDestinations(item)" />
+                    <TableAction
+                      kind="cancel"
                       title="Batalkan kelulusan"
+                      :disabled="revokingId === item.id"
                       @click="revokeGraduation(item)"
-                    >
-                      {{ revokingId === item.id ? '...' : 'Batal Lulus' }}
-                    </button>
-                    <router-link
-                      :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }"
-                      class="btn-action btn-view"
+                    />
+                    <TableAction
+                      kind="view"
                       title="Lihat arsip"
-                    >
-                      Arsip
-                    </router-link>
+                      :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }"
+                    />
                   </div>
                 </td>
               </tr>
@@ -140,28 +139,26 @@
                 <span>{{ item.nisn ? `NISN: ${item.nisn}` : item.nis ? `NIS: ${item.nis}` : '-' }}</span>
                 <span class="alumni-card-badge">{{ item.class_detail?.name || item.class || '-' }} · Lulus {{ item.graduation_year || '-' }}</span>
               </div>
-              <p v-if="item.current_alumni_destination" class="alumni-card-dest">
+              <p v-if="item.current_alumni_destination" class="alumni-card-dest" :class="{ pending: item.current_alumni_destination.is_pending }">
+                <template v-if="item.current_alumni_destination.is_pending">Menunggu: </template>
                 {{ destinationTypeLabel(item.current_alumni_destination.destination_type) }}:
                 {{ item.current_alumni_destination.destination_name }}
               </p>
               <p v-else class="alumni-card-dest muted">Destinasi belum diisi</p>
             </div>
             <div class="alumni-card-actions">
-              <button type="button" class="btn-action btn-dest" @click="openDestinations(item)">Destinasi</button>
-              <button
-                type="button"
-                class="btn-action btn-revoke"
+              <TableAction kind="manage" title="Kelola destinasi" @click="openDestinations(item)" />
+              <TableAction
+                kind="cancel"
+                title="Batalkan kelulusan"
                 :disabled="revokingId === item.id"
                 @click="revokeGraduation(item)"
-              >
-                {{ revokingId === item.id ? '...' : 'Batal Lulus' }}
-              </button>
-              <router-link
+              />
+              <TableAction
+                kind="view"
+                title="Lihat arsip"
                 :to="{ name: 'BukuInduk', params: { id: item.id }, query: { from: 'alumni' } }"
-                class="btn-action btn-view"
-              >
-                Arsip
-              </router-link>
+              />
             </div>
           </div>
         </div>
@@ -188,15 +185,24 @@
             </div>
             <div class="modal-dest-body">
               <div class="dest-list" v-if="destinations.length > 0">
-                <div v-for="d in destinations" :key="d.id" class="dest-item">
+                <div v-for="d in destinations" :key="d.id" class="dest-item" :class="{ pending: d.is_pending, rejected: d.status === 'rejected' }">
                   <div class="dest-item-main">
                     <span class="dest-item-type">{{ destinationTypeLabel(d.destination_type) }}</span>
                     <strong>{{ d.destination_name }}</strong>
                     <span v-if="d.program_or_position" class="dest-item-sub">{{ d.program_or_position }}</span>
                     <span v-if="d.year_entered" class="dest-item-year">{{ d.year_entered }}</span>
+                    <span v-if="d.is_pending" class="dest-status dest-status-pending">Menunggu persetujuan</span>
+                    <span v-else-if="d.status === 'rejected'" class="dest-status dest-status-rejected">Ditolak</span>
+                    <p v-if="d.is_auto && d.is_pending" class="dest-item-note">
+                      Terdeteksi otomatis dari pendaftaran di {{ d.related_institution_name || d.destination_name }}.
+                    </p>
                   </div>
                   <div class="dest-item-actions">
-                    <TableAction kind="edit" title="Ubah" @click="editDestination(d)" />
+                    <template v-if="d.is_pending">
+                      <TableAction kind="approve" title="Setujui" :disabled="destReviewingId === d.id" @click="reviewDestination(d, 'approve')" />
+                      <TableAction kind="reject" title="Tolak" :disabled="destReviewingId === d.id" @click="reviewDestination(d, 'reject')" />
+                    </template>
+                    <TableAction v-else-if="d.status !== 'rejected'" kind="edit" title="Ubah" @click="editDestination(d)" />
                     <TableAction kind="delete" @click="confirmDeleteDest(d)" />
                   </div>
                 </div>
@@ -336,6 +342,7 @@ const destForm = reactive({
 const editingDest = ref(null)
 const destSaving = ref(false)
 const destToDelete = ref(null)
+const destReviewingId = ref(null)
 
 const DEST_TYPE_LABELS = {
   Sekolah: 'Lanjut Sekolah',
@@ -483,6 +490,27 @@ function editDestination(d) {
 
 function confirmDeleteDest(d) {
   destToDelete.value = d
+}
+
+async function reviewDestination(d, action) {
+  if (!d?.id || destReviewingId.value) return
+  destReviewingId.value = d.id
+  try {
+    if (action === 'approve') {
+      await alumniApi.approveDestination(d.id)
+      toast.success('Disetujui', 'Destinasi alumni telah disetujui.')
+    } else {
+      await alumniApi.rejectDestination(d.id)
+      toast.success('Ditolak', 'Destinasi alumni telah ditolak.')
+    }
+    await loadDestinations()
+    loadAlumni()
+  } catch (e) {
+    const msg = e.response?.data?.message || e.formattedMessage || 'Destinasi tidak dapat ditinjau. Coba lagi.'
+    toast.error('Gagal meninjau destinasi', msg)
+  } finally {
+    destReviewingId.value = null
+  }
 }
 
 async function doDeleteDest() {
@@ -977,7 +1005,7 @@ onMounted(() => {
 }
 
 .data-table .col-aksi {
-  width: 180px;
+  width: 120px;
   text-align: center;
 }
 
@@ -1016,44 +1044,9 @@ onMounted(() => {
 
 .action-buttons {
   display: inline-flex;
-  gap: 6px;
+  gap: 2px;
   justify-content: center;
-  flex-wrap: wrap;
-}
-
-.btn-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 7px 10px;
-  border-radius: 10px;
-  color: #047857;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-action:hover {
-  background: #d1fae5;
-}
-
-.btn-revoke {
-  color: #b45309;
-  background: #fffbeb;
-  border-color: #fcd34d;
-}
-
-.btn-revoke:hover:not(:disabled) {
-  background: #fef3c7;
-}
-
-.btn-revoke:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  flex-wrap: nowrap;
 }
 
 .dest-badge {
@@ -1066,6 +1059,11 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.dest-badge-pending {
+  color: #b45309;
+  font-weight: 600;
+}
+
 .dest-empty,
 .muted {
   color: #94a3b8;
@@ -1075,6 +1073,11 @@ onMounted(() => {
   font-size: 13px;
   color: #475569;
   margin: 6px 0 0 0;
+}
+
+.alumni-card-dest.pending {
+  color: #b45309;
+  font-weight: 600;
 }
 
 .modal-overlay {
@@ -1152,6 +1155,15 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
+.dest-item.pending {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.dest-item.rejected {
+  opacity: 0.7;
+}
+
 .dest-item-main {
   flex: 1;
   min-width: 0;
@@ -1178,6 +1190,28 @@ onMounted(() => {
   color: #64748b;
   display: block;
   margin-top: 2px;
+}
+
+.dest-item-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #92400e;
+}
+
+.dest-status {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.dest-status-pending {
+  color: #b45309;
+}
+
+.dest-status-rejected {
+  color: #b91c1c;
 }
 
 .dest-item-actions {
@@ -1393,7 +1427,8 @@ onMounted(() => {
 
 .alumni-card-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
 }
 
 .empty-state {

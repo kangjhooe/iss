@@ -11,7 +11,7 @@
       <header class="page-header">
         <div class="header-content">
           <div>
-            <p class="page-subtitle">Buat bank soal per mapel, lalu isi soal di dalamnya agar tidak tercampur.</p>
+            <p class="page-subtitle">Gudang soal jangka panjang per mapel. Tingkat hanya label rak — soal kelas 7 tetap boleh dipakai di ujian kelas 9.</p>
           </div>
           <div class="action-buttons-group header-actions">
             <button type="button" class="btn-primary btn-compact btn-add-new" @click="openForm()">
@@ -39,6 +39,10 @@
           <option value="">Semua mapel</option>
           <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
         </select>
+        <select v-if="gradeOptions.length" v-model="filterGrade" @change="fetchBanks" class="filter-select" aria-label="Filter tingkat rak">
+          <option value="">Semua tingkat</option>
+          <option v-for="g in gradeOptions" :key="g" :value="String(g)">Kelas {{ g }}</option>
+        </select>
         <button type="button" class="btn-secondary btn-filter" @click="fetchBanks">Cari</button>
       </div>
 
@@ -60,7 +64,7 @@
           </svg>
         </div>
         <h3>Belum ada bank soal</h3>
-        <p>Buat bank soal dulu: isi kode dan pilih mata pelajaran. Setelah itu Anda bisa menginput soal ke dalam bank tersebut.</p>
+        <p>Buat bank soal per mapel sebagai gudang jangka panjang. Tingkat rak opsional — soal tetap bisa dipakai di ujian tingkat lain.</p>
         <button type="button" class="btn-primary btn-compact" @click="openForm()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -79,6 +83,7 @@
                 <th class="col-kode">Kode</th>
                 <th class="col-nama">Nama</th>
                 <th class="col-mapel">Mapel</th>
+                <th class="col-grade">Tingkat</th>
                 <th class="col-keterangan">Keterangan</th>
                 <th class="col-count">Jumlah Soal</th>
                 <th class="col-types">Per tipe</th>
@@ -90,6 +95,10 @@
                 <td><span class="cell-code">{{ b.code }}</span></td>
                 <td class="col-nama">{{ b.name || '—' }}</td>
                 <td>{{ b.subject?.name ?? '—' }}</td>
+                <td class="col-grade">
+                  <span v-if="b.grade" class="grade-chip" title="Label rak, bukan batasan pemakaian">Kelas {{ b.grade }}</span>
+                  <span v-else class="muted">Campur</span>
+                </td>
                 <td class="cell-keterangan">{{ (b.keterangan || '').slice(0, 50) }}{{ (b.keterangan && b.keterangan.length > 50) ? '…' : '' }}</td>
                 <td class="col-count"><span class="badge-count">{{ b.questions_count ?? 0 }}</span></td>
                 <td class="col-types">
@@ -162,8 +171,8 @@
                 <input id="bank-code" v-model="form.code" type="text" placeholder="Contoh: MTK-10" required />
               </div>
               <div class="form-group">
-                <label for="bank-name">Nama (opsional)</label>
-                <input id="bank-name" v-model="form.name" type="text" placeholder="Contoh: Matematika Kelas 10" />
+                <label for="bank-name">Nama</label>
+                <input id="bank-name" v-model="form.name" type="text" placeholder="Contoh: Matematika — aljabar" />
               </div>
               <div class="form-group">
                 <label for="bank-subject">Mata pelajaran <span class="required">*</span></label>
@@ -171,6 +180,14 @@
                   <option value="">{{ formLoading ? 'Memuat...' : 'Pilih mapel' }}</option>
                   <option v-for="s in subjects" :key="s.id" :value="Number(s.id)">{{ s.name }}</option>
                 </select>
+              </div>
+              <div v-if="gradeOptions.length" class="form-group">
+                <label for="bank-grade">Tingkat rak (opsional)</label>
+                <select id="bank-grade" v-model="form.grade">
+                  <option value="">Tidak ditentukan (campur)</option>
+                  <option v-for="g in gradeOptions" :key="g" :value="String(g)">Kelas {{ g }}</option>
+                </select>
+                <p class="form-hint">Hanya untuk merapikan. Soal di rak kelas 7 tetap bisa dipilih untuk ujian kelas 9.</p>
               </div>
               <div class="form-group">
                 <label for="bank-keterangan">Keterangan</label>
@@ -296,21 +313,25 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { examApi } from '@/api/exam'
 import { subjectApi } from '@/api/subject'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
+import { getValidGradesForLevel } from '@/utils/institution'
 
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
+const auth = useAuthStore()
 const banks = ref([])
 const subjects = ref([])
 const loading = ref(false)
 const filterSubjectId = ref('')
+const filterGrade = ref('')
 const filterSearch = ref('')
 const openMenuId = ref(null)
 const showForm = ref(false)
@@ -336,7 +357,13 @@ const form = reactive({
   code: '',
   name: '',
   subject_id: '',
+  grade: '',
   keterangan: ''
+})
+
+const gradeOptions = computed(() => {
+  const level = auth.activeInstitution?.level || auth.user?.institution?.level || ''
+  return getValidGradesForLevel(level) || []
 })
 
 async function fetchBanks() {
@@ -345,6 +372,7 @@ async function fetchBanks() {
   try {
     const params = { per_page: 100 }
     if (filterSubjectId.value) params.subject_id = filterSubjectId.value
+    if (filterGrade.value) params.grade = filterGrade.value
     if (filterSearch.value.trim()) params.search = filterSearch.value.trim()
     const res = await examApi.listBanks(params)
     banks.value = res.data?.data ?? res.data ?? []
@@ -402,6 +430,7 @@ async function openForm(b = null) {
   form.code = b?.code ?? ''
   form.name = b?.name ?? ''
   form.subject_id = b?.subject_id ?? ''
+  form.grade = b?.grade != null && b?.grade !== '' ? String(b.grade) : ''
   form.keterangan = b?.keterangan ?? ''
   showForm.value = true
   formLoading.value = true
@@ -423,7 +452,7 @@ async function submitBank() {
       code: form.code.trim(),
       name: form.name.trim() || null,
       subject_id: form.subject_id,
-      grade: null,
+      grade: form.grade !== '' && form.grade != null ? Number(form.grade) : null,
       keterangan: form.keterangan.trim() || null
     }
     if (editingId.value) {
@@ -864,6 +893,9 @@ onUnmounted(() => {
   width: 12%;
   min-width: 0;
 }
+.data-table .col-grade {
+  width: 88px;
+}
 .data-table .col-keterangan {
   width: 18%;
   min-width: 0;
@@ -1114,6 +1146,25 @@ onUnmounted(() => {
 }
 .form-group .required {
   color: #dc2626;
+}
+.form-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+.grade-chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+.muted {
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 .form-group input,
 .form-group select,

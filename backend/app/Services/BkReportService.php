@@ -263,9 +263,9 @@ class BkReportService
     }
 
     /**
-     * Detail: daftar pelanggaran, daftar prestasi, rekap skor per siswa.
+     * Detail: daftar pelanggaran, prestasi, konseling, dan rekap skor per siswa.
      *
-     * @return array{items: array, achievements: array, by_student: array, total: int, achievements_total: int, truncated: bool}
+     * @return array{items: array, achievements: array, counseling: array, by_student: array, total: int, achievements_total: int, counseling_total: int, truncated: bool}
      */
     public function getViolationDetail(int $institutionId, array $filters = [], int $limit = 2000): array
     {
@@ -339,6 +339,35 @@ class BkReportService
             ];
         })->values()->all();
 
+        $sessions = $this->baseCounselingQuery($institutionId, $filters)
+            ->with([
+                'student:id,name,nis,nisn',
+                'counselor:id,name',
+                'counselingType:id,name',
+                'schoolClass:id,name',
+            ])
+            ->orderByDesc('counseling_sessions.session_date')
+            ->orderByDesc('counseling_sessions.id')
+            ->limit($limit)
+            ->get();
+
+        $counselingItems = $sessions->map(function (CounselingSession $s) {
+            return [
+                'id' => $s->id,
+                'session_date' => $s->session_date?->format('Y-m-d'),
+                'student_id' => $s->student_id,
+                'nis' => $s->student?->nis,
+                'nisn' => $s->student?->nisn,
+                'student_name' => $s->student?->name,
+                'class_id' => $s->class_id,
+                'class_name' => $s->schoolClass?->name ?? 'Tanpa Kelas',
+                'counseling_type' => $s->counselingType?->name ?? '-',
+                'status' => $s->status,
+                'counselor_name' => $s->counselor?->name,
+                'summary' => $s->summary,
+            ];
+        })->values()->all();
+
         $byStudentMap = [];
 
         foreach ($items as $item) {
@@ -383,10 +412,14 @@ class BkReportService
         return [
             'items' => $items,
             'achievements' => $achievementItems,
+            'counseling' => $counselingItems,
             'by_student' => $byStudent,
             'total' => count($items),
             'achievements_total' => count($achievementItems),
-            'truncated' => count($items) >= $limit || count($achievementItems) >= $limit,
+            'counseling_total' => count($counselingItems),
+            'truncated' => count($items) >= $limit
+                || count($achievementItems) >= $limit
+                || count($counselingItems) >= $limit,
         ];
     }
 

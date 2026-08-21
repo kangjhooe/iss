@@ -69,7 +69,7 @@
           <button class="btn-primary" @click="openForm()">Tambah Soal</button>
         </div>
         <div v-else class="table-wrap content-card">
-          <p class="reorder-hint">Urutkan dengan tombol ↑↓ (urutan dipakai saat soal dipasang ke ujian).</p>
+          <p class="reorder-hint">Urutan di rak ini. Ujian memilih soal sendiri — boleh campur dari rak/tingkat lain. Edit di sini tidak mengubah paket ujian yang sudah dipasang.</p>
           <table class="data-table">
             <thead>
               <tr>
@@ -78,6 +78,7 @@
                 <th>Stimulus</th>
                 <th>Tipe</th>
                 <th>Bobot</th>
+                <th>Dipakai</th>
                 <th>Aksi</th>
               </tr>
             </thead>
@@ -111,6 +112,12 @@
                 </td>
                 <td>{{ typeLabel(q.type) }}</td>
                 <td>{{ q.weight }}</td>
+                <td>
+                  <span v-if="(q.exams_count || 0) > 0" class="used-chip" :title="'Terpasang di ' + q.exams_count + ' ujian. Paket ujian tidak berubah jika soal diedit.'">
+                    {{ q.exams_count }} ujian
+                  </span>
+                  <span v-else class="used-none">—</span>
+                </td>
                 <td class="row-actions">
                   <TableAction kind="preview" @click="openPreview(q)" />
                   <TableAction kind="edit" @click="openForm(q)" />
@@ -134,7 +141,7 @@
           <h3>{{ editingId ? 'Edit soal' : 'Tambah soal' }}</h3>
           <div v-if="currentBank" class="form-group info-row">
             <span>Mapel: <strong>{{ currentBank.subject?.name }}</strong></span>
-            <span v-if="currentBank.grade"> — Kelas {{ currentBank.grade }}</span>
+            <span v-if="currentBank.grade"> — Rak kelas {{ currentBank.grade }} (label, bukan batasan)</span>
           </div>
           <div v-if="!bankId" class="form-group">
             <label>Mapel *</label>
@@ -862,6 +869,11 @@ async function submitImport() {
 }
 
 async function confirmDelete(q) {
+  const used = q.exams_count || 0
+  if (used > 0) {
+    toast.error('Tidak bisa dihapus', `Soal terpasang di ${used} ujian. Lepas dari paket ujian dulu, atau biarkan di bank.`)
+    return
+  }
   if (!confirm('Hapus soal ini?')) return
   try {
     await examApi.deleteQuestion(q.id)
@@ -1001,6 +1013,17 @@ watch(() => form.type, (newType) => {
   width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb;
 }
 .reorder-hint { font-size: 0.8125rem; color: #64748b; margin: 0 0 0.75rem; }
+.used-chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+.used-none { color: #94a3b8; }
 .col-ord { width: 72px; vertical-align: middle; }
 .drag-handle { cursor: grab; color: #94a3b8; margin-right: 0.25rem; user-select: none; }
 .move-buttons { display: inline-flex; flex-direction: column; gap: 0.1rem; }

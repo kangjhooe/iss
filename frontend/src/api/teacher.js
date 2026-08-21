@@ -13,6 +13,9 @@ export const employeeApi = {
   getTodaySessions(params) {
     return api.get('/v1/teacher/today-sessions', { params })
   },
+  exportTodaySessionsPdf(params = {}) {
+    return api.get('/v1/teacher/today-sessions/export-pdf', { params, responseType: 'blob' })
+  },
   getTeachingLoad(params) {
     return api.get('/v1/teacher/teaching-load', { params })
   },
@@ -33,6 +36,9 @@ export const employeeApi = {
   },
   restore(id) {
     return api.post(`/v1/employee/${id}/restore`)
+  },
+  forceDelete(id) {
+    return api.delete(`/v1/employee/${id}/force`)
   },
   import(data) {
     return api.post('/v1/employee/import', { employees: data })

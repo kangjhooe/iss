@@ -5,7 +5,9 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\Institution;
+use App\Models\PasswordResetRequest;
 use App\Models\User;
+use App\Support\RegionAddress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,7 +20,7 @@ class InstitutionAdminController extends Controller
 {
     private function ensureSuperAdmin(Request $request): void
     {
-        if (!$request->user()?->isSuperAdmin()) {
+        if (! $request->user()?->isSuperAdmin()) {
             abort(403, 'Unauthorized');
         }
     }
@@ -42,8 +44,8 @@ class InstitutionAdminController extends Controller
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('email', 'like', '%' . $search . '%');
+                    $q->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%');
                 });
             }
 
@@ -149,6 +151,7 @@ class InstitutionAdminController extends Controller
                 'password' => Hash::make($plainPassword),
             ]);
             $user->resetFailedLoginAttempts();
+            PasswordResetRequest::markPendingProcessedForUser($user->id, $request->user()->id);
 
             Log::info('Institution admin password reset by super admin', [
                 'user_id' => $user->id,
@@ -244,7 +247,7 @@ class InstitutionAdminController extends Controller
                 'type' => 'required|in:Negeri,Swasta',
                 'phone' => 'nullable|string|max:20',
                 'email' => 'nullable|email|max:255',
-                'address' => 'nullable|string',
+                ...RegionAddress::rules(),
                 'is_active' => 'sometimes|boolean',
                 'admin_name' => 'required|string|max:255',
                 'admin_email' => 'required|email|max:255|unique:user,email',
@@ -274,8 +277,8 @@ class InstitutionAdminController extends Controller
                 'type' => $validated['type'],
                 'phone' => $validated['phone'] ?? null,
                 'email' => $validated['email'] ?? $validated['admin_email'],
-                'address' => $validated['address'] ?? null,
                 'is_active' => $validated['is_active'] ?? true,
+                ...RegionAddress::only($validated),
             ]);
 
             $admin = User::create([
@@ -334,6 +337,6 @@ class InstitutionAdminController extends Controller
     private function generatePassword(): string
     {
         // Meets Password::min(8)->letters()->mixedCase()->numbers()->symbols()
-        return 'Adm!' . Str::upper(Str::random(3)) . Str::lower(Str::random(3)) . random_int(10, 99);
+        return 'Adm!'.Str::upper(Str::random(3)).Str::lower(Str::random(3)).random_int(10, 99);
     }
 }
