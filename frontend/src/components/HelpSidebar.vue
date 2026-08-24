@@ -226,7 +226,7 @@
               <span class="help-card-icon help-card-icon--emerald">👤</span>
               <div class="help-card-body">
                 <div class="help-card-title">Data Siswa</div>
-                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Tambah siswa bisa input manual atau tarik alumni jenjang sebelumnya (NPSN sekolah asal, centang nama + NIK). Itu bukan mutasi: arsip di sekolah asal tetap ada. Generate NIS lokal lewat pratinjau. Buku Induk per siswa dari detail siswa.</p>
+                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Tombol Tambah Siswa membuka pilihan: isi manual atau tarik alumni jenjang sebelumnya (NPSN sekolah asal, centang nama + NIK). Itu bukan mutasi: arsip di sekolah asal tetap ada. Generate NIS lokal lewat pratinjau. Buku Induk per siswa dari detail siswa.</p>
               </div>
             </div>
             <div class="help-card">
@@ -280,7 +280,7 @@
               <span class="help-card-icon help-card-icon--cyan">💬</span>
               <div class="help-card-body">
                 <div class="help-card-title">Konseling</div>
-                <p class="help-card-desc">Catat sesi konseling; jenis konseling ada di Pengaturan.</p>
+                <p class="help-card-desc">Catat sesi konseling: cari siswa lewat kelas atau nama/NIS, pilih konselor dari daftar guru. Jenis konseling ada di Pengaturan.</p>
               </div>
             </div>
             <div class="help-card">
@@ -306,14 +306,14 @@
               <span class="help-card-icon help-card-icon--green">➕</span>
               <div class="help-card-body">
                 <div class="help-card-title">Kunjungan UKS</div>
-                <p class="help-card-desc">Catat kunjungan UKS (keluhan, tindakan, vital). Jenis kunjungan ada di Pengaturan; jenis standar bisa diisi otomatis.</p>
+                <p class="help-card-desc">Pilih kelas atau cari nama/NIS siswa, lalu isi keluhan, tindakan, dan tanda vital. Kunjungan masuk ke tahun ajaran aktif.</p>
               </div>
             </div>
             <div class="help-card">
               <span class="help-card-icon help-card-icon--blue">📊</span>
               <div class="help-card-body">
                 <div class="help-card-title">Laporan UKS</div>
-                <p class="help-card-desc">Rekap per kelas/bulan/jenis/status + detail kunjungan per siswa. Export CSV atau cetak PDF, pola sama seperti Laporan BK.</p>
+                <p class="help-card-desc">Rekap per kelas/bulan/jenis/status + detail kunjungan. Cetak PDF resmi (kop sekolah + TTD Kepala Sekolah dan Koordinator UKS), atau export CSV.</p>
               </div>
             </div>
             <div class="help-card">

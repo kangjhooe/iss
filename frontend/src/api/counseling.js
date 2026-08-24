@@ -7,6 +7,12 @@ export const counselingApi = {
   getCounselors() {
     return api.get('/v1/counseling/counselors')
   },
+  classesLite(params) {
+    return api.get('/v1/counseling/classes-lite', { params })
+  },
+  studentsLite(params) {
+    return api.get('/v1/counseling/students-lite', { params })
+  },
   get(id) {
     return api.get(`/v1/counseling/${id}`)
   },

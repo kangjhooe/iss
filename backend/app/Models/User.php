@@ -14,6 +14,11 @@ class User extends Authenticatable
     protected $table = 'user';
 
     /**
+     * School personnel who may be assigned as a counseling counselor (not students/parents).
+     */
+    public const COUNSELOR_ROLES = ['teacher', 'staff'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
@@ -545,6 +550,16 @@ class User extends Authenticatable
     public function isTeacherOrStaff(): bool
     {
         return $this->isTeacher() || $this->isStaff();
+    }
+
+    public function isEligibleCounselor(): bool
+    {
+        return in_array($this->role, self::COUNSELOR_ROLES, true);
+    }
+
+    public function scopeEligibleCounselors($query)
+    {
+        return $query->whereIn('role', self::COUNSELOR_ROLES);
     }
 
     /**

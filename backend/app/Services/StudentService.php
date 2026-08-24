@@ -313,6 +313,17 @@ class StudentService
     }
 
     /**
+     * Keep only mass-assignable student columns so nested list payload keys never persist.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function onlyPersistable(array $data): array
+    {
+        return array_intersect_key($data, array_flip((new Student)->getFillable()));
+    }
+
+    /**
      * Keep student.class in sync with the linked class name when class_id is set.
      */
     protected function syncClassLabel(array $data): array
@@ -368,7 +379,7 @@ class StudentService
      */
     public function create(array $data): Student
     {
-        $data = $this->syncClassLabel($this->syncAcademicYearLabel($data));
+        $data = $this->onlyPersistable($this->syncClassLabel($this->syncAcademicYearLabel($data)));
 
         if (! $this->localNisService->hasNis($data['nis'] ?? null) && ! empty($data['institution_id'])) {
             $institution = Institution::with('activeAcademicYear')->find($data['institution_id']);
@@ -421,7 +432,7 @@ class StudentService
         $oldStatus = $student->status;
         $previousNik = $student->nik;
 
-        $data = $this->syncClassLabel($this->syncAcademicYearLabel($data));
+        $data = $this->onlyPersistable($this->syncClassLabel($this->syncAcademicYearLabel($data)));
 
         // Update student
         $student->update($data);

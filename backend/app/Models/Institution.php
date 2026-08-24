@@ -562,11 +562,11 @@ class Institution extends Model
         if ($level === null) {
             return null;
         }
-        $level = strtoupper($level);
+        $level = strtoupper(trim($level));
 
         return match ($level) {
             'SD', 'MI' => 'dasar',
-            'SMP', 'MTs' => 'menengah',
+            'SMP', 'MTS' => 'menengah',
             'SMA', 'MA', 'SMK', 'MAK' => 'atas',
             'PAUD', 'TK' => 'paud',
             default => null,
@@ -620,9 +620,9 @@ class Institution extends Model
             return '0';
         }
 
-        return match (strtoupper($this->level)) {
+        return match (strtoupper(trim($this->level))) {
             'SD', 'MI' => '1',
-            'SMP', 'MTs' => '2',
+            'SMP', 'MTS' => '2',
             'SMA', 'MA', 'SMK', 'MAK' => '3',
             'PAUD', 'TK' => '4',
             default => '0',

@@ -10,6 +10,12 @@ export const uksApi = {
   getRecorders() {
     return api.get('/v1/uks/visits/recorders')
   },
+  classesLite(params) {
+    return api.get('/v1/uks/visits/classes-lite', { params })
+  },
+  studentsLite(params) {
+    return api.get('/v1/uks/visits/students-lite', { params })
+  },
   get(id) {
     return api.get(`/v1/uks/visits/${id}`)
   },
@@ -93,5 +99,8 @@ export const uksReportApi = {
   },
   exportVisits(params) {
     return api.get('/v1/uks-reports/export-visits', { params, responseType: 'blob' })
+  },
+  exportPdf(params) {
+    return api.get('/v1/uks-reports/export-pdf', { params, responseType: 'blob' })
   },
 }

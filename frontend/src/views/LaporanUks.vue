@@ -19,7 +19,7 @@
 
       <p class="toolbar-hint">
         <template v-if="viewMode === 'ringkasan'">
-          Rekap kunjungan UKS per kelas, bulan, jenis, dan status. Konsisten dengan pola laporan BK.
+          Rekap kunjungan UKS per kelas, bulan, jenis, dan status. Cetak PDF memakai kop resmi dan tanda tangan.
         </template>
         <template v-else>
           Detail kunjungan dan rekap frekuensi per siswa.
@@ -283,7 +283,6 @@ import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
 import Layout from '@/components/Layout.vue'
 import { uksReportApi } from '@/api/uks'
-import { institutionApi } from '@/api/institution'
 import { classApi } from '@/api/class'
 import { semesterApi } from '@/api/semester'
 import { useReferenceDataStore } from '@/stores/referenceData'
@@ -321,7 +320,6 @@ function groupRowsByClassName(rows) {
 const uksStudentGroups = computed(() => groupRowsByClassName(detail.value?.by_student || []))
 const classes = ref([])
 const semesters = ref([])
-const institution = ref(null)
 
 const currentYear = new Date().getFullYear()
 const chartYears = [currentYear, currentYear - 1, currentYear - 2]
@@ -454,78 +452,7 @@ async function exportCsv() {
   }
 }
 
-function escapeHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function buildPrintBodyHtml() {
-  if (viewMode.value === 'detail') {
-    if (!detail.value) return '<p>Tidak ada data.</p>'
-    const studentRows = (uksStudentGroups.value || []).flatMap((group) => {
-      const header = `<tr class="group-row"><td colspan="6">Kelas ${escapeHtml(group.name)} (${group.rows.length} siswa)</td></tr>`
-      const body = group.rows.map((row, i) => `
-      <tr>
-        <td>${group.start + i + 1}</td>
-        <td>${escapeHtml(row.nis || '—')}</td>
-        <td>${escapeHtml(row.student_name)}</td>
-        <td>${escapeHtml(row.class_name)}</td>
-        <td class="num">${escapeHtml(row.visit_count)}</td>
-        <td class="num">${escapeHtml(row.referral_count)}</td>
-      </tr>`).join('')
-      return header + body
-    }).join('') || '<tr><td colspan="6">Belum ada data</td></tr>'
-    const listRows = (detail.value.items || []).map(row => `
-      <tr>
-        <td>${escapeHtml(formatDate(row.visit_date))}</td>
-        <td>${escapeHtml(row.nis || '—')}</td>
-        <td>${escapeHtml(row.student_name)}</td>
-        <td>${escapeHtml(row.class_name)}</td>
-        <td>${escapeHtml(row.visit_type)}</td>
-        <td>${escapeHtml(statusLabel(row.status))}</td>
-        <td>${escapeHtml(row.complaint || row.action_taken || '—')}</td>
-        <td>${escapeHtml(row.recorder_name || '—')}</td>
-      </tr>`).join('') || '<tr><td colspan="8">Belum ada data</td></tr>'
-    return `
-      <h2>1. Rekap per Siswa</h2>
-      <table><thead><tr><th>#</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Kunjungan</th><th>Rujukan</th></tr></thead>
-      <tbody>${studentRows}</tbody></table>
-      <h2>2. Daftar Kunjungan</h2>
-      <table><thead><tr><th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Jenis</th><th>Status</th><th>Keluhan</th><th>Petugas</th></tr></thead>
-      <tbody>${listRows}</tbody></table>`
-  }
-
-  if (!report.value) return '<p>Tidak ada data.</p>'
-  const s = report.value.summary || {}
-  const classRows = (report.value.by_class || []).map(row => `
-    <tr><td>${escapeHtml(row.class_name)}</td><td class="num">${row.visit_count}</td><td class="num">${row.referral_count}</td></tr>
-  `).join('') || '<tr><td colspan="3">Belum ada data</td></tr>'
-  const monthRows = (report.value.by_month?.months || []).map(m => `
-    <tr><td>${escapeHtml(monthFullLabel(m.month))}</td><td class="num">${m.visit_count}</td><td class="num">${m.referral_count}</td></tr>
-  `).join('')
-  const typeRows = (report.value.by_type || []).map((row, idx) => `
-    <tr><td>${idx + 1}</td><td>${escapeHtml(row.type_name)}</td><td class="num">${row.visit_count}</td></tr>
-  `).join('') || '<tr><td colspan="3">Belum ada data</td></tr>'
-
-  return `
-    <div class="stats">
-      <div class="stat"><div class="stat-label">Total Kunjungan</div><div class="stat-value">${s.total_visits ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Siswa Dilayani</div><div class="stat-value">${s.students_served ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Observasi</div><div class="stat-value">${s.total_observation ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Rujukan</div><div class="stat-value">${s.total_referral ?? 0}</div></div>
-    </div>
-    <h2>1. Rekap per Kelas</h2>
-    <table><thead><tr><th>Kelas</th><th>Kunjungan</th><th>Rujukan</th></tr></thead><tbody>${classRows}</tbody></table>
-    <h2>2. Rekap per Bulan (${escapeHtml(report.value.by_month?.year || filters.value.year)})</h2>
-    <table><thead><tr><th>Bulan</th><th>Kunjungan</th><th>Rujukan</th></tr></thead><tbody>${monthRows}</tbody></table>
-    <h2>3. Per Jenis Kunjungan</h2>
-    <table><thead><tr><th>#</th><th>Jenis</th><th>Jumlah</th></tr></thead><tbody>${typeRows}</tbody></table>`
-}
-
-function printPdf() {
+async function printPdf() {
   const hasData = viewMode.value === 'detail' ? !!detail.value : !!report.value
   if (!hasData) {
     toast.error('Gagal', 'Tidak ada data untuk dicetak')
@@ -533,42 +460,60 @@ function printPdf() {
   }
   printing.value = true
   try {
-    const inst = institution.value || {}
-    const title = viewMode.value === 'detail' ? 'Laporan UKS — Detail Kunjungan' : 'Laporan UKS — Ringkasan'
-    const periodLabel = [
-      classes.value.find(c => String(c.id) === String(filters.value.class_id))?.name || 'Semua kelas',
-      academicYears.value.find(y => String(y.id) === String(filters.value.academic_year_id))?.name || 'Semua tahun ajaran',
-      `Tren ${filters.value.year || currentYear}`,
-    ].join(' · ')
-    const createdAt = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    const res = await uksReportApi.exportPdf({
+      ...cleanParams(),
+      mode: viewMode.value === 'detail' ? 'detail' : 'summary',
     })
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
-      <style>
-        body{font-family:Segoe UI,Arial,sans-serif;color:#0f172a;padding:24px;font-size:12px}
-        h1{font-size:18px;margin:0 0 4px} h2{font-size:14px;margin:20px 0 8px}
-        .meta{color:#64748b;margin-bottom:16px}
-        table{width:100%;border-collapse:collapse;margin-bottom:12px}
-        th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}
-        th{background:#f1f5f9} .num{text-align:right}
-        tr.group-row td{background:#e2e8f0;font-weight:700}
-        .stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-        .stat{border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;min-width:120px}
-        .stat-label{font-size:10px;color:#64748b}.stat-value{font-size:18px;font-weight:700}
-        @media print{body{padding:0}}
-      </style></head><body>
-      <h1>${escapeHtml(inst.name || 'Sekolah')}</h1>
-      <div class="meta">${escapeHtml(title)} · ${escapeHtml(periodLabel)} · Dicetak ${escapeHtml(createdAt)}</div>
-      ${buildPrintBodyHtml()}
-      <script>window.onload=function(){window.print()}<\/script>
-      </body></html>`
-    const w = window.open('', '_blank')
-    if (!w) {
-      toast.error('Gagal', 'Popup diblokir. Izinkan popup untuk mencetak.')
+    const contentType = res.headers?.['content-type'] || ''
+    if (contentType.includes('application/json')) {
+      const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
+      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
+      throw new Error(json.message || 'Gagal mencetak laporan UKS.')
+    }
+    const blob = res.data instanceof Blob
+      ? res.data
+      : new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      URL.revokeObjectURL(url)
       return
     }
-    w.document.write(html)
-    w.document.close()
+    const title = viewMode.value === 'detail' ? 'Laporan UKS — Detail Kunjungan' : 'Laporan UKS — Ringkasan'
+    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
+        .toolbar {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          padding: 10px 14px; background: #0f172a; color: #f8fafc;
+          border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
+        }
+        .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
+        .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
+        .actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .actions button {
+          border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
+          cursor: pointer; font-size: 13px;
+        }
+        .btn-print { background: #059669; color: #fff; }
+        .btn-close { background: #334155; color: #e2e8f0; }
+        iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
+      </style></head><body>
+      <div class="toolbar">
+        <h1>${title}<span class="hint">Preview cetak</span></h1>
+        <div class="actions">
+          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
+          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
+        </div>
+      </div>
+      <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
+    </body></html>`)
+    win.document.close()
+    setTimeout(() => URL.revokeObjectURL(url), 120000)
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || e.message || 'Gagal mencetak laporan UKS.')
   } finally {
     printing.value = false
   }
@@ -580,7 +525,6 @@ onMounted(async () => {
       referenceStore.fetchAcademicYears(),
       classApi.getAll({ per_page: 200 }).then(r => { classes.value = r.data.data || [] }),
       semesterApi.getAll({ per_page: 200 }).then(r => { semesters.value = r.data.data || [] }).catch(() => {}),
-      institutionApi.getMy().then(r => { institution.value = r.data.data || r.data || null }).catch(() => {}),
     ])
   } catch { /* ignore bootstrap errors */ }
   await reload()

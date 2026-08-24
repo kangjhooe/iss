@@ -235,7 +235,7 @@ Scoped by homeroom ownership (tidak butuh grant modul ekstra). Prefix: `/api/v1/
 ## Konseling
 
 - `GET|POST|PUT|DELETE /api/v1/counseling`
-- `GET /api/v1/counseling/stats`, `upcoming`, `export`, `counselors`, `by-student/{studentId}`
+- `GET /api/v1/counseling/stats`, `upcoming`, `export`, `counselors`, `classes-lite`, `students-lite`, `by-student/{studentId}`
 - `GET|POST|PUT|DELETE /api/v1/counseling-types`
 
 ## Facility (Sarana Prasarana)
@@ -378,11 +378,13 @@ Portal guru/staff (tanpa modul penuh):
 
 - `GET|POST /api/v1/uks/visits` – Kunjungan UKS
 - `GET /api/v1/uks/visits/stats`, `export`, `recorders`
+- `GET /api/v1/uks/visits/classes-lite`, `students-lite` – Picker kelas/siswa (tanpa modul student)
 - `GET /api/v1/uks/visits/by-student/{studentId}` – Riwayat per siswa
 - `GET|PUT|DELETE /api/v1/uks/visits/{id}`
 - `GET|POST|PUT|DELETE /api/v1/uks/visit-types` – Jenis kunjungan
 - `POST /api/v1/uks/visit-types/seed-defaults`
 - `GET /api/v1/uks-reports/summary`, `visits`, `export`, `export-visits`
+- `GET /api/v1/uks-reports/export-pdf` – Cetak PDF (mode `summary` / `detail`, kop + TTD)
 - `GET|POST|PUT|DELETE /api/v1/uks/medicines` – Stok obat
 - `GET /api/v1/uks/medicines/summary`, `transactions`
 - `POST /api/v1/uks/medicines/transactions` – Masuk/keluar/penyesuaian

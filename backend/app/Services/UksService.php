@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Institution;
 use App\Models\Student;
 use App\Models\UksVisit;
 use App\Models\UksVisitType;
@@ -95,11 +96,18 @@ class UksService
 
         $typeId = $data['uks_visit_type_id'] ?? null;
         if ($typeId) {
-            UksVisitType::where('id', $typeId)
+            $type = UksVisitType::where('id', $typeId)
                 ->where('institution_id', $institutionId)
-                ->where('is_active', true)
-                ->firstOrFail();
+                ->first();
+            if (!$type || !$type->is_active) {
+                throw (new \Illuminate\Database\Eloquent\ModelNotFoundException)
+                    ->setModel(UksVisitType::class, [$typeId]);
+            }
         }
+
+        $institution = Institution::find($institutionId);
+        $academicYearId = $institution?->active_academic_year_id ?: $student->academic_year_id;
+        $semesterId = $institution?->active_semester_id ?: $student->semester_id;
 
         $visit = UksVisit::create([
             'institution_id' => $institutionId,
@@ -115,8 +123,8 @@ class UksService
             'weight_kg' => $data['weight_kg'] ?? null,
             'blood_pressure' => $data['blood_pressure'] ?? null,
             'temperature_c' => $data['temperature_c'] ?? null,
-            'academic_year_id' => $student->academic_year_id,
-            'semester_id' => $student->semester_id,
+            'academic_year_id' => $academicYearId,
+            'semester_id' => $semesterId,
             'class_id' => $student->class_id,
         ]);
 
@@ -209,17 +217,25 @@ class UksService
                 DB::raw("COALESCE(uks_visit_types.name, 'Tanpa jenis') as type_name"),
                 DB::raw('COUNT(*) as total')
             )
-            ->groupBy('uks_visit_types.name')
+            ->groupBy(DB::raw("COALESCE(uks_visit_types.name, 'Tanpa jenis')"))
             ->orderByDesc('total')
             ->get()
             ->map(fn ($r) => ['type_name' => $r->type_name, 'total' => (int) $r->total])
             ->values()
             ->all();
 
+        $byStatus = (clone $base)
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
         return [
             'year' => $year,
             'total_this_month' => $totalThisMonth,
             'total_year' => (clone $base)->count(),
+            'observasi' => (int) ($byStatus['observasi'] ?? 0),
+            'rujuk' => (int) ($byStatus['rujuk'] ?? 0),
+            'selesai' => (int) ($byStatus['selesai'] ?? 0),
             'by_month' => $months,
             'by_type' => $byType,
         ];

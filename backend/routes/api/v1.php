@@ -403,6 +403,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/counseling/upcoming', [CounselingController::class, 'upcoming'])->name('counseling.upcoming');
         Route::get('/counseling/export', [CounselingController::class, 'export'])->name('counseling.export');
         Route::get('/counseling/counselors', [CounselingController::class, 'counselors'])->name('counseling.counselors');
+        Route::get('/counseling/classes-lite', [CounselingController::class, 'classesLite'])->name('counseling.classes-lite');
+        Route::get('/counseling/students-lite', [CounselingController::class, 'studentsLite'])->name('counseling.students-lite');
         Route::post('/counseling', [CounselingController::class, 'store']);
         Route::get('/counseling/by-student/{studentId}', [CounselingController::class, 'byStudent'])->name('counseling.by-student');
         Route::get('/counseling/{counseling_session}', [CounselingController::class, 'show']);
@@ -462,6 +464,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/uks/visits/stats', [UksVisitController::class, 'stats'])->name('uks.visits.stats');
         Route::get('/uks/visits/export', [UksVisitController::class, 'export'])->name('uks.visits.export');
         Route::get('/uks/visits/recorders', [UksVisitController::class, 'recorders'])->name('uks.visits.recorders');
+        Route::get('/uks/visits/classes-lite', [UksVisitController::class, 'classesLite'])->name('uks.visits.classes-lite');
+        Route::get('/uks/visits/students-lite', [UksVisitController::class, 'studentsLite'])->name('uks.visits.students-lite');
         Route::post('/uks/visits', [UksVisitController::class, 'store']);
         Route::get('/uks/visits/by-student/{studentId}', [UksVisitController::class, 'byStudent'])->name('uks.visits.by-student');
         Route::get('/uks/visits/{uks_visit}', [UksVisitController::class, 'show']);
@@ -479,6 +483,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/uks-reports/visits', [UksReportController::class, 'visits'])->name('uks-reports.visits');
         Route::get('/uks-reports/export', [UksReportController::class, 'export'])->name('uks-reports.export');
         Route::get('/uks-reports/export-visits', [UksReportController::class, 'exportVisits'])->name('uks-reports.export-visits');
+        Route::get('/uks-reports/export-pdf', [UksReportController::class, 'exportPdf'])->name('uks-reports.export-pdf');
 
         // Inventaris obat / stok UKS
         Route::get('/uks/medicines/summary', [UksMedicineController::class, 'summary'])->name('uks.medicines.summary');

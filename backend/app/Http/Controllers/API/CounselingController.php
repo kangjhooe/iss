@@ -9,6 +9,8 @@ use App\Http\Requests\UpdateCounselingSessionRequest;
 use App\Http\Resources\CounselingSessionResource;
 use App\Models\CounselingSession;
 use App\Models\Institution;
+use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\User;
 use App\Services\CounselingService;
 use App\Support\InstitutionContext;
@@ -146,7 +148,7 @@ class CounselingController extends Controller
     }
 
     /**
-     * List available counselors (users in the institution).
+     * List available counselors (teachers and staff only — never students/parents).
      */
     public function counselors(Request $request): JsonResponse
     {
@@ -157,10 +159,16 @@ class CounselingController extends Controller
             }
 
             $list = User::where('institution_id', $institutionId)
-                ->select('id', 'name', 'email')
+                ->eligibleCounselors()
+                ->select('id', 'name', 'email', 'role')
                 ->orderBy('name')
                 ->get()
-                ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email]);
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'role' => $u->role,
+                ]);
 
             return response()->json(['data' => $list]);
         } catch (\Exception $e) {
@@ -170,6 +178,93 @@ class CounselingController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Lightweight class list for the counseling student picker.
+     * Does not require the student/class modules.
+     */
+    public function classesLite(Request $request): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $institution = Institution::find($institutionId);
+        $query = SchoolClass::query()
+            ->where('institution_id', $institutionId)
+            ->orderBy('grade')
+            ->orderBy('name');
+
+        if ($institution?->active_academic_year_id) {
+            $query->where('academic_year_id', $institution->active_academic_year_id);
+        }
+
+        return response()->json([
+            'data' => $query->get(['id', 'name', 'grade']),
+        ]);
+    }
+
+    /**
+     * Lightweight student list for the counseling student picker.
+     * Filter class_id and/or q (nama/NIS/NISN/NIK). Does not require the student module.
+     */
+    public function studentsLite(Request $request): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $q = trim((string) $request->get('q', ''));
+        $classId = $request->get('class_id');
+        $studentId = $request->get('student_id');
+
+        if (!$classId && $q === '' && !$studentId) {
+            return response()->json([
+                'message' => 'Pilih kelas atau ketik nama/NIS siswa.',
+                'data' => [],
+            ]);
+        }
+
+        $query = Student::query()
+            ->leftJoin('class', 'student.class_id', '=', 'class.id')
+            ->where('student.institution_id', $institutionId)
+            ->where(function ($w) {
+                $w->where('student.status', 'Aktif')->orWhereNull('student.status');
+            })
+            ->orderBy('student.name')
+            ->select([
+                'student.id',
+                'student.name',
+                'student.nis',
+                'student.nisn',
+                'student.nik',
+                'student.class_id',
+                'class.name as class_name',
+            ]);
+
+        if ($studentId) {
+            $query->where('student.id', (int) $studentId)->limit(1);
+        } elseif ($classId) {
+            $query->where('student.class_id', (int) $classId)->limit(200);
+        } else {
+            $query->limit(50);
+        }
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('student.name', 'like', "%{$q}%")
+                    ->orWhere('student.nis', 'like', "%{$q}%")
+                    ->orWhere('student.nisn', 'like', "%{$q}%")
+                    ->orWhere('student.nik', 'like', "%{$q}%");
+            });
+        }
+
+        return response()->json([
+            'data' => $query->get(),
+        ]);
     }
 
     /**

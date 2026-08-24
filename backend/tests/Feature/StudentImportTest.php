@@ -68,6 +68,41 @@ class StudentImportTest extends TestCase
         ]);
     }
 
+    public function test_import_persists_extended_biodata_fields(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $this->postJson('/api/v1/student/import', [
+            'students' => [
+                $this->row([
+                    'nik' => '3201010101010077',
+                    'nisn' => '0096877799',
+                    'name' => 'Siswa Biodata',
+                    'phone' => '081298765432',
+                    'father_name' => 'Ayah Import',
+                    'father_birth_place' => 'Liwa',
+                    'previous_school' => 'SD 2 Krui',
+                    'previous_school_npsn' => '87654321',
+                    'previous_school_address' => 'Jl. Sekolah',
+                    'notes' => 'Impor lengkap',
+                ]),
+            ],
+        ])->assertOk()->assertJsonPath('created_count', 1);
+
+        $this->assertDatabaseHas('student', [
+            'institution_id' => $this->institution->id,
+            'nik' => '3201010101010077',
+            'birth_place' => 'Krui',
+            'phone' => '081298765432',
+            'father_name' => 'Ayah Import',
+            'father_birth_place' => 'Liwa',
+            'previous_school' => 'SD 2 Krui',
+            'previous_school_npsn' => '87654321',
+            'previous_school_address' => 'Jl. Sekolah',
+            'notes' => 'Impor lengkap',
+        ]);
+    }
+
     public function test_import_updates_existing_student_when_nisn_matches_even_if_nik_differs(): void
     {
         Sanctum::actingAs($this->admin);

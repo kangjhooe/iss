@@ -134,6 +134,9 @@ class StudentImportService
         foreach ([
             'email', 'phone', 'class', 'name', 'birth_place',
             'address', 'village', 'sub_district', 'district', 'province', 'postal_code',
+            'previous_school', 'previous_school_npsn', 'previous_school_address', 'notes',
+            'father_name', 'father_birth_place', 'mother_name', 'mother_birth_place',
+            'guardian_name', 'guardian_birth_place',
         ] as $field) {
             if (array_key_exists($field, $studentData)) {
                 $studentData[$field] = $this->nullableString($studentData[$field]);

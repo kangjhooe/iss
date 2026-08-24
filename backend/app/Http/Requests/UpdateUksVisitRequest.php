@@ -28,4 +28,22 @@ class UpdateUksVisitRequest extends FormRequest
             'temperature_c' => 'nullable|numeric|min:30|max:45',
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        $nullable = [
+            'recorded_by', 'uks_visit_type_id', 'status', 'complaint',
+            'action_taken', 'notes', 'height_cm', 'weight_kg',
+            'blood_pressure', 'temperature_c',
+        ];
+        $merge = [];
+        foreach ($nullable as $key) {
+            if ($this->exists($key) && $this->input($key) === '') {
+                $merge[$key] = null;
+            }
+        }
+        if ($merge) {
+            $this->merge($merge);
+        }
+    }
 }

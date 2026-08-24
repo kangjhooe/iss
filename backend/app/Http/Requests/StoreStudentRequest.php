@@ -80,6 +80,8 @@ class StoreStudentRequest extends FormRequest
             'height' => 'nullable|integer|min:0|max:300',
             'weight' => 'nullable|integer|min:0|max:500',
             'previous_school' => 'nullable|string|max:255',
+            'previous_school_npsn' => 'nullable|string|max:20',
+            'previous_school_address' => 'nullable|string',
             'residence_type' => 'nullable|in:asrama,kost_kontrak,tinggal_dengan_orang_tua,lainnya',
             'tingkat' => $validGrades === null
                 ? ['nullable', 'integer', Rule::in([])]

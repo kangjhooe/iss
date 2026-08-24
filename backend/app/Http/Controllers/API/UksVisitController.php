@@ -8,6 +8,8 @@ use App\Http\Requests\StoreUksVisitRequest;
 use App\Http\Requests\UpdateUksVisitRequest;
 use App\Http\Resources\UksVisitResource;
 use App\Models\Institution;
+use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\UksVisit;
 use App\Models\User;
 use App\Services\UksService;
@@ -39,13 +41,8 @@ class UksVisitController extends Controller
                 'date_from', 'date_to', 'class_id', 'academic_year_id', 'semester_id', 'search',
             ]);
             $institution = Institution::find($institutionId);
-            if ($institution) {
-                if (!isset($filters['academic_year_id']) && $institution->active_academic_year_id) {
-                    $filters['academic_year_id'] = $institution->active_academic_year_id;
-                }
-                if (!isset($filters['semester_id']) && $institution->active_semester_id) {
-                    $filters['semester_id'] = $institution->active_semester_id;
-                }
+            if ($institution && ! $request->exists('academic_year_id') && $institution->active_academic_year_id) {
+                $filters['academic_year_id'] = $institution->active_academic_year_id;
             }
             $perPage = min((int) $request->get('per_page', 15), 100);
             $visits = $this->uksService->listForInstitution($institutionId, $filters, $perPage);
@@ -130,6 +127,90 @@ class UksVisitController extends Controller
         $uks_visit->delete();
 
         return response()->json(['message' => 'Kunjungan UKS berhasil dihapus.']);
+    }
+
+    /**
+     * Lightweight class list for the UKS student picker.
+     * Does not require the student/class modules.
+     */
+    public function classesLite(Request $request): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $institution = Institution::find($institutionId);
+        $query = SchoolClass::query()
+            ->where('institution_id', $institutionId)
+            ->orderBy('grade')
+            ->orderBy('name');
+
+        if ($institution?->active_academic_year_id) {
+            $query->where('academic_year_id', $institution->active_academic_year_id);
+        }
+
+        return response()->json([
+            'data' => $query->get(['id', 'name', 'grade']),
+        ]);
+    }
+
+    /**
+     * Lightweight student list for the UKS student picker.
+     * Filter class_id and/or q (nama/NIS/NISN/NIK). Does not require the student module.
+     */
+    public function studentsLite(Request $request): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $q = trim((string) $request->get('q', ''));
+        $classId = $request->get('class_id');
+
+        if (!$classId && $q === '') {
+            return response()->json([
+                'message' => 'Pilih kelas atau ketik nama/NIS siswa.',
+                'data' => [],
+            ]);
+        }
+
+        $query = Student::query()
+            ->leftJoin('class', 'student.class_id', '=', 'class.id')
+            ->where('student.institution_id', $institutionId)
+            ->where(function ($w) {
+                $w->where('student.status', 'Aktif')->orWhereNull('student.status');
+            })
+            ->orderBy('student.name')
+            ->select([
+                'student.id',
+                'student.name',
+                'student.nis',
+                'student.nisn',
+                'student.nik',
+                'student.class_id',
+                'class.name as class_name',
+            ]);
+
+        if ($classId) {
+            $query->where('student.class_id', (int) $classId)->limit(200);
+        } else {
+            $query->limit(50);
+        }
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('student.name', 'like', "%{$q}%")
+                    ->orWhere('student.nis', 'like', "%{$q}%")
+                    ->orWhere('student.nisn', 'like', "%{$q}%")
+                    ->orWhere('student.nik', 'like', "%{$q}%");
+            });
+        }
+
+        return response()->json([
+            'data' => $query->get(),
+        ]);
     }
 
     public function recorders(Request $request): JsonResponse

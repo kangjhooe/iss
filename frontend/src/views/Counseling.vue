@@ -105,10 +105,14 @@
             class="search-input"
             @input="debounceLoadSessions"
           />
-          <select v-model="filters.student_id" @change="loadSessions" class="filter-select">
-            <option value="">Semua Siswa</option>
-            <option v-for="s in studentsFilterList" :key="s.id" :value="s.id">{{ s.name }} ({{ s.nis || s.nisn || '-' }})</option>
-          </select>
+          <button
+            v-if="filters.student_id"
+            type="button"
+            class="filter-chip"
+            @click="clearStudentFilter"
+          >
+            Filter siswa aktif ×
+          </button>
           <select v-model="filters.status" @change="loadSessions" class="filter-select">
             <option value="">Semua Status</option>
             <option value="jadwal">Jadwal</option>
@@ -233,18 +237,63 @@
             <button @click="showFormModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitSession" class="modal-body">
-            <div class="form-group">
-              <label>Siswa *</label>
-              <select v-model="form.student_id" required :disabled="!!editingSession" class="form-select">
+            <div v-if="editingSession" class="form-group student-picker-locked">
+              <span class="field-label">Siswa</span>
+              <p>
+                {{ editingSession.student?.name || '—' }}
+                <span class="student-meta">
+                  {{ editingSession.student?.nis || editingSession.student?.nisn || '' }}
+                  <template v-if="editingSession.student?.class?.name"> · {{ editingSession.student.class.name }}</template>
+                </span>
+              </p>
+            </div>
+            <div v-else class="form-group student-picker">
+              <div class="picker-row">
+                <label>Kelas
+                  <select v-model="pickerClassId" @change="onPickerClassChange">
+                    <option value="">Semua kelas</option>
+                    <option v-for="c in classes" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                  </select>
+                </label>
+                <label>Cari siswa
+                  <input
+                    v-model="pickerStudentSearch"
+                    type="text"
+                    placeholder="Nama, NIS, NISN, atau NIK"
+                    @input="debouncePickerStudentSearch"
+                  />
+                </label>
+              </div>
+              <p class="field-hint">
+                <template v-if="!pickerClassId && !pickerStudentSearch.trim()">Pilih kelas atau ketik nama/NIS siswa.</template>
+                <template v-else-if="loadingPickerStudents">Memuat siswa...</template>
+                <template v-else-if="pickerStudentError">{{ pickerStudentError }}</template>
+                <template v-else-if="pickerStudents.length">{{ pickerStudents.length }} siswa — pilih di daftar bawah.</template>
+                <template v-else>Tidak ada siswa cocok.</template>
+              </p>
+              <select
+                v-model="form.student_id"
+                required
+                class="student-listbox"
+                size="7"
+                :disabled="loadingPickerStudents || (!pickerClassId && !pickerStudentSearch.trim() && !pickerStudents.length)"
+              >
                 <option value="">Pilih siswa</option>
-                <option v-for="s in students" :key="s.id" :value="s.id">{{ s.name }} ({{ s.nis || s.nisn || '-' }})</option>
+                <option v-for="s in pickerStudents" :key="s.id" :value="String(s.id)">{{ studentOptionLabel(s) }}</option>
               </select>
             </div>
             <div class="form-group">
               <label>Konselor *</label>
+              <input
+                v-if="counselors.length > 8"
+                v-model="counselorSearch"
+                type="text"
+                class="counselor-search"
+                placeholder="Cari nama guru..."
+              />
               <select v-model="form.counselor_id" required class="form-select">
-                <option value="">Pilih konselor</option>
-                <option v-for="c in counselors" :key="c.id" :value="c.id">{{ c.name }}</option>
+                <option value="">Pilih konselor (guru)</option>
+                <option v-for="c in filteredCounselors" :key="c.id" :value="c.id">{{ counselorLabel(c) }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -389,9 +438,8 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
 import { counselingApi, counselingTypeApi } from '@/api/counseling'
-import { studentApi } from '@/api/student'
-import { classApi } from '@/api/class'
 import { institutionApi } from '@/api/institution'
+import { useAuthStore } from '@/stores/auth'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { semesterApi } from '@/api/semester'
 import { useToast } from '@/composables/useToast'
@@ -400,14 +448,15 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tool
 
 const toast = useToast()
 const route = useRoute()
+const authStore = useAuthStore()
 
 const activeTab = ref('list')
 const loading = ref(true)
 const typesLoading = ref(false)
 const sessions = ref([])
 const counselingTypes = ref([])
-const students = ref([])
 const counselors = ref([])
+const counselorSearch = ref('')
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 
 const statsData = ref(null)
@@ -456,6 +505,13 @@ const form = ref({
 const formSubmitting = ref(false)
 const formError = ref('')
 
+const pickerClassId = ref('')
+const pickerStudentSearch = ref('')
+const pickerStudents = ref([])
+const loadingPickerStudents = ref(false)
+const pickerStudentError = ref('')
+let pickerStudentTimer = null
+
 const showTypeModal = ref(false)
 const editingType = ref(null)
 const typeForm = ref({
@@ -478,6 +534,27 @@ const statusLabels = {
 function getStatusLabel(status) {
   return statusLabels[status] || status
 }
+
+function studentOptionLabel(s) {
+  const id = s.nis || s.nisn || s.nik || '-'
+  const kelas = s.class_name || s.class?.name
+  return kelas ? `${s.name} (${id}) · ${kelas}` : `${s.name} (${id})`
+}
+
+function counselorLabel(c) {
+  const role = c.role === 'staff' ? 'Staf' : 'Guru'
+  return `${c.name} (${role})`
+}
+
+const filteredCounselors = computed(() => {
+  const q = counselorSearch.value.trim().toLowerCase()
+  if (!q) return counselors.value
+  return counselors.value.filter((c) => {
+    const name = (c.name || '').toLowerCase()
+    const email = (c.email || '').toLowerCase()
+    return name.includes(q) || email.includes(q)
+  })
+})
 
 const deleteSessionMessage = computed(() => {
   const name = deleteTarget.value?.student?.name || ''
@@ -552,15 +629,6 @@ async function loadTypes() {
   }
 }
 
-async function loadStudents() {
-  try {
-    const res = await studentApi.getAll({ per_page: 500 })
-    students.value = res.data.data || []
-  } catch {
-    students.value = []
-  }
-}
-
 async function loadCounselors() {
   try {
     const res = await counselingApi.getCounselors()
@@ -572,11 +640,98 @@ async function loadCounselors() {
 
 async function loadClasses() {
   try {
-    const res = await classApi.getAll({ per_page: 200 })
+    const res = await counselingApi.classesLite()
     classes.value = res.data.data || []
   } catch {
     classes.value = []
   }
+}
+
+async function loadPickerStudents() {
+  const q = pickerStudentSearch.value.trim()
+  if (!pickerClassId.value && !q) {
+    pickerStudents.value = []
+    pickerStudentError.value = ''
+    return
+  }
+  loadingPickerStudents.value = true
+  pickerStudentError.value = ''
+  try {
+    const params = {}
+    if (pickerClassId.value) params.class_id = pickerClassId.value
+    if (q) params.q = q
+    const res = await counselingApi.studentsLite(params)
+    pickerStudents.value = res.data.data || []
+    if (!pickerStudents.value.length) {
+      pickerStudentError.value = q
+        ? 'Tidak ada siswa cocok. Coba kata kunci lain.'
+        : 'Tidak ada siswa aktif di kelas ini.'
+    }
+  } catch (e) {
+    pickerStudents.value = []
+    pickerStudentError.value = e.formattedMessage || 'Gagal memuat data siswa.'
+  } finally {
+    loadingPickerStudents.value = false
+  }
+}
+
+function debouncePickerStudentSearch() {
+  clearTimeout(pickerStudentTimer)
+  pickerStudentTimer = setTimeout(() => loadPickerStudents(), 300)
+}
+
+function onPickerClassChange() {
+  form.value.student_id = ''
+  pickerStudentSearch.value = ''
+  loadPickerStudents()
+}
+
+function resetStudentPicker() {
+  pickerClassId.value = ''
+  pickerStudentSearch.value = ''
+  pickerStudents.value = []
+  pickerStudentError.value = ''
+  counselorSearch.value = ''
+  clearTimeout(pickerStudentTimer)
+}
+
+function defaultCounselorId() {
+  const uid = authStore.user?.id
+  if (uid && counselors.value.some((c) => String(c.id) === String(uid))) {
+    return uid
+  }
+  return ''
+}
+
+function prefillPickerStudent(student) {
+  if (!student?.id) return
+  pickerStudents.value = [{
+    id: student.id,
+    name: student.name,
+    nis: student.nis,
+    nisn: student.nisn,
+    nik: student.nik,
+    class_id: student.class_id,
+    class_name: student.class_name || student.class?.name,
+  }]
+  pickerStudentError.value = ''
+  form.value.student_id = String(student.id)
+}
+
+async function loadStudentIntoPicker(studentId) {
+  if (!studentId) return
+  try {
+    const res = await counselingApi.studentsLite({ student_id: studentId })
+    const student = (res.data.data || [])[0]
+    if (student) prefillPickerStudent(student)
+  } catch {
+    // picker stays empty; user can search manually
+  }
+}
+
+function clearStudentFilter() {
+  filters.value.student_id = ''
+  loadSessions()
 }
 
 async function loadSemesters() {
@@ -639,9 +794,10 @@ function goToPage(page) {
 
 function openAddModal() {
   editingSession.value = null
+  resetStudentPicker()
   form.value = {
     student_id: '',
-    counselor_id: '',
+    counselor_id: defaultCounselorId(),
     counseling_type_id: '',
     session_date: new Date().toISOString().slice(0, 10),
     status: 'jadwal',
@@ -649,10 +805,13 @@ function openAddModal() {
     follow_up_notes: '',
   }
   formError.value = ''
-  if (students.value.length === 0) loadStudents()
-  if (counselors.value.length === 0) loadCounselors()
-  if (counselingTypes.value.length === 0) loadTypes()
   showFormModal.value = true
+  if (counselors.value.length === 0) {
+    loadCounselors().then(() => {
+      if (!form.value.counselor_id) form.value.counselor_id = defaultCounselorId()
+    })
+  }
+  if (counselingTypes.value.length === 0) loadTypes()
 }
 
 function openEditModal(s) {
@@ -667,6 +826,8 @@ function openEditModal(s) {
     follow_up_notes: s.follow_up_notes || '',
   }
   formError.value = ''
+  counselorSearch.value = ''
+  if (counselors.value.length === 0) loadCounselors()
   showFormModal.value = true
 }
 
@@ -790,8 +951,6 @@ async function doDeleteType() {
   }
 }
 
-const studentsFilterList = computed(() => students.value)
-
 const sessionsByMonthChartData = computed(() => {
   const data = statsData.value?.by_month
   if (!data?.length) return null
@@ -872,7 +1031,7 @@ async function loadHistoryForStudent(studentId) {
 }
 function openAddModalForStudent(student) {
   openAddModal()
-  form.value.student_id = student.id
+  prefillPickerStudent(student)
 }
 
 watch(activeTab, (tab) => {
@@ -898,10 +1057,10 @@ onMounted(async () => {
   loadStats()
   loadUpcoming()
   loadClasses()
-  await loadStudents()
+  loadCounselors()
   if (studentIdFromQuery) {
     openAddModal()
-    form.value.student_id = String(studentIdFromQuery)
+    await loadStudentIntoPicker(studentIdFromQuery)
   }
 })
 </script>
@@ -1225,7 +1384,7 @@ onMounted(async () => {
 .modal-content {
   background: #fff;
   border-radius: 12px;
-  max-width: 480px;
+  max-width: 560px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -1458,4 +1617,49 @@ onMounted(async () => {
 .history-table-wrap .data-table.compact td { padding: 0.5rem 0.75rem; font-size: 0.9rem; }
 .mt-1 { margin-top: 0.5rem; }
 .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+.filter-chip {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #059669;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.filter-chip:hover { background: #d1fae5; }
+.student-picker {
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.picker-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
+.picker-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+.field-hint { margin: 0.4rem 0 0; font-size: 12px; color: #64748b; font-weight: 400; }
+.student-listbox { margin-top: 0.5rem; min-height: 150px; width: 100%; }
+.student-picker-locked {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.student-picker-locked .field-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+.student-picker-locked p { margin: 4px 0 0; font-weight: 600; color: #0f172a; }
+.counselor-search { margin-bottom: 0.4rem; }
+@media (max-width: 700px) {
+  .picker-row { grid-template-columns: 1fr; }
+}
 </style>

@@ -4,11 +4,17 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
+use App\Models\AdditionalDuty;
 use App\Models\Institution;
+use App\Models\SchoolClass;
+use App\Models\Semester;
 use App\Services\UksReportService;
+use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UksReportController extends Controller
@@ -148,6 +154,148 @@ class UksReportController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    public function exportPdf(Request $request): Response|JsonResponse
+    {
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            if (!$institution) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 404);
+            }
+
+            $filters = $this->resolveFilters($request, $institutionId);
+            $mode = $request->get('mode') === 'detail' ? 'detail' : 'summary';
+            $summaryPayload = $this->uksReportService->getSummary($institutionId, $filters);
+            $detailPayload = [];
+            if ($mode === 'detail') {
+                $filters['apply_year_filter'] = true;
+                $detailPayload = $this->uksReportService->getVisitDetail($institutionId, $filters);
+            }
+
+            $signers = $this->signersMeta($institutionId);
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $orientation = $mode === 'detail' ? 'landscape' : 'portrait';
+            $title = $mode === 'detail' ? 'Laporan UKS — Detail Kunjungan' : 'Laporan UKS — Ringkasan';
+
+            $studentGroups = collect($detailPayload['by_student'] ?? [])
+                ->groupBy(fn ($row) => $row['class_name'] ?: 'Tanpa Kelas')
+                ->all();
+
+            $pdf = DomPDF::loadView('uks.report', [
+                'institution' => $institution,
+                'mode' => $mode,
+                'orientation' => $orientation,
+                'report_title' => $title,
+                'filter_legend' => $this->filterLegend($institutionId, $filters),
+                'summary' => $summaryPayload['summary'] ?? [],
+                'by_class' => $summaryPayload['by_class'] ?? [],
+                'by_month' => $summaryPayload['by_month'] ?? ['year' => $filters['year'] ?? now()->year, 'months' => []],
+                'by_type' => $summaryPayload['by_type'] ?? [],
+                'by_status' => $summaryPayload['by_status'] ?? [],
+                'items' => $detailPayload['items'] ?? [],
+                'student_groups' => $studentGroups,
+                'truncated' => $detailPayload['truncated'] ?? false,
+                'printed_at' => $printedAt,
+                'printed_by' => $request->user()?->name,
+                'principal_role' => $signers['principal']['role'],
+                'principal_name' => $signers['principal']['name'],
+                'principal_nip' => $signers['principal']['nip'],
+                'uks_role' => $signers['uks']['role'],
+                'uks_name' => $signers['uks']['name'],
+                'uks_nip' => $signers['uks']['nip'],
+            ])->setPaper('a4', $orientation);
+
+            try {
+                $pdf->render();
+                $canvas = $pdf->getDomPDF()->getCanvas();
+                $font = $pdf->getDomPDF()->getFontMetrics()->getFont('DejaVu Sans');
+                $x = $orientation === 'landscape' ? 720 : 500;
+                $y = $orientation === 'landscape' ? 575 : 820;
+                $canvas->page_text($x, $y, 'Hal. {PAGE_NUM}/{PAGE_COUNT}', $font, 7, [0.35, 0.35, 0.35]);
+            } catch (\Throwable $e) {
+                // nomor halaman opsional
+            }
+
+            $filename = ($mode === 'detail' ? 'laporan-uks-detail-' : 'laporan-uks-ringkasan-').date('Ymd-His').'.pdf';
+
+            return $pdf->stream($filename, ['Attachment' => false]);
+        } catch (\Exception $e) {
+            Log::error('UKS report PDF failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal mencetak laporan UKS.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * @return array{principal: array{role: string, name: ?string, nip: ?string}, uks: array{role: string, name: ?string, nip: ?string}}
+     */
+    protected function signersMeta(int $institutionId): array
+    {
+        $institution = Institution::find($institutionId);
+        $uks = AdditionalDuty::resolveActiveHolder('koordinator_uks', $institutionId);
+
+        return [
+            'principal' => [
+                'role' => Institution::principalTitleForLevel($institution?->level),
+                'name' => $institution?->principal_name,
+                'nip' => $institution?->principal_nip,
+            ],
+            'uks' => [
+                'role' => 'Koordinator UKS',
+                'name' => $uks?->name,
+                'nip' => $uks?->nip,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return list<string>
+     */
+    protected function filterLegend(int $institutionId, array $filters): array
+    {
+        $parts = [];
+        if (!empty($filters['academic_year_id'])) {
+            $year = AcademicYear::query()->where('id', $filters['academic_year_id'])->value('name');
+            $parts[] = 'Tahun ajaran '.($year ?: $filters['academic_year_id']);
+        }
+        if (!empty($filters['semester_id'])) {
+            $semester = Semester::query()->where('id', $filters['semester_id'])->value('name');
+            $parts[] = 'Semester '.($semester ?: $filters['semester_id']);
+        }
+        if (!empty($filters['class_id'])) {
+            $className = SchoolClass::query()
+                ->where('institution_id', $institutionId)
+                ->where('id', $filters['class_id'])
+                ->value('name');
+            $parts[] = 'Kelas '.($className ?: $filters['class_id']);
+        } else {
+            $parts[] = 'Semua kelas';
+        }
+        if (!empty($filters['status'])) {
+            $labels = ['selesai' => 'Selesai', 'observasi' => 'Observasi', 'rujuk' => 'Rujuk'];
+            $parts[] = 'Status '.($labels[$filters['status']] ?? $filters['status']);
+        }
+        if (!empty($filters['month']) && !empty($filters['year'])) {
+            $months = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $parts[] = ($months[(int) $filters['month']] ?? $filters['month']).' '.$filters['year'];
+        } elseif (!empty($filters['year'])) {
+            $parts[] = 'Tren '.$filters['year'];
+        }
+        if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
+            $parts[] = 'Tanggal '.($filters['date_from'] ?? '...').' s/d '.($filters['date_to'] ?? '...');
+        }
+
+        return $parts;
     }
 
     protected function resolveFilters(Request $request, int $institutionId): array

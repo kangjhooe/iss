@@ -286,7 +286,11 @@
 
       <!-- Add/Edit Modal -->
       <div v-if="showAddModal || showEditModal" class="modal-overlay form-modal-overlay" @click="closeModal">
-        <div class="modal-content form-modal-content" @click.stop>
+        <div
+          class="modal-content form-modal-content"
+          :class="{ 'form-modal-content--choice': showAddModal && !showEditModal && addMode === 'choose' }"
+          @click.stop
+        >
           <div class="form-modal-header">
             <div class="form-modal-title-wrap">
               <div class="form-modal-icon">
@@ -307,20 +311,57 @@
             </button>
           </div>
 
-          <div v-if="showAddModal && !showEditModal" class="add-mode-switch">
-            <button
-              type="button"
-              :class="['add-mode-btn', { active: addMode === 'manual' }]"
-              @click="addMode = 'manual'"
-            >
-              Input manual
+          <div
+            v-if="showAddModal && !showEditModal && addMode === 'choose'"
+            class="form-modal-body add-choice-panel"
+          >
+            <button type="button" class="add-choice-row" @click="addMode = 'manual'">
+              <span class="add-choice-icon-wrap" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span class="add-choice-text">
+                <strong>Tambah manual</strong>
+                <span>Isi formulir siswa baru satu per satu</span>
+              </span>
+              <span class="add-choice-arrow" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
             </button>
-            <button
-              type="button"
-              :class="['add-mode-btn', { active: addMode === 'feeder' }]"
-              @click="addMode = 'feeder'"
-            >
-              Tarik dari jenjang sebelumnya
+            <button type="button" class="add-choice-row" @click="addMode = 'feeder'">
+              <span class="add-choice-icon-wrap add-choice-icon-wrap--pull" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3v12M7 8l5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="add-choice-text">
+                <strong>Tarik dari jenjang sebelumnya</strong>
+                <span>Ambil alumni lulus dari MTs/SMP. Arsip sekolah asal tetap ada.</span>
+              </span>
+              <span class="add-choice-arrow" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </button>
+            <div class="add-choice-footer">
+              <button type="button" class="btn-ghost" @click="closeModal">Batal</button>
+            </div>
+          </div>
+
+          <div
+            v-if="showAddModal && !showEditModal && addMode !== 'choose'"
+            class="add-mode-back-bar"
+          >
+            <button type="button" class="add-mode-back-btn" @click="backToAddChoice">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Pilih cara lain
             </button>
           </div>
 
@@ -408,7 +449,10 @@
             </div>
             <div v-if="feederError" class="error-message">{{ feederError }}</div>
             <div class="form-modal-footer feeder-footer">
-              <button type="button" @click="closeModal" class="btn-ghost">Batal</button>
+              <div class="form-modal-footer-actions">
+                <button type="button" @click="backToAddChoice" class="btn-ghost">Kembali</button>
+                <button type="button" @click="closeModal" class="btn-ghost">Batal</button>
+              </div>
               <button
                 type="button"
                 class="btn-submit"
@@ -421,7 +465,11 @@
             </div>
           </div>
           
-          <form v-else @submit.prevent="handleSubmit" class="form-modal-body">
+          <form
+            v-if="showEditModal || (showAddModal && addMode === 'manual')"
+            @submit.prevent="handleSubmit"
+            class="form-modal-body"
+          >
             <!-- Tabs Navigation -->
             <div class="form-tabs-nav">
               <button 
@@ -555,6 +603,17 @@
 
               <p class="form-section-label">Alamat</p>
               <AddressCascade v-model="form" street-label="Jalan / RT / RW" />
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Telepon</label>
+                  <input v-model="form.phone" placeholder="Nomor HP siswa / orang tua" />
+                </div>
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" v-model="form.email" placeholder="email@contoh.com" />
+                </div>
+              </div>
             </div>
 
             <!-- Tab 2: Tambahan -->
@@ -652,6 +711,24 @@
                 <div class="form-group">
                   <label>Asal Sekolah</label>
                   <input v-model="form.previous_school" />
+                </div>
+                <div class="form-group">
+                  <label>NPSN Sekolah Asal</label>
+                  <input v-model="form.previous_school_npsn" maxlength="20" placeholder="8 digit NPSN" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Alamat Sekolah Asal</label>
+                  <input v-model="form.previous_school_address" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Catatan</label>
+                  <textarea v-model="form.notes" rows="3" placeholder="Catatan tambahan (opsional)"></textarea>
                 </div>
               </div>
 
@@ -1009,7 +1086,15 @@
             <div v-if="error" class="error-message">{{ error }}</div>
 
             <div class="form-modal-footer">
-              <button type="button" @click="closeModal" class="btn-ghost">Batal</button>
+              <div class="form-modal-footer-actions">
+                <button
+                  v-if="showAddModal && !showEditModal"
+                  type="button"
+                  @click="backToAddChoice"
+                  class="btn-ghost"
+                >Kembali</button>
+                <button type="button" @click="closeModal" class="btn-ghost">Batal</button>
+              </div>
               <div class="form-modal-footer-actions">
                 <button v-if="activeTab > 1" type="button" @click="activeTab--" class="btn-outline">Sebelumnya</button>
                 <button v-if="activeTab < 6" type="button" @click="activeTab++" class="btn-outline">Selanjutnya</button>
@@ -1239,6 +1324,14 @@
                 <div class="biodata-item">
                   <span class="label">Asal Sekolah</span>
                   <span class="value">{{ viewingStudent.previous_school || '-' }}</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">NPSN Sekolah Asal</span>
+                  <span class="value">{{ viewingStudent.previous_school_npsn || '-' }}</span>
+                </div>
+                <div class="biodata-item">
+                  <span class="label">Alamat Sekolah Asal</span>
+                  <span class="value">{{ viewingStudent.previous_school_address || '-' }}</span>
                 </div>
                 <div class="biodata-item">
                   <span class="label">Catatan</span>
@@ -2121,7 +2214,7 @@ async function generateNisForViewing() {
 }
 const showAddModal = ref(false)
 const showEditModal = ref(false)
-const addMode = ref('manual')
+const addMode = ref('choose')
 const feederNpsn = ref('')
 const feederOrigin = ref(null)
 const feederAlumni = ref([])
@@ -2154,6 +2247,7 @@ const availableStudentGrades = computed(() => {
 
 const addModalSubtitle = computed(() => {
   if (showEditModal.value) return 'Perbarui data siswa'
+  if (addMode.value === 'choose') return 'Pilih cara menambahkan siswa'
   if (addMode.value === 'feeder') return 'Tarik alumni jenjang sebelumnya menjadi siswa baru'
   return 'Isi data siswa baru'
 })
@@ -2268,61 +2362,108 @@ const saving = ref(false)
 const deleteLoading = ref(false)
 const activeTab = ref(1)
 
-const form = ref({
-  nik: '',
-  nis: '',
-  nisn: '',
-  name: '',
-  gender: '',
-  birth_date: '',
-  birth_place: '',
-  ...emptyAddress(),
-  phone: '',
-  email: '',
-  religion: '',
-  no_kk: '',
-  aspiration: '',
-  hobby: '',
-  disability: '',
-  height: null,
-  weight: null,
-  previous_school: '',
-  residence_type: '',
-  tingkat: null,
-  class: '',
-  class_id: null,
-  academic_year: '',
-  academic_year_id: null,
-  semester_id: null,
-  status: 'Aktif',
-  father_name: '',
-  father_status: '',
-  father_nik: '',
-  father_birth_place: '',
-  father_birth_date: '',
-  father_education: '',
-  father_occupation: '',
-  father_income: null,
-  mother_name: '',
-  mother_status: '',
-  mother_nik: '',
-  mother_birth_place: '',
-  mother_birth_date: '',
-  mother_education: '',
-  mother_occupation: '',
-  mother_income: null,
-  guardian_name: '',
-  guardian_phone: '',
-  guardian_type: '',
-  guardian_status: '',
-  guardian_nik: '',
-  guardian_birth_place: '',
-  guardian_birth_date: '',
-  guardian_education: '',
-  guardian_occupation: '',
-  guardian_income: null,
-  notes: ''
-})
+function emptyStudentForm() {
+  return {
+    nik: '',
+    nis: '',
+    nisn: '',
+    name: '',
+    gender: '',
+    birth_date: '',
+    birth_place: '',
+    ...emptyAddress(),
+    phone: '',
+    email: '',
+    religion: '',
+    no_kk: '',
+    aspiration: '',
+    hobby: '',
+    disability: '',
+    height: null,
+    weight: null,
+    previous_school: '',
+    previous_school_npsn: '',
+    previous_school_address: '',
+    residence_type: '',
+    tingkat: null,
+    class: '',
+    class_id: null,
+    academic_year: '',
+    academic_year_id: null,
+    semester_id: null,
+    status: 'Aktif',
+    father_name: '',
+    father_status: '',
+    father_nik: '',
+    father_birth_place: '',
+    father_birth_date: '',
+    father_education: '',
+    father_occupation: '',
+    father_income: null,
+    mother_name: '',
+    mother_status: '',
+    mother_nik: '',
+    mother_birth_place: '',
+    mother_birth_date: '',
+    mother_education: '',
+    mother_occupation: '',
+    mother_income: null,
+    guardian_name: '',
+    guardian_phone: '',
+    guardian_type: '',
+    guardian_status: '',
+    guardian_nik: '',
+    guardian_birth_place: '',
+    guardian_birth_date: '',
+    guardian_education: '',
+    guardian_occupation: '',
+    guardian_income: null,
+    notes: ''
+  }
+}
+
+function emptyToNull(value) {
+  if (value === '' || value === undefined) return null
+  if (typeof value === 'number' && Number.isNaN(value)) return null
+  return value
+}
+
+function fillStudentForm(source = {}) {
+  const next = emptyStudentForm()
+  Object.keys(next).forEach((key) => {
+    if (source[key] === undefined || source[key] === null) return
+    next[key] = source[key]
+  })
+  next.academic_year = normalizeAcademicYearLabel(
+    source.academic_year_detail?.code || source.academic_year
+  )
+  if (next.class_id != null && next.class_id !== '') {
+    next.class_id = Number(next.class_id)
+  }
+  if (!next.class && source.class_detail?.name) {
+    next.class = source.class_detail.name
+  }
+  ;['birth_date', 'father_birth_date', 'mother_birth_date', 'guardian_birth_date'].forEach((key) => {
+    if (next[key]) next[key] = String(next[key]).split('T')[0]
+  })
+  form.value = next
+}
+
+function buildStudentPayload() {
+  const payload = {}
+  Object.keys(emptyStudentForm()).forEach((key) => {
+    payload[key] = emptyToNull(form.value[key])
+  })
+  payload.academic_year = normalizeAcademicYearLabel(form.value.academic_year) || null
+  if (payload.class_id != null && payload.class_id !== '') {
+    payload.class_id = Number(payload.class_id)
+  } else {
+    payload.class_id = null
+  }
+  return payload
+}
+
+const form = ref(emptyStudentForm())
 
 const matchingFormClassList = computed(() => {
   const currentId = form.value.class_id
@@ -2418,7 +2559,11 @@ async function loadFilterClasses() {
 /** Open add modal: load institution, then classes for active semester, then show modal. */
 async function openAddModal() {
   resetFeederForm()
-  addMode.value = 'manual'
+  addMode.value = 'choose'
+  showEditModal.value = false
+  editingId = null
+  fillStudentForm()
+  currentStudentDocuments.value = []
   formClassListLoading.value = true
   formClassList.value = []
   try {
@@ -2434,6 +2579,12 @@ async function openAddModal() {
     formClassListLoading.value = false
   }
   showAddModal.value = true
+}
+
+function backToAddChoice() {
+  resetFeederForm()
+  addMode.value = 'choose'
+  activeTab.value = 1
 }
 
 function normalizeAcademicYearLabel(value) {
@@ -2478,42 +2629,20 @@ function onTingkatChange() {
 }
 
 const editStudent = async (student) => {
-  editingId = student.id
-  // Hanya salin field form — jangan Object.assign seluruh response (nested object bisa bikin validasi gagal)
-  Object.keys(form.value).forEach((key) => {
-    if (Object.prototype.hasOwnProperty.call(student, key)) {
-      form.value[key] = student[key]
-    }
-  })
-  form.value.academic_year = normalizeAcademicYearLabel(
-    student.academic_year_detail?.code || student.academic_year
-  )
-  if (form.value.class_id != null && form.value.class_id !== '') {
-    form.value.class_id = Number(form.value.class_id)
+  try {
+    const response = await studentApi.get(student.id)
+    const fullData = response.data?.data ?? response.data
+    editingId = fullData.id
+    fillStudentForm(fullData)
+    currentStudentDocuments.value = fullData.documents || []
+    activeTab.value = 1
+    showEditModal.value = true
+    const semesterId = form.value.semester_id
+      ?? (await institutionApi.getMy().then(r => (r.data?.data ?? r.data)?.active_semester_id))
+    await loadFormClasses(semesterId)
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || 'Gagal memuat data lengkap siswa')
   }
-  if (!form.value.class && student.class_detail?.name) {
-    form.value.class = student.class_detail.name
-  }
-  // Format dates
-  if (student.birth_date) {
-    form.value.birth_date = student.birth_date.split('T')[0]
-  }
-  if (student.father_birth_date) {
-    form.value.father_birth_date = student.father_birth_date.split('T')[0]
-  }
-  if (student.mother_birth_date) {
-    form.value.mother_birth_date = student.mother_birth_date.split('T')[0]
-  }
-  if (student.guardian_birth_date) {
-    form.value.guardian_birth_date = student.guardian_birth_date.split('T')[0]
-  }
-  activeTab.value = 1
-  showEditModal.value = true
-  // Load kelas dropdown: semester siswa (edit)
-  const semesterId = form.value.semester_id ?? (await institutionApi.getMy().then(r => (r.data?.data ?? r.data)?.active_semester_id))
-  await loadFormClasses(semesterId)
-  // Load dokumen
-  await loadStudentDocuments()
 }
 
 const handleGuardianTypeChange = () => {
@@ -2678,10 +2807,7 @@ const handleSubmit = async () => {
   saving.value = true
   
   try {
-    const payload = {
-      ...form.value,
-      academic_year: normalizeAcademicYearLabel(form.value.academic_year),
-    }
+    const payload = buildStudentPayload()
     if (editingId) {
       await studentApi.update(editingId, payload)
       toast.success('Berhasil', 'Data siswa berhasil diperbarui')
@@ -2718,61 +2844,7 @@ const closeModal = () => {
   showEditModal.value = false
   editingId = null
   activeTab.value = 1
-  form.value = {
-    nik: '',
-    nis: '',
-    nisn: '',
-    name: '',
-    gender: '',
-    birth_date: '',
-    birth_place: '',
-    ...emptyAddress(),
-    phone: '',
-    email: '',
-    religion: '',
-    no_kk: '',
-    aspiration: '',
-    hobby: '',
-    disability: '',
-    height: null,
-    weight: null,
-    previous_school: '',
-    residence_type: '',
-    tingkat: null,
-    class: '',
-    class_id: null,
-    academic_year: '',
-    academic_year_id: null,
-    semester_id: null,
-    status: 'Aktif',
-    father_name: '',
-    father_status: '',
-    father_nik: '',
-    father_birth_place: '',
-    father_birth_date: '',
-    father_education: '',
-    father_occupation: '',
-    father_income: null,
-    mother_name: '',
-    mother_status: '',
-    mother_nik: '',
-    mother_birth_place: '',
-    mother_birth_date: '',
-    mother_education: '',
-    mother_occupation: '',
-    mother_income: null,
-    guardian_name: '',
-    guardian_phone: '',
-    guardian_type: '',
-    guardian_status: '',
-    guardian_nik: '',
-    guardian_birth_place: '',
-    guardian_birth_date: '',
-    guardian_education: '',
-    guardian_occupation: '',
-    guardian_income: null,
-    notes: ''
-  }
+  fillStudentForm()
   // Reset dokumen
   currentStudentDocuments.value = []
   documentForm.value = { name: '', description: '' }
@@ -2782,7 +2854,7 @@ const closeModal = () => {
   }
   error.value = ''
   resetFeederForm()
-  addMode.value = 'manual'
+  addMode.value = 'choose'
 }
 
 function resetFeederForm() {
@@ -2875,11 +2947,20 @@ watch(feederTingkat, () => {
   }
 })
 
-const viewStudent = (student) => {
-  viewingStudent.value = { ...student }
-  showViewModal.value = true
-  if (canAccessCounseling.value && student?.id) loadStudentCounseling(student.id)
-  if (canAccessExtracurricular.value && student?.id) loadStudentExtracurriculars(student.id)
+const viewStudent = async (student) => {
+  try {
+    const response = await studentApi.get(student.id)
+    viewingStudent.value = response.data?.data ?? { ...student }
+    showViewModal.value = true
+    if (canAccessCounseling.value && viewingStudent.value?.id) {
+      loadStudentCounseling(viewingStudent.value.id)
+    }
+    if (canAccessExtracurricular.value && viewingStudent.value?.id) {
+      loadStudentExtracurriculars(viewingStudent.value.id)
+    }
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || 'Gagal memuat data lengkap siswa')
+  }
 }
 
 const closeViewModal = () => {
@@ -3061,6 +3142,8 @@ const exportToExcel = async () => {
       'Tinggi Badan (cm)': student.height || '',
       'Berat Badan (kg)': student.weight || '',
       'Sekolah Sebelumnya': student.previous_school || '',
+      'NPSN Sekolah Asal': student.previous_school_npsn || '',
+      'Alamat Sekolah Asal': student.previous_school_address || '',
       'Jenis Tempat Tinggal': formatResidenceType(student.residence_type) || '',
       'Kelas': studentClassName(student),
       'Tahun Ajaran': student.academic_year || '',
@@ -3160,6 +3243,8 @@ const downloadTemplate = () => {
         'Tinggi Badan (cm)': '150',
         'Berat Badan (kg)': '45',
         'Sekolah Sebelumnya': 'SD Negeri 1',
+        'NPSN Sekolah Asal': '12345678',
+        'Alamat Sekolah Asal': 'Jl. Pendidikan No. 1',
         'Jenis Tempat Tinggal': 'tinggal_dengan_orang_tua',
         'Kelas': 'VII-A',
         'Tahun Ajaran': '2024/2025',
@@ -3346,6 +3431,10 @@ function mapImportExcelRows(jsonData) {
       height: mapField('Tinggi Badan (cm)') ? parseFloat(mapField('Tinggi Badan (cm)')) : null,
       weight: mapField('Berat Badan (kg)') ? parseFloat(mapField('Berat Badan (kg)')) : null,
       previous_school: mapField('Sekolah Sebelumnya'),
+      previous_school_npsn: mapField('NPSN Sekolah Asal') == null
+        ? null
+        : String(mapField('NPSN Sekolah Asal')).replace(/\D/g, '') || null,
+      previous_school_address: mapField('Alamat Sekolah Asal'),
       residence_type: parseResidenceType(mapField('Jenis Tempat Tinggal')),
       tingkat: mapField('Tingkat') ? parseInt(mapField('Tingkat'), 10) : null,
       class: mapField('Kelas'),
@@ -3707,6 +3796,8 @@ const printPDF = async () => {
           <div class="biodata-item"><span class="label">Tinggi Badan</span><span class="value">${student.height ? student.height + ' cm' : '-'}</span></div>
           <div class="biodata-item"><span class="label">Berat Badan</span><span class="value">${student.weight ? student.weight + ' kg' : '-'}</span></div>
           <div class="biodata-item"><span class="label">Asal Sekolah</span><span class="value">${student.previous_school || '-'}</span></div>
+          <div class="biodata-item"><span class="label">NPSN Sekolah Asal</span><span class="value">${student.previous_school_npsn || '-'}</span></div>
+          <div class="biodata-item"><span class="label">Alamat Sekolah Asal</span><span class="value">${student.previous_school_address || '-'}</span></div>
           <div class="biodata-item"><span class="label">Catatan</span><span class="value">${student.notes || '-'}</span></div>
         </div>
       </div>
@@ -4526,6 +4617,15 @@ onMounted(() => {
   animation: formModalIn 0.25s ease-out;
 }
 
+.form-modal-content.form-modal-content--choice {
+  max-width: 480px;
+}
+
+.form-modal-content--choice .form-modal-body {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
 @keyframes formModalIn {
   from {
     opacity: 0;
@@ -4653,29 +4753,110 @@ onMounted(() => {
   background: #ecfdf5;
 }
 
-.add-mode-switch {
+.add-choice-panel {
   display: flex;
-  gap: 8px;
-  padding: 16px 28px 0;
-  flex-shrink: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 20px;
 }
 
-.add-mode-btn {
-  flex: 1;
-  padding: 10px 14px;
+.add-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 14px 14px 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 14px;
   background: #fff;
-  color: #475569;
+  color: #0f172a;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.add-choice-row:hover,
+.add-choice-row:focus-visible {
+  border-color: #059669;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+  outline: none;
+}
+
+.add-choice-icon-wrap {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.add-choice-icon-wrap--pull {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.add-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.add-choice-text strong {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.add-choice-text span {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.add-choice-arrow {
+  flex-shrink: 0;
+  color: #94a3b8;
+  display: flex;
+}
+
+.add-choice-row:hover .add-choice-arrow {
+  color: #059669;
+}
+
+.add-choice-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.add-mode-back-bar {
+  flex-shrink: 0;
+  padding: 12px 28px 0;
+}
+
+.add-mode-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  color: #047857;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  padding: 0;
 }
 
-.add-mode-btn.active {
-  border-color: #059669;
-  background: #ecfdf5;
-  color: #047857;
+.add-mode-back-btn:hover {
+  color: #065f46;
 }
 
 .feeder-panel .form-hint {
@@ -5006,6 +5187,21 @@ onMounted(() => {
   overflow-y: auto;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
   animation: modalSlideIn 0.3s ease-out;
+}
+
+.form-modal-content.form-modal-content--choice {
+  max-width: 480px;
+  overflow: visible;
+}
+
+.form-modal-content--choice .form-modal-header {
+  padding: 18px 20px;
+}
+
+.form-modal-content--choice .form-modal-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
 }
 
 @keyframes modalSlideIn {
@@ -6006,7 +6202,11 @@ onMounted(() => {
   }
 
   .form-modal-subtitle {
-    display: none;
+    font-size: 12px;
+  }
+
+  .add-mode-back-bar {
+    padding: 10px 16px 0;
   }
 
   .form-modal-body {
