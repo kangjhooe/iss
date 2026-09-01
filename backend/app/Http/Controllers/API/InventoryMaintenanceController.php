@@ -2,40 +2,42 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesActiveInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InventoryMaintenanceResource;
 use App\Models\InventoryMaintenance;
+use App\Support\InventoryAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class InventoryMaintenanceController extends Controller
 {
+    use ResolvesActiveInstitution;
+
     /**
      * Display a listing of maintenances.
      */
     public function index(Request $request)
     {
         try {
-            $institutionId = null;
-            if ($request->user()->isSuperAdmin()) {
-                $institutionId = $request->get('institution_id');
-            } elseif ($request->user()->isAdmin()) {
-                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
-            } else {
-                $institutionId = $request->user()->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
 
-            $query = InventoryMaintenance::with(['item.category', 'creator', 'updater']);
+            $query = InventoryMaintenance::with(['item.category', 'asset', 'creator', 'updater']);
 
             if ($institutionId) {
                 $query->where('institution_id', $institutionId);
+                InventoryAccess::scopeMaintenances($query, $request->user(), $institutionId);
             } else {
                 $query->whereRaw('1 = 0');
             }
 
             if ($request->has('item_id')) {
                 $query->where('item_id', $request->item_id);
+            }
+
+            if ($request->filled('asset_id')) {
+                $query->where('asset_id', $request->asset_id);
             }
 
             if ($request->has('maintenance_type')) {
@@ -47,7 +49,11 @@ class InventoryMaintenanceController extends Controller
             }
 
             if ($request->filled('room_id')) {
-                $query->whereHas('item', fn ($q) => $q->where('room_id', $request->room_id));
+                $roomId = (int) $request->room_id;
+                $query->where(function ($q) use ($roomId) {
+                    $q->whereHas('item', fn ($iq) => $iq->where('room_id', $roomId))
+                        ->orWhereHas('asset', fn ($aq) => $aq->where('room_id', $roomId));
+                });
             }
 
             $perPage = min($request->get('per_page', 15), 100);
@@ -67,6 +73,7 @@ class InventoryMaintenanceController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'item_id' => 'required|exists:inventory_item,id',
+            'asset_id' => 'nullable|exists:inventory_asset,id',
             'maintenance_type' => 'required|in:Perawatan,Perbaikan,Kalibrasi,Inspeksi',
             'scheduled_date' => 'required|date',
             'completed_date' => 'nullable|date',
@@ -84,12 +91,25 @@ class InventoryMaintenanceController extends Controller
 
         try {
             $item = \App\Models\InventoryItem::findOrFail($request->item_id);
-            if (!$request->user()->isAdminOrSuperAdmin() && (int) $item->institution_id !== (int) $request->user()->institution_id) {
+            if (!$this->userCanAccessInventoryItem($request, $item)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
+
+            if ($item->isIndividualTracked()) {
+                if (! $request->filled('asset_id')) {
+                    return response()->json([
+                        'message' => 'Master aset individual memerlukan pemilihan unit aset (asset_id).',
+                    ], 422);
+                }
+                $asset = \App\Models\InventoryAsset::findOrFail($request->asset_id);
+                if ((int) $asset->item_id !== (int) $item->id) {
+                    return response()->json(['message' => 'Aset tidak sesuai dengan master barang'], 422);
+                }
+            }
+
+            $institutionId = $request->user()->isAdminOrSuperAdmin()
                 ? ($request->institution_id ?? $item->institution_id)
-                : $request->user()->institution_id;
+                : ($this->resolveInstitutionId($request) ?? $item->institution_id);
 
             $data = $validator->validated();
             $data['institution_id'] = $institutionId;
@@ -98,7 +118,7 @@ class InventoryMaintenanceController extends Controller
 
             $maintenance = InventoryMaintenance::create($data);
 
-            $maintenance->load(['item.category', 'creator']);
+            $maintenance->load(['item.category', 'asset', 'creator']);
             return response()->json([
                 'message' => 'Pemeliharaan berhasil ditambahkan',
                 'data' => new InventoryMaintenanceResource($maintenance),
@@ -114,7 +134,7 @@ class InventoryMaintenanceController extends Controller
      */
     public function update(Request $request, InventoryMaintenance $maintenance)
     {
-        if (!$request->user()->isAdminOrSuperAdmin() && (int) $maintenance->institution_id !== (int) $request->user()->institution_id) {
+        if (!$this->canAccessInstitutionRecord($request, (int) $maintenance->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $validator = Validator::make($request->all(), [
@@ -139,7 +159,7 @@ class InventoryMaintenanceController extends Controller
 
             $maintenance->update($data);
 
-            $maintenance->load(['item.category', 'updater']);
+            $maintenance->load(['item.category', 'asset', 'updater']);
             return response()->json([
                 'message' => 'Pemeliharaan berhasil diperbarui',
                 'data' => new InventoryMaintenanceResource($maintenance),
@@ -156,10 +176,10 @@ class InventoryMaintenanceController extends Controller
     public function show(Request $request, InventoryMaintenance $maintenance)
     {
         try {
-            if (!$request->user()->isAdminOrSuperAdmin() && (int) $maintenance->institution_id !== (int) $request->user()->institution_id) {
+            if (!$this->canAccessInstitutionRecord($request, (int) $maintenance->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
-            $maintenance->load(['item.category', 'creator', 'updater']);
+            $maintenance->load(['item.category', 'asset', 'creator', 'updater']);
             return new InventoryMaintenanceResource($maintenance);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan'], 500);

@@ -101,4 +101,7 @@ export const qrAttendanceApi = {
   scanQr(data) {
     return api.post('/v1/qr-attendance/scan', data)
   },
+  getLocationConfig() {
+    return api.get('/v1/qr-attendance/location-config')
+  },
 }

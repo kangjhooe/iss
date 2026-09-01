@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="digital-archive-page">
+<template>    <div class="digital-archive-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-icon-wrap">
@@ -130,16 +128,16 @@
             </tr>
           </tbody>
         </table>
-        <div v-if="pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">
-            Menampilkan {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} dari {{ pagination.total }}
-          </span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
-            <span class="page-num">Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="goToPage(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="data"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </div>
 
       <!-- Modal: Tambah/Edit Dokumen -->
@@ -233,13 +231,11 @@
         @confirm="doDelete"
         @cancel="deleteTarget = null"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
@@ -305,7 +301,7 @@ async function loadList() {
   try {
     const params = {
       page: pagination.value.current_page,
-      per_page: 15,
+      per_page: pagination.value.per_page,
       search: filters.value.search || undefined,
       category_id: filters.value.category_id || undefined,
       date_from: filters.value.date_from || undefined,
@@ -317,7 +313,7 @@ async function loadList() {
     pagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
-      per_page: meta.per_page ?? 15,
+      per_page: meta.per_page ?? pagination.value.per_page,
       total: meta.total ?? 0,
     }
   } catch (e) {
@@ -338,6 +334,12 @@ async function loadCategories() {
 
 function goToPage(page) {
   pagination.value.current_page = page
+  loadList()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
   loadList()
 }
 

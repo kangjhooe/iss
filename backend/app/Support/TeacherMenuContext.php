@@ -18,9 +18,11 @@ use Illuminate\Support\Collection;
  */
 class TeacherMenuContext
 {
-    public static function employeeFor(User $user): ?Employee
+    public static function employeeFor(User $user, ?Request $request = null): ?Employee
     {
-        return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        $request = $request ?? request();
+
+        return InstitutionContext::employeeForInstitution($user, null, $request);
     }
 
     /**

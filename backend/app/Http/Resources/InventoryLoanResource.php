@@ -25,6 +25,7 @@ class InventoryLoanResource extends JsonResource
             'id' => $this->id,
             'institution_id' => $this->institution_id,
             'item_id' => $this->item_id,
+            'asset_id' => $this->asset_id,
             'borrower_type' => $this->borrower_type,
             'borrower_id' => $this->borrower_id,
             'borrower_name' => $borrowerName,
@@ -39,6 +40,14 @@ class InventoryLoanResource extends JsonResource
             'return_condition' => $this->return_condition,
             'return_item_status' => $this->return_item_status,
             'is_overdue' => $this->isOverdue() || $this->status === 'Terlambat',
+            'asset' => $this->when($this->relationLoaded('asset') && $this->asset, function () {
+                return [
+                    'id' => $this->asset->id,
+                    'asset_number' => $this->asset->asset_number,
+                    'inventory_number' => $this->asset->inventory_number,
+                    'serial_number' => $this->asset->serial_number,
+                ];
+            }),
             'item' => $this->when($this->relationLoaded('item'), function () {
                 return [
                     'id' => $this->item->id ?? null,

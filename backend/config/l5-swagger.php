@@ -1,13 +1,25 @@
 <?php
 
+$swaggerEnabled = filter_var(
+    env('L5_SWAGGER_ENABLED', env('APP_ENV', 'production') === 'local'),
+    FILTER_VALIDATE_BOOL
+);
+
 return [
+    /*
+    |--------------------------------------------------------------------------
+    | Enable Swagger UI & docs routes (nonaktifkan di production)
+    |--------------------------------------------------------------------------
+    */
+    'enabled' => $swaggerEnabled,
+
     'api' => [
         /*
         |--------------------------------------------------------------------------
         | Edit to set the api's title
         |--------------------------------------------------------------------------
         */
-        'title' => 'servr.in API',
+        'title' => env('APP_NAME', 'servr.in') . ' API',
     ],
 
     'routes' => [
@@ -31,10 +43,10 @@ return [
         |--------------------------------------------------------------------------
         */
         'middleware' => [
-            'api' => [],
-            'asset' => [],
-            'docs' => [],
-            'oauth2_callback' => [],
+            'api' => ['swagger.enabled'],
+            'asset' => ['swagger.enabled'],
+            'docs' => ['swagger.enabled'],
+            'oauth2_callback' => ['swagger.enabled'],
         ],
     ],
 
@@ -92,7 +104,7 @@ return [
     | otherwise caching will be used
     |--------------------------------------------------------------------------
     */
-    'generate_always' => env('L5_SWAGGER_GENERATE_ALWAYS', true),
+    'generate_always' => env('L5_SWAGGER_GENERATE_ALWAYS', $swaggerEnabled),
 
     /*
     |--------------------------------------------------------------------------

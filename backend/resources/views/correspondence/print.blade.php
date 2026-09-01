@@ -182,6 +182,9 @@
     </div>
 
     <!-- Tanda Tangan -->
+    @php
+        $principalSigner = \App\Support\StructuralPositionResolver::principalAt($institution, $correspondence->date);
+    @endphp
     <div class="signature">
             <div class="signature-right">
                 <div>{{ $institution->district }}, {{ \Carbon\Carbon::parse($correspondence->date)->locale('id')->isoFormat('D MMMM YYYY') }}</div>
@@ -189,14 +192,14 @@
                     <div style="margin-top: 10px;">Yang bertanda tangan di bawah ini,</div>
                 @endif
                 <div class="signature-name">
-                    @if($institution->principal_name)
-                        {{ $institution->principal_name }}
+                    @if($principalSigner['name'])
+                        {{ $principalSigner['name'] }}
                     @else
-                        {{ $institution->principal_title ?? \App\Models\Institution::principalTitleForLevel($institution->level ?? null) }}
+                        {{ $principalSigner['role'] ?? $institution->principal_title ?? \App\Models\Institution::principalTitleForLevel($institution->level ?? null) }}
                     @endif
                 </div>
-                @if($institution->principal_nip)
-                    <div class="signature-nip">NIP. {{ $institution->principal_nip }}</div>
+                @if($principalSigner['nip'])
+                    <div class="signature-nip">NIP. {{ $principalSigner['nip'] }}</div>
                 @endif
             </div>
     </div>

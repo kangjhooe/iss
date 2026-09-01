@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="raport-page">
       <div class="filters filters-inline">
         <select v-model="filters.student_id" @change="onFilterChange" class="filter-select">
@@ -88,23 +87,23 @@
         </div>
       </template>
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import { gradeBookApi } from '@/api/gradeBook'
 import { studentApi } from '@/api/student'
 import { semesterApi } from '@/api/semester'
 import { teacherApi } from '@/api/teacher'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useActiveAcademicPeriod } from '@/composables/useActiveAcademicPeriod'
 
 const toast = useToast()
 const route = useRoute()
 const authStore = useAuthStore()
+const { ensureLoaded, resolveDefaultSemesterId } = useActiveAcademicPeriod()
 const loading = ref(false)
 const exporting = ref(false)
 const raportRows = ref([])
@@ -224,11 +223,11 @@ async function loadSemesters() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadStudents(), loadSemesters()])
+  await Promise.all([loadStudents(), loadSemesters(), ensureLoaded()])
   if (route.query.semester_id) {
     filters.value.semester_id = String(route.query.semester_id)
-  } else if (semesters.value.length) {
-    filters.value.semester_id = String(semesters.value[0].id)
+  } else {
+    filters.value.semester_id = resolveDefaultSemesterId('', semesters.value)
   }
   if (route.query.student_id) {
     filters.value.student_id = String(route.query.student_id)

@@ -1,5 +1,17 @@
 # Catatan Rilis
 
+## [0.2.60901] — 2026-09-01
+
+- Modul penggajian pegawai: komponen gaji, profil per pegawai, periode, proses batch (generate → review → finalisasi → bayar), slip PDF, dan portal slip untuk guru/staff
+- Tunjangan jabatan struktural otomatis dari data kepegawaian; THR opsional saat generate proses gaji (gaji pokok × pengali)
+- Gaji yang ditandai dibayar otomatis tercatat sebagai pengeluaran di modul Keuangan; bisa dibatalkan pembayaran atau dibuka kembali untuk koreksi
+- Export rekap gaji per proses (Excel & PDF) dan export daftar pengeluaran (CSV)
+- Modul inventaris diperluas: pelacakan aset individual per unit, label QR & scan, stock opname, penghapusan dengan SK/BA, serta cetak KIB
+- Surat bisa dibuat cepat dari template: pilih subjek siswa atau pegawai, lalu placeholder nama, kelas, NIS, dan data terkait terisi otomatis
+- Surat siap terbit diberi nomor resmi otomatis (terhubung register korespondensi) dan diunduh PDF; kop, tanda tangan, dan stempel sekolah dikelola terpusat
+- Foto profil siswa dan pegawai bisa diunggah serta dikrop; tampil di data siswa/guru, portal wali kelas, dan cetakan identitas
+- Admin sekolah bisa masuk sebagai guru/staff — dengan banner impersonasi dan semua aksi tercatat di log audit
+
 ## [0.2.60821] — 2026-08-21
 
 - Bank soal ujian online kini gudang jangka panjang: tingkat hanya label rak, ujian kelas 9 boleh memakai soal dari rak kelas 7

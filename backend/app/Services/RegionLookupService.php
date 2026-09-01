@@ -96,7 +96,7 @@ class RegionLookupService
             $response = Http::timeout($this->timeout)
                 ->acceptJson()
                 ->withHeaders([
-                    'User-Agent' => 'servr.in/1.0 (Region-Lookup)',
+                    'User-Agent' => config('app.name', 'servr.in') . '/1.0 (Region-Lookup)',
                 ])
                 ->get($url);
         } catch (ConnectionException $e) {

@@ -22,6 +22,7 @@ class TeachingJournal extends Model
         'employee_id',
         'journal_date',
         'period',
+        'penilaian_index',
         'material_taught',
         'attendance_notes',
         'notes',
@@ -32,6 +33,7 @@ class TeachingJournal extends Model
         return [
             'journal_date' => 'date',
             'period' => 'integer',
+            'penilaian_index' => 'integer',
         ];
     }
 

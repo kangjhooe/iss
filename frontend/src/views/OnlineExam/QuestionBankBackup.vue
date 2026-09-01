@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="stimulus-page">
+<template>    <div class="stimulus-page">
       <header class="page-header">
         <h2>Stimulus Soal</h2>
         <p class="page-desc">Satu stimulus bisa dipakai untuk banyak soal (soal berkelompok). Isi judul untuk memudahkan memilih saat membuat soal.</p>
@@ -64,13 +62,10 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { examApi } from '@/api/exam'

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="app-branding-page">
+<template>    <div class="app-branding-page">
       <header class="page-header">
         <h1 class="page-header__title">Branding Aplikasi</h1>
         <p class="page-header__desc">
@@ -159,13 +157,10 @@
           </div>
         </div>
       </section>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import AppLogo from '@/components/AppLogo.vue'
 import { useAppBrandingStore } from '@/stores/appBranding'
 import { appBrandingApi } from '@/api/appBranding'

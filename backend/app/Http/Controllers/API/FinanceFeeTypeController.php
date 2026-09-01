@@ -59,6 +59,9 @@ class FinanceFeeTypeController extends Controller
             if ($request->filled('frequency')) {
                 $query->where('frequency', $request->get('frequency'));
             }
+            if ($request->filled('exclude_frequency')) {
+                $query->where('frequency', '!=', $request->get('exclude_frequency'));
+            }
             if ($request->filled('search')) {
                 $search = $request->get('search');
                 $query->where(function ($q) use ($search) {

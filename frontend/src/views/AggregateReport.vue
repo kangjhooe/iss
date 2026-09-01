@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="report-page">
+<template>    <div class="report-page">
       <div class="page-header">
         <div class="page-header-text">
           <h2>Laporan Agregat</h2>
@@ -229,13 +227,10 @@
           <p v-if="filteredInstitutions.length === 0" class="empty-hint">Tidak ada institusi</p>
         </section>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { useToast } from '@/composables/useToast'

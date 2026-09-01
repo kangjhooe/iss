@@ -4,33 +4,94 @@
     <meta charset="UTF-8">
     <title>Kartu QR Absensi - {{ $title ?? 'Absensi' }}</title>
     <style>
-        @page { margin: 10mm; size: A4 portrait; }
-        * { box-sizing: border-box; }
-        body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 9pt; color: #1e293b; margin: 0; padding: 0; }
+        @page { margin: 8mm; size: A4 portrait; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: DejaVu Sans, Arial, sans-serif;
+            font-size: 8.5pt;
+            color: #0f172a;
+            line-height: 1.35;
+        }
         .page { page-break-after: always; }
         .page:last-child { page-break-after: auto; }
         .cards-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .card-cell { width: 50%; padding: 5px; vertical-align: top; }
+        .card-cell { width: 50%; padding: 3mm; vertical-align: top; }
         .card {
-            border: 1.5px solid #047857;
-            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
             overflow: hidden;
-            height: 62mm;
+            height: 63mm;
+            background: #ffffff;
         }
-        .card-inner { width: 100%; border-collapse: collapse; }
-        .card-qr {
-            width: 42%;
+        .card-head {
+            background: #047857;
+            color: #ffffff;
+            font-size: 6.5pt;
+            font-weight: bold;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-body { width: 100%; border-collapse: collapse; }
+        .qr-cell {
+            width: 36mm;
             text-align: center;
             vertical-align: middle;
-            padding: 8px 6px;
+            padding: 5px 4px 4px 6px;
         }
-        .card-qr img { width: 38mm; height: 38mm; }
-        .card-meta { vertical-align: middle; padding: 8px 10px 8px 4px; }
-        .card-school { font-size: 7pt; color: #047857; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
-        .card-name { font-size: 11pt; font-weight: bold; margin: 0 0 6px 0; line-height: 1.2; }
-        .card-row { font-size: 8pt; margin: 2px 0; color: #334155; }
-        .card-label { color: #64748b; }
-        .card-foot { font-size: 6.5pt; color: #94a3b8; margin-top: 8px; }
+        .qr-frame {
+            width: 34mm;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 3px;
+            padding: 3px;
+        }
+        .qr-frame img { width: 30mm; height: 30mm; display: block; margin: 0 auto; }
+        .scan-hint {
+            font-size: 5.5pt;
+            color: #64748b;
+            margin-top: 2px;
+            letter-spacing: 0.2px;
+        }
+        .meta-cell {
+            vertical-align: middle;
+            padding: 6px 8px 6px 2px;
+        }
+        .primary-id {
+            font-size: 11.5pt;
+            font-weight: bold;
+            color: #065f46;
+            margin-bottom: 5px;
+            line-height: 1.15;
+            word-break: break-word;
+        }
+        .meta-rows { width: 100%; border-collapse: collapse; }
+        .meta-rows td { padding: 1px 0; vertical-align: top; font-size: 7.5pt; }
+        .meta-rows .lbl {
+            width: 12mm;
+            color: #64748b;
+            padding-right: 3px;
+            white-space: nowrap;
+        }
+        .meta-rows .val {
+            color: #1e293b;
+            font-weight: bold;
+            word-break: break-word;
+        }
+        .card-foot {
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 6pt;
+            padding: 2px 8px;
+            text-align: right;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
@@ -44,30 +105,47 @@
                 <td class="card-cell">
                     @if($card)
                     <div class="card">
-                        <table class="card-inner">
+                        <div class="card-head">{{ $institutionName }}</div>
+                        <table class="card-body">
                             <tr>
-                                <td class="card-qr">
-                                    <img src="{{ $card['qr_code'] }}" alt="QR" />
+                                <td class="qr-cell">
+                                    <div class="qr-frame">
+                                        <img src="{{ $card['qr_code'] }}" alt="QR" />
+                                    </div>
+                                    <div class="scan-hint">Scan saat absensi</div>
                                 </td>
-                                <td class="card-meta">
-                                    <div class="card-school">{{ $institutionName }}</div>
-                                    <div class="card-name">{{ $card['name'] }}</div>
-                                    @if(!empty($card['nis']))
-                                    <div class="card-row"><span class="card-label">NIS</span> {{ $card['nis'] }}</div>
-                                    @endif
-                                    @if(!empty($card['nip']))
-                                    <div class="card-row"><span class="card-label">NIP</span> {{ $card['nip'] }}</div>
-                                    @endif
-                                    @if(!empty($card['class_name']))
-                                    <div class="card-row"><span class="card-label">Kelas</span> {{ $card['class_name'] }}</div>
-                                    @endif
-                                    @if(!empty($card['type']))
-                                    <div class="card-row"><span class="card-label">Jenis</span> {{ $card['type'] }}</div>
-                                    @endif
-                                    <div class="card-foot">Kartu QR absensi — jangan dipindahtangankan</div>
+                                <td class="meta-cell">
+                                    <div class="primary-id">{{ $card['name'] }}</div>
+                                    <table class="meta-rows">
+                                        @if(!empty($card['nis']))
+                                        <tr>
+                                            <td class="lbl">NIS</td>
+                                            <td class="val">{{ $card['nis'] }}</td>
+                                        </tr>
+                                        @endif
+                                        @if(!empty($card['nip']))
+                                        <tr>
+                                            <td class="lbl">NIP</td>
+                                            <td class="val">{{ $card['nip'] }}</td>
+                                        </tr>
+                                        @endif
+                                        @if(!empty($card['class_name']))
+                                        <tr>
+                                            <td class="lbl">Kelas</td>
+                                            <td class="val">{{ $card['class_name'] }}</td>
+                                        </tr>
+                                        @endif
+                                        @if(!empty($card['type']))
+                                        <tr>
+                                            <td class="lbl">Jenis</td>
+                                            <td class="val">{{ $card['type'] }}</td>
+                                        </tr>
+                                        @endif
+                                    </table>
                                 </td>
                             </tr>
                         </table>
+                        <div class="card-foot">Kartu QR Absensi</div>
                     </div>
                     @endif
                 </td>

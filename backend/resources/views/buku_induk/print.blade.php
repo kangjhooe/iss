@@ -60,13 +60,31 @@
 
     <!-- Identitas Siswa -->
     <div class="section-title" style="font-size: 11pt;">A. Identitas Siswa</div>
+    <table style="width:100%; border-collapse:collapse; margin-bottom:8px;">
+        <tr>
+            <td style="vertical-align:top;">
+                <table class="data">
+                    <tr class="border"><td class="label">NIS</td><td>{{ $student->nis ?? '-' }}</td></tr>
+                    <tr class="border"><td class="label">NISN</td><td>{{ $student->nisn ?? '-' }}</td></tr>
+                    <tr class="border"><td class="label">NIK</td><td>{{ $student->nik ?? '-' }}</td></tr>
+                    <tr class="border"><td class="label">Nama Lengkap</td><td>{{ $student->name ?? '-' }}</td></tr>
+                    <tr class="border"><td class="label">Jenis Kelamin</td><td>{{ $genderLabel }}</td></tr>
+                    <tr class="border"><td class="label">Tempat, Tanggal Lahir</td><td>{{ $student->birth_place ?? '-' }}, {{ $fmtDate($student->birth_date) }}</td></tr>
+                </table>
+            </td>
+            <td style="width:2.9cm; vertical-align:top; text-align:right;">
+                @php $photoUri = $student->resolvePrintPhotoDataUri(); @endphp
+                <div style="width:2.7cm; height:3.6cm; border:1px solid #333; text-align:center;">
+                    @if($photoUri)
+                        <img src="{{ $photoUri }}" alt="Foto" style="width:2.7cm; height:3.6cm; object-fit:cover;">
+                    @else
+                        <div style="padding-top:1.2cm; font-size:8pt; color:#666;">Pas foto 3×4</div>
+                    @endif
+                </div>
+            </td>
+        </tr>
+    </table>
     <table class="data">
-        <tr class="border"><td class="label">NIS</td><td>{{ $student->nis ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">NISN</td><td>{{ $student->nisn ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">NIK</td><td>{{ $student->nik ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Nama Lengkap</td><td>{{ $student->name ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Jenis Kelamin</td><td>{{ $genderLabel }}</td></tr>
-        <tr class="border"><td class="label">Tempat, Tanggal Lahir</td><td>{{ $student->birth_place ?? '-' }}, {{ $fmtDate($student->birth_date) }}</td></tr>
         <tr class="border"><td class="label">Agama</td><td>{{ $student->religion ?? '-' }}</td></tr>
         <tr class="border"><td class="label">No. KK</td><td>{{ $student->no_kk ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Alamat</td><td>{{ \App\Support\RegionAddress::format($student) ?? '-' }}</td></tr>
@@ -512,6 +530,7 @@
             @include('partials.print-signature', [
                 'institution' => $institution,
                 'date' => now()->locale('id')->translatedFormat('d F Y'),
+                'as_of_date' => $as_of_date ?? now(),
             ])
         </div>
     </div>

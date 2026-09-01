@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\InventoryCategoryResource;
 use App\Models\InventoryCategory;
 use App\Repositories\InventoryCategoryRepository;
+use App\Support\InventoryAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -53,6 +54,10 @@ class InventoryCategoryController extends Controller
      */
     public function store(Request $request)
     {
+        if (! InventoryAccess::canManage($request->user())) {
+            return InventoryAccess::forbiddenManageResponse();
+        }
+
         $validator = Validator::make($request->all(), [
             'code' => 'required|string|max:10',
             'name' => 'required|string|max:100',
@@ -120,6 +125,10 @@ class InventoryCategoryController extends Controller
      */
     public function update(Request $request, InventoryCategory $category)
     {
+        if (! InventoryAccess::canManage($request->user())) {
+            return InventoryAccess::forbiddenManageResponse();
+        }
+
         if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -168,6 +177,10 @@ class InventoryCategoryController extends Controller
     public function destroy(Request $request, InventoryCategory $category)
     {
         try {
+            if (! InventoryAccess::canManage($request->user())) {
+                return InventoryAccess::forbiddenManageResponse();
+            }
+
             if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }

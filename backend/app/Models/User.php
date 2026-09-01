@@ -373,7 +373,7 @@ class User extends Authenticatable
      */
     public function canManageLab(Room $room): bool
     {
-        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+        if ($this->isAdminOrSuperAdmin()) {
             return true;
         }
 
@@ -381,13 +381,43 @@ class User extends Authenticatable
             return false;
         }
 
+        if ($this->isInstitutionAdmin()) {
+            return true;
+        }
+
         if ($room->type !== 'Laboratorium') {
             return true;
         }
 
-        $employee = $this->employeeProfile()->first();
+        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, (int) $room->institution_id);
 
         return $employee && (int) $room->responsible_employee_id === (int) $employee->id;
+    }
+
+    /**
+     * Whether the user is penanggung jawab for at least one room (any type).
+     * When $institutionId is set, only rooms at that school count.
+     */
+    public function isRoomResponsible(?int $institutionId = null): bool
+    {
+        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+            return false;
+        }
+
+        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $institutionId);
+        if (! $employee) {
+            return false;
+        }
+
+        $query = Room::query()
+            ->where('responsible_employee_id', $employee->id);
+
+        $resolvedInstitutionId = $institutionId ?? \App\Support\InstitutionContext::resolveActiveInstitutionId($this);
+        if ($resolvedInstitutionId) {
+            $query->where('institution_id', $resolvedInstitutionId);
+        }
+
+        return $query->exists();
     }
 
     /**
@@ -400,7 +430,7 @@ class User extends Authenticatable
             return false;
         }
 
-        $employee = $this->employeeProfile()->first();
+        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $institutionId);
         if (! $employee) {
             return false;
         }
@@ -409,8 +439,9 @@ class User extends Authenticatable
             ->where('type', 'Laboratorium')
             ->where('responsible_employee_id', $employee->id);
 
-        if ($institutionId) {
-            $query->where('institution_id', $institutionId);
+        $resolvedInstitutionId = $institutionId ?? \App\Support\InstitutionContext::resolveActiveInstitutionId($this);
+        if ($resolvedInstitutionId) {
+            $query->where('institution_id', $resolvedInstitutionId);
         }
 
         return $query->exists();
@@ -430,17 +461,50 @@ class User extends Authenticatable
      *
      * @return array<int, int>
      */
-    public function managedLabRoomIds(): array
+    public function managedLabRoomIds(?int $institutionId = null): array
     {
-        $employee = $this->employeeProfile()->first();
+        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $institutionId);
         if (! $employee) {
             return [];
         }
 
-        return Room::query()
+        $resolvedInstitutionId = $institutionId ?? \App\Support\InstitutionContext::resolveActiveInstitutionId($this);
+
+        $query = Room::query()
             ->where('type', 'Laboratorium')
-            ->where('responsible_employee_id', $employee->id)
-            ->pluck('id')
+            ->where('responsible_employee_id', $employee->id);
+
+        if ($resolvedInstitutionId) {
+            $query->where('institution_id', $resolvedInstitutionId);
+        }
+
+        return $query->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Room IDs this user is penanggung jawab for (all room types).
+     *
+     * @return list<int>
+     */
+    public function managedRoomIds(?int $institutionId = null): array
+    {
+        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $institutionId);
+        if (! $employee) {
+            return [];
+        }
+
+        $resolvedInstitutionId = $institutionId ?? \App\Support\InstitutionContext::resolveActiveInstitutionId($this);
+
+        $query = Room::query()
+            ->where('responsible_employee_id', $employee->id);
+
+        if ($resolvedInstitutionId) {
+            $query->where('institution_id', $resolvedInstitutionId);
+        }
+
+        return $query->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
     }
@@ -450,7 +514,7 @@ class User extends Authenticatable
      */
     public function canViewLab(Room $room): bool
     {
-        if ($this->isAdminOrSuperAdmin() || $this->isInstitutionAdmin()) {
+        if ($this->isAdminOrSuperAdmin()) {
             return true;
         }
 

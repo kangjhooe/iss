@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="mutation-page">
+<template>    <div class="mutation-page">
       <div class="page-header">
         <div class="header-content">
           <div class="header-icon-wrap">
@@ -445,31 +443,16 @@
         </div>
       </div>
 
-      <!-- Pagination (permohonan) -->
-      <div v-if="activeTabMain === 'permohonan' && pagination.last_page > 1 && mutations.length > 0" class="pagination-bar">
-        <span class="pagination-info">
-          Menampilkan {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} dari {{ pagination.total }}
-        </span>
-        <div class="pagination-buttons">
-          <button
-            type="button"
-            class="btn-page"
-            :disabled="pagination.current_page <= 1"
-            @click="goToPage(pagination.current_page - 1)"
-          >
-            Sebelumnya
-          </button>
-          <span class="page-num">Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-          <button
-            type="button"
-            class="btn-page"
-            :disabled="pagination.current_page >= pagination.last_page"
-            @click="goToPage(pagination.current_page + 1)"
-          >
-            Selanjutnya
-          </button>
-        </div>
-      </div>
+      <PaginationBar
+        v-if="activeTabMain === 'permohonan'"
+        :page="pagination.current_page"
+        :last-page="pagination.last_page"
+        :per-page="pagination.per_page"
+        :total="pagination.total"
+        item-label="permohonan"
+        @page-change="goToPage"
+        @per-page-change="changePerPage"
+      />
       </template>
 
       <!-- Section: Laporan -->
@@ -665,30 +648,15 @@
               </div>
             </div>
 
-            <div v-if="reportPagination.last_page > 1" class="pagination-bar">
-              <div class="pagination-info">
-                Halaman {{ reportPagination.current_page }} dari {{ reportPagination.last_page }}
-                ({{ reportPagination.total }} data)
-              </div>
-              <div class="pagination-buttons">
-                <button
-                  type="button"
-                  class="btn-page"
-                  :disabled="reportPagination.current_page <= 1 || reportLoading"
-                  @click="loadReport(reportPagination.current_page - 1)"
-                >
-                  Sebelumnya
-                </button>
-                <button
-                  type="button"
-                  class="btn-page"
-                  :disabled="reportPagination.current_page >= reportPagination.last_page || reportLoading"
-                  @click="loadReport(reportPagination.current_page + 1)"
-                >
-                  Berikutnya
-                </button>
-              </div>
-            </div>
+            <PaginationBar
+              :page="reportPagination.current_page"
+              :last-page="reportPagination.last_page"
+              :per-page="reportPagination.per_page"
+              :total="reportPagination.total"
+              item-label="catatan"
+              @page-change="loadReport"
+              @per-page-change="changeReportPerPage"
+            />
           </template>
 
           <div v-else-if="reportLoaded" class="empty-state report-empty">
@@ -908,14 +876,12 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { teacherMutationApi } from '@/api/teacherMutation'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -1324,7 +1290,7 @@ async function loadMutations(page = 1) {
         current_page: meta.current_page ?? 1,
         last_page: meta.last_page ?? 1,
         total: meta.total ?? 0,
-        per_page: meta.per_page ?? 15
+        per_page: meta.per_page ?? pagination.value.per_page
       }
     }
   } catch (err) {
@@ -1338,6 +1304,11 @@ async function loadMutations(page = 1) {
 function goToPage(page) {
   if (page < 1 || page > pagination.value.last_page) return
   loadMutations(page)
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  loadMutations(1)
 }
 
 async function loadReport(page = 1) {
@@ -1360,14 +1331,14 @@ async function loadReport(page = 1) {
         current_page: meta.current_page ?? page,
         last_page: meta.last_page ?? 1,
         total: meta.total ?? reportData.value.length,
-        per_page: meta.per_page ?? 15
+        per_page: meta.per_page ?? reportPagination.value.per_page
       }
     } else {
       reportPagination.value = {
         current_page: page,
         last_page: 1,
         total: reportData.value.length,
-        per_page: 15
+        per_page: reportPagination.value.per_page || 15
       }
     }
     reportLoaded.value = true
@@ -1379,6 +1350,11 @@ async function loadReport(page = 1) {
   } finally {
     reportLoading.value = false
   }
+}
+
+function changeReportPerPage(n) {
+  reportPagination.value.per_page = n
+  loadReport(1)
 }
 
 function isMutationOut(m) {

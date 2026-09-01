@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\InventoryCatalog;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\Auditable;
 
 class InventoryItem extends Model
 {
@@ -21,7 +22,11 @@ class InventoryItem extends Model
     protected $fillable = [
         'institution_id',
         'category_id',
+        'tracking_type',
+        'identity_status',
         'code',
+        'master_code',
+        'legacy_code',
         'name',
         'brand',
         'model',
@@ -29,15 +34,27 @@ class InventoryItem extends Model
         'purchase_date',
         'purchase_price',
         'supplier',
+        'acquisition_method',
+        'funding_source',
+        'ownership_type',
+        'owner_name',
+        'ownership_document_number',
+        'ownership_date',
+        'ownership_notes',
         'condition',
         'status',
         'quantity',
         'unit',
         'room_id',
         'building_id',
+        'responsible_employee_id',
         'location_note',
         'warranty_expiry',
+        'warranty_reminder_sent_at',
         'description',
+        'disposed_at',
+        'disposal_reason',
+        'disposal_document_number',
         'image_path',
         'created_by',
         'updated_by',
@@ -53,8 +70,13 @@ class InventoryItem extends Model
         return [
             'purchase_date' => 'date',
             'warranty_expiry' => 'date',
-            'purchase_price' => 'decimal:2',
-            'quantity' => 'integer',
+            'warranty_reminder_sent_at' => 'datetime',
+            'disposed_at' => 'date',
+        'purchase_price' => 'decimal:2',
+        'additional_cost' => 'decimal:2',
+        'book_value' => 'decimal:2',
+        'ownership_date' => 'date',
+        'quantity' => 'integer',
         ];
     }
 
@@ -80,6 +102,14 @@ class InventoryItem extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+
+    /**
+     * Get the employee responsible for this item.
+     */
+    public function responsibleEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'responsible_employee_id');
     }
 
     /**
@@ -112,6 +142,26 @@ class InventoryItem extends Model
     public function loans()
     {
         return $this->hasMany(InventoryLoan::class, 'item_id');
+    }
+
+    public function assets()
+    {
+        return $this->hasMany(InventoryAsset::class, 'item_id');
+    }
+
+    public function activeAssets()
+    {
+        return $this->assets()->where('disposal_status', InventoryCatalog::DISPOSAL_ACTIVE)->whereNull('disposed_at');
+    }
+
+    public function isStockTracked(): bool
+    {
+        return ($this->tracking_type ?? InventoryCatalog::TRACKING_STOCK) === InventoryCatalog::TRACKING_STOCK;
+    }
+
+    public function isIndividualTracked(): bool
+    {
+        return ($this->tracking_type ?? InventoryCatalog::TRACKING_STOCK) === InventoryCatalog::TRACKING_INDIVIDUAL;
     }
 
     /**
@@ -167,10 +217,17 @@ class InventoryItem extends Model
      */
     public function getAvailableQuantity(): int
     {
+        if ($this->isIndividualTracked()) {
+            return $this->activeAssets()
+                ->where('status', 'Tersedia')
+                ->whereDoesntHave('loans', fn ($q) => $q->whereIn('status', ['Dipinjam', 'Terlambat']))
+                ->count();
+        }
+
         $loaned = $this->loans()
             ->whereIn('status', ['Dipinjam', 'Terlambat'])
             ->sum('quantity');
-        
+
         return max(0, $this->quantity - $loaned);
     }
 
@@ -179,6 +236,10 @@ class InventoryItem extends Model
      */
     public function isAvailable(): bool
     {
+        if ($this->isIndividualTracked()) {
+            return $this->getAvailableQuantity() > 0;
+        }
+
         return $this->status === 'Tersedia' && $this->getAvailableQuantity() > 0;
     }
 }

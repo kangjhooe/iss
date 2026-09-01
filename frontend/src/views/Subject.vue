@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="subject-page">
+<template>    <div class="subject-page">
       <div class="toolbar">
         <div class="filters filters-inline">
           <input
@@ -107,13 +105,10 @@
         @confirm="doDelete"
         @cancel="showConfirm = false; toDelete = null"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { subjectApi } from '@/api/subject'

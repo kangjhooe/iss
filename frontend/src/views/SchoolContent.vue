@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="page">
+<template>    <div class="page">
       <header class="page-header">
         <div>
           <h1 class="page-title">Berita & Galeri</h1>
@@ -61,13 +59,10 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { schoolPostsApi } from '@/api/schoolPosts'
 import { useToast } from '@/composables/useToast'

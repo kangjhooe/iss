@@ -7,7 +7,7 @@ use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreLibraryBookRequest;
 use App\Http\Requests\UpdateLibraryBookRequest;
 use App\Http\Resources\LibraryBookResource;
-use App\Models\AdditionalDuty;
+use App\Support\StructuralPositionResolver;
 use App\Models\Institution;
 use App\Models\LibraryBook;
 use App\Models\LibraryBookCategory;
@@ -278,7 +278,8 @@ class LibraryBookController extends Controller
                 'books' => $books,
                 'filter_label' => $filterParts ? implode(' · ', $filterParts) : null,
                 'printed_at' => now()->locale('id')->isoFormat('D MMMM YYYY HH:mm'),
-                'kepala_perpustakaan' => AdditionalDuty::resolveActiveHolder('ketua_perpus', (int) $institutionId),
+                'kepala_perpustakaan' => StructuralPositionResolver::holderObject('ketua_perpus', (int) $institutionId),
+                'as_of_date' => now(),
             ]);
 
             $filename = 'Katalog_Buku_' . date('Y-m-d_His') . '.pdf';

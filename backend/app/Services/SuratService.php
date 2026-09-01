@@ -280,21 +280,37 @@ class SuratService
     public function exportPdf(Surat $surat): string
     {
         $surat->loadMissing('institution');
-        $parts = $this->layoutService->buildPrintParts($surat, true);
-
-        $pdf = DomPDF::loadView('surat.print', [
-            'surat' => $surat,
-            'kopHtml' => $parts['kopHtml'],
-            'isiHtml' => $parts['isiHtml'],
-            'ttdHtml' => $parts['ttdHtml'],
-        ])->setPaper('a4', 'portrait');
-
         $filename = 'surat/' . $surat->id . '_' . time() . '.pdf';
-        Storage::disk('public')->put($filename, $pdf->output());
+        Storage::disk('public')->put($filename, $this->loadSuratPdf($surat)->output());
 
         $surat->update(['pdf' => $filename]);
 
         return $filename;
+    }
+
+    /**
+     * Satu sumber render PDF A4 untuk export dan cetak.
+     */
+    public function loadSuratPdf(Surat $surat): \Barryvdh\DomPDF\PDF
+    {
+        $surat->refresh();
+        $surat->loadMissing('institution');
+        $parts = $this->layoutService->buildPrintParts($surat, true);
+
+        return DomPDF::loadView('surat.print', [
+            'surat' => $surat,
+            'kopHtml' => $parts['kopHtml'],
+            'isiHtml' => $parts['isiHtml'],
+            'ttdHtml' => $parts['ttdHtml'],
+        ])
+            ->setPaper('a4', 'portrait');
+    }
+
+    public function streamPdf(Surat $surat, ?string $filename = null)
+    {
+        $safeName = $filename ?: 'Surat_' . preg_replace('/[^\w\-]+/', '_', $surat->nomor ?? (string) $surat->id) . '.pdf';
+
+        return $this->loadSuratPdf($surat)->stream($safeName);
     }
 
     public function printViewData(Surat $surat): array

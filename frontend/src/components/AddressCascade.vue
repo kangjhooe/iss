@@ -71,21 +71,21 @@
       <div class="ac-row">
         <div class="ac-group">
           <label>Provinsi</label>
-          <input :value="field('province')" @input="set('province', $event.target.value)" />
+          <input :value="field('province')" @input="onManualName('province', $event.target.value)" />
         </div>
         <div class="ac-group">
           <label>Kabupaten/Kota</label>
-          <input :value="field('district')" @input="set('district', $event.target.value)" />
+          <input :value="field('district')" @input="onManualName('district', $event.target.value)" />
         </div>
       </div>
       <div class="ac-row">
         <div class="ac-group">
           <label>Kecamatan</label>
-          <input :value="field('sub_district')" @input="set('sub_district', $event.target.value)" />
+          <input :value="field('sub_district')" @input="onManualName('sub_district', $event.target.value)" />
         </div>
         <div class="ac-group">
           <label>Desa/Kelurahan/Pekon</label>
-          <input :value="field('village')" @input="set('village', $event.target.value)" />
+          <input :value="field('village')" @input="onManualName('village', $event.target.value)" />
         </div>
       </div>
     </template>
@@ -111,6 +111,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { regionsApi } from '@/api/regions'
+import { stripTrailingRegions } from '@/utils/addressFields'
 
 defineProps({
   streetLabel: { type: String, default: 'Alamat' },
@@ -145,6 +146,17 @@ function set(key, value) {
   const target = model.value
   if (!target || typeof target !== 'object') return
   target[key] = value
+}
+
+function syncStreetFromRegions() {
+  const cleaned = stripTrailingRegions(field('address'), [
+    field('village'),
+    field('sub_district'),
+    field('district'),
+    field('province'),
+    field('postal_code'),
+  ])
+  if (cleaned !== field('address')) set('address', cleaned)
 }
 
 const savedRegionHint = computed(() => {
@@ -259,12 +271,18 @@ async function loadVillages(code) {
   }
 }
 
+function onManualName(key, value) {
+  set(key, value)
+  syncStreetFromRegions()
+}
+
 function onProvince(event) {
   const code = event.target.value
   const selected = provinces.value.find((item) => item.code === code)
   set('wilayah_province_code', code)
   set('province', selected?.name || '')
   clearFrom('province')
+  syncStreetFromRegions()
   loadRegencies(code)
 }
 
@@ -274,6 +292,7 @@ function onRegency(event) {
   set('wilayah_regency_code', code)
   set('district', selected?.name || '')
   clearFrom('regency')
+  syncStreetFromRegions()
   loadDistricts(code)
 }
 
@@ -283,6 +302,7 @@ function onDistrict(event) {
   set('wilayah_district_code', code)
   set('sub_district', selected?.name || '')
   clearFrom('district')
+  syncStreetFromRegions()
   loadVillages(code)
 }
 
@@ -291,6 +311,7 @@ function onVillage(event) {
   const selected = villages.value.find((item) => item.code === code)
   set('wilayah_village_code', code)
   set('village', selected?.name || '')
+  syncStreetFromRegions()
 }
 
 watch(manualMode, (manual) => {
@@ -306,6 +327,7 @@ onMounted(async () => {
   if (field('wilayah_province_code')) await loadRegencies(field('wilayah_province_code'))
   if (field('wilayah_regency_code')) await loadDistricts(field('wilayah_regency_code'))
   if (field('wilayah_district_code')) await loadVillages(field('wilayah_district_code'))
+  syncStreetFromRegions()
 })
 
 watch(() => field('wilayah_province_code'), (code) => {

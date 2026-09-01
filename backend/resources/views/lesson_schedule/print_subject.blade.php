@@ -99,13 +99,15 @@
                 'role' => 'Wakil Kepala Sekolah Bidang Kurikulum',
                 'name' => $waka_kurikulum?->name ?? '',
                 'nip' => $waka_kurikulum?->nip ?? '',
-                'date' => now()->locale('id')->translatedFormat('d F Y'),
+                    'date' => ($as_of_date ?? now())->locale('id')->translatedFormat('d F Y'),
+                    'as_of_date' => $as_of_date ?? null,
             ])
         </div>
         <div class="standard-signature-right">
             @include('partials.print-signature', [
                 'institution' => $institution,
-                'date' => now()->locale('id')->translatedFormat('d F Y'),
+                    'date' => ($as_of_date ?? now())->locale('id')->translatedFormat('d F Y'),
+                    'as_of_date' => $as_of_date ?? null,
             ])
         </div>
     </div>

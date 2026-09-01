@@ -48,7 +48,7 @@
                 <span class="sort-icon" :class="sortClass('class')" aria-hidden="true"></span>
               </button>
             </th>
-            <th>
+            <th v-if="showStatus">
               <button type="button" class="th-sort" @click="$emit('sort', 'status')">
                 Status
                 <span class="sort-icon" :class="sortClass('status')" aria-hidden="true"></span>
@@ -63,11 +63,16 @@
             <td>{{ displayValue(student.nik) }}</td>
             <td>{{ displayValue(student.nis) }}</td>
             <td>{{ displayValue(student.nisn) }}</td>
-            <td>{{ displayValue(student.name) }}</td>
+            <td>
+              <div class="name-cell">
+                <img v-if="student.photo_url" :src="student.photo_url" class="name-photo" :alt="student.name" />
+                <span>{{ displayValue(student.name) }}</span>
+              </div>
+            </td>
             <td>{{ student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : 'Belum ada data' }}</td>
             <td>{{ displayValue(student.tingkat) }}</td>
             <td>{{ displayClassName(student) }}</td>
-            <td>
+            <td v-if="showStatus">
               <span :class="getStatusClass(student.status)">
                 {{ student.status || 'Belum ada data' }}
               </span>
@@ -84,6 +89,19 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </template>
+                <template v-else-if="archiveMode">
+                  <button type="button" @click="$emit('view', student)" class="btn-action btn-view" title="Lihat arsip">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                  <button type="button" @click="$emit('reactivate', student)" class="btn-action btn-restore" title="Aktifkan kembali">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </button>
                 </template>
@@ -118,7 +136,10 @@
     <div v-if="students.length > 0" class="student-cards table-mobile">
       <div v-for="student in students" :key="student.id" class="student-card">
         <div class="student-card-main">
-          <h3 class="student-card-name">{{ student.name }}</h3>
+          <div class="student-card-head">
+            <img v-if="student.photo_url" :src="student.photo_url" class="name-photo" :alt="student.name" />
+            <h3 class="student-card-name">{{ student.name }}</h3>
+          </div>
           <div class="student-card-meta">
             <span v-if="student.nis || student.nisn" class="student-card-id">
               {{ student.nis ? `NIS: ${student.nis}` : '' }}{{ student.nis && student.nisn ? ' · ' : '' }}{{ student.nisn ? `NISN: ${student.nisn}` : '' }}
@@ -128,7 +149,7 @@
               Tingkat: {{ displayValue(student.tingkat) }} · Kelas: {{ displayClassName(student) }}
             </span>
           </div>
-          <span :class="['student-card-status', getStatusClass(student.status)]">
+          <span v-if="showStatus" :class="['student-card-status', getStatusClass(student.status)]">
             {{ student.status || 'Belum ada data' }}
           </span>
         </div>
@@ -143,6 +164,19 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </template>
+          <template v-else-if="archiveMode">
+            <button type="button" @click="$emit('view', student)" class="btn-action btn-view" title="Lihat arsip">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button type="button" @click="$emit('reactivate', student)" class="btn-action btn-restore" title="Aktifkan kembali">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
           </template>
@@ -210,6 +244,14 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  archiveMode: {
+    type: Boolean,
+    default: false
+  },
+  showStatus: {
+    type: Boolean,
+    default: true
+  },
   startIndex: {
     type: Number,
     default: 0
@@ -228,7 +270,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'force-delete', 'sort'])
+defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'force-delete', 'reactivate', 'sort'])
 
 function sortClass(column) {
   if (props.sortBy !== column) return 'is-idle'
@@ -375,7 +417,17 @@ function sortClass(column) {
 }
 
 .student-card-main { flex: 1; min-width: 0; }
-.student-card-name { font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 6px 0; }
+.student-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.student-card-name { font-size: 16px; font-weight: 600; color: #1e293b; margin: 0; }
+.name-cell { display: flex; align-items: center; gap: 10px; }
+.name-photo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
 .student-card-meta { font-size: 13px; color: #64748b; margin-bottom: 8px; }
 .student-card-class { display: block; font-size: 12px; color: #94a3b8; }
 .student-card-status { font-size: 13px; font-weight: 600; }

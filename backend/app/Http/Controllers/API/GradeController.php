@@ -16,6 +16,7 @@ use App\Models\SchoolClass;
 use App\Models\SubjectKkm;
 use App\Services\GradeService;
 use App\Support\InstitutionContext;
+use App\Support\StructuralPositionResolver;
 use App\Support\WaliKelasAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -801,7 +802,7 @@ class GradeController extends Controller
             }
 
             $subject = \App\Models\Subject::query()->find($subjectId, ['id', 'name', 'code']);
-            $semester = \App\Models\Semester::query()->find($semesterId, ['id', 'name']);
+            $semester = \App\Models\Semester::query()->find($semesterId, ['id', 'name', 'end_date', 'start_date']);
             $institution = \App\Models\Institution::query()->find($institutionId);
 
             $gradeLevel = (int) ($schoolClass->grade ?? 0);
@@ -853,7 +854,8 @@ class GradeController extends Controller
                 $subjectId
             );
 
-            $signatureDate = now()->locale('id')->translatedFormat('d F Y');
+            $asOfDate = StructuralPositionResolver::semesterAsOfDate($semester);
+            $signatureDate = $asOfDate->locale('id')->translatedFormat('d F Y');
 
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('grade_book.print', [
                 'institution' => $institution,
@@ -873,6 +875,7 @@ class GradeController extends Controller
                 'printed_by' => $user?->name,
                 'teacher' => $teacherEmployee,
                 'signature_date' => $signatureDate,
+                'as_of_date' => $asOfDate,
             ])->setPaper('a4', 'landscape');
 
             $filename = 'buku-nilai-' . date('Ymd-His') . '.pdf';
@@ -1077,9 +1080,12 @@ class GradeController extends Controller
                 return response()->json(['message' => 'Kelas tidak ditemukan.'], 404);
             }
 
-            $semester = \App\Models\Semester::query()->find($semesterId, ['id', 'name']);
+            $semester = \App\Models\Semester::query()->find($semesterId, ['id', 'name', 'end_date', 'start_date']);
             $institution = \App\Models\Institution::query()->find($institutionId);
             $payload = $this->gradeService->getByClassSemester($institutionId, $classId, $semesterId);
+
+            $asOfDate = StructuralPositionResolver::semesterAsOfDate($semester);
+            $signatureDate = $asOfDate->locale('id')->translatedFormat('d F Y');
 
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('grade_book.class_raport', [
                 'institution' => $institution,
@@ -1091,7 +1097,8 @@ class GradeController extends Controller
                 'printed_at' => now()->timezone(config('app.timezone'))->format('d/m/Y H:i'),
                 'printed_by' => $user?->name,
                 'wali_kelas' => $schoolClass->teacher,
-                'signature_date' => now()->locale('id')->translatedFormat('d F Y'),
+                'signature_date' => $signatureDate,
+                'as_of_date' => $asOfDate,
             ])->setPaper('a4', 'landscape');
 
             $filename = 'rekap-nilai-kelas-' . date('Ymd-His') . '.pdf';

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\FinanceExpense;
 use App\Models\FinanceFeeType;
 use App\Models\FinanceInvoice;
 use App\Models\FinancePayment;
@@ -83,6 +84,18 @@ class FinanceDashboardController extends Controller
             $paymentsCount = (clone $paymentsQuery)->count();
             $paymentsByMonth = $this->paymentsByMonth($institutionId, $request->get('from'), $request->get('to'));
 
+            $expensesQuery = FinanceExpense::forInstitution($institutionId);
+            if ($request->filled('from')) {
+                $expensesQuery->whereDate('expense_date', '>=', $request->get('from'));
+            }
+            if ($request->filled('to')) {
+                $expensesQuery->whereDate('expense_date', '<=', $request->get('to'));
+            }
+            $expensesTotal = (clone $expensesQuery)->sum('amount');
+            $expensesCount = (clone $expensesQuery)->count();
+            $expensesByMonth = $this->expensesByMonth($institutionId, $request->get('from'), $request->get('to'));
+            $expensesAllTime = (float) FinanceExpense::forInstitution($institutionId)->sum('amount');
+
             $feeTypesCount = FinanceFeeType::forInstitution($institutionId)->active()->count();
             $arrearsCount = FinanceInvoice::forInstitution($institutionId)->outstanding()->count();
 
@@ -98,6 +111,13 @@ class FinanceDashboardController extends Controller
                         'amount' => (float) $paymentsTotal,
                     ],
                     'payments_by_month' => $paymentsByMonth,
+                    'expenses_in_range' => [
+                        'count' => $expensesCount,
+                        'amount' => (float) $expensesTotal,
+                    ],
+                    'expenses_all_time' => $expensesAllTime,
+                    'expenses_by_month' => $expensesByMonth,
+                    'net_in_range' => (float) $paymentsTotal - (float) $expensesTotal,
                     'by_status' => $byStatus,
                     'by_fee_type' => $byFeeType,
                 ],
@@ -143,6 +163,49 @@ class FinanceDashboardController extends Controller
         foreach ($rows as $row) {
             $key = Carbon::parse($row->paid_at)->format('Y-m');
             if (!isset($bucket[$key])) {
+                continue;
+            }
+            $bucket[$key]['amount'] += (float) $row->amount;
+            $bucket[$key]['count']++;
+        }
+
+        return array_values($bucket);
+    }
+
+    /**
+     * @return list<array{month:string,label:string,amount:float,count:int}>
+     */
+    protected function expensesByMonth(int $institutionId, mixed $from, mixed $to): array
+    {
+        $end = $to ? Carbon::parse($to)->endOfMonth() : now()->endOfMonth();
+        $start = $from ? Carbon::parse($from)->startOfMonth() : $end->copy()->startOfMonth()->subMonths(11);
+
+        if ($start->gt($end)) {
+            [$start, $end] = [$end->copy()->startOfMonth(), $start->copy()->endOfMonth()];
+        }
+
+        $rows = FinanceExpense::forInstitution($institutionId)
+            ->whereDate('expense_date', '>=', $start->toDateString())
+            ->whereDate('expense_date', '<=', $end->toDateString())
+            ->get(['amount', 'expense_date']);
+
+        $monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        $bucket = [];
+        $cursor = $start->copy()->startOfMonth();
+        while ($cursor->lte($end)) {
+            $key = $cursor->format('Y-m');
+            $bucket[$key] = [
+                'month' => $key,
+                'label' => $monthNames[(int) $cursor->format('n') - 1] . ' ' . $cursor->format('Y'),
+                'amount' => 0.0,
+                'count' => 0,
+            ];
+            $cursor->addMonth();
+        }
+
+        foreach ($rows as $row) {
+            $key = Carbon::parse($row->expense_date)->format('Y-m');
+            if (! isset($bucket[$key])) {
                 continue;
             }
             $bucket[$key]['amount'] += (float) $row->amount;

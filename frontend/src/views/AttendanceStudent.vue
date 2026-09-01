@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="attendance-student-page">
       <div class="page-intro">
         <p v-if="activeTab === 'isi'" class="page-lead">
@@ -105,9 +104,6 @@
             Slot berurutan tersedia sebagai isi sekali (mis. Jam ke-1–3). Opsi per jam tetap ada jika ingin diisi terpisah.
           </p>
 
-          <div v-if="dayMismatchMessage" class="day-warning" role="alert">
-            {{ dayMismatchMessage }}
-          </div>
 
           <div v-if="preparedJournal" class="session-meta">
             <span>{{ formatDate(preparedJournal.journal_date) }}</span>
@@ -280,13 +276,11 @@
         </div>
       </template>
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AppChart from '@/components/AppChart.vue'
 import { useToast } from '@/composables/useToast'
@@ -297,12 +291,14 @@ import { semesterApi } from '@/api/semester'
 import { classApi } from '@/api/class'
 import { subjectApi } from '@/api/subject'
 import { useAuthStore } from '@/stores/auth'
+import { useActiveAcademicPeriod } from '@/composables/useActiveAcademicPeriod'
 import { studentAttendanceStorage, isOnline, onNetworkStatusChange } from '@/utils/offlineStorage'
 import { useOfflineSync } from '@/composables/useOfflineSync'
 
 const toast = useToast()
 const route = useRoute()
 const authStore = useAuthStore()
+const { ensureLoaded, resolveDefaultSemesterId } = useActiveAcademicPeriod()
 const { syncPendingItems } = useOfflineSync()
 
 const DAY_NAMES = {
@@ -397,7 +393,6 @@ const loadError = ref('')
 const preparedJournal = ref(null)
 const preparedSchedule = ref(null)
 const preparedScheduleIds = ref([])
-const dayMismatchMessage = ref('')
 const attendanceRows = ref([])
 const attendanceLoading = ref(false)
 const attendanceSaving = ref(false)
@@ -545,23 +540,6 @@ function formatDate(d) {
   return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function isoDayFromDate(dateStr) {
-  if (!dateStr) return null
-  const d = new Date(`${dateStr}T12:00:00`)
-  const jsDay = d.getDay() // 0=Sun..6=Sat
-  return jsDay === 0 ? 7 : jsDay
-}
-
-function buildMismatchMessage(session, dateStr) {
-  const slot = session?.representative || session
-  if (!slot || !dateStr) return ''
-  const selectedDay = isoDayFromDate(dateStr)
-  const scheduledDay = Number(slot.day_of_week)
-  if (!selectedDay || selectedDay === scheduledDay) return ''
-  const subjectName = slot.subject?.name || slot.subject_name || 'Mapel'
-  const className = slot.school_class?.name || slot.class_name || 'kelas'
-  return `${subjectName} kelas ${className} dijadwalkan hari ${dayName(scheduledDay)}, tanggal yang dipilih adalah ${dayName(selectedDay)}.`
-}
 
 function cleanParams(extra = {}) {
   const params = { ...filters.value, ...extra }
@@ -580,11 +558,9 @@ function resetPreparedSession() {
   attendanceRows.value = []
   attendanceFormError.value = ''
   offlineIndicator.value = false
-  dayMismatchMessage.value = buildMismatchMessage(selectedSession.value, fillForm.value.date)
 }
 
 function onDateChange() {
-  dayMismatchMessage.value = buildMismatchMessage(selectedSession.value, fillForm.value.date)
   preparedJournal.value = null
   preparedSchedule.value = null
   preparedScheduleIds.value = []
@@ -674,13 +650,6 @@ async function prepareSession() {
   const session = selectedSession.value
   if (!session) return
 
-  const mismatch = buildMismatchMessage(session, fillForm.value.date)
-  dayMismatchMessage.value = mismatch
-  if (mismatch) {
-    const ok = window.confirm(`${mismatch}\n\nTetap lanjut mengisi absensi?`)
-    if (!ok) return
-  }
-
   attendanceLoading.value = true
   attendanceFormError.value = ''
   attendanceRows.value = []
@@ -700,9 +669,6 @@ async function prepareSession() {
     preparedScheduleIds.value = Array.isArray(payload.schedule?.ids)
       ? payload.schedule.ids
       : session.schedule_ids
-    if (payload.day_mismatch && payload.day_mismatch_message) {
-      dayMismatchMessage.value = payload.day_mismatch_message
-    }
     attendanceRows.value = (payload.attendances || []).map((row) => ({
       student_id: row.student_id,
       status: row.status || 'hadir',
@@ -898,6 +864,7 @@ onMounted(async () => {
     const [semRes, classRes] = await Promise.all([
       semesterApi.getAll({ per_page: 200 }),
       classApi.getAll({ per_page: 200 }),
+      ensureLoaded(),
     ])
     semesters.value = semRes.data.data || []
     classes.value = classRes.data.data || []
@@ -913,11 +880,9 @@ onMounted(async () => {
   }
 
   const q = route.query
-  const activeSemester =
-    q.semester_id
-    || authStore.activeInstitution?.active_semester_id
-    || authStore.user?.institution?.active_semester_id
-    || (semesters.value[0]?.id ?? '')
+  const activeSemester = q.semester_id
+    ? String(q.semester_id)
+    : resolveDefaultSemesterId('', semesters.value)
 
   fillForm.value.semester_id = activeSemester ? String(activeSemester) : ''
   filters.value.semester_id = fillForm.value.semester_id
@@ -1067,15 +1032,6 @@ onMounted(async () => {
   color: #64748b;
 }
 .hint-text { color: #64748b; font-size: 0.9rem; margin: 0.25rem 0 0.75rem; }
-.day-warning {
-  background: #fff7ed;
-  border: 1px solid #fdba74;
-  color: #9a3412;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
-}
 .session-meta {
   display: flex;
   flex-wrap: wrap;

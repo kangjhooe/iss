@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="attendance-employee-page">
+<template>    <div class="attendance-employee-page">
       <div class="page-header">
         <div class="header-content">
           <div class="header-icon-wrap">
@@ -82,16 +80,15 @@
             </tr>
           </tbody>
         </table>
-        <div v-if="pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">
-            Menampilkan {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} dari {{ pagination.total }}
-          </span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
-            <span class="page-num">Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="goToPage(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="absensi"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </div>
       </template>
 
@@ -267,13 +264,15 @@
               </table>
             </div>
             <p v-else class="form-hint">Tidak ada pegawai yang cocok.</p>
-            <div v-if="bulkLastPage > 1" class="pagination-bar">
-              <div class="pagination-buttons">
-                <button type="button" class="btn-page" :disabled="bulkPage <= 1" @click="bulkPage--">Sebelumnya</button>
-                <span class="page-num">Halaman {{ bulkPage }} / {{ bulkLastPage }}</span>
-                <button type="button" class="btn-page" :disabled="bulkPage >= bulkLastPage" @click="bulkPage++">Selanjutnya</button>
-              </div>
-            </div>
+            <PaginationBar
+              :page="bulkPage"
+              :last-page="bulkLastPage"
+              :per-page="bulkPerPage"
+              :total="filteredBulkEmployees.length"
+              item-label="pegawai"
+              @page-change="goBulkPage"
+              @per-page-change="changeBulkPerPage"
+            />
             <p v-if="bulkError" class="form-error">{{ bulkError }}</p>
             <div class="modal-actions">
               <button type="button" @click="showBulkModal = false" class="btn-secondary">Batal</button>
@@ -282,15 +281,13 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import AppChart from '@/components/AppChart.vue'
 import { useToast } from '@/composables/useToast'
 import { doughnutFromCounts, barFromSeries } from '@/composables/useChart'
@@ -360,7 +357,7 @@ const bulkDate = ref('')
 const bulkRows = ref({})
 const bulkError = ref('')
 const bulkSaving = ref(false)
-const BULK_PAGE_SIZE = 20
+const bulkPerPage = ref(20)
 const bulkSearch = ref('')
 const bulkType = ref('')
 const bulkPage = ref(1)
@@ -384,17 +381,17 @@ const filteredBulkEmployees = computed(() => {
     return `${e.name || ''} ${e.nip || ''} ${e.nuptk || ''}`.toLowerCase().includes(q)
   })
 })
-const bulkLastPage = computed(() => Math.max(1, Math.ceil(filteredBulkEmployees.value.length / BULK_PAGE_SIZE)))
+const bulkLastPage = computed(() => Math.max(1, Math.ceil(filteredBulkEmployees.value.length / bulkPerPage.value)))
 const pagedBulkEmployees = computed(() => {
-  const start = (bulkPage.value - 1) * BULK_PAGE_SIZE
-  return filteredBulkEmployees.value.slice(start, start + BULK_PAGE_SIZE)
+  const start = (bulkPage.value - 1) * bulkPerPage.value
+  return filteredBulkEmployees.value.slice(start, start + bulkPerPage.value)
 })
-const bulkStartIndex = computed(() => (bulkPage.value - 1) * BULK_PAGE_SIZE)
+const bulkStartIndex = computed(() => (bulkPage.value - 1) * bulkPerPage.value)
 const bulkRangeLabel = computed(() => {
   const total = filteredBulkEmployees.value.length
   if (!total) return '0 dari 0 pegawai'
   const start = bulkStartIndex.value + 1
-  const end = Math.min(bulkPage.value * BULK_PAGE_SIZE, total)
+  const end = Math.min(bulkPage.value * bulkPerPage.value, total)
   return `Menampilkan ${start}–${end} dari ${total} pegawai`
 })
 watch([bulkSearch, bulkType], () => { bulkPage.value = 1 })
@@ -441,7 +438,7 @@ async function loadAttendances() {
   try {
     const params = {
       page: pagination.value.current_page,
-      per_page: 15,
+      per_page: pagination.value.per_page || 15,
       ...cleanParams(),
     }
     const res = await employeeAttendanceApi.getAll(params)
@@ -450,7 +447,7 @@ async function loadAttendances() {
     pagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
-      per_page: meta.per_page ?? 15,
+      per_page: meta.per_page ?? pagination.value.per_page,
       total: meta.total ?? 0,
     }
   } catch (e) {
@@ -496,6 +493,21 @@ function switchToRekap() {
 function goToPage(page) {
   pagination.value.current_page = page
   loadAttendances()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadAttendances()
+}
+
+function goBulkPage(page) {
+  bulkPage.value = page
+}
+
+function changeBulkPerPage(n) {
+  bulkPerPage.value = n
+  bulkPage.value = 1
 }
 
 async function exportRekap(format) {

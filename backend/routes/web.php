@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return response()->json([
-        'message' => 'servr.in API',
+        'message' => config('app.name') . ' API',
         'version' => '1.0.0',
     ]);
 });

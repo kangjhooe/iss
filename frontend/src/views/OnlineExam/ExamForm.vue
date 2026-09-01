@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="exam-form-page">
+<template>    <div class="exam-form-page">
       <div class="page-bg">
         <div class="page-bg-orb page-bg-orb-1"></div>
         <div class="page-bg-orb page-bg-orb-2"></div>
@@ -99,14 +97,11 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
 

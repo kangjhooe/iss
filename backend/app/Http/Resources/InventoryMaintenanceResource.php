@@ -18,6 +18,7 @@ class InventoryMaintenanceResource extends JsonResource
             'id' => $this->id,
             'institution_id' => $this->institution_id,
             'item_id' => $this->item_id,
+            'asset_id' => $this->asset_id,
             'maintenance_type' => $this->maintenance_type,
             'scheduled_date' => $this->scheduled_date?->format('Y-m-d'),
             'completed_date' => $this->completed_date?->format('Y-m-d'),
@@ -32,11 +33,19 @@ class InventoryMaintenanceResource extends JsonResource
                     'id' => $this->item->id ?? null,
                     'code' => $this->item->code ?? null,
                     'name' => $this->item->name ?? null,
+                    'tracking_type' => $this->item->tracking_type ?? 'stock',
                     'category' => $this->item->category ? [
                         'id' => $this->item->category->id,
                         'name' => $this->item->category->name,
                     ] : null,
                 ];
+            }),
+            'asset' => $this->when($this->relationLoaded('asset'), function () {
+                return $this->asset ? [
+                    'id' => $this->asset->id,
+                    'asset_number' => $this->asset->asset_number,
+                    'serial_number' => $this->asset->serial_number,
+                ] : null;
             }),
             'creator' => $this->when($this->relationLoaded('creator'), function () {
                 return [

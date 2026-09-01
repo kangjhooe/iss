@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="session-list-page">
+<template>    <div class="session-list-page">
       <header class="page-header">
         <router-link to="/ujian-online/exams" class="back-link">← Ujian</router-link>
         <div class="header-row">
@@ -91,14 +89,11 @@
           </tbody>
         </table>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
 

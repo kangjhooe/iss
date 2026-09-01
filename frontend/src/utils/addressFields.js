@@ -23,18 +23,83 @@ export function pickAddress(source = {}) {
   return out
 }
 
+const REGION_PREFIX = '(?:desa|kelurahan|pekon|kel\\.?|ds\\.?|kecamatan|kec\\.?|kabupaten|kab\\.?|kota|provinsi|prov\\.?)'
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function normalizeRegionSegment(value) {
+  let text = String(value ?? '').toLowerCase().trim()
+  if (!text) return ''
+  text = text.replace(/[.,]/g, ' ').replace(/\s+/g, ' ')
+  text = text.replace(new RegExp(`^${REGION_PREFIX}\\s+`, 'i'), '')
+  return text.trim()
+}
+
+function stripExtraQualifier(text) {
+  return String(text || '').replace(/^(kota|kabupaten|kab|adm)\s+/i, '').trim()
+}
+
+function segmentMatchesRegion(segment, wanted) {
+  return wanted.some((name) => {
+    if (segment === name) return true
+    const segmentCore = stripExtraQualifier(segment)
+    const nameCore = stripExtraQualifier(name)
+    return segmentCore === name || nameCore === segment || segmentCore === nameCore
+  })
+}
+
+function stripOnePrefixedTrailingName(street, wanted) {
+  for (const name of wanted) {
+    if (!name || /^\d+$/.test(name)) continue
+    const next = street.replace(new RegExp(`\\s+${REGION_PREFIX}\\s+${escapeRegex(name)}\\s*$`, 'i'), '')
+    if (next !== street) return next.trimEnd()
+  }
+  return street
+}
+
+export function stripTrailingRegions(street, regionNames = []) {
+  let result = String(street ?? '').trim()
+  const wanted = regionNames.map(normalizeRegionSegment).filter(Boolean)
+  if (!result || !wanted.length) return result
+
+  const parts = result.split(',').map((part) => part.trim()).filter(Boolean)
+  while (parts.length) {
+    const last = normalizeRegionSegment(parts[parts.length - 1])
+    if (!last || !segmentMatchesRegion(last, wanted)) break
+    parts.pop()
+  }
+  result = parts.join(', ')
+
+  let changed = true
+  while (changed) {
+    const next = stripOnePrefixedTrailingName(result, wanted)
+    changed = next !== result
+    result = next
+  }
+
+  return result.replace(/[,\s]+$/g, '').trim()
+}
+
 export function formatFullAddress(source = {}) {
   if (!source) return ''
-  if (source.full_address) return source.full_address
+  const street = stripTrailingRegions(source.address, [
+    source.village,
+    source.sub_district,
+    source.district,
+    source.province,
+    source.postal_code,
+  ])
   const parts = [
-    source.address,
+    street,
     source.village,
     source.sub_district ? `Kec. ${source.sub_district}` : '',
     source.district,
     source.province,
     source.postal_code,
   ].filter((part) => part != null && String(part).trim() !== '')
-  return parts.join(', ')
+  return parts.join(', ') || source.full_address || ''
 }
 
 const EXCEL_ADDRESS_ALIASES = {

@@ -20,7 +20,9 @@ const emit = defineEmits(['close', 'print'])
           </div>
         </header>
         <div class="preview-body">
-          <div class="preview-paper" v-html="html" />
+          <div class="surat-page-shell preview-paper-wrap">
+            <div class="surat-page-content preview-paper" v-html="html" />
+          </div>
         </div>
       </div>
     </div>
@@ -93,31 +95,29 @@ const emit = defineEmits(['close', 'print'])
 .preview-body {
   overflow: auto;
   padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.preview-paper-wrap {
+  margin: 0 auto;
+  flex-shrink: 0;
 }
 
 .preview-paper {
-  width: 210mm;
-  min-height: 297mm;
-  margin: 0 auto;
-  background: #fff;
-  padding: 20mm 20mm 20mm 25mm;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  font-family: 'Times New Roman', Times, serif;
-  font-size: 12pt;
-  line-height: 1.6;
-  box-sizing: border-box;
-  transform-origin: top center;
+  box-shadow: none;
 }
 
-.preview-paper :deep(table) {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.preview-paper :deep(td),
-.preview-paper :deep(th) {
+.preview-paper :deep(table:not(.standard-kop-inner):not(.kop-table) td),
+.preview-paper :deep(table:not(.standard-kop-inner):not(.kop-table) th) {
   border: 1px solid #333;
   padding: 4px 8px;
+}
+
+.preview-paper :deep(.standard-kop-inner td),
+.preview-paper :deep(.kop-table td),
+.preview-paper :deep(table[style*="border:none"] td) {
+  border: none !important;
 }
 
 .preview-paper :deep(img) {
@@ -147,21 +147,9 @@ const emit = defineEmits(['close', 'print'])
 
   .preview-body {
     padding: 12px;
-  }
-
-  .preview-paper {
-    width: min(210mm, 100%);
-    min-height: auto;
-    padding: 16px 18px 20px;
-    font-size: 11pt;
-  }
-}
-
-@media (max-width: 480px) {
-  .preview-paper {
-    padding: 12px 14px 16px;
-    font-size: 10.5pt;
-    line-height: 1.5;
+    justify-content: flex-start;
   }
 }
 </style>
+
+<style src="@/styles/surat-page.css"></style>

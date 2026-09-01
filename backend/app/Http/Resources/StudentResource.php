@@ -119,6 +119,8 @@ class StudentResource extends JsonResource
             'guardian_occupation' => $this->guardian_occupation,
             'guardian_income' => $this->guardian_income,
             'notes' => $this->notes,
+            'photo_path' => $this->photo_path,
+            'photo_url' => $this->photoUrl(),
             'documents' => $this->whenLoaded('documents', function () {
                 return $this->documents->map(function ($doc) {
                     return [

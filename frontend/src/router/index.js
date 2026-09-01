@@ -2,6 +2,21 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
 import { hasModuleAccess, hasAnyModuleAccess } from '@/utils/moduleAccess'
+import { INVENTORY_NAV_ITEMS, INVENTORY_TAB_BY_ROUTE_NAME, canAccessInventoryTab } from '@/composables/inventory/inventoryRoutes'
+
+const inventoryRoutes = INVENTORY_NAV_ITEMS.map((item) => ({
+  path: item.path,
+  name: item.routeName,
+  component: () => import('@/views/Inventory.vue'),
+  meta: {
+    requiresAuth: true,
+    requiresModule: 'inventory',
+    allowLabResponsible: true,
+    allowRoomResponsible: true,
+    inventoryLabAllowed: item.roomScoped !== false,
+    inventoryRoomAllowed: item.roomScoped !== false,
+  },
+}))
 
 const router = createRouter({
   history: createWebHistory(),
@@ -98,6 +113,12 @@ const router = createRouter({
       path: '/teacher/today',
       name: 'TeacherToday',
       component: () => import('@/views/TeacherToday.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true, requiresTeachingAssignments: true }
+    },
+    {
+      path: '/teacher/jadwal',
+      name: 'TeacherSchedule',
+      component: () => import('@/views/TeacherSchedule.vue'),
       meta: { requiresAuth: true, requiresTeacher: true, requiresTeachingAssignments: true }
     },
     {
@@ -327,6 +348,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
+      path: '/siswa-keluar',
+      name: 'SiswaKeluar',
+      component: () => import('@/views/SiswaKeluar.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
       path: '/student/:id/buku-induk',
       name: 'BukuInduk',
       component: () => import('@/views/BukuInduk.vue'),
@@ -432,7 +459,7 @@ const router = createRouter({
       path: '/lesson-schedule',
       name: 'LessonSchedule',
       component: () => import('@/views/LessonSchedule.vue'),
-      meta: { requiresAuth: true, requiresModule: 'schedule' }
+      meta: { requiresAuth: true, requiresModule: 'schedule', blocksTeacher: true }
     },
     {
       path: '/teaching-journal',
@@ -635,8 +662,21 @@ const router = createRouter({
     {
       path: '/inventory',
       name: 'Inventory',
-      component: () => import('@/views/Inventory.vue'),
-      meta: { requiresAuth: true, requiresModule: 'inventory' }
+      redirect: { name: 'InventoryBeranda' }
+    },
+    ...inventoryRoutes,
+    {
+      path: '/inventory/scan',
+      name: 'InventoryQrScan',
+      component: () => import('@/views/InventoryQrScan.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresModule: 'inventory',
+        allowLabResponsible: true,
+        allowRoomResponsible: true,
+        inventoryLabAllowed: true,
+        inventoryRoomAllowed: true,
+      }
     },
     {
       path: '/library',
@@ -769,6 +809,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
+      path: '/keuangan/pengeluaran',
+      name: 'KeuanganPengeluaran',
+      component: () => import('@/views/Keuangan/Pengeluaran.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['finance', 'payroll'] }
+    },
+    {
       path: '/keuangan/tunggakan',
       name: 'KeuanganTunggakan',
       component: () => import('@/views/Keuangan/Tunggakan.vue'),
@@ -779,6 +825,47 @@ const router = createRouter({
       name: 'KeuanganLaporan',
       component: () => import('@/views/Keuangan/Laporan.vue'),
       meta: { requiresAuth: true, requiresModule: 'finance' }
+    },
+    {
+      path: '/penggajian',
+      name: 'Penggajian',
+      redirect: { name: 'PenggajianProses' }
+    },
+    {
+      path: '/penggajian/komponen',
+      name: 'PenggajianKomponen',
+      component: () => import('@/views/Penggajian/Komponen.vue'),
+      meta: { requiresAuth: true, requiresModule: 'payroll' }
+    },
+    {
+      path: '/penggajian/tunjangan-jabatan',
+      name: 'PenggajianTunjanganJabatan',
+      component: () => import('@/views/Penggajian/TunjanganJabatan.vue'),
+      meta: { requiresAuth: true, requiresModule: 'payroll' }
+    },
+    {
+      path: '/penggajian/profil',
+      name: 'PenggajianProfil',
+      component: () => import('@/views/Penggajian/Profil.vue'),
+      meta: { requiresAuth: true, requiresModule: 'payroll' }
+    },
+    {
+      path: '/penggajian/periode',
+      name: 'PenggajianPeriode',
+      component: () => import('@/views/Penggajian/Periode.vue'),
+      meta: { requiresAuth: true, requiresModule: 'payroll' }
+    },
+    {
+      path: '/penggajian/proses',
+      name: 'PenggajianProses',
+      component: () => import('@/views/Penggajian/Proses.vue'),
+      meta: { requiresAuth: true, requiresModule: 'payroll' }
+    },
+    {
+      path: '/teacher/slip-gaji',
+      name: 'TeacherSlipGaji',
+      component: () => import('@/views/Penggajian/SlipGaji.vue'),
+      meta: { requiresAuth: true, requiresTeacher: true }
     },
     {
       path: '/ujian-online',
@@ -922,6 +1009,23 @@ router.beforeEach(async (to, from, next) => {
     }
     if (authStore.user?.must_change_password && !to.meta.allowMustChangePassword) {
       next({ name: 'ForceChangePassword' })
+      return
+    }
+  }
+
+  if (to.meta.blocksTeacher) {
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUser()
+      } catch {
+        authStore.isAuthenticated = false
+        authStore.user = null
+        next('/login')
+        return
+      }
+    }
+    if (authStore.user?.role === 'teacher' || authStore.user?.role === 'staff') {
+      next('/teacher/jadwal')
       return
     }
   }
@@ -1192,7 +1296,14 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (!hasModuleAccess(authStore.user, to.meta.requiresModule)) {
-      if (to.meta.allowLabResponsible && authStore.user?.is_lab_responsible) {
+      const tab = INVENTORY_TAB_BY_ROUTE_NAME[to.name]
+      const roomScopedAllowed =
+        (to.meta.allowRoomResponsible || to.meta.allowLabResponsible)
+        && (authStore.user?.is_room_responsible || authStore.user?.is_lab_responsible)
+        && (to.meta.inventoryRoomAllowed !== false && to.meta.inventoryLabAllowed !== false)
+        && (!tab || canAccessInventoryTab(authStore.user, tab))
+
+      if (roomScopedAllowed) {
         next()
         return
       }

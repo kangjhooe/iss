@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="ppdb-page">
+<template>    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -264,14 +262,11 @@
       :password="accountCredentials?.password"
       :hint="accountCredentials?.hint"
       @close="accountCredentials = null"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'

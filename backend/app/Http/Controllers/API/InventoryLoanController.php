@@ -2,35 +2,50 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesActiveInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InventoryLoanResource;
+use App\Models\InventoryAsset;
 use App\Models\InventoryLoan;
-use App\Models\Room;
+use App\Services\InventoryAssetService;
+use App\Support\InstitutionContext;
+use App\Support\InventoryAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class InventoryLoanController extends Controller
 {
+    use ResolvesActiveInstitution;
+
+    public function __construct(
+        private InventoryAssetService $assetService
+    ) {}
+
     /**
      * Display a listing of loans.
      */
     public function index(Request $request)
     {
         try {
-            $institutionId = null;
-            if ($request->user()->isSuperAdmin()) {
+            $user = $request->user();
+            if ($user->isSuperAdmin()) {
                 $institutionId = $request->get('institution_id');
-            } elseif ($request->user()->isAdmin() || $request->user()->isInstitutionAdmin()) {
-                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
+            } elseif ($user->isAdmin() || $user->isInstitutionAdmin()) {
+                $institutionId = InstitutionContext::resolveForUser(
+                    $user,
+                    $request,
+                    $request->get('institution_id')
+                ) ?? $user->institution_id;
             } else {
-                $institutionId = $request->user()->institution_id;
+                $institutionId = InstitutionContext::resolveForUser($user, $request, null);
             }
 
-            $query = InventoryLoan::with(['item.category', 'item.room', 'borrowerEmployee', 'borrowerStudent', 'creator']);
+            $query = InventoryLoan::with(['item.category', 'item.room', 'asset', 'borrowerEmployee', 'borrowerStudent', 'creator']);
 
             if ($institutionId) {
                 $query->where('institution_id', $institutionId);
+                InventoryAccess::scopeLoans($query, $user, (int) $institutionId);
             } else {
                 $query->whereRaw('1 = 0');
             }
@@ -40,7 +55,11 @@ class InventoryLoanController extends Controller
             }
 
             if ($request->filled('room_id')) {
-                $query->whereHas('item', fn ($q) => $q->where('room_id', $request->room_id));
+                $roomId = (int) $request->room_id;
+                $query->where(function ($q) use ($roomId) {
+                    $q->whereHas('item', fn ($iq) => $iq->where('room_id', $roomId))
+                        ->orWhereHas('asset', fn ($aq) => $aq->where('room_id', $roomId));
+                });
             }
 
             if ($request->has('borrower_type')) {
@@ -67,7 +86,8 @@ class InventoryLoanController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'item_id' => 'required|exists:inventory_item,id',
+            'item_id' => 'required_without:asset_id|nullable|exists:inventory_item,id',
+            'asset_id' => 'nullable|exists:inventory_asset,id',
             'borrower_type' => 'required|in:Employee,Student,External',
             'borrower_id' => 'nullable|integer',
             'borrower_name' => 'required|string|max:255',
@@ -84,43 +104,64 @@ class InventoryLoanController extends Controller
         }
 
         try {
-            $item = \App\Models\InventoryItem::findOrFail($request->item_id);
             $user = $request->user();
+            $asset = null;
 
-            if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin() && (int) $item->institution_id !== (int) $user->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
-            // Lab-scoped items: only admin or PJ of that lab
-            if ($item->room_id) {
-                $room = Room::find($item->room_id);
-                if ($room && $room->type === 'Laboratorium' && !$user->canManageLab($room)) {
-                    return response()->json(['message' => 'Anda tidak berwenang meminjamkan barang lab ini'], 403);
+            if ($request->filled('asset_id')) {
+                $asset = InventoryAsset::findOrFail($request->asset_id);
+                $item = $asset->item;
+                if (! $item) {
+                    return response()->json(['message' => 'Master barang aset tidak ditemukan'], 422);
+                }
+                if ((int) $request->quantity !== 1) {
+                    return response()->json(['message' => 'Peminjaman aset individual hanya 1 unit'], 422);
+                }
+                if (! $asset->isAvailableForLoan()) {
+                    return response()->json(['message' => 'Aset tidak tersedia untuk dipinjam'], 422);
+                }
+            } else {
+                $item = \App\Models\InventoryItem::findOrFail($request->item_id);
+                if ($item->isIndividualTracked()) {
+                    return response()->json([
+                        'message' => 'Master aset individual memerlukan pemilihan unit aset (asset_id).',
+                    ], 422);
                 }
             }
 
-            if (!$item->isAvailable() || $item->getAvailableQuantity() < $request->quantity) {
+            if (! $this->canAccessInstitutionRecord($request, (int) $item->institution_id)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            if (! $this->userCanAccessInventoryItem($request, $item)) {
+                return response()->json(['message' => 'Anda tidak berwenang mengelola inventaris barang ini'], 403);
+            }
+
+            if (! $asset && (! $item->isAvailable() || $item->getAvailableQuantity() < $request->quantity)) {
                 return response()->json([
                     'message' => 'Barang tidak tersedia atau jumlah tidak mencukupi',
                 ], 422);
             }
 
-            $institutionId = ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin())
+            $institutionId = $user->isAdminOrSuperAdmin()
                 ? ($request->institution_id ?? $item->institution_id)
-                : $user->institution_id;
+                : (InstitutionContext::resolveForUser($user, $request, null) ?? (int) $item->institution_id);
 
             $data = $validator->validated();
+            $data['item_id'] = $item->id;
+            $data['asset_id'] = $asset?->id;
             $data['institution_id'] = $institutionId;
             $data['status'] = 'Dipinjam';
             $data['created_by'] = $user->id;
 
             $loan = InventoryLoan::create($data);
 
-            if ($item->getAvailableQuantity() === 0) {
+            if ($asset) {
+                $asset->update(['status' => 'Dipinjam', 'updated_by' => $user->id]);
+            } elseif ($item->getAvailableQuantity() === 0) {
                 $item->update(['status' => 'Dipinjam']);
             }
 
-            $loan->load(['item.category', 'borrowerEmployee', 'borrowerStudent', 'creator']);
+            $loan->load(['item.category', 'asset', 'borrowerEmployee', 'borrowerStudent', 'creator']);
             return response()->json([
                 'message' => 'Peminjaman berhasil dicatat',
                 'data' => new InventoryLoanResource($loan),
@@ -132,21 +173,87 @@ class InventoryLoanController extends Controller
     }
 
     /**
+     * Update an active loan (dates, borrower info, etc.).
+     */
+    public function update(Request $request, InventoryLoan $loan)
+    {
+        $user = $request->user();
+        if (!$this->canAccessInstitutionRecord($request, (int) $loan->institution_id)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $loan->load(['item', 'item.room', 'asset']);
+        if ($loan->item && ! $this->userCanAccessInventoryItem($request, $loan->item)) {
+            return response()->json(['message' => 'Anda tidak berwenang mengubah peminjaman barang ini'], 403);
+        }
+
+        if (!in_array($loan->status, ['Dipinjam', 'Terlambat'], true)) {
+            return response()->json(['message' => 'Hanya peminjaman aktif yang dapat diubah'], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'borrower_type' => 'sometimes|in:Employee,Student,External',
+            'borrower_name' => 'sometimes|string|max:255',
+            'borrower_phone' => 'nullable|string|max:50',
+            'loan_date' => 'sometimes|date',
+            'expected_return_date' => 'sometimes|date',
+            'quantity' => 'sometimes|integer|min:1',
+            'purpose' => 'nullable|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $loanDate = $data['loan_date'] ?? $loan->loan_date?->format('Y-m-d');
+        $returnDate = $data['expected_return_date'] ?? $loan->expected_return_date?->format('Y-m-d');
+        if ($loanDate && $returnDate && $returnDate <= $loanDate) {
+            return response()->json([
+                'errors' => ['expected_return_date' => ['Tanggal jatuh tempo harus setelah tanggal pinjam.']],
+            ], 422);
+        }
+
+        if (isset($data['quantity']) && $loan->item) {
+            $available = $loan->item->getAvailableQuantity() + $loan->quantity;
+            if ($data['quantity'] > $available) {
+                return response()->json(['message' => 'Jumlah melebihi stok tersedia'], 422);
+            }
+        }
+
+        try {
+            $data['updated_by'] = $user->id;
+            $loan->update($data);
+
+            if ($loan->expected_return_date && $loan->expected_return_date->isFuture() && $loan->status === 'Terlambat') {
+                $loan->update(['status' => 'Dipinjam']);
+            }
+
+            $loan->load(['item.category', 'borrowerEmployee', 'borrowerStudent', 'updater']);
+            return response()->json([
+                'message' => 'Peminjaman berhasil diperbarui',
+                'data' => new InventoryLoanResource($loan),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update loan', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Terjadi kesalahan'], 500);
+        }
+    }
+
+    /**
      * Return loaned item.
      */
     public function return(Request $request, InventoryLoan $loan)
     {
         $user = $request->user();
-        if (!$user->isAdminOrSuperAdmin() && !$user->isInstitutionAdmin() && (int) $loan->institution_id !== (int) $user->institution_id) {
+        if (!$this->canAccessInstitutionRecord($request, (int) $loan->institution_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $loan->load('item.room');
-        if ($loan->item?->room_id) {
-            $room = $loan->item->room ?: Room::find($loan->item->room_id);
-            if ($room && $room->type === 'Laboratorium' && !$user->canManageLab($room)) {
-                return response()->json(['message' => 'Anda tidak berwenang mengembalikan barang lab ini'], 403);
-            }
+        $loan->load(['item', 'item.room', 'asset']);
+        if ($loan->item && ! $this->userCanAccessInventoryItem($request, $loan->item)) {
+            return response()->json(['message' => 'Anda tidak berwenang mengembalikan barang ini'], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -176,12 +283,38 @@ class InventoryLoanController extends Controller
             $loan->update($data);
 
             $item = $loan->item;
-            if ($item) {
-                $itemUpdates = [];
-                if (!empty($data['return_condition'])) {
-                    $itemUpdates['condition'] = $data['return_condition'];
+            $asset = $loan->asset;
+
+            if ($asset) {
+                $assetUpdates = ['updated_by' => $user->id];
+                if (! empty($data['return_condition'])) {
+                    $assetUpdates['condition'] = $data['return_condition'];
                 }
                 if ($markAs === 'Hilang' || ($data['return_item_status'] ?? null) === 'Hilang') {
+                    $assetUpdates['status'] = 'Hilang';
+                } elseif (($data['return_item_status'] ?? null) === 'Rusak') {
+                    $assetUpdates['status'] = 'Rusak';
+                } else {
+                    $assetUpdates['status'] = 'Tersedia';
+                }
+                $asset->update($assetUpdates);
+                $this->assetService->syncItemQuantityFromAssets($item);
+            }
+
+            if ($item && ! $item->isIndividualTracked()) {
+                $itemUpdates = ['updated_by' => $user->id];
+                if (! empty($data['return_condition'])) {
+                    $itemUpdates['condition'] = $data['return_condition'];
+                }
+
+                $activeLoans = $item->loans()
+                    ->whereIn('status', ['Dipinjam', 'Terlambat'])
+                    ->where('id', '!=', $loan->id)
+                    ->exists();
+
+                if ($activeLoans) {
+                    $itemUpdates['status'] = 'Dipinjam';
+                } elseif ($markAs === 'Hilang' || ($data['return_item_status'] ?? null) === 'Hilang') {
                     $itemUpdates['status'] = 'Hilang';
                 } elseif (($data['return_item_status'] ?? null) === 'Rusak') {
                     $itemUpdates['status'] = 'Rusak';
@@ -191,7 +324,7 @@ class InventoryLoanController extends Controller
                 $item->update($itemUpdates);
             }
 
-            $loan->load(['item.category', 'borrowerEmployee', 'borrowerStudent', 'updater']);
+            $loan->load(['item.category', 'asset', 'borrowerEmployee', 'borrowerStudent', 'updater']);
             return response()->json([
                 'message' => $markAs === 'Hilang' ? 'Barang ditandai hilang' : 'Pengembalian berhasil dicatat',
                 'data' => new InventoryLoanResource($loan),
@@ -208,10 +341,10 @@ class InventoryLoanController extends Controller
     public function show(Request $request, InventoryLoan $loan)
     {
         try {
-            if (!$request->user()->isAdminOrSuperAdmin() && !$request->user()->isInstitutionAdmin() && (int) $loan->institution_id !== (int) $request->user()->institution_id) {
+            if (!$this->canAccessInstitutionRecord($request, (int) $loan->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
-            $loan->load(['item.category', 'borrowerEmployee', 'borrowerStudent', 'creator', 'updater']);
+            $loan->load(['item.category', 'asset', 'borrowerEmployee', 'borrowerStudent', 'creator', 'updater']);
             return new InventoryLoanResource($loan);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan'], 500);

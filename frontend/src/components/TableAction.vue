@@ -6,6 +6,7 @@
     :class="`tbl-act--${kind}`"
     :title="label"
     :aria-label="label"
+    @click="$emit('click', $event)"
   >
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path :d="path" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -19,6 +20,7 @@
     :title="label"
     :aria-label="label"
     :disabled="disabled"
+    @click="$emit('click', $event)"
   >
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path :d="path" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -28,6 +30,8 @@
 
 <script setup>
 import { computed } from 'vue'
+
+defineEmits(['click'])
 
 const props = defineProps({
   kind: { type: String, required: true },

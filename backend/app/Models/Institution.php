@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\StructuralPositionResolver;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -676,6 +677,29 @@ class Institution extends Model
     public function getPrincipalTitleAttribute(): string
     {
         return self::principalTitleForLevel($this->level);
+    }
+
+    /**
+     * Kepala sekolah/madrasah aktif dari jabatan struktural / tugas tambahan.
+     *
+     * @return array{role: string, name: ?string, nip: ?string, employee_id: ?int}
+     */
+    public function resolvedPrincipal(?\Carbon\CarbonInterface $asOfDate = null): array
+    {
+        return StructuralPositionResolver::principalAt($this, $asOfDate);
+    }
+
+    /**
+     * Sinkronkan cache principal_name/principal_nip dari pemegang jabatan kepala_sekolah.
+     */
+    public function syncPrincipalCache(): void
+    {
+        $holder = StructuralPositionResolver::holderAt('kepala_sekolah', (int) $this->id) ?? [];
+
+        $this->forceFill([
+            'principal_name' => $holder['name'] ?? null,
+            'principal_nip' => $holder['nip'] ?? null,
+        ])->save();
     }
 
     /**

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="ppdb-page">
+<template>    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -265,13 +263,10 @@
 
       <ConfirmDialog v-if="deletePeriodTarget" :show="!!deletePeriodTarget" title="Hapus Periode" message="Yakin menghapus periode ini? Periode yang sudah memiliki calon tidak dapat dihapus." confirmText="Hapus" @confirm="doDeletePeriod" @cancel="deletePeriodTarget = null" />
       <ConfirmDialog v-if="deleteChannelTarget" :show="!!deleteChannelTarget" title="Hapus Jalur" message="Yakin menghapus jalur ini? Jalur yang sudah dipakai calon tidak dapat dihapus." confirmText="Hapus" @confirm="doDeleteChannel" @cancel="deleteChannelTarget = null" />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

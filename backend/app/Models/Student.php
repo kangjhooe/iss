@@ -5,15 +5,23 @@ namespace App\Models;
 use App\Services\AlumniDestinationSync;
 use App\Services\PpdbAcceptedElsewhereService;
 use App\Traits\Auditable;
+use App\Traits\HasProfilePhoto;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Student extends Model
 {
-    use HasFactory, SoftDeletes, Auditable;
+    use HasFactory, SoftDeletes, Auditable, HasProfilePhoto;
 
     protected $table = 'student';
+
+    public const STATUS_ACTIVE = 'Aktif';
+
+    public const STATUS_GRADUATED = 'Lulus';
+
+    /** Siswa yang sudah keluar (bukan alumni). */
+    public const INACTIVE_STATUSES = ['Pindah', 'Drop Out', 'Tidak Aktif'];
 
     /**
      * The attributes that are mass assignable.
@@ -86,6 +94,7 @@ class Student extends Model
         'guardian_occupation',
         'guardian_income',
         'notes',
+        'photo_path',
         'class_id',
     ];
 
@@ -217,6 +226,42 @@ class Student extends Model
     public function documents()
     {
         return $this->hasMany(StudentDocument::class);
+    }
+
+    /**
+     * Foto cetak: kolom photo_path, lalu gambar pertama di dokumen siswa.
+     */
+    public function resolvePrintPhotoDataUri(): ?string
+    {
+        $fromColumn = $this->photoDataUri();
+        if ($fromColumn) {
+            return $fromColumn;
+        }
+
+        if (! $this->relationLoaded('documents')) {
+            return null;
+        }
+
+        $photoDoc = $this->documents->first(function ($d) {
+            return $d->mime_type && str_starts_with((string) $d->mime_type, 'image/');
+        });
+        if (! $photoDoc?->file_path) {
+            return null;
+        }
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        if (! $disk->exists($photoDoc->file_path)) {
+            return null;
+        }
+
+        $bin = $disk->get($photoDoc->file_path);
+        if ($bin === '' || $bin === false) {
+            return null;
+        }
+
+        $mime = $photoDoc->mime_type ?: ($disk->mimeType($photoDoc->file_path) ?: 'image/jpeg');
+
+        return 'data:'.$mime.';base64,'.base64_encode($bin);
     }
 
     /**
@@ -362,7 +407,15 @@ class Student extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('status', 'Aktif');
+        return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    /**
+     * Scope a query to students who left (pindah, DO, tidak aktif).
+     */
+    public function scopeInactive($query)
+    {
+        return $query->whereIn('status', self::INACTIVE_STATUSES);
     }
 
     /**
@@ -370,7 +423,7 @@ class Student extends Model
      */
     public function scopeAlumni($query)
     {
-        return $query->where('status', 'Lulus');
+        return $query->where('status', self::STATUS_GRADUATED);
     }
 
     /**

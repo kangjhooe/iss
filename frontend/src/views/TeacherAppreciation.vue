@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="page">
+<template>    <div class="page">
       <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
         <symbol id="ta-icon-edit" viewBox="0 0 24 24" fill="none">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -200,23 +198,15 @@
             </tbody>
           </table>
         </div>
-        <div v-if="meta.total > 0" class="pagination">
-          <p>Menampilkan <strong>{{ meta.from }}–{{ meta.to }}</strong> dari <strong>{{ meta.total }}</strong> data</p>
-          <div class="pagination-controls" aria-label="Navigasi halaman">
-            <button type="button" class="page-button page-nav" :disabled="meta.current_page <= 1" aria-label="Halaman sebelumnya" @click="loadAchievements(meta.current_page - 1)">‹</button>
-            <button
-              v-for="pageNumber in paginationPages"
-              :key="pageNumber"
-              type="button"
-              :class="['page-button', { active: pageNumber === meta.current_page }]"
-              :aria-current="pageNumber === meta.current_page ? 'page' : undefined"
-              @click="loadAchievements(pageNumber)"
-            >
-              {{ pageNumber }}
-            </button>
-            <button type="button" class="page-button page-nav" :disabled="meta.current_page >= meta.last_page" aria-label="Halaman berikutnya" @click="loadAchievements(meta.current_page + 1)">›</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="meta.current_page"
+          :last-page="meta.last_page"
+          :per-page="meta.per_page"
+          :total="meta.total"
+          item-label="prestasi"
+          @page-change="loadAchievements"
+          @per-page-change="changePerPage"
+        />
       </template>
 
       <!-- Pelanggaran / Pending pelanggaran -->
@@ -283,23 +273,15 @@
             </tbody>
           </table>
         </div>
-        <div v-if="meta.total > 0" class="pagination">
-          <p>Menampilkan <strong>{{ meta.from }}–{{ meta.to }}</strong> dari <strong>{{ meta.total }}</strong> data</p>
-          <div class="pagination-controls" aria-label="Navigasi halaman">
-            <button type="button" class="page-button page-nav" :disabled="meta.current_page <= 1" aria-label="Halaman sebelumnya" @click="loadViolations(meta.current_page - 1)">‹</button>
-            <button
-              v-for="pageNumber in paginationPages"
-              :key="pageNumber"
-              type="button"
-              :class="['page-button', { active: pageNumber === meta.current_page }]"
-              :aria-current="pageNumber === meta.current_page ? 'page' : undefined"
-              @click="loadViolations(pageNumber)"
-            >
-              {{ pageNumber }}
-            </button>
-            <button type="button" class="page-button page-nav" :disabled="meta.current_page >= meta.last_page" aria-label="Halaman berikutnya" @click="loadViolations(meta.current_page + 1)">›</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="meta.current_page"
+          :last-page="meta.last_page"
+          :per-page="meta.per_page"
+          :total="meta.total"
+          item-label="pelanggaran"
+          @page-change="loadViolations"
+          @per-page-change="changePerPage"
+        />
       </template>
 
       <!-- Poin Guru -->
@@ -334,23 +316,15 @@
             <button type="button" class="btn-sm" @click="openRewardLog(row)">Catat Reward</button>
           </div>
         </div>
-        <div v-if="meta.total > 0" class="pagination">
-          <p>Menampilkan <strong>{{ meta.from }}–{{ meta.to }}</strong> dari <strong>{{ meta.total }}</strong> data</p>
-          <div class="pagination-controls" aria-label="Navigasi halaman">
-            <button type="button" class="page-button page-nav" :disabled="meta.current_page <= 1" aria-label="Halaman sebelumnya" @click="loadPoints(meta.current_page - 1)">‹</button>
-            <button
-              v-for="pageNumber in paginationPages"
-              :key="pageNumber"
-              type="button"
-              :class="['page-button', { active: pageNumber === meta.current_page }]"
-              :aria-current="pageNumber === meta.current_page ? 'page' : undefined"
-              @click="loadPoints(pageNumber)"
-            >
-              {{ pageNumber }}
-            </button>
-            <button type="button" class="page-button page-nav" :disabled="meta.current_page >= meta.last_page" aria-label="Halaman berikutnya" @click="loadPoints(meta.current_page + 1)">›</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="meta.current_page"
+          :last-page="meta.last_page"
+          :per-page="meta.per_page"
+          :total="meta.total"
+          item-label="guru"
+          @page-change="loadPoints"
+          @per-page-change="changePerPage"
+        />
       </template>
 
       <!-- Leaderboard / Peringkat -->
@@ -944,13 +918,11 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { semesterApi } from '@/api/semester'
 import { institutionApi } from '@/api/institution'
@@ -1156,7 +1128,7 @@ const paginationPages = computed(() => {
 function setMeta(pagination = {}, rowCount = 0, defaultPerPage = 15, target = meta) {
   target.current_page = Number(pagination.current_page) || 1
   target.last_page = Number(pagination.last_page) || 1
-  target.per_page = Number(pagination.per_page) || defaultPerPage
+  target.per_page = Number(pagination.per_page) || target.per_page || defaultPerPage
   target.total = Number(pagination.total) || rowCount
   const offset = (target.current_page - 1) * target.per_page
   target.from = rowCount ? (Number(pagination.from) || offset + 1) : 0
@@ -1170,6 +1142,19 @@ function applyListMeta(source) {
   meta.total = source.total
   meta.from = source.from
   meta.to = source.to
+}
+
+function changePerPage(n) {
+  meta.per_page = n
+  if (tab.value === 'achievements' || tab.value === 'pending') {
+    achievementsMeta.per_page = n
+    loadAchievements(1)
+  } else if (tab.value === 'violations' || tab.value === 'pending_violations') {
+    violationsMeta.per_page = n
+    loadViolations(1)
+  } else if (tab.value === 'points') {
+    loadPoints(1)
+  }
 }
 
 function periodCacheKey() {
@@ -1345,7 +1330,7 @@ async function loadAchievements(page = 1, status = null) {
     const params = {
       ...periodParams(),
       page,
-      per_page: 15,
+      per_page: achievementsMeta.per_page || 15,
       search: search.value || undefined,
       status: status || (tab.value === 'pending' ? 'pending' : undefined),
     }
@@ -1384,7 +1369,7 @@ async function loadViolations(page = 1, status = null) {
     const params = {
       ...periodParams(),
       page,
-      per_page: 15,
+      per_page: violationsMeta.per_page || 15,
       search: search.value || undefined,
       status: status || (tab.value === 'pending_violations' ? 'pending' : undefined),
     }
@@ -1426,7 +1411,7 @@ async function loadPoints(page = 1) {
     const res = await teacherPointApi.getAll({
       ...periodParams(),
       page,
-      per_page: 12,
+      per_page: meta.per_page || 15,
       search: search.value || undefined,
       with_points_only: withPointsOnly.value ? 1 : undefined,
     })
@@ -2402,18 +2387,19 @@ onMounted(async () => {
 .page {
   position: relative;
   max-width: 100%;
-  min-height: calc(100vh - 72px);
+  min-height: 0;
   background: #f8fafc;
-  margin: -8px -12px;
-  padding: 24px;
+  margin: 0;
+  padding: 0;
   border-radius: 0;
 }
 .page-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 22px;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 .header-actions {
   display: flex;
@@ -2421,7 +2407,7 @@ onMounted(async () => {
   gap: 8px;
   justify-content: flex-end;
 }
-.page-header h1 { margin: 4px 0 6px; color: #0f172a; font-size: 26px; line-height: 1.2; letter-spacing: -0.025em; }
+.page-header h1 { margin: 4px 0 6px; color: #0f172a; font-size: 22px; line-height: 1.2; letter-spacing: -0.025em; }
 .page-header p { margin: 0; color: #64748b; font-size: 13px; }
 .eyebrow { color: #059669; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .btn-primary {
@@ -2444,7 +2430,7 @@ onMounted(async () => {
   border: 1px solid #cbd5e1; background: #fff; border-radius: 6px;
   padding: 4px 10px; font-size: 12px; cursor: pointer; margin-right: 4px;
 }
-.action-buttons { display: flex; flex-wrap: nowrap; gap: 0.35rem; align-items: center; }
+.action-buttons { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 .btn-action {
   width: 34px;
   height: 34px;

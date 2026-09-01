@@ -32,7 +32,7 @@ export function useTeacherList() {
       const list = response.data?.data ?? response.data ?? []
       teachers.value = Array.isArray(list) ? list : []
     } catch (err) {
-      error.value = 'Gagal memuat data guru'
+      error.value = err.formattedMessage || err.response?.data?.message || 'Gagal memuat data guru'
       console.error(err)
     } finally {
       loading.value = false

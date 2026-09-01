@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="exam-list-page">
+<template>    <div class="exam-list-page">
       <header class="page-header">
         <div class="header-content">
           <div>
@@ -73,20 +71,23 @@
             </tbody>
           </table>
         </div>
-        <div v-if="pagination" class="pagination">
-          <button type="button" :disabled="!pagination.prev" @click="fetchExams(pagination.current_page - 1)">Sebelumnya</button>
-          <span>Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-          <button type="button" :disabled="!pagination.next" @click="fetchExams(pagination.current_page + 1)">Selanjutnya</button>
-        </div>
+        <PaginationBar
+          v-if="pagination"
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="ujian"
+          @page-change="fetchExams"
+          @per-page-change="changePerPage"
+        />
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
 
@@ -95,22 +96,39 @@ const route = useRoute()
 const exams = ref([])
 const loading = ref(true)
 const pagination = ref(null)
+const perPage = ref(15)
 
 async function fetchExams(page = 1) {
   loading.value = true
   try {
-    const params = { page, per_page: 15 }
+    const params = { page, per_page: perPage.value }
     if (route.query.subject_id) params.subject_id = String(route.query.subject_id)
     const res = await examApi.listExams(params)
     const data = res.data
     exams.value = data?.data ?? data ?? []
-    pagination.value = data?.meta ? { ...data.meta, ...data.links } : null
+    if (data?.meta) {
+      pagination.value = {
+        current_page: data.meta.current_page ?? 1,
+        last_page: data.meta.last_page ?? 1,
+        per_page: data.meta.per_page ?? perPage.value,
+        total: data.meta.total ?? 0,
+      }
+      perPage.value = pagination.value.per_page
+    } else {
+      pagination.value = null
+    }
   } catch (e) {
     const msg = e.response?.data?.message || e.formattedMessage || 'Daftar ujian tidak dapat dimuat. Periksa koneksi dan coba lagi.'
     toast.error('Gagal memuat daftar ujian', msg)
   } finally {
     loading.value = false
   }
+}
+
+function changePerPage(n) {
+  perPage.value = n
+  if (pagination.value) pagination.value.per_page = n
+  fetchExams(1)
 }
 
 async function confirmDelete(exam) {

@@ -14,6 +14,7 @@ use App\Models\Semester;
 use App\Models\StudentAttendance;
 use App\Services\StudentAttendanceService;
 use App\Support\InstitutionContext;
+use App\Support\StructuralPositionResolver;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -159,6 +160,14 @@ class StudentAttendanceController extends Controller
                 ? Semester::where('id', $semesterId)->value('name')
                 : null;
 
+            $semester = $semesterId
+                ? Semester::query()->find($semesterId, ['id', 'name', 'end_date', 'start_date'])
+                : null;
+            $asOfDate = StructuralPositionResolver::attendanceAsOfDate(
+                array_filter(['date_from' => $dateFrom, 'date_to' => $dateTo]),
+                $semester
+            );
+
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
             $pdf = DomPDF::loadView('attendance.student_my_history', [
                 'institution' => $institution,
@@ -170,6 +179,7 @@ class StudentAttendanceController extends Controller
                     'date_to' => $dateTo,
                 ],
                 'printed_at' => $printedAt,
+                'as_of_date' => $asOfDate,
             ])->setPaper('a4', 'portrait');
 
             $filename = 'Riwayat_Absensi_' . preg_replace('/[^A-Za-z0-9_-]/', '_', (string) $student->name) . '_' . date('Y-m-d') . '.pdf';
@@ -272,6 +282,11 @@ class StudentAttendanceController extends Controller
                 ]);
             }
 
+            $semester = !empty($filters['semester_id'])
+                ? Semester::query()->find((int) $filters['semester_id'], ['id', 'end_date', 'start_date'])
+                : null;
+            $asOfDate = StructuralPositionResolver::attendanceAsOfDate($filters, $semester);
+
             $signer = $this->studentAttendanceService->resolveRekapSigner(
                 $institutionId,
                 $filters,
@@ -285,6 +300,7 @@ class StudentAttendanceController extends Controller
                 'meta' => $rekap['meta'],
                 'printed_at' => $printedAt,
                 'signer' => $signer,
+                'as_of_date' => $asOfDate,
             ])->setPaper('a4', 'landscape');
 
             return $pdf->download('Rekap_Absensi_Siswa_' . date('Y-m-d_His') . '.pdf');

@@ -1,7 +1,10 @@
 <template>
   <div id="app">
     <ErrorBoundary>
-      <router-view />
+      <Layout v-if="useAppLayout">
+        <router-view />
+      </Layout>
+      <router-view v-else />
     </ErrorBoundary>
     <Toast />
     <PWAInstallPrompt />
@@ -10,16 +13,20 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { appName, appTagline } from '@/config/app'
 import Toast from '@/components/Toast.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import Layout from '@/components/Layout.vue'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
 import OfflineStatus from '@/components/OfflineStatus.vue'
 import { useAppBrandingStore } from '@/stores/appBranding'
+import { routeUsesAppLayout } from '@/utils/appLayout'
 
 const router = useRouter()
+const route = useRoute()
+const useAppLayout = computed(() => routeUsesAppLayout(route))
 
 onMounted(() => {
   if (router.currentRoute.value.name !== 'SchoolPublic') {
@@ -414,15 +421,28 @@ input, textarea, select {
   }
 }
 
+@media screen and (min-width: 769px) and (max-width: 1440px) {
+  .layout .sidebar {
+    width: 240px !important;
+    min-width: 240px !important;
+  }
+  .layout .main-content {
+    margin-left: 240px !important;
+  }
+}
+
 /* Print styles */
 @media print {
   body {
     background: white;
   }
-  
+
   .sidebar,
   .topbar,
+  .header,
+  .bottom-nav,
   .mobile-menu-btn,
+  .notification-bell-wrap,
   .btn-primary,
   .btn-secondary,
   .btn-edit,
@@ -433,6 +453,11 @@ input, textarea, select {
   .layout .main-content {
     margin-left: 0 !important;
     padding: 0 !important;
+  }
+
+  .layout .content {
+    padding: 0 !important;
+    padding-bottom: 0 !important;
   }
 }
 </style>

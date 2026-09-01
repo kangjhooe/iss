@@ -75,6 +75,14 @@ export const employeeApi = {
   resetPasswordByAdmin(employeeId, data) {
     return api.post(`/v1/employee/${employeeId}/reset-password`, data)
   },
+  uploadPhoto(id, formData) {
+    return api.post(`/v1/employee/${id}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  deletePhoto(id) {
+    return api.delete(`/v1/employee/${id}/photo`)
+  },
   export(params = {}) {
     return api.get('/v1/employee/export', { params })
   },

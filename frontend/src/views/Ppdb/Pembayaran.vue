@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="ppdb-page">
+<template>    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -104,25 +102,25 @@
               </tbody>
             </table>
           </div>
-          <div v-if="pagination.last_page > 1" class="pagination-bar" style="margin-top: 1rem;">
-            <span class="pagination-info">Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-            <div class="pagination-btns">
-              <button type="button" class="pagination-btn" :disabled="pagination.current_page <= 1" @click="goPage(pagination.current_page - 1)">Sebelumnya</button>
-              <button type="button" class="pagination-btn" :disabled="pagination.current_page >= pagination.last_page" @click="goPage(pagination.current_page + 1)">Selanjutnya</button>
-            </div>
-          </div>
+          <PaginationBar
+            :page="pagination.current_page"
+            :last-page="pagination.last_page"
+            :per-page="pagination.per_page"
+            :total="pagination.total"
+            item-label="pendaftar"
+            @page-change="goPage"
+            @per-page-change="changePerPage"
+          />
         </section>
       </main>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { ppdbPeriodApi, ppdbApplicantApi } from '@/api/ppdb'
 import { useToast } from '@/composables/useToast'
 import {
@@ -143,7 +141,7 @@ const savingFeeId = ref(null)
 
 const applicants = ref([])
 const applicantsLoading = ref(false)
-const pagination = ref({ current_page: 1, last_page: 1, total: 0 })
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const filters = ref({
   ppdb_period_id: '',
   payment_status: route.query.payment_status ? String(route.query.payment_status) : 'unpaid',
@@ -190,7 +188,7 @@ async function loadApplicants() {
   try {
     const params = {
       page: pagination.value.current_page,
-      per_page: 15,
+      per_page: pagination.value.per_page || 15,
     }
     if (filters.value.ppdb_period_id) params.ppdb_period_id = filters.value.ppdb_period_id
     if (filters.value.payment_status) params.payment_status = filters.value.payment_status
@@ -200,6 +198,7 @@ async function loadApplicants() {
     pagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
       total: meta.total ?? 0,
     }
   } catch (e) {
@@ -211,6 +210,12 @@ async function loadApplicants() {
 
 function goPage(page) {
   pagination.value.current_page = page
+  loadApplicants()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
   loadApplicants()
 }
 

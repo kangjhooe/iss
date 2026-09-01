@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="teacher-page">
+<template>    <div class="teacher-page">
       <div class="page-header">
         <div class="header-content">
           <div>
@@ -119,6 +117,8 @@
         v-else
         :teachers="teachers"
         :trash-mode="filters.only_trashed"
+        :can-impersonate="canImpersonateTeacher"
+        :impersonate-busy-id="impersonateBusyId"
         :get-teacher-subject="getTeacherSubject"
         :get-status-class="getStatusClass"
         @view="viewTeacher"
@@ -127,6 +127,7 @@
         @add="showAddModal = true"
         @restore="handleRestoreTeacher"
         @force-delete="handleForceDeleteTeacher"
+        @impersonate="handleImpersonateTeacher"
       >
         <template #empty>
           <template v-if="filters.only_trashed">
@@ -252,6 +253,24 @@
             <!-- Tab 1: Identitas -->
             <div v-show="activeTab === 1" class="form-tab-content">
               <fieldset :disabled="isNonIndukEdit" class="fieldset-reset">
+                <div class="form-photo-row">
+                  <div class="form-photo-preview">
+                    <img v-if="photoPreviewUrl" :src="photoPreviewUrl" alt="Foto pegawai" />
+                    <span v-else>3×4</span>
+                  </div>
+                  <div class="form-photo-meta">
+                    <label>Foto pegawai</label>
+                    <input type="file" :accept="PROFILE_PHOTO_ACCEPT" :disabled="photoUploading" @change="onEmployeePhotoSelect" />
+                    <p class="field-hint">JPG atau PNG, maks. 10 MB. Foto dipotong otomatis ke ukuran 3×4 (autocrop). {{ editingId ? 'Langsung tersimpan setelah dipotong.' : 'Diunggah setelah data pegawai disimpan.' }}</p>
+                    <button
+                      v-if="editingId && (formPhotoUrl || pendingPhotoFile)"
+                      type="button"
+                      class="btn-outline"
+                      :disabled="photoUploading"
+                      @click="removeEmployeePhoto"
+                    >Hapus foto</button>
+                  </div>
+                </div>
                 <div class="form-row">
                   <div class="form-group">
                     <label>Tipe Pegawai *</label>
@@ -746,7 +765,8 @@
             </div>
             <div class="view-profile-strip" v-if="viewingTeacher">
               <div class="view-profile-avatar">
-                {{ (viewingTeacher.name || 'P').charAt(0).toUpperCase() }}
+                <img v-if="viewingTeacher.photo_url" :src="viewingTeacher.photo_url" class="view-profile-avatar-img" :alt="viewingTeacher.name" />
+                <template v-else>{{ (viewingTeacher.name || 'P').charAt(0).toUpperCase() }}</template>
               </div>
               <div class="view-profile-info">
                 <h2 class="view-profile-name">{{ viewingTeacher.name || '-' }}</h2>
@@ -1428,12 +1448,15 @@
       :items="accountCredentials?.items || []"
       @close="accountCredentials = null"
     />
-  </Layout>
-</template>
+    <ProfilePhotoCropModal
+      v-model:show="photoCropModalOpen"
+      :file="photoCropSourceFile"
+      @confirm="onEmployeePhotoCropped"
+      @cancel="onEmployeePhotoCropCancel"
+    /></template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import TeacherFilters from '@/components/teacher/TeacherFilters.vue'
 import TeacherTable from '@/components/teacher/TeacherTable.vue'
@@ -1453,8 +1476,10 @@ import { useFormValidation } from '@/composables/useFormValidation'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import ProfilePhotoCropModal from '@/components/ProfilePhotoCropModal.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { PROFILE_PHOTO_ACCEPT, profilePhotoFormData, validateProfilePhoto, validateProfilePhotoSource } from '@/utils/profilePhoto'
 import * as XLSX from 'xlsx'
 
 const toast = useToast()
@@ -1517,6 +1542,12 @@ const availableModules = ref([])
 const loadingPermissions = ref(false)
 
 const { teachers, loading, error: listError, filters, loadTeachers, getTeacherSubject, getStatusClass } = useTeacherList()
+const canImpersonateTeacher = computed(() => {
+  if (authStore.isImpersonating) return false
+  const role = authStore.user?.role
+  return role === 'institution_admin' || role === 'admin' || role === 'super_admin'
+})
+const impersonateBusyId = ref(null)
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
@@ -1527,6 +1558,13 @@ const showImportResultModal = ref(false)
 const viewingTeacher = ref(null)
 const activeTab = ref(1)
 const saving = ref(false)
+const photoUploading = ref(false)
+const formPhotoUrl = ref('')
+const pendingPhotoFile = ref(null)
+const pendingPhotoPreview = ref('')
+const photoPreviewUrl = computed(() => pendingPhotoPreview.value || formPhotoUrl.value || '')
+const photoCropModalOpen = ref(false)
+const photoCropSourceFile = ref(null)
 const exportingPdf = ref(false)
 const deleteLoading = ref(false)
 const error = ref('')
@@ -1799,6 +1837,29 @@ const approveAssignment = async (assignment) => {
   }
 }
 
+const handleImpersonateTeacher = async (teacher) => {
+  const loginEmail = teacher.user_account?.email || teacher.email || '—'
+  const confirmed = await showConfirm({
+    title: 'Masuk sebagai Guru',
+    message: `Masuk sebagai "${teacher.name}" (${loginEmail})? Semua aksi akan tercatat di audit log.`,
+    warning: 'Anda dapat kembali ke akun admin kapan saja lewat banner kuning.',
+    confirmText: 'Masuk',
+    loadingText: 'Memproses...',
+    confirmVariant: 'primary'
+  })
+  if (!confirmed) return
+
+  impersonateBusyId.value = teacher.id
+  try {
+    await authStore.startImpersonateTeacher(teacher.id)
+    toast.success('Berhasil', `Sekarang menyamar sebagai ${teacher.name}`)
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || err.message || 'Gagal masuk sebagai guru')
+  } finally {
+    impersonateBusyId.value = null
+  }
+}
+
 const rejectAssignment = async (assignment) => {
   const reason = prompt('Alasan penolakan:', '')
   if (!reason) return
@@ -1907,6 +1968,8 @@ const editTeacher = async (teacher) => {
     
     // Set documents
     form.value.documents = fullData.documents || []
+    formPhotoUrl.value = fullData.photo_url || ''
+    clearPendingPhoto()
     
     showEditModal.value = true
   } catch (err) {
@@ -2096,6 +2159,14 @@ const handleSubmit = async () => {
     }
 
     const employeeData = response?.data?.data
+    const newId = employeeData?.id
+    if (!wasUpdate && newId && pendingPhotoFile.value) {
+      try {
+        await uploadEmployeePhotoFile(newId, pendingPhotoFile.value)
+      } catch (photoErr) {
+        toast.error('Foto belum tersimpan', photoErr.formattedMessage || 'Data pegawai tersimpan. Unggah foto dari form edit.')
+      }
+    }
     const generatedPassword = response?.data?.generated_password
     const createdEmail = employeeData?.email || employeeData?.user_account?.email || payload.email
     const createdName = employeeData?.name || payload.name
@@ -2134,6 +2205,79 @@ const handleSubmit = async () => {
     }
   } finally {
     saving.value = false
+  }
+}
+
+function clearPendingPhoto() {
+  if (pendingPhotoPreview.value) URL.revokeObjectURL(pendingPhotoPreview.value)
+  pendingPhotoPreview.value = ''
+  pendingPhotoFile.value = null
+}
+
+async function uploadEmployeePhotoFile(id, file) {
+  const res = await employeeApi.uploadPhoto(id, profilePhotoFormData(file))
+  formPhotoUrl.value = res.data?.data?.photo_url || ''
+  return res
+}
+
+async function onEmployeePhotoSelect(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  const photoError = validateProfilePhotoSource(file)
+  if (photoError) {
+    toast.error('Gagal', photoError)
+    return
+  }
+  photoCropSourceFile.value = file
+  photoCropModalOpen.value = true
+}
+
+function onEmployeePhotoCropCancel() {
+  photoCropSourceFile.value = null
+}
+
+async function onEmployeePhotoCropped(file) {
+  photoCropSourceFile.value = null
+  const photoError = validateProfilePhoto(file)
+  if (photoError) {
+    toast.error('Gagal', photoError)
+    return
+  }
+  if (editingId.value) {
+    photoUploading.value = true
+    try {
+      await uploadEmployeePhotoFile(editingId.value, file)
+      toast.success('Berhasil', 'Foto pegawai diunggah')
+      loadTeachers()
+    } catch (err) {
+      toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal mengunggah foto')
+    } finally {
+      photoUploading.value = false
+    }
+    return
+  }
+  clearPendingPhoto()
+  pendingPhotoFile.value = file
+  pendingPhotoPreview.value = URL.createObjectURL(file)
+}
+
+async function removeEmployeePhoto() {
+  if (pendingPhotoFile.value || pendingPhotoPreview.value) {
+    clearPendingPhoto()
+    return
+  }
+  if (!editingId.value) return
+  photoUploading.value = true
+  try {
+    await employeeApi.deletePhoto(editingId.value)
+    formPhotoUrl.value = ''
+    toast.success('Berhasil', 'Foto pegawai dihapus')
+    loadTeachers()
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal menghapus foto')
+  } finally {
+    photoUploading.value = false
   }
 }
 
@@ -2188,6 +2332,8 @@ const closeModal = () => {
     documents: []
   }
   error.value = ''
+  clearPendingPhoto()
+  formPhotoUrl.value = ''
   if (documentUpload.value) {
     documentUpload.value.value = ''
   }
@@ -2338,6 +2484,7 @@ const printPDF = async () => {
   <div class="header">
     <h1>Biodata Pegawai</h1>
     <p>${emp.name || ''}</p>
+    ${emp.photo_url ? `<img src="${emp.photo_url}" alt="Foto" style="width:2.7cm;height:3.6cm;object-fit:cover;border:1px solid #333;margin-top:8px;" />` : ''}
   </div>
   <div class="section">
     <h3 class="section-title">Identitas</h3>
@@ -4273,6 +4420,12 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: -0.5px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.view-profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .view-profile-info {
   min-width: 0;
@@ -4346,6 +4499,59 @@ onMounted(() => {
   padding: 0;
   margin: 0;
   min-inline-size: 0;
+}
+
+.form-photo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.form-photo-preview {
+  width: 84px;
+  height: 112px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.form-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.form-photo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.form-photo-meta label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
 }
 
 .assignment-section {

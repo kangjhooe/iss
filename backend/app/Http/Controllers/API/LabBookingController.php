@@ -79,7 +79,7 @@ class LabBookingController extends Controller
                 $query->whereDate('date', '<=', $request->date_to);
             }
             if ($request->boolean('mine')) {
-                $employee = $user->employeeProfile()->first();
+                $employee = InstitutionContext::employeeForInstitution($user, $institutionId, $request);
                 if ($employee) {
                     $query->where(function ($q) use ($employee, $user) {
                         $q->where('requester_employee_id', $employee->id)
@@ -134,7 +134,7 @@ class LabBookingController extends Controller
                 return response()->json(['message' => $conflict], 422);
             }
 
-            $employee = $user->employeeProfile()->first();
+            $employee = InstitutionContext::employeeForInstitution($user, (int) $room->institution_id, $request);
             $isManager = $user->canManageLab($room);
 
             $booking = LabBooking::create([
@@ -191,7 +191,11 @@ class LabBookingController extends Controller
         try {
             $booking = LabBooking::with('room')->findOrFail($id);
             $user = $request->user();
-            $employee = $user->employeeProfile()->first();
+            $employee = InstitutionContext::employeeForInstitution(
+                $user,
+                (int) $booking->institution_id,
+                $request
+            );
             $isOwner = $employee && (int) $booking->requester_employee_id === (int) $employee->id;
             $isManager = $user->canManageLab($booking->room);
 

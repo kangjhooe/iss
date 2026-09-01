@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\Institution;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\EmployeeService;
 use App\Services\StructuralDutySync;
 use App\Support\InstitutionContext;
 use App\Support\ReportAccess;
@@ -21,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,7 +30,8 @@ use Symfony\Component\HttpFoundation\Response;
 class EmployeeController extends Controller
 {
     public function __construct(
-        protected StructuralDutySync $structuralDutySync
+        protected StructuralDutySync $structuralDutySync,
+        protected \App\Services\EmployeeService $employeeService
     ) {}
 
     /**
@@ -122,7 +125,7 @@ class EmployeeController extends Controller
                 };
             }
 
-            $employees = $query->select(['id', 'institution_id', 'nik', 'type', 'nip', 'nuptk', 'name', 'gender', 'subject', 'status', 'employment_status', 'notes', 'created_at'])
+            $employees = $query->select($this->employeeIndexColumns())
                 ->with($relations)
                 ->orderBy('type')
                 ->orderBy('name')
@@ -933,6 +936,7 @@ class EmployeeController extends Controller
             $filePaths = $employee->documents()->pluck('file_path')->filter()->all();
             $employeeId = $employee->id;
             $nik = $employee->nik;
+            $photoPath = $employee->photo_path;
 
             DB::transaction(function () use ($employee, $request) {
                 $this->releaseEmployeeUserAccount($employee, $request->user());
@@ -945,6 +949,10 @@ class EmployeeController extends Controller
                 }
             }
             Storage::disk('public')->deleteDirectory('employee_documents/'.$employeeId);
+            if ($photoPath && Storage::disk('public')->exists($photoPath)) {
+                Storage::disk('public')->delete($photoPath);
+            }
+            Storage::disk('public')->deleteDirectory('employee_photos/'.$employeeId);
 
             Log::info('Employee permanently deleted', [
                 'employee_id' => $employeeId,
@@ -1191,6 +1199,81 @@ class EmployeeController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    public function uploadPhoto(Request $request, $id)
+    {
+        try {
+            $employee = Employee::findOrFail($id);
+            if (! $this->userCanManageEmployee($request, $employee)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $request->validate(
+                \App\Helpers\FileUploadRules::employeePhoto(true),
+                \App\Helpers\FileUploadRules::profilePhotoMessages()
+            );
+
+            $updated = $this->employeeService->storePhoto($employee, $request->file('photo'));
+
+            return response()->json([
+                'message' => 'Foto pegawai berhasil diunggah',
+                'data' => new EmployeeResource($updated->loadMissing('institution')),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Pegawai tidak ditemukan'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Failed to upload employee photo', [
+                'employee_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengunggah foto',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function deletePhoto(Request $request, $id)
+    {
+        try {
+            $employee = Employee::findOrFail($id);
+            if (! $this->userCanManageEmployee($request, $employee)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $updated = $this->employeeService->deletePhoto($employee);
+
+            return response()->json([
+                'message' => 'Foto pegawai dihapus',
+                'data' => new EmployeeResource($updated->loadMissing('institution')),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Pegawai tidak ditemukan'], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete employee photo', [
+                'employee_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat menghapus foto',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function userCanManageEmployee(Request $request, Employee $employee): bool
+    {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
+            return true;
+        }
+
+        return (int) $user->institution_id === (int) $employee->institution_id;
     }
 
     /**
@@ -1616,5 +1699,37 @@ class EmployeeController extends Controller
             ->all();
 
         $employee->programKeahlians()->sync($validIds);
+    }
+
+    /**
+     * Kolom ringkas untuk daftar pegawai (index).
+     * photo_path hanya disertakan jika migrasi sudah dijalankan.
+     *
+     * @return array<int, string>
+     */
+    private function employeeIndexColumns(): array
+    {
+        $columns = [
+            'id',
+            'institution_id',
+            'nik',
+            'type',
+            'nip',
+            'nuptk',
+            'name',
+            'gender',
+            'email',
+            'subject',
+            'status',
+            'employment_status',
+            'notes',
+            'created_at',
+        ];
+
+        if (Schema::hasColumn('employee', 'photo_path')) {
+            $columns[] = 'photo_path';
+        }
+
+        return $columns;
     }
 }

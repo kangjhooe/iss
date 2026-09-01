@@ -45,10 +45,10 @@ class CounselingController extends Controller
             ]);
             $institution = Institution::find($institutionId);
             if ($institution) {
-                if (!isset($filters['academic_year_id']) && $institution->active_academic_year_id) {
+                if (!$request->exists('academic_year_id') && $institution->active_academic_year_id) {
                     $filters['academic_year_id'] = $institution->active_academic_year_id;
                 }
-                if (!isset($filters['semester_id']) && $institution->active_semester_id) {
+                if (!$request->exists('semester_id') && $institution->active_semester_id) {
                     $filters['semester_id'] = $institution->active_semester_id;
                 }
             }
@@ -375,7 +375,7 @@ class CounselingController extends Controller
     /**
      * Upcoming scheduled sessions (reminder).
      */
-    public function upcoming(Request $request): JsonResponse
+    public function upcoming(Request $request): JsonResponse|AnonymousResourceCollection
     {
         try {
             $institutionId = $this->resolveInstitutionId($request);

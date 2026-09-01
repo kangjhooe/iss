@@ -230,6 +230,36 @@ class QrAttendanceController extends Controller
     }
 
     /**
+     * Konfigurasi validasi lokasi untuk halaman scan (tanpa modul institution).
+     */
+    public function locationConfig(Request $request): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
+        $institution = Institution::query()->find($institutionId);
+        if (!$institution) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 404);
+        }
+
+        $hasCoordinates = $institution->latitude !== null
+            && $institution->longitude !== null
+            && (float) $institution->latitude !== 0.0
+            && (float) $institution->longitude !== 0.0;
+
+        return response()->json([
+            'data' => [
+                'location_required' => $hasCoordinates,
+                'latitude' => $hasCoordinates ? (float) $institution->latitude : null,
+                'longitude' => $hasCoordinates ? (float) $institution->longitude : null,
+                'location_radius' => (int) ($institution->location_radius ?? 100),
+            ],
+        ]);
+    }
+
+    /**
      * Scan QR code untuk absensi dengan validasi geolocation.
      */
     public function scanQrAttendance(ScanQrAttendanceRequest $request): JsonResponse

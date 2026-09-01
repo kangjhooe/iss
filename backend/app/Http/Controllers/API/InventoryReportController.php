@@ -2,48 +2,43 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Exports\InventoryReportExport;
+use App\Http\Controllers\API\Concerns\ResolvesActiveInstitution;
 use App\Http\Controllers\Controller;
-use App\Models\Institution;
+use App\Support\StructuralPositionResolver;
+use App\Models\InventoryAsset;
+use App\Models\InventoryItem;
 use App\Services\InventoryReportService;
 use App\Support\InstitutionContext;
+use App\Support\InventoryAccess;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Excel as ExcelManager;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class InventoryReportController extends Controller
 {
+    use ResolvesActiveInstitution;
+
     public function __construct(
         private InventoryReportService $service
     ) {}
 
-    protected function resolveInstitutionId(Request $request): ?int
-    {
-        $user = $request->user();
-        if (!$user->isAdminOrSuperAdmin()) {
-            return InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
-        }
-        if ($request->filled('institution_id')) {
-            return (int) $request->institution_id;
-        }
-
-        return InstitutionContext::resolveForUser($user, $request, null);
-    }
-
     protected function institutionIdForJson(Request $request): ?int
     {
-        if (!$request->user()->isAdminOrSuperAdmin()) {
-            return $request->user()->institution_id;
-        }
-        if ($request->filled('institution_id')) {
-            return (int) $request->institution_id;
-        }
-
-        return null;
+        return $this->resolveInstitutionId($request);
     }
 
     protected function filtersFromRequest(Request $request): array
     {
-        return $this->service->normalizeFilters($request->all());
+        $filters = $this->service->normalizeFilters($request->all());
+        $institutionId = $this->institutionIdForJson($request);
+        if ($institutionId) {
+            return $this->inventoryFiltersWithRoomScope($request, $filters, $institutionId);
+        }
+
+        return $filters;
     }
 
     /**
@@ -71,6 +66,10 @@ class InventoryReportController extends Controller
      */
     public function stock(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getStockReport($this->institutionIdForJson($request), $filters);
@@ -87,6 +86,10 @@ class InventoryReportController extends Controller
      */
     public function byCategory(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getItemsByCategory(
@@ -107,6 +110,10 @@ class InventoryReportController extends Controller
      */
     public function byLocation(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getItemsByLocation($this->institutionIdForJson($request), $filters);
@@ -123,6 +130,10 @@ class InventoryReportController extends Controller
      */
     public function damagedMissing(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getDamagedMissingItems($this->institutionIdForJson($request), $filters);
@@ -139,6 +150,10 @@ class InventoryReportController extends Controller
      */
     public function loaned(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getLoanedItems($this->institutionIdForJson($request), $filters);
@@ -155,6 +170,10 @@ class InventoryReportController extends Controller
      */
     public function assetValue(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getAssetValueReport($this->institutionIdForJson($request), $filters);
@@ -171,6 +190,10 @@ class InventoryReportController extends Controller
      */
     public function maintenance(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getMaintenanceReport(
@@ -191,6 +214,10 @@ class InventoryReportController extends Controller
      */
     public function transactions(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $data = $this->service->getTransactionReport(
@@ -208,10 +235,55 @@ class InventoryReportController extends Controller
     }
 
     /**
+     * Get individual asset movement report.
+     */
+    public function assetMovements(Request $request)
+    {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
+        try {
+            $filters = $this->filtersFromRequest($request);
+            $data = $this->service->getAssetMovementReport($this->institutionIdForJson($request), $filters);
+
+            return response()->json(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get asset movement report', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Terjadi kesalahan'], 500);
+        }
+    }
+
+    /**
+     * Get disposed items report.
+     */
+    public function disposed(Request $request)
+    {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
+        try {
+            $filters = $this->filtersFromRequest($request);
+            $data = $this->service->getDisposedItems($this->institutionIdForJson($request), $filters);
+
+            return response()->json(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get disposed items report', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Terjadi kesalahan'], 500);
+        }
+    }
+
+    /**
      * Export laporan inventaris (PDF) — per jenis laporan + filter.
      */
     public function exportPdf(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $user = $request->user();
             $institutionId = $this->resolveInstitutionId($request);
@@ -228,56 +300,30 @@ class InventoryReportController extends Controller
             $reportType = $this->service->resolveReportType($request->get('type'));
             $filterLegend = $this->service->buildFilterLegend($filters);
 
-            $statistics = null;
-            $stock = null;
-            $damagedMissing = null;
-            $loaned = null;
-            $assetValue = null;
-            $transactions = null;
-            $maintenance = null;
-
-            if (in_array($reportType, ['summary', 'stock'], true)) {
-                $statistics = $this->service->getStatistics($institutionId, $filters['year'] ?? null, $filters);
-            }
-            if (in_array($reportType, ['summary', 'stock'], true)) {
-                $stock = $this->service->getStockReport(
-                    $institutionId,
-                    $filters,
-                    $reportType === 'stock' ? 5000 : 2000
-                );
-            }
-            if (in_array($reportType, ['summary', 'damaged'], true)) {
-                $damagedMissing = $this->service->getDamagedMissingItems($institutionId, $filters);
-            }
-            if (in_array($reportType, ['summary', 'loaned'], true)) {
-                $loaned = $this->service->getLoanedItems($institutionId, $filters);
-            }
-            if (in_array($reportType, ['summary', 'asset'], true)) {
-                $assetValue = $this->service->getAssetValueReport($institutionId, $filters);
-            }
-            if ($reportType === 'transactions') {
-                $transactions = $this->service->getTransactionReport($institutionId, null, null, $filters);
-            }
-            if ($reportType === 'maintenance') {
-                $maintenance = $this->service->getMaintenanceReport($institutionId, null, $filters);
-            }
+            $payload = $this->collectReportPayload($institutionId, $reportType, $filters);
 
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = StructuralPositionResolver::reportAsOfDate($filters);
 
             $pdf = DomPDF::loadView('inventory.report', [
                 'institution' => $institution,
                 'report_type' => $reportType,
                 'report_title' => $this->service->reportTypeLabel($reportType),
                 'filter_legend' => $filterLegend,
-                'statistics' => $statistics,
-                'stock' => $stock,
-                'damaged_missing' => $damagedMissing,
-                'loaned' => $loaned,
-                'asset_value' => $assetValue,
-                'transactions' => $transactions,
-                'maintenance' => $maintenance,
+                'statistics' => $payload['statistics'],
+                'stock' => $payload['stock'],
+                'damaged_missing' => $payload['damaged_missing'],
+                'loaned' => $payload['loaned'],
+                'asset_value' => $payload['asset_value'],
+                'transactions' => $payload['transactions'],
+                'maintenance' => $payload['maintenance'],
+                'by_location' => $payload['by_location'],
+                'by_category' => $payload['by_category'],
+                'disposed' => $payload['disposed'],
+                'asset_movements' => $payload['asset_movements'],
                 'printed_at' => $printedAt,
                 'printed_by' => $user->name,
+                'as_of_date' => $asOfDate,
             ])->setPaper('a4', 'landscape');
 
             try {
@@ -302,6 +348,229 @@ class InventoryReportController extends Controller
 
             return response()->json([
                 'message' => 'Gagal mengekspor laporan inventaris',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Export laporan inventaris ke Excel (.xlsx).
+     */
+    public function exportExcel(Request $request): BinaryFileResponse
+    {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            abort(403, $denied->getData(true)['message'] ?? 'Forbidden');
+        }
+
+        $institutionId = $this->resolveInstitutionId($request);
+        if (! $institutionId) {
+            abort(403, 'Institusi tidak ditemukan');
+        }
+
+        $filters = $this->filtersFromRequest($request);
+        $reportType = $this->service->resolveReportType($request->get('type'));
+        $payload = $this->collectReportPayload($institutionId, $reportType, $filters);
+
+        $built = InventoryReportExport::buildRows($reportType, [
+            'statistics' => $payload['statistics'],
+            'stock' => $payload['stock'],
+            'by_location' => $payload['by_location'],
+            'by_category' => $payload['by_category'],
+            'asset_value' => $payload['asset_value'],
+            'damaged_missing' => $payload['damaged_missing'],
+            'loaned' => $payload['loaned'],
+            'transactions' => $payload['transactions'],
+            'asset_movements' => $payload['asset_movements'],
+            'maintenance' => $payload['maintenance'],
+            'disposed' => $payload['disposed'],
+        ]);
+
+        $filename = 'Laporan_Inventaris_' . $reportType . '_' . now()->format('Ymd_His') . '.xlsx';
+
+        return app(ExcelManager::class)->download(
+            new InventoryReportExport(
+                $reportType,
+                $this->service->reportTypeLabel($reportType),
+                $built['headings'],
+                $built['rows']
+            ),
+            $filename,
+            ExcelManager::XLSX
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function collectReportPayload(int $institutionId, string $reportType, array $filters): array
+    {
+        $payload = [
+            'statistics' => null,
+            'stock' => null,
+            'damaged_missing' => null,
+            'loaned' => null,
+            'asset_value' => null,
+            'transactions' => null,
+            'maintenance' => null,
+            'by_location' => null,
+            'by_category' => null,
+            'disposed' => null,
+            'asset_movements' => null,
+        ];
+
+        if (in_array($reportType, ['summary', 'stock'], true)) {
+            $payload['statistics'] = $this->service->getStatistics($institutionId, $filters['year'] ?? null, $filters);
+        }
+        if (in_array($reportType, ['summary', 'stock'], true)) {
+            $payload['stock'] = $this->service->getStockReport(
+                $institutionId,
+                $filters,
+                $reportType === 'stock' ? 5000 : 2000
+            );
+        }
+        if (in_array($reportType, ['summary', 'damaged'], true) || $reportType === 'damaged') {
+            $payload['damaged_missing'] = $this->service->getDamagedMissingItems($institutionId, $filters);
+        }
+        if (in_array($reportType, ['summary', 'loaned'], true) || $reportType === 'loaned') {
+            $payload['loaned'] = $this->service->getLoanedItems($institutionId, $filters);
+        }
+        if (in_array($reportType, ['summary', 'asset'], true) || $reportType === 'asset') {
+            $payload['asset_value'] = $this->service->getAssetValueReport($institutionId, $filters);
+        }
+        if ($reportType === 'transactions') {
+            $payload['transactions'] = $this->service->getTransactionReport($institutionId, null, null, $filters);
+        }
+        if ($reportType === 'maintenance') {
+            $payload['maintenance'] = $this->service->getMaintenanceReport($institutionId, null, $filters);
+        }
+        if ($reportType === 'location') {
+            $payload['by_location'] = $this->service->getItemsByLocation($institutionId, $filters);
+        }
+        if ($reportType === 'category') {
+            $payload['by_category'] = $this->service->getItemsByCategory(
+                $institutionId,
+                $filters['category_id'] ?? null,
+                $filters
+            );
+        }
+        if ($reportType === 'disposal') {
+            $payload['disposed'] = $this->service->getDisposedItems($institutionId, $filters);
+        }
+        if ($reportType === 'asset_movements') {
+            $payload['asset_movements'] = $this->service->getAssetMovementReport($institutionId, $filters);
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Export Kartu Inventaris Barang (KIB) for a single item.
+     */
+    public function exportKib(Request $request, InventoryItem $item)
+    {
+        try {
+            if (! $this->userCanAccessInventoryItem($request, $item)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $user = $request->user();
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId || (int) $item->institution_id !== (int) $institutionId) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            if (!$institution) {
+                return response()->json(['message' => 'Institusi tidak ditemukan'], 404);
+            }
+
+            $item->load([
+                'category', 'room', 'building', 'institution',
+                'responsibleEmployee', 'creator',
+            ]);
+
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = $item->purchase_date ?? now();
+            $signatureDate = $asOfDate->locale('id')->translatedFormat('d F Y');
+
+            $pdf = DomPDF::loadView('inventory.kib', [
+                'institution' => $institution,
+                'item' => $item,
+                'printed_at' => $printedAt,
+                'printed_by' => $user->name,
+                'signature_date' => $signatureDate,
+                'as_of_date' => $asOfDate,
+            ])->setPaper('a4', 'portrait');
+
+            $safeCode = preg_replace('/[^a-zA-Z0-9_-]/', '_', $item->code ?? 'barang');
+            $filename = 'KIB_' . $safeCode . '_' . now()->format('Ymd') . '.pdf';
+
+            return $pdf->stream($filename);
+        } catch (\Exception $e) {
+            Log::error('Failed to export KIB', [
+                'item_id' => $item->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Gagal mencetak Kartu Inventaris Barang',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Export KIB untuk satu unit aset individual.
+     */
+    public function exportAssetKib(Request $request, InventoryAsset $asset)
+    {
+        try {
+            if (! $this->userCanAccessInventoryAsset($request, $asset)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $user = $request->user();
+            $institutionId = $this->resolveInstitutionId($request);
+            if (! $institutionId || (int) $asset->institution_id !== (int) $institutionId) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $institution = Institution::find($institutionId);
+            if (! $institution) {
+                return response()->json(['message' => 'Institusi tidak ditemukan'], 404);
+            }
+
+            $asset->load([
+                'item.category', 'item.institution', 'room', 'building',
+                'responsibleEmployee', 'item.responsibleEmployee',
+            ]);
+
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = $asset->item?->purchase_date ?? now();
+            $signatureDate = $asOfDate->locale('id')->translatedFormat('d F Y');
+
+            $pdf = DomPDF::loadView('inventory.kib_asset', [
+                'institution' => $institution,
+                'item' => $asset->item,
+                'asset' => $asset,
+                'printed_at' => $printedAt,
+                'printed_by' => $user->name,
+                'signature_date' => $signatureDate,
+                'as_of_date' => $asOfDate,
+            ])->setPaper('a4', 'portrait');
+
+            $safeNumber = preg_replace('/[^a-zA-Z0-9_-]/', '_', $asset->asset_number ?? 'aset');
+            $filename = 'KIB_' . $safeNumber . '_' . now()->format('Ymd') . '.pdf';
+
+            return $pdf->stream($filename);
+        } catch (\Exception $e) {
+            Log::error('Failed to export asset KIB', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Gagal mencetak KIB aset',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

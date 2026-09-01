@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="feedback-page">
+<template>    <div class="feedback-page">
       <div class="page-header">
         <div class="header-content">
           <div>
@@ -130,27 +128,15 @@
         </div>
       </div>
 
-      <div v-if="meta.last_page > 1 && !loading" class="pagination-bar">
-        <span class="pagination-info">Halaman {{ meta.current_page }} / {{ meta.last_page }}</span>
-        <div class="pagination-btns">
-          <button
-            type="button"
-            class="btn-page"
-            :disabled="meta.current_page <= 1"
-            @click="loadTickets(meta.current_page - 1)"
-          >
-            Sebelumnya
-          </button>
-          <button
-            type="button"
-            class="btn-page"
-            :disabled="meta.current_page >= meta.last_page"
-            @click="loadTickets(meta.current_page + 1)"
-          >
-            Berikutnya
-          </button>
-        </div>
-      </div>
+      <PaginationBar
+        :page="meta.current_page"
+        :last-page="meta.last_page"
+        :per-page="meta.per_page"
+        :total="meta.total"
+        item-label="tiket"
+        @page-change="loadTickets"
+        @per-page-change="changePerPage"
+      />
 
       <!-- Create / Update modals: Teleport ke body agar tidak tertutup sidebar/topbar -->
       <Teleport to="body">
@@ -265,14 +251,12 @@
           </div>
         </div>
       </Teleport>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { feedbackTicketApi } from '@/api/feedbackTicket'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
@@ -294,7 +278,7 @@ const processing = ref(false)
 const createError = ref('')
 const updateError = ref('')
 const expandedIds = ref(new Set())
-const meta = ref({ current_page: 1, last_page: 1 })
+const meta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 
 const createForm = ref({
   type: 'bug',
@@ -368,7 +352,7 @@ const extractError = (err) => {
 const loadTickets = async (page = 1) => {
   loading.value = true
   try {
-    const params = { page, per_page: 15 }
+    const params = { page, per_page: meta.value.per_page || 15 }
     if (filterStatus.value) params.status = filterStatus.value
     if (filterType.value) params.type = filterType.value
 
@@ -378,7 +362,9 @@ const loadTickets = async (page = 1) => {
     tickets.value = list
     meta.value = {
       current_page: payload.current_page ?? payload.meta?.current_page ?? 1,
-      last_page: payload.last_page ?? payload.meta?.last_page ?? 1
+      last_page: payload.last_page ?? payload.meta?.last_page ?? 1,
+      per_page: payload.per_page ?? payload.meta?.per_page ?? meta.value.per_page,
+      total: payload.total ?? payload.meta?.total ?? 0
     }
 
     if (isSuperAdmin.value) {
@@ -397,6 +383,11 @@ const loadTickets = async (page = 1) => {
   } finally {
     loading.value = false
   }
+}
+
+function changePerPage(n) {
+  meta.value.per_page = n
+  loadTickets(1)
 }
 
 const setStatusFilter = (value) => {

@@ -16,9 +16,9 @@ class KaprogAccess
 {
     public const DUTY_KEY = 'kepala_program_keahlian';
 
-    public static function employeeFor(User $user): ?Employee
+    public static function employeeFor(User $user, ?int $institutionId = null): ?Employee
     {
-        return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        return InstitutionContext::employeeForInstitution($user, $institutionId);
     }
 
     public static function isKaprog(User $user): bool
@@ -27,7 +27,7 @@ class KaprogAccess
             return false;
         }
 
-        $employee = self::employeeFor($user);
+        $employee = self::employeeFor($user, InstitutionContext::resolveActiveInstitutionId($user));
         if (! $employee) {
             return false;
         }
@@ -45,7 +45,7 @@ class KaprogAccess
      */
     public static function programIds(User $user): array
     {
-        $employee = self::employeeFor($user);
+        $employee = self::employeeFor($user, InstitutionContext::resolveActiveInstitutionId($user));
         if (! $employee) {
             return [];
         }
@@ -67,8 +67,15 @@ class KaprogAccess
 
     public static function canAccessProgram(User $user, int $programKeahlianId): bool
     {
-        if ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
+        if ($user->isAdminOrSuperAdmin()) {
             return true;
+        }
+
+        $program = ProgramKeahlian::query()->find($programKeahlianId);
+        if ($user->isInstitutionAdmin()) {
+            return $program
+                && $user->institution_id
+                && (int) $program->institution_id === (int) $user->institution_id;
         }
 
         if (! self::isKaprog($user)) {
@@ -80,8 +87,13 @@ class KaprogAccess
 
     public static function canAccessClass(User $user, SchoolClass $class): bool
     {
-        if ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
+        if ($user->isAdminOrSuperAdmin()) {
             return true;
+        }
+
+        if ($user->isInstitutionAdmin()) {
+            return $user->institution_id
+                && (int) $class->institution_id === (int) $user->institution_id;
         }
 
         if (! self::isKaprog($user)) {
@@ -118,7 +130,7 @@ class KaprogAccess
      */
     public static function programs(User $user): Collection
     {
-        $employee = self::employeeFor($user);
+        $employee = self::employeeFor($user, InstitutionContext::resolveActiveInstitutionId($user));
         if (! $employee) {
             return collect();
         }

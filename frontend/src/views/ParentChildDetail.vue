@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page">
+<template>    <div class="sp-page">
       <div class="sp-page-header">
         <div>
           <router-link to="/parent/dashboard" class="back-link">← Dashboard</router-link>
@@ -96,14 +94,11 @@
           </div>
         </div>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import AppChart from '@/components/AppChart.vue'
 import { parentApi } from '@/api/parent'
 import { doughnutFromCounts, countStatuses, chartOptionsBar } from '@/composables/useChart'

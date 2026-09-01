@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="today-page">
       <div class="welcome-section">
         <div class="welcome-content">
@@ -42,14 +41,32 @@
         </div>
 
         <div v-if="!sessions.length" class="empty-panel">
-          <h3>Tidak ada jadwal mengajar</h3>
-          <p>Tidak ada slot jadwal untuk tanggal ini pada semester aktif.</p>
+          <h3>Tidak ada penugasan mengajar</h3>
+          <p>Belum ada jadwal pelajaran untuk Anda pada semester aktif.</p>
         </div>
 
         <div v-else class="layout-grid">
           <aside class="session-list">
+            <div class="session-filter">
+              <button
+                type="button"
+                class="filter-btn"
+                :class="{ active: sessionFilter === 'all' }"
+                @click="sessionFilter = 'all'"
+              >
+                Semua ({{ sessions.length }})
+              </button>
+              <button
+                type="button"
+                class="filter-btn"
+                :class="{ active: sessionFilter === 'today' }"
+                @click="sessionFilter = 'today'"
+              >
+                Jadwal hari ini ({{ onScheduleCount }})
+              </button>
+            </div>
             <button
-              v-for="s in sessions"
+              v-for="s in filteredSessions"
               :key="s.key"
               type="button"
               class="session-card"
@@ -59,10 +76,15 @@
               <div class="session-time">
                 <strong>{{ s.period_label }}</strong>
                 <span v-if="s.start_time">{{ s.start_time }}{{ s.end_time ? '–' + s.end_time : '' }}</span>
+                <span class="schedule-day">{{ s.scheduled_day_name || '—' }}</span>
               </div>
               <div class="session-body">
                 <h4>{{ s.subject_name }}</h4>
                 <p>{{ s.class_name }}<template v-if="s.room_name"> · {{ s.room_name }}</template></p>
+                <span v-if="s.is_on_schedule" class="session-badge on-schedule">Jadwal hari ini</span>
+                <span v-else class="session-badge catch-up">Jadwal {{ s.scheduled_day_name }}</span>
+                <span v-if="s.penilaian_index" class="session-badge grade-col">P{{ s.penilaian_index }}</span>
+                <span v-else-if="s.meeting_number" class="session-badge grade-col">P{{ s.meeting_number }}</span>
               </div>
               <div class="session-flags">
                 <span :class="['dot', s.status?.attendance_filled ? 'ok' : '']" title="Absensi"></span>
@@ -77,6 +99,7 @@
               <div>
                 <h2>{{ activeSession.subject_name }} · {{ activeSession.class_name }}</h2>
                 <p>{{ activeSession.period_label }} · {{ formatDate(selectedDate) }}</p>
+                <p v-if="meetingLabel" class="meeting-label">{{ meetingLabel }}</p>
               </div>
               <div class="wizard-header-actions">
                 <button
@@ -117,6 +140,7 @@
                 <p>Modul jurnal/absensi belum diaktifkan untuk akun ini.</p>
               </div>
               <template v-else>
+                <p class="hint-text meeting-guide">{{ meetingGuideText }}</p>
                 <div class="step-toolbar">
                   <button type="button" class="btn-ghost btn-sm" :disabled="attLoading" @click="prepareAttendance">
                     {{ attLoading ? 'Memuat...' : 'Muat ulang daftar' }}
@@ -126,7 +150,6 @@
                   </button>
                   <router-link :to="recapAttendanceTo" class="btn-ghost btn-sm toolbar-link">Tanggal lain / rekap</router-link>
                 </div>
-                <p v-if="dayMismatch" class="warn-text">{{ dayMismatch }}</p>
                 <p v-if="attError" class="error-text">{{ attError }}</p>
 
                 <div v-if="attLoading && !attRows.length" class="empty-inline"><p>Menyiapkan absensi...</p></div>
@@ -172,6 +195,7 @@
                 <p>Modul jurnal belum diaktifkan.</p>
               </div>
               <template v-else>
+                <p class="hint-text meeting-guide">{{ meetingGuideText }}</p>
                 <p v-if="journalHint" class="hint-text">{{ journalHint }}</p>
                 <label class="field-label">Materi yang diajarkan *</label>
                 <textarea v-model="journalForm.material_taught" rows="4" class="form-textarea" placeholder="Ringkas materi pertemuan hari ini" />
@@ -221,7 +245,10 @@
                     {{ gradeLoading ? 'Memuat...' : 'Muat ulang' }}
                   </button>
                 </div>
-                <p class="hint-text">Isi nilai harian cepat untuk pertemuan ini. Nilai akhir dihitung otomatis saat disimpan.</p>
+                <p class="hint-text">
+                  Setiap tanggal mengajar = satu pertemuan. Kolom nilai otomatis mengikuti urutan pertemuan
+                  (pertemuan ke-1 → P1, ke-2 → P2, dan seterusnya). Ubah manual jika perlu.
+                </p>
                 <p v-if="gradeError" class="error-text">{{ gradeError }}</p>
                 <div v-if="gradeLoading && !gradeRows.length" class="empty-inline"><p>Memuat nilai...</p></div>
                 <div v-else-if="gradeRows.length" class="table-wrap">
@@ -278,13 +305,11 @@
         </div>
       </template>
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { teacherApi } from '@/api/teacher'
@@ -313,12 +338,37 @@ const activeKey = ref('')
 const currentStep = ref('attendance')
 
 const sessions = computed(() => payload.value?.sessions || [])
+const sessionFilter = ref('all')
+const onScheduleCount = computed(() => sessions.value.filter((s) => s.is_on_schedule).length)
+const filteredSessions = computed(() => {
+  if (sessionFilter.value === 'today') {
+    return sessions.value.filter((s) => s.is_on_schedule)
+  }
+  return sessions.value
+})
 const summary = computed(() => payload.value?.summary || { total: 0, attendance_done: 0, journal_done: 0, complete: 0 })
 const dayLabel = computed(() => {
   const name = payload.value?.day_name || ''
   return name ? `${name}, ${formatDate(selectedDate.value)}` : formatDate(selectedDate.value)
 })
 const activeSession = computed(() => sessions.value.find((s) => s.key === activeKey.value) || null)
+
+const meetingLabel = computed(() => {
+  const s = activeSession.value
+  if (!s) return ''
+  const meetingNo = Number(s.meeting_number) || 1
+  const pCol = Number(gradeIndex.value) || Number(s.penilaian_index) || meetingNo
+  return `Pertemuan ke-${meetingNo} · Nilai P${pCol}`
+})
+
+const meetingGuideText = computed(() => {
+  const s = activeSession.value
+  const meetingNo = Number(s?.meeting_number) || 1
+  if (meetingNo <= 1) {
+    return 'Pertemuan pertama: isi absensi, jurnal, lalu nilai P1 untuk tanggal ini.'
+  }
+  return `Pertemuan ke-${meetingNo}: pilih tanggal mengajar yang benar di atas, isi absensi & jurnal baru, lalu nilai P${meetingNo}. Setiap tanggal = satu pertemuan terpisah.`
+})
 
 const recapAttendanceTo = computed(() => {
   const s = activeSession.value
@@ -347,7 +397,6 @@ const attRows = ref([])
 const attLoading = ref(false)
 const attSaving = ref(false)
 const attError = ref('')
-const dayMismatch = ref('')
 const journalIds = ref([])
 
 const journalForm = ref({ material_taught: '', attendance_notes: '', notes: '' })
@@ -397,20 +446,49 @@ function stepDone(id) {
   return false
 }
 
+function applySessionGradeContext(session) {
+  if (!session) return
+  const idx = Number(session.penilaian_index ?? session.suggested_penilaian_index ?? session.meeting_number ?? 1)
+  if (idx >= 1) gradeIndex.value = idx
+  assessmentCount.value = Math.max(
+    1,
+    Number(session.assessment_count) || 1,
+    idx,
+    Number(session.meeting_number) || 1,
+  )
+}
+
 async function loadSessions() {
   loading.value = true
   loadError.value = ''
   try {
     const res = await teacherApi.getTodaySessions({ date: selectedDate.value })
     payload.value = res.data?.data || null
-    if (!sessions.value.find((s) => s.key === activeKey.value)) {
-      activeKey.value = sessions.value[0]?.key || ''
-    }
   } catch (e) {
     payload.value = null
     loadError.value = e.response?.data?.message || e.formattedMessage || 'Gagal memuat jadwal hari ini.'
   } finally {
     loading.value = false
+    pickActiveSession()
+    if (activeSession.value) applySessionGradeContext(activeSession.value)
+  }
+}
+
+function pickActiveSession() {
+  const list = filteredSessions.value.length ? filteredSessions.value : sessions.value
+  const classId = route.query.class_id ? String(route.query.class_id) : ''
+  const subjectId = route.query.subject_id ? String(route.query.subject_id) : ''
+  if (classId && subjectId) {
+    const match = list.find(
+      (s) => String(s.class_id) === classId && String(s.subject_id) === subjectId
+    )
+    if (match) {
+      activeKey.value = match.key
+      return
+    }
+  }
+  if (!list.find((s) => s.key === activeKey.value)) {
+    activeKey.value = list[0]?.key || ''
   }
 }
 
@@ -420,6 +498,7 @@ async function selectSession(s) {
   attRows.value = []
   journalForm.value = { material_taught: '', attendance_notes: '', notes: '' }
   gradeRows.value = []
+  applySessionGradeContext(s)
   if (canAccessModule('teaching_journal')) {
     await prepareAttendance()
   }
@@ -429,14 +508,12 @@ async function prepareAttendance() {
   if (!activeSession.value) return
   attLoading.value = true
   attError.value = ''
-  dayMismatch.value = ''
   try {
     const res = await studentAttendanceApi.prepareFromSchedule({
       lesson_schedule_ids: activeSession.value.lesson_schedule_ids,
       date: selectedDate.value,
     })
     const data = res.data?.data || res.data || {}
-    dayMismatch.value = data.day_mismatch_message || ''
     const rows = Array.isArray(data.attendances) ? data.attendances : []
     attRows.value = rows.map((r) => ({
       student_id: r.student_id || r.student?.id,
@@ -451,6 +528,11 @@ async function prepareAttendance() {
         material_taught: primary.material_taught || '',
         attendance_notes: primary.attendance_notes || '',
         notes: primary.notes || '',
+      }
+      if (primary.penilaian_index && Number(primary.penilaian_index) >= 1) {
+        gradeIndex.value = Number(primary.penilaian_index)
+      } else if (activeSession.value) {
+        applySessionGradeContext(activeSession.value)
       }
       journalHint.value = 'Jurnal terhubung ke slot ini. Lengkapi materi lalu simpan.'
     } else {
@@ -516,6 +598,7 @@ async function saveJournal() {
         material_taught: material,
         attendance_notes: journalForm.value.attendance_notes || null,
         notes: journalForm.value.notes || null,
+        penilaian_index: Number(gradeIndex.value) >= 1 ? Number(gradeIndex.value) : null,
       })
     }
     toast.success('Jurnal disimpan')
@@ -540,7 +623,13 @@ async function loadGrades() {
       per_page: 100,
     })
     const meta = res.data?.meta || {}
-    assessmentCount.value = Math.max(1, Number(meta.assessment_count) || 1)
+    const sessionCount = Math.max(
+      1,
+      Number(activeSession.value?.assessment_count) || 0,
+      Number(activeSession.value?.meeting_number) || 0,
+      Number(meta.assessment_count) || 1,
+    )
+    assessmentCount.value = sessionCount
     if (gradeIndex.value > assessmentCount.value) {
       gradeIndex.value = assessmentCount.value
     }
@@ -581,8 +670,16 @@ async function saveGrades() {
       semester_id: activeSession.value.semester_id,
       class_id: activeSession.value.class_id,
       subject_id: activeSession.value.subject_id,
+      assessment_count: Math.max(assessmentCount.value, gradeIndex.value),
       grades,
     })
+    if (!journalIds.value.length) {
+      await prepareAttendance()
+    }
+    const penilaianIdx = Number(gradeIndex.value)
+    for (const id of journalIds.value) {
+      await teachingJournalApi.update(id, { penilaian_index: penilaianIdx })
+    }
     toast.success('Nilai harian disimpan')
     await loadGrades()
     await loadSessions()
@@ -641,7 +738,12 @@ async function printPdf(sessionKey = null) {
   printing.value = true
   try {
     const params = { date: selectedDate.value }
-    if (sessionKey) params.session_key = sessionKey
+    if (sessionKey) {
+      params.session_key = sessionKey
+      if (canAccessModule('grade_book') && gradeIndex.value >= 1) {
+        params.penilaian_index = gradeIndex.value
+      }
+    }
     const res = await teacherApi.exportTodaySessionsPdf(params)
     const contentType = res.headers?.['content-type'] || ''
     if (res.status !== 200 || contentType.includes('application/json')) {
@@ -684,7 +786,7 @@ watch(currentStep, async (step) => {
   }
 })
 
-watch(gradeIndex, () => {
+watch(gradeIndex, async () => {
   if (gradeRows.value.length) {
     const idx = String(gradeIndex.value)
     gradeRows.value.forEach((r) => {
@@ -692,8 +794,12 @@ watch(gradeIndex, () => {
       const current = penilaian[idx] ?? ''
       r._edit = current === null || current === undefined ? '' : String(current)
     })
+  } else if (currentStep.value === 'grade' && activeSession.value) {
+    await loadGrades()
   }
 })
+
+watch(sessionFilter, () => { pickActiveSession() })
 
 watch(
   () => [selectedDate.value, authStore.activeInstitution?.id],
@@ -739,8 +845,29 @@ watch(activeKey, async (key) => {
 .layout-grid {
   display: grid; grid-template-columns: minmax(240px, 300px) 1fr; gap: 14px; align-items: start;
 }
+@media (max-width: 1440px) {
+  .layout-grid { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
+  .welcome-section { padding: 10px 16px; }
+  .wizard-panel, .empty-panel { padding: 14px 16px; }
+}
 @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
 .session-list { display: flex; flex-direction: column; gap: 8px; }
+.session-filter { display: flex; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+.filter-btn {
+  border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 999px; padding: 5px 10px;
+  font-size: 11px; font-weight: 600; color: #64748b; cursor: pointer;
+}
+.filter-btn.active { background: #0d9488; border-color: #0d9488; color: #fff; }
+.schedule-day { font-size: 11px; color: #0d9488; font-weight: 600; }
+.session-badge {
+  display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 600;
+  padding: 2px 7px; border-radius: 999px;
+}
+.session-badge.on-schedule { background: #d1fae5; color: #065f46; }
+.session-badge.catch-up { background: #f1f5f9; color: #64748b; }
+.session-badge.grade-col { background: #ede9fe; color: #5b21b6; }
+.meeting-label { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: #5b21b6; }
+.meeting-guide { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 8px 10px; }
 .session-card {
   text-align: left; border: 1px solid #e2e8f0; background: #fff; border-radius: 12px;
   padding: 12px; cursor: pointer; display: grid; grid-template-columns: auto 1fr auto; gap: 10px;

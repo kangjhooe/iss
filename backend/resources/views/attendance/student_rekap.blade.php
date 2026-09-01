@@ -129,17 +129,27 @@
     <div class="footer">
         Dicetak pada {{ $printed_at }} &mdash; {{ count($rows) }} siswa
     </div>
-    <div class="standard-signature-wrap">
-        <div class="standard-signature-left"></div>
-        <div class="standard-signature-right">
-            @include('partials.print-signature', array_filter([
-                'institution' => $institution,
-                'date' => now()->locale('id')->translatedFormat('d F Y'),
-                'role' => $signer['role'] ?? null,
-                'name' => $signer['name'] ?? null,
-                'nip' => $signer['nip'] ?? null,
-            ], fn ($v) => $v !== null))
+    @if(!empty($use_wali_signatures))
+        @include('partials.print-wali-signatures', [
+            'institution' => $institution,
+            'wali_kelas' => $wali_kelas ?? null,
+            'signature_date' => $signature_date ?? now()->locale('id')->translatedFormat('d F Y'),
+            'as_of_date' => $as_of_date ?? null,
+        ])
+    @else
+        <div class="standard-signature-wrap">
+            <div class="standard-signature-left"></div>
+            <div class="standard-signature-right">
+                @include('partials.print-signature', array_filter([
+                    'institution' => $institution,
+                    'date' => ($as_of_date ?? now())->locale('id')->translatedFormat('d F Y'),
+                    'as_of_date' => $as_of_date ?? null,
+                    'role' => $signer['role'] ?? null,
+                    'name' => $signer['name'] ?? null,
+                    'nip' => $signer['nip'] ?? null,
+                ], fn ($v) => $v !== null))
+            </div>
         </div>
-    </div>
+    @endif
 </body>
 </html>

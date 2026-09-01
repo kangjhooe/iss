@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FinanceExpense;
 use App\Models\FinanceInvoice;
 use App\Models\Student;
 use App\Models\StudentAttendance;
@@ -16,7 +17,7 @@ class DashboardChartsService
      * @return array{
      *     students_gender: array{male:int,female:int,other:int,total:int},
      *     attendance_today: array{hadir:int,izin:int,sakit:int,alpha:int,dinas_luar:int,students_recorded:int},
-     *     finance: array{billed:float,collected:float,outstanding:float},
+     *     finance: array{billed:float,collected:float,outstanding:float,expenses_month:float,net_month:float},
      *     violations_by_month: list<array{month:string,label:string,count:int}>
      * }
      */
@@ -111,7 +112,7 @@ class DashboardChartsService
     }
 
     /**
-     * @return array{billed:float,collected:float,outstanding:float}
+     * @return array{billed:float,collected:float,outstanding:float,expenses_month:float,net_month:float}
      */
     protected function financeSnapshot(int $institutionId): array
     {
@@ -120,16 +121,34 @@ class DashboardChartsService
             $billed = (float) (clone $base)->sum('amount');
             $collected = (float) (clone $base)->sum('amount_paid');
 
+            $monthStart = now()->startOfMonth()->toDateString();
+            $monthEnd = now()->endOfMonth()->toDateString();
+
+            $paymentsMonth = (float) \App\Models\FinancePayment::forInstitution($institutionId)
+                ->whereHas('invoice', fn ($q) => $q->where('status', '!=', 'cancelled'))
+                ->whereDate('paid_at', '>=', $monthStart)
+                ->whereDate('paid_at', '<=', $monthEnd)
+                ->sum('amount');
+
+            $expensesMonth = (float) FinanceExpense::forInstitution($institutionId)
+                ->whereDate('expense_date', '>=', $monthStart)
+                ->whereDate('expense_date', '<=', $monthEnd)
+                ->sum('amount');
+
             return [
                 'billed' => $billed,
                 'collected' => $collected,
                 'outstanding' => max(0, $billed - $collected),
+                'expenses_month' => $expensesMonth,
+                'net_month' => $paymentsMonth - $expensesMonth,
             ];
         } catch (\Throwable $e) {
             return [
                 'billed' => 0,
                 'collected' => 0,
                 'outstanding' => 0,
+                'expenses_month' => 0,
+                'net_month' => 0,
             ];
         }
     }

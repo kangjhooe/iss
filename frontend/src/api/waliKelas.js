@@ -7,6 +7,23 @@ export const waliKelasApi = {
   updateLoginFields(classId, studentId, data) {
     return api.patch(`/v1/teacher/wali/classes/${classId}/students/${studentId}/login-fields`, data)
   },
+  updateStudent(classId, studentId, data) {
+    return api.patch(`/v1/teacher/wali/classes/${classId}/students/${studentId}`, data)
+  },
+  uploadPhoto(classId, studentId, formData) {
+    return api.post(`/v1/teacher/wali/classes/${classId}/students/${studentId}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  deletePhoto(classId, studentId) {
+    return api.delete(`/v1/teacher/wali/classes/${classId}/students/${studentId}/photo`)
+  },
+  exportIdentitas(classId, params) {
+    return api.get(`/v1/teacher/wali/classes/${classId}/export/identitas`, {
+      params,
+      responseType: 'blob',
+    })
+  },
   ensureStudentAccount(classId, studentId) {
     return api.post(`/v1/teacher/wali/classes/${classId}/students/${studentId}/ensure-account`)
   },
@@ -83,6 +100,34 @@ export const waliKelasApi = {
     return api.get(`/v1/teacher/wali/classes/${classId}/export/attendance`, {
       params,
       responseType: 'blob',
+    })
+  },
+  getFinanceSummary(classId) {
+    return api.get(`/v1/teacher/wali/classes/${classId}/finance/summary`)
+  },
+  getFinanceFeeTypes(classId, params) {
+    return api.get(`/v1/teacher/wali/classes/${classId}/finance/fee-types`, { params })
+  },
+  getFinanceInvoices(classId, params) {
+    return api.get(`/v1/teacher/wali/classes/${classId}/finance/invoices`, { params })
+  },
+  generateFinanceInvoices(classId, data) {
+    return api.post(`/v1/teacher/wali/classes/${classId}/finance/invoices/generate`, data)
+  },
+  storeFinancePayment(classId, data) {
+    return api.post(`/v1/teacher/wali/classes/${classId}/finance/payments`, data)
+  },
+  openFinanceReceipt(classId, paymentId) {
+    return api.get(`/v1/teacher/wali/classes/${classId}/finance/payments/${paymentId}/receipt`, {
+      responseType: 'blob',
+    }).then((res) => {
+      const blob = res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      return res
     })
   },
 }

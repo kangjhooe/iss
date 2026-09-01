@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="academic-year-page">
+<template>    <div class="academic-year-page">
       <div class="tab-header">
         <div class="filters filters-inline">
           <input 
@@ -63,25 +61,16 @@
           <p>Belum ada data tahun ajaran</p>
         </div>
 
-        <div v-if="pagination && pagination.last_page > 1" class="pagination">
-          <button 
-            @click="loadAcademicYears(pagination.current_page - 1)" 
-            :disabled="pagination.current_page === 1"
-            class="pagination-btn"
-          >
-            Sebelumnya
-          </button>
-          <span class="pagination-info">
-            Halaman {{ pagination.current_page }} dari {{ pagination.last_page }}
-          </span>
-          <button 
-            @click="loadAcademicYears(pagination.current_page + 1)" 
-            :disabled="pagination.current_page === pagination.last_page"
-            class="pagination-btn"
-          >
-            Selanjutnya
-          </button>
-        </div>
+        <PaginationBar
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="data"
+          @page-change="loadAcademicYears"
+          @per-page-change="changeAcademicYearsPerPage"
+        />
       </div>
 
       <!-- Add/Edit Modal -->
@@ -176,13 +165,11 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { academicYearApi } from '@/api/academicYear'
 import { useReferenceDataStore } from '@/stores/referenceData'
@@ -196,7 +183,7 @@ const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: set
 
 const academicYears = ref([])
 const loading = ref(true)
-const pagination = ref(null)
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const filters = ref({
   search: ''
 })
@@ -225,7 +212,7 @@ const loadAcademicYears = async (page = 1) => {
   try {
     const params = {
       page,
-      per_page: 15,
+      per_page: pagination.value?.per_page || 15,
       ...filters.value
     }
     
@@ -237,13 +224,25 @@ const loadAcademicYears = async (page = 1) => {
 
     const response = await academicYearApi.getAll(params)
     academicYears.value = response.data.data || []
-    pagination.value = response.data.meta || null
+    const meta = response.data.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
+      total: meta.total ?? 0,
+    }
   } catch (err) {
     toast.error('Gagal', 'Gagal memuat data tahun ajaran')
     console.error('Failed to load academic years:', err)
   } finally {
     loading.value = false
   }
+}
+
+function changeAcademicYearsPerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadAcademicYears(1)
 }
 
 const editAcademicYear = (year) => {

@@ -57,6 +57,10 @@
     </table>
 
     <div class="footer">Dicetak: {{ $printed_at ?? now() }}</div>
-    @include('partials.print-signature', ['institution' => $institution])
+    @include('partials.print-wali-signatures', [
+        'institution' => $institution,
+        'wali_kelas' => $wali_kelas ?? null,
+        'signature_date' => $signature_date ?? null,
+    ])
 </body>
 </html>

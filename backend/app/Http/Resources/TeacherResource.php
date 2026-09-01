@@ -54,6 +54,8 @@ class TeacherResource extends JsonResource
             'status' => $this->status,
             'join_date' => $this->join_date?->format('Y-m-d'),
             'notes' => $this->notes,
+            'photo_path' => $this->photo_path,
+            'photo_url' => $this->photoUrl(),
             'certification_status' => $this->certification_status,
             'certification_date' => $this->certification_date?->format('Y-m-d'),
             'teacher_registration_number' => $this->teacher_registration_number,

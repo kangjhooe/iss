@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="page">
+<template>    <div class="page">
       <div class="page-header">
         <div class="page-header-main">
           <router-link to="/teacher/dashboard" class="back-chip">
@@ -375,13 +373,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { academicYearApi } from '@/api/academicYear'
 import { semesterApi } from '@/api/semester'
 import { institutionApi } from '@/api/institution'
@@ -1395,6 +1390,25 @@ onMounted(async () => {
   font-size: 13px;
   margin: 0 0 10px;
   font-weight: 500;
+}
+
+@media (max-width: 1440px) {
+  .stats-grid {
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 12px 14px;
+  }
+
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr);
+    gap: 12px;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+  }
 }
 
 @media (max-width: 960px) {

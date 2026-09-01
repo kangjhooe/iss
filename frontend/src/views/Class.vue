@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="class-page">
+<template>    <div class="class-page">
       <div class="toolbar">
         <div class="filters filters-inline">
           <input 
@@ -123,25 +121,16 @@
           <p>Belum ada data kelas</p>
         </div>
 
-        <div v-if="pagination && pagination.last_page > 1" class="pagination">
-          <button 
-            @click="loadClasses(pagination.current_page - 1)" 
-            :disabled="pagination.current_page === 1"
-            class="pagination-btn"
-          >
-            Sebelumnya
-          </button>
-          <span class="pagination-info">
-            Halaman {{ pagination.current_page }} dari {{ pagination.last_page }}
-          </span>
-          <button 
-            @click="loadClasses(pagination.current_page + 1)" 
-            :disabled="pagination.current_page === pagination.last_page"
-            class="pagination-btn"
-          >
-            Selanjutnya
-          </button>
-        </div>
+        <PaginationBar
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="kelas"
+          @page-change="loadClasses"
+          @per-page-change="changeClassesPerPage"
+        />
       </div>
 
       <!-- Add/Edit Modal -->
@@ -402,13 +391,11 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { classApi } from '@/api/class'
 import { institutionApi } from '@/api/institution'
 import { facilityApi } from '@/api/facility'
@@ -428,7 +415,7 @@ const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: set
 const classes = ref([])
 const loading = ref(true)
 const listError = ref('')
-const pagination = ref(null)
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const filters = ref({
   search: '',
   grade: '',
@@ -540,7 +527,7 @@ const loadClasses = async (page = 1) => {
   try {
     const params = {
       page,
-      per_page: 15,
+      per_page: pagination.value?.per_page || 15,
       ...filters.value
     }
     
@@ -554,7 +541,13 @@ const loadClasses = async (page = 1) => {
     listError.value = ''
     const response = await classApi.getAll(params)
     classes.value = response.data.data || []
-    pagination.value = response.data.meta || null
+    const meta = response.data.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
+      total: meta.total ?? 0,
+    }
   } catch (err) {
     listError.value = 'Gagal memuat data kelas. Silakan coba lagi.'
     toast.error('Gagal memuat data kelas', 'Daftar kelas tidak dapat dimuat. Periksa koneksi dan coba lagi.')
@@ -562,6 +555,12 @@ const loadClasses = async (page = 1) => {
   } finally {
     loading.value = false
   }
+}
+
+function changeClassesPerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadClasses(1)
 }
 
 const openAddStudentModal = async (classItem) => {

@@ -2,6 +2,11 @@
  * Client-side layout renderer for KOP / TTD / Stempel preview.
  * Mirrors backend SuratLayoutService (URL-based, not DomPDF paths).
  */
+import {
+  renderStandardLetterheadHtml,
+  shouldUseInstitutionLetterhead
+} from '@/utils/standardLetterhead'
+
 export class SuratLayoutClient {
   escape(str) {
     return String(str ?? '')
@@ -11,7 +16,10 @@ export class SuratLayoutClient {
       .replace(/"/g, '&quot;')
   }
 
-  renderKop(kop) {
+  renderKop(kop, institution = null) {
+    if (shouldUseInstitutionLetterhead(kop)) {
+      return renderStandardLetterheadHtml(institution)
+    }
     if (!kop) return ''
     if (kop.isi_html) return kop.isi_html
 

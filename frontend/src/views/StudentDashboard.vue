@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page dashboard">
+<template>    <div class="sp-page dashboard">
       <div v-if="!studentId && authStore.user?.role === 'student'" class="sp-alert sp-alert-warning">
         <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah. Silakan hubungi operator sekolah atau admin.
       </div>
@@ -162,13 +160,10 @@
           <router-link v-if="isVocational" to="/student/pkl" class="sp-more-link">PKL</router-link>
         </div>
       </section>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
 import { gradeBookApi } from '@/api/gradeBook'

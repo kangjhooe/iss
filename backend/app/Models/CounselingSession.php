@@ -69,7 +69,7 @@ class CounselingSession extends Model
 
     public function scopeForInstitution($query, int $institutionId)
     {
-        return $query->where('institution_id', $institutionId);
+        return $query->where($query->getModel()->getTable().'.institution_id', $institutionId);
     }
 
     public function scopeForStudent($query, int $studentId)

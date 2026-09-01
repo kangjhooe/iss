@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\AsetTandaTangan;
 use App\Models\KopSurat;
 use App\Models\Surat;
+use App\Support\DomPdfImage;
+use App\Support\StandardLetterhead;
 use Illuminate\Support\Facades\Storage;
 
 class SuratLayoutService
@@ -20,6 +22,11 @@ class SuratLayoutService
 
         $full = Storage::disk('public')->path($relativePath);
         return file_exists($full) ? $full : null;
+    }
+
+    public function absolutePathForPdf(?string $relativePath): ?string
+    {
+        return DomPdfImage::resolvePath($this->absolutePath($relativePath));
     }
 
     public function resolveKop(Surat $surat): ?KopSurat
@@ -64,6 +71,22 @@ class SuratLayoutService
             ->find($surat->stempel_id);
     }
 
+    public function renderKopForSurat(Surat $surat, bool $forPdf = false): string
+    {
+        if (!$surat->tampilkan_kop) {
+            return '';
+        }
+
+        $surat->loadMissing('institution');
+        $kop = $this->resolveKop($surat);
+
+        if (StandardLetterhead::shouldUseInstitutionLayout($kop)) {
+            return StandardLetterhead::renderHtml($surat->institution, $forPdf);
+        }
+
+        return $this->renderKopHtml($kop, $forPdf);
+    }
+
     /**
      * Build HTML fragment for kop (frontend preview uses URLs; PDF uses absolute paths).
      */
@@ -78,10 +101,10 @@ class SuratLayoutService
         }
 
         $logoKiri = $forPdf
-            ? $this->absolutePath($kop->logo_kiri)
+            ? $this->absolutePathForPdf($kop->logo_kiri)
             : $kop->logo_kiri_url;
         $logoKanan = $forPdf
-            ? $this->absolutePath($kop->logo_kanan)
+            ? $this->absolutePathForPdf($kop->logo_kanan)
             : $kop->logo_kanan_url;
 
         $meta = array_filter([
@@ -140,6 +163,10 @@ class SuratLayoutService
             return '';
         }
 
+        if ($forPdf) {
+            return $this->renderSignatureHtmlForPdf($ttd, $stempel, $posisi);
+        }
+
         $align = $posisi === 'kiri' ? 'left' : 'right';
         $jabatan = $ttd?->pemilik_jabatan ?: 'Kepala Sekolah';
         $nama = $ttd?->pemilik_nama ?: '';
@@ -152,11 +179,15 @@ class SuratLayoutService
         $stempelW = ($stempel?->lebar_mm ?? 35) . 'mm';
         $stempelH = ($stempel?->tinggi_mm ?? 35) . 'mm';
 
-        if ($ttd) {
-            $ttdSrc = $forPdf ? $this->absolutePath($ttd->file_path) : $ttd->file_url;
+        if ($forPdf) {
+            $ttdSrc = $this->absolutePathForPdf($ttd->file_path);
+        } else {
+            $ttdSrc = $ttd->file_url;
         }
         if ($stempel) {
-            $stempelSrc = $forPdf ? $this->absolutePath($stempel->file_path) : $stempel->file_url;
+            $stempelSrc = $forPdf
+                ? $this->absolutePathForPdf($stempel->file_path)
+                : $stempel->file_url;
         }
 
         $html = '<div class="blok-ttd" style="margin-top:40px;text-align:' . $align . ';">';
@@ -185,21 +216,130 @@ class SuratLayoutService
         return $html;
     }
 
+    private function renderSignatureHtmlForPdf(
+        ?AsetTandaTangan $ttd,
+        ?AsetTandaTangan $stempel,
+        string $posisi = 'kanan'
+    ): string {
+        $jabatan = $ttd?->pemilik_jabatan ?: 'Kepala Sekolah';
+        $nama = $ttd?->pemilik_nama ?: '';
+        $nip = $ttd?->pemilik_nip ?: '';
+
+        $ttdSrc = $ttd ? $this->absolutePathForPdf($ttd->file_path) : null;
+        $stempelSrc = $stempel ? $this->absolutePathForPdf($stempel->file_path) : null;
+
+        $leftPad = $posisi === 'kiri' ? '' : '<td style="width:50%;border:none;"></td>';
+        $rightPad = $posisi === 'kiri' ? '<td style="width:50%;border:none;"></td>' : '';
+
+        $images = '';
+        if ($stempelSrc) {
+            $images .= '<img src="' . e($stempelSrc) . '" alt="Stempel" style="max-height:55px;margin:0 4px;vertical-align:middle;" />';
+        }
+        if ($ttdSrc) {
+            $images .= '<img src="' . e($ttdSrc) . '" alt="Tanda Tangan" style="max-height:55px;vertical-align:middle;" />';
+        }
+        if ($images === '') {
+            $images = '&nbsp;';
+        }
+
+        $namaHtml = $nama
+            ? '<div class="blok-ttd-name">' . e($nama) . '</div>'
+            : '';
+        $nipHtml = $nip
+            ? '<div class="blok-ttd-nip">NIP. ' . e($nip) . '</div>'
+            : '';
+
+        return '<div class="blok-ttd"><table class="blok-ttd-table"><tr>'
+            . $leftPad
+            . '<td style="width:50%;border:none;text-align:center;">'
+            . '<div class="blok-ttd-inner">'
+            . '<div class="blok-ttd-role">' . e($jabatan) . ',</div>'
+            . '<div class="blok-ttd-space">' . $images . '</div>'
+            . $namaHtml
+            . $nipHtml
+            . '</div></td>'
+            . $rightPad
+            . '</tr></table></div>';
+    }
+
     public function buildPrintParts(Surat $surat, bool $forPdf = false): array
     {
-        $surat->loadMissing(['kop', 'tandaTangan', 'stempel']);
+        $surat->loadMissing(['kop', 'tandaTangan', 'stempel', 'institution']);
 
-        $kop = $this->resolveKop($surat);
         $ttd = $this->resolveTandaTangan($surat);
         $stempel = $this->resolveStempel($surat);
+        $kop = $this->resolveKop($surat);
+
+        $isiHtml = $surat->isi_html ?? '';
+        if ($forPdf) {
+            $isiHtml = $this->prepareIsiHtmlForPdf($isiHtml);
+        }
 
         return [
-            'kopHtml' => $this->renderKopHtml($kop, $forPdf),
-            'isiHtml' => $surat->isi_html,
+            'kopHtml' => $this->renderKopForSurat($surat, $forPdf),
+            'isiHtml' => $isiHtml,
             'ttdHtml' => $this->renderSignatureHtml($ttd, $stempel, $surat->posisi_ttd ?? 'kanan', $forPdf),
             'kop' => $kop,
             'tandaTangan' => $ttd,
             'stempel' => $stempel,
         ];
+    }
+
+    /**
+     * Normalisasi HTML CKEditor untuk DomPDF — pertahankan hasil edit user (kolom, lebar, dll.).
+     */
+    public function prepareIsiHtmlForPdf(string $html): string
+    {
+        if ($html === '') {
+            return $html;
+        }
+
+        // Lepas wrapper <figure class="table"> CKEditor; isi tabel tetap utuh.
+        $html = preg_replace('/<figure[^>]*class="[^"]*table[^"]*"[^>]*>\s*(<table)/i', '$1', $html) ?? $html;
+        $html = preg_replace('/<\/table>\s*<\/figure>/i', '</table>', $html) ?? $html;
+
+        // Gambar inline dari editor — path absolut untuk DomPDF.
+        $html = preg_replace_callback(
+            '/<img\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>/i',
+            function (array $m): string {
+                $resolved = $this->resolveInlineImageForPdf($m[1]);
+                if (!$resolved) {
+                    return '';
+                }
+
+                return preg_replace(
+                    '/\bsrc=["\'][^"\']+["\']/i',
+                    'src="' . e($resolved) . '"',
+                    $m[0],
+                    1
+                ) ?? '';
+            },
+            $html
+        ) ?? $html;
+
+        return $html;
+    }
+
+    private function resolveInlineImageForPdf(string $src): ?string
+    {
+        $src = html_entity_decode(trim($src), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if ($src === '') {
+            return null;
+        }
+
+        $path = parse_url($src, PHP_URL_PATH) ?: $src;
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        if (str_starts_with($path, 'storage/')) {
+            $relative = substr($path, strlen('storage/'));
+
+            return DomPdfImage::resolvePath($this->absolutePath($relative));
+        }
+
+        if (is_file($src)) {
+            return DomPdfImage::resolvePath($src);
+        }
+
+        return null;
     }
 }

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page">
+<template>    <div class="sp-page">
       <div class="sp-page-header">
         <p class="sp-subtitle">Baca ebook PDF koleksi sekolah Anda</p>
       </div>
@@ -59,11 +57,15 @@
         </article>
       </div>
 
-      <div v-if="meta.last_page > 1" class="pagination">
-        <button type="button" class="sp-btn sp-btn--ghost" :disabled="meta.current_page <= 1" @click="loadEbooks(meta.current_page - 1)">Sebelumnya</button>
-        <span class="pagination-info">Halaman {{ meta.current_page }} / {{ meta.last_page }}</span>
-        <button type="button" class="sp-btn sp-btn--ghost" :disabled="meta.current_page >= meta.last_page" @click="loadEbooks(meta.current_page + 1)">Selanjutnya</button>
-      </div>
+      <PaginationBar
+        :page="meta.current_page"
+        :last-page="meta.last_page"
+        :per-page="meta.per_page"
+        :total="meta.total"
+        item-label="ebook"
+        @page-change="loadEbooks"
+        @per-page-change="changePerPage"
+      />
 
       <Teleport to="body">
         <div v-if="readerOpen" class="reader-overlay" role="dialog" aria-modal="true" :aria-label="readerTitle">
@@ -78,13 +80,11 @@
           <div v-else class="reader-loading">Memuat PDF...</div>
         </div>
       </Teleport>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { useToast } from '@/composables/useToast'
 import { libraryApi } from '@/api/library'
 
@@ -95,7 +95,7 @@ const categories = ref([])
 const loading = ref(false)
 const loadError = ref('')
 const filters = ref({ search: '', category_id: '' })
-const meta = ref({ current_page: 1, last_page: 1 })
+const meta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const openingId = ref(null)
 
 const readerOpen = ref(false)
@@ -127,7 +127,7 @@ async function loadEbooks(page = 1) {
   try {
     const res = await libraryApi.getEbooks({
       page,
-      per_page: 12,
+      per_page: meta.value.per_page || 15,
       search: filters.value.search || undefined,
       category_id: filters.value.category_id || undefined
     })
@@ -135,7 +135,9 @@ async function loadEbooks(page = 1) {
     const m = res.data.meta || {}
     meta.value = {
       current_page: m.current_page ?? page,
-      last_page: m.last_page ?? 1
+      last_page: m.last_page ?? 1,
+      per_page: m.per_page ?? meta.value.per_page,
+      total: m.total ?? 0
     }
   } catch (e) {
     ebooks.value = []
@@ -143,6 +145,11 @@ async function loadEbooks(page = 1) {
   } finally {
     loading.value = false
   }
+}
+
+function changePerPage(n) {
+  meta.value.per_page = n
+  loadEbooks(1)
 }
 
 function debounceLoad() {

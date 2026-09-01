@@ -93,6 +93,8 @@ class PublicSchoolController extends Controller
             $institution->postal_code,
         ])));
 
+        $principal = $institution->resolvedPrincipal();
+
         return response()->json([
             'data' => [
                 'id' => $institution->id,
@@ -111,7 +113,7 @@ class PublicSchoolController extends Controller
                 'phone' => $institution->phone,
                 'email' => $institution->email,
                 'website' => $institution->website,
-                'principal_name' => $institution->principal_name,
+                'principal_name' => $principal['name'],
                 'description' => $institution->description !== null ? (string) $institution->description : '',
                 'vision' => $institution->vision !== null ? (string) $institution->vision : '',
                 'mission' => $institution->mission !== null ? (string) $institution->mission : '',

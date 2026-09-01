@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="grade-book-page">
       <div v-if="contextLabel" class="context-bar">
         <div class="context-main">
@@ -316,56 +315,37 @@
           </table>
         </div>
 
-        <div v-if="pagination.total > 0" class="pagination-bar">
-          <span class="pagination-info">
-            Menampilkan
-            {{ startIndex + 1 }}–{{ Math.min(startIndex + rows.length, pagination.total) }}
-            dari {{ pagination.total }} siswa
-          </span>
-          <div class="pagination-buttons">
-            <button
-              type="button"
-              class="btn-page"
-              :disabled="pagination.current_page <= 1 || loading"
-              @click="goToPage(pagination.current_page - 1)"
-            >
-              Sebelumnya
-            </button>
-            <span class="page-num">
-              Halaman {{ pagination.current_page }} / {{ pagination.last_page }}
-            </span>
-            <button
-              type="button"
-              class="btn-page"
-              :disabled="pagination.current_page >= pagination.last_page || loading"
-              @click="goToPage(pagination.current_page + 1)"
-            >
-              Selanjutnya
-            </button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="siswa"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </template>
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { gradeBookApi } from '@/api/gradeBook'
 import { classApi } from '@/api/class'
 import { subjectApi } from '@/api/subject'
 import { semesterApi } from '@/api/semester'
-import { institutionApi } from '@/api/institution'
 import { employeeApi } from '@/api/teacher'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useActiveAcademicPeriod } from '@/composables/useActiveAcademicPeriod'
 
 const toast = useToast()
 const route = useRoute()
 const authStore = useAuthStore()
+const { ensureLoaded, resolveDefaultSemesterId: resolveActiveSemesterId } = useActiveAcademicPeriod()
 
 const isTeacher = computed(() => {
   const role = authStore.user?.role
@@ -385,7 +365,6 @@ const semesters = ref([])
 const classes = ref([])
 const subjects = ref([])
 const teachingPairs = ref([])
-const activeSemesterId = ref('')
 const kkmDraft = ref(null)
 const assessmentCount = ref(1)
 const weightDraft = ref({
@@ -679,7 +658,7 @@ function resetPagination() {
   pagination.value = {
     current_page: 1,
     last_page: 1,
-    per_page: 20,
+    per_page: pagination.value.per_page || 15,
     total: 0,
   }
 }
@@ -691,6 +670,11 @@ function goToPage(page) {
   loadGrades(page)
 }
 
+function changePerPage(n) {
+  pagination.value.per_page = n
+  loadGrades(1)
+}
+
 function pairExists(classId, subjectId) {
   if (!classId || !subjectId) return false
   return teachingPairs.value.some(
@@ -699,16 +683,7 @@ function pairExists(classId, subjectId) {
 }
 
 function resolveDefaultSemesterId(preferredId = '') {
-  const preferred = preferredId ? String(preferredId) : ''
-  if (preferred && semesters.value.some((s) => String(s.id) === preferred)) {
-    return preferred
-  }
-  if (activeSemesterId.value && semesters.value.some((s) => String(s.id) === String(activeSemesterId.value))) {
-    return String(activeSemesterId.value)
-  }
-  const markedActive = semesters.value.find((s) => s.is_active)
-  if (markedActive) return String(markedActive.id)
-  return semesters.value.length ? String(semesters.value[0].id) : ''
+  return resolveActiveSemesterId(preferredId, semesters.value)
 }
 
 async function onFilterChange() {
@@ -829,7 +804,7 @@ async function loadGrades(page = pagination.value.current_page) {
     pagination.value = {
       current_page: m.current_page ?? page,
       last_page: m.last_page ?? 1,
-      per_page: m.per_page ?? 20,
+      per_page: m.per_page ?? pagination.value.per_page,
       total: m.total ?? rows.value.length,
     }
   } catch (e) {
@@ -1043,24 +1018,6 @@ async function loadSemesters() {
   }
 }
 
-async function loadActiveSemester() {
-  try {
-    const fromAuth = authStore.activeInstitution?.active_semester_id
-      || authStore.user?.institution?.active_semester_id
-    if (fromAuth) {
-      activeSemesterId.value = String(fromAuth)
-      return
-    }
-    const res = await institutionApi.getMy()
-    const inst = res.data?.data || res.data || null
-    if (inst?.active_semester_id) {
-      activeSemesterId.value = String(inst.active_semester_id)
-    }
-  } catch {
-    // ignore — fallback ke semester pertama
-  }
-}
-
 async function loadClasses() {
   if (isTeacher.value) return
   try {
@@ -1124,7 +1081,7 @@ watch(
 )
 
 onMounted(async () => {
-  await Promise.all([loadSemesters(), loadActiveSemester()])
+  await Promise.all([loadSemesters(), ensureLoaded()])
   if (!isTeacher.value) {
     await Promise.all([loadClasses(), loadSubjects()])
   }

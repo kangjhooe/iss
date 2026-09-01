@@ -41,8 +41,6 @@ class StoreInstitutionRequest extends FormRequest
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'website' => 'nullable|url|max:255',
-            'principal_name' => 'nullable|string|max:255',
-            'principal_nip' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
             'latitude' => 'nullable|numeric|between:-90,90',

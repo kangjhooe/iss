@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="institution-page">
       <!-- Super Admin View: List All Institutions -->
       <template v-if="isSuperAdmin">
@@ -311,6 +310,10 @@
 
         <div class="info-section">
           <h3>Kepala {{ institutionTypeLabel }}</h3>
+          <p class="form-hint" style="margin-bottom: 12px;">
+            Data diambil dari jabatan struktural pegawai.
+            <router-link to="/kepegawaian">Atur di Kepegawaian → Jabatan</router-link>.
+          </p>
           <div class="info-grid">
             <div class="info-item">
               <label>Nama</label>
@@ -543,14 +546,21 @@
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label>Nama Kepala {{ institutionTypeLabel }}</label>
-                <input v-model="form.principal_name" />
-              </div>
-              <div class="form-group">
-                <label>NIP Kepala {{ institutionTypeLabel }}</label>
-                <input v-model="form.principal_nip" />
+            <div class="form-group principal-readonly-block">
+              <label>Kepala {{ institutionTypeLabel }}</label>
+              <p class="form-hint" style="margin-bottom: 8px;">
+                Ditentukan lewat jabatan struktural pegawai, bukan diisi manual di sini.
+                <router-link to="/kepegawaian">Buka Kepegawaian → Jabatan</router-link>.
+              </p>
+              <div class="info-grid" style="margin-top: 0;">
+                <div class="info-item">
+                  <label>Nama</label>
+                  <p :class="{ 'text-empty': !institution?.principal_name }">{{ displayValue(institution?.principal_name) }}</p>
+                </div>
+                <div class="info-item">
+                  <label>NIP</label>
+                  <p :class="{ 'text-empty': !institution?.principal_nip }">{{ displayValue(institution?.principal_nip) }}</p>
+                </div>
               </div>
             </div>
 
@@ -568,26 +578,12 @@
               <textarea v-model="form.mission" rows="4" placeholder="Satu atau beberapa poin misi sekolah"></textarea>
             </div>
 
-            <div class="form-section-label">Lokasi (untuk absensi)</div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Latitude</label>
-                <input v-model.number="form.latitude" type="number" step="any" placeholder="-6.xxxx" />
-                <small class="form-hint">Contoh: -6.2088</small>
-              </div>
-              <div class="form-group">
-                <label>Longitude</label>
-                <input v-model.number="form.longitude" type="number" step="any" placeholder="106.xxxx" />
-                <small class="form-hint">Contoh: 106.8456</small>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Radius (meter)</label>
-                <input v-model.number="form.location_radius" type="number" min="10" max="5000" placeholder="100" />
-                <small class="form-hint">Radius validasi lokasi absensi (10–5000 m)</small>
-              </div>
-            </div>
+            <AttendanceLocationPicker
+              v-model:latitude="form.latitude"
+              v-model:longitude="form.longitude"
+              v-model:location-radius="form.location_radius"
+              :address-hint="institutionAddressHint"
+            />
 
             <div class="form-group">
               <label>Logo {{ institutionTypeLabel }}</label>
@@ -790,14 +786,21 @@
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label>Nama Kepala {{ institutionTypeLabel }}</label>
-                <input v-model="form.principal_name" />
-              </div>
-              <div class="form-group">
-                <label>NIP Kepala {{ institutionTypeLabel }}</label>
-                <input v-model="form.principal_nip" />
+            <div class="form-group principal-readonly-block">
+              <label>Kepala {{ institutionTypeLabel }}</label>
+              <p class="form-hint" style="margin-bottom: 8px;">
+                Ditentukan lewat jabatan struktural pegawai, bukan diisi manual di sini.
+                <router-link to="/kepegawaian">Buka Kepegawaian → Jabatan</router-link>.
+              </p>
+              <div class="info-grid" style="margin-top: 0;">
+                <div class="info-item">
+                  <label>Nama</label>
+                  <p :class="{ 'text-empty': !institution?.principal_name }">{{ displayValue(institution?.principal_name) }}</p>
+                </div>
+                <div class="info-item">
+                  <label>NIP</label>
+                  <p :class="{ 'text-empty': !institution?.principal_nip }">{{ displayValue(institution?.principal_nip) }}</p>
+                </div>
               </div>
             </div>
 
@@ -815,26 +818,12 @@
               <textarea v-model="form.mission" rows="4" placeholder="Satu atau beberapa poin misi sekolah"></textarea>
             </div>
 
-            <div class="form-section-label">Lokasi (untuk absensi)</div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Latitude</label>
-                <input v-model.number="form.latitude" type="number" step="any" placeholder="-6.xxxx" />
-                <small class="form-hint">Contoh: -6.2088</small>
-              </div>
-              <div class="form-group">
-                <label>Longitude</label>
-                <input v-model.number="form.longitude" type="number" step="any" placeholder="106.xxxx" />
-                <small class="form-hint">Contoh: 106.8456</small>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Radius (meter)</label>
-                <input v-model.number="form.location_radius" type="number" min="10" max="5000" placeholder="100" />
-                <small class="form-hint">Radius validasi lokasi absensi (10–5000 m)</small>
-              </div>
-            </div>
+            <AttendanceLocationPicker
+              v-model:latitude="form.latitude"
+              v-model:longitude="form.longitude"
+              v-model:location-radius="form.location_radius"
+              :address-hint="institutionAddressHint"
+            />
 
             <div v-if="error" class="error-message">{{ error }}</div>
 
@@ -916,12 +905,10 @@
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
     />
-  </Layout>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { institutionApi } from '@/api/institution'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
@@ -934,6 +921,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AddressCascade from '@/components/AddressCascade.vue'
+import AttendanceLocationPicker from '@/components/AttendanceLocationPicker.vue'
 import { emptyAddress, formatFullAddress } from '@/utils/addressFields'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
@@ -976,6 +964,13 @@ const institutionTypeLabel = computed(() => {
 
 const nssLabel = computed(() => getNssLabel(institution.value?.level))
 const formNssLabel = computed(() => getNssLabel(form.value.level))
+const institutionAddressHint = computed(() => {
+  const parts = [
+    form.value.name || institution.value?.name,
+    formatFullAddress(form.value),
+  ].filter(Boolean)
+  return parts.join(', ')
+})
 
 const displayValue = (val) => (val && String(val).trim() !== '') ? val : 'Belum ada data'
 
@@ -1015,8 +1010,6 @@ const form = ref({
   phone: '',
   email: '',
   website: '',
-  principal_name: '',
-  principal_nip: '',
   description: '',
   vision: '',
   mission: '',
@@ -1243,7 +1236,7 @@ const INSTITUTION_PAYLOAD_KEYS = [
   'name', 'foundation_name', 'npsn', 'nss', 'level', 'type', 'address', 'village', 'sub_district', 'district', 'province',
   'province_code', 'district_code',
   'wilayah_province_code', 'wilayah_regency_code', 'wilayah_district_code', 'wilayah_village_code',
-  'postal_code', 'phone', 'email', 'website', 'principal_name', 'principal_nip',
+  'postal_code', 'phone', 'email', 'website',
   'description', 'vision', 'mission', 'is_active', 'latitude', 'longitude', 'location_radius',
   'active_academic_year_id', 'active_semester_id'
 ]
@@ -1472,7 +1465,7 @@ const handleUpdateAcademicYear = async () => {
     
     toast.success('Berhasil', 'Tahun ajaran dan semester aktif berhasil diperbarui')
     showAcademicYearModal.value = false
-    await loadInstitution()
+    await Promise.all([loadInstitution(), authStore.fetchUser()])
   } catch (err) {
     const errorMsg = err.response?.data?.message || 'Gagal memperbarui tahun ajaran dan semester'
     academicYearError.value = errorMsg
@@ -1679,8 +1672,6 @@ const resetForm = () => {
     phone: '',
     email: '',
     website: '',
-    principal_name: '',
-    principal_nip: '',
     description: '',
     vision: '',
     mission: '',

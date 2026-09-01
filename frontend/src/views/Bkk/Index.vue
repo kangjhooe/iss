@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="bkk-page">
+<template>    <div class="bkk-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-text">
@@ -206,13 +204,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { bkkApi } from '@/api/bkk'
 import { industryPartnersApi } from '@/api/industryPartners'

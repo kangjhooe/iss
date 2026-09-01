@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page page">
+<template>    <div class="sp-page page">
       <div class="sp-page-header page-header">
         <div class="page-header-main">
           <p class="sp-subtitle page-subtitle">
@@ -435,13 +433,10 @@
           </div>
         </div>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import AddressCascade from '@/components/AddressCascade.vue'
 import { formatFullAddress } from '@/utils/addressFields'
 import { useToast } from '@/composables/useToast'

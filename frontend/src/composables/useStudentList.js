@@ -3,8 +3,9 @@ import { studentApi } from '@/api/student'
 
 /**
  * Composable for student list: filters, load data, and table helpers.
+ * @param {{ inactive?: boolean }} [options]
  */
-export function useStudentList() {
+export function useStudentList(options = {}) {
   const students = ref([])
   const loading = ref(true)
   const error = ref('')
@@ -23,6 +24,7 @@ export function useStudentList() {
     account_status: '',
     missing_nis: '',
     only_trashed: false,
+    inactive: !!options.inactive,
     sort_by: 'created_at',
     sort_dir: 'desc'
   })
@@ -37,10 +39,16 @@ export function useStudentList() {
     if (filters.value.tingkat !== '' && filters.value.tingkat !== null) {
       params.tingkat = filters.value.tingkat
     }
-    if (filters.value.status) params.status = filters.value.status
     if (filters.value.account_status) params.account_status = filters.value.account_status
     if (filters.value.missing_nis) params.missing_nis = 1
-    if (filters.value.only_trashed) params.only_trashed = true
+    if (filters.value.only_trashed) {
+      params.only_trashed = true
+    } else if (filters.value.inactive) {
+      params.inactive = true
+      if (filters.value.status) params.status = filters.value.status
+    } else if (filters.value.status) {
+      params.status = filters.value.status
+    }
     if (filters.value.sort_by) params.sort_by = filters.value.sort_by
     if (filters.value.sort_dir) params.sort_dir = filters.value.sort_dir
     return params
@@ -86,6 +94,11 @@ export function useStudentList() {
     loadStudents(page)
   }
 
+  const changePerPage = (n) => {
+    pagination.value.per_page = n
+    loadStudents(1)
+  }
+
   const getStatusClass = (status) => {
     const map = {
       'Aktif': 'status-active',
@@ -107,6 +120,7 @@ export function useStudentList() {
     buildListParams,
     setSort,
     goToPage,
+    changePerPage,
     getStatusClass
   }
 }

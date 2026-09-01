@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="naik-kelas-page">
+<template>    <div class="naik-kelas-page">
       <div class="page-header">
         <h1 class="page-title">Naik Kelas</h1>
         <p class="page-subtitle">
@@ -144,13 +142,10 @@
           <button type="button" class="btn-primary" :disabled="promoting" @click="doPromote">Ya, Naik Kelas</button>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { studentApi } from '@/api/student'
 import { useReferenceDataStore } from '@/stores/referenceData'

@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -161,9 +160,7 @@ onMounted(load)
 onBeforeUnmount(clearFile)
 </script>
 
-<template>
-  <Layout>
-    <div class="page">
+<template>    <div class="page">
       <SuratSubNav
         title="Tanda Tangan & Stempel"
         subtitle="Unggah aset PNG transparan. Dipakai opsional di setiap surat."
@@ -254,9 +251,7 @@ onBeforeUnmount(clearFile)
       :loading="confirmDialog.loading"
       @confirm="handleConfirm"
       @cancel="handleCancel"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <style scoped>
 .filters { display:flex; gap:8px; margin-bottom:12px; }

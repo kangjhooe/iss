@@ -29,6 +29,14 @@ export const useAuthStore = defineStore('auth', {
     availableInstitutions: (state) => state.user?.available_institutions || [],
     activeInstitutionId: (state) => state.user?.active_institution_id || state.user?.institution_id || null,
     activeInstitution: (state) => state.user?.active_institution || state.user?.institution || null,
+    activeAcademicYearId: (state) => {
+      const inst = state.user?.active_institution || state.user?.institution
+      return inst?.active_academic_year_id || null
+    },
+    activeSemesterId: (state) => {
+      const inst = state.user?.active_institution || state.user?.institution
+      return inst?.active_semester_id || null
+    },
     activeAffiliation: (state) => state.user?.active_affiliation || 'induk',
     canSwitchInstitution: (state) => (state.user?.available_institutions || []).length > 1,
     isDemoInstitution: (state) => {
@@ -167,6 +175,17 @@ export const useAuthStore = defineStore('auth', {
 
     async startImpersonate(adminId) {
       const response = await authApi.startImpersonate(adminId)
+      const user = response.data?.user
+      if (!user) throw new Error('Data user tidak ditemukan')
+      this.user = user
+      this.isAuthenticated = true
+      syncActiveInstitutionGlobal(this.user)
+      await router.replace(getDefaultRoute(user.role))
+      return user
+    },
+
+    async startImpersonateTeacher(employeeId) {
+      const response = await authApi.startImpersonateTeacher(employeeId)
       const user = response.data?.user
       if (!user) throw new Error('Data user tidak ditemukan')
       this.user = user

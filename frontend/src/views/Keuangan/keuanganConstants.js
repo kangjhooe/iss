@@ -24,10 +24,22 @@ export const paymentMethodOptions = [
   { value: 'other', label: 'Lainnya' },
 ]
 
+export const expenseCategoryOptions = [
+  { value: 'payroll', label: 'Gaji pegawai' },
+  { value: 'other', label: 'Lainnya' },
+]
+
+export const expenseSourceOptions = [
+  { value: 'auto', label: 'Otomatis (penggajian)' },
+  { value: 'manual', label: 'Manual' },
+]
+
 export const frequencyLabel = (v) => frequencyOptions.find((o) => o.value === v)?.label || v || '—'
 export const scopeLabel = (v) => scopeOptions.find((o) => o.value === v)?.label || v || '—'
 export const statusLabel = (v) => invoiceStatusOptions.find((o) => o.value === v)?.label || v || '—'
 export const methodLabel = (v) => paymentMethodOptions.find((o) => o.value === v)?.label || v || '—'
+export const expenseCategoryLabel = (v) => expenseCategoryOptions.find((o) => o.value === v)?.label || v || '—'
+export const expenseSourceLabel = (v) => expenseSourceOptions.find((o) => o.value === v)?.label || v || '—'
 
 export function formatRp(value) {
   const n = Number(value || 0)

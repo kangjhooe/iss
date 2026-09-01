@@ -1,12 +1,30 @@
 @php
+    use App\Models\Institution;
+    use App\Support\StructuralPositionResolver;
+
     $signerInstitution = $institution ?? null;
     $signerPlace = $place
         ?? ($signerInstitution->district ?? $signerInstitution->city ?? '........................');
     $signerDate = $date ?? now()->locale('id')->translatedFormat('d F Y');
-    $signerRole = $role ?? \App\Models\Institution::principalTitleForLevel($signerInstitution?->level);
-    $signerName = $name ?? ($signerInstitution->principal_name ?? null);
-    $signerNip = $nip ?? ($signerInstitution->principal_nip ?? null);
+    $signerRole = $role ?? Institution::principalTitleForLevel($signerInstitution?->level);
     $showPlaceDate = $show_place_date ?? true;
+
+    if (!isset($name) && $signerInstitution) {
+        $resolved = StructuralPositionResolver::principalAt($signerInstitution, $as_of_date ?? null);
+        $signerName = $resolved['name'] ?? null;
+        $signerNip = $resolved['nip'] ?? null;
+        if (!isset($role) && !empty($resolved['role'])) {
+            $signerRole = $resolved['role'];
+        }
+    } else {
+        $signerName = $name ?? null;
+        $signerNip = $nip ?? null;
+        if (($signerName === null || $signerNip === null) && $signerInstitution) {
+            $resolved = StructuralPositionResolver::principalAt($signerInstitution, $as_of_date ?? null);
+            $signerName = $signerName ?? $resolved['name'];
+            $signerNip = $signerNip ?? $resolved['nip'];
+        }
+    }
 @endphp
 
 <div class="standard-signature">

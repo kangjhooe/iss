@@ -4,10 +4,13 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
+use App\Models\Institution;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Surat;
 use App\Services\SuratService;
-use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
+use App\Support\RegionAddress;
+use App\Support\StandardLetterhead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -21,9 +24,74 @@ class SuratController extends Controller
     ) {}
 
     /**
+     * GET /api/v1/surat/classes
+     * Daftar kelas ringkas untuk picker generate surat.
+     */
+    public function classes(Request $request)
+    {
+        $institutionId = $this->requireInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
+        }
+
+        $institution = Institution::find($institutionId);
+        $query = SchoolClass::query()
+            ->where('institution_id', $institutionId)
+            ->orderBy('grade')
+            ->orderBy('name');
+
+        if ($institution?->active_academic_year_id) {
+            $query->where('academic_year_id', $institution->active_academic_year_id);
+        }
+
+        return response()->json([
+            'data' => $query->get(['id', 'name', 'grade']),
+        ]);
+    }
+
+    /**
+     * GET /api/v1/surat/letterhead-context
+     * Profil institusi lengkap untuk render kop standar di editor surat.
+     */
+    public function letterheadContext(Request $request)
+    {
+        $institutionId = $this->requireInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
+        }
+
+        $institution = Institution::find($institutionId);
+        if (!$institution) {
+            return response()->json(['message' => 'Institusi tidak ditemukan'], 404);
+        }
+
+        return response()->json([
+            'data' => [
+                'id' => $institution->id,
+                'name' => $institution->name,
+                'foundation_name' => $institution->foundation_name,
+                'level' => $institution->level,
+                'npsn' => $institution->npsn,
+                'nss' => $institution->nss,
+                'address' => $institution->address,
+                'village' => $institution->village,
+                'sub_district' => $institution->sub_district,
+                'district' => $institution->district,
+                'province' => $institution->province,
+                'postal_code' => $institution->postal_code,
+                'full_address' => RegionAddress::format($institution),
+                'phone' => $institution->phone,
+                'email' => $institution->email,
+                'website' => $institution->website,
+                'logo' => StandardLetterhead::resolveLogoUrl($institution),
+            ],
+        ]);
+    }
+
+    /**
      * GET /api/v1/surat/students
      * Daftar siswa untuk picker generate surat (akses modul correspondence).
-     * Tidak memfilter semester agar semua siswa aktif tampil.
+     * Filter class_id dan/atau search (nama/NIS/NISN/NIK).
      */
     public function students(Request $request)
     {
@@ -32,37 +100,65 @@ class SuratController extends Controller
             return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
         }
 
-        $search = trim((string) $request->get('search', ''));
-        $perPage = min((int) $request->get('per_page', 50), 100);
+        $search = trim((string) ($request->get('search') ?: $request->get('q', '')));
+        $classId = $request->get('class_id');
+        $studentId = $request->get('student_id');
+
+        if (!$classId && $search === '' && !$studentId) {
+            return response()->json([
+                'message' => 'Pilih kelas atau ketik nama/NIS siswa.',
+                'data' => [],
+                'meta' => ['total' => 0],
+            ]);
+        }
 
         $query = Student::query()
-            ->where('institution_id', $institutionId)
-            ->where('status', 'Aktif')
-            ->orderBy('name');
+            ->leftJoin('class', 'student.class_id', '=', 'class.id')
+            ->where('student.institution_id', $institutionId)
+            ->where(function ($w) {
+                $w->where('student.status', 'Aktif')->orWhereNull('student.status');
+            })
+            ->orderBy('student.name')
+            ->select([
+                'student.id',
+                'student.name',
+                'student.nis',
+                'student.nisn',
+                'student.nik',
+                'student.class_id',
+                'student.status',
+                'class.name as class_name',
+            ]);
+
+        if ($studentId) {
+            $query->where('student.id', (int) $studentId)->limit(1);
+        } elseif ($classId) {
+            $query->where('student.class_id', (int) $classId)->limit(200);
+        } else {
+            $query->limit(50);
+        }
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('nis', 'like', "%{$search}%")
-                    ->orWhere('nisn', 'like', "%{$search}%");
+                $q->where('student.name', 'like', "%{$search}%")
+                    ->orWhere('student.nis', 'like', "%{$search}%")
+                    ->orWhere('student.nisn', 'like', "%{$search}%")
+                    ->orWhere('student.nik', 'like', "%{$search}%");
             });
         }
 
-        $students = $query
-            ->select(['id', 'name', 'nis', 'nisn', 'class', 'class_id', 'status'])
-            ->with(['class:id,name'])
-            ->limit($perPage)
-            ->get()
-            ->map(function (Student $s) {
-                return [
-                    'id' => $s->id,
-                    'name' => $s->name,
-                    'nis' => $s->nis,
-                    'nisn' => $s->nisn,
-                    'kelas' => $s->class?->name ?? $s->getAttribute('class'),
-                    'status' => $s->status,
-                ];
-            });
+        $students = $query->get()->map(function ($s) {
+            return [
+                'id' => (int) $s->id,
+                'name' => $s->name,
+                'nis' => $s->nis,
+                'nisn' => $s->nisn,
+                'nik' => $s->nik,
+                'class_id' => $s->class_id ? (int) $s->class_id : null,
+                'kelas' => $s->class_name,
+                'status' => $s->status,
+            ];
+        });
 
         return response()->json([
             'data' => $students,
@@ -81,13 +177,33 @@ class SuratController extends Controller
             return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
         }
 
-        $search = trim((string) $request->get('search', ''));
+        $search = trim((string) ($request->get('search') ?: $request->get('q', '')));
+        $type = trim((string) $request->get('type', ''));
+        $employeeId = $request->get('employee_id');
         $perPage = min((int) $request->get('per_page', 50), 100);
+
+        if (!$employeeId && $search === '' && $type === '') {
+            return response()->json([
+                'message' => 'Ketik nama/NIP atau pilih filter tipe guru/pegawai.',
+                'data' => [],
+                'meta' => ['total' => 0],
+            ]);
+        }
 
         $query = Employee::query()
             ->where('institution_id', $institutionId)
             ->where('status', 'Aktif')
             ->orderBy('name');
+
+        if ($employeeId) {
+            $query->where('id', (int) $employeeId)->limit(1);
+        } else {
+            $query->limit($perPage);
+        }
+
+        if ($type !== '' && in_array($type, ['Guru', 'Pegawai'], true)) {
+            $query->where('type', $type);
+        }
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -103,7 +219,6 @@ class SuratController extends Controller
                 'id', 'name', 'nip', 'nuptk', 'type', 'subject',
                 'employment_status', 'status',
             ])
-            ->limit($perPage)
             ->get()
             ->map(function (Employee $e) {
                 return [
@@ -384,7 +499,11 @@ class SuratController extends Controller
             return $this->service->downloadPdf($surat);
         } catch (\Exception $e) {
             Log::error('Failed to export surat PDF', ['error' => $e->getMessage(), 'surat_id' => $id]);
-            return response()->json(['message' => 'Gagal export PDF'], 500);
+            $message = 'Gagal export PDF';
+            if (str_contains($e->getMessage(), 'GD extension')) {
+                $message = 'Export PDF gagal: ekstensi PHP GD belum aktif di server. Aktifkan extension=gd di php.ini lalu restart Apache.';
+            }
+            return response()->json(['message' => $message], 500);
         }
     }
 
@@ -402,12 +521,16 @@ class SuratController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $pdf = DomPDF::loadView('surat.print', $this->service->printViewData($surat))
-            ->setPaper('a4', 'portrait');
-
-        $filename = 'Surat_' . preg_replace('/[^\w\-]+/', '_', $surat->nomor ?? (string) $surat->id) . '.pdf';
-
-        return $pdf->stream($filename);
+        try {
+            return $this->service->streamPdf($surat);
+        } catch (\Exception $e) {
+            Log::error('Failed to stream surat PDF', ['error' => $e->getMessage(), 'surat_id' => $id]);
+            $message = 'Gagal membuka PDF cetak';
+            if (str_contains($e->getMessage(), 'GD extension')) {
+                $message = 'Cetak gagal: ekstensi PHP GD belum aktif di server. Aktifkan extension=gd di php.ini lalu restart Apache.';
+            }
+            return response()->json(['message' => $message], 500);
+        }
     }
 
     /**

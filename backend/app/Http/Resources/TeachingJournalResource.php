@@ -19,6 +19,7 @@ class TeachingJournalResource extends JsonResource
             'employee_id' => $this->employee_id,
             'journal_date' => $this->journal_date?->format('Y-m-d'),
             'period' => $this->period,
+            'penilaian_index' => $this->penilaian_index,
             'material_taught' => $this->material_taught,
             'attendance_notes' => $this->attendance_notes,
             'notes' => $this->notes,

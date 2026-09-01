@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="qr-attendance-scan-page">
+<template>    <div class="qr-attendance-scan-page">
       <div class="page-header">
         <div class="header-content">
           <div>
@@ -41,21 +39,46 @@
           </div>
         </div>
 
-        <div class="location-status">
-          <span v-if="locationStatus === 'loading'">Mendapatkan lokasi...</span>
-          <span v-else-if="locationStatus === 'success'" class="ok">Lokasi siap</span>
-          <span v-else-if="locationStatus === 'error'" class="bad">{{ locationError }}</span>
-          <span v-else>Lokasi belum diambil (hanya wajib jika sekolah mengatur koordinat)</span>
+        <div class="location-status" :class="locationStatusClass">
+          <div class="location-status-main">
+            <span v-if="locationStatus === 'loading'">Mendapatkan lokasi...</span>
+            <span v-else-if="locationStatus === 'success'">
+              Lokasi siap
+              <template v-if="currentLocation.accuracy"> (akurasi ±{{ Math.round(currentLocation.accuracy) }} m)</template>
+            </span>
+            <span v-else-if="locationStatus === 'error'">{{ locationError }}</span>
+            <span v-else-if="locationRequired">Lokasi wajib — tekan "Ambil lokasi" sebelum scan</span>
+            <span v-else>Lokasi opsional (sekolah belum mengatur koordinat)</span>
+          </div>
+          <button
+            type="button"
+            class="btn-location-retry"
+            :disabled="locationStatus === 'loading'"
+            @click="refreshLocation(true)"
+          >
+            {{ locationStatus === 'loading' ? 'Mengambil...' : 'Ambil lokasi' }}
+          </button>
         </div>
+        <p v-if="locationRequired && locationConfig.location_radius" class="location-hint">
+          Scan hanya diterima dalam radius {{ locationConfig.location_radius }} m dari titik sekolah.
+        </p>
 
         <div class="scanner-section">
           <QrScanner @scan="handleQrScan" @error="handleScannerError" />
           <p v-if="busy" class="scan-busy">Memproses absensi...</p>
+          <p v-else-if="scanBlockedByLocation" class="scan-blocked">
+            Aktifkan lokasi terlebih dahulu untuk melanjutkan scan.
+          </p>
 
           <details class="manual-box">
             <summary>Input manual</summary>
             <input v-model="manualQrData" class="form-input" placeholder="Tempel kode QR dari kartu" />
-            <button type="button" class="btn-primary" :disabled="!manualQrData.trim() || busy" @click="handleManualScan">
+            <button
+              type="button"
+              class="btn-primary"
+              :disabled="!manualQrData.trim() || busy || scanBlockedByLocation"
+              @click="handleManualScan"
+            >
               Proses
             </button>
           </details>
@@ -77,17 +100,20 @@
           </ul>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
+import { computed, onMounted, ref } from 'vue'
 import QrScanner from '@/components/QrScanner.vue'
 import { useToast } from '@/composables/useToast'
 import { qrAttendanceApi } from '@/api/attendance'
 import { teachingJournalApi } from '@/api/teachingJournal'
+import {
+  GEO_STATUS,
+  formatQrLocationApiError,
+  getCurrentCoordinates,
+  hasValidCoordinates,
+} from '@/utils/geolocation'
 
 const toast = useToast()
 
@@ -97,17 +123,51 @@ const attendanceDate = ref(new Date().toISOString().slice(0, 10))
 const journalDate = ref(new Date().toISOString().slice(0, 10))
 const teachingJournals = ref([])
 const loadingJournals = ref(false)
-const locationStatus = ref('idle')
+const locationStatus = ref(GEO_STATUS.IDLE)
 const locationError = ref('')
-const currentLocation = ref({ latitude: null, longitude: null })
+const currentLocation = ref({ latitude: null, longitude: null, accuracy: null })
+const locationConfig = ref({
+  location_required: false,
+  location_radius: 100,
+})
 const manualQrData = ref('')
 const scanResult = ref(null)
 const busy = ref(false)
 const recent = ref([])
 const inFlightTokens = new Set()
 
+const locationRequired = computed(() => Boolean(locationConfig.value.location_required))
+
+const locationReady = computed(() =>
+  hasValidCoordinates(currentLocation.value.latitude, currentLocation.value.longitude)
+)
+
+const scanBlockedByLocation = computed(() =>
+  locationRequired.value && !locationReady.value && locationStatus.value !== GEO_STATUS.LOADING
+)
+
+const locationStatusClass = computed(() => {
+  if (locationStatus.value === GEO_STATUS.SUCCESS) return 'ok'
+  if (locationStatus.value === GEO_STATUS.ERROR) return 'bad'
+  if (locationRequired.value && !locationReady.value) return 'warn'
+  return ''
+})
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
+}
+
+async function loadLocationConfig() {
+  try {
+    const res = await qrAttendanceApi.getLocationConfig()
+    const data = res.data.data || {}
+    locationConfig.value = {
+      location_required: Boolean(data.location_required),
+      location_radius: data.location_radius ?? 100,
+    }
+  } catch {
+    locationConfig.value = { location_required: false, location_radius: 100 }
+  }
 }
 
 async function loadTeachingJournals() {
@@ -132,42 +192,30 @@ async function loadTeachingJournals() {
   }
 }
 
-async function getCurrentLocation(force = false) {
-  if (!force && currentLocation.value.latitude && currentLocation.value.longitude) {
-    locationStatus.value = 'success'
+async function refreshLocation(force = false) {
+  if (!force && locationReady.value) {
+    locationStatus.value = GEO_STATUS.SUCCESS
     return true
   }
-  locationStatus.value = 'loading'
+
+  locationStatus.value = GEO_STATUS.LOADING
   locationError.value = ''
 
-  if (!navigator.geolocation) {
-    locationStatus.value = 'error'
-    locationError.value = 'Browser tidak mendukung geolocation'
+  try {
+    const coords = await getCurrentCoordinates()
+    currentLocation.value = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      accuracy: coords.accuracy ?? null,
+    }
+    locationStatus.value = GEO_STATUS.SUCCESS
+    return true
+  } catch (e) {
+    locationStatus.value = GEO_STATUS.ERROR
+    locationError.value = e.message || 'Gagal mendapatkan lokasi.'
+    currentLocation.value = { latitude: null, longitude: null, accuracy: null }
     return false
   }
-
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        currentLocation.value = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }
-        locationStatus.value = 'success'
-        resolve(true)
-      },
-      (err) => {
-        locationStatus.value = 'error'
-        locationError.value = 'Gagal mendapatkan lokasi: ' + err.message
-        resolve(false)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      }
-    )
-  })
 }
 
 async function handleQrScan(qrData) {
@@ -203,9 +251,14 @@ async function processQrScan(qrData) {
     return
   }
 
-  const hasLocation = await getCurrentLocation(false)
-  if (!hasLocation) {
-    toast.warning('Peringatan', 'Lokasi tidak terdeteksi. Absensi ditolak jika sekolah sudah mengatur koordinat.')
+  if (locationRequired.value && !locationReady.value) {
+    const ok = await refreshLocation(true)
+    if (!ok) {
+      toast.error('Lokasi wajib', locationError.value || 'Aktifkan izin lokasi lalu tekan "Ambil lokasi".')
+      return
+    }
+  } else if (!locationReady.value) {
+    await refreshLocation(false)
   }
 
   busy.value = true
@@ -240,7 +293,7 @@ async function processQrScan(qrData) {
     }
     manualQrData.value = ''
   } catch (e) {
-    const errorMsg = e.response?.data?.message || e.formattedMessage || 'Gagal memproses absensi'
+    const errorMsg = formatQrLocationApiError(e)
     scanResult.value = {
       type: 'error',
       title: 'Gagal absensi',
@@ -275,7 +328,11 @@ function resetForm() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadTeachingJournals(), getCurrentLocation(true)])
+  await Promise.all([
+    loadLocationConfig(),
+    loadTeachingJournals(),
+    refreshLocation(true),
+  ])
 })
 </script>
 
@@ -302,17 +359,48 @@ onMounted(async () => {
   font-size: 0.9rem;
 }
 .location-status {
-  margin: 1rem 0;
+  margin: 1rem 0 0.35rem;
   padding: 0.6rem 0.75rem;
   background: #f8fafc;
   border-radius: 8px;
   font-size: 0.85rem;
   color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
-.location-status .ok { color: #166534; }
-.location-status .bad { color: #991b1b; }
+.location-status.ok { background: #dcfce7; color: #166534; }
+.location-status.bad { background: #fee2e2; color: #991b1b; }
+.location-status.warn { background: #fef3c7; color: #92400e; }
+.location-status-main { flex: 1; min-width: 180px; }
+.btn-location-retry {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.location-status.ok .btn-location-retry { border-color: #86efac; }
+.location-status.bad .btn-location-retry,
+.location-status.warn .btn-location-retry { border-color: currentColor; }
+.btn-location-retry:disabled { opacity: 0.6; cursor: not-allowed; }
+.location-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
 .scanner-section { margin-top: 0.5rem; }
 .scan-busy { text-align: center; color: #047857; font-weight: 600; }
+.scan-blocked {
+  text-align: center;
+  color: #92400e;
+  font-size: 0.88rem;
+  margin: 0.5rem 0 0;
+}
 .manual-box { margin-top: 1rem; color: #64748b; }
 .manual-box input { margin: 0.5rem 0; }
 .btn-primary {
@@ -343,4 +431,3 @@ onMounted(async () => {
   font-size: 0.9rem;
 }
 </style>
-

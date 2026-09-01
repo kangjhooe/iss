@@ -10,6 +10,7 @@ use App\Models\LibraryBookCopy;
 use App\Models\LibraryEbookView;
 use App\Models\LibraryLoan;
 use App\Models\LibraryFinePayment;
+use App\Support\StructuralPositionResolver;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -232,6 +233,10 @@ class LibraryReportController extends Controller
 
             $institution = Institution::find($institutionId);
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = StructuralPositionResolver::reportAsOfDate([
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ]);
 
             $pdf = DomPDF::loadView('library.laporan_peminjaman', [
                 'institution' => $institution,
@@ -240,6 +245,8 @@ class LibraryReportController extends Controller
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'printed_at' => $printedAt,
+                'kepala_perpustakaan' => StructuralPositionResolver::holderObject('ketua_perpus', (int) $institutionId, $asOfDate),
+                'as_of_date' => $asOfDate,
             ]);
 
             $filename = 'Laporan_Peminjaman_Perpustakaan_' . date('Y-m-d_His') . '.pdf';
@@ -283,6 +290,10 @@ class LibraryReportController extends Controller
 
             $institution = Institution::find($institutionId);
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = StructuralPositionResolver::reportAsOfDate([
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ]);
 
             $pdf = DomPDF::loadView('library.laporan_denda', [
                 'institution' => $institution,
@@ -291,7 +302,8 @@ class LibraryReportController extends Controller
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'printed_at' => $printedAt,
-                'kepala_perpustakaan' => \App\Models\AdditionalDuty::resolveActiveHolder('ketua_perpus', (int) $institutionId),
+                'kepala_perpustakaan' => StructuralPositionResolver::holderObject('ketua_perpus', (int) $institutionId, $asOfDate),
+                'as_of_date' => $asOfDate,
             ]);
 
             $filename = 'Laporan_Denda_Perpustakaan_' . date('Y-m-d_His') . '.pdf';

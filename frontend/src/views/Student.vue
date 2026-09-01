@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="student-page">
+<template>    <div class="student-page">
       <div class="list-tabs">
         <button
           type="button"
@@ -9,6 +7,9 @@
         >
           Daftar Siswa
         </button>
+        <router-link to="/siswa-keluar" class="tab-btn">
+          Siswa Keluar
+        </router-link>
         <button
           type="button"
           :class="['tab-btn', { active: filters.only_trashed }]"
@@ -36,24 +37,6 @@
             <option v-for="grade in availableStudentGrades" :key="grade" :value="grade">
               Tingkat {{ grade }}
             </option>
-          </select>
-          <select v-model="filters.status" @change="loadStudents(1)" class="filter-select">
-            <option value="">Semua Status</option>
-            <option value="Aktif">Aktif</option>
-            <option value="Lulus">Lulus</option>
-            <option value="Pindah">Pindah</option>
-            <option value="Drop Out">Drop Out</option>
-            <option value="Tidak Aktif">Tidak Aktif</option>
-          </select>
-          <select v-model="filters.account_status" @change="loadStudents(1)" class="filter-select">
-            <option value="">Semua Akun</option>
-            <option value="missing">Belum punya akun</option>
-            <option value="incomplete">Data login belum lengkap</option>
-            <option value="ready">Sudah punya akun</option>
-          </select>
-          <select v-model="filters.missing_nis" @change="loadStudents(1)" class="filter-select">
-            <option value="">Semua NIS</option>
-            <option value="1">Belum punya NIS</option>
           </select>
         </div>
         <div v-else class="filters filters-inline">
@@ -201,7 +184,18 @@
         </div>
       </div>
 
-      <!-- Error state (list load failed) -->
+      <div
+        v-if="!filters.only_trashed && (filters.account_status || filters.missing_nis)"
+        class="list-subset-bar"
+      >
+        <span>Menampilkan:
+          <strong v-if="filters.account_status === 'missing'">siswa tanpa akun</strong>
+          <strong v-else-if="filters.account_status === 'incomplete'">siswa dengan data login kurang</strong>
+          <strong v-else-if="filters.account_status === 'ready'">siswa yang sudah punya akun</strong>
+          <strong v-if="filters.missing_nis">{{ filters.account_status ? ' · ' : '' }}siswa tanpa NIS</strong>
+        </span>
+        <button type="button" class="btn-ghost-link" @click="clearListSubset">Tampilkan semua</button>
+      </div>
       <div v-if="error && !loading" class="error-state">
         <p class="error-text">{{ error }}</p>
         <button @click="loadStudents()" class="btn-primary">Coba lagi</button>
@@ -217,6 +211,7 @@
         <StudentTable
           :students="students"
           :trash-mode="filters.only_trashed"
+          :show-status="filters.only_trashed"
           :start-index="(pagination.current_page - 1) * pagination.per_page"
           :get-status-class="getStatusClass"
           :sort-by="filters.sort_by"
@@ -254,34 +249,16 @@
             </template>
           </template>
         </StudentTable>
-        <div v-if="students.length > 0 && pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">
-            Menampilkan
-            {{ (pagination.current_page - 1) * pagination.per_page + 1 }}–{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }}
-            dari {{ pagination.total }} siswa
-          </span>
-          <div class="pagination-buttons">
-            <button
-              type="button"
-              class="btn-page"
-              :disabled="pagination.current_page <= 1"
-              @click="goToPage(pagination.current_page - 1)"
-            >
-              Sebelumnya
-            </button>
-            <span class="page-num">
-              Halaman {{ pagination.current_page }} / {{ pagination.last_page }}
-            </span>
-            <button
-              type="button"
-              class="btn-page"
-              :disabled="pagination.current_page >= pagination.last_page"
-              @click="goToPage(pagination.current_page + 1)"
-            >
-              Selanjutnya
-            </button>
-          </div>
-        </div>
+        <PaginationBar
+          v-if="students.length > 0"
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="siswa"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </div>
 
       <!-- Add/Edit Modal -->
@@ -547,6 +524,24 @@
 
             <!-- Tab 1: Identitas -->
             <div v-show="activeTab === 1" class="form-tab-content">
+              <div class="form-photo-row">
+                <div class="form-photo-preview">
+                  <img v-if="photoPreviewUrl" :src="photoPreviewUrl" alt="Foto siswa" />
+                  <span v-else>3×4</span>
+                </div>
+                <div class="form-photo-meta">
+                  <label>Foto siswa</label>
+                  <input type="file" :accept="PROFILE_PHOTO_ACCEPT" @change="onStudentPhotoSelect" />
+                  <p class="field-hint">JPG atau PNG, maks. 10 MB. Foto dipotong otomatis ke ukuran 3×4 (autocrop). {{ editingId ? 'Langsung tersimpan setelah dipotong.' : 'Diunggah setelah data siswa disimpan.' }}</p>
+                  <button
+                    v-if="editingId && (formPhotoUrl || pendingPhotoFile)"
+                    type="button"
+                    class="btn-outline"
+                    :disabled="photoUploading"
+                    @click="removeStudentPhoto"
+                  >Hapus foto</button>
+                </div>
+              </div>
               <div class="form-row">
                 <div class="form-group">
                   <label>NIK <span class="required">*</span></label>
@@ -1145,6 +1140,10 @@
                 </svg>
                 Identitas Siswa
               </h4>
+              <div class="biodata-photo-wrap">
+                <img v-if="viewingStudent.photo_url" :src="viewingStudent.photo_url" class="biodata-photo" :alt="viewingStudent.name" />
+                <div v-else class="biodata-photo biodata-photo-empty">3×4</div>
+              </div>
               <div class="biodata-grid">
                 <div class="biodata-item">
                   <span class="label">NIK</span>
@@ -1544,6 +1543,15 @@
               {{ graduatingStudent ? 'Memproses...' : 'Luluskan Siswa' }}
             </button>
             <button
+              v-if="viewingStudent?.status === 'Aktif'"
+              type="button"
+              class="btn-secondary"
+              :disabled="graduatingStudent || leavingStudent"
+              @click="openLeaveModal"
+            >
+              Tandai Keluar
+            </button>
+            <button
               v-if="viewingStudent?.status === 'Lulus'"
               type="button"
               class="btn-danger"
@@ -1554,6 +1562,40 @@
             </button>
             <button type="button" @click="closeViewModal" class="btn-secondary">Tutup</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="leaveModal.open" class="modal-overlay" @click="closeLeaveModal">
+      <div class="modal-content leave-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Tandai siswa keluar</h3>
+          <button type="button" class="btn-close" @click="closeLeaveModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-message">
+            {{ viewingStudent?.name || 'Siswa ini' }} akan dipindah dari daftar aktif ke
+            <router-link to="/siswa-keluar" @click="closeLeaveModal">Siswa Keluar</router-link>.
+          </p>
+          <div class="leave-options">
+            <label v-for="opt in leaveStatusOptions" :key="opt.value" class="leave-option">
+              <input v-model="leaveModal.status" type="radio" :value="opt.value" />
+              <span>
+                <strong>{{ opt.label }}</strong>
+                <small>{{ opt.hint }}</small>
+              </span>
+            </label>
+          </div>
+          <p v-if="leaveModal.status === 'Pindah'" class="hint">
+            Mutasi ke sekolah lain yang terdaftar di aplikasi lebih tepat lewat menu
+            <router-link to="/student-mutation" @click="closeLeaveModal">Mutasi</router-link>.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" :disabled="leavingStudent" @click="closeLeaveModal">Batal</button>
+          <button type="button" class="btn-primary" :disabled="leavingStudent" @click="confirmLeaveStudent">
+            {{ leavingStudent ? 'Memproses...' : 'Simpan' }}
+          </button>
         </div>
       </div>
     </div>
@@ -1571,7 +1613,7 @@
               · {{ importPreview.invalid.length }} baris dilewati
             </template>
           </p>
-          <p class="hint">Siswa Aktif yang NIK atau NISN-nya sudah ada akan diperbarui. Siswa Pindah, Tidak Aktif, Lulus, Drop Out, atau yang ada di kotak sampah ditolak — bukan diaktifkan kembali. Akun login dibuat otomatis jika NIK (16 digit) dan tanggal lahir terisi.</p>
+          <p class="hint">File hasil Export bisa diedit lalu diimpor lagi. Siswa Aktif yang NIK, NISN, atau NIS-nya sudah ada akan diperbarui. Siswa Pindah, Tidak Aktif, Lulus, Drop Out, atau yang ada di kotak sampah ditolak — bukan diaktifkan kembali. Aktifkan kembali di Siswa Keluar jika siswa kembali bersekolah. Akun login dibuat otomatis jika NIK (16 digit) dan tanggal lahir terisi.</p>
           <div v-if="importPreview.valid.length" class="import-preview-table-wrap">
             <table class="counseling-table">
               <thead>
@@ -1809,20 +1851,34 @@
       :items="accountCredentials?.items || []"
       @close="accountCredentials = null"
     />
-  </Layout>
-</template>
+    <ProfilePhotoCropModal
+      v-model:show="photoCropModalOpen"
+      :file="photoCropSourceFile"
+      @confirm="onStudentPhotoCropped"
+      @cancel="onStudentPhotoCropCancel"
+    /></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
+import { useRoute, useRouter } from 'vue-router'
+import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import ProfilePhotoCropModal from '@/components/ProfilePhotoCropModal.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import StudentTable from '@/components/student/StudentTable.vue'
 import StudentTableSkeleton from '@/components/StudentTableSkeleton.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AddressCascade from '@/components/AddressCascade.vue'
-import { emptyAddress, excelAddressColumns, formatFullAddress, pickAddressFromExcel } from '@/utils/addressFields'
+import { emptyAddress, formatFullAddress } from '@/utils/addressFields'
+import {
+  STUDENT_EXCEL_COL_WIDTHS,
+  mapStudentImportExcelRows,
+  studentExcelDataSheetName,
+  studentExcelGuideRows,
+  studentExcelTemplateRow,
+  studentToExcelRow,
+} from '@/utils/studentExcel'
 import { useStudentList } from '@/composables/useStudentList'
 import { useAuthStore } from '@/stores/auth'
 import { studentApi } from '@/api/student'
@@ -1837,9 +1893,12 @@ import { getInstitutionTypeLabel, getPrincipalTitle, getNssLabel } from '@/utils
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import { studentLoginCredentials, mapStudentCreatedAccounts } from '@/utils/accountCredentials'
+import { PROFILE_PHOTO_ACCEPT, profilePhotoFormData, validateProfilePhoto, validateProfilePhotoSource } from '@/utils/profilePhoto'
 import * as XLSX from 'xlsx'
 
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 const accountCredentials = ref(null)
@@ -1854,6 +1913,7 @@ const {
   buildListParams,
   setSort,
   goToPage,
+  changePerPage,
   getStatusClass
 } = useStudentList()
 
@@ -2228,6 +2288,13 @@ const feederError = ref('')
 const showViewModal = ref(false)
 const viewingStudent = ref(null)
 const graduatingStudent = ref(false)
+const leavingStudent = ref(false)
+const leaveModal = ref({ open: false, status: 'Tidak Aktif' })
+const leaveStatusOptions = [
+  { value: 'Pindah', label: 'Pindah', hint: 'Pindah sekolah, tanpa alur Mutasi di aplikasi.' },
+  { value: 'Drop Out', label: 'Drop Out', hint: 'Berhenti sekolah atau dikeluarkan.' },
+  { value: 'Tidak Aktif', label: 'Tidak Aktif', hint: 'Tidak aktif, termasuk meninggal dunia atau kasus lain.' },
+]
 const studentCounselingSessions = ref([])
 const studentCounselingLoading = ref(false)
 const studentExtracurricularEnrollments = ref([])
@@ -2490,6 +2557,13 @@ const selectedFile = ref(null)
 const uploadingDocument = ref(false)
 const currentStudentDocuments = ref([])
 const fileInput = ref(null)
+const pendingPhotoFile = ref(null)
+const pendingPhotoPreview = ref('')
+const formPhotoUrl = ref('')
+const photoUploading = ref(false)
+const photoPreviewUrl = computed(() => pendingPhotoPreview.value || formPhotoUrl.value || '')
+const photoCropModalOpen = ref(false)
+const photoCropSourceFile = ref(null)
 
 let editingId = null
 
@@ -2564,6 +2638,8 @@ async function openAddModal() {
   editingId = null
   fillStudentForm()
   currentStudentDocuments.value = []
+  formPhotoUrl.value = ''
+  clearPendingPhoto()
   formClassListLoading.value = true
   formClassList.value = []
   try {
@@ -2635,6 +2711,8 @@ const editStudent = async (student) => {
     editingId = fullData.id
     fillStudentForm(fullData)
     currentStudentDocuments.value = fullData.documents || []
+    formPhotoUrl.value = fullData.photo_url || ''
+    clearPendingPhoto()
     activeTab.value = 1
     showEditModal.value = true
     const semesterId = form.value.semester_id
@@ -2702,6 +2780,18 @@ const deleteStudent = async (id) => {
 
 function switchListTab(onlyTrashed) {
   filters.value.only_trashed = !!onlyTrashed
+  filters.value.account_status = ''
+  filters.value.missing_nis = ''
+  const query = { ...route.query }
+  if (onlyTrashed) query.trashed = '1'
+  else delete query.trashed
+  router.replace({ path: '/student', query })
+  loadStudents(1)
+}
+
+function clearListSubset() {
+  filters.value.account_status = ''
+  filters.value.missing_nis = ''
   loadStudents(1)
 }
 
@@ -2815,6 +2905,14 @@ const handleSubmit = async () => {
       loadStudents()
     } else {
       const res = await studentApi.create(payload)
+      const newId = res.data?.data?.id
+      if (newId && pendingPhotoFile.value) {
+        try {
+          await uploadStudentPhotoFile(newId, pendingPhotoFile.value)
+        } catch (photoErr) {
+          toast.error('Foto', photoErr.formattedMessage || 'Data tersimpan, tetapi foto gagal diunggah')
+        }
+      }
       closeModal()
       loadStudents()
       const creds = studentLoginCredentials(res.data?.data || payload, res.data?.login_hint)
@@ -2848,6 +2946,8 @@ const closeModal = () => {
   // Reset dokumen
   currentStudentDocuments.value = []
   documentForm.value = { name: '', description: '' }
+  formPhotoUrl.value = ''
+  clearPendingPhoto()
   selectedFile.value = null
   if (fileInput.value) {
     fileInput.value.value = ''
@@ -2967,6 +3067,8 @@ const closeViewModal = () => {
   showViewModal.value = false
   viewingStudent.value = null
   graduatingStudent.value = false
+  leavingStudent.value = false
+  leaveModal.value = { open: false, status: 'Tidak Aktif' }
   studentCounselingSessions.value = []
   studentExtracurricularEnrollments.value = []
   studentExtracurricularLoading.value = false
@@ -3021,6 +3123,36 @@ const revokeGraduationFromView = async () => {
     toast.error('Gagal', err.response?.data?.message || err.formattedMessage || 'Gagal membatalkan kelulusan')
   } finally {
     graduatingStudent.value = false
+  }
+}
+
+function openLeaveModal() {
+  if (!viewingStudent.value?.id || viewingStudent.value.status !== 'Aktif') return
+  leaveModal.value = { open: true, status: 'Tidak Aktif' }
+}
+
+function closeLeaveModal() {
+  if (leavingStudent.value) return
+  leaveModal.value = { open: false, status: 'Tidak Aktif' }
+}
+
+async function confirmLeaveStudent() {
+  if (!viewingStudent.value?.id || viewingStudent.value.status !== 'Aktif') return
+  const status = leaveModal.value.status
+  const allowed = leaveStatusOptions.map((o) => o.value)
+  if (!allowed.includes(status)) return
+
+  leavingStudent.value = true
+  try {
+    await studentApi.update(viewingStudent.value.id, { status })
+    toast.success('Berhasil', `${viewingStudent.value.name} dipindah ke Siswa Keluar (${status}).`)
+    closeLeaveModal()
+    closeViewModal()
+    await loadStudents()
+  } catch (err) {
+    toast.error('Gagal', err.response?.data?.message || err.formattedMessage || 'Gagal menandai siswa keluar')
+  } finally {
+    leavingStudent.value = false
   }
 }
 
@@ -3114,97 +3246,17 @@ const exportToExcel = async () => {
     if (filters.value.tingkat !== '' && filters.value.tingkat !== null) {
       params.tingkat = filters.value.tingkat
     }
-    if (filters.value.status) params.status = filters.value.status
     if (filters.value.sort_by) params.sort_by = filters.value.sort_by
     if (filters.value.sort_dir) params.sort_dir = filters.value.sort_dir
 
     const response = await studentApi.export(params)
     const allStudents = response.data.data || []
-    
-    // Siapkan data untuk Excel
-    const excelData = allStudents.map(student => ({
-      'NIK': student.nik || '',
-      'NIS': student.nis || '',
-      'NISN': student.nisn || '',
-      'Nama Lengkap': student.name || '',
-      'Jenis Kelamin': student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : '',
-      'Tempat Lahir': student.birth_place || '',
-      'Tanggal Lahir': student.birth_date ? new Date(student.birth_date).toLocaleDateString('id-ID') : '',
-      'Tingkat': student.tingkat ?? '',
-      ...excelAddressColumns(student),
-      'No. Telepon': student.phone || '',
-      'Email': student.email || '',
-      'Agama': student.religion || '',
-      'No. KK': student.no_kk || '',
-      'Cita-cita': student.aspiration || '',
-      'Hobi': student.hobby || '',
-      'Disabilitas': student.disability || '',
-      'Tinggi Badan (cm)': student.height || '',
-      'Berat Badan (kg)': student.weight || '',
-      'Sekolah Sebelumnya': student.previous_school || '',
-      'NPSN Sekolah Asal': student.previous_school_npsn || '',
-      'Alamat Sekolah Asal': student.previous_school_address || '',
-      'Jenis Tempat Tinggal': formatResidenceType(student.residence_type) || '',
-      'Kelas': studentClassName(student),
-      'Tahun Ajaran': student.academic_year || '',
-      'Status': student.status || '',
-      'Nama Ayah': student.father_name || '',
-      'Status Ayah': formatStatus(student.father_status) || '',
-      'NIK Ayah': student.father_nik || '',
-      'Tempat Lahir Ayah': student.father_birth_place || '',
-      'Tanggal Lahir Ayah': student.father_birth_date ? new Date(student.father_birth_date).toLocaleDateString('id-ID') : '',
-      'Pendidikan Ayah': student.father_education || '',
-      'Pekerjaan Ayah': student.father_occupation || '',
-      'Penghasilan Ayah': student.father_income || '',
-      'Nama Ibu': student.mother_name || '',
-      'Status Ibu': formatStatus(student.mother_status) || '',
-      'NIK Ibu': student.mother_nik || '',
-      'Tempat Lahir Ibu': student.mother_birth_place || '',
-      'Tanggal Lahir Ibu': student.mother_birth_date ? new Date(student.mother_birth_date).toLocaleDateString('id-ID') : '',
-      'Pendidikan Ibu': student.mother_education || '',
-      'Pekerjaan Ibu': student.mother_occupation || '',
-      'Penghasilan Ibu': student.mother_income || '',
-      'Nama Wali': student.guardian_name || '',
-      'No. Telepon Wali': student.guardian_phone || '',
-      'Jenis Wali': formatGuardianType(student.guardian_type) || '',
-      'Status Wali': formatStatus(student.guardian_status) || '',
-      'NIK Wali': student.guardian_nik || '',
-      'Tempat Lahir Wali': student.guardian_birth_place || '',
-      'Tanggal Lahir Wali': student.guardian_birth_date ? new Date(student.guardian_birth_date).toLocaleDateString('id-ID') : '',
-      'Pendidikan Wali': student.guardian_education || '',
-      'Pekerjaan Wali': student.guardian_occupation || '',
-      'Penghasilan Wali': student.guardian_income || '',
-      'Catatan': student.notes || ''
-    }))
-    
-    // Buat workbook
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(excelData)
-    
-    // Set column widths
-    const colWidths = [
-      { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 15 },
-      { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 36 }, { wch: 22 },
-      { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
-      { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 30 }
-    ]
-    ws['!cols'] = colWidths
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa')
-    
-    // Download file
-    const fileName = `Data_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`
-    XLSX.writeFile(wb, fileName)
-    
-    toast.success('Berhasil', `Data berhasil diekspor ke Excel (${allStudents.length} siswa)`)
+    writeStudentWorkbook(
+      allStudents.map((student) => studentToExcelRow(student)),
+      'Data Siswa',
+      `Data_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`
+    )
+    toast.success('Berhasil', `Data berhasil diekspor ke Excel (${allStudents.length} siswa). File ini bisa diedit lalu diimpor lagi.`)
   } catch (err) {
     console.error(err)
     toast.error('Gagal', 'Gagal mengekspor data ke Excel')
@@ -3213,112 +3265,25 @@ const exportToExcel = async () => {
   }
 }
 
-// Download Template Excel
+function writeStudentWorkbook(rows, dataSheetName, fileName) {
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wsGuide = XLSX.utils.json_to_sheet(studentExcelGuideRows())
+  ws['!cols'] = STUDENT_EXCEL_COL_WIDTHS
+  wsGuide['!cols'] = [{ wch: 110 }]
+  XLSX.utils.book_append_sheet(wb, ws, dataSheetName)
+  XLSX.utils.book_append_sheet(wb, wsGuide, 'Petunjuk')
+  XLSX.writeFile(wb, fileName)
+}
+
 const downloadTemplate = () => {
   try {
-    // Kolom bertanda * wajib diisi
-    const templateData = [
-      {
-        'NIK*': '1234567890123456',
-        'NIS': '2024001',
-        'NISN': '0012345678',
-        'Nama Lengkap*': 'Ahmad Fauzi',
-        'Jenis Kelamin': 'L',
-        'Tempat Lahir*': 'Jakarta',
-        'Tanggal Lahir*': '2010-01-15',
-        'Tingkat*': '7',
-        'Alamat': 'Jl. Contoh No. 123',
-        'Desa/Kelurahan/Pekon': 'Sukajaya',
-        'Kecamatan': 'Kedaton',
-        'Kabupaten/Kota': 'Bandar Lampung',
-        'Provinsi': 'Lampung',
-        'Kode Pos': '35141',
-        'No. Telepon': '081234567890',
-        'Email': 'ahmad@example.com',
-        'Agama': 'Islam',
-        'No. KK': '1234567890123456',
-        'Cita-cita': 'Dokter',
-        'Hobi': 'Membaca',
-        'Disabilitas': '',
-        'Tinggi Badan (cm)': '150',
-        'Berat Badan (kg)': '45',
-        'Sekolah Sebelumnya': 'SD Negeri 1',
-        'NPSN Sekolah Asal': '12345678',
-        'Alamat Sekolah Asal': 'Jl. Pendidikan No. 1',
-        'Jenis Tempat Tinggal': 'tinggal_dengan_orang_tua',
-        'Kelas': 'VII-A',
-        'Tahun Ajaran': '2024/2025',
-        'Status': 'Aktif',
-        'Nama Ayah': 'Budi Santoso',
-        'Status Ayah': 'masih_hidup',
-        'NIK Ayah': '1234567890123457',
-        'Tempat Lahir Ayah': 'Jakarta',
-        'Tanggal Lahir Ayah': '1980-05-20',
-        'Pendidikan Ayah': 'S1',
-        'Pekerjaan Ayah': 'Pegawai Swasta',
-        'Penghasilan Ayah': '5000000',
-        'Nama Ibu': 'Siti Nurhaliza',
-        'Status Ibu': 'masih_hidup',
-        'NIK Ibu': '1234567890123458',
-        'Tempat Lahir Ibu': 'Bandung',
-        'Tanggal Lahir Ibu': '1982-08-10',
-        'Pendidikan Ibu': 'S1',
-        'Pekerjaan Ibu': 'Guru',
-        'Penghasilan Ibu': '4000000',
-        'Nama Wali': '',
-        'No. Telepon Wali': '',
-        'Jenis Wali': '',
-        'Status Wali': '',
-        'NIK Wali': '',
-        'Tempat Lahir Wali': '',
-        'Tanggal Lahir Wali': '',
-        'Pendidikan Wali': '',
-        'Pekerjaan Wali': '',
-        'Penghasilan Wali': '',
-        'Catatan': ''
-      }
-    ]
-
-    const guideData = [
-      { Keterangan: 'Kolom bertanda * wajib diisi' },
-      { Keterangan: 'Kolom wajib: NIK*, Nama Lengkap*, Tempat Lahir*, Tanggal Lahir*, Tingkat*' },
-      { Keterangan: 'Format Tanggal Lahir: YYYY-MM-DD (contoh: 2010-01-15)' },
-      { Keterangan: 'Tingkat harus sesuai jenjang institusi (SD/MI: 1-6, SMP/MTs: 7-9, SMA/SMK/MA: 10-12)' },
-      { Keterangan: 'Alamat = jalan/RT/RW. Desa/Kelurahan/Pekon, Kecamatan, Kabupaten/Kota, Provinsi, dan Kode Pos opsional. File lama yang hanya punya kolom Alamat tetap bisa diimpor.' },
-      { Keterangan: 'Jangan ubah nama header kolom agar import berhasil' },
-    ]
-    
-    // Buat workbook
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(templateData)
-    const wsGuide = XLSX.utils.json_to_sheet(guideData)
-    
-    // Set column widths
-    const colWidths = [
-      { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 15 },
-      { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 36 }, { wch: 22 },
-      { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
-      { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-      { wch: 30 }
-    ]
-    ws['!cols'] = colWidths
-    wsGuide['!cols'] = [{ wch: 90 }]
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Template Import Siswa')
-    XLSX.utils.book_append_sheet(wb, wsGuide, 'Petunjuk')
-    
-    // Download file
-    const fileName = `Template_Import_Siswa.xlsx`
-    XLSX.writeFile(wb, fileName)
-    
-    toast.success('Berhasil', 'Template Excel berhasil didownload. Kolom bertanda * wajib diisi.')
+    writeStudentWorkbook(
+      [studentExcelTemplateRow()],
+      'Template Import Siswa',
+      'Template_Import_Siswa.xlsx'
+    )
+    toast.success('Berhasil', 'Template Excel berhasil didownload. Kolom bertanda * wajib diisi. File hasil Export memakai format yang sama.')
   } catch (err) {
     console.error(err)
     toast.error('Gagal', 'Gagal mendownload template Excel')
@@ -3330,162 +3295,6 @@ function closeImportPreview() {
   importPreview.value = { open: false, loading: false, valid: [], invalid: [], serverErrors: [] }
 }
 
-function asDigitId(val, { padTo = 0 } = {}) {
-  if (val === undefined || val === null || val === '') return null
-  let s
-  if (typeof val === 'number') {
-    if (!Number.isFinite(val)) return null
-    s = String(Math.trunc(val))
-  } else {
-    s = String(val).trim()
-    if (/^\d+\.0+$/.test(s)) s = s.replace(/\.0+$/, '')
-    s = s.replace(/[\s.\-]/g, '')
-  }
-  s = s.replace(/[^\d]/g, '')
-  if (!s) return null
-  if (padTo && s.length < padTo && s.length >= padTo - 2) {
-    s = s.padStart(padTo, '0')
-  }
-  return s
-}
-
-function mapImportExcelRows(jsonData) {
-  const normalizeHeader = (key) => String(key || '').replace(/\s*\*\s*$/, '').replace(/\s*\(wajib\)\s*$/i, '').trim()
-  const parseDate = (dateStr) => {
-    if (!dateStr) return null
-    if (dateStr instanceof Date) return dateStr.toISOString().split('T')[0]
-    if (typeof dateStr === 'number' && XLSX?.SSF?.parse_date_code) {
-      const parsed = XLSX.SSF.parse_date_code(dateStr)
-      if (parsed) {
-        const mm = String(parsed.m).padStart(2, '0')
-        const dd = String(parsed.d).padStart(2, '0')
-        return `${parsed.y}-${mm}-${dd}`
-      }
-    }
-    const date = new Date(dateStr)
-    if (!isNaN(date.getTime())) return date.toISOString().split('T')[0]
-    return null
-  }
-  const parseGender = (val) => {
-    if (!val) return null
-    const str = String(val).toLowerCase()
-    if (str.includes('laki') || str === 'l' || str === 'laki-laki') return 'L'
-    if (str.includes('perempuan') || str === 'p' || str === 'perempuan') return 'P'
-    return null
-  }
-  const parseStatus = (val) => {
-    if (!val) return null
-    const str = String(val).toLowerCase()
-    if (str.includes('hidup') || str === 'masih hidup') return 'masih_hidup'
-    if (str.includes('meninggal') || str === 'meninggal dunia') return 'meninggal_dunia'
-    if (str.includes('tidak') || str === 'tidak diketahui') return 'tidak_diketahui'
-    return null
-  }
-  const parseResidenceType = (val) => {
-    if (!val) return null
-    const str = String(val).toLowerCase()
-    if (str.includes('asrama')) return 'asrama'
-    if (str.includes('kost') || str.includes('kontrak')) return 'kost_kontrak'
-    if (str.includes('orang tua') || str.includes('tinggal')) return 'tinggal_dengan_orang_tua'
-    return 'lainnya'
-  }
-  const parseGuardianType = (val) => {
-    if (!val) return null
-    const str = String(val).toLowerCase()
-    if (str.includes('ayah')) return 'sama_dengan_ayah'
-    if (str.includes('ibu')) return 'sama_dengan_ibu'
-    return 'lainnya'
-  }
-
-  const valid = []
-  const invalid = []
-
-  jsonData.forEach((row, index) => {
-    const normalizedRow = {}
-    Object.keys(row || {}).forEach((key) => {
-      normalizedRow[normalizeHeader(key)] = row[key]
-    })
-    const mapField = (excelCol) => {
-      const value = normalizedRow[excelCol]
-      if (value === undefined || value === null || value === '') return null
-      return value
-    }
-
-    const item = {
-      excel_row: index + 2,
-      nik: asDigitId(mapField('NIK')),
-      nis: mapField('NIS') == null ? null : String(mapField('NIS')).trim() || null,
-      nisn: asDigitId(mapField('NISN'), { padTo: 10 }),
-      name: mapField('Nama Lengkap'),
-      gender: parseGender(mapField('Jenis Kelamin')),
-      birth_place: mapField('Tempat Lahir'),
-      birth_date: parseDate(mapField('Tanggal Lahir')),
-      ...pickAddressFromExcel(mapField),
-      phone: mapField('No. Telepon'),
-      email: mapField('Email'),
-      religion: mapField('Agama'),
-      no_kk: mapField('No. KK'),
-      aspiration: mapField('Cita-cita'),
-      hobby: mapField('Hobi'),
-      disability: mapField('Disabilitas'),
-      height: mapField('Tinggi Badan (cm)') ? parseFloat(mapField('Tinggi Badan (cm)')) : null,
-      weight: mapField('Berat Badan (kg)') ? parseFloat(mapField('Berat Badan (kg)')) : null,
-      previous_school: mapField('Sekolah Sebelumnya'),
-      previous_school_npsn: mapField('NPSN Sekolah Asal') == null
-        ? null
-        : String(mapField('NPSN Sekolah Asal')).replace(/\D/g, '') || null,
-      previous_school_address: mapField('Alamat Sekolah Asal'),
-      residence_type: parseResidenceType(mapField('Jenis Tempat Tinggal')),
-      tingkat: mapField('Tingkat') ? parseInt(mapField('Tingkat'), 10) : null,
-      class: mapField('Kelas'),
-      academic_year: mapField('Tahun Ajaran'),
-      status: mapField('Status') || 'Aktif',
-      father_name: mapField('Nama Ayah'),
-      father_status: parseStatus(mapField('Status Ayah')),
-      father_nik: mapField('NIK Ayah'),
-      father_birth_place: mapField('Tempat Lahir Ayah'),
-      father_birth_date: parseDate(mapField('Tanggal Lahir Ayah')),
-      father_education: mapField('Pendidikan Ayah'),
-      father_occupation: mapField('Pekerjaan Ayah'),
-      father_income: mapField('Penghasilan Ayah') ? parseFloat(mapField('Penghasilan Ayah')) : null,
-      mother_name: mapField('Nama Ibu'),
-      mother_status: parseStatus(mapField('Status Ibu')),
-      mother_nik: mapField('NIK Ibu'),
-      mother_birth_place: mapField('Tempat Lahir Ibu'),
-      mother_birth_date: parseDate(mapField('Tanggal Lahir Ibu')),
-      mother_education: mapField('Pendidikan Ibu'),
-      mother_occupation: mapField('Pekerjaan Ibu'),
-      mother_income: mapField('Penghasilan Ibu') ? parseFloat(mapField('Penghasilan Ibu')) : null,
-      guardian_name: mapField('Nama Wali'),
-      guardian_phone: mapField('No. Telepon Wali'),
-      guardian_type: parseGuardianType(mapField('Jenis Wali')),
-      guardian_status: parseStatus(mapField('Status Wali')),
-      guardian_nik: mapField('NIK Wali'),
-      guardian_birth_place: mapField('Tempat Lahir Wali'),
-      guardian_birth_date: parseDate(mapField('Tanggal Lahir Wali')),
-      guardian_education: mapField('Pendidikan Wali'),
-      guardian_occupation: mapField('Pekerjaan Wali'),
-      guardian_income: mapField('Penghasilan Wali') ? parseFloat(mapField('Penghasilan Wali')) : null,
-      notes: mapField('Catatan'),
-    }
-
-    const missing = []
-    if (!item.nik) missing.push('NIK')
-    if (!item.name) missing.push('Nama')
-    if (!item.birth_place) missing.push('Tempat Lahir')
-    if (!item.birth_date) missing.push('Tanggal Lahir')
-    if (item.tingkat == null || Number.isNaN(item.tingkat)) missing.push('Tingkat')
-
-    if (missing.length) {
-      invalid.push({ row: index + 2, reason: `Kolom wajib kosong: ${missing.join(', ')}` })
-    } else {
-      valid.push(item)
-    }
-  })
-
-  return { valid, invalid }
-}
-
 // Import from Excel — tampilkan pratinjau dulu
 const handleImportExcel = async (event) => {
   const file = event.target.files[0]
@@ -3495,7 +3304,12 @@ const handleImportExcel = async (event) => {
     loading.value = true
     const data = await file.arrayBuffer()
     const workbook = XLSX.read(data, { type: 'array', cellDates: true })
-    const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+    const sheetName = studentExcelDataSheetName(workbook.SheetNames)
+    const firstSheet = workbook.Sheets[sheetName]
+    if (!firstSheet) {
+      toast.error('Gagal', 'Sheet data tidak ditemukan')
+      return
+    }
     const jsonData = XLSX.utils.sheet_to_json(firstSheet)
 
     if (jsonData.length === 0) {
@@ -3503,7 +3317,7 @@ const handleImportExcel = async (event) => {
       return
     }
 
-    const { valid, invalid } = mapImportExcelRows(jsonData)
+    const { valid, invalid } = mapStudentImportExcelRows(jsonData, XLSX)
     if (!valid.length) {
       toast.error(
         'Gagal',
@@ -3763,6 +3577,7 @@ const printPDF = async () => {
         <div class="header">
           <h1>BIODATA SISWA</h1>
           <p>${student.name || ''}</p>
+          ${student.photo_url ? `<img src="${student.photo_url}" alt="Foto" style="width:2.7cm;height:3.6cm;object-fit:cover;border:1px solid #333;margin-top:8px;" />` : ''}
         </div>
         
         <div class="section">
@@ -3879,6 +3694,79 @@ const printPDF = async () => {
   } catch (err) {
     console.error('Error loading institution data:', err)
     toast.error('Gagal', 'Gagal memuat data institusi untuk KOP surat')
+  }
+}
+
+function clearPendingPhoto() {
+  if (pendingPhotoPreview.value) URL.revokeObjectURL(pendingPhotoPreview.value)
+  pendingPhotoPreview.value = ''
+  pendingPhotoFile.value = null
+}
+
+async function uploadStudentPhotoFile(id, file) {
+  const res = await studentApi.uploadPhoto(id, profilePhotoFormData(file))
+  formPhotoUrl.value = res.data?.data?.photo_url || ''
+  return res
+}
+
+async function onStudentPhotoSelect(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  const photoError = validateProfilePhotoSource(file)
+  if (photoError) {
+    toast.error('Gagal', photoError)
+    return
+  }
+  photoCropSourceFile.value = file
+  photoCropModalOpen.value = true
+}
+
+function onStudentPhotoCropCancel() {
+  photoCropSourceFile.value = null
+}
+
+async function onStudentPhotoCropped(file) {
+  photoCropSourceFile.value = null
+  const photoError = validateProfilePhoto(file)
+  if (photoError) {
+    toast.error('Gagal', photoError)
+    return
+  }
+  if (editingId) {
+    photoUploading.value = true
+    try {
+      await uploadStudentPhotoFile(editingId, file)
+      toast.success('Berhasil', 'Foto siswa diunggah')
+      loadStudents()
+    } catch (err) {
+      toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal mengunggah foto')
+    } finally {
+      photoUploading.value = false
+    }
+    return
+  }
+  clearPendingPhoto()
+  pendingPhotoFile.value = file
+  pendingPhotoPreview.value = URL.createObjectURL(file)
+}
+
+async function removeStudentPhoto() {
+  if (pendingPhotoFile.value || pendingPhotoPreview.value) {
+    clearPendingPhoto()
+    return
+  }
+  if (!editingId) return
+  photoUploading.value = true
+  try {
+    await studentApi.deletePhoto(editingId)
+    formPhotoUrl.value = ''
+    toast.success('Berhasil', 'Foto siswa dihapus')
+    loadStudents()
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal menghapus foto')
+  } finally {
+    photoUploading.value = false
   }
 }
 
@@ -4019,7 +3907,17 @@ const downloadDocument = async (documentId) => {
 
 onMounted(() => {
   loadFilterClasses()
+  filters.value.only_trashed = route.query.trashed === '1' || route.query.trashed === 'true'
   loadStudents()
+})
+
+watch(() => route.query.trashed, (value) => {
+  const wantTrash = value === '1' || value === 'true'
+  if (wantTrash === !!filters.value.only_trashed) return
+  filters.value.only_trashed = wantTrash
+  filters.value.account_status = ''
+  filters.value.missing_nis = ''
+  loadStudents(1)
 })
 </script>
 
@@ -4047,6 +3945,9 @@ onMounted(() => {
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
 .list-tabs .tab-btn:hover {
@@ -4057,6 +3958,71 @@ onMounted(() => {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   border-color: #047857;
+}
+
+.list-subset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: -8px 0 16px;
+  padding: 10px 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.btn-ghost-link {
+  border: none;
+  background: none;
+  color: #047857;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-ghost-link:hover {
+  text-decoration: underline;
+}
+
+.leave-modal {
+  max-width: 480px;
+}
+
+.leave-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.leave-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.leave-option:has(input:checked) {
+  border-color: #059669;
+  background: #ecfdf5;
+}
+
+.leave-option strong {
+  display: block;
+  color: #0f172a;
+}
+
+.leave-option small {
+  display: block;
+  color: #64748b;
+  margin-top: 2px;
 }
 
 .toolbar {
@@ -5278,6 +5244,29 @@ onMounted(() => {
   page-break-inside: avoid;
 }
 
+.biodata-photo-wrap {
+  float: right;
+  margin: 0 0 12px 16px;
+}
+
+.biodata-photo {
+  width: 84px;
+  height: 112px;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.biodata-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .section-title {
   display: flex;
   align-items: center;
@@ -5579,6 +5568,52 @@ onMounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.form-photo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.form-photo-preview {
+  width: 84px;
+  height: 112px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.form-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.form-photo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.form-photo-meta label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
 }
 
 .form-group {

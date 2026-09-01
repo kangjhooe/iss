@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="bank-page">
+<template>    <div class="bank-page">
       <header class="page-header">
         <nav class="breadcrumb">
           <router-link to="/ujian-online/bank-soal">Bank Soal</router-link>
@@ -127,11 +125,16 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="pagination && pagination.last_page > 1" class="pagination">
-            <button type="button" :disabled="pagination.current_page <= 1" @click="fetchQuestions(pagination.current_page - 1)">Sebelumnya</button>
-            <span>Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-            <button type="button" :disabled="pagination.current_page >= pagination.last_page" @click="fetchQuestions(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
+          <PaginationBar
+            v-if="pagination"
+            :page="pagination.current_page"
+            :last-page="pagination.last_page"
+            :per-page="pagination.per_page"
+            :total="pagination.total"
+            item-label="soal"
+            @page-change="fetchQuestions"
+            @per-page-change="changePerPage"
+          />
         </div>
       </template>
 
@@ -376,15 +379,13 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
@@ -403,6 +404,7 @@ const filterSearch = ref('')
 const filterType = ref('')
 const filterStimulusId = ref('')
 const pagination = ref(null)
+const perPage = ref(50)
 const showForm = ref(false)
 const showStimulusForm = ref(false)
 const showPreview = ref(false)
@@ -455,7 +457,7 @@ async function fetchQuestions(page = 1) {
   }
   loading.value = true
   try {
-    const params = { per_page: 50, page }
+    const params = { per_page: perPage.value, page }
     if (bankId.value) params.bank_soal_id = bankId.value
     else if (filterSubjectId.value) params.subject_id = filterSubjectId.value
     if (filterSearch.value.trim()) params.search = filterSearch.value.trim()
@@ -474,12 +476,18 @@ async function fetchQuestions(page = 1) {
       ? {
           current_page: meta.current_page,
           last_page: meta.last_page,
-          total: meta.total
+          per_page: meta.per_page ?? perPage.value,
+          total: meta.total ?? 0,
         }
       : null
   } finally {
     loading.value = false
   }
+}
+
+function changePerPage(n) {
+  perPage.value = n
+  fetchQuestions(1)
 }
 
 function clearFilters() {

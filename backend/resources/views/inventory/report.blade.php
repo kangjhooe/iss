@@ -82,7 +82,11 @@
         $showDamaged = in_array($type, ['summary', 'damaged'], true);
         $showLoaned = in_array($type, ['summary', 'loaned'], true);
         $showTransactions = $type === 'transactions';
+        $showAssetMovements = $type === 'asset_movements';
         $showMaintenance = $type === 'maintenance';
+        $showLocation = $type === 'location';
+        $showCategory = $type === 'category';
+        $showDisposal = $type === 'disposal';
         $section = 0;
     @endphp
 
@@ -92,7 +96,7 @@
             <tr>
                 <td class="lbl">Total Barang:</td>
                 <td>{{ $statistics['total_items'] ?? 0 }} ({{ number_format($statistics['total_quantity'] ?? 0, 0, ',', '.') }} unit)</td>
-                <td class="lbl">Nilai Aset:</td>
+                <td class="lbl">Estimasi Nilai Perolehan:</td>
                 <td>Rp {{ number_format($statistics['total_value'] ?? 0, 0, ',', '.') }}</td>
                 <td class="lbl">Garansi &lt; 3 bln:</td>
                 <td>{{ $statistics['warranty_expiring_soon'] ?? 0 }}</td>
@@ -156,7 +160,7 @@
 
     @if($showAsset && !empty($asset_value))
     @php $section++; @endphp
-    <div class="section-title">{{ $section }}. Nilai Aset per Kategori</div>
+    <div class="section-title">{{ $section }}. Estimasi Nilai Perolehan per Kategori</div>
     <table class="data">
         <thead>
             <tr>
@@ -408,6 +412,43 @@
     </table>
     @endif
 
+    @if($showAssetMovements && !empty($asset_movements))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Mutasi Aset Individual</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th class="num">No</th>
+                <th class="center">Tanggal</th>
+                <th>No Aset</th>
+                <th>Kode Barang</th>
+                <th>Nama Barang</th>
+                <th>Dari</th>
+                <th>Ke</th>
+                <th>No Ref</th>
+                <th>Oleh</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($asset_movements['movements'] ?? [] as $i => $row)
+            <tr>
+                <td class="num">{{ $i + 1 }}</td>
+                <td class="center">{{ !empty($row['movement_date']) ? \Carbon\Carbon::parse($row['movement_date'])->format('d/m/Y') : '-' }}</td>
+                <td>{{ $row['asset_number'] ?? '-' }}</td>
+                <td>{{ $row['item_code'] ?? '-' }}</td>
+                <td>{{ $row['item_name'] ?? '-' }}</td>
+                <td>{{ $row['from_location'] ?? '-' }}</td>
+                <td>{{ $row['to_location'] ?? '-' }}</td>
+                <td>{{ $row['reference_number'] ?? '-' }}</td>
+                <td>{{ $row['created_by'] ?? '-' }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="9" class="empty">Tidak ada mutasi aset pada periode ini.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+    @endif
+
     @if($showMaintenance && !empty($maintenance))
     @php $section++; @endphp
     <div class="section-title">{{ $section }}. Pemeliharaan</div>
@@ -454,6 +495,113 @@
     </table>
     @endif
 
+    @if($showLocation && !empty($by_location))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Inventaris per Ruangan</div>
+    @forelse(collect($by_location['by_room'] ?? []) as $loc)
+    <div style="margin-bottom: 10px;">
+        <strong>{{ $loc['location_name'] ?? '-' }}</strong>
+        ({{ $loc['count'] ?? 0 }} barang, {{ $loc['total_quantity'] ?? 0 }} unit)
+        <table class="data" style="margin-top: 4px;">
+            <thead>
+                <tr>
+                    <th>Kode</th>
+                    <th>Nama</th>
+                    <th>Kategori</th>
+                    <th class="center">Qty</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($loc['items'] ?? [] as $item)
+                <tr>
+                    <td>{{ $item['code'] ?? '-' }}</td>
+                    <td>{{ $item['name'] ?? '-' }}</td>
+                    <td>{{ $item['category'] ?? '-' }}</td>
+                    <td class="center">{{ $item['quantity'] ?? 0 }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @empty
+    <p class="empty">Tidak ada data inventaris per ruangan.</p>
+    @endforelse
+    @endif
+
+    @if($showCategory && !empty($by_category))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Inventaris per Kategori</div>
+    @forelse($by_category as $cat)
+    <div style="margin-bottom: 10px;">
+        <strong>{{ $cat['category'] ?? '-' }}</strong>
+        ({{ $cat['count'] ?? 0 }} barang, {{ $cat['total_quantity'] ?? 0 }} unit)
+        <table class="data" style="margin-top: 4px;">
+            <thead>
+                <tr>
+                    <th>Kode</th>
+                    <th>Nama</th>
+                    <th class="center">Qty</th>
+                    <th>Kondisi</th>
+                    <th>Status</th>
+                    <th>Lokasi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($cat['items'] ?? [] as $item)
+                <tr>
+                    <td>{{ $item['code'] ?? '-' }}</td>
+                    <td>{{ $item['name'] ?? '-' }}</td>
+                    <td class="center">{{ $item['quantity'] ?? 0 }}{{ !empty($item['unit']) ? ' '.$item['unit'] : '' }}</td>
+                    <td>{{ $item['condition'] ?? '-' }}</td>
+                    <td>{{ $item['status'] ?? '-' }}</td>
+                    <td>{{ $item['location'] ?? '-' }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @empty
+    <p class="empty">Tidak ada data inventaris per kategori.</p>
+    @endforelse
+    @endif
+
+    @if($showDisposal && !empty($disposed))
+    @php $section++; @endphp
+    <div class="section-title">{{ $section }}. Riwayat Penghapusan Barang</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th class="num">No</th>
+                <th class="center">Tgl Penghapusan</th>
+                <th>Kode</th>
+                <th>Nama</th>
+                <th>Kategori</th>
+                <th>Status Akhir</th>
+                <th class="center">Qty</th>
+                <th>No. SK / BA</th>
+                <th>Alasan</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($disposed['items'] ?? [] as $i => $row)
+            <tr>
+                <td class="num">{{ $i + 1 }}</td>
+                <td class="center">{{ !empty($row['disposed_at']) ? \Carbon\Carbon::parse($row['disposed_at'])->format('d/m/Y') : '-' }}</td>
+                <td>{{ $row['code'] ?? '-' }}</td>
+                <td>{{ $row['name'] ?? '-' }}</td>
+                <td>{{ $row['category'] ?? '-' }}</td>
+                <td>{{ $row['status'] ?? '-' }}</td>
+                <td class="center">{{ $row['quantity'] ?? '-' }}{{ !empty($row['unit']) ? ' '.$row['unit'] : '' }}</td>
+                <td>{{ $row['disposal_document_number'] ?? '-' }}</td>
+                <td>{{ $row['disposal_reason'] ?? '-' }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="9" class="empty">Tidak ada data penghapusan.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+    @endif
+
     <div class="footer">
         Dicetak pada {{ $printed_at }}
         @if(!empty($printed_by)) &mdash; oleh {{ $printed_by }}@endif
@@ -464,7 +612,8 @@
         <div class="standard-signature-right">
             @include('partials.print-signature', [
                 'institution' => $institution,
-                'date' => now()->locale('id')->translatedFormat('d F Y'),
+                'date' => ($as_of_date ?? now())->locale('id')->translatedFormat('d F Y'),
+                'as_of_date' => $as_of_date ?? null,
             ])
         </div>
     </div>

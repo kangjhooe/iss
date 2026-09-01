@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="semester-page">
+<template>    <div class="semester-page">
       <div class="page-header">
         <div class="header-content">
           <div>
@@ -105,25 +103,16 @@
           <p>Tidak ada data semester</p>
         </div>
 
-        <div v-if="pagination && pagination.last_page > 1" class="pagination">
-          <button 
-            @click="loadSemesters(pagination.current_page - 1)" 
-            :disabled="pagination.current_page === 1"
-            class="pagination-btn"
-          >
-            Sebelumnya
-          </button>
-          <span class="pagination-info">
-            Halaman {{ pagination.current_page }} dari {{ pagination.last_page }}
-          </span>
-          <button 
-            @click="loadSemesters(pagination.current_page + 1)" 
-            :disabled="pagination.current_page === pagination.last_page"
-            class="pagination-btn"
-          >
-            Selanjutnya
-          </button>
-        </div>
+        <PaginationBar
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="data"
+          @page-change="loadSemesters"
+          @per-page-change="changeSemestersPerPage"
+        />
       </div>
 
       <!-- Add/Edit Modal -->
@@ -235,13 +224,11 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { semesterApi } from '@/api/semester'
 import { useReferenceDataStore } from '@/stores/referenceData'
@@ -257,7 +244,7 @@ const academicYears = computed(() => referenceStore.academicYears)
 
 const semesters = ref([])
 const loading = ref(true)
-const pagination = ref(null)
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const filters = ref({
   search: '',
   academic_year_id: '',
@@ -285,7 +272,7 @@ const loadSemesters = async (page = 1) => {
   try {
     const params = {
       page,
-      per_page: 15,
+      per_page: pagination.value?.per_page || 15,
       ...filters.value
     }
     
@@ -297,13 +284,25 @@ const loadSemesters = async (page = 1) => {
 
     const response = await semesterApi.getAll(params)
     semesters.value = response.data.data || []
-    pagination.value = response.data.meta || null
+    const meta = response.data.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
+      total: meta.total ?? 0,
+    }
   } catch (err) {
     toast.error('Gagal memuat data semester', 'Daftar semester tidak dapat dimuat. Periksa koneksi dan coba lagi.')
     console.error('Failed to load semesters:', err)
   } finally {
     loading.value = false
   }
+}
+
+function changeSemestersPerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadSemesters(1)
 }
 
 const editSemester = (semester) => {

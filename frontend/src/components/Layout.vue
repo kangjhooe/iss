@@ -58,7 +58,7 @@
         <p v-if="academicPeriodText" class="logo-period">{{ academicPeriodText }}</p>
       </div>
       
-      <ul class="nav-menu">
+      <ul ref="navMenuRef" class="nav-menu" @scroll="onNavMenuScroll">
         <template v-for="entry in menuEntries" :key="entry.key">
           <li v-if="entry.type === 'divider'" class="nav-divider" aria-hidden="true">
             <span>{{ entry.label }}</span>
@@ -93,7 +93,10 @@
                   :key="child.to"
                   :to="child.to"
                   class="nav-subitem"
+                  active-class=""
+                  exact-active-class=""
                   :class="{ 'nav-subitem--active': child.active }"
+                  :aria-current="child.active ? 'page' : undefined"
                 >
                   <span>{{ child.label }}</span>
                   <span v-if="child.badgeCount" class="nav-count-badge">{{ child.badgeCount }}</span>
@@ -197,22 +200,37 @@
             >
               {{ authStore.activeInstitution.name }}
             </span>
-            <router-link
+            <span
+              v-if="showTopbarDivider"
+              class="topbar-divider"
+              aria-hidden="true"
+            />
+            <div
               v-if="showNotificationBell"
-              to="/notifications"
-              class="notification-bell"
-              title="Notifikasi"
+              ref="notificationBellRef"
+              class="notification-bell-wrap"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span v-if="unreadNotificationCount > 0" class="notification-badge">{{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}</span>
-            </router-link>
-            <div class="breadcrumb">
-              <span>Home</span>
-              <span class="separator">/</span>
-              <span class="current">{{ pageTitle }}</span>
+              <button
+                type="button"
+                class="notification-bell"
+                :class="{ 'notification-bell--active': notificationPanelOpen }"
+                title="Notifikasi"
+                aria-label="Notifikasi"
+                :aria-expanded="notificationPanelOpen"
+                @click.stop="toggleNotificationPanel"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span v-if="unreadNotificationCount > 0" class="notification-bell-badge">{{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}</span>
+              </button>
+              <Transition name="notification-panel">
+                <NotificationPanel
+                  v-if="notificationPanelOpen"
+                  @navigate="closeNotificationPanel"
+                />
+              </Transition>
             </div>
           </div>
         </div>
@@ -320,8 +338,18 @@ import { appName } from '@/config/app'
 import { isVocationalLevel, getActiveInstitutionLevel } from '@/utils/institution'
 import { hasModuleAccess as userHasModuleAccess, isInstitutionModuleHidden } from '@/utils/moduleAccess'
 import { resolvePageTitle, routeHasPageHeading } from '@/utils/pageTitles'
+import { INVENTORY_SIDEBAR_ITEMS, canAccessInventoryTab } from '@/composables/inventory/inventoryRoutes'
+import {
+  readExpandedGroups,
+  readSidebarScrollTop,
+  scrollActiveNavItemIntoView,
+  writeExpandedGroups,
+  writeSidebarScrollTop,
+} from '@/composables/useSidebarState'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import AppLogo from '@/components/AppLogo.vue'
+import NotificationPanel from '@/components/NotificationPanel.vue'
+import { useNotifications } from '@/composables/useNotifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -391,7 +419,8 @@ const MOBILE_BREAKPOINT = 768
 const sidebarOpen = ref(false)
 const userMenuOpen = ref(false)
 const userMenuRef = ref(null)
-const expandedGroups = ref(new Set())
+const navMenuRef = ref(null)
+const expandedGroups = ref(readExpandedGroups())
 
 // Top-level menu icons (only these use icons per spec)
 const IconDashboard = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
@@ -486,10 +515,19 @@ const IconLibrary = () => h('svg', { class: 'nav-icon', width: 20, height: 20, v
   h('path', { d: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
+const IconInventory = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('path', { d: 'M3.3 7l8.7 5 8.7-5M12 22V12', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
 const IconLab = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M9 3h6', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M10 3v7.4L5.2 18a2 2 0 0 0 1.7 3h10.2a2 2 0 0 0 1.7-3L14 10.4V3', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M8.5 14h7', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+])
+const IconFacilityAssets = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+  h('path', { d: 'M3 21H21M5 21V7L13 2V21M19 21V11M9 9V13M13 9V13M17 9V13M9 17V21M13 17V21', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  h('rect', { x: '2', y: '14', width: '6', height: '5', rx: '1', stroke: 'currentColor', 'stroke-width': 2 }),
+  h('path', { d: 'M4 17h2', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' })
 ])
 const IconIndustry = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M3 21h18', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }),
@@ -506,6 +544,9 @@ const canAccessModule = (moduleKey) => {
 }
 
 const isLabResponsible = () => !!authStore.user?.is_lab_responsible
+const isRoomResponsible = () => !!authStore.user?.is_room_responsible
+
+const canSeeInventorySidebarItem = (tab) => canAccessInventoryTab(authStore.user, tab)
 const isExtracurricularSupervisor = () => !!authStore.user?.is_extracurricular_supervisor
 const canAccessExtracurricular = () =>
   canAccessModule('extracurricular')
@@ -521,6 +562,11 @@ const canAccessPiket = () =>
 const canAccessLabManagement = () =>
   canAccessModule('facility')
   || (!isInstitutionModuleHidden(authStore.user, 'facility') && isLabResponsible())
+
+const canManageLessonSchedule = () => {
+  const role = authStore.user?.role
+  return canAccessModule('schedule') && role !== 'teacher' && role !== 'staff'
+}
 
 function getDashboardTo() {
   const role = authStore.user?.role
@@ -661,70 +707,20 @@ const menuEntries = computed(() => {
   const hasManagedLabs = managedLabs.length > 0
   // Sembunyikan jurnal/nilai generik jika sudah ada menu Mapel per pair (kurangi duplikasi).
   const showGenericJournalGrade = !hasTeachingAssignments || !isTeacherOrStaff
-  // Laporan BK di grup BK: jangan dobel untuk wali yang hanya punya bk_report.
   const showBkReportInBkGroup = canAccessModule('violation') || canAccessModule('counseling')
-    || (canAccessModule('bk_report') && !hasHomeroom)
-  // Raport di Keguruan: sembunyikan jika sudah ada di menu Wali.
-  const showRaportInAkademik = canAccessModule('grade_book') && !hasHomeroom
+    || canAccessModule('bk_report')
+  const showRaportInAkademik = canAccessModule('grade_book')
 
-  const waliChildren = []
-  if (hasHomeroom) {
-    waliChildren.push({
-      to: '/teacher/wali',
-      label: 'Data Siswa',
-      visible: true,
-    })
-    homeroomClasses.forEach((c) => {
-      const classQs = `?class_id=${c.id}`
-      const classLabel = c.name || `Kelas #${c.id}`
-      waliChildren.push({
-        to: `/teacher/wali${classQs}&panel=usulan`,
-        label: `Usulan · ${classLabel}`,
-        visible: true,
-      })
-      waliChildren.push({
-        to: `/teacher/wali${classQs}&panel=absensi`,
-        label: `Absensi · ${classLabel}`,
-        visible: true,
-      })
-      waliChildren.push({
-        to: `/teacher/wali${classQs}&panel=nilai`,
-        label: `Nilai · ${classLabel}`,
-        visible: true,
-      })
-      waliChildren.push({
-        to: `/teacher/wali${classQs}&panel=jadwal`,
-        label: `Jadwal · ${classLabel}`,
-        visible: true,
-      })
-      if (canAccessModule('teaching_journal')) {
-        waliChildren.push({
-          to: `/attendance/student${classQs}&tab=rekap`,
-          label: `Rekap Absen · ${classLabel}`,
-          visible: true,
-        })
-      }
-      if (canAccessModule('bk_report') || canAccessModule('violation') || canAccessModule('counseling')) {
-        waliChildren.push({
-          to: `/laporan-bk${classQs}`,
-          label: `BK · ${classLabel}`,
-          visible: true,
-        })
-      }
-      if (canAccessModule('grade_book')) {
-        waliChildren.push({
-          to: `/raport${classQs}`,
-          label: `Raport · ${classLabel}`,
-          visible: true,
-        })
-        waliChildren.push({
-          to: `/raport-kelas${classQs}`,
-          label: `Rekap Nilai · ${classLabel}`,
-          visible: true,
-        })
-      }
-    })
-  }
+  const waliChildren = hasHomeroom
+    ? [
+      { to: '/teacher/wali?panel=siswa', label: 'Data Siswa', visible: true },
+      { to: '/teacher/wali?panel=absensi', label: 'Absensi', visible: true },
+      { to: '/teacher/wali?panel=nilai', label: 'Nilai', visible: true },
+      { to: '/teacher/wali?panel=usulan', label: 'Usulan', visible: true },
+      { to: '/teacher/wali?panel=jadwal', label: 'Jadwal', visible: true },
+      { to: '/teacher/wali?panel=keuangan', label: 'Keuangan', visible: true },
+    ]
+    : []
 
   const mapelChildren = teachingAssignments.map((a) => ({
     to: `/teacher/mapel?class_id=${a.class_id}&subject_id=${a.subject_id}`,
@@ -759,10 +755,13 @@ const menuEntries = computed(() => {
       exact: true,
     })
   }
+  const canSeeLabBooking = !isInstitutionModuleHidden(authStore.user, 'facility')
+    && (role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility'))
+
   labChildren.push({
     to: '/lab-booking',
     label: 'Booking Lab',
-    visible: role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility'),
+    visible: canSeeLabBooking,
   })
 
   const hasTeacherDailyWork = isTeacherOrStaff && (
@@ -775,7 +774,10 @@ const menuEntries = computed(() => {
   const entries = [
     { type: 'link', key: 'dashboard', to: getDashboardTo(), label: 'Dashboard', icon: IconDashboard },
     ...(isTeacherOrStaff && hasTeachingAssignments && (canAccessModule('teaching_journal') || canAccessModule('grade_book'))
-      ? [{ type: 'link', key: 'teacher-today', to: '/teacher/today', label: 'Jam Mengajar Hari Ini', icon: IconAttendance }]
+      ? [
+          { type: 'link', key: 'teacher-today', to: '/teacher/today', label: 'Jam Mengajar Hari Ini', icon: IconAttendance },
+          { type: 'link', key: 'teacher-schedule', to: '/teacher/jadwal', label: 'Jadwal Mengajar', icon: IconAcademic },
+        ]
       : []),
     ...(hasHomeroom
       ? [addVisible({ type: 'group', key: 'wali-kelas', label: 'Wali Kelas', icon: IconStudents, children: waliChildren })]
@@ -794,6 +796,7 @@ const menuEntries = computed(() => {
       : []),
     addVisible({ type: 'group', key: 'kesiswaan', label: 'Kesiswaan', icon: IconStudents, children: [
       { to: '/student', label: 'Data Siswa', visible: canAccessModule('student') },
+      { to: '/siswa-keluar', label: 'Siswa Keluar', visible: canAccessModule('student') },
       { to: '/student-mutation', label: 'Mutasi', visible: canAccessModule('student') },
       { to: '/naik-kelas', label: 'Naik Kelas', visible: canAccessModule('student') },
       { to: '/luluskan-siswa', label: 'Luluskan', visible: canAccessModule('student') },
@@ -802,7 +805,7 @@ const menuEntries = computed(() => {
     addVisible({ type: 'group', key: 'akademik', label: 'Keguruan', icon: IconAcademic, children: [
       { to: '/teacher-appreciation', label: 'Apresiasi Guru', visible: canAccessModule('teacher_appreciation') || canAccessModule('teacher_violation_report') },
       { to: '/guru-piket', label: 'Guru Piket', visible: canAccessPiket() },
-      { to: '/lesson-schedule', label: 'Jadwal Pelajaran', visible: canAccessModule('schedule') },
+      { to: '/lesson-schedule', label: 'Jadwal Pelajaran', visible: canManageLessonSchedule() },
       { to: '/teaching-journal', label: 'Jurnal Mengajar', visible: canAccessModule('teaching_journal') && showGenericJournalGrade },
       { to: '/qr-attendance/scan', label: 'Scan QR Absensi', visible: canAccessModule('teaching_journal') && !canAccessModule('attendance') },
       { to: '/grade-book', label: 'Buku Nilai', visible: canAccessModule('grade_book') && showGenericJournalGrade },
@@ -812,6 +815,14 @@ const menuEntries = computed(() => {
       { to: '/teacher', label: 'Data Pegawai', visible: canAccessModule('teacher') },
       { to: '/teacher-mutation', label: 'Mutasi', visible: canAccessModule('teacher') },
       { to: '/kepegawaian', label: 'Cuti, SK & Jabatan', visible: canAccessModule('kepegawaian') },
+    ]}),
+    addVisible({ type: 'group', key: 'penggajian', label: 'Penggajian', icon: IconFinance, children: [
+      { to: '/penggajian/periode', label: 'Periode', visible: canAccessModule('payroll') },
+      { to: '/penggajian/komponen', label: 'Komponen', visible: canAccessModule('payroll') },
+      { to: '/penggajian/tunjangan-jabatan', label: 'Tunj. Jabatan', visible: canAccessModule('payroll') },
+      { to: '/penggajian/profil', label: 'Profil Gaji', visible: canAccessModule('payroll') },
+      { to: '/penggajian/proses', label: 'Proses Gaji', visible: canAccessModule('payroll') },
+      { to: '/keuangan/pengeluaran', label: 'Pengeluaran Gaji', visible: canAccessModule('payroll') && !canAccessModule('finance') },
     ]}),
     // Grup Absensi hanya untuk modul attendance (TU/admin): pegawai + QR.
     // Guru mapel mengisi absen siswa lewat Jam Mengajar / Hub Mapel / Wali.
@@ -850,6 +861,7 @@ const menuEntries = computed(() => {
       { to: '/keuangan/spp', label: 'SPP', visible: canAccessModule('finance') },
       { to: '/keuangan/tagihan', label: 'Tagihan', visible: canAccessModule('finance') },
       { to: '/keuangan/pembayaran', label: 'Pembayaran', visible: canAccessModule('finance') },
+      { to: '/keuangan/pengeluaran', label: 'Pengeluaran', visible: canAccessModule('finance') },
       { to: '/keuangan/tunggakan', label: 'Tunggakan', visible: canAccessModule('finance') },
       { to: '/keuangan/laporan', label: 'Laporan', visible: canAccessModule('finance') },
     ]}),
@@ -872,20 +884,32 @@ const menuEntries = computed(() => {
     ...(!hasSupervisedEkskul && canAccessExtracurricular()
       ? [{ type: 'link', key: 'extracurricular', to: '/extracurricular', label: 'Ekstrakurikuler', icon: IconStudents }]
       : []),
-    // Grup lab generik hanya jika bukan kepala lab (atau admin facility tanpa managed list)
-    ...(!hasManagedLabs
-      ? [addVisible({ type: 'group', key: 'laboratorium', label: 'Laboratorium', icon: IconLab, children: [
-          { to: '/lab', label: canAccessModule('facility') ? 'Manajemen Lab' : 'Lab Saya', visible: canAccessLabManagement() },
-          { to: '/lab-booking', label: 'Booking Lab', visible: !isInstitutionModuleHidden(authStore.user, 'facility') && (role === 'admin' || role === 'institution_admin' || role === 'teacher' || role === 'staff' || canAccessModule('facility')) }
-        ]})]
-      : []),
+    addVisible({ type: 'group', key: 'fasilitas-aset', label: 'Fasilitas & Aset', icon: IconFacilityAssets, children: [
+      { to: '/facility', label: 'Sarana Prasarana', visible: canAccessModule('facility') },
+      {
+        to: '/lab',
+        label: canAccessModule('facility') ? 'Manajemen Lab' : 'Lab Saya',
+        visible: !hasManagedLabs && canAccessLabManagement(),
+      },
+      { to: '/lab-booking', label: 'Booking Lab', visible: !hasManagedLabs && canSeeLabBooking },
+    ]}),
+    addVisible({
+      type: 'group',
+      key: 'inventaris',
+      label: 'Inventaris',
+      icon: IconInventory,
+      navPrefix: '/inventory',
+      children: INVENTORY_SIDEBAR_ITEMS.map((item) => ({
+        to: item.path,
+        label: item.label,
+        visible: canSeeInventorySidebarItem(item.tab),
+      })),
+    }),
     ...(canAccessModule('library')
       ? [{ type: 'link', key: 'perpustakaan', to: '/library', label: 'Perpustakaan', icon: IconLibrary }]
       : []),
     addVisible({ type: 'group', key: 'master', label: 'Master Data', icon: IconDatabase, children: [
       { to: '/institution', label: 'Profil Instansi', visible: canAccessModule('institution') },
-      { to: '/facility', label: 'Sarana Prasarana', visible: canAccessModule('facility') },
-      { to: '/inventory', label: 'Inventaris', visible: canAccessModule('inventory') },
       { to: '/class', label: 'Kelas', visible: canAccessModule('class') },
       {
         to: '/program-keahlian',
@@ -902,6 +926,7 @@ const menuEntries = computed(() => {
           addVisible({ type: 'group', key: 'saya', label: 'Saya', icon: IconSettings, children: [
             { to: '/teacher/profile', label: 'Profil Saya', visible: true },
             { to: '/teacher/cuti', label: 'Cuti Saya', visible: true },
+            { to: '/teacher/slip-gaji', label: 'Slip Gaji', visible: true },
             { to: '/teacher/poin', label: 'Poin & Prestasi Saya', visible: true },
             { to: '/feedback', label: 'Lapor Bug / Fitur', visible: true },
           ]}),
@@ -944,6 +969,7 @@ const menuEntries = computed(() => {
 const hasActiveChild = (entry) => {
   if (entry.type !== 'group' || !entry.children) return false
   const path = route.path
+  if (entry.navPrefix && path.startsWith(entry.navPrefix)) return true
   return entry.children.some(c => {
     if (!c.visible) return false
     const toPath = c.to?.split('?')[0] ?? c.to
@@ -951,29 +977,51 @@ const hasActiveChild = (entry) => {
   })
 }
 const isGroupExpanded = (key) => expandedGroups.value.has(key)
+function persistExpandedGroups() {
+  writeExpandedGroups(expandedGroups.value)
+}
+
+function onNavMenuScroll() {
+  if (navMenuRef.value) {
+    writeSidebarScrollTop(navMenuRef.value.scrollTop)
+  }
+}
+
+function restoreNavMenuScroll() {
+  const el = navMenuRef.value
+  if (!el) return
+  el.scrollTop = readSidebarScrollTop()
+}
+
 function toggleGroup(key) {
   const next = new Set(expandedGroups.value)
   if (next.has(key)) next.delete(key)
   else next.add(key)
   expandedGroups.value = next
+  persistExpandedGroups()
 }
 function ensureGroupExpandedForKey(key) {
   if (!expandedGroups.value.has(key)) {
     expandedGroups.value = new Set([...expandedGroups.value, key])
+    persistExpandedGroups()
   }
 }
 
 watch(() => route.path, (path) => {
   for (const entry of menuEntries.value) {
     if (entry.type === 'group' && entry.children) {
-      const hasActive = entry.children.some(c => {
-        if (!c.visible) return false
-        const toPath = c.to?.split('?')[0] ?? c.to
-        return path === c.to || path.startsWith(c.to + '/') || (toPath && (path === toPath || path.startsWith(toPath + '/')))
-      })
+      const hasActive = (entry.navPrefix && path.startsWith(entry.navPrefix))
+        || entry.children.some(c => {
+          if (!c.visible) return false
+          const toPath = c.to?.split('?')[0] ?? c.to
+          return path === c.to || path.startsWith(c.to + '/') || (toPath && (path === toPath || path.startsWith(toPath + '/')))
+        })
       if (hasActive) ensureGroupExpandedForKey(entry.key)
     }
   }
+  requestAnimationFrame(() => {
+    scrollActiveNavItemIntoView(navMenuRef.value)
+  })
 }, { immediate: true })
 
 const showBottomNav = computed(() => {
@@ -1055,7 +1103,7 @@ const isBottomNavActive = (path) => {
   return route.path.startsWith(path)
 }
 
-const pageTitle = computed(() => resolvePageTitle(route.name, authStore))
+const pageTitle = computed(() => resolvePageTitle(route.name, authStore, route))
 const showTopbarTitle = computed(() => !routeHasPageHeading(route.name))
 
 watch(pageTitle, (title) => {
@@ -1070,15 +1118,32 @@ const showNotificationBell = computed(() => {
   return !!(authStore.activeInstitutionId || authStore.user?.institution_id)
 })
 
-const unreadNotificationCount = ref(0)
+const showInstitutionInTopbar = computed(() => {
+  if (authStore.canSwitchInstitution) return true
+  return !!(authStore.activeInstitution?.name && authStore.user?.role !== 'super_admin')
+})
+
+const showTopbarDivider = computed(() => showInstitutionInTopbar.value && showNotificationBell.value)
+
+const { unreadCount: unreadNotificationCount, refreshUnreadCount } = useNotifications()
+const notificationPanelOpen = ref(false)
+const notificationBellRef = ref(null)
+
+function toggleNotificationPanel() {
+  notificationPanelOpen.value = !notificationPanelOpen.value
+  if (notificationPanelOpen.value) {
+    refreshUnreadCount()
+  }
+}
+
+function closeNotificationPanel() {
+  notificationPanelOpen.value = false
+  refreshUnreadCount()
+}
+
 async function fetchUnreadNotificationCount() {
   if (!authStore.user) return
-  try {
-    const res = await import('@/api/notifications').then(m => m.notificationsApi.getUnreadCount())
-    unreadNotificationCount.value = res.data?.count ?? 0
-  } catch {
-    unreadNotificationCount.value = 0
-  }
+  await refreshUnreadCount()
   if (authStore.user?.role === 'super_admin') {
     try {
       const countRes = await import('@/api/feedbackTicket').then(m => m.feedbackTicketApi.getOpenCount())
@@ -1110,11 +1175,15 @@ const handleRouteChange = () => {
     closeSidebar()
   }
   userMenuOpen.value = false
+  notificationPanelOpen.value = false
 }
 
 function closeUserMenuOnClickOutside(e) {
   if (userMenuOpen.value && userMenuRef.value && !userMenuRef.value.contains(e.target)) {
     userMenuOpen.value = false
+  }
+  if (notificationPanelOpen.value && notificationBellRef.value && !notificationBellRef.value.contains(e.target)) {
+    notificationPanelOpen.value = false
   }
 }
 
@@ -1133,6 +1202,10 @@ onMounted(() => {
   if (window.innerWidth <= MOBILE_BREAKPOINT) {
     sidebarOpen.value = false
   }
+  restoreNavMenuScroll()
+  requestAnimationFrame(() => {
+    scrollActiveNavItemIntoView(navMenuRef.value)
+  })
   router.afterEach(handleRouteChange)
   window.addEventListener('resize', handleResize)
   document.addEventListener('click', closeUserMenuOnClickOutside)
@@ -1142,6 +1215,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  onNavMenuScroll()
+  persistExpandedGroups()
   window.removeEventListener('resize', handleResize)
   document.removeEventListener('click', closeUserMenuOnClickOutside)
   document.body.style.overflow = ''
@@ -1186,6 +1261,12 @@ const handleLogout = async () => {
   gap: 12px;
   padding: 10px 16px;
   font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.demo-school-banner-inner span {
+  min-width: 0;
+  flex: 1 1 280px;
 }
 
 .demo-register-link {
@@ -1304,7 +1385,7 @@ const handleLogout = async () => {
   flex-direction: column;
   position: fixed !important;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
   z-index: 1000;
   visibility: visible;
@@ -1580,6 +1661,7 @@ const handleLogout = async () => {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.2);
   position: relative;
+  flex-shrink: 0;
 }
 
 .user-menu-trigger {
@@ -1768,8 +1850,15 @@ const handleLogout = async () => {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   margin-left: auto;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 20px;
+  background: #e2e8f0;
+  flex-shrink: 0;
 }
 
 .institution-switcher {
@@ -1824,51 +1913,60 @@ const handleLogout = async () => {
   color: #c2410c;
 }
 
+.notification-bell-wrap {
+  position: relative;
+}
+
 .notification-bell {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   color: #64748b;
-  text-decoration: none;
+  background: transparent;
+  border: none;
   border-radius: 8px;
-  transition: color 0.2s;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s;
 }
-.notification-bell:hover {
+.notification-bell:hover,
+.notification-bell--active {
   color: #059669;
+  background: #f1f5f9;
 }
-.notification-badge {
+.notification-bell:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+.notification-bell-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  font-size: 11px;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 16px;
   text-align: center;
   color: #fff;
   background: #dc2626;
-  border-radius: 9px;
+  border-radius: 8px;
 }
 
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #64748b;
+.notification-panel-enter-active,
+.notification-panel-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.breadcrumb .separator {
-  color: #cbd5e1;
-}
-
-.breadcrumb .current {
-  color: #1e293b;
-  font-weight: 600;
+.notification-panel-enter-from,
+.notification-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .content {
@@ -2095,10 +2193,6 @@ const handleLogout = async () => {
     line-height: 1.3;
   }
 
-  .breadcrumb {
-    display: none;
-  }
-
   .content {
     padding: 14px 12px;
     padding-left: max(12px, env(safe-area-inset-left));
@@ -2148,14 +2242,45 @@ const handleLogout = async () => {
   }
 }
 
-/* Tablet specific adjustments */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .content {
-    padding: 24px;
+/* Laptop 1366x768: sidebar lebih ramping, konten lebih rapat vertikal */
+@media (min-width: 769px) and (max-width: 1440px) {
+  .sidebar {
+    width: 240px;
+    min-width: 240px;
+  }
+
+  .main-content {
+    margin-left: 240px;
+  }
+
+  .logo {
+    padding: 10px 12px;
+  }
+
+  .nav-item,
+  .nav-group-head {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .nav-subitem {
+    padding: 5px 8px;
   }
 
   .topbar-content {
-    padding: 20px 24px;
+    padding: 10px 16px;
+  }
+
+  .topbar h1 {
+    font-size: 16px;
+  }
+
+  .content {
+    padding: 14px 16px;
+  }
+
+  .user-section {
+    padding: 10px 12px;
   }
 }
 </style>

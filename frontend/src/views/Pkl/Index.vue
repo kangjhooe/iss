@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="pkl-page">
+<template>    <div class="pkl-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-text">
@@ -332,13 +330,10 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { pklApi } from '@/api/pkl'
 import { industryPartnersApi } from '@/api/industryPartners'

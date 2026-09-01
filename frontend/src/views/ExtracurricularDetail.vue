@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="ekskul-detail">
+<template>    <div class="ekskul-detail">
       <div class="detail-top">
         <button type="button" class="btn-back" @click="$router.push('/extracurricular')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -390,13 +388,15 @@
                 </table>
               </div>
               <p v-else class="muted">Tidak ada siswa yang cocok.</p>
-              <div v-if="attendancePager.lastPage > 1" class="pagination-bar">
-                <div class="pagination-buttons">
-                  <button type="button" class="btn-page" :disabled="attendancePager.page <= 1" @click="attendancePager.page--">Sebelumnya</button>
-                  <span class="page-num">Halaman {{ attendancePager.page }} / {{ attendancePager.lastPage }}</span>
-                  <button type="button" class="btn-page" :disabled="attendancePager.page >= attendancePager.lastPage" @click="attendancePager.page++">Selanjutnya</button>
-                </div>
-              </div>
+              <PaginationBar
+                :page="attendancePager.page"
+                :last-page="attendancePager.lastPage"
+                :per-page="attendancePager.perPage"
+                :total="attendancePager.total"
+                item-label="siswa"
+                @page-change="attendancePager.goPage"
+                @per-page-change="attendancePager.changePerPage"
+              />
               <button type="button" class="btn-primary btn-sm" :disabled="savingAttendance || !attendances.length" @click="saveAttendance">
                 {{ savingAttendance ? 'Menyimpan...' : 'Simpan kehadiran' }}
               </button>
@@ -469,13 +469,15 @@
                 </table>
               </div>
               <p v-else class="muted">Tidak ada siswa yang cocok.</p>
-              <div v-if="gradingPager.lastPage > 1" class="pagination-bar">
-                <div class="pagination-buttons">
-                  <button type="button" class="btn-page" :disabled="gradingPager.page <= 1" @click="gradingPager.page--">Sebelumnya</button>
-                  <span class="page-num">Halaman {{ gradingPager.page }} / {{ gradingPager.lastPage }}</span>
-                  <button type="button" class="btn-page" :disabled="gradingPager.page >= gradingPager.lastPage" @click="gradingPager.page++">Selanjutnya</button>
-                </div>
-              </div>
+              <PaginationBar
+                :page="gradingPager.page"
+                :last-page="gradingPager.lastPage"
+                :per-page="gradingPager.perPage"
+                :total="gradingPager.total"
+                item-label="siswa"
+                @page-change="gradingPager.goPage"
+                @per-page-change="gradingPager.changePerPage"
+              />
               <button type="button" class="btn-primary btn-sm" :disabled="savingSessionGrades || !sessionGrades.length" @click="saveSessionGrades">
                 {{ savingSessionGrades ? 'Menyimpan...' : 'Simpan penilaian' }}
               </button>
@@ -551,13 +553,15 @@
               </table>
             </div>
             <p v-else class="muted pad-sm">Tidak ada siswa yang cocok.</p>
-            <div v-if="gradesPager.lastPage > 1" class="pagination-bar">
-              <div class="pagination-buttons">
-                <button type="button" class="btn-page" :disabled="gradesPager.page <= 1" @click="gradesPager.page--">Sebelumnya</button>
-                <span class="page-num">Halaman {{ gradesPager.page }} / {{ gradesPager.lastPage }}</span>
-                <button type="button" class="btn-page" :disabled="gradesPager.page >= gradesPager.lastPage" @click="gradesPager.page++">Selanjutnya</button>
-              </div>
-            </div>
+            <PaginationBar
+              :page="gradesPager.page"
+              :last-page="gradesPager.lastPage"
+              :per-page="gradesPager.perPage"
+              :total="gradesPager.total"
+              item-label="siswa"
+              @page-change="gradesPager.goPage"
+              @per-page-change="gradesPager.changePerPage"
+            />
           </template>
           <div v-else class="empty-inline">Belum ada peserta aktif. Tambah pertemuan lalu isi penilaian untuk melihat rekap.</div>
         </div>
@@ -845,15 +849,13 @@
         @cancel="handleCancel"
         @update:show="confirmDialog.show = $event"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { extracurricularApi } from '@/api/extracurricular'
 import { semesterApi } from '@/api/semester'
@@ -935,8 +937,6 @@ const gradingKkm = ref(75)
 const gradingLoading = ref(false)
 const savingSessionGrades = ref(false)
 
-const ROSTER_PAGE_SIZE = 20
-
 function groupByClass(rows, getClass) {
   const groups = []
   let current = null
@@ -971,6 +971,7 @@ function uniqueClassesFrom(rows, getClass) {
 
 function useRosterPager(rowsRef, getStudent) {
   const page = ref(1)
+  const perPage = ref(20)
   const search = ref('')
   const classId = ref('')
 
@@ -988,23 +989,33 @@ function useRosterPager(rowsRef, getStudent) {
     })
   })
 
-  const lastPage = computed(() => Math.max(1, Math.ceil(filtered.value.length / ROSTER_PAGE_SIZE)))
+  const lastPage = computed(() => Math.max(1, Math.ceil(filtered.value.length / perPage.value)))
+  const total = computed(() => filtered.value.length)
   const paged = computed(() => {
-    const start = (page.value - 1) * ROSTER_PAGE_SIZE
-    return filtered.value.slice(start, start + ROSTER_PAGE_SIZE)
+    const start = (page.value - 1) * perPage.value
+    return filtered.value.slice(start, start + perPage.value)
   })
   const rangeLabel = computed(() => {
-    const total = filtered.value.length
-    if (!total) return '0 dari 0 siswa'
-    const start = (page.value - 1) * ROSTER_PAGE_SIZE + 1
-    const end = Math.min(page.value * ROSTER_PAGE_SIZE, total)
-    return `Menampilkan ${start}–${end} dari ${total} siswa`
+    const totalRows = filtered.value.length
+    if (!totalRows) return '0 dari 0 siswa'
+    const start = (page.value - 1) * perPage.value + 1
+    const end = Math.min(page.value * perPage.value, totalRows)
+    return `Menampilkan ${start}–${end} dari ${totalRows} siswa`
   })
 
   function reset() {
     page.value = 1
     search.value = ''
     classId.value = ''
+  }
+
+  function goPage(next) {
+    page.value = next
+  }
+
+  function changePerPage(n) {
+    perPage.value = n
+    page.value = 1
   }
 
   watch([search, classId], () => {
@@ -1016,14 +1027,18 @@ function useRosterPager(rowsRef, getStudent) {
 
   return reactive({
     page,
+    perPage,
     search,
     classId,
     classOptions,
     filtered,
     lastPage,
+    total,
     paged,
     rangeLabel,
     reset,
+    goPage,
+    changePerPage,
   })
 }
 
@@ -1034,14 +1049,14 @@ const attendancePageGroups = computed(() => groupByClass(
   (a) => a.student?.class,
 ).map((group) => ({
   ...group,
-  start: (attendancePager.page - 1) * ROSTER_PAGE_SIZE + group.start,
+  start: (attendancePager.page - 1) * attendancePager.perPage + group.start,
 })))
 const gradingPageGroups = computed(() => groupByClass(
   gradingPager.paged,
   (g) => g.student?.class,
 ).map((group) => ({
   ...group,
-  start: (gradingPager.page - 1) * ROSTER_PAGE_SIZE + group.start,
+  start: (gradingPager.page - 1) * gradingPager.perPage + group.start,
 })))
 const participantGroups = computed(() => groupByClass(participants.value, (p) => p.student?.class))
 
@@ -1056,7 +1071,7 @@ const gradePageGroups = computed(() => groupByClass(
   (g) => g.student?.class,
 ).map((group) => ({
   ...group,
-  start: (gradesPager.page - 1) * ROSTER_PAGE_SIZE + group.start,
+  start: (gradesPager.page - 1) * gradesPager.perPage + group.start,
 })))
 
 const report = ref(null)

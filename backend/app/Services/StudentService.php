@@ -7,6 +7,7 @@ use App\Models\Institution;
 use App\Models\Student;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,7 @@ class StudentService
 {
     public function __construct(
         protected StudentAccountService $studentAccountService,
+        protected ProfilePhotoService $profilePhotoService,
         protected LocalNisService $localNisService = new LocalNisService
     ) {}
 
@@ -143,9 +145,7 @@ class StudentService
             $query->where('semester_id', $filters['semester_id']);
         }
 
-        if (isset($filters['status']) && $filters['status'] !== '') {
-            $query->where('status', $filters['status']);
-        }
+        $this->applyEnrollmentStatusFilter($query, $filters);
 
         if (isset($filters['gender']) && $filters['gender'] !== '') {
             $query->where('gender', $filters['gender']);
@@ -159,11 +159,45 @@ class StudentService
             }
         }
 
-        $this->applyAccountStatusFilter($query, $filters['account_status'] ?? null);
+        if (empty($filters['only_trashed'])) {
+            $this->applyAccountStatusFilter($query, $filters['account_status'] ?? null);
 
-        if (! empty($filters['missing_nis']) && filter_var($filters['missing_nis'], FILTER_VALIDATE_BOOLEAN)) {
-            $query->missingNis();
+            if (! empty($filters['missing_nis']) && filter_var($filters['missing_nis'], FILTER_VALIDATE_BOOLEAN)) {
+                $query->missingNis();
+            }
         }
+    }
+
+    /**
+     * Default daftar siswa = Aktif. Arsip keluar = inactive=1 (Pindah/DO/Tidak Aktif).
+     * Kotak sampah menampilkan semua status yang dihapus.
+     */
+    protected function applyEnrollmentStatusFilter(Builder $query, array $filters): void
+    {
+        if (! empty($filters['only_trashed'])) {
+            return;
+        }
+
+        $status = $filters['status'] ?? '';
+        if (is_string($status)) {
+            $status = trim($status);
+        } else {
+            $status = '';
+        }
+
+        if ($status !== '' && strtolower($status) !== 'all') {
+            $query->where('status', $status);
+
+            return;
+        }
+
+        if (! empty($filters['inactive'])) {
+            $query->inactive();
+
+            return;
+        }
+
+        $query->active();
     }
 
     /**
@@ -558,6 +592,7 @@ class StudentService
                 }
             }
             Storage::disk('public')->deleteDirectory('student_documents/'.$student->id);
+            $this->deletePhotoFile($student);
 
             $student->forceDelete();
         });
@@ -567,6 +602,34 @@ class StudentService
             'nisn' => $nisn,
             'nik' => $nik,
         ]);
+    }
+
+    public function storePhoto(Student $student, UploadedFile $file): Student
+    {
+        $this->deletePhotoFile($student);
+
+        $path = $this->profilePhotoService->store($file, 'student_photos/'.$student->id);
+        $student->update(['photo_path' => $path]);
+
+        Log::info('Student photo uploaded', ['student_id' => $student->id]);
+
+        return $student->fresh(['institution', 'class', 'academicYear', 'semester', 'documents', 'userAccount']);
+    }
+
+    public function deletePhoto(Student $student): Student
+    {
+        $this->deletePhotoFile($student);
+        $student->update(['photo_path' => null]);
+
+        Log::info('Student photo deleted', ['student_id' => $student->id]);
+
+        return $student->fresh(['institution', 'class', 'academicYear', 'semester', 'documents', 'userAccount']);
+    }
+
+    protected function deletePhotoFile(Student $student): void
+    {
+        $this->profilePhotoService->deletePath($student->photo_path);
+        $this->profilePhotoService->deleteDirectory('student_photos/'.$student->id);
     }
 
     /**

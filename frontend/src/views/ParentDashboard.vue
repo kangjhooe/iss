@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page dashboard">
+<template>    <div class="sp-page dashboard">
       <section class="sp-hero">
         <h1>Halo, {{ authStore.user?.name || 'Orang Tua' }}</h1>
         <p>Portal orang tua / wali murid — pantau akademik anak secara ringkas.</p>
@@ -47,13 +45,10 @@
           </div>
         </section>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { parentApi } from '@/api/parent'
 import '@/assets/student-portal.css'

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="calendar-page">
+<template>    <div class="calendar-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -165,27 +163,16 @@
                 </tr>
               </tbody>
             </table>
-            <div v-if="pagination && pagination.last_page > 1" class="pagination">
-              <span>Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-              <div class="pagination-btns">
-                <button
-                  type="button"
-                  class="btn-secondary"
-                  :disabled="pagination.current_page === 1"
-                  @click="loadEvents(pagination.current_page - 1)"
-                >
-                  Sebelumnya
-                </button>
-                <button
-                  type="button"
-                  class="btn-secondary"
-                  :disabled="pagination.current_page === pagination.last_page"
-                  @click="loadEvents(pagination.current_page + 1)"
-                >
-                  Selanjutnya
-                </button>
-              </div>
-            </div>
+            <PaginationBar
+              v-if="pagination"
+              :page="pagination.current_page"
+              :last-page="pagination.last_page"
+              :per-page="pagination.per_page"
+              :total="pagination.total"
+              item-label="kegiatan"
+              @page-change="loadEvents"
+              @per-page-change="changePerPage"
+            />
           </div>
         </div>
       </main>
@@ -296,15 +283,13 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { academicCalendarApi } from '@/api/academicCalendar'
 import { semesterApi } from '@/api/semester'
@@ -336,6 +321,7 @@ const monthEvents = ref([])
 const loading = ref(true)
 const monthLoading = ref(false)
 const pagination = ref(null)
+const perPage = ref(15)
 const filterSemesters = ref([])
 const formSemesters = ref([])
 const showModal = ref(false)
@@ -471,22 +457,30 @@ async function loadEvents(page = 1) {
   try {
     const response = await academicCalendarApi.getAll(cleanParams({
       page,
-      per_page: 15,
+      per_page: perPage.value,
       ...filters.value
     }))
     events.value = response.data.data || []
     pagination.value = response.data.meta
       ? {
           current_page: response.data.meta.current_page,
-          last_page: response.data.meta.last_page
+          last_page: response.data.meta.last_page,
+          per_page: response.data.meta.per_page ?? perPage.value,
+          total: response.data.meta.total ?? 0,
         }
       : null
+    if (pagination.value) perPage.value = pagination.value.per_page
   } catch (e) {
     toast.error('Gagal memuat event', e.response?.data?.message || '')
     events.value = []
   } finally {
     loading.value = false
   }
+}
+
+function changePerPage(n) {
+  perPage.value = n
+  loadEvents(1)
 }
 
 async function loadMonthEvents() {

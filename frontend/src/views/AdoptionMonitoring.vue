@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="adoption-page">
+<template>    <div class="adoption-page">
       <div class="page-header">
         <div>
           <h2>Monitoring Adopsi</h2>
@@ -301,13 +299,10 @@
           </div>
         </div>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { useToast } from '@/composables/useToast'

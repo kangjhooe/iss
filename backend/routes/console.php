@@ -52,6 +52,18 @@ Schedule::command('inventory:mark-loans-overdue')
     ->timezone('Asia/Jakarta')
     ->withoutOverlapping();
 
+// Remind inventory loans due tomorrow
+Schedule::command('inventory:send-loan-reminders')
+    ->dailyAt('07:30')
+    ->timezone('Asia/Jakarta')
+    ->withoutOverlapping();
+
+// Remind warranty expiring within 30 days
+Schedule::command('inventory:send-warranty-reminders')
+    ->dailyAt('08:00')
+    ->timezone('Asia/Jakarta')
+    ->withoutOverlapping();
+
 // Reset sekolah demo publik (SMA 1 Demo Servrin) setiap hari pukul 03:00 WIB
 Schedule::command('demo:reset')
     ->dailyAt('03:00')

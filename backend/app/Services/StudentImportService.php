@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\AcademicYear;
 use App\Models\Institution;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -89,6 +91,8 @@ class StudentImportService
             $payload['academic_year_id'] = $defaults['academic_year_id'];
         }
 
+        $payload = $this->resolvePlacement($payload, $institution);
+
         $existing = $this->findExistingStudent(
             $institution->id,
             $payload['nik'] ?? null,
@@ -151,7 +155,113 @@ class StudentImportService
             $studentData['status'] = 'Aktif';
         }
 
-        return $studentData;
+        return RegionAddress::sanitize($studentData);
+    }
+
+    /**
+     * Map Excel class name / academic year label to class_id and academic_year_id.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    protected function resolvePlacement(array $payload, Institution $institution): array
+    {
+        $yearLabel = $this->nullableString($payload['academic_year'] ?? null);
+        if ($yearLabel) {
+            $yearId = $this->findAcademicYearId($yearLabel);
+            if ($yearId) {
+                $payload['academic_year_id'] = $yearId;
+                if (preg_match('/(\d{4}\/\d{4})/', $yearLabel, $matches)) {
+                    $payload['academic_year'] = $matches[1];
+                }
+            }
+        }
+
+        $className = $this->nullableString($payload['class'] ?? null);
+        if ($className === null) {
+            return $payload;
+        }
+
+        $class = $this->findClass(
+            (int) $institution->id,
+            $className,
+            isset($payload['academic_year_id']) ? (int) $payload['academic_year_id'] : null
+        );
+        if (! $class) {
+            throw new InvalidArgumentException(
+                "Kelas {$className} tidak ditemukan. Gunakan nama kelas yang sama dengan data Kelas di sekolah ini."
+            );
+        }
+
+        $payload['class_id'] = $class->id;
+        $payload['class'] = $class->name;
+        if (! empty($class->academic_year_id)) {
+            $payload['academic_year_id'] = (int) $class->academic_year_id;
+            $yearCode = $class->academic_year
+                ?: AcademicYear::whereKey($class->academic_year_id)->value('code');
+            if (is_string($yearCode) && $yearCode !== '') {
+                $payload['academic_year'] = preg_match('/(\d{4}\/\d{4})/', $yearCode, $matches)
+                    ? $matches[1]
+                    : $yearCode;
+            }
+        }
+
+        return $payload;
+    }
+
+    protected function findAcademicYearId(string $label): ?int
+    {
+        $year = AcademicYear::query()
+            ->where('code', $label)
+            ->orWhere('name', $label)
+            ->first();
+
+        if (! $year && preg_match('/(\d{4}\/\d{4})/', $label, $matches)) {
+            $code = $matches[1];
+            $year = AcademicYear::query()
+                ->where('code', $code)
+                ->orWhere('name', $code)
+                ->orWhere('name', 'like', '%'.$code.'%')
+                ->first();
+        }
+
+        return $year?->id ? (int) $year->id : null;
+    }
+
+    protected function findClass(int $institutionId, string $name, ?int $academicYearId): ?SchoolClass
+    {
+        $normalized = mb_strtolower(trim($name));
+        $base = function () use ($institutionId, $normalized) {
+            return SchoolClass::query()
+                ->where('institution_id', $institutionId)
+                ->whereRaw('LOWER(TRIM(name)) = ?', [$normalized]);
+        };
+
+        if ($academicYearId) {
+            $match = $base()->where('academic_year_id', $academicYearId)->first();
+            if ($match) {
+                return $match;
+            }
+            if ($base()->exists()) {
+                throw new InvalidArgumentException(
+                    "Kelas {$name} tidak ditemukan pada tahun ajaran yang diisi. Cek nama kelas dan tahun ajaran."
+                );
+            }
+
+            return null;
+        }
+
+        $matches = $base()->get();
+        if ($matches->count() === 1) {
+            return $matches->first();
+        }
+        if ($matches->count() > 1) {
+            throw new InvalidArgumentException(
+                "Nama kelas {$name} dipakai lebih dari satu kelas. Isi Tahun Ajaran agar kelasnya tepat."
+            );
+        }
+
+        return null;
     }
 
     public function normalizeNik(mixed $value): ?string
@@ -298,9 +408,9 @@ class StudentImportService
 
         return match ((string) $existing->status) {
             '', 'Aktif' => null,
-            'Pindah' => "{$who} berstatus Pindah (sudah dimutasi). Tidak diimpor ulang. Gunakan menu Mutasi jika siswa kembali, atau ubah status di Data Siswa.",
-            'Tidak Aktif' => "{$who} berstatus Tidak Aktif. Tidak diimpor ulang. Aktifkan dulu di Data Siswa jika ini kesalahan.",
-            'Drop Out' => "{$who} berstatus Drop Out. Tidak diimpor ulang. Ubah status di Data Siswa jika siswa ini kembali bersekolah.",
+            'Pindah' => "{$who} berstatus Pindah (sudah dimutasi). Tidak diimpor ulang. Gunakan menu Mutasi jika siswa kembali, atau aktifkan kembali di Siswa Keluar.",
+            'Tidak Aktif' => "{$who} berstatus Tidak Aktif. Tidak diimpor ulang. Aktifkan kembali di Siswa Keluar jika ini kesalahan.",
+            'Drop Out' => "{$who} berstatus Drop Out. Tidak diimpor ulang. Aktifkan kembali di Siswa Keluar jika siswa ini kembali bersekolah.",
             'Lulus' => "{$who} berstatus Lulus (alumni). Tidak diimpor ulang. Jangan impor ulang data alumni.",
             default => "{$who} berstatus {$existing->status}. Siswa yang tidak aktif tidak boleh diimpor ulang.",
         };

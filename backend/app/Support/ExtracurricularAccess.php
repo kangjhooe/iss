@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\Log;
 
 class ExtracurricularAccess
 {
-    public static function employeeFor(User $user): ?Employee
+    public static function employeeFor(User $user, ?int $institutionId = null): ?Employee
     {
-        return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        return InstitutionContext::employeeForInstitution($user, $institutionId);
     }
 
     public static function canManageAll(User $user): bool
@@ -59,7 +59,8 @@ class ExtracurricularAccess
             return false;
         }
 
-        $employee = self::employeeFor($user);
+        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user);
+        $employee = self::employeeFor($user, $resolvedInstitutionId);
         if (!$employee) {
             return false;
         }
@@ -67,8 +68,8 @@ class ExtracurricularAccess
         $query = Extracurricular::query()
             ->where('supervisor_employee_id', $employee->id);
 
-        if ($institutionId) {
-            $query->where('institution_id', $institutionId);
+        if ($resolvedInstitutionId) {
+            $query->where('institution_id', $resolvedInstitutionId);
         }
 
         return $query->exists();
@@ -88,7 +89,7 @@ class ExtracurricularAccess
             return true;
         }
 
-        $employee = self::employeeFor($user);
+        $employee = self::employeeFor($user, (int) $extracurricular->institution_id);
 
         return $employee && (int) $extracurricular->supervisor_employee_id === (int) $employee->id;
     }
@@ -107,7 +108,7 @@ class ExtracurricularAccess
             return true;
         }
 
-        $employee = self::employeeFor($user);
+        $employee = self::employeeFor($user, (int) $extracurricular->institution_id);
         if (!$employee) {
             return false;
         }
@@ -124,9 +125,14 @@ class ExtracurricularAccess
             return $query;
         }
 
-        $employee = self::employeeFor($user);
+        $institutionId = InstitutionContext::resolveActiveInstitutionId($user);
+        $employee = self::employeeFor($user, $institutionId);
         if (!$employee) {
             return $query->whereRaw('1 = 0');
+        }
+
+        if ($institutionId) {
+            $query = $query->where('institution_id', $institutionId);
         }
 
         return $query->where('supervisor_employee_id', $employee->id);

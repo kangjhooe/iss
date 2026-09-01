@@ -1,6 +1,5 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -168,9 +167,7 @@ onMounted(load)
 onBeforeUnmount(clearLogoFiles)
 </script>
 
-<template>
-  <Layout>
-    <div class="page">
+<template>    <div class="page">
       <SuratSubNav
         title="Manajemen KOP"
         subtitle="Atur kop resmi yang bisa dipilih opsional di setiap surat"
@@ -259,9 +256,7 @@ onBeforeUnmount(clearLogoFiles)
       :loading="confirmDialog.loading"
       @confirm="handleConfirm"
       @cancel="handleCancel"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <style scoped>
 .grid { display:grid; grid-template-columns:300px 1fr; gap:16px; min-height:70vh; }

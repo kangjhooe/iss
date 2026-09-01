@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="keuangan-page">
+<template>    <div class="keuangan-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-left">
@@ -81,13 +79,15 @@
                 </tr>
               </tbody>
             </table>
-            <div class="pagination">
-              <span>Halaman {{ meta.current_page || 1 }} / {{ meta.last_page || 1 }}</span>
-              <div class="pagination-btns">
-                <button type="button" class="btn-secondary" :disabled="!meta.prev" @click="goPage(meta.current_page - 1)">Sebelumnya</button>
-                <button type="button" class="btn-secondary" :disabled="!meta.next" @click="goPage(meta.current_page + 1)">Berikutnya</button>
-              </div>
-            </div>
+            <PaginationBar
+              :page="meta.current_page"
+              :last-page="meta.last_page"
+              :per-page="meta.per_page"
+              :total="meta.total"
+              item-label="pembayaran"
+              @page-change="goPage"
+              @per-page-change="changePerPage"
+            />
           </div>
         </div>
       </main>
@@ -149,15 +149,13 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { financeInvoiceApi, financePaymentApi } from '@/api/finance'
 import {
   paymentMethodOptions,
@@ -179,7 +177,7 @@ const success = ref('')
 const modalError = ref('')
 const showModal = ref(false)
 const invoiceSearch = ref('')
-const meta = reactive({ current_page: 1, last_page: 1, prev: null, next: null })
+const meta = reactive({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const filters = reactive({ from: '', to: '', method: '', search: '', page: 1 })
 const form = reactive({
   invoice_id: '',
@@ -212,7 +210,7 @@ async function load() {
   try {
     const res = await financePaymentApi.getAll({
       page: filters.page,
-      per_page: 20,
+      per_page: meta.per_page || 15,
       from: filters.from || undefined,
       to: filters.to || undefined,
       method: filters.method || undefined,
@@ -222,8 +220,8 @@ async function load() {
     const m = res.data?.meta || {}
     meta.current_page = m.current_page || 1
     meta.last_page = m.last_page || 1
-    meta.prev = m.current_page > 1
-    meta.next = m.current_page < m.last_page
+    meta.per_page = m.per_page ?? meta.per_page
+    meta.total = m.total ?? 0
   } catch (e) {
     error.value = apiError(e, 'Gagal memuat pembayaran.')
   } finally {
@@ -274,6 +272,12 @@ async function openPay() {
 
 function goPage(page) {
   filters.page = page
+  load()
+}
+
+function changePerPage(n) {
+  meta.per_page = n
+  filters.page = 1
   load()
 }
 

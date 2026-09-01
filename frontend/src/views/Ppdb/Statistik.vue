@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="ppdb-page">
+<template>    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -92,13 +90,10 @@
           </template>
         </div>
       </main>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AppChart from '@/components/AppChart.vue'
 import { ppdbPeriodApi, ppdbChannelApi } from '@/api/ppdb'

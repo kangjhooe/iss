@@ -188,4 +188,53 @@ class CounselingPickerTest extends TestCase
         $this->assertSame(1, CounselingSession::count());
         $this->assertSame($this->teacher->id, (int) CounselingSession::first()->counselor_id);
     }
+
+    public function test_stats_and_upcoming_endpoints_return_counts(): void
+    {
+        Sanctum::actingAs($this->teacher);
+
+        $type = \App\Models\CounselingType::create([
+            'institution_id' => $this->institution->id,
+            'name' => 'Pribadi',
+            'code' => 'PR',
+            'is_active' => true,
+        ]);
+
+        CounselingSession::create([
+            'institution_id' => $this->institution->id,
+            'student_id' => $this->student->id,
+            'counselor_id' => $this->teacher->id,
+            'counseling_type_id' => $type->id,
+            'session_date' => now()->toDateString(),
+            'status' => 'selesai',
+            'academic_year_id' => $this->year->id,
+            'semester_id' => $this->semester->id,
+            'class_id' => $this->class->id,
+        ]);
+        CounselingSession::create([
+            'institution_id' => $this->institution->id,
+            'student_id' => $this->student->id,
+            'counselor_id' => $this->teacher->id,
+            'counseling_type_id' => $type->id,
+            'session_date' => now()->addDay()->toDateString(),
+            'status' => 'jadwal',
+            'academic_year_id' => $this->year->id,
+            'semester_id' => $this->semester->id,
+            'class_id' => $this->class->id,
+        ]);
+
+        $stats = $this->getJson('/api/v1/counseling/stats')->assertOk()->json('data');
+        $this->assertGreaterThanOrEqual(1, $stats['total_this_month']);
+        $this->assertSame(1, $stats['completed_this_month']);
+        $this->assertSame(1, $stats['students_this_month']);
+        $this->assertSame(1, $stats['upcoming_count']);
+        $this->assertSame(1, $stats['open_jadwal']);
+        $this->assertSame(0, $stats['overdue_count']);
+        $this->assertNotEmpty($stats['by_type']);
+        $this->assertSame('Pribadi', $stats['by_type'][0]['name']);
+
+        $upcoming = $this->getJson('/api/v1/counseling/upcoming')->assertOk()->json('data');
+        $this->assertCount(1, $upcoming);
+        $this->assertSame($this->student->name, $upcoming[0]['student']['name']);
+    }
 }

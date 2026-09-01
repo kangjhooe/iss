@@ -1,8 +1,6 @@
 <template>
   <div class="dashboard-page">
-    <div class="dashboard-main">
-      <Layout>
-        <div class="dashboard">
+    <div class="dashboard-main">        <div class="dashboard">
           <!-- Welcome Section (ringkas, satu baris) -->
           <div class="welcome-section">
             <div class="welcome-content">
@@ -361,16 +359,13 @@
           </li>
         </ul>
       </div>
-    </div>
-      </Layout>
-    </div>
+    </div>    </div>
     <HelpSidebar />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import Layout from '@/components/Layout.vue'
 import HelpSidebar from '@/components/HelpSidebar.vue'
 import AppChart from '@/components/AppChart.vue'
 import { useAuthStore } from '@/stores/auth'

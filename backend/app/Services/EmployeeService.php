@@ -4,10 +4,14 @@ namespace App\Services;
 
 use App\Models\Employee;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 class EmployeeService
 {
+    public function __construct(
+        protected ProfilePhotoService $profilePhotoService
+    ) {}
     /**
      * Get list of employees with filters.
      */
@@ -105,5 +109,33 @@ class EmployeeService
         ]);
 
         return $result;
+    }
+
+    public function storePhoto(Employee $employee, UploadedFile $file): Employee
+    {
+        $this->deletePhotoFile($employee);
+
+        $path = $this->profilePhotoService->store($file, 'employee_photos/'.$employee->id);
+        $employee->update(['photo_path' => $path]);
+
+        Log::info('Employee photo uploaded', ['employee_id' => $employee->id]);
+
+        return $employee->fresh(['institution', 'userAccount']);
+    }
+
+    public function deletePhoto(Employee $employee): Employee
+    {
+        $this->deletePhotoFile($employee);
+        $employee->update(['photo_path' => null]);
+
+        Log::info('Employee photo deleted', ['employee_id' => $employee->id]);
+
+        return $employee->fresh(['institution', 'userAccount']);
+    }
+
+    public function deletePhotoFile(Employee $employee): void
+    {
+        $this->profilePhotoService->deletePath($employee->photo_path);
+        $this->profilePhotoService->deleteDirectory('employee_photos/'.$employee->id);
     }
 }

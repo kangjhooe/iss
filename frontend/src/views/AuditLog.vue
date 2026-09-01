@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="audit-log-page">
+<template>    <div class="audit-log-page">
       <div class="tab-header">
         <div class="filters filters-inline"></div>
         <button
@@ -90,28 +88,21 @@
         </table>
       </div>
 
-      <div v-if="logs.length > 0 && meta.last_page > 1" class="pagination-bar">
-        <span class="pagination-info">
-          Menampilkan {{ (meta.current_page - 1) * meta.per_page + 1 }}-{{ Math.min(meta.current_page * meta.per_page, meta.total) }} dari {{ meta.total }}
-        </span>
-        <div class="pagination-buttons">
-          <button type="button" class="btn-page" :disabled="meta.current_page <= 1" @click="goToPage(meta.current_page - 1)">
-            Sebelumnya
-          </button>
-          <span class="page-num">Halaman {{ meta.current_page }} / {{ meta.last_page }}</span>
-          <button type="button" class="btn-page" :disabled="meta.current_page >= meta.last_page" @click="goToPage(meta.current_page + 1)">
-            Selanjutnya
-          </button>
-        </div>
-      </div>
-    </div>
-  </Layout>
-</template>
+      <PaginationBar
+        :page="meta.current_page"
+        :last-page="meta.last_page"
+        :per-page="meta.per_page"
+        :total="meta.total"
+        item-label="log"
+        @page-change="goToPage"
+        @per-page-change="changePerPage"
+      />
+    </div></template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { auditLogApi } from '@/api/auditLog'
 import { useToast } from '@/composables/useToast'
 
@@ -134,8 +125,6 @@ const filters = ref({
   module: '',
   action: ''
 })
-
-const perPage = 15
 
 function actionLabel(action) {
   const labels = {
@@ -161,7 +150,7 @@ function formatDateTime(iso) {
 }
 
 function buildParams(page = 1) {
-  const params = { page, per_page: perPage }
+  const params = { page, per_page: meta.value.per_page || 15 }
   if (filters.value.user_id) params.user_id = filters.value.user_id
   if (filters.value.date_from) params.date_from = filters.value.date_from
   if (filters.value.date_to) params.date_to = filters.value.date_to
@@ -188,7 +177,13 @@ async function loadLogs(page = 1) {
   try {
     const res = await auditLogApi.getList(buildParams(page))
     logs.value = res.data?.data ?? []
-    meta.value = res.data?.meta ?? meta.value
+    const m = res.data?.meta ?? {}
+    meta.value = {
+      current_page: m.current_page ?? 1,
+      last_page: m.last_page ?? 1,
+      per_page: m.per_page ?? meta.value.per_page,
+      total: m.total ?? 0
+    }
   } catch {
     logs.value = []
   } finally {
@@ -198,6 +193,11 @@ async function loadLogs(page = 1) {
 
 function goToPage(page) {
   loadLogs(page)
+}
+
+function changePerPage(n) {
+  meta.value.per_page = n
+  loadLogs(1)
 }
 
 function resetFilters() {

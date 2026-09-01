@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="banks-page">
+<template>    <div class="banks-page">
       <!-- Breadcrumb -->
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <router-link to="/ujian-online" class="breadcrumb-link">Ujian Online</router-link>
@@ -308,14 +306,11 @@
           </div>
         </div>
       </Teleport>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { examApi } from '@/api/exam'
 import { subjectApi } from '@/api/subject'

@@ -111,6 +111,27 @@ class UserResource extends JsonResource
                     return false;
                 }
             })(),
+            'is_room_responsible' => (function () use ($activeInstitutionId) {
+                try {
+                    return $this->resource->isRoomResponsible($activeInstitutionId);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })(),
+            'managed_room_ids' => (function () use ($activeInstitutionId) {
+                try {
+                    if ($this->resource->isAdminOrSuperAdmin() || $this->resource->isInstitutionAdmin()) {
+                        return [];
+                    }
+                    if ($this->resource->hasModuleAccess('inventory')) {
+                        return [];
+                    }
+
+                    return $this->resource->managedRoomIds($activeInstitutionId);
+                } catch (\Throwable $e) {
+                    return [];
+                }
+            })(),
             'is_extracurricular_supervisor' => (function () use ($activeInstitutionId) {
                 try {
                     return $this->resource->isExtracurricularSupervisor($activeInstitutionId);

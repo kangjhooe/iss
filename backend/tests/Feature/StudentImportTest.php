@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
 use App\Models\Institution;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -455,6 +457,131 @@ class StudentImportTest extends TestCase
         ]);
         $this->assertStringContainsString('Baris 13', $response->json('errors.0'));
         $this->assertStringNotContainsString('SQLSTATE', $response->json('errors.0'));
+    }
+
+    public function test_import_assigns_class_id_from_class_name(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $year = AcademicYear::create([
+            'code' => '2025/2026',
+            'name' => '2025/2026',
+            'start_date' => '2025-07-01',
+            'end_date' => '2026-06-30',
+            'status' => 'Aktif',
+        ]);
+        $class = SchoolClass::create([
+            'institution_id' => $this->institution->id,
+            'academic_year_id' => $year->id,
+            'academic_year' => '2025/2026',
+            'name' => 'VII-A',
+            'grade' => 7,
+            'status' => 'Aktif',
+        ]);
+
+        $this->postJson('/api/v1/student/import', [
+            'students' => [
+                $this->row([
+                    'nik' => '3201010101010088',
+                    'nisn' => '0096877800',
+                    'name' => 'Siswa Kelas Import',
+                    'class' => 'VII-A',
+                    'academic_year' => '2025/2026',
+                ]),
+            ],
+        ])->assertOk()->assertJsonPath('created_count', 1);
+
+        $this->assertDatabaseHas('student', [
+            'institution_id' => $this->institution->id,
+            'nik' => '3201010101010088',
+            'class_id' => $class->id,
+            'class' => 'VII-A',
+            'academic_year_id' => $year->id,
+        ]);
+    }
+
+    public function test_import_updates_class_when_exported_row_is_reimported(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $year = AcademicYear::create([
+            'code' => '2025/2026',
+            'name' => '2025/2026',
+            'start_date' => '2025-07-01',
+            'end_date' => '2026-06-30',
+            'status' => 'Aktif',
+        ]);
+        $from = SchoolClass::create([
+            'institution_id' => $this->institution->id,
+            'academic_year_id' => $year->id,
+            'academic_year' => '2025/2026',
+            'name' => 'VII-A',
+            'grade' => 7,
+            'status' => 'Aktif',
+        ]);
+        $to = SchoolClass::create([
+            'institution_id' => $this->institution->id,
+            'academic_year_id' => $year->id,
+            'academic_year' => '2025/2026',
+            'name' => 'VII-B',
+            'grade' => 7,
+            'status' => 'Aktif',
+        ]);
+
+        $existing = Student::create([
+            'institution_id' => $this->institution->id,
+            'nik' => '3201010101010091',
+            'nisn' => '0096877801',
+            'name' => 'Siswa Pindah Kelas',
+            'gender' => 'L',
+            'birth_place' => 'Krui',
+            'birth_date' => '2010-01-01',
+            'tingkat' => 7,
+            'status' => 'Aktif',
+            'class_id' => $from->id,
+            'class' => 'VII-A',
+            'academic_year_id' => $year->id,
+            'academic_year' => '2025/2026',
+        ]);
+
+        $this->postJson('/api/v1/student/import', [
+            'students' => [
+                $this->row([
+                    'nik' => '3201010101010091',
+                    'nisn' => '0096877801',
+                    'name' => 'Siswa Pindah Kelas',
+                    'phone' => '081200011122',
+                    'class' => 'VII-B',
+                    'academic_year' => '2025/2026',
+                ]),
+            ],
+        ])->assertOk()
+            ->assertJsonPath('updated_count', 1)
+            ->assertJsonPath('created_count', 0);
+
+        $existing->refresh();
+        $this->assertSame($to->id, (int) $existing->class_id);
+        $this->assertSame('VII-B', $existing->class);
+        $this->assertSame('081200011122', $existing->phone);
+    }
+
+    public function test_import_rejects_unknown_class_name(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->postJson('/api/v1/student/import', [
+            'students' => [
+                $this->row([
+                    'class' => 'Kelas Tidak Ada',
+                ]),
+            ],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success_count', 0)
+            ->assertJsonPath('error_count', 1);
+        $this->assertStringContainsString('Kelas Tidak Ada', $response->json('errors.0'));
+        $this->assertSame(0, Student::query()->count());
     }
 
     /**

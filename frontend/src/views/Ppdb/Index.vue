@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="ppdb-page">
+<template>    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-left">
@@ -188,13 +186,10 @@
           </div>
         </template>
       </main>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AppChart from '@/components/AppChart.vue'
 import { ppdbApi } from '@/api/ppdb'

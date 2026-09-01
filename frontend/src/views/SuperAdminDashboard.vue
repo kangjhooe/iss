@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="super-admin-dashboard">
+<template>    <div class="super-admin-dashboard">
       <div class="welcome-section">
         <div class="welcome-content">
           <h1>Selamat Datang, {{ userName }}!</h1>
@@ -506,13 +504,10 @@
           </router-link>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { appName } from '@/config/app'
 import { superAdminApi } from '@/api/superAdmin'

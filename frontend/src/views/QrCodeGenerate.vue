@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="qr-generate-page">
       <div class="page-header">
         <div class="header-content">
@@ -92,32 +91,38 @@
         <h2 class="section-title">{{ cards.length }} kartu siap cetak</h2>
         <div class="card-grid">
           <article v-for="card in cards" :key="card.id" class="qr-card">
-            <img :src="card.qr_code" :alt="`QR ${card.name}`" class="qr-image" />
-            <div class="qr-meta">
-              <strong>{{ card.name }}</strong>
-              <span v-if="card.nis">NIS {{ card.nis }}</span>
-              <span v-if="card.nip">NIP {{ card.nip }}</span>
-              <span v-if="card.class_name">{{ card.class_name }}</span>
-              <span v-if="card.type">{{ card.type }}</span>
+            <div class="qr-card-head">{{ authStore.activeInstitution?.name || authStore.user?.institution?.name || 'Sekolah' }}</div>
+            <div class="qr-card-body">
+              <div class="qr-frame">
+                <img :src="card.qr_code" :alt="`QR ${card.name}`" class="qr-image" />
+              </div>
+              <div class="qr-meta">
+                <strong>{{ card.name }}</strong>
+                <span v-if="card.nis">NIS {{ card.nis }}</span>
+                <span v-if="card.nip">NIP {{ card.nip }}</span>
+                <span v-if="card.class_name">{{ card.class_name }}</span>
+                <span v-if="card.type">{{ card.type }}</span>
+              </div>
             </div>
-            <button type="button" class="btn-link" @click="downloadCard(card)">Unduh</button>
+            <div class="qr-card-foot">Kartu QR Absensi</div>
+            <button type="button" class="btn-link qr-download" @click="downloadCard(card)">Unduh</button>
           </article>
         </div>
       </div>
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 import { qrAttendanceApi } from '@/api/attendance'
 import { studentApi } from '@/api/student'
 import { employeeApi } from '@/api/teacher'
 import { classApi } from '@/api/class'
 
 const toast = useToast()
+const authStore = useAuthStore()
 
 const qrType = ref('student')
 const qrClassId = ref('')
@@ -300,21 +305,51 @@ function downloadCard(card) {
   document.body.removeChild(link)
 }
 
+function buildPrintGrid(cardsHtml) {
+  const rows = []
+  for (let i = 0; i < cardsHtml.length; i += 2) {
+    rows.push(`
+      <tr>
+        <td>${cardsHtml[i] || ''}</td>
+        <td>${cardsHtml[i + 1] || ''}</td>
+      </tr>
+    `)
+  }
+  return rows.join('')
+}
+
 function printCards() {
   if (!cards.value.length) return
   printing.value = true
-  const items = cards.value.map((card) => `
-    <article class="card">
-      <img src="${card.qr_code}" alt="" />
-      <div>
-        <strong>${escapeHtml(card.name)}</strong>
-        ${card.nis ? `<div>NIS ${escapeHtml(card.nis)}</div>` : ''}
-        ${card.nip ? `<div>NIP ${escapeHtml(card.nip)}</div>` : ''}
-        ${card.class_name ? `<div>${escapeHtml(card.class_name)}</div>` : ''}
-        ${card.type ? `<div>${escapeHtml(card.type)}</div>` : ''}
-      </div>
-    </article>
-  `).join('')
+  const institutionName = authStore.activeInstitution?.name
+    || authStore.user?.institution?.name
+    || 'Sekolah'
+
+  const cardBlocks = cards.value.map((card) => `
+    <div class="card">
+      <div class="card-head">${escapeHtml(institutionName)}</div>
+      <table class="card-body">
+        <tr>
+          <td class="qr-cell">
+            <div class="qr-frame">
+              <img src="${card.qr_code}" alt="" />
+            </div>
+            <div class="scan-hint">Scan saat absensi</div>
+          </td>
+          <td class="meta-cell">
+            <div class="primary-id">${escapeHtml(card.name)}</div>
+            <table class="meta-rows">
+              ${card.nis ? `<tr><td class="lbl">NIS</td><td class="val">${escapeHtml(card.nis)}</td></tr>` : ''}
+              ${card.nip ? `<tr><td class="lbl">NIP</td><td class="val">${escapeHtml(card.nip)}</td></tr>` : ''}
+              ${card.class_name ? `<tr><td class="lbl">Kelas</td><td class="val">${escapeHtml(card.class_name)}</td></tr>` : ''}
+              ${card.type ? `<tr><td class="lbl">Jenis</td><td class="val">${escapeHtml(card.type)}</td></tr>` : ''}
+            </table>
+          </td>
+        </tr>
+      </table>
+      <div class="card-foot">Kartu QR Absensi</div>
+    </div>
+  `)
 
   const win = window.open('', '_blank')
   if (!win) {
@@ -323,22 +358,76 @@ function printCards() {
     return
   }
   win.document.write(`<!DOCTYPE html>
-    <html>
+    <html lang="id">
       <head>
         <title>Kartu QR Absensi</title>
         <style>
-          @page { size: A4; margin: 10mm; }
-          body { font-family: Arial, sans-serif; color: #1e293b; }
-          h1 { font-size: 16px; margin: 0 0 12px; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-          .card { border: 1.5px solid #047857; border-radius: 8px; padding: 10px; display: flex; gap: 10px; align-items: center; break-inside: avoid; min-height: 58mm; }
-          img { width: 38mm; height: 38mm; }
-          strong { display: block; margin-bottom: 4px; }
+          @page { size: A4 portrait; margin: 8mm; }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; line-height: 1.35; }
+          .page-title { font-size: 11pt; font-weight: 700; color: #065f46; margin: 0 0 6mm; }
+          .grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          .grid td { width: 50%; padding: 3mm; vertical-align: top; }
+          .card {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 63mm;
+            background: #fff;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .card-head {
+            background: #047857;
+            color: #fff;
+            font-size: 8pt;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .card-body { width: 100%; border-collapse: collapse; }
+          .qr-cell { width: 36mm; text-align: center; vertical-align: middle; padding: 5px 4px 4px 6px; }
+          .qr-frame {
+            display: inline-block;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 3px;
+            padding: 3px;
+          }
+          .qr-frame img { width: 30mm; height: 30mm; display: block; }
+          .scan-hint { font-size: 7pt; color: #64748b; margin-top: 2px; }
+          .meta-cell { vertical-align: middle; padding: 6px 8px 6px 2px; }
+          .primary-id {
+            font-size: 13pt;
+            font-weight: 700;
+            color: #065f46;
+            margin-bottom: 5px;
+            line-height: 1.15;
+            word-break: break-word;
+          }
+          .meta-rows { width: 100%; border-collapse: collapse; }
+          .meta-rows td { padding: 1px 0; vertical-align: top; font-size: 9pt; }
+          .meta-rows .lbl { width: 14mm; color: #64748b; padding-right: 3px; white-space: nowrap; }
+          .meta-rows .val { color: #1e293b; font-weight: 700; word-break: break-word; }
+          .card-foot {
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 7pt;
+            padding: 2px 8px;
+            text-align: right;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+          }
         </style>
       </head>
       <body>
-        <h1>Kartu QR Absensi${selectedClassName.value ? ' — ' + escapeHtml(selectedClassName.value) : ''}</h1>
-        <div class="grid">${items}</div>
+        <h1 class="page-title">Kartu QR Absensi${selectedClassName.value ? ' — ' + escapeHtml(selectedClassName.value) : ''}</h1>
+        <table class="grid">${buildPrintGrid(cardBlocks)}</table>
       </body>
     </html>`)
   win.document.close()
@@ -431,21 +520,69 @@ onMounted(async () => {
 .section-title { font-size: 1.05rem; margin: 0 0 0.75rem; }
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 0.75rem;
 }
 .qr-card {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: stretch;
 }
-.qr-image { width: 140px; height: 140px; }
-.qr-meta { text-align: center; font-size: 0.85rem; color: #334155; display: flex; flex-direction: column; gap: 2px; }
+.qr-card-head {
+  background: #047857;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.6rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qr-card-body {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  align-items: center;
+}
+.qr-frame {
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.35rem;
+}
+.qr-image { width: 108px; height: 108px; display: block; }
+.qr-meta {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 0.82rem;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.qr-meta strong {
+  font-size: 0.95rem;
+  color: #065f46;
+  line-height: 1.2;
+}
+.qr-card-foot {
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.62rem;
+  padding: 0.25rem 0.6rem;
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .btn-primary, .btn-secondary, .btn-link, .btn-compact {
   border-radius: 8px;
   cursor: pointer;
@@ -455,5 +592,6 @@ onMounted(async () => {
 .btn-primary { border: none; background: #059669; color: #fff; }
 .btn-secondary { border: 1px solid #e2e8f0; background: #fff; }
 .btn-link { border: none; background: none; color: #059669; text-decoration: underline; }
+.qr-download { margin: 0 0.65rem 0.65rem; align-self: flex-start; }
 .btn-primary:disabled, .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

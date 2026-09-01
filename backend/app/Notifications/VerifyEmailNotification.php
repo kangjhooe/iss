@@ -35,10 +35,12 @@ class VerifyEmailNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $appName = config('app.name');
+
         return (new MailMessage)
-            ->subject('Verifikasi Email - servr.in')
+            ->subject('Verifikasi Email - ' . $appName)
             ->greeting('Halo ' . $notifiable->name . '!')
-            ->line('Terima kasih telah mendaftar di servr.in.')
+            ->line('Terima kasih telah mendaftar di ' . $appName . '.')
             ->line('Silakan klik tombol di bawah ini untuk memverifikasi alamat email Anda:')
             ->action('Verifikasi Email', $this->verificationUrl)
             ->line('Jika Anda tidak membuat akun ini, abaikan email ini.')

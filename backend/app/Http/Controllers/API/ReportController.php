@@ -69,6 +69,8 @@ class ReportController extends Controller
             $compareWithPrevious = $request->get('compare_with_previous', false);
 
             // Get institution data (include kop fields: logo + foundation_name)
+            $principal = $institution->resolvedPrincipal();
+
             $institutionData = [
                 'id' => $institution->id,
                 'name' => $institution->name,
@@ -86,8 +88,8 @@ class ReportController extends Controller
                 'phone' => $institution->phone,
                 'email' => $institution->email,
                 'website' => $institution->website,
-                'principal_name' => $institution->principal_name,
-                'principal_nip' => $institution->principal_nip,
+                'principal_name' => $principal['name'],
+                'principal_nip' => $principal['nip'],
                 'logo' => $institution->logo ? asset('storage/' . $institution->logo) : null,
             ];
 

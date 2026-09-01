@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="ppdb-page">
+<template>    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -122,13 +120,15 @@
             </tbody>
           </table>
         </div>
-        <div v-if="applicantsPagination.last_page > 1" class="pagination-bar content-card">
-          <span class="pagination-info">Halaman {{ applicantsPagination.current_page }} / {{ applicantsPagination.last_page }} ({{ applicantsPagination.total }} data)</span>
-          <div class="pagination-btns">
-            <button type="button" class="pagination-btn" :disabled="applicantsPagination.current_page <= 1" @click="goApplicantsPage(applicantsPagination.current_page - 1)">Sebelumnya</button>
-            <button type="button" class="pagination-btn" :disabled="applicantsPagination.current_page >= applicantsPagination.last_page" @click="goApplicantsPage(applicantsPagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="applicantsPagination.current_page"
+          :last-page="applicantsPagination.last_page"
+          :per-page="applicantsPagination.per_page"
+          :total="applicantsPagination.total"
+          item-label="pendaftar"
+          @page-change="goApplicantsPage"
+          @per-page-change="changeApplicantsPerPage"
+        />
       </main>
 
       <div v-if="showApplicantModal" class="modal-overlay" @click="showApplicantModal = false">
@@ -375,19 +375,17 @@
         :hint="accountCredentials?.hint"
         @close="accountCredentials = null"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import AddressCascade from '@/components/AddressCascade.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { ppdbPeriodApi, ppdbChannelApi, ppdbApplicantApi } from '@/api/ppdb'
 import { classApi } from '@/api/class'
 import { useToast } from '@/composables/useToast'
@@ -575,7 +573,7 @@ async function loadApplicants() {
   try {
     const params = {
       page: applicantsPagination.value.current_page,
-      per_page: 15,
+      per_page: applicantsPagination.value.per_page || 15,
       ...applicantFilters.value,
     }
     if (!params.ppdb_period_id) delete params.ppdb_period_id
@@ -591,7 +589,7 @@ async function loadApplicants() {
     applicantsPagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
-      per_page: meta.per_page ?? 15,
+      per_page: meta.per_page ?? applicantsPagination.value.per_page,
       total: meta.total ?? 0,
     }
     selectedApplicantIds.value = []
@@ -604,6 +602,12 @@ async function loadApplicants() {
 
 function goApplicantsPage(page) {
   applicantsPagination.value.current_page = page
+  loadApplicants()
+}
+
+function changeApplicantsPerPage(n) {
+  applicantsPagination.value.per_page = n
+  applicantsPagination.value.current_page = 1
   loadApplicants()
 }
 

@@ -1,5 +1,21 @@
 import api from './index'
 
+function downloadExcelBlob(res, fallbackName) {
+  const blob = new Blob([res.data], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const disposition = res.headers?.['content-disposition'] || ''
+  const match = disposition.match(/filename="?([^"]+)"?/i)
+  a.download = match?.[1] || fallbackName
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
 /**
  * Inventory API client (Inventaris)
  * Endpoint prefix: /api/v1/inventory/...
@@ -25,6 +41,18 @@ export const inventoryApi = {
   // ==================== Items ====================
   getItems(params = {}) {
     return api.get('/v1/inventory/items', { params })
+  },
+  getImportTemplate() {
+    return api.get('/v1/inventory/items/import/template')
+  },
+  importItems(rows) {
+    return api.post('/v1/inventory/items/import', { rows })
+  },
+  exportItemsExcel(params = {}) {
+    return api.get('/v1/inventory/items/export/excel', { params, responseType: 'blob' }).then((res) => {
+      downloadExcelBlob(res, `Master_Barang_Inventaris_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      return res
+    })
   },
   getItem(id) {
     return api.get(`/v1/inventory/items/${id}`)
@@ -57,6 +85,99 @@ export const inventoryApi = {
   },
   deleteItem(id) {
     return api.delete(`/v1/inventory/items/${id}`)
+  },
+  restoreItem(id) {
+    return api.post(`/v1/inventory/items/${id}/restore`)
+  },
+  disposeItem(id, data) {
+    return api.post(`/v1/inventory/items/${id}/dispose`, data)
+  },
+  disposeAsset(id, data) {
+    return api.post(`/v1/inventory/assets/${id}/dispose`, data)
+  },
+  getDisposals(params = {}) {
+    return api.get('/v1/inventory/disposals', { params })
+  },
+  updateDisposal(id, data) {
+    return api.put(`/v1/inventory/disposals/${id}`, data)
+  },
+  uploadDisposalDocument(id, file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/v1/inventory/disposals/${id}/document`, formData)
+  },
+  deleteDisposalDocument(id) {
+    return api.delete(`/v1/inventory/disposals/${id}/document`)
+  },
+  deleteDisposal(id) {
+    return api.delete(`/v1/inventory/disposals/${id}`)
+  },
+  exportKib(id) {
+    return api.get(`/v1/inventory/items/${id}/export/kib`, { responseType: 'blob' })
+  },
+
+  // ==================== Assets (Aset Individual) ====================
+  getAssets(params = {}) {
+    return api.get('/v1/inventory/assets', { params })
+  },
+  getAsset(id) {
+    return api.get(`/v1/inventory/assets/${id}`)
+  },
+  createAsset(data) {
+    return api.post('/v1/inventory/assets', data)
+  },
+  updateAsset(id, data) {
+    return api.put(`/v1/inventory/assets/${id}`, data)
+  },
+  getAssetQr(id) {
+    return api.get(`/v1/inventory/assets/${id}/qr`)
+  },
+  resolveAssetQr(token) {
+    return api.get('/v1/inventory/assets/resolve-qr', { params: { token } })
+  },
+  splitItemAssets(itemId, count) {
+    return api.post(`/v1/inventory/items/${itemId}/split-assets`, { count })
+  },
+  transferAsset(id, data) {
+    return api.post(`/v1/inventory/assets/${id}/transfer`, data)
+  },
+  exportAssetKib(id) {
+    return api.get(`/v1/inventory/assets/${id}/export/kib`, { responseType: 'blob' })
+  },
+  getAssetQrBulk(data) {
+    return api.post('/v1/inventory/assets/qr/bulk', data)
+  },
+  printAssetQrPdf(data) {
+    return api.post('/v1/inventory/assets/qr/print-pdf', data, { responseType: 'blob' })
+  },
+  getAssetMovements(params = {}) {
+    return api.get('/v1/inventory/asset-movements', { params })
+  },
+
+  // ==================== Stock Opname ====================
+  getStockOpnames(params = {}) {
+    return api.get('/v1/inventory/stock-opnames', { params })
+  },
+  getStockOpname(id) {
+    return api.get(`/v1/inventory/stock-opnames/${id}`)
+  },
+  createStockOpname(data) {
+    return api.post('/v1/inventory/stock-opnames', data)
+  },
+  refreshStockOpnameLines(id) {
+    return api.post(`/v1/inventory/stock-opnames/${id}/refresh-lines`)
+  },
+  updateStockOpnameLine(opnameId, lineId, data) {
+    return api.put(`/v1/inventory/stock-opnames/${opnameId}/lines/${lineId}`, data)
+  },
+  updateAssetOpnameLine(opnameId, lineId, data) {
+    return api.put(`/v1/inventory/stock-opnames/${opnameId}/asset-lines/${lineId}`, data)
+  },
+  finalizeStockOpname(id) {
+    return api.post(`/v1/inventory/stock-opnames/${id}/finalize`)
+  },
+  cancelStockOpname(id) {
+    return api.post(`/v1/inventory/stock-opnames/${id}/cancel`)
   },
 
   // ==================== Transactions ====================
@@ -94,6 +215,9 @@ export const inventoryApi = {
   createLoan(data) {
     return api.post('/v1/inventory/loans', data)
   },
+  updateLoan(id, data) {
+    return api.put(`/v1/inventory/loans/${id}`, data)
+  },
   returnLoan(id, data = {}) {
     return api.post(`/v1/inventory/loans/${id}/return`, data)
   },
@@ -126,8 +250,21 @@ export const inventoryApi = {
   getReportTransactions(params = {}) {
     return api.get('/v1/inventory/reports/transactions', { params })
   },
+  getReportAssetMovements(params = {}) {
+    return api.get('/v1/inventory/reports/asset-movements', { params })
+  },
+  getReportDisposed(params = {}) {
+    return api.get('/v1/inventory/reports/disposed', { params })
+  },
   exportReportPdf(params = {}) {
     return api.get('/v1/inventory/reports/export/pdf', { params, responseType: 'blob' })
+  },
+  exportReportExcel(params = {}) {
+    return api.get('/v1/inventory/reports/export/excel', { params, responseType: 'blob' }).then((res) => {
+      const type = params.type || 'summary'
+      downloadExcelBlob(res, `Laporan_Inventaris_${type}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      return res
+    })
   }
 }
 

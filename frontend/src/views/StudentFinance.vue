@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page">
+<template>    <div class="sp-page">
       <div v-if="!studentId && authStore.user?.role === 'student'" class="sp-alert sp-alert-warning">
         <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah.
       </div>
@@ -190,13 +188,10 @@
       <p class="sp-footnote">
         Pembayaran dicatat oleh petugas sekolah. Hubungi bendahara jika ada perbedaan data.
       </p>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="change-requests-page">
+<template>    <div class="change-requests-page">
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="6" :columns="6" :cell-widths="['100px', '1fr', '120px', '100px', '1fr', '120px']" />
       </div>
@@ -163,13 +161,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { teacherChangeRequestApi } from '@/api/teacherChangeRequest'
 import { useToast } from '@/composables/useToast'

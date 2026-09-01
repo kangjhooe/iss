@@ -14,9 +14,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class TeacherChangeRequestController extends Controller
 {
+    public function __construct(
+        protected \App\Services\EmployeeService $employeeService
+    ) {}
+
     public function allowedFields(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -72,6 +77,73 @@ class TeacherChangeRequestController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    public function uploadMyPhoto(Request $request): JsonResponse
+    {
+        try {
+            $employee = $this->resolveMyEmployee($request);
+            if (! $employee) {
+                return response()->json(['message' => 'Profil guru tidak ditemukan.'], 403);
+            }
+
+            $request->validate(
+                \App\Helpers\FileUploadRules::employeePhoto(true),
+                \App\Helpers\FileUploadRules::profilePhotoMessages()
+            );
+
+            $updated = $this->employeeService->storePhoto($employee, $request->file('photo'));
+
+            return response()->json([
+                'message' => 'Foto profil berhasil diunggah.',
+                'data' => new EmployeeResource($updated->loadMissing('institution')),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Teacher self photo upload failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal mengunggah foto',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function deleteMyPhoto(Request $request): JsonResponse
+    {
+        try {
+            $employee = $this->resolveMyEmployee($request);
+            if (! $employee) {
+                return response()->json(['message' => 'Profil guru tidak ditemukan.'], 403);
+            }
+
+            $updated = $this->employeeService->deletePhoto($employee);
+
+            return response()->json([
+                'message' => 'Foto profil dihapus.',
+                'data' => new EmployeeResource($updated->loadMissing('institution')),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Teacher self photo delete failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal menghapus foto',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function resolveMyEmployee(Request $request): ?Employee
+    {
+        $user = $request->user();
+        $user->load(['teacherProfile', 'employeeProfile']);
+        $profile = $user->teacherProfile ?? $user->employeeProfile;
+        if (! $profile) {
+            return null;
+        }
+
+        return Employee::with('institution')->find($profile->id);
     }
 
     public function index(Request $request): JsonResponse

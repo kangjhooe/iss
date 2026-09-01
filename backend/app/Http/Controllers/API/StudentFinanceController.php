@@ -200,10 +200,12 @@ class StudentFinanceController extends Controller
             }
 
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = $payment->paid_at ?? now();
             $pdf = DomPDF::loadView('finance.receipt', [
                 'institution' => $institution,
                 'payment' => $payment,
                 'printed_at' => $printedAt,
+                'as_of_date' => $asOfDate,
             ])->setPaper('a4', 'portrait');
 
             $filename = 'Kwitansi_' . $payment->id . '_' . date('Ymd_His') . '.pdf';

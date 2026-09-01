@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="broadcast-page">
+<template>    <div class="broadcast-page">
       <div class="page-header">
         <div>
           <h2>Broadcast Pengumuman</h2>
@@ -74,13 +72,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { institutionApi } from '@/api/institution'

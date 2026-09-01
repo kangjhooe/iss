@@ -11,6 +11,7 @@ use App\Models\EmployeeAttendance;
 use App\Models\Institution;
 use App\Services\EmployeeAttendanceService;
 use App\Support\InstitutionContext;
+use App\Support\StructuralPositionResolver;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -147,12 +148,15 @@ class EmployeeAttendanceController extends Controller
                 ]);
             }
 
+            $asOfDate = StructuralPositionResolver::attendanceAsOfDate($filters);
+
             $pdf = DomPDF::loadView('attendance.employee_rekap', [
                 'institution' => $institution,
                 'rows' => $rekap['rows'],
                 'totals' => $rekap['totals'],
                 'meta' => $rekap['meta'],
                 'printed_at' => $printedAt,
+                'as_of_date' => $asOfDate,
             ])->setPaper('a4', 'landscape');
 
             return $pdf->download('Rekap_Absensi_Pegawai_' . date('Y-m-d_His') . '.pdf');

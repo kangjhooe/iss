@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="schedule-page">
+<template>    <div class="schedule-page">
       <div class="toolbar">
         <div class="toolbar-actions">
           <router-link to="/subject" class="btn-secondary btn-compact">Mata Pelajaran</router-link>
@@ -9,10 +7,6 @@
 
       <div class="tab-shell">
         <nav class="section-nav" role="tablist" aria-label="Modul Jadwal">
-          <button v-if="isTeacher" type="button" :class="['sec-btn', { active: activeTab === 'my' }]" @click="switchTab('my')">
-            <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/></svg></span>
-            <span class="sec-label">Jadwal Saya</span>
-          </button>
           <button type="button" :class="['sec-btn', { active: activeTab === 'template' }]" @click="switchTab('template')">
             <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
             <span class="sec-text"><span class="sec-label">Template</span><span class="sec-hint">Langkah 1</span></span>
@@ -35,73 +29,6 @@
           </button>
         </nav>
         <div class="tab-main">
-
-      <!-- Tab: Jadwal Saya -->
-      <template v-if="activeTab === 'my'">
-        <div class="filters filters-inline">
-          <label>Semester</label>
-          <select v-model="mySemesterId" @change="loadMySchedule" class="filter-select">
-            <option value="">Pilih Semester</option>
-            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }} ({{ s.academic_year?.name || '-' }})</option>
-          </select>
-        </div>
-        <div v-if="!mySemesterId" class="empty-state">
-          <p>Pilih semester untuk menampilkan jadwal mengajar Anda.</p>
-        </div>
-        <div v-else-if="loadingMy" class="loading-state"><p>Memuat jadwal...</p></div>
-        <div v-else-if="mySchedules.length === 0" class="empty-state">
-          <p>Belum ada jadwal mengajar di semester ini untuk sekolah aktif.</p>
-        </div>
-        <div v-else class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Hari</th>
-                <th>Jam ke</th>
-                <th>Kelas</th>
-                <th>Mata Pelajaran</th>
-                <th>Ruangan</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in mySchedules" :key="row.id">
-                <td>{{ row.day_name || dayNamesMap[row.day_of_week] || '-' }}</td>
-                <td>{{ row.period ?? '-' }}</td>
-                <td>{{ displayValue(row.school_class?.name) }}</td>
-                <td>{{ displayValue(row.subject?.name) }}</td>
-                <td>{{ displayValue(row.room?.name) }}</td>
-                <td>
-                  <router-link
-                    class="btn-action btn-edit"
-                    :to="{
-                      path: '/teaching-journal',
-                      query: {
-                        semester_id: row.semester_id || mySemesterId,
-                        class_id: row.class_id,
-                        subject_id: row.subject_id,
-                        lesson_schedule_id: row.id,
-                        period: row.period,
-                      },
-                    }"
-                  >Buat Jurnal</router-link>
-                  <router-link
-                    class="btn-action btn-edit"
-                    :to="{
-                      path: '/grade-book',
-                      query: {
-                        semester_id: row.semester_id || mySemesterId,
-                        class_id: row.class_id,
-                        subject_id: row.subject_id,
-                      },
-                    }"
-                  >Buku Nilai</router-link>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
 
       <!-- Tab: Template Jadwal (hari libur + JP) -->
       <template v-if="activeTab === 'template'">
@@ -506,13 +433,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { subjectApi } from '@/api/subject'
@@ -521,17 +445,10 @@ import { institutionApi } from '@/api/institution'
 import { semesterApi } from '@/api/semester'
 import { teacherApi } from '@/api/teacher'
 import { facilityApi } from '@/api/facility'
-import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
-const authStore = useAuthStore()
-const isTeacher = computed(() => {
-  const role = authStore.user?.role
-  return role === 'teacher' || role === 'staff'
-})
-
-const activeTab = ref('byClass')
+const activeTab = ref('template')
 const semesters = ref([])
 const classes = ref([])
 const subjects = ref([])
@@ -540,9 +457,6 @@ const rooms = ref([])
 const activeAcademicYearId = ref('')
 const filterSemesterId = ref('')
 const filterClassId = ref('')
-const mySemesterId = ref('')
-const mySchedules = ref([])
-const loadingMy = ref(false)
 const scheduleMatrix = ref(null)
 const scheduleList = ref([])
 const loadingMatrix = ref(false)
@@ -654,7 +568,6 @@ function classNameById(id) {
 
 function switchTab(tab) {
   activeTab.value = tab
-  if (tab === 'my') loadMySchedule()
   if (tab === 'byClass') {
     loadClassTemplates().then(() => loadByClassIfNeeded())
   }
@@ -799,7 +712,6 @@ async function loadInitial() {
       const sid = String(institution.active_semester_id)
       listFilters.semester_id = sid
       filterSemesterId.value = sid
-      mySemesterId.value = sid
       templateSemesterId.value = sid
       printForm.semester_id = sid
     }
@@ -1138,24 +1050,6 @@ async function saveClassTemplate() {
   }
 }
 
-async function loadMySchedule() {
-  if (!mySemesterId.value) {
-    mySchedules.value = []
-    return
-  }
-  loadingMy.value = true
-  try {
-    const res = await lessonScheduleApi.getMyTeachingLoad({ semester_id: mySemesterId.value })
-    const data = res.data?.data ?? res.data ?? {}
-    const list = Array.isArray(data.schedules) ? data.schedules : []
-    mySchedules.value = list.map((s) => s?.data ?? s)
-  } catch {
-    mySchedules.value = []
-  } finally {
-    loadingMy.value = false
-  }
-}
-
 async function loadByClassIfNeeded() {
   if (!filterSemesterId.value || !filterClassId.value) return
   loadingMatrix.value = true
@@ -1319,14 +1213,9 @@ async function doCopy() {
 
 onMounted(async () => {
   await loadInitial()
-  if (isTeacher.value) {
-    activeTab.value = 'my'
-    await loadMySchedule()
-  } else {
-    activeTab.value = 'template'
-    await loadTemplates()
-    await refreshTemplateFlag()
-  }
+  activeTab.value = 'template'
+  await loadTemplates()
+  await refreshTemplateFlag()
 })
 </script>
 

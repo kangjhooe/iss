@@ -21,6 +21,7 @@ class InventoryLoan extends Model
     protected $fillable = [
         'institution_id',
         'item_id',
+        'asset_id',
         'borrower_type',
         'borrower_id',
         'borrower_name',
@@ -34,6 +35,8 @@ class InventoryLoan extends Model
             'notes',
             'return_condition',
             'return_item_status',
+            'overdue_notified_at',
+            'due_reminder_sent_at',
             'created_by',
             'updated_by',
         ];
@@ -49,6 +52,8 @@ class InventoryLoan extends Model
             'loan_date' => 'date',
             'expected_return_date' => 'date',
             'actual_return_date' => 'date',
+            'overdue_notified_at' => 'datetime',
+            'due_reminder_sent_at' => 'datetime',
             'quantity' => 'integer',
         ];
     }
@@ -67,6 +72,11 @@ class InventoryLoan extends Model
     public function item()
     {
         return $this->belongsTo(InventoryItem::class);
+    }
+
+    public function asset()
+    {
+        return $this->belongsTo(InventoryAsset::class, 'asset_id');
     }
 
     /**

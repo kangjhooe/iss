@@ -13,7 +13,6 @@ use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ExamParticipantController extends Controller
 {
@@ -269,25 +268,11 @@ class ExamParticipantController extends Controller
         $nomorUrutInSession = 1;
         foreach ($participants as $p) {
             $student = $p->student;
-            $photoPath = null;
-            $photoBase64 = null;
-            if ($student && $student->relationLoaded('documents') && $student->documents->isNotEmpty()) {
-                $photoDoc = $student->documents->first(function ($d) {
-                    return $d->mime_type && str_starts_with($d->mime_type, 'image/');
-                });
-                if ($photoDoc && $photoDoc->file_path && Storage::disk('public')->exists($photoDoc->file_path)) {
-                    $fullPath = Storage::disk('public')->path($photoDoc->file_path);
-                    $photoPath = $fullPath;
-                    $bin = @file_get_contents($fullPath);
-                    if ($bin !== false) {
-                        $photoBase64 = 'data:' . ($photoDoc->mime_type ?? 'image/jpeg') . ';base64,' . base64_encode($bin);
-                    }
-                }
-            }
+            $photoBase64 = $student?->resolvePrintPhotoDataUri();
             $orderForNomor = $p->participant_order ?? $nomorUrutInSession;
             $nomorPeserta = $institution->buildNomorPeserta((int) $orderForNomor, $dateSource);
             $cards[] = [
-                'photo_path' => $photoPath,
+                'photo_path' => null,
                 'photo_base64' => $photoBase64,
                 'nomor_peserta' => $nomorPeserta,
                 'nama' => $student->name ?? '–',

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="leave-page">
+<template>    <div class="leave-page">
       <div class="toolbar">
         <div>
           <h2 class="page-title">Cuti Saya</h2>
@@ -96,13 +94,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { useToast } from '@/composables/useToast'

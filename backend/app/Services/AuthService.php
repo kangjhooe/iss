@@ -374,6 +374,6 @@ class AuthService
     {
         return config('app.env') === 'local'
             || config('app.env') === 'development'
-            || env('SKIP_EMAIL_VERIFICATION', false) === true;
+            || config('frontend.skip_email_verification');
     }
 }

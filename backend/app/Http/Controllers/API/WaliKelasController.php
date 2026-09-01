@@ -3,22 +3,31 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateWaliStudentRequest;
 use App\Http\Resources\AchievementResource;
 use App\Http\Resources\AchievementTypeResource;
+use App\Http\Resources\FinanceInvoiceResource;
+use App\Http\Resources\FinancePaymentResource;
 use App\Http\Resources\StudentMutationResource;
 use App\Http\Resources\StudentResource;
 use App\Http\Resources\ViolationResource;
 use App\Http\Resources\ViolationTypeResource;
 use App\Http\Resources\WaliNoteResource;
+use App\Helpers\FileUploadRules;
 use App\Models\Achievement;
 use App\Models\AchievementType;
+use App\Models\FinanceFeeType;
+use App\Models\FinanceInvoice;
+use App\Models\FinancePayment;
 use App\Models\Institution;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\StudentMutation;
 use App\Models\Violation;
 use App\Models\ViolationType;
 use App\Models\WaliNote;
 use App\Services\AchievementService;
+use App\Services\FinanceService;
 use App\Services\LessonScheduleExportService;
 use App\Services\LessonScheduleService;
 use App\Services\StudentAccountService;
@@ -32,6 +41,7 @@ use App\Support\WaliKelasAccess;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -49,6 +59,7 @@ class WaliKelasController extends Controller
         protected StudentAttendanceService $studentAttendanceService,
         protected StudentAccountService $studentAccountService,
         protected StudentService $studentService,
+        protected FinanceService $financeService,
     ) {}
 
     public function showStudent(Request $request, int $classId, int $studentId): JsonResponse
@@ -113,6 +124,71 @@ class WaliKelasController extends Controller
 
         return response()->json([
             'message' => 'Data login siswa diperbarui. Akun login disinkronkan otomatis jika NIK & tanggal lahir valid.',
+            'data' => new StudentResource($updated->loadMissing(['class', 'academicYear', 'semester', 'userAccount'])),
+        ]);
+    }
+
+    public function updateStudent(UpdateWaliStudentRequest $request, int $classId, int $studentId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $student = WaliKelasAccess::resolveHomeroomStudent($user, $classId, $studentId);
+        if (!$student) {
+            return response()->json(['message' => 'Siswa tidak ditemukan di kelas yang Anda waliki.'], 403);
+        }
+
+        $updated = $this->studentService->update($student, $request->validated());
+
+        return response()->json([
+            'message' => 'Data siswa diperbarui.',
+            'data' => new StudentResource($updated->loadMissing(['class', 'academicYear', 'semester', 'userAccount'])),
+        ]);
+    }
+
+    public function uploadPhoto(Request $request, int $classId, int $studentId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $student = WaliKelasAccess::resolveHomeroomStudent($user, $classId, $studentId);
+        if (!$student) {
+            return response()->json(['message' => 'Siswa tidak ditemukan di kelas yang Anda waliki.'], 403);
+        }
+
+        $request->validate(
+            FileUploadRules::studentPhoto(true),
+            FileUploadRules::profilePhotoMessages()
+        );
+
+        $updated = $this->studentService->storePhoto($student, $request->file('photo'));
+
+        return response()->json([
+            'message' => 'Foto siswa berhasil diunggah.',
+            'data' => new StudentResource($updated->loadMissing(['class', 'academicYear', 'semester', 'userAccount'])),
+        ]);
+    }
+
+    public function deletePhoto(Request $request, int $classId, int $studentId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $student = WaliKelasAccess::resolveHomeroomStudent($user, $classId, $studentId);
+        if (!$student) {
+            return response()->json(['message' => 'Siswa tidak ditemukan di kelas yang Anda waliki.'], 403);
+        }
+
+        $updated = $this->studentService->deletePhoto($student);
+
+        return response()->json([
+            'message' => 'Foto siswa dihapus.',
             'data' => new StudentResource($updated->loadMissing(['class', 'academicYear', 'semester', 'userAccount'])),
         ]);
     }
@@ -404,10 +480,22 @@ class WaliKelasController extends Controller
             return response()->json(['message' => 'Semester aktif tidak ditemukan.'], 422);
         }
 
+        $class->loadMissing(['teacher:id,name,nip']);
+
         return $this->lessonScheduleExportService->exportPdf((int) $class->institution_id, [
             'mode' => 'class',
             'semester_id' => $semesterId,
             'class_id' => $classId,
+            'left_signer' => [
+                'role' => 'Mengetahui, '.Institution::principalTitleForLevel($institution?->level),
+                'show_place_date' => false,
+            ],
+            'right_signer' => [
+                'role' => 'Wali Kelas',
+                'name' => $class->teacher?->name ?? '',
+                'nip' => $class->teacher?->nip ?? '',
+                'show_place_date' => true,
+            ],
         ]);
     }
 
@@ -643,17 +731,68 @@ class WaliKelasController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'nis', 'nisn', 'gender']);
 
-        $institution = Institution::find($class->institution_id);
-        $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+        $ctx = $this->waliPrintContext($class);
 
         $pdf = DomPDF::loadView('wali.student_roster', [
-            'institution' => $institution,
-            'class' => $class,
+            ...$ctx,
             'students' => $students,
-            'printed_at' => $printedAt,
         ])->setPaper('a4', 'portrait');
 
-        return $pdf->download('Daftar_Siswa_'.$class->name.'_'.date('Y-m-d').'.pdf');
+        return $pdf->stream('Daftar_Siswa_'.$class->name.'_'.date('Y-m-d').'.pdf', ['Attachment' => false]);
+    }
+
+    public function exportIdentitas(Request $request, int $classId)
+    {
+        $user = $request->user();
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+
+        $query = Student::query()
+            ->where('class_id', $classId)
+            ->where('status', 'Aktif')
+            ->with(['class', 'academicYear', 'documents'])
+            ->orderBy('name');
+
+        $studentId = $request->integer('student_id');
+        if ($studentId) {
+            $query->where('id', $studentId);
+        }
+
+        $students = $query->get();
+        if ($students->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada siswa untuk dicetak.'], 422);
+        }
+
+        try {
+            $sheets = $students->map(function (Student $student) {
+                return [
+                    'student' => $student,
+                    'photo_base64' => $this->printSafePhotoDataUri($student),
+                ];
+            });
+
+            $ctx = $this->waliPrintContext($class);
+            $safeClass = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) $class->name) ?: 'kelas';
+            $filename = $studentId && $students->count() === 1
+                ? 'Identitas_'.preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) $students->first()->name).'_'.date('Y-m-d').'.pdf'
+                : 'Identitas_Peserta_Didik_'.$safeClass.'_'.date('Y-m-d').'.pdf';
+
+            $pdf = DomPDF::loadView('wali.student_identitas', [
+                ...$ctx,
+                'sheets' => $sheets,
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->stream($filename, ['Attachment' => false]);
+        } catch (\Throwable $e) {
+            Log::error('WaliKelas exportIdentitas failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal mencetak identitas peserta didik.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     public function exportContacts(Request $request, int $classId)
@@ -671,7 +810,7 @@ class WaliKelasController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'nis', 'nisn', 'phone', 'guardian_name', 'guardian_phone', 'address', 'village', 'sub_district', 'district', 'province', 'postal_code']);
 
-        $institution = Institution::find($class->institution_id);
+        $ctx = $this->waliPrintContext($class);
 
         if ($format === 'csv') {
             $filename = 'Kontak_Ortu_'.$class->name.'_'.date('Y-m-d').'.csv';
@@ -699,15 +838,12 @@ class WaliKelasController extends Controller
             ]);
         }
 
-        $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
         $pdf = DomPDF::loadView('wali.student_contacts', [
-            'institution' => $institution,
-            'class' => $class,
+            ...$ctx,
             'students' => $students,
-            'printed_at' => $printedAt,
         ])->setPaper('a4', 'landscape');
 
-        return $pdf->download('Kontak_Ortu_'.$class->name.'_'.date('Y-m-d').'.pdf');
+        return $pdf->stream('Kontak_Ortu_'.$class->name.'_'.date('Y-m-d').'.pdf', ['Attachment' => false]);
     }
 
     public function exportAttendance(Request $request, int $classId)
@@ -728,8 +864,11 @@ class WaliKelasController extends Controller
             $filters['class_id'] = $classId;
             $institutionId = (int) $class->institution_id;
             $rekap = $this->studentAttendanceService->buildRekap($institutionId, $filters, null);
-            $institution = Institution::find($institutionId);
-            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $semester = !empty($filters['semester_id'])
+                ? \App\Models\Semester::query()->find((int) $filters['semester_id'], ['id', 'end_date', 'start_date'])
+                : null;
+            $asOfDate = \App\Support\StructuralPositionResolver::attendanceAsOfDate($filters, $semester);
+            $ctx = $this->waliPrintContext($class, $asOfDate);
 
             if ($format === 'csv') {
                 $filename = 'Rekap_Absensi_'.$class->name.'_'.date('Y-m-d_His').'.csv';
@@ -767,14 +906,14 @@ class WaliKelasController extends Controller
             }
 
             $pdf = DomPDF::loadView('attendance.student_rekap', [
-                'institution' => $institution,
+                ...$ctx,
                 'rows' => $rekap['rows'],
                 'totals' => $rekap['totals'],
                 'meta' => $rekap['meta'],
-                'printed_at' => $printedAt,
+                'use_wali_signatures' => true,
             ])->setPaper('a4', 'landscape');
 
-            return $pdf->download('Rekap_Absensi_'.$class->name.'_'.date('Y-m-d_His').'.pdf');
+            return $pdf->stream('Rekap_Absensi_'.$class->name.'_'.date('Y-m-d_His').'.pdf', ['Attachment' => false]);
         } catch (\Exception $e) {
             Log::error('WaliKelas exportAttendance failed', ['error' => $e->getMessage()]);
 
@@ -783,5 +922,343 @@ class WaliKelasController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Ringkasan tunggakan tagihan siswa di kelas wali.
+     */
+    public function financeSummary(Request $request, int $classId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return response()->json(['message' => 'Anda hanya dapat melihat keuangan kelas yang Anda waliki.'], 403);
+        }
+
+        $base = FinanceInvoice::query()
+            ->where('institution_id', $class->institution_id)
+            ->where('class_id', $class->id)
+            ->outstanding();
+
+        $outstandingTotal = (float) (clone $base)
+            ->selectRaw('COALESCE(SUM(amount - amount_paid), 0) as total')
+            ->value('total');
+
+        $invoiceCount = (clone $base)->count();
+        $studentCount = (clone $base)->distinct('student_id')->count('student_id');
+
+        $byFeeType = (clone $base)
+            ->join('finance_fee_types', 'finance_invoices.fee_type_id', '=', 'finance_fee_types.id')
+            ->groupBy('finance_fee_types.id', 'finance_fee_types.name')
+            ->selectRaw('finance_fee_types.id as fee_type_id, finance_fee_types.name as name, COUNT(*) as invoice_count, COALESCE(SUM(finance_invoices.amount - finance_invoices.amount_paid), 0) as outstanding')
+            ->orderByDesc('outstanding')
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'class' => ['id' => $class->id, 'name' => $class->name],
+                'outstanding_total' => $outstandingTotal,
+                'invoice_count' => $invoiceCount,
+                'student_count' => $studentCount,
+                'by_fee_type' => $byFeeType,
+            ],
+        ]);
+    }
+
+    /**
+     * Jenis biaya aktif (untuk filter / buat tagihan kas kelas).
+     */
+    public function financeFeeTypes(Request $request, int $classId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return response()->json(['message' => 'Anda hanya dapat mengelola kelas yang Anda waliki.'], 403);
+        }
+
+        $forGenerate = $request->boolean('for_generate');
+        $query = FinanceFeeType::forInstitution((int) $class->institution_id)
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('name');
+
+        if ($forGenerate) {
+            $query->where('scope', 'class');
+        }
+
+        return response()->json([
+            'data' => $query->get(['id', 'name', 'code', 'frequency', 'scope', 'default_amount']),
+        ]);
+    }
+
+    /**
+     * Daftar tagihan (default: outstanding) siswa kelas wali.
+     */
+    public function financeInvoices(Request $request, int $classId): AnonymousResourceCollection|JsonResponse
+    {
+        $user = $request->user();
+        if (!$user?->isTeacherOrStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+        if (!$class) {
+            return response()->json(['message' => 'Anda hanya dapat melihat tagihan kelas yang Anda waliki.'], 403);
+        }
+
+        $query = FinanceInvoice::query()
+            ->where('institution_id', $class->institution_id)
+            ->where('class_id', $class->id)
+            ->with(['feeType:id,name,code,frequency', 'student:id,name,nis,class_id', 'schoolClass:id,name,code'])
+            ->orderByDesc('created_at');
+
+        if ($request->get('status') === 'outstanding' || !$request->filled('status')) {
+            $query->outstanding();
+        } elseif ($request->filled('status')) {
+            $query->where('status', $request->get('status'));
+        }
+
+        if ($request->filled('fee_type_id')) {
+            $query->where('fee_type_id', $request->get('fee_type_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhereHas('student', fn ($sq) => $sq->where('name', 'like', "%{$search}%")
+                        ->orWhere('nis', 'like', "%{$search}%"));
+            });
+        }
+
+        $perPage = min((int) $request->get('per_page', 20), 100);
+
+        return FinanceInvoiceResource::collection($query->paginate($perPage));
+    }
+
+    /**
+     * Buat tagihan kas kelas / biaya cakupan kelas untuk siswa di kelas wali.
+     */
+    public function generateFinanceInvoices(Request $request, int $classId): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$user?->isTeacherOrStaff()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+            if (!$class) {
+                return response()->json(['message' => 'Anda hanya dapat membuat tagihan untuk kelas yang Anda waliki.'], 403);
+            }
+
+            $validated = $request->validate([
+                'fee_type_id' => [
+                    'required',
+                    Rule::exists('finance_fee_types', 'id')->where(fn ($q) => $q
+                        ->where('institution_id', $class->institution_id)
+                        ->where('scope', 'class')),
+                ],
+                'title' => 'nullable|string|max:255',
+                'amount' => 'nullable|numeric|min:0.01',
+                'due_date' => 'nullable|date',
+                'period_label' => 'nullable|string|max:20',
+                'notes' => 'nullable|string',
+                'student_ids' => 'nullable|array',
+                'student_ids.*' => [
+                    'integer',
+                    Rule::exists('student', 'id')->where(fn ($q) => $q
+                        ->where('institution_id', $class->institution_id)
+                        ->where('class_id', $class->id)),
+                ],
+                'all_students' => 'nullable|boolean',
+            ]);
+
+            $hasStudents = !empty($validated['student_ids']);
+            $allStudents = (bool) ($validated['all_students'] ?? !$hasStudents);
+
+            $payload = array_merge($validated, [
+                'class_id' => $class->id,
+                'all_students' => $allStudents && !$hasStudents,
+            ]);
+            if ($hasStudents) {
+                $payload['student_ids'] = $validated['student_ids'];
+                unset($payload['all_students']);
+            }
+
+            $result = $this->financeService->generateInvoices(
+                (int) $class->institution_id,
+                (int) $user->id,
+                $payload
+            );
+
+            $loaded = $result['invoices']->load(['feeType', 'student', 'schoolClass']);
+            $status = $result['created'] > 0 ? 201 : 200;
+
+            return response()->json([
+                'message' => "Berhasil membuat {$result['created']} tagihan"
+                    . ($result['skipped'] ? ", {$result['skipped']} dilewati (sudah ada)." : '.'),
+                'created' => $result['created'],
+                'skipped' => $result['skipped'],
+                'data' => FinanceInvoiceResource::collection($loaded)->resolve(),
+            ], $status);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('WaliKelas generateFinanceInvoices failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Gagal membuat tagihan.'], 500);
+        }
+    }
+
+    /**
+     * Catat pembayaran tagihan siswa di kelas wali.
+     */
+    public function storeFinancePayment(Request $request, int $classId): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$user?->isTeacherOrStaff()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+            if (!$class) {
+                return response()->json(['message' => 'Anda hanya dapat mencatat pembayaran kelas yang Anda waliki.'], 403);
+            }
+
+            $validated = $request->validate([
+                'invoice_id' => [
+                    'required',
+                    Rule::exists('finance_invoices', 'id')->where(fn ($q) => $q
+                        ->where('institution_id', $class->institution_id)
+                        ->where('class_id', $class->id)),
+                ],
+                'amount' => 'required|numeric|min:0.01',
+                'paid_at' => 'nullable|date',
+                'method' => ['nullable', Rule::in(FinancePayment::METHODS)],
+                'reference' => 'nullable|string|max:100',
+                'notes' => 'nullable|string',
+            ]);
+
+            $payment = $this->financeService->recordPayment(
+                (int) $class->institution_id,
+                (int) $user->id,
+                $validated
+            );
+
+            return (new FinancePaymentResource($payment))
+                ->response()
+                ->setStatusCode(201);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('WaliKelas storeFinancePayment failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Gagal mencatat pembayaran.'], 500);
+        }
+    }
+
+    /**
+     * Cetak kwitansi pembayaran siswa kelas wali.
+     */
+    public function financePaymentReceipt(Request $request, int $classId, int $paymentId)
+    {
+        try {
+            $user = $request->user();
+            if (!$user?->isTeacherOrStaff()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $class = WaliKelasAccess::resolveHomeroomClass($user, $classId);
+            if (!$class) {
+                return response()->json(['message' => 'Anda hanya dapat mencetak kwitansi kelas yang Anda waliki.'], 403);
+            }
+
+            $payment = FinancePayment::query()
+                ->where('institution_id', $class->institution_id)
+                ->where('id', $paymentId)
+                ->whereHas('invoice', fn ($q) => $q->where('class_id', $class->id))
+                ->first();
+
+            if (!$payment) {
+                return response()->json(['message' => 'Pembayaran tidak ditemukan.'], 404);
+            }
+
+            $payment->load([
+                'invoice.student:id,name,nis',
+                'invoice.feeType:id,name',
+                'invoice.schoolClass:id,name',
+                'recorder:id,name',
+            ]);
+
+            $institution = Institution::find($payment->institution_id);
+            if (!$institution) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 404);
+            }
+
+            $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = $payment->paid_at ?? now();
+            $pdf = DomPDF::loadView('finance.receipt', [
+                'institution' => $institution,
+                'payment' => $payment,
+                'printed_at' => $printedAt,
+                'as_of_date' => $asOfDate,
+            ])->setPaper('a4', 'portrait');
+
+            $filename = 'Kwitansi_' . $payment->id . '_' . date('Ymd_His') . '.pdf';
+
+            return $pdf->stream($filename, ['Attachment' => false]);
+        } catch (\Exception $e) {
+            Log::error('WaliKelas financePaymentReceipt failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal mencetak kwitansi.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function printSafePhotoDataUri(Student $student): ?string
+    {
+        try {
+            $uri = $student->resolvePrintPhotoDataUri();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (! is_string($uri) || ! preg_match('#^data:image/(jpeg|jpg|pjpeg|png|gif);base64,#i', $uri)) {
+            return null;
+        }
+
+        return $uri;
+    }
+
+    /**
+     * Data bersama untuk cetak PDF wali kelas: kop, TTD wali kanan, mengetahui kepala kiri.
+     *
+     * @return array{institution: ?Institution, class: SchoolClass, wali_kelas: mixed, signature_date: string, printed_at: string}
+     */
+    private function waliPrintContext(SchoolClass $class, ?\Carbon\CarbonInterface $asOfDate = null): array
+    {
+        $class->loadMissing(['teacher:id,name,nip']);
+        $asOf = $asOfDate ?? now();
+
+        return [
+            'institution' => Institution::find($class->institution_id),
+            'class' => $class,
+            'wali_kelas' => $class->teacher,
+            'signature_date' => $asOf->locale('id')->translatedFormat('d F Y'),
+            'as_of_date' => $asOf,
+            'printed_at' => now()->locale('id')->isoFormat('D MMMM YYYY HH:mm'),
+        ];
     }
 }

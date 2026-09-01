@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Employee;
+use App\Support\StructuralPositionResolver;
 use App\Models\Institution;
 use App\Models\LessonSchedule;
 use App\Models\SchoolClass;
@@ -20,7 +20,7 @@ class LessonScheduleExportService
     ) {}
 
     /**
-     * @param  array{mode: string, semester_id: int, class_id?: int, employee_id?: int, subject_id?: int}  $params
+     * @param  array{mode: string, semester_id: int, class_id?: int, employee_id?: int, subject_id?: int, left_signer?: ?array, right_signer?: ?array}  $params
      */
     public function exportPdf(int $institutionId, array $params): Response
     {
@@ -43,14 +43,19 @@ class LessonScheduleExportService
             ? 'lesson_schedule.print_subject'
             : 'lesson_schedule.print_matrix';
 
-        $wakaKurikulum = $this->resolveWakaKurikulum($institutionId);
+        $asOfDate = StructuralPositionResolver::semesterAsOfDate($semester);
+        $wakaHolder = StructuralPositionResolver::holderAt('waka_kurikulum', $institutionId, $asOfDate);
+        $wakaKurikulum = $wakaHolder ? (object) $wakaHolder : null;
 
         $pdf = DomPDF::loadView($view, [
             'institution' => $institution,
             'semester' => $semester,
             'printed_at' => now()->locale('id')->translatedFormat('d F Y H:i'),
             'waka_kurikulum' => $wakaKurikulum,
+            'as_of_date' => $asOfDate,
             ...$payload,
+            'left_signer' => $params['left_signer'] ?? null,
+            'right_signer' => $params['right_signer'] ?? null,
         ])->setPaper('a4', 'landscape');
 
         $filename = $this->filename($mode, $payload, $semester);
@@ -247,22 +252,5 @@ class LessonScheduleExportService
             'subject' => "Jadwal_Mapel_{$safe}_{$sem}.pdf",
             default => "Jadwal_{$sem}.pdf",
         };
-    }
-
-    /**
-     * Pegawai aktif dengan tugas tambahan waka_kurikulum di institusi ini.
-     */
-    private function resolveWakaKurikulum(int $institutionId): ?Employee
-    {
-        return Employee::forInstitution($institutionId)
-            ->whereHas('additionalDuties', function ($query) {
-                $query->where('additional_duties.key', 'waka_kurikulum')
-                    ->where(function ($active) {
-                        $active->whereNull('employee_additional_duties.ended_at')
-                            ->orWhere('employee_additional_duties.ended_at', '>', now());
-                    });
-            })
-            ->orderBy('name')
-            ->first(['id', 'name', 'nip']);
     }
 }

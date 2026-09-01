@@ -21,6 +21,7 @@ class InventoryMaintenance extends Model
     protected $fillable = [
         'institution_id',
         'item_id',
+        'asset_id',
         'maintenance_type',
         'scheduled_date',
         'completed_date',
@@ -62,6 +63,11 @@ class InventoryMaintenance extends Model
     public function item()
     {
         return $this->belongsTo(InventoryItem::class);
+    }
+
+    public function asset()
+    {
+        return $this->belongsTo(InventoryAsset::class, 'asset_id');
     }
 
     /**

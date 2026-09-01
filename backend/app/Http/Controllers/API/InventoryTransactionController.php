@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesActiveInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InventoryTransactionResource;
 use App\Models\InventoryTransaction;
 use App\Services\InventoryService;
+use App\Support\InventoryAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class InventoryTransactionController extends Controller
 {
+    use ResolvesActiveInstitution;
+
     public function __construct(
         private InventoryService $service
     ) {}
@@ -22,17 +26,15 @@ class InventoryTransactionController extends Controller
     public function index(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
 
             $query = InventoryTransaction::with(['item.category', 'creator', 'fromLocation', 'toLocation']);
 
             if ($institutionId) {
                 $query->where('institution_id', $institutionId);
+                InventoryAccess::scopeTransactions($query, $request->user(), $institutionId);
+            } else {
+                $query->whereRaw('1 = 0');
             }
 
             if ($request->has('item_id')) {
@@ -85,9 +87,19 @@ class InventoryTransactionController extends Controller
 
         try {
             $item = \App\Models\InventoryItem::findOrFail($request->item_id);
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
+            if (!$this->userCanAccessInventoryItem($request, $item)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $transactionType = $request->input('transaction_type');
+            if (! InventoryAccess::canManage($request->user())
+                && in_array($transactionType, ['Mutasi', 'Penyesuaian'], true)) {
+                return InventoryAccess::forbiddenManageResponse();
+            }
+
+            $institutionId = $request->user()->isAdminOrSuperAdmin()
                 ? ($request->institution_id ?? $item->institution_id)
-                : $request->user()->institution_id;
+                : ($this->resolveInstitutionId($request) ?? $item->institution_id);
 
             $data = $validator->validated();
             $data['institution_id'] = $institutionId;
@@ -109,10 +121,19 @@ class InventoryTransactionController extends Controller
     /**
      * Display the specified transaction.
      */
-    public function show(InventoryTransaction $transaction)
+    public function show(Request $request, InventoryTransaction $transaction)
     {
         try {
+            if (!$this->canAccessInstitutionRecord($request, (int) $transaction->institution_id)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
             $transaction->load(['item.category', 'creator', 'fromLocation', 'toLocation']);
+
+            if ($transaction->item && ! $this->userCanAccessInventoryItem($request, $transaction->item)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
             return new InventoryTransactionResource($transaction);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan'], 500);

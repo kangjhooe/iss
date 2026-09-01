@@ -108,6 +108,8 @@
                         'role' => 'Bendahara / Petugas',
                         'name' => $payment->recorder->name ?? null,
                         'nip' => null,
+                        'date' => ($as_of_date ?? $payment->paid_at ?? now())->locale('id')->translatedFormat('d F Y'),
+                        'as_of_date' => $as_of_date ?? $payment->paid_at ?? null,
                         'show_place_date' => true,
                     ])
                 </div>

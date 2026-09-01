@@ -16,5 +16,6 @@ return [
     'student_nik' => env('DEMO_SCHOOL_STUDENT_NIK', '3201990000000001'),
     'student_birth_date' => env('DEMO_SCHOOL_STUDENT_BIRTH', '2008-05-15'),
     'parent_email' => env('DEMO_SCHOOL_PARENT_EMAIL', 'ortu@demo.servrin.id'),
+    'website' => env('DEMO_SCHOOL_WEBSITE', env('FRONTEND_URL', 'https://servr.in')),
     'reset_enabled' => filter_var(env('DEMO_SCHOOL_RESET_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
 ];

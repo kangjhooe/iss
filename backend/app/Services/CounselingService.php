@@ -191,21 +191,25 @@ class CounselingService
     }
 
     /**
-     * Get dashboard stats: sessions per month and per type for a given year.
+     * Get dashboard stats: sessions per month, per type, and operational counts.
      */
     public function getStats(int $institutionId, ?int $year = null): array
     {
-        $year = $year ?? (int) Carbon::now()->format('Y');
+        $now = Carbon::now();
+        $year = $year ?? (int) $now->format('Y');
         $start = "{$year}-01-01";
         $end = "{$year}-12-31";
+        $today = $now->toDateString();
 
         $monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-        $byMonth = CounselingSession::forInstitution($institutionId)
+        $yearQuery = CounselingSession::forInstitution($institutionId)
             ->whereDate('session_date', '>=', $start)
-            ->whereDate('session_date', '<=', $end)
+            ->whereDate('session_date', '<=', $end);
+
+        $byMonth = (clone $yearQuery)
             ->selectRaw('MONTH(session_date) as month, COUNT(*) as count')
-            ->groupBy('month')
+            ->groupByRaw('MONTH(session_date)')
             ->orderBy('month')
             ->get()
             ->keyBy('month');
@@ -220,27 +224,54 @@ class CounselingService
         }
 
         $byType = CounselingSession::forInstitution($institutionId)
-            ->whereDate('session_date', '>=', $start)
-            ->whereDate('session_date', '<=', $end)
+            ->whereDate('counseling_sessions.session_date', '>=', $start)
+            ->whereDate('counseling_sessions.session_date', '<=', $end)
             ->leftJoin('counseling_types', 'counseling_sessions.counseling_type_id', '=', 'counseling_types.id')
-            ->selectRaw('COALESCE(counseling_types.name, "Tanpa jenis") as name, COUNT(*) as count')
-            ->groupBy('name')
+            ->selectRaw("COALESCE(counseling_types.name, 'Tanpa jenis') as name, COUNT(*) as count")
+            ->groupByRaw("COALESCE(counseling_types.name, 'Tanpa jenis')")
             ->orderByDesc('count')
             ->get()
             ->map(fn ($r) => ['name' => $r->name, 'count' => (int) $r->count])
             ->values()
             ->all();
 
-        $totalThisMonth = CounselingSession::forInstitution($institutionId)
-            ->whereMonth('session_date', Carbon::now()->month)
-            ->whereYear('session_date', Carbon::now()->year)
+        $thisMonthQuery = CounselingSession::forInstitution($institutionId)
+            ->whereMonth('session_date', $now->month)
+            ->whereYear('session_date', $now->year);
+
+        $openQuery = CounselingSession::forInstitution($institutionId)
+            ->whereIn('status', ['jadwal', 'berlangsung']);
+
+        $upcomingQuery = CounselingSession::forInstitution($institutionId)
+            ->byStatus('jadwal')
+            ->whereDate('session_date', '>=', $today);
+
+        $overdueCount = CounselingSession::forInstitution($institutionId)
+            ->byStatus('jadwal')
+            ->whereDate('session_date', '<', $today)
             ->count();
+
+        $nextSession = (clone $upcomingQuery)
+            ->orderBy('session_date')
+            ->orderBy('created_at')
+            ->value('session_date');
 
         return [
             'year' => $year,
             'by_month' => $months,
             'by_type' => $byType,
-            'total_this_month' => $totalThisMonth,
+            'total_year' => (clone $yearQuery)->count(),
+            'total_this_month' => (clone $thisMonthQuery)->count(),
+            'completed_this_month' => (clone $thisMonthQuery)->byStatus('selesai')->count(),
+            'students_this_month' => (clone $thisMonthQuery)->distinct()->count('student_id'),
+            'upcoming_count' => (clone $upcomingQuery)->count(),
+            'next_session_date' => $nextSession
+                ? Carbon::parse($nextSession)->toDateString()
+                : null,
+            'open_count' => (clone $openQuery)->count(),
+            'open_jadwal' => (clone $openQuery)->byStatus('jadwal')->count(),
+            'open_berlangsung' => (clone $openQuery)->byStatus('berlangsung')->count(),
+            'overdue_count' => $overdueCount,
         ];
     }
 

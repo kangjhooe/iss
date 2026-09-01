@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="exam-detail-page">
+<template>    <div class="exam-detail-page">
       <div class="page-bg">
         <div class="page-bg-orb page-bg-orb-1"></div>
         <div class="page-bg-orb page-bg-orb-2"></div>
@@ -133,11 +131,17 @@
                     </tr>
                   </tbody>
                 </table>
-                <div v-if="pickerMeta && pickerMeta.last_page > 1" class="picker-pager">
-                  <button type="button" class="btn-secondary btn-sm" :disabled="pickerMeta.current_page <= 1" @click="fetchPickerQuestions(pickerMeta.current_page - 1)">Sebelumnya</button>
-                  <span>Halaman {{ pickerMeta.current_page }} / {{ pickerMeta.last_page }}</span>
-                  <button type="button" class="btn-secondary btn-sm" :disabled="pickerMeta.current_page >= pickerMeta.last_page" @click="fetchPickerQuestions(pickerMeta.current_page + 1)">Selanjutnya</button>
-                </div>
+                <PaginationBar
+                  v-if="pickerMeta"
+                  embedded
+                  :page="pickerMeta.current_page"
+                  :last-page="pickerMeta.last_page"
+                  :per-page="pickerMeta.per_page"
+                  :total="pickerMeta.total"
+                  item-label="soal"
+                  @page-change="fetchPickerQuestions"
+                  @per-page-change="changePickerPerPage"
+                />
               </div>
               <div class="package-actions">
                 <button type="button" class="btn-primary btn-sm" :disabled="savingPackage || !packageIds.length" @click="savePackage">
@@ -220,14 +224,12 @@
           </section>
         </template>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
@@ -258,6 +260,7 @@ const pickerBankId = ref('')
 const pickerGrade = ref('')
 const pickerType = ref('')
 const pickerMeta = ref(null)
+const pickerPerPage = ref(20)
 const savingPackage = ref(false)
 
 function typeLabel(type) {
@@ -328,7 +331,7 @@ async function fetchPickerBanks() {
 async function fetchPickerQuestions(page = 1) {
   pickerLoading.value = true
   try {
-    const params = { compact: 1, per_page: 20, page }
+    const params = { compact: 1, per_page: pickerPerPage.value, page }
     if (exam.value?.subject_id) params.subject_id = exam.value.subject_id
     if (pickerBankId.value) params.bank_soal_id = pickerBankId.value
     if (pickerGrade.value) params.grade = pickerGrade.value
@@ -338,7 +341,12 @@ async function fetchPickerQuestions(page = 1) {
     pickerQuestions.value = res.data?.data ?? []
     const meta = res.data?.meta
     pickerMeta.value = meta
-      ? { current_page: meta.current_page, last_page: meta.last_page, total: meta.total }
+      ? {
+          current_page: meta.current_page,
+          last_page: meta.last_page,
+          per_page: meta.per_page ?? pickerPerPage.value,
+          total: meta.total ?? 0,
+        }
       : null
   } catch (e) {
     pickerQuestions.value = []
@@ -347,6 +355,11 @@ async function fetchPickerQuestions(page = 1) {
   } finally {
     pickerLoading.value = false
   }
+}
+
+function changePickerPerPage(n) {
+  pickerPerPage.value = n
+  fetchPickerQuestions(1)
 }
 
 function syncPackageFromExam() {

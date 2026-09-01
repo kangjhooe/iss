@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -153,9 +152,7 @@ async function remove(item) {
 onMounted(load)
 </script>
 
-<template>
-  <Layout>
-    <div class="sa-tpl">
+<template>    <div class="sa-tpl">
       <div class="page-header">
         <div>
           <h2>Library Template Surat</h2>
@@ -282,9 +279,7 @@ onMounted(load)
       :loading="confirmDialog.loading"
       @confirm="handleConfirm"
       @cancel="handleCancel"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <style scoped>
 .sa-tpl {

@@ -43,6 +43,14 @@ export const studentApi = {
       responseType: 'blob'
     })
   },
+  uploadPhoto(id, formData) {
+    return api.post(`/v1/student/${id}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  deletePhoto(id) {
+    return api.delete(`/v1/student/${id}/photo`)
+  },
   getBukuInduk(id) {
     return api.get(`/v1/student/${id}/buku-induk`)
   },

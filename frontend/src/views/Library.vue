@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="library-page">
+<template>    <div class="library-page">
       <!-- Quick stats strip -->
       <div class="stats-strip">
         <div class="stat-item">
@@ -76,11 +74,6 @@
               <select v-model="bookFilters.category_id" @change="loadBooks(1)" class="filter-select">
                 <option value="">Semua Kategori</option>
                 <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.code }} - {{ c.name }}</option>
-              </select>
-              <select v-model="booksPerPage" @change="loadBooks(1)" class="filter-select per-page-select">
-                <option :value="10">10 / halaman</option>
-                <option :value="15">15 / halaman</option>
-                <option :value="25">25 / halaman</option>
               </select>
             </div>
             <div class="tab-actions">
@@ -204,11 +197,16 @@
             <p>Tambahkan kategori lalu tambah buku.</p>
             <button @click="openBookModal()" class="btn-primary">Tambah Buku</button>
           </div>
-          <div v-if="booksMeta.last_page > 1 || booksMeta.total > 0" class="pagination">
-            <button @click="loadBooks(booksMeta.current_page - 1)" :disabled="booksMeta.current_page === 1" class="pagination-btn">Sebelumnya</button>
-            <span class="pagination-info">Halaman {{ booksMeta.current_page }} dari {{ booksMeta.last_page }} (Total: {{ booksMeta.total }})</span>
-            <button @click="loadBooks(booksMeta.current_page + 1)" :disabled="booksMeta.current_page >= booksMeta.last_page" class="pagination-btn">Selanjutnya</button>
-          </div>
+          <PaginationBar
+            embedded
+            :page="booksMeta.current_page"
+            :last-page="booksMeta.last_page"
+            :per-page="booksMeta.per_page"
+            :total="booksMeta.total"
+            item-label="buku"
+            @page-change="loadBooks"
+            @per-page-change="changeBooksPerPage"
+          />
         </div>
       </div>
 
@@ -224,12 +222,6 @@
               <option value="">Semua</option>
               <option value="1">Aktif</option>
               <option value="0">Nonaktif</option>
-            </select>
-            <select v-model="categoriesPerPage" @change="loadCategories(1)" class="filter-select per-page-select">
-              <option :value="10">10 / halaman</option>
-              <option :value="15">15 / halaman</option>
-              <option :value="25">25 / halaman</option>
-              <option :value="50">50 / halaman</option>
             </select>
           </div>
           <button type="button" @click="openCategoryModal()" class="btn-primary btn-add">
@@ -276,11 +268,16 @@
             <p>Tambahkan kategori buku terlebih dahulu.</p>
             <button @click="openCategoryModal()" class="btn-primary">Tambah Kategori</button>
           </div>
-          <div v-if="categoriesMeta.last_page > 1" class="pagination">
-            <button @click="loadCategories(categoriesMeta.current_page - 1)" :disabled="categoriesMeta.current_page === 1" class="pagination-btn">Sebelumnya</button>
-            <span class="pagination-info">Halaman {{ categoriesMeta.current_page }} dari {{ categoriesMeta.last_page }}</span>
-            <button @click="loadCategories(categoriesMeta.current_page + 1)" :disabled="categoriesMeta.current_page >= categoriesMeta.last_page" class="pagination-btn">Selanjutnya</button>
-          </div>
+          <PaginationBar
+            embedded
+            :page="categoriesMeta.current_page"
+            :last-page="categoriesMeta.last_page"
+            :per-page="categoriesMeta.per_page"
+            :total="categoriesMeta.total"
+            item-label="kategori"
+            @page-change="loadCategories"
+            @per-page-change="changeCategoriesPerPage"
+          />
         </div>
       </div>
 
@@ -302,12 +299,6 @@
               <option value="Dipinjam">Dipinjam</option>
               <option value="Rusak">Rusak</option>
               <option value="Hilang">Hilang</option>
-            </select>
-            <select v-model="copiesPerPage" @change="loadCopies(1)" class="filter-select per-page-select">
-              <option :value="10">10 / halaman</option>
-              <option :value="15">15 / halaman</option>
-              <option :value="25">25 / halaman</option>
-              <option :value="50">50 / halaman</option>
             </select>
           </div>
           <button type="button" @click="openCopyModal()" class="btn-primary btn-add">
@@ -362,11 +353,16 @@
             <p>Tambahkan buku lalu tambah eksemplar.</p>
             <button @click="openCopyModal()" class="btn-primary">Tambah Eksemplar</button>
           </div>
-          <div v-if="copiesMeta.last_page > 1" class="pagination">
-            <button @click="loadCopies(copiesMeta.current_page - 1)" :disabled="copiesMeta.current_page === 1" class="pagination-btn">Sebelumnya</button>
-            <span class="pagination-info">Halaman {{ copiesMeta.current_page }} dari {{ copiesMeta.last_page }}</span>
-            <button @click="loadCopies(copiesMeta.current_page + 1)" :disabled="copiesMeta.current_page >= copiesMeta.last_page" class="pagination-btn">Selanjutnya</button>
-          </div>
+          <PaginationBar
+            embedded
+            :page="copiesMeta.current_page"
+            :last-page="copiesMeta.last_page"
+            :per-page="copiesMeta.per_page"
+            :total="copiesMeta.total"
+            item-label="eksemplar"
+            @page-change="loadCopies"
+            @per-page-change="changeCopiesPerPage"
+          />
         </div>
       </div>
 
@@ -389,12 +385,6 @@
               <option value="Student">Siswa</option>
               <option value="Employee">Guru/Karyawan</option>
               <option value="External">Tamu</option>
-            </select>
-            <select v-model="loansPerPage" @change="loadLoans(1)" class="filter-select per-page-select">
-              <option :value="10">10 / halaman</option>
-              <option :value="15">15 / halaman</option>
-              <option :value="25">25 / halaman</option>
-              <option :value="50">50 / halaman</option>
             </select>
           </div>
           <button type="button" @click="openLoanModal()" class="btn-primary btn-add">
@@ -481,11 +471,16 @@
             <h3>Belum ada peminjaman</h3>
             <p>Catat peminjaman dari tab Eksemplar atau tombol di atas.</p>
           </div>
-          <div v-if="loansMeta.last_page > 1" class="pagination">
-            <button @click="loadLoans(loansMeta.current_page - 1)" :disabled="loansMeta.current_page === 1" class="pagination-btn">Sebelumnya</button>
-            <span class="pagination-info">Halaman {{ loansMeta.current_page }} dari {{ loansMeta.last_page }}</span>
-            <button @click="loadLoans(loansMeta.current_page + 1)" :disabled="loansMeta.current_page >= loansMeta.last_page" class="pagination-btn">Selanjutnya</button>
-          </div>
+          <PaginationBar
+            embedded
+            :page="loansMeta.current_page"
+            :last-page="loansMeta.last_page"
+            :per-page="loansMeta.per_page"
+            :total="loansMeta.total"
+            item-label="peminjaman"
+            @page-change="loadLoans"
+            @per-page-change="changeLoansPerPage"
+          />
         </div>
       </div>
 
@@ -526,11 +521,16 @@
           <div v-if="finePayments.length === 0" class="empty-state">
             <h3>Belum ada pembayaran denda</h3>
           </div>
-          <div v-if="finePaymentsMeta.last_page > 1" class="pagination">
-            <button @click="loadFinePayments(finePaymentsMeta.current_page - 1)" :disabled="finePaymentsMeta.current_page === 1" class="pagination-btn">Sebelumnya</button>
-            <span class="pagination-info">Halaman {{ finePaymentsMeta.current_page }} dari {{ finePaymentsMeta.last_page }}</span>
-            <button @click="loadFinePayments(finePaymentsMeta.current_page + 1)" :disabled="finePaymentsMeta.current_page >= finePaymentsMeta.last_page" class="pagination-btn">Selanjutnya</button>
-          </div>
+          <PaginationBar
+            embedded
+            :page="finePaymentsMeta.current_page"
+            :last-page="finePaymentsMeta.last_page"
+            :per-page="finePaymentsMeta.per_page"
+            :total="finePaymentsMeta.total"
+            item-label="data"
+            @page-change="loadFinePayments"
+            @per-page-change="changeFinePaymentsPerPage"
+          />
         </div>
       </div>
 
@@ -845,15 +845,13 @@
           </div>
         </div>
       </Transition>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { libraryApi } from '@/api/library'
@@ -866,10 +864,6 @@ const toast = useToast()
 
 const activeTab = ref('books')
 const saving = ref(false)
-const booksPerPage = ref(25)
-const categoriesPerPage = ref(15)
-const copiesPerPage = ref(15)
-const loansPerPage = ref(15)
 
 const KATALOG_TABS = ['books', 'copies']
 const SIRKULASI_TABS = ['loans', 'fines']
@@ -919,7 +913,7 @@ function switchMainTab(next) {
 
 // Categories
 const categories = ref([])
-const categoriesMeta = ref({ current_page: 1, last_page: 1 })
+const categoriesMeta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const categoriesLoading = ref(false)
 const categoriesForSelect = ref([])
 const categoryFilters = ref({ search: '', is_active: '' })
@@ -955,7 +949,7 @@ const importResult = ref(null)
 
 // Copies
 const copies = ref([])
-const copiesMeta = ref({ current_page: 1, last_page: 1 })
+const copiesMeta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const copiesLoading = ref(false)
 const copyFilters = ref({ search: '', book_id: '', status: '' })
 const showCopyModal = ref(false)
@@ -965,7 +959,7 @@ const booksList = ref([])
 
 // Loans
 const loans = ref([])
-const loansMeta = ref({ current_page: 1, last_page: 1 })
+const loansMeta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const loansLoading = ref(false)
 const loanFilters = ref({ search: '', status: '', borrower_type: '' })
 const showLoanModal = ref(false)
@@ -980,7 +974,7 @@ const returnForm = ref({ fine_amount: 0, notes: '' })
 
 // Fine payments
 const finePayments = ref([])
-const finePaymentsMeta = ref({ current_page: 1, last_page: 1 })
+const finePaymentsMeta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const finePaymentsLoading = ref(false)
 const fineFilters = ref({ loan_id: '' })
 const showFinePaymentModal = ref(false)
@@ -1117,10 +1111,15 @@ function getLoanStatusClass(s) {
 async function loadCategories(page = 1) {
   categoriesLoading.value = true
   try {
-    const res = await libraryApi.getCategories({ page, per_page: categoriesPerPage.value, search: categoryFilters.value.search || undefined, is_active: categoryFilters.value.is_active || undefined })
+    const res = await libraryApi.getCategories({ page, per_page: categoriesMeta.value.per_page, search: categoryFilters.value.search || undefined, is_active: categoryFilters.value.is_active || undefined })
     categories.value = res.data.data ?? []
     const meta = res.data.meta || res.data
-    categoriesMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
+    categoriesMeta.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? categoriesMeta.value.per_page,
+      total: meta.total ?? 0
+    }
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
   } finally {
@@ -1132,7 +1131,7 @@ async function loadBooks(page = 1) {
   try {
     const res = await libraryApi.getBooks({
       page,
-      per_page: Math.min(Number(booksPerPage.value) || 25, 25),
+      per_page: booksMeta.value.per_page,
       search: bookFilters.value.search || undefined,
       category_id: bookFilters.value.category_id || undefined,
       sort_by: bookSortBy.value,
@@ -1144,7 +1143,7 @@ async function loadBooks(page = 1) {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
       total: meta.total ?? 0,
-      per_page: meta.per_page ?? booksPerPage.value
+      per_page: meta.per_page ?? booksMeta.value.per_page
     }
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
@@ -1155,7 +1154,7 @@ async function loadBooks(page = 1) {
 
 function bookRowNumber(index) {
   const page = booksMeta.value.current_page || 1
-  const perPage = booksMeta.value.per_page || booksPerPage.value || 25
+  const perPage = booksMeta.value.per_page || 25
   return (page - 1) * perPage + index + 1
 }
 
@@ -1176,10 +1175,15 @@ function setBookSort(column) {
 async function loadCopies(page = 1) {
   copiesLoading.value = true
   try {
-    const res = await libraryApi.getCopies({ page, per_page: copiesPerPage.value, book_id: copyFilters.value.book_id || undefined, status: copyFilters.value.status || undefined, search: copyFilters.value.search || undefined })
+    const res = await libraryApi.getCopies({ page, per_page: copiesMeta.value.per_page, book_id: copyFilters.value.book_id || undefined, status: copyFilters.value.status || undefined, search: copyFilters.value.search || undefined })
     copies.value = res.data.data ?? []
     const meta = res.data.meta || res.data
-    copiesMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
+    copiesMeta.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? copiesMeta.value.per_page,
+      total: meta.total ?? 0
+    }
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
   } finally {
@@ -1189,10 +1193,15 @@ async function loadCopies(page = 1) {
 async function loadLoans(page = 1) {
   loansLoading.value = true
   try {
-    const res = await libraryApi.getLoans({ page, per_page: loansPerPage.value, status: loanFilters.value.status || undefined, borrower_type: loanFilters.value.borrower_type || undefined, search: loanFilters.value.search || undefined })
+    const res = await libraryApi.getLoans({ page, per_page: loansMeta.value.per_page, status: loanFilters.value.status || undefined, borrower_type: loanFilters.value.borrower_type || undefined, search: loanFilters.value.search || undefined })
     loans.value = res.data.data ?? []
     const meta = res.data.meta || res.data
-    loansMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
+    loansMeta.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? loansMeta.value.per_page,
+      total: meta.total ?? 0
+    }
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
   } finally {
@@ -1202,15 +1211,45 @@ async function loadLoans(page = 1) {
 async function loadFinePayments(page = 1) {
   finePaymentsLoading.value = true
   try {
-    const res = await libraryApi.getFinePayments({ page, per_page: 15, loan_id: fineFilters.value.loan_id || undefined })
+    const res = await libraryApi.getFinePayments({ page, per_page: finePaymentsMeta.value.per_page, loan_id: fineFilters.value.loan_id || undefined })
     finePayments.value = res.data.data ?? []
     const meta = res.data.meta || res.data
-    finePaymentsMeta.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
+    finePaymentsMeta.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? finePaymentsMeta.value.per_page,
+      total: meta.total ?? 0
+    }
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
   } finally {
     finePaymentsLoading.value = false
   }
+}
+function changeBooksPerPage(n) {
+  booksMeta.value.per_page = n
+  booksMeta.value.current_page = 1
+  loadBooks(1)
+}
+function changeCategoriesPerPage(n) {
+  categoriesMeta.value.per_page = n
+  categoriesMeta.value.current_page = 1
+  loadCategories(1)
+}
+function changeCopiesPerPage(n) {
+  copiesMeta.value.per_page = n
+  copiesMeta.value.current_page = 1
+  loadCopies(1)
+}
+function changeLoansPerPage(n) {
+  loansMeta.value.per_page = n
+  loansMeta.value.current_page = 1
+  loadLoans(1)
+}
+function changeFinePaymentsPerPage(n) {
+  finePaymentsMeta.value.per_page = n
+  finePaymentsMeta.value.current_page = 1
+  loadFinePayments(1)
 }
 async function loadStats() {
   try {

@@ -20,6 +20,16 @@ export const financeApi = {
   },
 }
 
+/** Kelas & siswa untuk form keuangan (tanpa modul class/student) */
+export const financePickerApi = {
+  classesLite() {
+    return api.get('/v1/finance/classes-lite')
+  },
+  studentsLite(params) {
+    return api.get('/v1/finance/students-lite', { params })
+  },
+}
+
 export const financeFeeTypeApi = {
   getAll(params) {
     return api.get('/v1/finance/fee-types', { params })
@@ -92,6 +102,35 @@ export const financePaymentApi = {
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
       return res
     })
+  },
+}
+
+function expensePaths(usePayroll) {
+  const base = usePayroll ? '/v1/payroll/expenses' : '/v1/finance/expenses'
+  return { base, item: (id) => `${base}/${id}`, export: `${base}/export` }
+}
+
+export const financeExpenseApi = {
+  getAll(params, { payroll = false } = {}) {
+    const { base } = expensePaths(payroll)
+    return api.get(base, { params })
+  },
+  get(id, { payroll = false } = {}) {
+    const { item } = expensePaths(payroll)
+    return api.get(item(id))
+  },
+  export(params, { payroll = false } = {}) {
+    const { export: exportPath } = expensePaths(payroll)
+    return api.get(exportPath, { params, responseType: 'blob' }).then((res) => {
+      downloadBlob(res, 'keuangan-pengeluaran.csv')
+      return res
+    })
+  },
+  create(data) {
+    return api.post('/v1/finance/expenses', data)
+  },
+  delete(id) {
+    return api.delete(`/v1/finance/expenses/${id}`)
   },
 }
 

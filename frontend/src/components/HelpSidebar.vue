@@ -89,24 +89,62 @@
               </div>
             </div>
             <div class="help-card">
-              <span class="help-card-icon help-card-icon--teal">🏢</span>
-              <div class="help-card-body">
-                <div class="help-card-title">Sarana Prasarana & Lab</div>
-                <p class="help-card-desc">Ruang, gedung, fasilitas, lab, dan booking lab oleh guru (approve oleh pengelola).</p>
-              </div>
-            </div>
-            <div class="help-card">
-              <span class="help-card-icon help-card-icon--violet">📦</span>
-              <div class="help-card-body">
-                <div class="help-card-title">Inventaris</div>
-                <p class="help-card-desc">Operasional (barang, transaksi, pemeliharaan, pinjam), laporan, dan pengaturan kategori.</p>
-              </div>
-            </div>
-            <div class="help-card">
               <span class="help-card-icon help-card-icon--indigo">📚</span>
               <div class="help-card-body">
                 <div class="help-card-title">Kelas</div>
                 <p class="help-card-desc">Daftar kelas per tingkat/jurusan. Dipakai Data Siswa, Jadwal, dan Buku Nilai.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Fasilitas & Aset -->
+        <section class="help-section help-section--admin">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--teal">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21H21M5 21V7L13 2V21M19 21V11M9 9V13M13 9V13M17 9V13M9 17V21M13 17V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Fasilitas & Aset
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--teal">🏢</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Sarana Prasarana</div>
+                <p class="help-card-desc">Data tanah, gedung, dan ruangan. Dasar lokasi untuk inventaris dan laboratorium.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--blue">🧪</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Manajemen Lab</div>
+                <p class="help-card-desc">Kelola ruang laboratorium, inventaris lab, dan jadwal penggunaan. Kepala lab punya menu <strong>Lab Saya</strong> di sidebar.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--emerald">📅</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Booking Lab</div>
+                <p class="help-card-desc">Guru mengajukan pemakaian lab di luar jadwal tetap; pengelola lab menyetujui atau menolak.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Inventaris -->
+        <section class="help-section help-section--admin">
+          <h3 class="help-section-head">
+            <span class="help-section-icon help-section-icon--violet">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.3 7l8.7 5 8.7-5M12 22V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Inventaris
+          </h3>
+          <div class="help-cards">
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--violet">📦</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Menu Inventaris</div>
+                <p class="help-card-desc">Sidebar grup <strong>Inventaris</strong>: Beranda, Master Barang, Aset Individual, Peminjaman, Pemeliharaan, dan Laporan. Fitur lain (Ruangan, Mutasi, Stock Opname, Stok, Penghapusan, Kategori, Scan QR) ada di <strong>Aksi Cepat</strong> pada halaman Beranda.</p>
               </div>
             </div>
           </div>
@@ -152,8 +190,8 @@
             <div class="help-card">
               <span class="help-card-icon help-card-icon--teal">🏠</span>
               <div class="help-card-body">
-                <div class="help-card-title">Wali Kelas (Hub)</div>
-                <p class="help-card-desc">Dashboard terpadu untuk wali: roster siswa, rekap absensi 7/30 hari, monitoring nilai/KKM, skor BK, usulan pelanggaran/prestasi/mutasi, jadwal, dan profil siswa 360°. Menu muncul otomatis setelah ditunjuk sebagai wali kelas.</p>
+                <div class="help-card-title">Wali Kelas</div>
+                <p class="help-card-desc">Daftar siswa kelas wali, edit biodata, foto, cetak identitas 1 lembar, absensi, nilai, usulan BK/mutasi, dan jadwal. Menu muncul setelah Anda ditunjuk sebagai wali kelas.</p>
               </div>
             </div>
             <div class="help-card">
@@ -226,7 +264,14 @@
               <span class="help-card-icon help-card-icon--emerald">👤</span>
               <div class="help-card-body">
                 <div class="help-card-title">Data Siswa</div>
-                <p class="help-card-desc">NIS, nama, kelas, filter, impor/ekspor. Tombol Tambah Siswa membuka pilihan: isi manual atau tarik alumni jenjang sebelumnya (NPSN sekolah asal, centang nama + NIK). Itu bukan mutasi: arsip di sekolah asal tetap ada. Generate NIS lokal lewat pratinjau. Buku Induk per siswa dari detail siswa.</p>
+                <p class="help-card-desc">Daftar siswa aktif, impor/ekspor, akun login, dan NIS lokal. Siswa pindah/DO/tidak aktif ada di Siswa Keluar; lulusan di Alumni. Tombol Tambah Siswa: isi manual atau tarik alumni jenjang sebelumnya.</p>
+              </div>
+            </div>
+            <div class="help-card">
+              <span class="help-card-icon help-card-icon--slate">📦</span>
+              <div class="help-card-body">
+                <div class="help-card-title">Siswa Keluar</div>
+                <p class="help-card-desc">Arsip siswa pindah, drop out, atau tidak aktif. Bisa diaktifkan kembali ke Data Siswa. Alumni (lulus) tetap di menu Alumni.</p>
               </div>
             </div>
             <div class="help-card">

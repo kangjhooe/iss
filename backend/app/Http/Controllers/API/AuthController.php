@@ -42,7 +42,7 @@ class AuthController extends Controller
             $token,
             $minutes,
             '/',
-            env('COOKIE_DOMAIN'), // null = current host (localhost / api domain)
+            config('frontend.cookie_domain'), // null = current host (localhost / api domain)
             $secure,
             true,  // httpOnly
             false,
@@ -60,7 +60,7 @@ class AuthController extends Controller
             (string) $institutionId,
             $minutes,
             '/',
-            env('COOKIE_DOMAIN'),
+            config('frontend.cookie_domain'),
             $secure,
             true,
             false,
@@ -77,7 +77,7 @@ class AuthController extends Controller
             '',
             -1,
             '/',
-            env('COOKIE_DOMAIN'),
+            config('frontend.cookie_domain'),
             $secure,
             true,
             false,
@@ -98,7 +98,7 @@ class AuthController extends Controller
             $token,
             $minutes,
             '/',
-            env('COOKIE_DOMAIN'), // null = current host (localhost / api domain)
+            config('frontend.cookie_domain'), // null = current host (localhost / api domain)
             $secure,
             true,  // httpOnly
             false,
@@ -112,7 +112,7 @@ class AuthController extends Controller
     private function clearAuthCookies(): array
     {
         $secure = request()->secure();
-        $domain = env('COOKIE_DOMAIN');
+        $domain = config('frontend.cookie_domain');
 
         return [
             Cookie::make(AddTokenFromCookie::COOKIE_AUTH, '', -1, '/', $domain, $secure, true, false, 'lax'),
@@ -667,7 +667,7 @@ class AuthController extends Controller
 
         $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
         $admin = $tokenModel?->tokenable;
-        if (! $admin instanceof User || ! $admin->isSuperAdmin()) {
+        if (! $admin instanceof User || (! $admin->isSuperAdmin() && ! $admin->isInstitutionAdmin() && ! $admin->isAdmin())) {
             return $inactive;
         }
 
@@ -1087,6 +1087,6 @@ class AuthController extends Controller
     {
         return config('app.env') === 'local'
             || config('app.env') === 'development'
-            || env('SKIP_EMAIL_VERIFICATION', false) === true;
+            || config('frontend.skip_email_verification');
     }
 }

@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="teaching-journal-page">
       <div class="toolbar">
         <div class="filters filters-inline">
@@ -87,16 +86,16 @@
             </tr>
           </tbody>
         </table>
-        <div v-if="pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">
-            Menampilkan {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} dari {{ pagination.total }}
-          </span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
-            <span class="page-num">Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="goToPage(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="data"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </div>
 
       <!-- Modal: Tambah/Edit Jurnal -->
@@ -185,13 +184,12 @@
         @cancel="deleteTarget = null"
       />
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
@@ -202,10 +200,12 @@ import { subjectApi } from '@/api/subject'
 import { semesterApi } from '@/api/semester'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useActiveAcademicPeriod } from '@/composables/useActiveAcademicPeriod'
 
 const toast = useToast()
 const authStore = useAuthStore()
 const route = useRoute()
+const { ensureLoaded, resolveDefaultSemesterId } = useActiveAcademicPeriod()
 
 const isTeacher = computed(() => {
   const role = authStore.user?.role
@@ -308,7 +308,7 @@ async function loadJournals() {
   try {
     const params = {
       page: pagination.value.current_page,
-      per_page: 15,
+      per_page: pagination.value.per_page,
       ...filters.value,
     }
     if (!params.semester_id) delete params.semester_id
@@ -324,7 +324,7 @@ async function loadJournals() {
     pagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
-      per_page: meta.per_page ?? 15,
+      per_page: meta.per_page ?? pagination.value.per_page,
       total: meta.total ?? 0,
     }
   } catch (e) {
@@ -429,6 +429,12 @@ async function loadCurrentTeacher() {
 
 function goToPage(page) {
   pagination.value.current_page = page
+  loadJournals()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
   loadJournals()
 }
 
@@ -569,13 +575,14 @@ watch(
 
 onMounted(async () => {
   await loadCurrentTeacher()
-  await loadSemesters()
+  await Promise.all([loadSemesters(), ensureLoaded()])
   const q = route.query
-  if (q.semester_id) filters.value.semester_id = String(q.semester_id)
+  if (q.semester_id) {
+    filters.value.semester_id = String(q.semester_id)
+  } else if (!filters.value.semester_id) {
+    filters.value.semester_id = resolveDefaultSemesterId('', semesters.value)
+  }
   if (isTeacher.value) {
-    if (!filters.value.semester_id && semesters.value.length) {
-      filters.value.semester_id = String(semesters.value[0].id)
-    }
     await loadTeachingLoad(filters.value.semester_id)
   } else {
     await Promise.all([loadClasses(), loadSubjects(), loadEmployees()])

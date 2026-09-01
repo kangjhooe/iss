@@ -75,6 +75,7 @@
     @include('library.partials.signature', [
         'institution' => $institution,
         'kepala_perpustakaan' => $kepala_perpustakaan ?? null,
+        'as_of_date' => $as_of_date ?? null,
     ])
 </body>
 </html>

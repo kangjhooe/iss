@@ -34,6 +34,7 @@ use App\Http\Controllers\API\EmployeeController;
 use App\Http\Controllers\API\EmployeeDecreeController;
 use App\Http\Controllers\API\EmployeeInstitutionAssignmentController;
 use App\Http\Controllers\API\EmployeeLeaveController;
+use App\Http\Controllers\API\EmployeePayrollPortalController;
 use App\Http\Controllers\API\EmployeeStructuralPositionController;
 use App\Http\Controllers\API\ExamAttemptController;
 use App\Http\Controllers\API\ExamControlController;
@@ -45,22 +46,29 @@ use App\Http\Controllers\API\ExtracurricularController;
 use App\Http\Controllers\API\FacilityController;
 use App\Http\Controllers\API\FeedbackTicketController;
 use App\Http\Controllers\API\FinanceDashboardController;
+use App\Http\Controllers\API\FinanceExpenseController;
 use App\Http\Controllers\API\FinanceFeeTypeController;
 use App\Http\Controllers\API\FinanceInvoiceController;
 use App\Http\Controllers\API\FinancePaymentController;
+use App\Http\Controllers\API\FinancePickerController;
 use App\Http\Controllers\API\GradeController;
 use App\Http\Controllers\API\GradeRemedialController;
+use App\Http\Controllers\API\GeocodeController;
 use App\Http\Controllers\API\GuestVisitController;
 use App\Http\Controllers\API\IndustryPartnerController;
 use App\Http\Controllers\API\InstitutionAdminController;
 use App\Http\Controllers\API\InstitutionChangeRequestController;
 use App\Http\Controllers\API\InstitutionController;
 use App\Http\Controllers\API\InstitutionMonetizationController;
+use App\Http\Controllers\API\InventoryAssetController;
+use App\Http\Controllers\API\InventoryAssetMovementController;
 use App\Http\Controllers\API\InventoryCategoryController;
 use App\Http\Controllers\API\InventoryController;
+use App\Http\Controllers\API\InventoryDisposalController;
 use App\Http\Controllers\API\InventoryLoanController;
 use App\Http\Controllers\API\InventoryMaintenanceController;
 use App\Http\Controllers\API\InventoryReportController;
+use App\Http\Controllers\API\InventoryStockOpnameController;
 use App\Http\Controllers\API\InventoryTransactionController;
 use App\Http\Controllers\API\KopSuratController;
 use App\Http\Controllers\API\LabBookingController;
@@ -83,7 +91,12 @@ use App\Http\Controllers\API\PklJournalController;
 use App\Http\Controllers\API\PklPeriodController;
 use App\Http\Controllers\API\PklPlacementController;
 use App\Http\Controllers\API\PointThresholdController;
-use App\Http\Controllers\API\PpdbApplicantController;
+use App\Http\Controllers\API\PayrollComponentController;
+use App\Http\Controllers\API\PayrollPositionAllowanceController;
+use App\Http\Controllers\API\PayrollEmployeeProfileController;
+use App\Http\Controllers\API\PayrollPeriodController;
+use App\Http\Controllers\API\PayrollRunController;
+use App\Http\Controllers\API\PayrollSlipController;
 use App\Http\Controllers\API\PpdbChannelController;
 use App\Http\Controllers\API\PpdbDashboardController;
 use App\Http\Controllers\API\PpdbPeriodController;
@@ -113,6 +126,7 @@ use App\Http\Controllers\API\SuperAdminAdoptionController;
 use App\Http\Controllers\API\SuperAdminBroadcastController;
 use App\Http\Controllers\API\SuperAdminDashboardController;
 use App\Http\Controllers\API\SuperAdminDatabaseBackupController;
+use App\Http\Controllers\API\InstitutionImpersonationController;
 use App\Http\Controllers\API\SuperAdminImpersonationController;
 use App\Http\Controllers\API\SuperAdminMonetizationController;
 use App\Http\Controllers\API\SuperAdminReleaseController;
@@ -142,7 +156,7 @@ use Illuminate\Support\Facades\Route;
 // API Info route
 Route::get('/', function () {
     return response()->json([
-        'message' => 'servr.in API',
+        'message' => config('app.name') . ' API',
         'version' => '1.0.0',
         'endpoints' => [
             'public' => [
@@ -204,8 +218,10 @@ Route::middleware('throttle:5,1')->group(function () {
 });
 
 // Public PPDB (tanpa auth): list periode & jalur, submit pendaftaran
-Route::get('/public/ppdb/periods', [PublicPpdbController::class, 'openPeriods'])->name('public.ppdb.periods');
-Route::get('/public/ppdb/channels', [PublicPpdbController::class, 'openChannels'])->name('public.ppdb.channels');
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/public/ppdb/periods', [PublicPpdbController::class, 'openPeriods'])->name('public.ppdb.periods');
+    Route::get('/public/ppdb/channels', [PublicPpdbController::class, 'openChannels'])->name('public.ppdb.channels');
+});
 Route::middleware('throttle:15,1')->get('/public/ppdb/prefill', [PublicPpdbController::class, 'prefill'])->name('public.ppdb.prefill');
 Route::middleware('throttle:10,1')->get('/public/ppdb/check-result', [PublicPpdbController::class, 'checkResult'])->name('public.ppdb.check-result');
 Route::middleware('throttle:20,1')->get('/public/ppdb/document-checklist', [PublicPpdbController::class, 'documentChecklist'])->name('public.ppdb.document-checklist');
@@ -223,8 +239,10 @@ Route::middleware('throttle:60,1')->prefix('exam/attempt')->group(function () {
 });
 
 // Public school landing: institusi by NPSN, buku tamu submit
-Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])->name('public.school.show');
-Route::get('/public/school/posts', [SchoolPostController::class, 'publicByNpsn'])->name('public.school.posts');
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/public/school', [PublicSchoolController::class, 'showInstitution'])->name('public.school.show');
+    Route::get('/public/school/posts', [SchoolPostController::class, 'publicByNpsn'])->name('public.school.posts');
+});
 Route::middleware('throttle:30,1')->get('/public/npsn-lookup', [PublicSchoolController::class, 'lookupNpsnReferensi'])->name('public.npsn-lookup');
 Route::middleware('throttle:60,1')->prefix('public/regions')->group(function () {
     Route::get('/provinces', [RegionController::class, 'provinces'])->name('public.regions.provinces');
@@ -248,7 +266,7 @@ Route::middleware('throttle:30,1')->get('/public/institutions/recent', [PublicSc
 Route::middleware('throttle:30,1')->get('/public/releases', [PublicReleaseController::class, 'index'])->name('public.releases.index');
 
 // App branding (logo & favicon) - public, no auth. Tidak mengubah logo institusi.
-Route::get('/app-branding', [AppBrandingController::class, 'show'])->name('app-branding.show');
+Route::middleware('throttle:120,1')->get('/app-branding', [AppBrandingController::class, 'show'])->name('app-branding.show');
 
 // Protected routes with rate limiting
 Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'storage.quota'])->group(function () {
@@ -324,6 +342,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/student/{id}/documents', [StudentController::class, 'uploadDocument'])->name('student.upload-document');
         Route::delete('/student/{id}/documents/{documentId}', [StudentController::class, 'deleteDocument'])->name('student.delete-document');
         Route::get('/student/{id}/documents/{documentId}/download', [StudentController::class, 'downloadDocument'])->name('student.download-document');
+        Route::post('/student/{id}/photo', [StudentController::class, 'uploadPhoto'])->name('student.upload-photo');
+        Route::delete('/student/{id}/photo', [StudentController::class, 'deletePhoto'])->name('student.delete-photo');
         // Tracking destinasi alumni (lanjut sekolah/kuliah/kerja/dll)
         Route::get('/alumni/destination-types', [AlumniDestinationController::class, 'types'])->name('alumni.destination-types');
         Route::get('/alumni/students/{studentId}/destinations', [AlumniDestinationController::class, 'indexByStudent'])->name('alumni.destinations.by-student');
@@ -601,6 +621,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::get('/teacher/my-achievement-types', [MyTeacherAppreciationController::class, 'types']);
     Route::get('/teacher/my-violations', [MyTeacherAppreciationController::class, 'violations']);
 
+    // Portal pegawai: slip gaji sendiri (tanpa module:payroll)
+    Route::prefix('payroll/my')->group(function () {
+        Route::get('slips', [EmployeePayrollPortalController::class, 'slips'])->name('payroll.my.slips');
+        Route::get('slips/{slip}', [EmployeePayrollPortalController::class, 'show'])->name('payroll.my.slips.show');
+        Route::get('slips/{slip}/pdf', [EmployeePayrollPortalController::class, 'pdf'])->name('payroll.my.slips.pdf');
+    });
+
     // Jurnal Mengajar (Teaching Journal) + Absensi Siswa per jam
     Route::middleware('module:teaching_journal')->group(function () {
         Route::get('/teaching-journals/export', [TeachingJournalController::class, 'export'])->name('teaching-journals.export');
@@ -668,8 +695,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/qr-attendance/employees/print-pdf', [QrAttendanceController::class, 'printEmployeePdf'])->name('qr-attendance.employee.print-pdf');
     });
     Route::middleware('module:attendance|teaching_journal')->group(function () {
+        Route::get('/qr-attendance/location-config', [QrAttendanceController::class, 'locationConfig'])->name('qr-attendance.location-config');
         Route::post('/qr-attendance/scan', [QrAttendanceController::class, 'scanQrAttendance'])->name('qr-attendance.scan');
     });
+
+    Route::middleware('throttle:30,1')->get('/geocode/search', [GeocodeController::class, 'search'])->name('geocode.search');
 
     // Buku Nilai (Grade Book)
     Route::middleware('module:grade_book')->group(function () {
@@ -727,10 +757,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/employee/{id}/restore', [EmployeeController::class, 'restore']);
         Route::delete('/employee/{id}/force', [EmployeeController::class, 'forceDestroy']);
         Route::post('/employee/{id}/reset-password', [EmployeeController::class, 'resetPasswordByAdmin'])->name('employee.reset-password');
+        Route::post('/employee/{id}/impersonate', [InstitutionImpersonationController::class, 'start'])->name('employee.impersonate');
         Route::post('/employee/import', [EmployeeController::class, 'import'])->name('employee.import');
         Route::post('/employee/{id}/documents', [EmployeeController::class, 'uploadDocument'])->name('employee.upload-document');
         Route::delete('/employee/{id}/documents/{documentId}', [EmployeeController::class, 'deleteDocument'])->name('employee.delete-document');
         Route::get('/employee/{id}/documents/{documentId}/download', [EmployeeController::class, 'downloadDocument'])->name('employee.download-document');
+        Route::post('/employee/{id}/photo', [EmployeeController::class, 'uploadPhoto'])->name('employee.upload-photo');
+        Route::delete('/employee/{id}/photo', [EmployeeController::class, 'deletePhoto'])->name('employee.delete-photo');
         Route::get('/employee-assignments/pending', [EmployeeInstitutionAssignmentController::class, 'pending']);
         Route::post('/employee/{employee}/assignments', [EmployeeInstitutionAssignmentController::class, 'store']);
         Route::put('/employee-assignments/{assignment}', [EmployeeInstitutionAssignmentController::class, 'update']);
@@ -873,6 +906,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::post('/teacher-change-requests/{id}/approve', [TeacherChangeRequestController::class, 'approve'])->name('teacher-change-requests.approve');
     Route::apiResource('teacher-change-requests', TeacherChangeRequestController::class)->only(['index', 'store', 'show']);
     Route::put('/teacher/profile', [TeacherChangeRequestController::class, 'updateMyProfile'])->name('teacher.profile.update');
+    Route::post('/teacher/profile/photo', [TeacherChangeRequestController::class, 'uploadMyPhoto'])->name('teacher.profile.upload-photo');
+    Route::delete('/teacher/profile/photo', [TeacherChangeRequestController::class, 'deleteMyPhoto'])->name('teacher.profile.delete-photo');
 
     // Facility routes (Sarana Prasarana)
     Route::prefix('facility')->middleware('module:facility')->group(function () {
@@ -925,11 +960,37 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     // Inventory routes (Inventaris)
     Route::prefix('inventory')->middleware('module:inventory')->group(function () {
         // Category routes
-        Route::apiResource('categories', InventoryCategoryController::class);
+        Route::apiResource('categories', InventoryCategoryController::class)->names('inventory.categories');
 
         // Item routes
+        Route::get('/items/import/template', [InventoryController::class, 'importTemplate'])->name('inventory.items.import.template');
+        Route::post('/items/import', [InventoryController::class, 'import'])->name('inventory.items.import');
+        Route::get('/items/export/excel', [InventoryController::class, 'exportExcel'])->name('inventory.items.export.excel');
         Route::apiResource('items', InventoryController::class);
+        Route::post('/items/{item}/dispose', [InventoryController::class, 'dispose'])->name('inventory.items.dispose');
+        Route::post('/items/{item}/split-assets', [InventoryController::class, 'splitAssets'])->name('inventory.items.split-assets');
+        Route::get('/items/{item}/export/kib', [InventoryReportController::class, 'exportKib'])->name('inventory.items.export.kib');
+        Route::get('/assets/{asset}/export/kib', [InventoryReportController::class, 'exportAssetKib'])->name('inventory.assets.export.kib');
         Route::post('/items/{id}/restore', [InventoryController::class, 'restore']);
+
+        Route::post('/assets/qr/bulk', [InventoryAssetController::class, 'qrBulk'])->name('inventory.assets.qr.bulk');
+        Route::post('/assets/qr/print-pdf', [InventoryAssetController::class, 'printQrPdf'])->name('inventory.assets.qr.print-pdf');
+        Route::get('/assets/resolve-qr', [InventoryAssetController::class, 'resolveByQr'])->name('inventory.assets.resolve-qr');
+        Route::get('/assets/{asset}/qr', [InventoryAssetController::class, 'qrImage'])->name('inventory.assets.qr');
+        Route::post('/assets/{asset}/dispose', [InventoryAssetController::class, 'dispose'])->name('inventory.assets.dispose');
+        Route::post('/assets/{asset}/transfer', [InventoryAssetController::class, 'transfer'])->name('inventory.assets.transfer');
+        Route::apiResource('assets', InventoryAssetController::class)->names('inventory.assets');
+
+        Route::get('/asset-movements', [InventoryAssetMovementController::class, 'index'])->name('inventory.asset-movements.index');
+
+        Route::get('/stock-opnames', [InventoryStockOpnameController::class, 'index'])->name('inventory.stock-opnames.index');
+        Route::post('/stock-opnames', [InventoryStockOpnameController::class, 'store'])->name('inventory.stock-opnames.store');
+        Route::get('/stock-opnames/{opname}', [InventoryStockOpnameController::class, 'show'])->name('inventory.stock-opnames.show');
+        Route::post('/stock-opnames/{opname}/refresh-lines', [InventoryStockOpnameController::class, 'refreshLines'])->name('inventory.stock-opnames.refresh-lines');
+        Route::put('/stock-opnames/{opname}/lines/{line}', [InventoryStockOpnameController::class, 'updateLine'])->name('inventory.stock-opnames.update-line');
+        Route::put('/stock-opnames/{opname}/asset-lines/{line}', [InventoryStockOpnameController::class, 'updateAssetLine'])->name('inventory.stock-opnames.update-asset-line');
+        Route::post('/stock-opnames/{opname}/finalize', [InventoryStockOpnameController::class, 'finalize'])->name('inventory.stock-opnames.finalize');
+        Route::post('/stock-opnames/{opname}/cancel', [InventoryStockOpnameController::class, 'cancel'])->name('inventory.stock-opnames.cancel');
 
         // Transaction routes
         Route::get('/transactions', [InventoryTransactionController::class, 'index'])->name('inventory.transactions.index');
@@ -946,7 +1007,14 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/loans', [InventoryLoanController::class, 'index'])->name('inventory.loans.index');
         Route::post('/loans', [InventoryLoanController::class, 'store'])->name('inventory.loans.store');
         Route::get('/loans/{loan}', [InventoryLoanController::class, 'show'])->name('inventory.loans.show');
+        Route::put('/loans/{loan}', [InventoryLoanController::class, 'update'])->name('inventory.loans.update');
         Route::post('/loans/{loan}/return', [InventoryLoanController::class, 'return'])->name('inventory.loans.return');
+
+        Route::get('/disposals', [InventoryDisposalController::class, 'index'])->name('inventory.disposals.index');
+        Route::put('/disposals/{disposal}', [InventoryDisposalController::class, 'update'])->name('inventory.disposals.update');
+        Route::post('/disposals/{disposal}/document', [InventoryDisposalController::class, 'uploadDocument'])->name('inventory.disposals.upload-document');
+        Route::delete('/disposals/{disposal}/document', [InventoryDisposalController::class, 'deleteDocument'])->name('inventory.disposals.delete-document');
+        Route::delete('/disposals/{disposal}', [InventoryDisposalController::class, 'destroy'])->name('inventory.disposals.destroy');
 
         // Report routes
         Route::prefix('reports')->group(function () {
@@ -959,7 +1027,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
             Route::get('/asset-value', [InventoryReportController::class, 'assetValue'])->name('inventory.reports.asset-value');
             Route::get('/maintenance', [InventoryReportController::class, 'maintenance'])->name('inventory.reports.maintenance');
             Route::get('/transactions', [InventoryReportController::class, 'transactions'])->name('inventory.reports.transactions');
+            Route::get('/asset-movements', [InventoryReportController::class, 'assetMovements'])->name('inventory.reports.asset-movements');
+            Route::get('/disposed', [InventoryReportController::class, 'disposed'])->name('inventory.reports.disposed');
             Route::get('/export/pdf', [InventoryReportController::class, 'exportPdf'])->name('inventory.reports.export.pdf');
+            Route::get('/export/excel', [InventoryReportController::class, 'exportExcel'])->name('inventory.reports.export.excel');
         });
     });
 
@@ -979,6 +1050,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::prefix('teacher/wali')->group(function () {
         Route::get('/classes/{classId}/students/{studentId}', [WaliKelasController::class, 'showStudent']);
         Route::patch('/classes/{classId}/students/{studentId}/login-fields', [WaliKelasController::class, 'updateLoginFields']);
+        Route::patch('/classes/{classId}/students/{studentId}', [WaliKelasController::class, 'updateStudent']);
+        Route::post('/classes/{classId}/students/{studentId}/photo', [WaliKelasController::class, 'uploadPhoto']);
+        Route::delete('/classes/{classId}/students/{studentId}/photo', [WaliKelasController::class, 'deletePhoto']);
         Route::post('/classes/{classId}/students/{studentId}/ensure-account', [WaliKelasController::class, 'ensureStudentAccount']);
         Route::post('/classes/{classId}/students/{studentId}/reset-password', [WaliKelasController::class, 'resetStudentPassword']);
         Route::post('/classes/{classId}/ensure-accounts', [WaliKelasController::class, 'ensureAccountsBulk']);
@@ -1000,8 +1074,15 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/mutations', [WaliKelasController::class, 'indexMutations']);
         Route::post('/mutations', [WaliKelasController::class, 'storeMutation']);
         Route::get('/classes/{classId}/export/roster', [WaliKelasController::class, 'exportRoster']);
+        Route::get('/classes/{classId}/export/identitas', [WaliKelasController::class, 'exportIdentitas']);
         Route::get('/classes/{classId}/export/contacts', [WaliKelasController::class, 'exportContacts']);
         Route::get('/classes/{classId}/export/attendance', [WaliKelasController::class, 'exportAttendance']);
+        Route::get('/classes/{classId}/finance/summary', [WaliKelasController::class, 'financeSummary'])->name('wali.finance.summary');
+        Route::get('/classes/{classId}/finance/fee-types', [WaliKelasController::class, 'financeFeeTypes'])->name('wali.finance.fee-types');
+        Route::get('/classes/{classId}/finance/invoices', [WaliKelasController::class, 'financeInvoices'])->name('wali.finance.invoices');
+        Route::post('/classes/{classId}/finance/invoices/generate', [WaliKelasController::class, 'generateFinanceInvoices'])->name('wali.finance.invoices.generate');
+        Route::post('/classes/{classId}/finance/payments', [WaliKelasController::class, 'storeFinancePayment'])->name('wali.finance.payments.store');
+        Route::get('/classes/{classId}/finance/payments/{paymentId}/receipt', [WaliKelasController::class, 'financePaymentReceipt'])->name('wali.finance.payments.receipt');
     });
 
     // Super admin dashboard & institution status
@@ -1117,6 +1198,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
 
         Route::post('surat/generate', [SuratController::class, 'generate'])->name('surat.generate');
         Route::post('surat/upload-image', [SuratController::class, 'uploadImage'])->name('surat.upload-image');
+        Route::get('surat/classes', [SuratController::class, 'classes'])->name('surat.classes');
+        Route::get('surat/letterhead-context', [SuratController::class, 'letterheadContext'])->name('surat.letterhead-context');
         Route::get('surat/students', [SuratController::class, 'students'])->name('surat.students');
         Route::get('surat/employees', [SuratController::class, 'employees'])->name('surat.employees');
         Route::get('surat/{id}/pdf', [SuratController::class, 'exportPdf'])->name('surat.pdf');
@@ -1160,7 +1243,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
 
     // Perpustakaan (Library) — kelola staf
     Route::prefix('library')->middleware('module:library')->group(function () {
-        Route::apiResource('categories', LibraryBookCategoryController::class);
+        Route::apiResource('categories', LibraryBookCategoryController::class)->names('library.categories');
         Route::get('books/import/template', [LibraryBookController::class, 'importTemplate'])->name('library.books.import.template');
         Route::post('books/import', [LibraryBookController::class, 'import'])->name('library.books.import');
         Route::get('books/export/csv', [LibraryBookController::class, 'exportCsv'])->name('library.books.export.csv');
@@ -1251,6 +1334,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     // Keuangan sekolah (SPP, tagihan, pembayaran, tunggakan, laporan)
     Route::middleware('module:finance')->prefix('finance')->group(function () {
         Route::get('summary', [FinanceDashboardController::class, 'summary'])->name('finance.summary');
+        Route::get('classes-lite', [FinancePickerController::class, 'classesLite'])->name('finance.classes-lite');
+        Route::get('students-lite', [FinancePickerController::class, 'studentsLite'])->name('finance.students-lite');
         Route::apiResource('fee-types', FinanceFeeTypeController::class)->parameters(['fee-types' => 'fee_type']);
         Route::get('invoices/export', [FinanceInvoiceController::class, 'export'])->name('finance.invoices.export');
         Route::get('invoices', [FinanceInvoiceController::class, 'index'])->name('finance.invoices.index');
@@ -1264,6 +1349,51 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('payments/{payment}/receipt', [FinancePaymentController::class, 'receipt'])->name('finance.payments.receipt');
         Route::get('payments/{payment}', [FinancePaymentController::class, 'show'])->name('finance.payments.show');
         Route::delete('payments/{payment}', [FinancePaymentController::class, 'destroy'])->name('finance.payments.destroy');
+        Route::get('expenses/export', [FinanceExpenseController::class, 'export'])->name('finance.expenses.export');
+        Route::get('expenses', [FinanceExpenseController::class, 'index'])->name('finance.expenses.index');
+        Route::post('expenses', [FinanceExpenseController::class, 'store'])->name('finance.expenses.store');
+        Route::get('expenses/{expense}', [FinanceExpenseController::class, 'show'])->name('finance.expenses.show');
+        Route::delete('expenses/{expense}', [FinanceExpenseController::class, 'destroy'])->name('finance.expenses.destroy');
+    });
+
+    // Penggajian pegawai
+    Route::middleware('module:payroll')->prefix('payroll')->group(function () {
+        Route::get('components', [PayrollComponentController::class, 'index'])->name('payroll.components.index');
+        Route::post('components', [PayrollComponentController::class, 'store'])->name('payroll.components.store');
+        Route::put('components/{component}', [PayrollComponentController::class, 'update'])->name('payroll.components.update');
+        Route::delete('components/{component}', [PayrollComponentController::class, 'destroy'])->name('payroll.components.destroy');
+
+        Route::get('position-allowances', [PayrollPositionAllowanceController::class, 'index'])->name('payroll.position-allowances.index');
+        Route::put('position-allowances', [PayrollPositionAllowanceController::class, 'sync'])->name('payroll.position-allowances.sync');
+
+        Route::get('employee-profiles/employees-lite', [PayrollEmployeeProfileController::class, 'employeesLite'])->name('payroll.employee-profiles.employees-lite');
+        Route::get('employee-profiles', [PayrollEmployeeProfileController::class, 'index'])->name('payroll.employee-profiles.index');
+        Route::post('employee-profiles', [PayrollEmployeeProfileController::class, 'store'])->name('payroll.employee-profiles.store');
+        Route::put('employee-profiles/{profile}', [PayrollEmployeeProfileController::class, 'update'])->name('payroll.employee-profiles.update');
+
+        Route::get('periods', [PayrollPeriodController::class, 'index'])->name('payroll.periods.index');
+        Route::post('periods', [PayrollPeriodController::class, 'store'])->name('payroll.periods.store');
+        Route::post('periods/{period}/close', [PayrollPeriodController::class, 'close'])->name('payroll.periods.close');
+
+        Route::get('runs', [PayrollRunController::class, 'index'])->name('payroll.runs.index');
+        Route::post('runs/generate', [PayrollRunController::class, 'generate'])->name('payroll.runs.generate');
+        Route::get('runs/{run}', [PayrollRunController::class, 'show'])->name('payroll.runs.show');
+        Route::get('runs/{run}/export/excel', [PayrollRunController::class, 'exportExcel'])->name('payroll.runs.export.excel');
+        Route::get('runs/{run}/export/pdf', [PayrollRunController::class, 'exportPdf'])->name('payroll.runs.export.pdf');
+        Route::get('runs/{run}/slips', [PayrollRunController::class, 'slips'])->name('payroll.runs.slips');
+        Route::post('runs/{run}/finalize', [PayrollRunController::class, 'finalize'])->name('payroll.runs.finalize');
+        Route::post('runs/{run}/mark-paid', [PayrollRunController::class, 'markPaid'])->name('payroll.runs.mark-paid');
+        Route::post('runs/{run}/unpay', [PayrollRunController::class, 'unpay'])->name('payroll.runs.unpay');
+        Route::post('runs/{run}/reopen', [PayrollRunController::class, 'reopen'])->name('payroll.runs.reopen');
+        Route::delete('runs/{run}', [PayrollRunController::class, 'destroy'])->name('payroll.runs.destroy');
+
+        Route::get('slips/{slip}', [PayrollSlipController::class, 'show'])->name('payroll.slips.show');
+        Route::put('slips/{slip}', [PayrollSlipController::class, 'update'])->name('payroll.slips.update');
+        Route::get('slips/{slip}/pdf', [PayrollSlipController::class, 'pdf'])->name('payroll.slips.pdf');
+
+        Route::get('expenses', [FinanceExpenseController::class, 'index'])->name('payroll.expenses.index');
+        Route::get('expenses/export', [FinanceExpenseController::class, 'export'])->name('payroll.expenses.export');
+        Route::get('expenses/{expense}', [FinanceExpenseController::class, 'show'])->name('payroll.expenses.show');
     });
 
     // Ujian Online (admin/guru: exam, session, bank soal, peserta, kendali)

@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\Auditable;
+use App\Traits\HasProfilePhoto;
 
 class Employee extends Model
 {
-    use HasFactory, SoftDeletes, Auditable;
+    use HasFactory, SoftDeletes, Auditable, HasProfilePhoto;
 
     protected $table = 'employee';
 
@@ -48,6 +49,7 @@ class Employee extends Model
         'status',
         'join_date',
         'notes',
+        'photo_path',
         'certification_status',
         'certification_date',
         'teacher_registration_number',

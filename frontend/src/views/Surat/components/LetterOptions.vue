@@ -109,8 +109,8 @@ defineExpose({ reload: loadAssets })
           :value="local.kop_id || ''"
           @change="patch('kop_id', $event.target.value ? Number($event.target.value) : null)"
         >
-          <option value="">Default</option>
-          <option v-for="k in kops" :key="k.id" :value="k.id">{{ k.nama }}</option>
+          <option value="">Kop Standar Institusi</option>
+          <option v-for="k in kops.filter((item) => !item.is_default)" :key="k.id" :value="k.id">{{ k.nama }}</option>
         </select>
       </section>
 

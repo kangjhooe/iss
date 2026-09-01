@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page">
+<template>    <div class="sp-page">
       <div class="sp-page-header">
         <div>
           <p class="sp-subtitle">{{ classInfo || 'Jadwal pelajaran' }}</p>
@@ -107,13 +105,10 @@
           </table>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { semesterApi } from '@/api/semester'

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="releases-page">
+<template>    <div class="releases-page">
       <div class="page-header">
         <div class="header-content">
           <div class="heading-block">
@@ -239,13 +237,10 @@
         @cancel="showDelete = false"
         @update:show="showDelete = $event"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'

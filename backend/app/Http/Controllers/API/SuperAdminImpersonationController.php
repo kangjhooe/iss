@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ManagesImpersonation;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AddTokenFromCookie;
 use App\Http\Resources\UserResource;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class SuperAdminImpersonationController extends Controller
 {
+    use ManagesImpersonation;
+
     public function start(Request $request, $id)
     {
         $admin = $request->user();
@@ -21,7 +23,7 @@ class SuperAdminImpersonationController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($request->cookie(AddTokenFromCookie::COOKIE_IMPERSONATOR)) {
+        if ($this->impersonationAlreadyActive($request)) {
             return response()->json([
                 'message' => 'Anda sudah dalam mode impersonate. Keluar dulu sebelum menyamar lagi.',
             ], 422);
@@ -71,23 +73,18 @@ class SuperAdminImpersonationController extends Controller
 
             $loads = ['institution', 'permissions'];
             $userPayload = (new UserResource($target->load($loads)))->resolve();
-            $userPayload['impersonation'] = [
-                'active' => true,
-                'admin_id' => $admin->id,
-                'admin_name' => $admin->name,
-                'admin_email' => $admin->email,
-            ];
+            $userPayload['impersonation'] = $this->impersonationMetaFor($admin);
 
             $response = response()->json([
                 'message' => 'Berhasil masuk sebagai ' . $target->name,
                 'user' => $userPayload,
             ]);
 
-            $response->cookie($this->makeCookie(AddTokenFromCookie::COOKIE_AUTH, $accessToken, 24 * 60));
-            $response->cookie($this->makeCookie(AddTokenFromCookie::COOKIE_REFRESH, $refreshToken, 30 * 24 * 60));
-            $response->cookie($this->makeCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR, $currentAuth, 24 * 60));
+            $response->cookie($this->makeImpersonationCookie(AddTokenFromCookie::COOKIE_AUTH, $accessToken, 24 * 60));
+            $response->cookie($this->makeImpersonationCookie(AddTokenFromCookie::COOKIE_REFRESH, $refreshToken, 30 * 24 * 60));
+            $response->cookie($this->makeImpersonationCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR, $currentAuth, 24 * 60));
             if ($currentRefresh) {
-                $response->cookie($this->makeCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR_REFRESH, $currentRefresh, 30 * 24 * 60));
+                $response->cookie($this->makeImpersonationCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR_REFRESH, $currentRefresh, 30 * 24 * 60));
             }
 
             Log::info('Impersonation started', [
@@ -119,9 +116,9 @@ class SuperAdminImpersonationController extends Controller
 
             $tokenModel = PersonalAccessToken::findToken($impersonatorToken);
             $admin = $tokenModel?->tokenable;
-            if (!$admin || !($admin instanceof User) || !$admin->isSuperAdmin()) {
+            if (! $this->canActAsImpersonator($admin)) {
                 return response()->json([
-                    'message' => 'Sesi super admin tidak valid. Silakan login ulang.',
+                    'message' => 'Sesi admin tidak valid. Silakan login ulang.',
                 ], 401);
             }
 
@@ -157,16 +154,16 @@ class SuperAdminImpersonationController extends Controller
             ];
 
             $response = response()->json([
-                'message' => 'Kembali ke akun super admin',
+                'message' => 'Kembali ke akun admin',
                 'user' => $userPayload,
             ]);
 
-            $response->cookie($this->makeCookie(AddTokenFromCookie::COOKIE_AUTH, $impersonatorToken, 24 * 60));
+            $response->cookie($this->makeImpersonationCookie(AddTokenFromCookie::COOKIE_AUTH, $impersonatorToken, 24 * 60));
             if ($impersonatorRefresh) {
-                $response->cookie($this->makeCookie(AddTokenFromCookie::COOKIE_REFRESH, $impersonatorRefresh, 30 * 24 * 60));
+                $response->cookie($this->makeImpersonationCookie(AddTokenFromCookie::COOKIE_REFRESH, $impersonatorRefresh, 30 * 24 * 60));
             }
-            $response->cookie($this->forgetCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR));
-            $response->cookie($this->forgetCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR_REFRESH));
+            $response->cookie($this->forgetImpersonationCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR));
+            $response->cookie($this->forgetImpersonationCookie(AddTokenFromCookie::COOKIE_IMPERSONATOR_REFRESH));
 
             Log::info('Impersonation stopped', [
                 'impersonator_id' => $admin->id,
@@ -183,15 +180,4 @@ class SuperAdminImpersonationController extends Controller
         }
     }
 
-    private function makeCookie(string $name, string $value, int $minutes): \Symfony\Component\HttpFoundation\Cookie
-    {
-        $secure = request()->secure();
-        return Cookie::make($name, $value, $minutes, '/', env('COOKIE_DOMAIN'), $secure, true, false, 'lax');
-    }
-
-    private function forgetCookie(string $name): \Symfony\Component\HttpFoundation\Cookie
-    {
-        $secure = request()->secure();
-        return Cookie::make($name, '', -1, '/', env('COOKIE_DOMAIN'), $secure, true, false, 'lax');
-    }
 }

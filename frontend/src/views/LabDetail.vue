@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="lab-detail-page">
+<template>    <div class="lab-detail-page">
       <div class="detail-top">
         <router-link to="/lab" class="btn-back">← Kembali ke Manajemen Lab</router-link>
         <div v-if="room" class="detail-actions">
@@ -362,18 +360,39 @@
           <div class="modal-header"><h3>Catat Peminjaman</h3><button type="button" class="btn-close" @click="showLoanModal = false">×</button></div>
           <form class="modal-body" @submit.prevent="saveLoan">
             <div class="form-group"><label>Barang *</label>
-              <select v-model="loanForm.item_id" required class="form-input"><option value="">Pilih</option><option v-for="i in availableItems" :key="i.id" :value="i.id">{{ i.name }} (stok {{ i.quantity }})</option></select>
+              <select v-model="loanForm.item_id" required class="form-input" @change="onLabLoanItemChange"><option value="">Pilih</option><option v-for="i in availableItems" :key="i.id" :value="i.id">{{ i.name }} ({{ i.tracking_type === 'individual' ? 'aset' : `stok ${i.quantity}` }})</option></select>
+            </div>
+            <div v-if="selectedLabLoanItem?.tracking_type === 'individual'" class="form-group">
+              <label>Unit Aset *</label>
+              <select v-model="loanForm.asset_id" required class="form-input">
+                <option value="">Pilih unit</option>
+                <option v-for="a in labLoanAssetOptions" :key="a.id" :value="a.id">{{ a.asset_number }} ({{ a.status }})</option>
+              </select>
             </div>
             <div class="form-group"><label>Nama peminjam *</label><input v-model="loanForm.borrower_name" required class="form-input" /></div>
             <div class="form-row">
-              <div class="form-group"><label>Qty *</label><input v-model.number="loanForm.quantity" type="number" min="1" required class="form-input" /></div>
+              <div v-if="selectedLabLoanItem?.tracking_type !== 'individual'" class="form-group"><label>Qty *</label><input v-model.number="loanForm.quantity" type="number" min="1" required class="form-input" /></div>
               <div class="form-group"><label>Tipe</label>
                 <select v-model="loanForm.borrower_type" class="form-input"><option>Employee</option><option>Student</option><option>External</option></select>
               </div>
             </div>
             <div class="form-row">
-              <div class="form-group"><label>Tgl pinjam *</label><input v-model="loanForm.loan_date" type="date" required class="form-input" /></div>
+              <div class="form-group"><label>Tgl pinjam *</label><input v-model="loanForm.loan_date" type="date" required class="form-input" @change="onLabLoanDateChange" /></div>
               <div class="form-group"><label>Rencana kembali *</label><input v-model="loanForm.expected_return_date" type="date" required class="form-input" /></div>
+            </div>
+            <div class="form-group">
+              <label class="muted small">Durasi cepat</label>
+              <div class="duration-presets">
+                <button
+                  v-for="preset in loanDurationPresets"
+                  :key="preset.days"
+                  type="button"
+                  class="btn-outline btn-compact"
+                  @click="applyLabLoanDuration(preset.days)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
             </div>
             <div class="form-group"><label>Keperluan</label><input v-model="loanForm.purpose" class="form-input" /></div>
             <div class="modal-footer"><button type="button" class="btn-secondary" @click="showLoanModal = false">Batal</button><button type="submit" class="btn-primary" :disabled="saving">Simpan</button></div>
@@ -429,7 +448,14 @@
           <div class="modal-header"><h3>Laporkan Kerusakan / Perawatan</h3><button type="button" class="btn-close" @click="showMaintModal = false">×</button></div>
           <form class="modal-body" @submit.prevent="saveMaint">
             <div class="form-group"><label>Barang *</label>
-              <select v-model="maintForm.item_id" required class="form-input"><option value="">Pilih</option><option v-for="i in items" :key="i.id" :value="i.id">{{ i.name }}</option></select>
+              <select v-model="maintForm.item_id" required class="form-input" @change="onLabMaintItemChange"><option value="">Pilih</option><option v-for="i in items" :key="i.id" :value="i.id">{{ i.name }}</option></select>
+            </div>
+            <div v-if="selectedLabMaintItem?.tracking_type === 'individual'" class="form-group">
+              <label>Unit Aset *</label>
+              <select v-model="maintForm.asset_id" required class="form-input">
+                <option value="">Pilih unit</option>
+                <option v-for="a in labMaintAssetOptions" :key="a.id" :value="a.id">{{ a.asset_number }}</option>
+              </select>
             </div>
             <div class="form-group"><label>Jenis *</label>
               <select v-model="maintForm.maintenance_type" class="form-input"><option>Perbaikan</option><option>Perawatan</option><option>Kalibrasi</option><option>Inspeksi</option></select>
@@ -476,14 +502,11 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { inventoryApi } from '@/api/inventory'
@@ -494,10 +517,16 @@ import { subjectApi } from '@/api/subject'
 import { employeeApi } from '@/api/teacher'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import {
+  LOAN_DURATION_PRESETS,
+  addDaysToDateString,
+  todayDateString
+} from '@/composables/inventory/inventoryFormatters'
 
 const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
+const loanDurationPresets = LOAN_DURATION_PRESETS
 
 const dayNamesMap = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat' }
 const SECTION_KEYS = ['inventory', 'schedule', 'loans', 'booking', 'maintenance', 'journal']
@@ -546,7 +575,14 @@ const isAdmin = computed(() => {
   const r = authStore.user?.role
   return r === 'admin' || r === 'institution_admin' || r === 'super_admin' || !!room.value?.is_admin
 })
-const availableItems = computed(() => items.value.filter(i => i.status === 'Tersedia' || !i.status))
+const availableItems = computed(() => items.value.filter((i) => {
+  const qty = i.available_quantity ?? i.quantity ?? 0
+  return (i.status === 'Tersedia' || !i.status) && (qty > 0 || i.tracking_type === 'individual')
+}))
+const selectedLabLoanItem = computed(() => items.value.find((i) => String(i.id) === String(loanForm.item_id)) || null)
+const selectedLabMaintItem = computed(() => items.value.find((i) => String(i.id) === String(maintForm.item_id)) || null)
+const labLoanAssetOptions = ref([])
+const labMaintAssetOptions = ref([])
 
 const sections = computed(() => [
   { key: 'inventory', label: 'Inventaris' },
@@ -567,7 +603,7 @@ const scheduleForm = reactive({ day_of_week: 1, period: 1, class_id: '', subject
 
 const showLoanModal = ref(false)
 const loanForm = reactive({
-  item_id: '', borrower_name: '', borrower_type: 'Employee', quantity: 1,
+  item_id: '', asset_id: '', borrower_name: '', borrower_type: 'Employee', quantity: 1,
   loan_date: new Date().toISOString().slice(0, 10),
   expected_return_date: '', purpose: ''
 })
@@ -580,7 +616,7 @@ const showBookingModal = ref(false)
 const bookingForm = reactive({ purpose: '', date: '', start_time: '08:00', end_time: '10:00', notes: '' })
 
 const showMaintModal = ref(false)
-const maintForm = reactive({ item_id: '', maintenance_type: 'Perbaikan', scheduled_date: new Date().toISOString().slice(0, 10), description: '' })
+const maintForm = reactive({ item_id: '', asset_id: '', maintenance_type: 'Perbaikan', scheduled_date: new Date().toISOString().slice(0, 10), description: '' })
 
 const showJournalModal = ref(false)
 const journalForm = reactive({ date: new Date().toISOString().slice(0, 10), start_time: '', end_time: '', activity: '', class_id: '', participants_count: null, notes: '', incident_notes: '' })
@@ -853,18 +889,69 @@ async function deleteSchedule(s) {
 async function openLoanModal() {
   await loadSection('inventory')
   loanForm.item_id = ''
+  loanForm.asset_id = ''
   loanForm.borrower_name = ''
   loanForm.quantity = 1
-  loanForm.loan_date = new Date().toISOString().slice(0, 10)
-  loanForm.expected_return_date = ''
+  labLoanAssetOptions.value = []
+  const today = todayDateString()
+  loanForm.loan_date = today
+  loanForm.expected_return_date = addDaysToDateString(today, 7)
   loanForm.purpose = ''
   showLoanModal.value = true
+}
+
+async function onLabLoanItemChange() {
+  loanForm.asset_id = ''
+  const it = selectedLabLoanItem.value
+  if (it?.tracking_type === 'individual') {
+    loanForm.quantity = 1
+    try {
+      const res = await inventoryApi.getAssets({ item_id: it.id, status: 'Tersedia', per_page: 100 })
+      labLoanAssetOptions.value = res.data?.data ?? res.data ?? []
+    } catch {
+      labLoanAssetOptions.value = []
+    }
+  } else {
+    labLoanAssetOptions.value = []
+  }
+}
+
+async function onLabMaintItemChange() {
+  maintForm.asset_id = ''
+  const it = selectedLabMaintItem.value
+  if (it?.tracking_type === 'individual') {
+    try {
+      const res = await inventoryApi.getAssets({ item_id: it.id, per_page: 100 })
+      labMaintAssetOptions.value = res.data?.data ?? res.data ?? []
+    } catch {
+      labMaintAssetOptions.value = []
+    }
+  } else {
+    labMaintAssetOptions.value = []
+  }
+}
+
+function applyLabLoanDuration(days) {
+  if (!loanForm.loan_date) loanForm.loan_date = todayDateString()
+  loanForm.expected_return_date = addDaysToDateString(loanForm.loan_date, days)
+}
+
+function onLabLoanDateChange() {
+  if (!loanForm.expected_return_date && loanForm.loan_date) {
+    loanForm.expected_return_date = addDaysToDateString(loanForm.loan_date, 7)
+  }
 }
 
 async function saveLoan() {
   saving.value = true
   try {
-    await inventoryApi.createLoan({ ...loanForm, item_id: Number(loanForm.item_id), quantity: Number(loanForm.quantity) })
+    const payload = {
+      ...loanForm,
+      item_id: Number(loanForm.item_id),
+      quantity: selectedLabLoanItem.value?.tracking_type === 'individual' ? 1 : Number(loanForm.quantity)
+    }
+    if (loanForm.asset_id) payload.asset_id = Number(loanForm.asset_id)
+    await inventoryApi.createLoan(payload)
     toast.success('Berhasil', 'Peminjaman dicatat')
     showLoanModal.value = false
     await refreshSections(['loans', 'inventory'], { withRoom: true })
@@ -962,9 +1049,11 @@ async function cancelBooking(b) {
 async function openMaintModal() {
   await loadSection('inventory')
   maintForm.item_id = ''
+  maintForm.asset_id = ''
   maintForm.maintenance_type = 'Perbaikan'
   maintForm.scheduled_date = new Date().toISOString().slice(0, 10)
   maintForm.description = ''
+  labMaintAssetOptions.value = []
   showMaintModal.value = true
 }
 
@@ -972,25 +1061,32 @@ async function openMaintFromItem(item) {
   await openMaintModal()
   maintForm.item_id = item.id
   maintForm.description = `Kerusakan pada ${item.name}`
+  await onLabMaintItemChange()
 }
 
 async function saveMaint() {
   saving.value = true
   try {
-    await inventoryApi.createMaintenance({
+    const payload = {
       item_id: Number(maintForm.item_id),
       maintenance_type: maintForm.maintenance_type,
       scheduled_date: maintForm.scheduled_date,
       description: maintForm.description,
       status: 'Terjadwal',
-    })
-    // Mark item as Rusak if perbaikan
+    }
+    if (maintForm.asset_id) payload.asset_id = Number(maintForm.asset_id)
+    await inventoryApi.createMaintenance(payload)
     if (maintForm.maintenance_type === 'Perbaikan') {
       const item = items.value.find(i => i.id === Number(maintForm.item_id))
-      if (item) {
+      if (item?.tracking_type === 'individual' && maintForm.asset_id) {
+        const asset = labMaintAssetOptions.value.find(a => String(a.id) === String(maintForm.asset_id))
+        await inventoryApi.updateAsset(maintForm.asset_id, {
+          condition: asset?.condition === 'Baik' ? 'Rusak Ringan' : (asset?.condition || 'Rusak Ringan'),
+          status: 'Rusak'
+        })
+      } else if (item) {
         await inventoryApi.updateItem(item.id, {
           name: item.name,
-          quantity: item.quantity,
           condition: item.condition === 'Baik' ? 'Rusak Ringan' : item.condition,
           status: 'Rusak',
           room_id: room.value.id,
@@ -1300,5 +1396,10 @@ onMounted(async () => {
   .data-table { font-size: 0.8rem; }
   .data-table th, .data-table td { padding: 0.4rem 0.3rem; }
   .actions-cell { white-space: normal; }
+}
+.duration-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

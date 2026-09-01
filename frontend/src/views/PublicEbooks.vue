@@ -70,11 +70,15 @@
         </article>
       </div>
 
-      <div v-if="meta.last_page > 1" class="pagination">
-        <button type="button" class="pagination-btn" :disabled="meta.current_page <= 1" @click="loadEbooks(meta.current_page - 1)">Sebelumnya</button>
-        <span class="pagination-info">Halaman {{ meta.current_page }} / {{ meta.last_page }}</span>
-        <button type="button" class="pagination-btn" :disabled="meta.current_page >= meta.last_page" @click="loadEbooks(meta.current_page + 1)">Selanjutnya</button>
-      </div>
+      <PaginationBar
+        :page="meta.current_page"
+        :last-page="meta.last_page"
+        :per-page="meta.per_page"
+        :total="meta.total"
+        item-label="ebook"
+        @page-change="loadEbooks"
+        @per-page-change="changePerPage"
+      />
     </main>
 
     <Teleport to="body">
@@ -94,6 +98,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { schoolPublicApi } from '@/api/schoolPublic'
 import EbookPdfViewer from '@/components/EbookPdfViewer.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { usePageMeta } from '@/composables/usePageMeta'
 import { useToast } from '@/composables/useToast'
 
@@ -108,7 +113,7 @@ const categories = ref([])
 const loading = ref(false)
 const loadError = ref('')
 const filters = ref({ search: '', category_id: '' })
-const meta = ref({ current_page: 1, last_page: 1 })
+const meta = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const openingId = ref(null)
 const readerOpen = ref(false)
 const streamUrl = ref('')
@@ -159,7 +164,7 @@ async function loadEbooks(page = 1) {
   try {
     const res = await schoolPublicApi.getPublicEbooks(npsn.value, {
       page,
-      per_page: 12,
+      per_page: meta.value.per_page || 15,
       search: filters.value.search || undefined,
       category_id: filters.value.category_id || undefined
     })
@@ -170,7 +175,9 @@ async function loadEbooks(page = 1) {
     const m = res.data?.meta || {}
     meta.value = {
       current_page: m.current_page ?? page,
-      last_page: m.last_page ?? 1
+      last_page: m.last_page ?? 1,
+      per_page: m.per_page ?? meta.value.per_page,
+      total: m.total ?? 0
     }
   } catch (e) {
     ebooks.value = []
@@ -178,6 +185,11 @@ async function loadEbooks(page = 1) {
   } finally {
     loading.value = false
   }
+}
+
+function changePerPage(n) {
+  meta.value.per_page = n
+  loadEbooks(1)
 }
 
 function debounceLoad() {

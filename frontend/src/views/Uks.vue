@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="uks-page">
+<template>    <div class="uks-page">
       <div class="page-header">
         <div class="header-content">
           <h2 class="page-title">Kunjungan UKS</h2>
@@ -130,13 +128,15 @@
             </tbody>
           </table>
         </div>
-        <div v-if="pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">Halaman {{ pagination.current_page }} / {{ pagination.last_page }} · {{ pagination.total }} data</span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
-            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="goToPage(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="kunjungan"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
 
         <details class="chart-details">
           <summary>Grafik kunjungan {{ statsData?.year || '' }}</summary>
@@ -371,13 +371,11 @@
         @confirm="confirmDeleteType"
         @cancel="deleteTypeTarget = null"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
@@ -553,7 +551,7 @@ async function loadVisits() {
   try {
     const params = cleanParams({
       page: pagination.value.current_page,
-      per_page: 15,
+      per_page: pagination.value.per_page || 15,
       ...filters.value,
     })
     if (!Object.prototype.hasOwnProperty.call(params, 'academic_year_id')) {
@@ -565,7 +563,7 @@ async function loadVisits() {
     pagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
-      per_page: meta.per_page ?? 15,
+      per_page: meta.per_page ?? pagination.value.per_page,
       total: meta.total ?? 0,
     }
   } catch (e) {
@@ -577,6 +575,12 @@ async function loadVisits() {
 
 function goToPage(page) {
   pagination.value.current_page = page
+  loadVisits()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
   loadVisits()
 }
 

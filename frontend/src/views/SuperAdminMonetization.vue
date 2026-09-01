@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="monetization-page">
+<template>    <div class="monetization-page">
       <div class="page-header">
         <div>
           <h2>Monetisasi</h2>
@@ -215,13 +213,10 @@
           </article>
         </div>
       </section>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { useToast } from '@/composables/useToast'
 

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page">
+<template>    <div class="sp-page">
       <div class="sp-page-header">
         <p class="sp-subtitle">Nilai per mata pelajaran pada semester yang dipilih</p>
         <div class="sp-actions">
@@ -81,13 +79,10 @@
           </article>
         </div>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { gradeBookApi } from '@/api/gradeBook'
 import { semesterApi } from '@/api/semester'

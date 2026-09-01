@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="onboard-page">
+<template>    <div class="onboard-page">
       <div class="page-header">
         <div>
           <h2>Onboarding Sekolah</h2>
@@ -152,13 +150,10 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import AddressCascade from '@/components/AddressCascade.vue'
 import { institutionAdminApi } from '@/api/institutionAdmin'
 import { useToast } from '@/composables/useToast'

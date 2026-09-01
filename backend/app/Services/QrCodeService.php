@@ -167,8 +167,8 @@ class QrCodeService
     {
         $svg = QrCode::format('svg')
             ->size(280)
-            ->margin(1)
-            ->errorCorrection('M')
+            ->margin(2)
+            ->errorCorrection('H')
             ->generate($data);
 
         return 'data:image/svg+xml;base64,'.base64_encode((string) $svg);

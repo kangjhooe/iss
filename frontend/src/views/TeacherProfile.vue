@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="page">
+<template>    <div class="page">
       <div class="page-header">
         <div class="page-header-main">
           <router-link to="/teacher/dashboard" class="back-chip">
@@ -30,7 +28,12 @@
           <div v-if="loadingProfile" class="hero-loading">Memuat profil...</div>
           <template v-else>
               <div class="hero-top">
-                <div class="hero-avatar" aria-hidden="true">{{ initials }}</div>
+                <label class="hero-avatar-wrap" title="Unggah foto (JPG/PNG, maks. 1 MB)">
+                  <img v-if="teacher?.photo_url" :src="teacher.photo_url" class="hero-avatar hero-avatar-img" :alt="teacher?.name || 'Foto'" />
+                  <div v-else class="hero-avatar" aria-hidden="true">{{ initials }}</div>
+                  <input type="file" :accept="PROFILE_PHOTO_ACCEPT" class="sr-only" :disabled="photoUploading" @change="onMyPhotoSelect" />
+                  <span class="hero-avatar-hint">{{ photoUploading ? 'Mengunggah…' : 'Foto' }}</span>
+                </label>
                 <div>
                   <h2 class="hero-name">{{ teacher?.name || 'Guru' }}</h2>
                   <p class="hero-meta">
@@ -38,6 +41,13 @@
                     <span v-if="teacher?.subject && teacher?.institution?.name" class="hero-dot">·</span>
                     <span v-if="teacher?.institution?.name">{{ teacher.institution.name }}</span>
                   </p>
+                  <button
+                    v-if="teacher?.photo_url"
+                    type="button"
+                    class="hero-photo-remove"
+                    :disabled="photoUploading"
+                    @click="removeMyPhoto"
+                  >Hapus foto</button>
                 </div>
               </div>
               <div v-if="teacher?.nip || teacher?.nuptk || teacher?.nik || teacher?.join_date" class="meta-grid">
@@ -329,18 +339,16 @@
           </div>
         </div>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import AddressCascade from '@/components/AddressCascade.vue'
 import { emptyAddress, formatFullAddress, pickAddress } from '@/utils/addressFields'
 import { useToast } from '@/composables/useToast'
 import { teacherApi } from '@/api/teacher'
 import { teacherChangeRequestApi } from '@/api/teacherChangeRequest'
+import { PROFILE_PHOTO_ACCEPT, profilePhotoFormData, validateProfilePhoto } from '@/utils/profilePhoto'
 
 const toast = useToast()
 
@@ -355,6 +363,7 @@ const submitting = ref(false)
 const submitError = ref('')
 const savingSelf = ref(false)
 const selfError = ref('')
+const photoUploading = ref(false)
 
 const form = ref({
   field_name: '',
@@ -525,6 +534,44 @@ const initials = computed(() => {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 })
+
+async function onMyPhotoSelect(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  const photoError = validateProfilePhoto(file)
+  if (photoError) {
+    toast.error('Gagal', photoError)
+    return
+  }
+  photoUploading.value = true
+  try {
+    const res = await teacherChangeRequestApi.uploadMyPhoto(profilePhotoFormData(file))
+    const data = res.data?.data
+    if (data) teacher.value = { ...teacher.value, ...data }
+    toast.success('Berhasil', res.data?.message || 'Foto profil diunggah')
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal mengunggah foto')
+  } finally {
+    photoUploading.value = false
+  }
+}
+
+async function removeMyPhoto() {
+  if (!teacher.value?.photo_url || photoUploading.value) return
+  if (!confirm('Hapus foto profil?')) return
+  photoUploading.value = true
+  try {
+    const res = await teacherChangeRequestApi.deleteMyPhoto()
+    const data = res.data?.data
+    teacher.value = { ...(teacher.value || {}), ...(data || {}), photo_url: null, photo_path: null }
+    toast.success('Berhasil', res.data?.message || 'Foto profil dihapus')
+  } catch (err) {
+    toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal menghapus foto')
+  } finally {
+    photoUploading.value = false
+  }
+}
 
 const pendingCount = computed(() => requests.value.filter((r) => r.status === 'pending').length)
 
@@ -823,6 +870,15 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.hero-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .hero-avatar {
   width: 56px;
   height: 56px;
@@ -836,6 +892,51 @@ onMounted(async () => {
   font-weight: 700;
   flex-shrink: 0;
   letter-spacing: 0.02em;
+  overflow: hidden;
+}
+
+.hero-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  padding: 0;
+}
+
+.hero-avatar-hint {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.hero-photo-remove {
+  margin-top: 6px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.hero-photo-remove:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .hero-loading {
@@ -1280,6 +1381,21 @@ onMounted(async () => {
   color: #b91c1c;
   font-size: 12px;
   line-height: 1.4;
+}
+
+@media (max-width: 1440px) {
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.75fr);
+    gap: 12px;
+  }
+
+  .panel {
+    padding: 14px 16px;
+  }
+
+  .page-header {
+    margin-bottom: 12px;
+  }
 }
 
 @media (max-width: 960px) {

@@ -1,7 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -54,6 +53,7 @@ const skipDirty = ref(false)
 const kopHtml = ref('')
 const ttdHtml = ref('')
 const kopsCache = ref([])
+const institutionProfile = ref(null)
 const ttdCache = ref([])
 const stempelCache = ref([])
 
@@ -84,14 +84,16 @@ function defaultOptions() {
 
 async function loadAssetCaches() {
   try {
-    const [kopRes, ttdRes, stempelRes] = await Promise.all([
+    const [kopRes, ttdRes, stempelRes, instRes] = await Promise.all([
       kopService.list({ status: 'aktif' }),
       asetTandaTanganService.list({ jenis: 'tanda_tangan', status: 'aktif' }),
-      asetTandaTanganService.list({ jenis: 'stempel', status: 'aktif' })
+      asetTandaTanganService.list({ jenis: 'stempel', status: 'aktif' }),
+      suratService.letterheadContext()
     ])
     kopsCache.value = kopRes.data?.data || []
     ttdCache.value = ttdRes.data?.data || []
     stempelCache.value = stempelRes.data?.data || []
+    institutionProfile.value = instRes.data?.data || null
     refreshLayoutPreview()
   } catch {
     /* ignore */
@@ -100,11 +102,13 @@ async function loadAssetCaches() {
 
 function refreshLayoutPreview() {
   const layout = new SuratLayoutClient()
-  const kop = options.value.tampilkan_kop
-    ? (kopsCache.value.find((k) => k.id === options.value.kop_id)
+  const institution = institutionProfile.value
+  let kop = null
+  if (options.value.tampilkan_kop) {
+    kop = kopsCache.value.find((k) => k.id === options.value.kop_id)
       || kopsCache.value.find((k) => k.is_default)
-      || null)
-    : null
+      || null
+  }
   const ttd = options.value.tampilkan_tanda_tangan
     ? ttdCache.value.find((t) => t.id === options.value.tanda_tangan_id) || null
     : null
@@ -112,7 +116,7 @@ function refreshLayoutPreview() {
     ? stempelCache.value.find((s) => s.id === options.value.stempel_id) || null
     : null
 
-  kopHtml.value = layout.renderKop(kop)
+  kopHtml.value = layout.renderKop(kop, institution)
   ttdHtml.value = layout.renderSignature(ttd, stempel, options.value.posisi_ttd || 'kanan')
 }
 
@@ -296,29 +300,73 @@ watch(judul, () => { if (!skipDirty.value) dirty.value = true })
 watch(isiHtml, () => { if (!skipDirty.value) dirty.value = true })
 watch(options, onOptionsChange, { deep: true })
 
+function openPdfPrintWindow(blob) {
+  const url = URL.createObjectURL(blob)
+  const win = window.open('', '_blank')
+  if (!win) {
+    URL.revokeObjectURL(url)
+    toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk cetak.')
+    return
+  }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cetak Surat</title>
+<style>*{box-sizing:border-box}html,body{margin:0;height:100%}embed{display:block;width:100%;height:100vh;border:0}</style>
+</head><body><embed src="${url}" type="application/pdf" /></body></html>`)
+  win.document.close()
+  setTimeout(() => {
+    try {
+      win.focus()
+      win.print()
+    } catch {
+      /* biarkan viewer PDF menangani cetak */
+    }
+  }, 700)
+}
+
+async function parsePdfBlobResponse(res, fallbackMessage) {
+  const contentType = res.headers?.['content-type'] || ''
+  if (res.status !== 200 || contentType.includes('application/json')) {
+    const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
+    const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
+    throw new Error(json.message || fallbackMessage)
+  }
+  return res.data instanceof Blob
+    ? res.data
+    : new Blob([res.data], { type: 'application/pdf' })
+}
+
+async function ensureSavedForOutput() {
+  if (!currentId.value) {
+    toast.warning('Perhatian', 'Simpan surat terlebih dahulu')
+    return false
+  }
+  if (dirty.value) {
+    await save()
+  }
+  return true
+}
+
 function openPreview() {
   refreshLayoutPreview()
   previewOpen.value = true
 }
 
-function handlePrint() {
+async function handlePrint() {
   previewOpen.value = false
-  nextTick(() => {
-    window.print()
-  })
+  if (!(await ensureSavedForOutput())) return
+  try {
+    const res = await suratService.print(currentId.value)
+    const blob = await parsePdfBlobResponse(res, 'Gagal cetak surat')
+    openPdfPrintWindow(blob)
+  } catch (e) {
+    toast.error('Gagal', e.message || 'Gagal cetak surat')
+  }
 }
 
 async function exportPdf() {
-  if (!currentId.value) {
-    toast.warning('Perhatian', 'Simpan surat terlebih dahulu')
-    return
-  }
-  if (dirty.value) {
-    await save()
-  }
+  if (!(await ensureSavedForOutput())) return
   try {
     const res = await suratService.exportPdf(currentId.value)
-    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const blob = await parsePdfBlobResponse(res, 'Gagal export PDF')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -329,7 +377,7 @@ async function exportPdf() {
     URL.revokeObjectURL(url)
     toast.success('Berhasil', 'PDF berhasil diunduh')
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal export PDF')
+    toast.error('Gagal', e.message || e.response?.data?.message || 'Gagal export PDF')
   }
 }
 
@@ -393,7 +441,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Layout>
     <div class="surat-app">
       <div
         v-if="sidebarOpen && isMobile"
@@ -553,7 +600,6 @@ onUnmounted(() => {
       @confirm="handleConfirm"
       @cancel="handleCancel"
     />
-  </Layout>
 </template>
 
 <style scoped>
@@ -864,8 +910,8 @@ onUnmounted(() => {
 }
 
 .editor-wrap :deep(.ck.ck-toolbar) {
-  margin: -20mm -20mm 12px -25mm;
-  width: calc(100% + 45mm);
+  margin: calc(-1 * var(--surat-margin-top)) calc(-1 * var(--surat-margin-right)) 12px calc(-1 * var(--surat-margin-left));
+  width: calc(100% + var(--surat-margin-right) + var(--surat-margin-left));
 }
 
 @media (max-width: 768px) {
@@ -928,8 +974,8 @@ onUnmounted(() => {
   }
 
   .editor-wrap :deep(.ck.ck-toolbar) {
-    margin: -12mm -12mm 10px -14mm;
-    width: calc(100% + 26mm);
+    margin: calc(-1 * var(--surat-margin-top)) calc(-1 * var(--surat-margin-right)) 10px calc(-1 * var(--surat-margin-left));
+    width: calc(100% + var(--surat-margin-right) + var(--surat-margin-left));
   }
 
   .editor-wrap :deep(.ck.ck-toolbar .ck-toolbar__items) {
@@ -960,6 +1006,17 @@ onUnmounted(() => {
     display: block !important;
   }
 
+  :global(.bottom-nav),
+  :global(.layout .header),
+  :global(.layout .sidebar) {
+    display: none !important;
+  }
+
+  :global(.layout .content) {
+    padding: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
   .surat-app {
     margin: 0 !important;
     height: auto !important;
@@ -985,5 +1042,37 @@ onUnmounted(() => {
   .editor-wrap {
     display: none !important;
   }
+
+  .print-only {
+    padding: 0;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+  }
+
+  .print-only :deep(.standard-kop) {
+    border-bottom: 3px double #111;
+    margin-bottom: 12px;
+  }
+
+  .print-only :deep(.standard-kop-inner td),
+  .print-only :deep(.kop-table td),
+  .print-only :deep(table[style*="border:none"] td) {
+    border: none !important;
+  }
+
+  .print-only :deep(table:not(.standard-kop-inner):not(.kop-table) td),
+  .print-only :deep(table:not(.standard-kop-inner):not(.kop-table) th) {
+    border: 1px solid #000;
+    padding: 4px 8px;
+  }
+
+  .print-only :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+  }
 }
 </style>
+
+<style src="@/styles/surat-page.css"></style>

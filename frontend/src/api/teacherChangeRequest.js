@@ -7,6 +7,14 @@ export const teacherChangeRequestApi = {
   updateMyProfile(data) {
     return api.put('/v1/teacher/profile', data)
   },
+  uploadMyPhoto(formData) {
+    return api.post('/v1/teacher/profile/photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  deleteMyPhoto() {
+    return api.delete('/v1/teacher/profile/photo')
+  },
   getAll(params) {
     return api.get('/v1/teacher-change-requests', { params })
   },

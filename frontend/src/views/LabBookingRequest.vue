@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="booking-page">
+<template>    <div class="booking-page">
       <header class="page-head">
         <div>
           <h1>Booking Lab</h1>
@@ -107,13 +105,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'

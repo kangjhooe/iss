@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="extracurricular-page">
+<template>    <div class="extracurricular-page">
       <div class="toolbar">
         <div class="filters filters-inline">
           <input
@@ -141,15 +139,16 @@
           </table>
         </div>
 
-        <div v-if="list.length > 0 && pagination && pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">
-            Halaman {{ pagination.current_page }} dari {{ pagination.last_page }} ({{ pagination.total }} data)
-          </span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="loadList(pagination.current_page - 1)">Sebelumnya</button>
-            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="loadList(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          v-if="pagination"
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="ekstrakurikuler"
+          @page-change="loadList"
+          @per-page-change="changePerPage"
+        />
       </div>
 
       <!-- Modal: Tambah/Edit Ekstrakurikuler -->
@@ -400,14 +399,12 @@
         @cancel="handleCancel"
         @update:show="confirmDialog.show = $event"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { extracurricularApi } from '@/api/extracurricular'
 import { teacherApi } from '@/api/teacher'
 import { semesterApi } from '@/api/semester'
@@ -426,6 +423,7 @@ const list = ref([])
 const loading = ref(true)
 const listError = ref('')
 const pagination = ref(null)
+const perPage = ref(15)
 const canManageAll = ref(true)
 const filters = ref({ search: '', status: '', semester_id: '' })
 
@@ -550,13 +548,22 @@ async function loadList(page = 1, { silent = false } = {}) {
     listError.value = ''
   }
   try {
-    const params = { page, per_page: 15 }
+    const params = { page, per_page: perPage.value }
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.semester_id) params.semester_id = filters.value.semester_id
     const res = await extracurricularApi.getAll(params)
     list.value = res.data.data || []
-    pagination.value = res.data.meta || null
+    const meta = res.data.meta
+    pagination.value = meta
+      ? {
+          current_page: meta.current_page ?? 1,
+          last_page: meta.last_page ?? 1,
+          per_page: meta.per_page ?? perPage.value,
+          total: meta.total ?? 0,
+        }
+      : null
+    if (pagination.value) perPage.value = pagination.value.per_page
     if (res.data.meta_access && typeof res.data.meta_access.can_manage_all === 'boolean') {
       canManageAll.value = res.data.meta_access.can_manage_all
     }
@@ -566,6 +573,11 @@ async function loadList(page = 1, { silent = false } = {}) {
   } finally {
     if (!silent) loading.value = false
   }
+}
+
+function changePerPage(n) {
+  perPage.value = n
+  loadList(1)
 }
 
 let debounceTimer

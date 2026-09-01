@@ -7,6 +7,7 @@ use App\Models\EmployeeAttendance;
 use App\Models\EmployeeDecree;
 use App\Models\EmployeeLeaveRequest;
 use App\Models\EmployeeStructuralPosition;
+use App\Models\Institution;
 use App\Models\StructuralPosition;
 use App\Models\TeacherMutation;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -371,6 +372,10 @@ class KepegawaianService
 
             $this->structuralDutySync->grant($employee, $position->key, $data['started_at']);
 
+            if ($position->key === 'kepala_sekolah') {
+                Institution::find($institutionId)?->syncPrincipalCache();
+            }
+
             return $assignment;
         });
     }
@@ -400,6 +405,10 @@ class KepegawaianService
         $assignment->loadMissing(['employee', 'position']);
         if ($assignment->employee && $assignment->position?->key) {
             $this->structuralDutySync->revoke($assignment->employee, $assignment->position->key);
+        }
+
+        if ($assignment->position?->key === 'kepala_sekolah') {
+            Institution::find($assignment->institution_id)?->syncPrincipalCache();
         }
 
         return $assignment->fresh([

@@ -116,28 +116,7 @@ class StudentAttendanceService
      */
     public function buildDayMismatchWarning(LessonSchedule $schedule, string $date): array
     {
-        $selectedDay = (int) Carbon::parse($date)->dayOfWeekIso;
-        $scheduledDay = (int) $schedule->day_of_week;
-
-        if ($selectedDay === $scheduledDay) {
-            return ['mismatch' => false, 'message' => null];
-        }
-
-        $subjectName = $schedule->subject?->name ?: 'Mapel';
-        $className = $schedule->schoolClass?->name ?: 'kelas';
-        $scheduledName = LessonSchedule::getDayName($scheduledDay) ?: 'hari terjadwal';
-        $selectedName = LessonSchedule::getDayName($selectedDay) ?: 'hari yang dipilih';
-
-        return [
-            'mismatch' => true,
-            'message' => sprintf(
-                '%s kelas %s dijadwalkan hari %s, tanggal yang dipilih adalah %s.',
-                $subjectName,
-                $className,
-                $scheduledName,
-                $selectedName
-            ),
-        ];
+        return ['mismatch' => false, 'message' => null];
     }
 
     /**

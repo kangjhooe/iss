@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\Schema;
 
 class PiketAccess
 {
-    public static function employeeFor(User $user): ?Employee
+    public static function employeeFor(User $user, ?int $institutionId = null): ?Employee
     {
-        return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        return InstitutionContext::employeeForInstitution($user, $institutionId);
     }
 
     public static function canManage(User $user): bool
@@ -90,15 +90,16 @@ class PiketAccess
             return false;
         }
 
-        $employee = self::employeeFor($user);
+        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user);
+        $employee = self::employeeFor($user, $resolvedInstitutionId);
         if (!$employee) {
             return false;
         }
 
         try {
             $query = PiketSchedule::query()->where('employee_id', $employee->id);
-            if ($institutionId) {
-                $query->where('institution_id', $institutionId);
+            if ($resolvedInstitutionId) {
+                $query->where('institution_id', $resolvedInstitutionId);
             }
 
             return $query->exists();
@@ -113,7 +114,8 @@ class PiketAccess
             return false;
         }
 
-        $employee = self::employeeFor($user);
+        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user);
+        $employee = self::employeeFor($user, $resolvedInstitutionId);
         if (!$employee) {
             return false;
         }
@@ -124,8 +126,8 @@ class PiketAccess
             $query = PiketSchedule::query()
                 ->where('employee_id', $employee->id)
                 ->where('day_of_week', $day);
-            if ($institutionId) {
-                $query->where('institution_id', $institutionId);
+            if ($resolvedInstitutionId) {
+                $query->where('institution_id', $resolvedInstitutionId);
             }
 
             return $query->exists();

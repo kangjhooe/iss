@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="system-settings-page">
+<template>    <div class="system-settings-page">
       <div class="page-header">
         <div>
           <h2>Pengaturan Sistem</h2>
@@ -123,13 +121,10 @@
           </table>
         </div>
       </section>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { appBrandingApi } from '@/api/appBranding'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { useAppBrandingStore } from '@/stores/appBranding'

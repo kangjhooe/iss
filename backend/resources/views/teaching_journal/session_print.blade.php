@@ -246,6 +246,7 @@
                     @include('partials.print-signature', [
                         'institution' => $institution,
                         'show_place_date' => false,
+                        'as_of_date' => $as_of_date ?? null,
                     ])
                 </div>
                 <div class="standard-signature-right">

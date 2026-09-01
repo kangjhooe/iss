@@ -85,7 +85,8 @@ class StudentController extends Controller
      *
      *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="Cari nama/NIS/NISN"),
      *     @OA\Parameter(name="class", in="query", required=false, @OA\Schema(type="string"), description="Filter kelas"),
-     *     @OA\Parameter(name="status", in="query", required=false, @OA\Schema(type="string"), description="Filter status (Aktif/Nonaktif/Lulus)"),
+     *     @OA\Parameter(name="status", in="query", required=false, @OA\Schema(type="string"), description="Filter status. Default Aktif jika kosong."),
+     *     @OA\Parameter(name="inactive", in="query", required=false, @OA\Schema(type="boolean"), description="Daftar siswa keluar (Pindah, Drop Out, Tidak Aktif)"),
      *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer"), description="Jumlah per halaman (max 100)"),
      *
      *     @OA\Response(response=200, description="Berhasil",
@@ -178,18 +179,26 @@ class StudentController extends Controller
         ]);
         $filters['with_trashed'] = filter_var($request->get('with_trashed'), FILTER_VALIDATE_BOOLEAN);
         $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
+        $filters['inactive'] = filter_var($request->get('inactive'), FILTER_VALIDATE_BOOLEAN);
 
         $hasUnassignedClass = isset($filters['class_id']) && StudentService::isUnassignedFilter($filters['class_id']);
         $hasUnassignedTingkat = isset($filters['tingkat']) && StudentService::isUnassignedFilter($filters['tingkat']);
 
-        // Semester aktif hanya sebagai default daftar umum.
-        // Jangan paksa jika class_id / academic_year_id sudah dipilih, atau filter "tanpa kelas/tingkat".
+        $status = isset($filters['status']) ? trim((string) $filters['status']) : '';
+        $isInactiveList = ! empty($filters['inactive'])
+            || ($status !== '' && $status !== 'Aktif' && strtolower($status) !== 'all');
+
+        // Semester aktif hanya sebagai default daftar siswa aktif.
+        // Jangan paksa jika class_id / academic_year_id sudah dipilih, filter "tanpa kelas/tingkat",
+        // kotak sampah, atau arsip siswa keluar (semester lama / null).
         if (
             ! isset($filters['semester_id'])
             && ! isset($filters['class_id'])
             && ! isset($filters['academic_year_id'])
             && ! $hasUnassignedClass
             && ! $hasUnassignedTingkat
+            && empty($filters['only_trashed'])
+            && ! $isInactiveList
             && $institutionId
         ) {
             $institution = \App\Models\Institution::find($institutionId);
@@ -1188,6 +1197,71 @@ class StudentController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat mengunduh dokumen',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function uploadPhoto(Request $request, $id)
+    {
+        try {
+            $student = Student::findOrFail($id);
+            if (! $this->userCanAccessStudent($request, $student)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $request->validate(
+                \App\Helpers\FileUploadRules::studentPhoto(true),
+                \App\Helpers\FileUploadRules::profilePhotoMessages()
+            );
+
+            $updated = $this->studentService->storePhoto($student, $request->file('photo'));
+
+            return response()->json([
+                'message' => 'Foto siswa berhasil diunggah',
+                'data' => new StudentResource($updated),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Failed to upload student photo', [
+                'student_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat mengunggah foto',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function deletePhoto(Request $request, $id)
+    {
+        try {
+            $student = Student::findOrFail($id);
+            if (! $this->userCanAccessStudent($request, $student)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $updated = $this->studentService->deletePhoto($student);
+
+            return response()->json([
+                'message' => 'Foto siswa dihapus',
+                'data' => new StudentResource($updated),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete student photo', [
+                'student_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat menghapus foto',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

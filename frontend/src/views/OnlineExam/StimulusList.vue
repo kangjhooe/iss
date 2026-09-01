@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="stimulus-page">
+<template>    <div class="stimulus-page">
       <header class="page-header">
         <nav class="breadcrumb">
           <router-link to="/ujian-online/bank-soal">Bank Soal</router-link>
@@ -66,14 +64,11 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { examApi } from '@/api/exam'

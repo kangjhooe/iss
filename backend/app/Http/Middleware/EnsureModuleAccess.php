@@ -35,15 +35,19 @@ class EnsureModuleAccess
             }
         }
 
-        // Kepala Lab (penanggung jawab) may use facility/inventory/schedule APIs
-        // for managing their assigned labs without full module grants.
-        // Scoped to active institution so duties at school A don't unlock APIs at school B.
+        // Kepala Lab (penanggung jawab lab) may use facility/schedule APIs without full module grants.
         if (! $hasAccess) {
-            $labModules = ['facility', 'inventory', 'schedule'];
-            $needsLabBypass = count(array_intersect($keys, $labModules)) > 0;
+            $labOnlyModules = ['facility', 'schedule'];
+            $needsLabBypass = count(array_intersect($keys, $labOnlyModules)) > 0;
             if ($needsLabBypass && $user->isLabResponsible($activeInstitutionId)) {
                 $hasAccess = true;
             }
+        }
+
+        // Penanggung jawab ruangan (semua tipe) may use inventory APIs for their rooms.
+        if (! $hasAccess && in_array('inventory', $keys, true)
+            && $user->isRoomResponsible($activeInstitutionId)) {
+            $hasAccess = true;
         }
 
         // Pembina ekskul may use extracurricular APIs for supervised clubs

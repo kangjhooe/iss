@@ -20,9 +20,9 @@ use Illuminate\Support\Collection;
  */
 class WaliKelasAccess
 {
-    public static function employeeFor(User $user): ?Employee
+    public static function employeeFor(User $user, ?int $institutionId = null): ?Employee
     {
-        return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        return InstitutionContext::employeeForInstitution($user, $institutionId);
     }
 
     /**
@@ -57,18 +57,14 @@ class WaliKelasAccess
      */
     public static function homeroomClassIds(User $user, ?int $academicYearId = null): Collection
     {
-        $employee = self::employeeFor($user);
+        $scopeInstitutionId = InstitutionContext::resolveActiveInstitutionId($user);
+        $employee = self::employeeFor($user, $scopeInstitutionId);
         if (!$employee) {
             return collect();
         }
 
         $query = SchoolClass::query()
             ->where('teacher_id', $employee->id);
-
-        $activeInstitutionId = request()->attributes->get('current_institution_id');
-        $scopeInstitutionId = $activeInstitutionId !== null && $activeInstitutionId !== ''
-            ? (int) $activeInstitutionId
-            : ($user->institution_id ? (int) $user->institution_id : null);
 
         if ($scopeInstitutionId) {
             $query->where('institution_id', $scopeInstitutionId);
@@ -150,21 +146,21 @@ class WaliKelasAccess
      */
     public static function resolveHomeroomClass(User $user, int $classId): ?SchoolClass
     {
-        $employee = self::employeeFor($user);
-        if (!$employee) {
-            return null;
-        }
-
         $class = SchoolClass::query()->where('id', $classId)->first();
         if (!$class) {
             return null;
         }
 
-        if ((int) $class->teacher_id !== (int) $employee->id) {
+        if (!InstitutionContext::canAccessInstitution($user, (int) $class->institution_id)) {
             return null;
         }
 
-        if (!InstitutionContext::canAccessInstitution($user, (int) $class->institution_id)) {
+        $employee = self::employeeFor($user, (int) $class->institution_id);
+        if (!$employee) {
+            return null;
+        }
+
+        if ((int) $class->teacher_id !== (int) $employee->id) {
             return null;
         }
 

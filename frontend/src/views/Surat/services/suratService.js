@@ -36,6 +36,12 @@ export const suratService = {
   publish(id, data = {}) {
     return api.post(`/v1/surat/${id}/terbitkan`, data)
   },
+  letterheadContext() {
+    return api.get('/v1/surat/letterhead-context')
+  },
+  classes(params = {}) {
+    return api.get('/v1/surat/classes', { params })
+  },
   students(params = {}) {
     return api.get('/v1/surat/students', { params })
   },

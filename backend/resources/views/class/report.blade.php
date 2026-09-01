@@ -220,7 +220,7 @@
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>
         <div class="standard-signature-right">
-            @include('partials.print-signature', ['institution' => $institution, 'date' => $generated_at->locale('id')->translatedFormat('d F Y')])
+            @include('partials.print-signature', ['institution' => $institution, 'date' => $generated_at->locale('id')->translatedFormat('d F Y'), 'as_of_date' => $generated_at])
         </div>
     </div>
 </body>

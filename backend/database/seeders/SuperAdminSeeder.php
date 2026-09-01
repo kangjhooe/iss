@@ -3,9 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class SuperAdminSeeder extends Seeder
 {
@@ -14,34 +12,76 @@ class SuperAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        // Cek apakah super admin sudah ada
-        $existingSuperAdmin = User::where('email', 'superadmin@iss.id')->first();
-        
-        if (!$existingSuperAdmin) {
+        $email = trim((string) config('super_admin.email'));
+        $name = trim((string) config('super_admin.name')) ?: 'Super Admin';
+        $password = (string) config('super_admin.password');
+        $resetPassword = (bool) config('super_admin.reset_password');
+
+        if ($email === '') {
+            $this->command->error('SUPER_ADMIN_EMAIL belum di-set di .env.');
+
+            return;
+        }
+
+        $existing = User::where('email', $email)->first();
+
+        if (! $existing) {
+            if ($password === '') {
+                $this->command->error('SUPER_ADMIN_PASSWORD wajib di-set di .env untuk membuat Super Admin.');
+
+                return;
+            }
+
             User::create([
                 'institution_id' => null,
-                'name' => 'Super Admin',
-                'email' => 'superadmin@iss.id',
-                'password' => Hash::make('admin123'),
+                'name' => $name,
+                'email' => $email,
+                'password' => $password,
                 'role' => 'super_admin',
                 'email_verified_at' => now(),
             ]);
-            
-            $this->command->info('Super Admin berhasil dibuat!');
-            $this->command->info('Email: superadmin@iss.id');
-            $this->command->info('Password: admin123');
-        } else {
-            $existingSuperAdmin->update([
-                'password' => Hash::make('admin123'),
-                'role' => 'super_admin',
-                'email_verified_at' => $existingSuperAdmin->email_verified_at ?? now(),
-                'failed_login_attempts' => 0,
-                'locked_until' => null,
-            ]);
 
-            $this->command->warn('Super Admin sudah ada. Password direset ke default.');
-            $this->command->info('Email: superadmin@iss.id');
-            $this->command->info('Password: admin123');
+            $this->command->info("Super Admin berhasil dibuat ({$email}).");
+
+            return;
+        }
+
+        if ($existing->role !== 'super_admin') {
+            $this->command->warn("User {$email} sudah ada dengan role {$existing->role}. Tidak diubah.");
+
+            return;
+        }
+
+        $updates = [];
+
+        if ($existing->name !== $name) {
+            $updates['name'] = $name;
+        }
+
+        if (! $existing->email_verified_at) {
+            $updates['email_verified_at'] = now();
+        }
+
+        if ($resetPassword) {
+            if ($password === '') {
+                $this->command->error('SUPER_ADMIN_RESET_PASSWORD=true membutuhkan SUPER_ADMIN_PASSWORD di .env.');
+
+                return;
+            }
+
+            $updates['password'] = $password;
+            $updates['failed_login_attempts'] = 0;
+            $updates['locked_until'] = null;
+        }
+
+        if ($updates !== []) {
+            $existing->forceFill($updates)->save();
+        }
+
+        if ($resetPassword) {
+            $this->command->warn("Password Super Admin ({$email}) direset dari SUPER_ADMIN_PASSWORD.");
+        } else {
+            $this->command->info("Super Admin sudah ada ({$email}). Password tidak diubah.");
         }
     }
 }

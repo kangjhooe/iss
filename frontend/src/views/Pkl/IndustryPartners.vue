@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="partners-page">
+<template>    <div class="partners-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-text">
@@ -103,13 +101,10 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import AddressCascade from '@/components/AddressCascade.vue'
 import { industryPartnersApi } from '@/api/industryPartners'

@@ -73,7 +73,7 @@ class TeacherController extends Controller
                 };
             }
 
-            $teachers = $query->select(['id', 'institution_id', 'nik', 'type', 'nip', 'nuptk', 'name', 'gender', 'subject', 'status', 'employment_status', 'notes', 'created_at'])
+            $teachers = $query->select(['id', 'institution_id', 'nik', 'type', 'nip', 'nuptk', 'name', 'gender', 'subject', 'status', 'employment_status', 'notes', 'photo_path', 'created_at'])
                 ->with($relations)
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);

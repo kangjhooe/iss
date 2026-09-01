@@ -149,6 +149,7 @@ class TeacherTodaySessionPdfTest extends TestCase
             'employee_id' => $this->teacher->id,
             'journal_date' => $today->toDateString(),
             'period' => 1,
+            'penilaian_index' => 1,
             'material_taught' => 'Sistem gerak pada manusia',
             'attendance_notes' => 'Semua hadir',
         ]);

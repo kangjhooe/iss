@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\Institution;
 use App\Models\KopSurat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,8 @@ class KopSuratController extends Controller
         if (!$institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
         }
+
+        $this->ensureDefaultKop($institutionId);
 
         $query = KopSurat::forInstitution($institutionId)->orderByDesc('is_default')->orderBy('nama');
 
@@ -195,5 +198,35 @@ class KopSuratController extends Controller
             return true;
         }
         return $request->user()->institution_id === $institutionId;
+    }
+
+    /**
+     * Pastikan ada record kop default yang mengacu ke layout standar institusi.
+     */
+    private function ensureDefaultKop(int $institutionId): void
+    {
+        if (!Institution::where('id', $institutionId)->exists()) {
+            return;
+        }
+
+        $default = KopSurat::query()
+            ->where('institution_id', $institutionId)
+            ->where('is_default', true)
+            ->first();
+
+        if ($default) {
+            if ($default->nama !== 'Kop Standar Institusi') {
+                $default->update(['nama' => 'Kop Standar Institusi']);
+            }
+            return;
+        }
+
+        KopSurat::create([
+            'institution_id' => $institutionId,
+            'nama' => 'Kop Standar Institusi',
+            'status' => 'aktif',
+            'tampilkan_garis' => true,
+            'is_default' => true,
+        ]);
     }
 }

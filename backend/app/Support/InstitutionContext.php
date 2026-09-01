@@ -42,6 +42,41 @@ class InstitutionContext
     }
 
     /**
+     * Resolve employee record for user at a specific institution.
+     * Supports guru dengan pegawai terpisah per sekolah (email sama, employee_id beda)
+     * serta assignment non-induk ke sekolah lain.
+     */
+    public static function employeeForInstitution(User $user, ?int $institutionId = null, ?Request $request = null): ?Employee
+    {
+        if (!$user->email) {
+            return self::employeeFor($user);
+        }
+
+        $request = $request ?? request();
+        $institutionId = $institutionId ?? self::resolveActiveInstitutionId($user, $request);
+
+        $baseQuery = Employee::query()->where('email', $user->email);
+
+        if ($institutionId) {
+            $direct = (clone $baseQuery)->where('institution_id', $institutionId)->first();
+            if ($direct) {
+                return $direct;
+            }
+
+            $assigned = (clone $baseQuery)
+                ->whereHas('assignments', function ($q) use ($institutionId) {
+                    $q->approved()->where('institution_id', $institutionId);
+                })
+                ->first();
+            if ($assigned) {
+                return $assigned;
+            }
+        }
+
+        return self::employeeFor($user);
+    }
+
+    /**
      * Sekolah yang boleh diakses user: induk + assignment non-induk approved.
      *
      * @return Collection<int, array{id:int,name:?string,npsn:?string,affiliation:string}>

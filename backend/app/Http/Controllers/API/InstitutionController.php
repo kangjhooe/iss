@@ -209,6 +209,8 @@ class InstitutionController extends Controller
                 unset($validated['type']);
             }
 
+            unset($validated['principal_name'], $validated['principal_nip']);
+
             $institution->update($validated);
 
             Log::info('Institution updated', [

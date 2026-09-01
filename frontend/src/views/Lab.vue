@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="lab-page">
+<template>    <div class="lab-page">
       <div class="tab-shell">
         <nav class="section-nav" role="tablist" aria-label="Modul Lab">
           <button
@@ -702,13 +700,10 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'

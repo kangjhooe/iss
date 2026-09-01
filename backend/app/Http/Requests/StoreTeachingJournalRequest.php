@@ -21,6 +21,7 @@ class StoreTeachingJournalRequest extends FormRequest
             'employee_id' => 'nullable|exists:employee,id',
             'journal_date' => 'required|date',
             'period' => 'nullable|integer|min:1|max:20',
+            'penilaian_index' => 'nullable|integer|min:1|max:99',
             'material_taught' => 'nullable|string|max:65535',
             'attendance_notes' => 'nullable|string|max:65535',
             'notes' => 'nullable|string|max:65535',

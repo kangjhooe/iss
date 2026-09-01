@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="billing-page">
+<template>    <div class="billing-page">
       <div class="page-header">
         <div>
           <h2>Paket &amp; Add-on</h2>
@@ -42,14 +40,11 @@
           </ul>
         </section>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import { billingApi } from '@/api/billing'
 import { useAuthStore } from '@/stores/auth'
 

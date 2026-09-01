@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="dashboard">
+<template>    <div class="dashboard">
       <!-- Welcome -->
       <div class="welcome-section">
         <div class="welcome-content">
@@ -170,6 +168,54 @@
         </router-link>
       </div>
 
+      <!-- Snapshot kelas wali -->
+      <section v-if="homeroomClasses.length" class="wali-snapshot">
+        <div class="section-header">
+          <h2>Kelas Wali</h2>
+          <div class="wali-snapshot-actions">
+            <select
+              v-if="homeroomClasses.length > 1"
+              class="wali-class-select"
+              :value="waliClassId"
+              @change="onWaliClassChange($event.target.value)"
+            >
+              <option v-for="c in homeroomClasses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+            </select>
+            <router-link :to="waliHubLink" class="link-button">Buka hub wali</router-link>
+          </div>
+        </div>
+        <p v-if="waliDashError" class="wali-snapshot-error" role="alert">
+          {{ waliDashError }}
+          <button type="button" class="retry-btn" @click="loadWaliSnapshot">Coba lagi</button>
+        </p>
+        <div v-else class="charts-grid">
+          <AppChart
+            title="Kehadiran hari ini"
+            :subtitle="attendanceChartSubtitle"
+            type="doughnut"
+            :chart-data="attendanceChart"
+            :options="attendanceChartOptions"
+            :empty-text="waliDashLoading ? 'Memuat kehadiran…' : 'Belum ada data kehadiran.'"
+          >
+            <template #actions>
+              <router-link :to="waliAbsensiLink" class="chart-link">Absensi →</router-link>
+            </template>
+          </AppChart>
+          <AppChart
+            title="Kondisi kelas"
+            :subtitle="conditionChartSubtitle"
+            type="bar"
+            :chart-data="conditionChart"
+            :options="conditionChartOptions"
+            :empty-text="waliDashLoading ? 'Memuat kondisi kelas…' : 'Belum ada data kelas.'"
+          >
+            <template #actions>
+              <router-link :to="waliHubLink" class="chart-link">Detail →</router-link>
+            </template>
+          </AppChart>
+        </div>
+      </section>
+
       <!-- Quick Actions -->
       <div v-if="quickActions.length" class="quick-actions">
         <div class="section-header">
@@ -250,13 +296,21 @@
                       {{ classItem.room?.name || 'Tanpa ruangan' }}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    class="class-students-btn"
-                    @click="openStudentsModal(classItem)"
-                  >
-                    Lihat siswa
-                  </button>
+                  <div class="class-card-actions">
+                    <router-link
+                      :to="{ path: '/teacher/wali', query: { class_id: classItem.id, panel: 'siswa' } }"
+                      class="class-students-btn class-hub-btn"
+                    >
+                      Hub wali
+                    </router-link>
+                    <button
+                      type="button"
+                      class="class-students-btn"
+                      @click="openStudentsModal(classItem)"
+                    >
+                      Lihat siswa
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -432,21 +486,23 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
+import { useRouter } from 'vue-router'
+import AppChart from '@/components/AppChart.vue'
 import { teacherApi } from '@/api/teacher'
+import { waliKelasApi } from '@/api/waliKelas'
 import { myTeacherAppreciationApi } from '@/api/teacherAppreciation'
 import correspondenceApi from '@/api/correspondence'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { doughnutFromEntries, ATTENDANCE_COLORS } from '@/composables/useChart'
 
 const authStore = useAuthStore()
 const toast = useToast()
+const router = useRouter()
 
 const loading = ref(true)
 const pointsLoading = ref(true)
@@ -468,6 +524,11 @@ const homeroomStudents = ref([])
 const studentsLoading = ref(false)
 const studentsError = ref('')
 
+const waliClassId = ref('')
+const waliDash = ref(null)
+const waliDashLoading = ref(false)
+const waliDashError = ref('')
+
 const teacher = computed(() => dashboardData.value.teacher)
 const summary = computed(() => dashboardData.value.summary || {})
 const classes = computed(() => dashboardData.value.classes || [])
@@ -483,6 +544,151 @@ const displayInstitutionName = computed(() =>
   || authStore.activeInstitution?.name
   || ''
 )
+
+const waliClassName = computed(() => {
+  const found = homeroomClasses.value.find((c) => String(c.id) === String(waliClassId.value))
+  return found?.name || ''
+})
+
+const waliHubLink = computed(() => ({
+  path: '/teacher/wali',
+  query: { class_id: waliClassId.value || undefined, panel: 'siswa' },
+}))
+
+const waliAbsensiLink = computed(() => ({
+  path: '/teacher/wali',
+  query: { class_id: waliClassId.value || undefined, panel: 'absensi' },
+}))
+
+const waliConditionItems = computed(() => {
+  const d = waliDash.value
+  if (!d || !waliClassId.value) return []
+  const q = (panel) => ({ path: '/teacher/wali', query: { class_id: waliClassId.value, panel } })
+  return [
+    { label: 'Alpa hari ini', value: Number(d.attendance_today?.alpha || 0), color: '#ef4444', to: q('absensi') },
+    { label: 'Skor BK tinggi', value: Number(d.bk_high_scores?.count || 0), color: '#f59e0b', to: q('siswa') },
+    { label: 'Nilai belum lengkap', value: Number(d.grades_incomplete || 0), color: '#0284c7', to: q('nilai') },
+    { label: 'Belum punya akun', value: Number(d.accounts?.missing_account || 0), color: '#64748b', to: q('siswa') },
+  ]
+})
+
+const attendanceChartSubtitle = computed(() => {
+  if (waliDashLoading.value && !waliDash.value) return 'Memuat…'
+  const d = waliDash.value
+  if (!d) return ''
+  const total = Number(d.students?.total || 0)
+  const recorded = Number(d.attendance_today?.students_recorded || 0)
+  const name = waliClassName.value
+  if (!total) return name ? `${name} · belum ada siswa aktif` : 'Belum ada siswa aktif'
+  return `${name ? name + ' · ' : ''}${formatNumber(recorded)} dari ${formatNumber(total)} tercatat hari ini`
+})
+
+const attendanceChart = computed(() => {
+  const d = waliDash.value
+  if (!d) return null
+  const total = Number(d.students?.total || 0)
+  const att = d.attendance_today || {}
+  const recorded = Number(att.students_recorded || 0)
+  const unrecorded = Math.max(0, total - recorded)
+  return doughnutFromEntries([
+    { label: `Hadir (${att.hadir || 0})`, value: att.hadir || 0, color: ATTENDANCE_COLORS.hadir },
+    { label: `Izin (${att.izin || 0})`, value: att.izin || 0, color: ATTENDANCE_COLORS.izin },
+    { label: `Sakit (${att.sakit || 0})`, value: att.sakit || 0, color: ATTENDANCE_COLORS.sakit },
+    { label: `Alpa (${att.alpha || 0})`, value: att.alpha || 0, color: ATTENDANCE_COLORS.alpha },
+    { label: `Dinas luar (${att.dinas_luar || 0})`, value: att.dinas_luar || 0, color: ATTENDANCE_COLORS.dinas_luar },
+    { label: `Belum tercatat (${unrecorded})`, value: unrecorded, color: '#64748b' },
+  ])
+})
+
+const attendanceChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+  onClick: () => {
+    if (waliClassId.value) router.push(waliAbsensiLink.value)
+  },
+}))
+
+const conditionChartSubtitle = computed(() => {
+  if (waliDashLoading.value && !waliDash.value) return 'Memuat…'
+  const items = waliConditionItems.value
+  if (!items.length) return ''
+  const flagged = items.reduce((sum, item) => sum + (item.value > 0 ? 1 : 0), 0)
+  if (!flagged) return 'Tidak ada yang perlu ditindaklanjuti'
+  return `${flagged} hal perlu ditindaklanjuti`
+})
+
+const conditionChart = computed(() => {
+  const items = waliConditionItems.value
+  if (!items.length) return null
+  return {
+    labels: items.map((item) => item.label),
+    datasets: [{
+      label: 'Siswa',
+      data: items.map((item) => item.value),
+      backgroundColor: items.map((item) => item.color),
+      borderRadius: 6,
+      maxBarThickness: 28,
+    }],
+  }
+})
+
+const conditionChartOptions = computed(() => ({
+  indexAxis: 'y',
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { beginAtZero: true, ticks: { precision: 0 }, grid: { display: false } },
+    y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+  },
+  onClick: (_evt, elements) => {
+    if (!elements?.length) return
+    const item = waliConditionItems.value[elements[0].index]
+    if (item?.to) router.push(item.to)
+  },
+}))
+
+function syncWaliClassId() {
+  const list = homeroomClasses.value
+  if (!list.length) {
+    waliClassId.value = ''
+    waliDash.value = null
+    waliDashError.value = ''
+    return
+  }
+  const ids = new Set(list.map((c) => String(c.id)))
+  if (!ids.has(String(waliClassId.value))) {
+    waliClassId.value = String(list[0].id)
+  }
+}
+
+function onWaliClassChange(id) {
+  waliClassId.value = String(id)
+  loadWaliSnapshot()
+}
+
+async function loadWaliSnapshot() {
+  if (!waliClassId.value) {
+    waliDash.value = null
+    waliDashError.value = ''
+    return
+  }
+  waliDashLoading.value = true
+  waliDashError.value = ''
+  try {
+    const res = await waliKelasApi.getDashboard(waliClassId.value)
+    waliDash.value = res.data?.data || null
+  } catch (error) {
+    waliDash.value = null
+    waliDashError.value =
+      error.formattedMessage ||
+      error.response?.data?.message ||
+      'Gagal memuat snapshot kelas wali.'
+  } finally {
+    waliDashLoading.value = false
+  }
+}
 
 const canAccessModule = (moduleKey) => {
   const role = authStore.user?.role
@@ -559,6 +765,15 @@ const actionIconSvg = (name) => {
 
 const quickActions = computed(() => {
   const actions = []
+  if (homeroomClasses.value.length) {
+    actions.push({
+      to: '/teacher/wali',
+      label: 'Kelas Wali',
+      icon: 'users',
+      tone: 'success',
+      badge: waliClassName.value || homeroomClasses.value.map((c) => c.name).filter(Boolean).join(', ') || null,
+    })
+  }
   const hasTeachingAssignments = (authStore.user?.teaching_assignments || []).length > 0
   if (hasTeachingAssignments && (canAccessModule('teaching_journal') || canAccessModule('grade_book'))) {
     actions.push({
@@ -567,6 +782,13 @@ const quickActions = computed(() => {
       icon: 'journal',
       tone: 'primary',
       badge: 'Absen · Jurnal · Nilai',
+    })
+    actions.push({
+      to: '/teacher/jadwal',
+      label: 'Jadwal Mengajar',
+      icon: 'calendar',
+      tone: 'neutral',
+      badge: 'Mingguan',
     })
   }
   if (canAccessModule('teaching_journal')) {
@@ -695,6 +917,8 @@ const loadDashboard = async () => {
   try {
     const response = await teacherApi.getDashboard()
     dashboardData.value = response.data?.data || dashboardData.value
+    syncWaliClassId()
+    if (waliClassId.value) await loadWaliSnapshot()
   } catch (error) {
     console.error('Error loading teacher dashboard:', error)
     loadError.value =
@@ -1162,6 +1386,66 @@ onMounted(() => {
   display: block;
 }
 
+.wali-snapshot {
+  margin-bottom: 20px;
+}
+
+.wali-snapshot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wali-class-select {
+  font-size: 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #334155;
+}
+
+.wali-snapshot-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.charts-grid :deep(.app-chart-wrap) {
+  cursor: pointer;
+}
+
+.charts-grid :deep(.app-chart-wrap:not(.is-pie)) {
+  height: 260px;
+}
+
+.chart-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.chart-link:hover {
+  text-decoration: underline;
+}
+
 /* Quick actions */
 .quick-actions {
   background: white;
@@ -1473,11 +1757,36 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
+  text-align: center;
+  text-decoration: none;
+}
+
+.class-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.class-card-actions .class-students-btn {
+  margin-top: 0;
 }
 
 .class-students-btn:hover {
   background: #f0fdf4;
   border-color: #86efac;
+}
+
+.class-hub-btn {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
+}
+
+.class-hub-btn:hover {
+  background: #047857;
+  border-color: #047857;
+  color: #fff;
 }
 
 /* Attention panel */
@@ -1732,10 +2041,47 @@ onMounted(() => {
   font-size: 13px;
 }
 
-/* Responsive */
+/* Laptop 1366x768: rapat tanpa membuang lebar untuk chart */
+@media (max-width: 1440px) {
+  .welcome-section {
+    padding: 10px 16px;
+    margin-bottom: 14px;
+  }
+
+  .piket-card {
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    gap: 12px;
+  }
+
+  .stats-grid {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .content-grid.has-aside {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+  }
+
+  .quick-actions,
+  .classes-section,
+  .attention-panel {
+    padding: 14px 16px;
+  }
+}
+
 @media (max-width: 1100px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
   }
 
   .content-grid {
@@ -1776,6 +2122,10 @@ onMounted(() => {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
   }
 
   .stat-card {

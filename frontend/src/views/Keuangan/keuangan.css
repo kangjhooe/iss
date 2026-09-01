@@ -349,3 +349,17 @@
     justify-content: center;
   }
 }
+
+.text-danger { color: #dc2626; }
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}

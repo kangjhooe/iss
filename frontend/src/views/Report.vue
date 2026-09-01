@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="report-page">
+<template>    <div class="report-page">
       <!-- Toolbar -->
       <div class="tab-header">
         <div class="filters filters-inline"></div>
@@ -478,13 +476,10 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="admins-page">
+<template>    <div class="admins-page">
       <div class="page-header">
         <div>
           <h2>Admin Institusi</h2>
@@ -209,14 +207,11 @@
         :hint="accountCredentials?.hint"
         @close="accountCredentials = null"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'

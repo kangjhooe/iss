@@ -7,7 +7,10 @@
             'role' => 'Kepala Perpustakaan',
             'name' => $kepala_perpustakaan?->name ?? '',
             'nip' => $kepala_perpustakaan?->nip ?? '',
-            'date' => $signature_date ?? now()->locale('id')->translatedFormat('d F Y'),
+            'date' => isset($as_of_date)
+                ? \Carbon\Carbon::parse($as_of_date)->locale('id')->translatedFormat('d F Y')
+                : ($signature_date ?? now()->locale('id')->translatedFormat('d F Y')),
+            'as_of_date' => $as_of_date ?? null,
         ])
     </div>
 </div>

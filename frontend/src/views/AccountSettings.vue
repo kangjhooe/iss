@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="page account-settings-page">
+<template>    <div class="page account-settings-page">
       <p class="page-desc">Ubah nama, email, atau sandi akun Anda.</p>
 
       <div class="settings-grid">
@@ -117,17 +115,13 @@
           </form>
         </section>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 import { useToast } from '@/composables/useToast'
-import Layout from '@/components/Layout.vue'
-
 const toast = useToast()
 const authStore = useAuthStore()
 

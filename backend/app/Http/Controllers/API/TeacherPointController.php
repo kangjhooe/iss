@@ -353,7 +353,10 @@ class TeacherPointController extends Controller
 
         $institutionPayload = null;
         if ($institution) {
+            $principal = $institution->resolvedPrincipal();
             $institutionPayload = $institution->toArray();
+            $institutionPayload['principal_name'] = $principal['name'];
+            $institutionPayload['principal_nip'] = $principal['nip'];
             $institutionPayload['logo'] = $institution->logo
                 ? asset('storage/' . $institution->logo)
                 : null;

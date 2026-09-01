@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="uks-page">
+<template>    <div class="uks-page">
       <div class="toolbar">
         <div class="main-tabs">
           <button type="button" :class="['main-tab', { active: activeTab === 'stock' }]" @click="activeTab = 'stock'; loadMedicines()">
@@ -110,13 +108,15 @@
             </tbody>
           </table>
         </div>
-        <div v-if="pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">Halaman {{ pagination.current_page }} / {{ pagination.last_page }} · {{ pagination.total }} data</span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
-            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="goToPage(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="obat"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </template>
 
       <template v-else>
@@ -166,13 +166,15 @@
             </tbody>
           </table>
         </div>
-        <div v-if="txPagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">Halaman {{ txPagination.current_page }} / {{ txPagination.last_page }}</span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="txPagination.current_page <= 1" @click="goToTxPage(txPagination.current_page - 1)">Sebelumnya</button>
-            <button type="button" class="btn-page" :disabled="txPagination.current_page >= txPagination.last_page" @click="goToTxPage(txPagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          :page="txPagination.current_page"
+          :last-page="txPagination.last_page"
+          :per-page="txPagination.per_page"
+          :total="txPagination.total"
+          item-label="transaksi"
+          @page-change="goToTxPage"
+          @per-page-change="changeTxPerPage"
+        />
       </template>
 
       <div v-if="showFormModal" class="modal-overlay" @click.self="showFormModal = false">
@@ -261,16 +263,14 @@
         @confirm="confirmDelete"
         @cancel="deleteTarget = null"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { uksMedicineApi } from '@/api/uks'
 import { useToast } from '@/composables/useToast'
 import '@/assets/module-page.css'
@@ -406,8 +406,8 @@ async function loadMedicines() {
       pagination.value = {
         current_page: payload.meta.current_page,
         last_page: payload.meta.last_page,
-        per_page: payload.meta.per_page,
-        total: payload.meta.total,
+        per_page: payload.meta.per_page ?? pagination.value.per_page,
+        total: payload.meta.total ?? 0,
       }
     }
   } catch (e) {
@@ -442,8 +442,8 @@ async function loadTransactions() {
       txPagination.value = {
         current_page: payload.meta.current_page,
         last_page: payload.meta.last_page,
-        per_page: payload.meta.per_page,
-        total: payload.meta.total,
+        per_page: payload.meta.per_page ?? txPagination.value.per_page,
+        total: payload.meta.total ?? 0,
       }
     }
   } catch (e) {
@@ -459,8 +459,20 @@ function goToPage(page) {
   loadMedicines()
 }
 
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadMedicines()
+}
+
 function goToTxPage(page) {
   txPagination.value.current_page = page
+  loadTransactions()
+}
+
+function changeTxPerPage(n) {
+  txPagination.value.per_page = n
+  txPagination.value.current_page = 1
   loadTransactions()
 }
 

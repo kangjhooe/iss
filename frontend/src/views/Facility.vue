@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="facility-page">
+<template>    <div class="facility-page">
       <div class="tab-shell">
         <nav class="section-nav" role="tablist" aria-label="Sarana prasarana">
           <button type="button" @click="activeTab = 'land'" :class="['sec-btn', { active: activeTab === 'land' }]">
@@ -644,13 +642,10 @@
           </div>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'
 import { useToast } from '@/composables/useToast'

@@ -18,12 +18,16 @@
           <tr v-for="(teacher, index) in teachers" :key="teacher.id">
             <td class="col-no">{{ index + 1 }}</td>
             <td>
-              <div class="name-cell">
+              <div class="name-row">
+                <img v-if="teacher.photo_url" :src="teacher.photo_url" class="name-avatar" :alt="teacher.name" />
+                <span v-else class="name-avatar name-avatar-fallback">{{ (teacher.name || 'P').charAt(0).toUpperCase() }}</span>
+                <div class="name-cell">
                 <span class="name-text">{{ dash(teacher.name) }}</span>
                 <div class="name-meta">
                   <span v-if="teacher.type && teacher.type !== 'Guru'" class="meta-chip">{{ teacher.type }}</span>
                   <span v-if="teacher.affiliation === 'non_induk'" class="meta-chip meta-chip-warn">Non-Induk</span>
                   <span v-if="teacher.gender" class="meta-muted">{{ teacher.gender === 'L' ? 'L' : teacher.gender === 'P' ? 'P' : '' }}</span>
+                </div>
                 </div>
               </div>
             </td>
@@ -56,6 +60,20 @@
                   </button>
                 </template>
                 <template v-else>
+                  <button
+                    v-if="canImpersonate && teacher.has_user_account"
+                    type="button"
+                    @click="$emit('impersonate', teacher)"
+                    class="btn-action btn-login"
+                    :disabled="impersonateBusyId === teacher.id"
+                    title="Masuk sebagai guru ini"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.4696 21 15.936 21H8C6.93913 21 5.92172 20.5786 5.17157 19.8284C4.42143 19.0783 4 18.0609 4 17V10C4 8.93913 4.42143 7.92172 5.17157 7.17157C5.92172 6.42143 6.93913 6 8 6H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
                   <button type="button" @click="$emit('view', teacher)" class="btn-action btn-view" title="Lihat biodata">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -87,6 +105,8 @@
       <div v-for="teacher in teachers" :key="teacher.id" class="teacher-card">
         <div class="teacher-card-main">
           <div class="teacher-card-top">
+            <img v-if="teacher.photo_url" :src="teacher.photo_url" class="name-avatar" :alt="teacher.name" />
+            <span v-else class="name-avatar name-avatar-fallback">{{ (teacher.name || 'P').charAt(0).toUpperCase() }}</span>
             <h3 class="teacher-card-name">{{ dash(teacher.name) }}</h3>
             <span class="status-badge" :class="getStatusClass(teacher.status)">
               {{ teacher.status || '—' }}
@@ -114,6 +134,20 @@
             </button>
           </template>
           <template v-else>
+            <button
+              v-if="canImpersonate && teacher.has_user_account"
+              type="button"
+              @click="$emit('impersonate', teacher)"
+              class="btn-action btn-login"
+              :disabled="impersonateBusyId === teacher.id"
+              title="Masuk sebagai guru ini"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.4696 21 15.936 21H8C6.93913 21 5.92172 20.5786 5.17157 19.8284C4.42143 19.0783 4 18.0609 4 17V10C4 8.93913 4.42143 7.92172 5.17157 7.17157C5.92172 6.42143 6.93913 6 8 6H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
             <button type="button" @click="$emit('view', teacher)" class="btn-action btn-view" title="Lihat">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -174,6 +208,14 @@ defineProps({
     type: Boolean,
     default: false
   },
+  canImpersonate: {
+    type: Boolean,
+    default: false
+  },
+  impersonateBusyId: {
+    type: [Number, String],
+    default: null
+  },
   getTeacherSubject: {
     type: Function,
     required: true
@@ -184,7 +226,7 @@ defineProps({
   }
 })
 
-defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'force-delete'])
+defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'force-delete', 'impersonate'])
 </script>
 
 <style scoped>
@@ -244,6 +286,32 @@ defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'force-delete'])
 
 .data-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.name-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #e2e8f0;
+}
+
+.name-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  background: #ccfbf1;
 }
 
 .name-cell {
@@ -366,14 +434,21 @@ defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'force-delete'])
 
 .btn-view,
 .btn-edit,
-.btn-restore {
+.btn-restore,
+.btn-login {
   color: #059669;
 }
 
 .btn-view:hover,
 .btn-edit:hover,
-.btn-restore:hover {
+.btn-restore:hover,
+.btn-login:hover {
   background: rgba(5, 150, 105, 0.1);
+}
+
+.btn-login:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-delete {
@@ -408,10 +483,14 @@ defineEmits(['view', 'edit', 'delete', 'add', 'restore', 'force-delete'])
 
 .teacher-card-top {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   margin-bottom: 6px;
+}
+
+.teacher-card-top .status-badge {
+  margin-left: auto;
 }
 
 .teacher-card-name {

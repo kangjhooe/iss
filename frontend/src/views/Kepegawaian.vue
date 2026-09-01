@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="kepegawaian-page">
+<template>    <div class="kepegawaian-page">
       <header class="page-header">
         <div class="header-text">
           <h1 class="page-title">Cuti, SK &amp; Jabatan</h1>
@@ -163,13 +161,15 @@
               </div>
             </article>
           </div>
-          <div v-if="leavePage.last_page > 1" class="pagination">
-            <span class="pagination-info">{{ pageRange(leavePage) }}</span>
-            <div class="pagination-buttons">
-              <button type="button" class="btn-page" :disabled="leavePage.current_page <= 1" @click="loadLeaves(leavePage.current_page - 1)">Sebelumnya</button>
-              <button type="button" class="btn-page" :disabled="leavePage.current_page >= leavePage.last_page" @click="loadLeaves(leavePage.current_page + 1)">Selanjutnya</button>
-            </div>
-          </div>
+          <PaginationBar
+            :page="leavePage.current_page"
+            :last-page="leavePage.last_page"
+            :per-page="leavePage.per_page"
+            :total="leavePage.total"
+            item-label="cuti"
+            @page-change="loadLeaves"
+            @per-page-change="changeLeavePerPage"
+          />
         </template>
       </template>
 
@@ -255,13 +255,15 @@
               </div>
             </article>
           </div>
-          <div v-if="decreePage.last_page > 1" class="pagination">
-            <span class="pagination-info">{{ pageRange(decreePage) }}</span>
-            <div class="pagination-buttons">
-              <button type="button" class="btn-page" :disabled="decreePage.current_page <= 1" @click="loadDecrees(decreePage.current_page - 1)">Sebelumnya</button>
-              <button type="button" class="btn-page" :disabled="decreePage.current_page >= decreePage.last_page" @click="loadDecrees(decreePage.current_page + 1)">Selanjutnya</button>
-            </div>
-          </div>
+          <PaginationBar
+            :page="decreePage.current_page"
+            :last-page="decreePage.last_page"
+            :per-page="decreePage.per_page"
+            :total="decreePage.total"
+            item-label="SK"
+            @page-change="loadDecrees"
+            @per-page-change="changeDecreePerPage"
+          />
         </template>
       </template>
 
@@ -355,13 +357,15 @@
               <button v-if="item.is_active" type="button" class="btn-sm btn-ghost" @click="openEndPositionModal(item)">Akhiri</button>
             </article>
           </div>
-          <div v-if="positionPage.last_page > 1" class="pagination">
-            <span class="pagination-info">{{ pageRange(positionPage) }}</span>
-            <div class="pagination-buttons">
-              <button type="button" class="btn-page" :disabled="positionPage.current_page <= 1" @click="loadPositions(positionPage.current_page - 1)">Sebelumnya</button>
-              <button type="button" class="btn-page" :disabled="positionPage.current_page >= positionPage.last_page" @click="loadPositions(positionPage.current_page + 1)">Selanjutnya</button>
-            </div>
-          </div>
+          <PaginationBar
+            :page="positionPage.current_page"
+            :last-page="positionPage.last_page"
+            :per-page="positionPage.per_page"
+            :total="positionPage.total"
+            item-label="jabatan"
+            @page-change="loadPositions"
+            @per-page-change="changePositionPerPage"
+          />
         </template>
       </template>
 
@@ -698,15 +702,13 @@
         @confirm="runConfirm"
         @cancel="confirm.show = false"
       />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { employeeApi } from '@/api/teacher'
@@ -863,7 +865,7 @@ function applyMeta(target, payload) {
   const meta = payload?.meta || {}
   target.current_page = meta.current_page ?? 1
   target.last_page = meta.last_page ?? 1
-  target.per_page = meta.per_page ?? 15
+  target.per_page = meta.per_page ?? target.per_page
   target.total = meta.total ?? (payload?.data || []).length
 }
 
@@ -927,7 +929,7 @@ async function loadLeaves(page = 1) {
     const { data } = await employeeLeaveApi.getAll({
       ...leaveFilters,
       page,
-      per_page: 15,
+      per_page: leavePage.per_page || 15,
     })
     leaves.value = data.data || []
     applyMeta(leavePage, data)
@@ -936,6 +938,11 @@ async function loadLeaves(page = 1) {
   } finally {
     loadingLeaves.value = false
   }
+}
+
+function changeLeavePerPage(n) {
+  leavePage.per_page = n
+  loadLeaves(1)
 }
 
 function debounceLoadLeaves() {
@@ -949,7 +956,7 @@ async function loadDecrees(page = 1) {
     const { data } = await employeeDecreeApi.getAll({
       ...decreeFilters,
       page,
-      per_page: 15,
+      per_page: decreePage.per_page || 15,
     })
     decrees.value = data.data || []
     applyMeta(decreePage, data)
@@ -958,6 +965,11 @@ async function loadDecrees(page = 1) {
   } finally {
     loadingDecrees.value = false
   }
+}
+
+function changeDecreePerPage(n) {
+  decreePage.per_page = n
+  loadDecrees(1)
 }
 
 function debounceLoadDecrees() {
@@ -973,7 +985,7 @@ async function loadPositions(page = 1) {
       structural_position_id: positionFilters.structural_position_id || undefined,
       active_only: positionFilters.active_only ? 1 : undefined,
       page,
-      per_page: 15,
+      per_page: positionPage.per_page || 15,
     }
     const { data } = await structuralPositionApi.getAll(params)
     positions.value = data.data || []
@@ -983,6 +995,11 @@ async function loadPositions(page = 1) {
   } finally {
     loadingPositions.value = false
   }
+}
+
+function changePositionPerPage(n) {
+  positionPage.per_page = n
+  loadPositions(1)
 }
 
 function debounceLoadPositions() {
@@ -1312,6 +1329,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .page-title {

@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="session-detail-page">
+<template>    <div class="session-detail-page">
       <router-link :to="backLink" class="back-link">← {{ backLabel }}</router-link>
 
       <header class="session-header">
@@ -220,11 +218,15 @@
               </table>
             </div>
             <p v-else class="monitor-empty">Tidak ada peserta yang cocok.</p>
-            <div v-if="rosterLastPage > 1" class="pagination-bar">
-              <button type="button" class="btn-page" :disabled="rosterPage <= 1" @click="rosterPage--">Sebelumnya</button>
-              <span class="page-num">Halaman {{ rosterPage }} / {{ rosterLastPage }}</span>
-              <button type="button" class="btn-page" :disabled="rosterPage >= rosterLastPage" @click="rosterPage++">Selanjutnya</button>
-            </div>
+            <PaginationBar
+              :page="rosterPage"
+              :last-page="rosterLastPage"
+              :per-page="rosterPerPage"
+              :total="filteredParticipants.length"
+              item-label="peserta"
+              @page-change="goRosterPage"
+              @per-page-change="changeRosterPerPage"
+            />
           </template>
         </div>
 
@@ -298,11 +300,15 @@
           </table>
           </div>
           <p v-else-if="participants.length" class="monitor-empty">Tidak ada peserta yang cocok.</p>
-          <div v-if="rosterLastPage > 1" class="pagination-bar">
-            <button type="button" class="btn-page" :disabled="rosterPage <= 1" @click="rosterPage--">Sebelumnya</button>
-            <span class="page-num">Halaman {{ rosterPage }} / {{ rosterLastPage }}</span>
-            <button type="button" class="btn-page" :disabled="rosterPage >= rosterLastPage" @click="rosterPage++">Selanjutnya</button>
-          </div>
+          <PaginationBar
+            :page="rosterPage"
+            :last-page="rosterLastPage"
+            :per-page="rosterPerPage"
+            :total="filteredParticipants.length"
+            item-label="peserta"
+            @page-change="goRosterPage"
+            @per-page-change="changeRosterPerPage"
+          />
         </div>
 
         <div v-if="showAddModal" class="modal-overlay" @click.self="closeAddModal">
@@ -427,15 +433,13 @@
           </div>
         </div>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import TableAction from '@/components/TableAction.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { examApi } from '@/api/exam'
 import { classApi } from '@/api/class'
 import api from '@/api'
@@ -478,7 +482,7 @@ const generateNumbersLoading = ref(false)
 const reorderLoading = ref(false)
 const dragFromIndex = ref(null)
 const dragOverIndex = ref(null)
-const ROSTER_PAGE_SIZE = 20
+const rosterPerPage = ref(20)
 const rosterSearch = ref('')
 const rosterClassId = ref('')
 const rosterPage = ref(1)
@@ -531,22 +535,22 @@ const filteredParticipants = computed(() => {
   })
 })
 
-const rosterLastPage = computed(() => Math.max(1, Math.ceil(filteredParticipants.value.length / ROSTER_PAGE_SIZE)))
+const rosterLastPage = computed(() => Math.max(1, Math.ceil(filteredParticipants.value.length / rosterPerPage.value)))
 const pagedParticipants = computed(() => {
-  const start = (rosterPage.value - 1) * ROSTER_PAGE_SIZE
-  return filteredParticipants.value.slice(start, start + ROSTER_PAGE_SIZE)
+  const start = (rosterPage.value - 1) * rosterPerPage.value
+  return filteredParticipants.value.slice(start, start + rosterPerPage.value)
 })
 const rosterRangeLabel = computed(() => {
   const total = filteredParticipants.value.length
   if (!total) return '0 dari 0 peserta'
-  const start = (rosterPage.value - 1) * ROSTER_PAGE_SIZE + 1
-  const end = Math.min(rosterPage.value * ROSTER_PAGE_SIZE, total)
+  const start = (rosterPage.value - 1) * rosterPerPage.value + 1
+  const end = Math.min(rosterPage.value * rosterPerPage.value, total)
   return `Menampilkan ${start}–${end} dari ${total} peserta`
 })
 const canReorder = computed(() => !rosterSearch.value && !rosterClassId.value && rosterLastPage.value === 1)
 const monitorPageGroups = computed(() => groupByClass(pagedParticipants.value, participantClass).map((group) => ({
   ...group,
-  start: (rosterPage.value - 1) * ROSTER_PAGE_SIZE + group.start,
+  start: (rosterPage.value - 1) * rosterPerPage.value + group.start,
 })))
 const participantPageGroups = computed(() => monitorPageGroups.value)
 
@@ -558,6 +562,15 @@ watch([rosterSearch, rosterClassId], () => { rosterPage.value = 1 })
 watch(rosterLastPage, (last) => {
   if (rosterPage.value > last) rosterPage.value = last
 })
+
+function goRosterPage(page) {
+  rosterPage.value = page
+}
+
+function changeRosterPerPage(n) {
+  rosterPerPage.value = n
+  rosterPage.value = 1
+}
 
 const fokus = computed(() => route.query.fokus || '')
 

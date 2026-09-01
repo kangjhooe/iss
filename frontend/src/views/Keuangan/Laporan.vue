@@ -1,12 +1,11 @@
 <template>
-  <Layout>
     <div class="keuangan-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-left">
             <div>
               <h1 class="page-title">Laporan Keuangan</h1>
-              <p class="page-subtitle">Ringkasan tagihan, penerimaan, dan tunggakan</p>
+              <p class="page-subtitle">Ringkasan tagihan, penerimaan, pengeluaran, dan arus kas</p>
             </div>
           </div>
           <div class="header-actions">
@@ -60,11 +59,22 @@
               <strong class="summary-value">{{ formatRp(summary.payments_in_range?.amount) }}</strong>
               <span class="summary-hint">{{ summary.payments_in_range?.count || 0 }} transaksi</span>
             </div>
+            <div class="summary-card">
+              <span class="summary-label">Pengeluaran (filter tanggal)</span>
+              <strong class="summary-value">{{ formatRp(summary.expenses_in_range?.amount) }}</strong>
+              <span class="summary-hint">{{ summary.expenses_in_range?.count || 0 }} transaksi</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">Arus kas bersih</span>
+              <strong class="summary-value" :class="{ 'text-danger': (summary.net_in_range || 0) < 0 }">{{ formatRp(summary.net_in_range) }}</strong>
+              <span class="summary-hint">Penerimaan − pengeluaran</span>
+            </div>
           </div>
 
           <div class="charts-grid">
             <AppChart title="Terkumpul vs tunggakan" type="doughnut" :chart-data="financeShareChart" />
             <AppChart title="Penerimaan per bulan" type="line" :chart-data="paymentsMonthChart" />
+            <AppChart title="Pengeluaran per bulan" type="line" :chart-data="expensesMonthChart" />
             <AppChart
               class="charts-span"
               title="Per jenis biaya"
@@ -108,12 +118,10 @@
         </template>
       </main>
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AppChart from '@/components/AppChart.vue'
 import { financeApi, financeInvoiceApi, financePaymentApi } from '@/api/finance'
@@ -137,6 +145,12 @@ const paymentsMonthChart = computed(() => {
   const rows = summary.value?.payments_by_month || []
   if (!rows.length || !rows.some((r) => Number(r.amount) > 0)) return null
   return lineFromSeries(rows.map((r) => r.label), rows.map((r) => Number(r.amount || 0)), 'Penerimaan')
+})
+
+const expensesMonthChart = computed(() => {
+  const rows = summary.value?.expenses_by_month || []
+  if (!rows.length || !rows.some((r) => Number(r.amount) > 0)) return null
+  return lineFromSeries(rows.map((r) => r.label), rows.map((r) => Number(r.amount || 0)), 'Pengeluaran', '#dc2626')
 })
 
 const feeTypeChart = computed(() => {
@@ -164,6 +178,7 @@ const feeTypeChart = computed(() => {
 async function load() {
   loading.value = true
   error.value = ''
+  summary.value = null
   try {
     const res = await financeApi.getSummary({
       from: filters.from || undefined,

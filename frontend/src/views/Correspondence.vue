@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="correspondence-page">
+<template>    <div class="correspondence-page">
       <div class="page-header">
         <div class="header-content">
           <div>
@@ -304,27 +302,16 @@
           </div>
         </div>
 
-        <!-- Pagination -->
-        <div v-if="correspondence.length > 0" class="pagination">
-          <button 
-            @click="loadCorrespondence(correspondenceList.current_page - 1)" 
-            :disabled="correspondenceList.current_page <= 1"
-            class="pagination-btn"
-          >
-            Sebelumnya
-          </button>
-          <span class="pagination-info">
-            Halaman {{ correspondenceList.current_page }} dari {{ correspondenceList.last_page }}
-            · {{ correspondenceRangeLabel }}
-          </span>
-          <button 
-            @click="loadCorrespondence(correspondenceList.current_page + 1)" 
-            :disabled="correspondenceList.current_page >= correspondenceList.last_page"
-            class="pagination-btn"
-          >
-            Selanjutnya
-          </button>
-        </div>
+        <PaginationBar
+          v-if="correspondence.length > 0"
+          :page="correspondenceList.current_page"
+          :last-page="correspondenceList.last_page"
+          :per-page="correspondenceList.per_page"
+          :total="correspondenceList.total"
+          item-label="surat"
+          @page-change="loadCorrespondence"
+          @per-page-change="changeCorrespondencePerPage"
+        />
 
         <div v-if="correspondence.length === 0 && !loading" class="empty-state">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -899,13 +886,11 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import correspondenceApi from '@/api/correspondence'
@@ -967,16 +952,6 @@ const filters = ref({
   category_id: ''
 })
 
-const correspondenceRangeLabel = computed(() => {
-  const total = correspondenceList.value.total || 0
-  if (!total) return '0 surat'
-  const page = correspondenceList.value.current_page || 1
-  const perPage = correspondenceList.value.per_page || 15
-  const from = (page - 1) * perPage + 1
-  const to = Math.min(page * perPage, total)
-  return `${from}–${to} dari ${total} surat`
-})
-
 const form = ref({
   type: '',
   letter_type_code: '',
@@ -1011,7 +986,7 @@ const correspondenceList = ref({
 const buildListParams = (page = 1) => {
   const params = {
     page,
-    per_page: 15
+    per_page: correspondenceList.value.per_page || 15
   }
   if (filters.value.academic_year_id) params.academic_year_id = filters.value.academic_year_id
   if (filters.value.search) params.search = filters.value.search
@@ -1050,7 +1025,7 @@ const loadCorrespondence = async (page = 1) => {
           data: response.data.data,
           current_page: meta.current_page || response.data.current_page || 1,
           last_page: meta.last_page || response.data.last_page || 1,
-          per_page: meta.per_page || response.data.per_page || 15,
+          per_page: meta.per_page || response.data.per_page || correspondenceList.value.per_page || 15,
           total: meta.total || response.data.total || 0
         }
       } else if (Array.isArray(response.data)) {
@@ -1070,7 +1045,7 @@ const loadCorrespondence = async (page = 1) => {
           data: [],
           current_page: 1,
           last_page: 1,
-          per_page: 15,
+          per_page: correspondenceList.value.per_page || 15,
           total: 0
         }
       }
@@ -1080,7 +1055,7 @@ const loadCorrespondence = async (page = 1) => {
         data: [],
         current_page: 1,
         last_page: 1,
-        per_page: 15,
+        per_page: correspondenceList.value.per_page || 15,
         total: 0
       }
     }
@@ -1099,12 +1074,18 @@ const loadCorrespondence = async (page = 1) => {
       data: [],
       current_page: 1,
       last_page: 1,
-      per_page: 15,
+      per_page: correspondenceList.value.per_page || 15,
       total: 0
     }
   } finally {
     loading.value = false
   }
+}
+
+function changeCorrespondencePerPage(n) {
+  correspondenceList.value.per_page = n
+  correspondenceList.value.current_page = 1
+  loadCorrespondence(1)
 }
 
 const loadCategories = async () => {

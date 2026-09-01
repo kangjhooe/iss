@@ -1,5 +1,4 @@
 <template>
-  <Layout>
     <div class="raport-page">
       <div class="page-header">
         <div class="page-header-main">
@@ -193,21 +192,21 @@
         </div>
       </section>
     </div>
-  </Layout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Layout from '@/components/Layout.vue'
 import { gradeBookApi } from '@/api/gradeBook'
 import { semesterApi } from '@/api/semester'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useActiveAcademicPeriod } from '@/composables/useActiveAcademicPeriod'
 
 const toast = useToast()
 const route = useRoute()
 const authStore = useAuthStore()
+const { ensureLoaded, resolveDefaultSemesterId } = useActiveAcademicPeriod()
 const loading = ref(false)
 const exporting = ref(false)
 const printingPdf = ref(false)
@@ -435,9 +434,6 @@ async function loadSemesters() {
   try {
     const res = await semesterApi.getAll({ per_page: 200 })
     semesters.value = res.data.data || []
-    if (!filters.value.semester_id && semesters.value.length) {
-      filters.value.semester_id = String(semesters.value[0].id)
-    }
   } catch {
     semesters.value = []
   }
@@ -447,9 +443,11 @@ watch(homeroomClasses, () => syncClassFromRoute(), { deep: true })
 
 onMounted(async () => {
   syncClassFromRoute()
-  await loadSemesters()
+  await Promise.all([loadSemesters(), ensureLoaded()])
   if (route.query.semester_id) {
     filters.value.semester_id = String(route.query.semester_id)
+  } else if (!filters.value.semester_id) {
+    filters.value.semester_id = resolveDefaultSemesterId('', semesters.value)
   }
   if (hasSelection.value) {
     loadRaport()

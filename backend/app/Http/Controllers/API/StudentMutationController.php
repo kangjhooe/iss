@@ -593,6 +593,7 @@ class StudentMutationController extends Controller
             }
 
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
+            $asOfDate = $to ?: ($from ?: now()->toDateString());
             $data = [
                 'institution' => $institution,
                 'institution_id' => $institutionId,
@@ -600,6 +601,7 @@ class StudentMutationController extends Controller
                 'date_from' => $from,
                 'date_to' => $to,
                 'printed_at' => $printedAt,
+                'as_of_date' => $asOfDate,
             ];
             $pdf = DomPDF::loadView('buku_mutasi.print', $data);
             $pdfFilename = 'Buku_Mutasi_' . date('Y-m-d_His') . '.pdf';

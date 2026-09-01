@@ -212,6 +212,7 @@
             @include('partials.print-signature', [
                 'institution' => $institution,
                 'date' => $generated_at->locale('id')->translatedFormat('d F Y'),
+                'as_of_date' => $as_of_date ?? $generated_at,
             ])
         </div>
     </div>

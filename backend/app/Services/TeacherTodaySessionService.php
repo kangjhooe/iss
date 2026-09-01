@@ -10,6 +10,7 @@ use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\TeachingJournal;
+use App\Services\GradeService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -45,7 +46,7 @@ class TeacherTodaySessionService
             ->where('institution_id', $institutionId)
             ->where('semester_id', $semesterId)
             ->where('employee_id', $employeeId)
-            ->where('day_of_week', $dayOfWeek)
+            ->orderBy('day_of_week')
             ->orderBy('period')
             ->get();
 
@@ -92,9 +93,27 @@ class TeacherTodaySessionService
             }
 
             $dailyGradeFilled = false;
-            if ($journals->isNotEmpty()) {
-                // Nilai harian dianggap terisi jika ada penilaian_* yang diupdate hari ini
-                // atau ada nilai penilaian di kelas+mapel+semester (indikator soft).
+            $meeting = $this->meetingContext(
+                $institutionId,
+                $semesterId,
+                (int) $first->class_id,
+                (int) $first->subject_id,
+                $employeeId,
+                $dateStr,
+                $primaryJournal
+            );
+            $penilaianIndex = $meeting['penilaian_index'];
+
+            if ($penilaianIndex >= 1) {
+                $dailyGradeFilled = Grade::query()
+                    ->where('institution_id', $institutionId)
+                    ->where('class_id', $first->class_id)
+                    ->where('subject_id', $first->subject_id)
+                    ->where('semester_id', $semesterId)
+                    ->where('grade_type', Grade::penilaianType($penilaianIndex))
+                    ->exists();
+            } elseif ($journals->isNotEmpty()) {
+                // Fallback lama: nilai penilaian yang diperbarui pada tanggal pertemuan.
                 $dailyGradeFilled = Grade::query()
                     ->where('institution_id', $institutionId)
                     ->where('class_id', $first->class_id)
@@ -108,6 +127,9 @@ class TeacherTodaySessionService
             $startTime = $block->min('start_time');
             $endTime = $block->max('end_time');
 
+            $scheduledDay = (int) $first->day_of_week;
+            $isOnSchedule = $scheduledDay === $dayOfWeek;
+
             $sessions[] = [
                 'key' => implode('-', $scheduleIds),
                 'lesson_schedule_ids' => $scheduleIds,
@@ -119,6 +141,9 @@ class TeacherTodaySessionService
                 'subject_code' => $first->subject?->code,
                 'room_id' => $first->room_id ? (int) $first->room_id : null,
                 'room_name' => $first->room?->name,
+                'scheduled_day_of_week' => $scheduledDay,
+                'scheduled_day_name' => LessonSchedule::DAYS[$scheduledDay] ?? '',
+                'is_on_schedule' => $isOnSchedule,
                 'periods' => $periods,
                 'period_label' => $this->periodLabel($periods),
                 'is_block' => count($periods) > 1,
@@ -126,6 +151,11 @@ class TeacherTodaySessionService
                 'end_time' => $this->formatTime($endTime),
                 'teaching_journal_id' => $primaryJournal?->id,
                 'journal_ids' => $journals->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+                'meeting_number' => $meeting['meeting_number'],
+                'total_meetings_recorded' => $meeting['total_meetings_recorded'],
+                'penilaian_index' => $meeting['penilaian_index'],
+                'suggested_penilaian_index' => $meeting['suggested_penilaian_index'],
+                'assessment_count' => $meeting['assessment_count'],
                 'status' => [
                     'attendance_filled' => $attendanceFilled,
                     'attendance_count' => $attendanceCount,
@@ -136,6 +166,20 @@ class TeacherTodaySessionService
                 ],
             ];
         }
+
+        usort($sessions, function (array $a, array $b): int {
+            if ($a['is_on_schedule'] !== $b['is_on_schedule']) {
+                return $a['is_on_schedule'] ? -1 : 1;
+            }
+            $dayCmp = ($a['scheduled_day_of_week'] ?? 0) <=> ($b['scheduled_day_of_week'] ?? 0);
+            if ($dayCmp !== 0) {
+                return $dayCmp;
+            }
+            $periodA = $a['periods'][0] ?? 0;
+            $periodB = $b['periods'][0] ?? 0;
+
+            return $periodA <=> $periodB;
+        });
 
         return [
             'date' => $dateStr,
@@ -168,7 +212,8 @@ class TeacherTodaySessionService
         int $employeeId,
         int $semesterId,
         ?string $date = null,
-        ?string $sessionKey = null
+        ?string $sessionKey = null,
+        ?int $penilaianIndexOverride = null
     ): array {
         $payload = $this->forTeacher($institutionId, $employeeId, $semesterId, $date);
         $sessions = $payload['sessions'];
@@ -186,7 +231,8 @@ class TeacherTodaySessionService
                 $institutionId,
                 $semesterId,
                 $payload['date'],
-                $session
+                $session,
+                $penilaianIndexOverride
             );
         }
 
@@ -208,12 +254,20 @@ class TeacherTodaySessionService
         int $institutionId,
         int $semesterId,
         string $dateStr,
-        array $session
+        array $session,
+        ?int $penilaianIndexOverride = null
     ): array {
         $journalIds = array_values(array_filter(array_map('intval', $session['journal_ids'] ?? [])));
         $journals = $journalIds === []
             ? collect()
             : TeachingJournal::query()->whereIn('id', $journalIds)->orderBy('period')->get();
+
+        $primaryJournal = $journals->sortBy('period')->first();
+        $penilaianIndex = $penilaianIndexOverride;
+        if ($penilaianIndex === null || $penilaianIndex < 1) {
+            $fromJournal = $primaryJournal?->penilaian_index;
+            $penilaianIndex = $fromJournal ? (int) $fromJournal : null;
+        }
 
         $material = $journals
             ->map(fn (TeachingJournal $j) => trim((string) ($j->material_taught ?? '')))
@@ -243,31 +297,17 @@ class TeacherTodaySessionService
             ->orderBy('name')
             ->get(['id', 'nis', 'name']);
 
-        $gradesToday = Grade::query()
-            ->where('institution_id', $institutionId)
-            ->where('class_id', (int) $session['class_id'])
-            ->where('subject_id', (int) $session['subject_id'])
-            ->where('semester_id', $semesterId)
-            ->where('grade_type', 'like', 'penilaian_%')
-            ->whereDate('updated_at', $dateStr)
-            ->get();
-
-        $gradeColumns = $gradesToday
-            ->map(fn (Grade $g) => Grade::penilaianIndex((string) $g->grade_type))
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-
-        $gradesByStudent = [];
-        foreach ($gradesToday as $grade) {
-            $idx = Grade::penilaianIndex((string) $grade->grade_type);
-            if ($idx === null) {
-                continue;
-            }
-            $gradesByStudent[(int) $grade->student_id][$idx] = $grade->value;
-        }
+        $gradeData = $this->resolveSessionGrades(
+            $institutionId,
+            $semesterId,
+            (int) $session['class_id'],
+            (int) $session['subject_id'],
+            $dateStr,
+            $penilaianIndex
+        );
+        $gradeColumns = $gradeData['grade_columns'];
+        $gradesByStudent = $gradeData['grades_by_student'];
+        $dailyGradeFilled = $gradeData['daily_grade_filled'];
 
         $nilaiAkhirByStudent = Grade::query()
             ->where('institution_id', $institutionId)
@@ -330,8 +370,77 @@ class TeacherTodaySessionService
                 'filled' => (bool) ($session['status']['attendance_filled'] ?? false),
             ],
             'grade_columns' => $gradeColumns,
-            'daily_grade_filled' => (bool) ($session['status']['daily_grade_filled'] ?? false),
+            'daily_grade_filled' => $dailyGradeFilled,
             'students' => $rows,
+        ];
+    }
+
+    /**
+     * @return array{
+     *   grade_columns: array<int, int>,
+     *   grades_by_student: array<int, array<int, mixed>>,
+     *   daily_grade_filled: bool
+     * }
+     */
+    private function resolveSessionGrades(
+        int $institutionId,
+        int $semesterId,
+        int $classId,
+        int $subjectId,
+        string $dateStr,
+        ?int $penilaianIndex
+    ): array {
+        if ($penilaianIndex !== null && $penilaianIndex >= 1) {
+            $grades = Grade::query()
+                ->where('institution_id', $institutionId)
+                ->where('class_id', $classId)
+                ->where('subject_id', $subjectId)
+                ->where('semester_id', $semesterId)
+                ->where('grade_type', Grade::penilaianType($penilaianIndex))
+                ->get();
+
+            $gradesByStudent = [];
+            foreach ($grades as $grade) {
+                $gradesByStudent[(int) $grade->student_id][$penilaianIndex] = $grade->value;
+            }
+
+            return [
+                'grade_columns' => [$penilaianIndex],
+                'grades_by_student' => $gradesByStudent,
+                'daily_grade_filled' => $grades->isNotEmpty(),
+            ];
+        }
+
+        $gradesToday = Grade::query()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', $classId)
+            ->where('subject_id', $subjectId)
+            ->where('semester_id', $semesterId)
+            ->where('grade_type', 'like', 'penilaian_%')
+            ->whereDate('updated_at', $dateStr)
+            ->get();
+
+        $gradeColumns = $gradesToday
+            ->map(fn (Grade $g) => Grade::penilaianIndex((string) $g->grade_type))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $gradesByStudent = [];
+        foreach ($gradesToday as $grade) {
+            $idx = Grade::penilaianIndex((string) $grade->grade_type);
+            if ($idx === null) {
+                continue;
+            }
+            $gradesByStudent[(int) $grade->student_id][$idx] = $grade->value;
+        }
+
+        return [
+            'grade_columns' => $gradeColumns,
+            'grades_by_student' => $gradesByStudent,
+            'daily_grade_filled' => $gradesToday->isNotEmpty(),
         ];
     }
 
@@ -353,7 +462,8 @@ class TeacherTodaySessionService
 
             $prev = $current->last();
             $sameClassSubject = (int) $prev->class_id === (int) $schedule->class_id
-                && (int) $prev->subject_id === (int) $schedule->subject_id;
+                && (int) $prev->subject_id === (int) $schedule->subject_id
+                && (int) $prev->day_of_week === (int) $schedule->day_of_week;
             $contiguous = ((int) $schedule->period) === ((int) $prev->period + 1);
 
             if ($sameClassSubject && $contiguous) {
@@ -401,5 +511,94 @@ class TeacherTodaySessionService
         }
 
         return substr($str, 0, 5) ?: null;
+    }
+
+    /**
+     * Konteks pertemuan: urutan pertemuan mengajar dan kolom penilaian (P1, P2, …).
+     *
+     * @return array{
+     *   meeting_number: int,
+     *   total_meetings_recorded: int,
+     *   penilaian_index: int,
+     *   suggested_penilaian_index: int,
+     *   assessment_count: int
+     * }
+     */
+    private function meetingContext(
+        int $institutionId,
+        int $semesterId,
+        int $classId,
+        int $subjectId,
+        int $employeeId,
+        string $dateStr,
+        ?TeachingJournal $primaryJournal
+    ): array {
+        $dateKeys = TeachingJournal::query()
+            ->where('institution_id', $institutionId)
+            ->where('semester_id', $semesterId)
+            ->where('class_id', $classId)
+            ->where('subject_id', $subjectId)
+            ->where('employee_id', $employeeId)
+            ->orderBy('journal_date')
+            ->pluck('journal_date')
+            ->map(fn ($d) => Carbon::parse($d)->toDateString())
+            ->unique()
+            ->values();
+
+        if (! $dateKeys->contains($dateStr)) {
+            $dateKeys = $dateKeys->push($dateStr)->sort()->values();
+        }
+
+        $isNewDate = $primaryJournal === null || ! TeachingJournal::query()
+            ->where('institution_id', $institutionId)
+            ->where('semester_id', $semesterId)
+            ->where('class_id', $classId)
+            ->where('subject_id', $subjectId)
+            ->where('employee_id', $employeeId)
+            ->whereDate('journal_date', $dateStr)
+            ->exists();
+
+        $meetingFromDates = max(1, (int) $dateKeys->search($dateStr) + 1);
+
+        $penilaianFromJournal = $primaryJournal?->penilaian_index
+            ? (int) $primaryJournal->penilaian_index
+            : null;
+
+        $gradeService = app(GradeService::class);
+        $maxPenilaianFromJournals = (int) (TeachingJournal::query()
+            ->where('institution_id', $institutionId)
+            ->where('semester_id', $semesterId)
+            ->where('class_id', $classId)
+            ->where('subject_id', $subjectId)
+            ->where('employee_id', $employeeId)
+            ->whereNotNull('penilaian_index')
+            ->max('penilaian_index') ?? 0);
+        $maxPenilaianFromGrades = $gradeService->maxPenilaianIndex($institutionId, $classId, $subjectId, $semesterId);
+        $maxUsedPenilaian = max($maxPenilaianFromJournals, $maxPenilaianFromGrades);
+
+        if ($penilaianFromJournal !== null) {
+            $suggestedPenilaian = $penilaianFromJournal;
+        } else {
+            $nextFromPriorGrades = $maxUsedPenilaian > 0 && $isNewDate
+                ? $maxUsedPenilaian + 1
+                : $maxUsedPenilaian;
+            $suggestedPenilaian = max($meetingFromDates, $nextFromPriorGrades, 1);
+        }
+
+        $weights = $gradeService->resolveWeights($institutionId, $classId, $subjectId, $semesterId);
+        $assessmentCount = max(
+            (int) $weights['assessment_count'],
+            $maxPenilaianFromGrades,
+            $suggestedPenilaian,
+            1
+        );
+
+        return [
+            'meeting_number' => $meetingFromDates,
+            'total_meetings_recorded' => $dateKeys->count(),
+            'penilaian_index' => $penilaianFromJournal ?? $suggestedPenilaian,
+            'suggested_penilaian_index' => $suggestedPenilaian,
+            'assessment_count' => $assessmentCount,
+        ];
     }
 }

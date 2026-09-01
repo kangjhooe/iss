@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="luluskan-page">
+<template>    <div class="luluskan-page">
       <div class="page-header">
         <h1 class="page-title">Luluskan Siswa</h1>
         <p class="page-subtitle">
@@ -130,13 +128,10 @@
           </button>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { studentApi } from '@/api/student'
 import { alumniApi } from '@/api/alumni'

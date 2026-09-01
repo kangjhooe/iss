@@ -53,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'online_exam.entitled' => \App\Http\Middleware\EnsureOnlineExamEntitled::class,
             'storage.quota' => \App\Http\Middleware\EnsureStorageQuota::class,
             'vocational' => \App\Http\Middleware\EnsureVocationalInstitution::class,
+            'swagger.enabled' => \App\Http\Middleware\EnsureSwaggerDocumentationEnabled::class,
         ]);
 
         // Force JSON response for API routes FIRST (before authentication)

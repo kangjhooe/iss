@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="piket-page">
+<template>    <div class="piket-page">
       <div class="toolbar">
         <p class="toolbar-hint">
           Lapor kejadian piket, isi log kegiatan, dan pantau tindak lanjut — tanggal aktif:
@@ -508,34 +506,16 @@
                 </tbody>
               </table>
             </div>
-            <div v-if="incidentPagination.last_page > 1 || incidentPagination.total > 0" class="pagination-bar">
-              <span class="pagination-info">
-                Menampilkan
-                {{ incidentPagination.total === 0 ? 0 : (incidentPagination.current_page - 1) * incidentPagination.per_page + 1 }}–{{ Math.min(incidentPagination.current_page * incidentPagination.per_page, incidentPagination.total) }}
-                dari {{ incidentPagination.total }}
-              </span>
-              <div class="pagination-buttons">
-                <button
-                  type="button"
-                  class="btn-page"
-                  :disabled="incidentPagination.current_page <= 1"
-                  @click="goIncidentPage(incidentPagination.current_page - 1)"
-                >
-                  Sebelumnya
-                </button>
-                <span class="page-num">
-                  Halaman {{ incidentPagination.current_page }} / {{ incidentPagination.last_page }}
-                </span>
-                <button
-                  type="button"
-                  class="btn-page"
-                  :disabled="incidentPagination.current_page >= incidentPagination.last_page"
-                  @click="goIncidentPage(incidentPagination.current_page + 1)"
-                >
-                  Selanjutnya
-                </button>
-              </div>
-            </div>
+            <PaginationBar
+              :page="incidentPagination.current_page"
+              :last-page="incidentPagination.last_page"
+              :per-page="incidentPagination.per_page"
+              :total="incidentPagination.total"
+              item-label="data"
+              :per-page-options="[10, 15, 20, 25, 50]"
+              @page-change="loadIncidents"
+              @per-page-change="changeIncidentPerPage"
+            />
           </template>
         </template>
 
@@ -1137,14 +1117,12 @@
           </button>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import { piketApi } from '@/api/piket'
 import { useAuthStore } from '@/stores/auth'
@@ -1511,7 +1489,7 @@ const loadIncidents = async (page = incidentPagination.value.current_page) => {
   try {
     const params = {
       page,
-      per_page: 20,
+      per_page: incidentPagination.value.per_page,
     }
     if (incidentFilters.date) params.date = incidentFilters.date
     if (incidentFilters.incident_type) params.incident_type = incidentFilters.incident_type
@@ -1522,7 +1500,7 @@ const loadIncidents = async (page = incidentPagination.value.current_page) => {
     incidentPagination.value = {
       current_page: meta.current_page || page,
       last_page: meta.last_page || 1,
-      per_page: meta.per_page || 20,
+      per_page: meta.per_page ?? incidentPagination.value.per_page,
       total: meta.total || incidents.value.length,
     }
   } catch (e) {
@@ -1539,6 +1517,12 @@ const onIncidentFilterChange = async () => {
 const goIncidentPage = async (page) => {
   if (page < 1 || page > incidentPagination.value.last_page) return
   await loadIncidents(page)
+}
+
+function changeIncidentPerPage(n) {
+  incidentPagination.value.per_page = n
+  incidentPagination.value.current_page = 1
+  loadIncidents(1)
 }
 
 const loadEmployees = async () => {
@@ -2184,8 +2168,7 @@ onMounted(async () => {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  padding: 1.5rem;
-  padding-bottom: calc(1.5rem + 72px);
+  padding: 0;
   margin: 0 auto;
   background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 20%, #f1f5f9 100%);
   box-sizing: border-box;
@@ -3185,8 +3168,7 @@ onMounted(async () => {
 
 @media (max-width: 720px) {
   .piket-page {
-    padding: 1rem;
-    padding-bottom: calc(1rem + 80px);
+    padding: 0;
   }
   .page-main { padding: 0; }
   .form-row { grid-template-columns: 1fr; }

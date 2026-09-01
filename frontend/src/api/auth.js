@@ -40,6 +40,9 @@ export const authApi = {
   startImpersonate(adminId) {
     return api.post(`/v1/super-admin/institution-admins/${adminId}/impersonate`)
   },
+  startImpersonateTeacher(employeeId) {
+    return api.post(`/v1/employee/${employeeId}/impersonate`)
+  },
   stopImpersonate() {
     return api.post('/v1/super-admin/impersonate/stop')
   },

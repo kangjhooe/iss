@@ -1,10 +1,12 @@
 /**
- * Judul chrome (topbar + breadcrumb) per nama rute.
+ * Judul chrome (topbar + document.title) per nama rute.
  * Jangan fallback ke "Dashboard" kecuali rute itu memang dashboard.
  *
  * ROUTES_WITH_PAGE_HEADING: halaman yang sudah punya h1/h2 di konten.
  * Topbar tidak mengulang judul yang sama.
  */
+
+import { INVENTORY_TITLE_BY_ROUTE_NAME } from '@/composables/inventory/inventoryRoutes'
 
 function humanizeRouteName(name) {
   if (!name) return 'Halaman'
@@ -18,9 +20,18 @@ const TITLES = {
   TeacherDashboard: 'Dashboard Guru',
   TeacherProfile: 'Profil Saya',
   TeacherMyPoints: 'Poin & Prestasi Saya',
-  TeacherWali: 'Wali Kelas',
+  TeacherWali: (auth, route) => {
+    const p = String(route?.query?.panel || 'siswa')
+    if (p === 'absensi') return 'Absensi Kelas'
+    if (p === 'nilai') return 'Nilai Kelas'
+    if (p === 'usulan') return 'Usulan Wali'
+    if (p === 'jadwal') return 'Jadwal Kelas'
+    if (p === 'keuangan') return 'Keuangan Kelas'
+    return 'Wali Kelas'
+  },
   TeacherMapel: 'Mata Pelajaran',
   TeacherToday: 'Jam Mengajar Hari Ini',
+  TeacherSchedule: 'Jadwal Mengajar',
   TeacherAppreciation: 'Apresiasi Guru',
   TeacherLeave: 'Cuti Saya',
   GuruPiket: 'Guru Piket',
@@ -47,6 +58,7 @@ const TITLES = {
   BillingOverview: 'Paket & Add-on',
   Institution: (auth) => (auth?.user?.role === 'super_admin' ? 'Kelola Institusi' : 'Profil Instansi'),
   Student: 'Data Siswa',
+  SiswaKeluar: 'Siswa Keluar',
   Teacher: 'Data Guru',
   Kepegawaian: 'Cuti, SK & Jabatan',
   Facility: 'Sarana Prasarana',
@@ -62,7 +74,7 @@ const TITLES = {
   },
   LabDetail: 'Detail Lab',
   LabBookingRequest: 'Booking Lab',
-  Inventory: 'Inventaris',
+  InventoryQrScan: 'Scan QR Inventaris',
   Class: 'Kelas',
   ProgramKeahlian: 'Program Keahlian',
   Report: 'Laporan & Statistik',
@@ -145,8 +157,15 @@ const TITLES = {
   KeuanganSpp: 'SPP',
   KeuanganTagihan: 'Tagihan',
   KeuanganPembayaran: 'Pembayaran',
+  KeuanganPengeluaran: 'Pengeluaran',
   KeuanganTunggakan: 'Tunggakan',
   KeuanganLaporan: 'Laporan Keuangan',
+  PenggajianKomponen: 'Komponen Gaji',
+  PenggajianProfil: 'Profil Gaji Pegawai',
+  PenggajianPeriode: 'Periode Gaji',
+  PenggajianProses: 'Proses Gaji',
+  TeacherSlipGaji: 'Slip Gaji Saya',
+  ...INVENTORY_TITLE_BY_ROUTE_NAME,
 }
 
 /** Rute yang sudah menampilkan judul di dalam halaman (hindari dobel dengan topbar). */
@@ -158,8 +177,8 @@ const ROUTES_WITH_PAGE_HEADING = new Set([
   'ParentDashboard',
   'TeacherProfile',
   'TeacherMyPoints',
-  'TeacherWali',
   'TeacherToday',
+  'TeacherSchedule',
   'TeacherAppreciation',
   'TeacherLeave',
   'Teacher',
@@ -186,6 +205,7 @@ const ROUTES_WITH_PAGE_HEADING = new Set([
   'AcademicCalendar',
   'DocumentPickup',
   'Alumni',
+  'SiswaKeluar',
   'LuluskanSiswa',
   'NaikKelas',
   'StudentMutation',
@@ -211,8 +231,14 @@ const ROUTES_WITH_PAGE_HEADING = new Set([
   'KeuanganSpp',
   'KeuanganTagihan',
   'KeuanganPembayaran',
+  'KeuanganPengeluaran',
   'KeuanganTunggakan',
   'KeuanganLaporan',
+  'PenggajianKomponen',
+  'PenggajianProfil',
+  'PenggajianPeriode',
+  'PenggajianProses',
+  'TeacherSlipGaji',
   'OnlineExamList',
   'OnlineExamCreate',
   'OnlineExamEdit',
@@ -225,11 +251,13 @@ const ROUTES_WITH_PAGE_HEADING = new Set([
   'ParentChildGrades',
   'ParentChildAttendance',
   'ParentChildViolations',
+  'InventoryQrScan',
+  ...Object.keys(INVENTORY_TITLE_BY_ROUTE_NAME),
 ])
 
-export function resolvePageTitle(routeName, authStore) {
+export function resolvePageTitle(routeName, authStore, route) {
   const entry = TITLES[routeName]
-  if (typeof entry === 'function') return entry(authStore)
+  if (typeof entry === 'function') return entry(authStore, route)
   if (entry) return entry
   return humanizeRouteName(routeName)
 }

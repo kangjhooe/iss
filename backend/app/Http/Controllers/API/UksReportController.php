@@ -5,7 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
-use App\Models\AdditionalDuty;
+use App\Support\StructuralPositionResolver;
 use App\Models\Institution;
 use App\Models\SchoolClass;
 use App\Models\Semester;
@@ -178,7 +178,7 @@ class UksReportController extends Controller
                 $detailPayload = $this->uksReportService->getVisitDetail($institutionId, $filters);
             }
 
-            $signers = $this->signersMeta($institutionId);
+            $signers = $this->signersMeta($institutionId, StructuralPositionResolver::reportAsOfDate($filters));
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
             $orientation = $mode === 'detail' ? 'landscape' : 'portrait';
             $title = $mode === 'detail' ? 'Laporan UKS — Detail Kunjungan' : 'Laporan UKS — Ringkasan';
@@ -238,21 +238,22 @@ class UksReportController extends Controller
     /**
      * @return array{principal: array{role: string, name: ?string, nip: ?string}, uks: array{role: string, name: ?string, nip: ?string}}
      */
-    protected function signersMeta(int $institutionId): array
+    protected function signersMeta(int $institutionId, ?\Carbon\CarbonInterface $asOfDate = null): array
     {
         $institution = Institution::find($institutionId);
-        $uks = AdditionalDuty::resolveActiveHolder('koordinator_uks', $institutionId);
+        $principal = StructuralPositionResolver::principalAt($institution, $asOfDate);
+        $uks = StructuralPositionResolver::holderAt('koordinator_uks', $institutionId, $asOfDate);
 
         return [
             'principal' => [
-                'role' => Institution::principalTitleForLevel($institution?->level),
-                'name' => $institution?->principal_name,
-                'nip' => $institution?->principal_nip,
+                'role' => $principal['role'],
+                'name' => $principal['name'],
+                'nip' => $principal['nip'],
             ],
             'uks' => [
                 'role' => 'Koordinator UKS',
-                'name' => $uks?->name,
-                'nip' => $uks?->nip,
+                'name' => $uks['name'] ?? null,
+                'nip' => $uks['nip'] ?? null,
             ],
         ];
     }

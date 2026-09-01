@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="laporan-uks-page">
+<template>    <div class="laporan-uks-page">
       <div class="toolbar">
         <div class="mode-tabs">
           <button type="button" :class="['mode-tab', { active: viewMode === 'ringkasan' }]" @click="switchMode('ringkasan')">Ringkasan</button>
@@ -273,15 +271,12 @@
           </div>
         </section>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
-import Layout from '@/components/Layout.vue'
 import { uksReportApi } from '@/api/uks'
 import { classApi } from '@/api/class'
 import { semesterApi } from '@/api/semester'

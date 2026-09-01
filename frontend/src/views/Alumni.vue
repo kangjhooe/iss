@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="alumni-page">
+<template>    <div class="alumni-page">
       <div class="page-header">
         <div class="header-text">
           <h1 class="page-title">Alumni</h1>
@@ -257,26 +255,15 @@
           </div>
         </div>
 
-        <div v-if="pagination.last_page > 1" class="pagination-wrap">
-          <button
-            :disabled="pagination.current_page <= 1"
-            @click="goPage(pagination.current_page - 1)"
-            class="btn-pagination"
-          >
-            Sebelumnya
-          </button>
-          <span class="pagination-info">
-            Halaman {{ pagination.current_page }} dari {{ pagination.last_page }}
-            · {{ pagination.total || 0 }} data
-          </span>
-          <button
-            :disabled="pagination.current_page >= pagination.last_page"
-            @click="goPage(pagination.current_page + 1)"
-            class="btn-pagination"
-          >
-            Selanjutnya
-          </button>
-        </div>
+        <PaginationBar
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="data"
+          @page-change="goPage"
+          @per-page-change="changePerPage"
+        />
       </div>
     </div>
 
@@ -293,13 +280,11 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -590,7 +575,7 @@ async function loadAlumni() {
     if (meta) {
       pagination.current_page = meta.current_page
       pagination.last_page = meta.last_page
-      pagination.per_page = meta.per_page
+      pagination.per_page = meta.per_page ?? pagination.per_page
       pagination.total = meta.total ?? alumni.value.length
     } else {
       pagination.total = alumni.value.length
@@ -606,6 +591,12 @@ async function loadAlumni() {
 function goPage(page) {
   if (page < 1 || page > pagination.last_page) return
   pagination.current_page = page
+  loadAlumni()
+}
+
+function changePerPage(n) {
+  pagination.per_page = n
+  pagination.current_page = 1
   loadAlumni()
 }
 

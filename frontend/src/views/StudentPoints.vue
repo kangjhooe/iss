@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page">
+<template>    <div class="sp-page">
       <div class="sp-page-header">
         <p class="sp-subtitle">Ringkasan poin pelanggaran dan prestasi Anda</p>
         <div class="sp-actions">
@@ -69,13 +67,10 @@
           <p class="action-desc">Pertahankan kedisiplinan dan terus kumpulkan prestasi.</p>
         </div>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { studentPointApi } from '@/api/violation'
 

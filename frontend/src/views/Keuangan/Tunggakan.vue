@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="keuangan-page">
+<template>    <div class="keuangan-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-left">
@@ -79,13 +77,15 @@
                 </tr>
               </tbody>
             </table>
-            <div class="pagination">
-              <span>Halaman {{ meta.current_page || 1 }} / {{ meta.last_page || 1 }}</span>
-              <div class="pagination-btns">
-                <button type="button" class="btn-secondary" :disabled="!meta.prev" @click="goPage(meta.current_page - 1)">Sebelumnya</button>
-                <button type="button" class="btn-secondary" :disabled="!meta.next" @click="goPage(meta.current_page + 1)">Berikutnya</button>
-              </div>
-            </div>
+            <PaginationBar
+              :page="meta.current_page"
+              :last-page="meta.last_page"
+              :per-page="meta.per_page"
+              :total="meta.total"
+              item-label="tunggakan"
+              @page-change="goPage"
+              @per-page-change="changePerPage"
+            />
           </div>
         </div>
       </main>
@@ -121,16 +121,14 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
-import { classApi } from '@/api/class'
-import { financeFeeTypeApi, financeInvoiceApi, financePaymentApi } from '@/api/finance'
+import PaginationBar from '@/components/PaginationBar.vue'
+import { financeInvoiceApi, financePaymentApi } from '@/api/finance'
+import { loadKeuanganFeeTypes, loadKeuanganClasses } from '@/composables/useKeuanganMeta'
 import {
   paymentMethodOptions,
   statusLabel,
@@ -151,22 +149,23 @@ const success = ref('')
 const modalError = ref('')
 const showModal = ref(false)
 const paying = ref(null)
-const meta = reactive({ current_page: 1, last_page: 1, prev: null, next: null })
+const meta = reactive({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const filters = reactive({ fee_type_id: '', class_id: '', search: '', page: 1 })
 const payForm = reactive({ amount: null, method: 'cash', reference: '' })
 
 async function loadMeta() {
+  error.value = ''
   try {
-    const [ft, cl] = await Promise.all([
-      financeFeeTypeApi.getAll({ active_only: 1, per_page: 100 }),
-      classApi.getAll({ per_page: 100 }),
-    ])
-    feeTypes.value = ft.data?.data || []
-    classes.value = cl.data?.data || []
+    feeTypes.value = await loadKeuanganFeeTypes()
   } catch (e) {
-    error.value = apiError(e, 'Gagal memuat filter.')
     feeTypes.value = []
+    error.value = apiError(e, 'Gagal memuat jenis biaya.')
+  }
+  try {
+    classes.value = await loadKeuanganClasses()
+  } catch (e) {
     classes.value = []
+    if (!error.value) error.value = apiError(e, 'Gagal memuat daftar kelas.')
   }
 }
 
@@ -182,7 +181,7 @@ async function load() {
     const res = await financeInvoiceApi.getAll({
       status: 'outstanding',
       page: filters.page,
-      per_page: 20,
+      per_page: meta.per_page || 15,
       fee_type_id: filters.fee_type_id || undefined,
       class_id: filters.class_id || undefined,
       search: filters.search || undefined,
@@ -191,8 +190,8 @@ async function load() {
     const m = res.data?.meta || {}
     meta.current_page = m.current_page || 1
     meta.last_page = m.last_page || 1
-    meta.prev = m.current_page > 1
-    meta.next = m.current_page < m.last_page
+    meta.per_page = m.per_page ?? meta.per_page
+    meta.total = m.total ?? 0
   } catch (e) {
     error.value = apiError(e, 'Gagal memuat tunggakan.')
   } finally {
@@ -202,6 +201,12 @@ async function load() {
 
 function goPage(page) {
   filters.page = page
+  load()
+}
+
+function changePerPage(n) {
+  meta.per_page = n
+  filters.page = 1
   load()
 }
 

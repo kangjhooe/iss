@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="keuangan-page">
+<template>    <div class="keuangan-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-left">
@@ -97,13 +95,15 @@
                 </tr>
               </tbody>
             </table>
-            <div class="pagination">
-              <span>Halaman {{ meta.current_page || 1 }} / {{ meta.last_page || 1 }}</span>
-              <div class="pagination-btns">
-                <button type="button" class="btn-secondary" :disabled="!meta.prev" @click="goPage(meta.current_page - 1)">Sebelumnya</button>
-                <button type="button" class="btn-secondary" :disabled="!meta.next" @click="goPage(meta.current_page + 1)">Berikutnya</button>
-              </div>
-            </div>
+            <PaginationBar
+              :page="meta.current_page"
+              :last-page="meta.last_page"
+              :per-page="meta.per_page"
+              :total="meta.total"
+              item-label="tagihan"
+              @page-change="goPage"
+              @per-page-change="changePerPage"
+            />
           </div>
         </div>
       </main>
@@ -165,18 +165,26 @@
                 </select>
               </div>
               <div v-if="gen.target === 'student'" class="form-group full">
+                <label>Filter kelas (opsional)</label>
+                <select v-model="gen.picker_class_id" class="form-select" @change="searchStudents">
+                  <option value="">Semua kelas</option>
+                  <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+              <div v-if="gen.target === 'student'" class="form-group full">
                 <label>Cari siswa *</label>
                 <input
                   v-model="studentQuery"
                   class="form-input"
                   placeholder="Ketik nama / NIS lalu Enter"
                   @keyup.enter.prevent="searchStudents"
+                  @input="onStudentSearchInput"
                 />
                 <button type="button" class="btn-secondary" style="margin-top:0.5rem" @click="searchStudents">Cari</button>
                 <div v-if="studentResults.length" class="student-pick-list">
                   <label v-for="s in studentResults" :key="s.id" class="student-pick-item">
                     <input v-model="gen.student_ids" type="checkbox" :value="s.id" />
-                    <span>{{ s.name }} <span class="muted">({{ s.nis || '—' }} · {{ s.class?.name || s.school_class?.name || '—' }})</span></span>
+                    <span>{{ s.name }} <span class="muted">({{ s.nis || '—' }} · {{ studentClassLabel(s) }})</span></span>
                   </label>
                 </div>
                 <p v-if="gen.student_ids.length" class="muted" style="margin:0.5rem 0 0;font-size:0.8rem">
@@ -229,18 +237,20 @@
           </form>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import Layout from '@/components/Layout.vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
-import { classApi } from '@/api/class'
-import { studentApi } from '@/api/student'
-import { financeFeeTypeApi, financeInvoiceApi } from '@/api/finance'
+import PaginationBar from '@/components/PaginationBar.vue'
+import { financeInvoiceApi } from '@/api/finance'
+import {
+  loadKeuanganFeeTypes,
+  loadKeuanganClasses,
+  searchKeuanganStudents,
+  studentClassLabel,
+} from '@/composables/useKeuanganMeta'
 import {
   invoiceStatusOptions,
   statusLabel,
@@ -266,7 +276,7 @@ const editError = ref('')
 const showGenerate = ref(false)
 const showEdit = ref(false)
 const editing = ref(null)
-const meta = reactive({ current_page: 1, last_page: 1, prev: null, next: null })
+const meta = reactive({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const filters = reactive({ fee_type_id: '', class_id: '', status: '', search: '', page: 1 })
 const gen = reactive({
   fee_type_id: '',
@@ -276,10 +286,12 @@ const gen = reactive({
   period_label: '',
   target: 'class',
   class_id: '',
+  picker_class_id: '',
   student_ids: [],
   notes: '',
 })
 const editForm = reactive({ title: '', amount: null, due_date: '', notes: '' })
+let studentSearchTimer = null
 
 const selectedFeeFrequency = computed(() => {
   const t = feeTypes.value.find((x) => String(x.id) === String(gen.fee_type_id))
@@ -299,23 +311,29 @@ watch(() => gen.fee_type_id, (id) => {
 
 watch(() => gen.target, () => {
   gen.class_id = ''
+  gen.picker_class_id = ''
   gen.student_ids = []
   studentResults.value = []
   studentQuery.value = ''
+  clearTimeout(studentSearchTimer)
 })
 
 async function loadMeta() {
+  error.value = ''
   try {
-    const [ft, cl] = await Promise.all([
-      financeFeeTypeApi.getAll({ active_only: 1, per_page: 100 }),
-      classApi.getAll({ per_page: 100 }),
-    ])
-    feeTypes.value = (ft.data?.data || []).filter((t) => t.frequency !== 'monthly')
-    classes.value = cl.data?.data || []
+    feeTypes.value = await loadKeuanganFeeTypes({
+      excludeMonthly: true,
+      params: { exclude_frequency: 'monthly' },
+    })
   } catch (e) {
-    error.value = apiError(e, 'Gagal memuat master data.')
     feeTypes.value = []
+    error.value = apiError(e, 'Gagal memuat jenis biaya.')
+  }
+  try {
+    classes.value = await loadKeuanganClasses()
+  } catch (e) {
     classes.value = []
+    if (!error.value) error.value = apiError(e, 'Gagal memuat daftar kelas.')
   }
 }
 
@@ -330,7 +348,7 @@ async function load() {
   try {
     const res = await financeInvoiceApi.getAll({
       page: filters.page,
-      per_page: 20,
+      per_page: meta.per_page || 15,
       exclude_frequency: 'monthly',
       fee_type_id: filters.fee_type_id || undefined,
       class_id: filters.class_id || undefined,
@@ -341,8 +359,8 @@ async function load() {
     const m = res.data?.meta || {}
     meta.current_page = m.current_page || 1
     meta.last_page = m.last_page || 1
-    meta.prev = m.current_page > 1
-    meta.next = m.current_page < m.last_page
+    meta.per_page = m.per_page ?? meta.per_page
+    meta.total = m.total ?? 0
   } catch (e) {
     error.value = apiError(e, 'Gagal memuat tagihan.')
   } finally {
@@ -355,15 +373,27 @@ function goPage(page) {
   load()
 }
 
+function changePerPage(n) {
+  meta.per_page = n
+  filters.page = 1
+  load()
+}
+
+function onStudentSearchInput() {
+  clearTimeout(studentSearchTimer)
+  studentSearchTimer = setTimeout(() => {
+    if (studentQuery.value.trim() || gen.picker_class_id) searchStudents()
+  }, 350)
+}
+
 async function searchStudents() {
   const q = studentQuery.value.trim()
-  if (!q) {
-    modalError.value = 'Ketik nama atau NIS siswa.'
+  if (!q && !gen.picker_class_id) {
+    modalError.value = 'Ketik nama/NIS siswa atau pilih kelas.'
     return
   }
   try {
-    const res = await studentApi.getAll({ search: q, status: 'Aktif', per_page: 20 })
-    studentResults.value = res.data?.data || []
+    studentResults.value = await searchKeuanganStudents(q, gen.picker_class_id || '')
     if (!studentResults.value.length) modalError.value = 'Siswa tidak ditemukan.'
     else modalError.value = ''
   } catch (e) {
@@ -482,6 +512,10 @@ async function doExport() {
 onMounted(async () => {
   await loadMeta()
   await load()
+})
+
+onBeforeUnmount(() => {
+  clearTimeout(studentSearchTimer)
 })
 </script>
 

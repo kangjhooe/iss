@@ -302,12 +302,15 @@ class TeacherDashboardController extends Controller
             }
 
             $sessionKey = trim((string) $request->get('session_key', ''));
+            $penilaianIndex = $request->get('penilaian_index');
+            $penilaianIndexOverride = is_numeric($penilaianIndex) ? max(1, (int) $penilaianIndex) : null;
             $data = app(TeacherTodaySessionService::class)->printDocuments(
                 $institutionId,
                 (int) $teacher->id,
                 $semesterId,
                 $date,
-                $sessionKey !== '' ? $sessionKey : null
+                $sessionKey !== '' ? $sessionKey : null,
+                $penilaianIndexOverride
             );
 
             if ($sessionKey !== '' && $data['sessions'] === []) {
@@ -318,7 +321,8 @@ class TeacherDashboardController extends Controller
             }
 
             $printedAt = now()->locale('id')->isoFormat('D MMMM YYYY HH:mm');
-            $signatureDate = now()->locale('id')->translatedFormat('d F Y');
+            $sessionDate = !empty($data['date']) ? \Carbon\Carbon::parse($data['date']) : now();
+            $signatureDate = $sessionDate->locale('id')->translatedFormat('d F Y');
 
             $pdf = DomPDF::loadView('teaching_journal.session_print', [
                 'institution' => $data['institution'] ?? $institution,
@@ -330,6 +334,7 @@ class TeacherDashboardController extends Controller
                 'printed_at' => $printedAt,
                 'printed_by' => $user?->name,
                 'signature_date' => $signatureDate,
+                'as_of_date' => $sessionDate,
             ])->setPaper('a4', 'portrait');
 
             $dateLabel = $data['date'] ?? now()->toDateString();

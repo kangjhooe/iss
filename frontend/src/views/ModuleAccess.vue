@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="module-access-page">
+<template>    <div class="module-access-page">
       <header class="page-header">
         <div class="header-left">
           <div class="header-icon">
@@ -195,13 +193,10 @@
           </div>
         </Transition>
       </template>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { permissionApi } from '@/api/permissions'
 import { useToast } from '@/composables/useToast'

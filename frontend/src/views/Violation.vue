@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="violation-page">
+<template>    <div class="violation-page">
       <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
         <symbol id="vl-icon-edit" viewBox="0 0 24 24" fill="none">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -246,16 +244,16 @@
           </table>
         </div>
 
-        <div v-if="(activeTab === 'list' || activeTab === 'pending') && pagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">
-            Menampilkan {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} dari {{ pagination.total }}
-          </span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pagination.current_page <= 1" @click="goToPage(pagination.current_page - 1)">Sebelumnya</button>
-            <span class="page-num">Halaman {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-            <button type="button" class="btn-page" :disabled="pagination.current_page >= pagination.last_page" @click="goToPage(pagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          v-if="activeTab === 'list' || activeTab === 'pending'"
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="data"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </template>
 
       <!-- Tab: Jenis Pelanggaran -->
@@ -474,13 +472,16 @@
           </article>
         </div>
 
-        <div v-if="activeTab === 'points' && pointsPagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">Halaman {{ pointsPagination.current_page }} / {{ pointsPagination.last_page }}</span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="pointsPagination.current_page <= 1" @click="goToPointsPage(pointsPagination.current_page - 1)">Sebelumnya</button>
-            <button type="button" class="btn-page" :disabled="pointsPagination.current_page >= pointsPagination.last_page" @click="goToPointsPage(pointsPagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          v-if="activeTab === 'points'"
+          :page="pointsPagination.current_page"
+          :last-page="pointsPagination.last_page"
+          :per-page="pointsPagination.per_page"
+          :total="pointsPagination.total"
+          item-label="siswa"
+          @page-change="goToPointsPage"
+          @per-page-change="changePointsPerPage"
+        />
       </template>
 
       <!-- Tab: Prestasi -->
@@ -574,13 +575,16 @@
             </tbody>
           </table>
         </div>
-        <div v-if="activeTab === 'prestasi' && achievementsPagination.last_page > 1" class="pagination-bar">
-          <span class="pagination-info">Halaman {{ achievementsPagination.current_page }} / {{ achievementsPagination.last_page }}</span>
-          <div class="pagination-buttons">
-            <button type="button" class="btn-page" :disabled="achievementsPagination.current_page <= 1" @click="goToAchievementsPage(achievementsPagination.current_page - 1)">Sebelumnya</button>
-            <button type="button" class="btn-page" :disabled="achievementsPagination.current_page >= achievementsPagination.last_page" @click="goToAchievementsPage(achievementsPagination.current_page + 1)">Selanjutnya</button>
-          </div>
-        </div>
+        <PaginationBar
+          v-if="activeTab === 'prestasi'"
+          :page="achievementsPagination.current_page"
+          :last-page="achievementsPagination.last_page"
+          :per-page="achievementsPagination.per_page"
+          :total="achievementsPagination.total"
+          item-label="prestasi"
+          @page-change="goToAchievementsPage"
+          @per-page-change="changeAchievementsPerPage"
+        />
       </template>
 
       <!-- Tab: Jenis Prestasi -->
@@ -1156,13 +1160,11 @@
       <ConfirmDialog v-if="deleteAchievementTarget" :show="!!deleteAchievementTarget" title="Hapus Prestasi" :message="'Yakin menghapus prestasi ini?'" confirmText="Hapus" @confirm="doDeleteAchievement" @cancel="deleteAchievementTarget = null" />
       <ConfirmDialog v-if="deleteAchievementTypeTarget" :show="!!deleteAchievementTypeTarget" title="Hapus Jenis Prestasi" :message="deleteAchievementTypeMessage" confirmText="Hapus" @confirm="doDeleteAchievementType" @cancel="deleteAchievementTypeTarget = null" />
       <ConfirmDialog v-if="deleteThresholdTarget" :show="!!deleteThresholdTarget" title="Hapus Aturan Tindakan" :message="deleteThresholdMessage" confirmText="Hapus" @confirm="doDeleteThreshold" @cancel="deleteThresholdTarget = null" />
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { violationApi, violationTypeApi, achievementApi, achievementTypeApi, pointThresholdApi, studentActionLogApi, studentPointApi } from '@/api/violation'
@@ -1330,7 +1332,7 @@ const pointFilters = ref({
 })
 const studentPoints = ref([])
 const pointsLoading = ref(false)
-const pointsPagination = ref({ current_page: 1, last_page: 1, total: 0, pending_count: 0 })
+const pointsPagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0, pending_count: 0 })
 const pointsPendingCount = computed(() => pointsPagination.value.pending_count ?? studentPoints.value.filter((r) => r.action_pending).length)
 const expandedPointStudentId = ref(null)
 let pointsDebounceTimer = null
@@ -1364,7 +1366,7 @@ function reopenReasonLabel(row) {
 // Prestasi
 const achievements = ref([])
 const achievementsLoading = ref(false)
-const achievementsPagination = ref({ current_page: 1, last_page: 1 })
+const achievementsPagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const achievementFilters = ref({
   search: '',
   status: '',
@@ -1478,7 +1480,7 @@ async function loadViolations() {
   try {
     const params = {
       page: pagination.value.current_page,
-      per_page: 15,
+      per_page: pagination.value.per_page || 15,
       ...filters.value,
     }
     if (activeTab.value === 'pending') {
@@ -1630,6 +1632,12 @@ function onPickerClassChange() {
 
 function goToPage(page) {
   pagination.value.current_page = page
+  loadViolations()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
   loadViolations()
 }
 
@@ -1806,7 +1814,7 @@ async function loadStudentPoints() {
   try {
     const params = {
       page: pointsPagination.value.current_page,
-      per_page: 15,
+      per_page: pointsPagination.value.per_page || 15,
       search: pointSearch.value || undefined,
       needs_action: 1,
       academic_year_id: pointFilters.value.academic_year_id,
@@ -1821,6 +1829,7 @@ async function loadStudentPoints() {
     pointsPagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pointsPagination.value.per_page,
       total: meta.total ?? 0,
       pending_count: meta.pending_count ?? 0,
     }
@@ -1835,6 +1844,12 @@ function goToPointsPage(page) {
   loadStudentPoints()
 }
 
+function changePointsPerPage(n) {
+  pointsPagination.value.per_page = n
+  pointsPagination.value.current_page = 1
+  loadStudentPoints()
+}
+
 async function loadAchievements() {
   achievementsLoading.value = true
   try {
@@ -1843,7 +1858,7 @@ async function loadAchievements() {
     }
     const params = {
       page: achievementsPagination.value.current_page,
-      per_page: 15,
+      per_page: achievementsPagination.value.per_page || 15,
       search: achievementFilters.value.search || undefined,
       status: achievementFilters.value.status || undefined,
       achievement_type_id: achievementFilters.value.achievement_type_id || undefined,
@@ -1853,7 +1868,12 @@ async function loadAchievements() {
     const res = await achievementApi.getAll(params)
     achievements.value = res.data.data || []
     const meta = res.data.meta || {}
-    achievementsPagination.value = { current_page: meta.current_page ?? 1, last_page: meta.last_page ?? 1 }
+    achievementsPagination.value = {
+      current_page: meta.current_page ?? 1,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? achievementsPagination.value.per_page,
+      total: meta.total ?? 0,
+    }
   } catch (e) {
     toast.error('Gagal memuat prestasi', e.formattedMessage || 'Data prestasi tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
@@ -1862,6 +1882,12 @@ async function loadAchievements() {
 }
 function goToAchievementsPage(page) {
   achievementsPagination.value.current_page = page
+  loadAchievements()
+}
+
+function changeAchievementsPerPage(n) {
+  achievementsPagination.value.per_page = n
+  achievementsPagination.value.current_page = 1
   loadAchievements()
 }
 

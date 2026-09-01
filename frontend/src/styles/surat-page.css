@@ -1,0 +1,91 @@
+/**
+ * Dimensi halaman surat — selaras dengan backend/resources/views/surat/print.blade.php
+ */
+:root {
+  --surat-page-width: 210mm;
+  --surat-page-height: 297mm;
+  --surat-margin-top: 15mm;
+  --surat-margin-right: 20mm;
+  --surat-margin-bottom: 20mm;
+  --surat-margin-left: 25mm;
+}
+
+@media print {
+  @page {
+    size: 210mm 297mm;
+    margin: var(--surat-margin-top) var(--surat-margin-right) var(--surat-margin-bottom) var(--surat-margin-left);
+  }
+}
+
+.surat-page-stage {
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px 64px;
+  min-height: calc(100vh - 120px);
+}
+
+.surat-page-shell {
+  width: var(--surat-page-width);
+  min-height: var(--surat-page-height);
+  background: #fff;
+  box-sizing: border-box;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.12);
+  transform-origin: top center;
+  transition: transform 0.15s ease;
+}
+
+.surat-page-content {
+  box-sizing: border-box;
+  min-height: var(--surat-page-height);
+  padding: var(--surat-margin-top) var(--surat-margin-right) var(--surat-margin-bottom) var(--surat-margin-left);
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 1.6;
+  color: #000;
+}
+
+.surat-page-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.surat-page-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .surat-page-stage {
+    padding: 8px 0 96px;
+    min-height: auto;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .surat-page-shell {
+    margin: 0 auto;
+    flex-shrink: 0;
+  }
+}
+
+@media print {
+  .surat-page-stage {
+    padding: 0 !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  .surat-page-shell {
+    width: auto !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .surat-page-content {
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+}

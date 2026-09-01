@@ -21,9 +21,15 @@ class FileUploadRules
     /**
      * Size constants (in KB)
      */
+    public const SIZE_PHOTO = 1024;   // 1MB (pas foto siswa/guru)
     public const SIZE_SMALL = 2048;   // 2MB
     public const SIZE_MEDIUM = 5120;  // 5MB
     public const SIZE_LARGE = 10240; // 10MB
+
+    public const PHOTO_MIN_WIDTH = 200;
+    public const PHOTO_MIN_HEIGHT = 200;
+    public const PHOTO_MAX_WIDTH = 4000;
+    public const PHOTO_MAX_HEIGHT = 4000;
 
     /**
      * Get validation rules for file upload based on type and size
@@ -203,6 +209,14 @@ class FileUploadRules
     }
 
     /**
+     * Dokumen SK/BA penghapusan inventaris (PDF).
+     */
+    public static function inventoryDisposalDocument(): array
+    {
+        return self::rules(self::TYPE_PDF_ONLY, self::SIZE_SMALL, true);
+    }
+
+    /**
      * Get validation rules for institution logo upload
      *
      * @return array Validation rules
@@ -242,5 +256,45 @@ class FileUploadRules
     public static function appHeroImage(): array
     {
         return self::rules(self::TYPE_IMAGE_LOGO, self::SIZE_SMALL, true, 'hero_image');
+    }
+
+    /**
+     * Pas foto siswa/guru: JPG/PNG, maks 1MB, dimensi 200–4000 px.
+     */
+    public static function profilePhoto(bool $required = true): array
+    {
+        $rules = self::rules(self::TYPE_IMAGE_ONLY, self::SIZE_PHOTO, $required, 'photo');
+        $rules['photo'] .= '|dimensions:min_width='.self::PHOTO_MIN_WIDTH
+            .',min_height='.self::PHOTO_MIN_HEIGHT
+            .',max_width='.self::PHOTO_MAX_WIDTH
+            .',max_height='.self::PHOTO_MAX_HEIGHT;
+
+        return $rules;
+    }
+
+    public static function profilePhotoMessages(): array
+    {
+        return array_merge(
+            self::messages(self::TYPE_IMAGE_ONLY, self::SIZE_PHOTO, 'photo'),
+            [
+                'photo.dimensions' => 'Foto minimal 200×200 piksel dan maksimal 4000×4000 piksel.',
+            ]
+        );
+    }
+
+    /**
+     * Foto siswa (pas foto 3x4): JPG/PNG, maks 1MB.
+     */
+    public static function studentPhoto(bool $required = true): array
+    {
+        return self::profilePhoto($required);
+    }
+
+    /**
+     * Foto guru/pegawai: JPG/PNG, maks 1MB.
+     */
+    public static function employeePhoto(bool $required = true): array
+    {
+        return self::profilePhoto($required);
     }
 }

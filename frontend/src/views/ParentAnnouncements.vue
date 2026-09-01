@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="sp-page">
+<template>    <div class="sp-page">
       <div class="sp-page-header">
         <div>
           <router-link to="/parent/dashboard" class="back-link">← Dashboard</router-link>
@@ -21,13 +19,10 @@
           <p v-if="ev.description" class="desc">{{ ev.description }}</p>
         </div>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import Layout from '@/components/Layout.vue'
 import { parentApi } from '@/api/parent'
 import '@/assets/student-portal.css'
 

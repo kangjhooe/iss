@@ -43,7 +43,10 @@ use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\InventoryLoan;
 use App\Models\InventoryMaintenance;
+use App\Models\InventoryStockOpname;
+use App\Models\InventoryStockOpnameLine;
 use App\Models\InventoryTransaction;
+use App\Support\InventoryCatalog;
 use App\Models\LabBooking;
 use App\Models\Land;
 use App\Models\LessonSchedule;
@@ -338,7 +341,7 @@ class DemoSchoolService
             'postal_code' => '40111',
             'phone' => '0221234567',
             'email' => 'info@demo.servrin.id',
-            'website' => 'https://servr.in',
+            'website' => rtrim((string) config('demo.website', config('frontend.url')), '/') ?: 'https://servr.in',
             'principal_name' => 'Drs. Ahmad Demo, M.Pd.',
             'principal_nip' => '196501011990031001',
             'description' => 'Sekolah demo publik Servrin. Data di-reset setiap hari pukul 03:00 WIB.',
@@ -386,6 +389,7 @@ class DemoSchoolService
         $this->seedTeacherAchievements($institution, $academicYear, $semester, $teachers, $admin);
         $this->seedExtracurriculars($institution, $academicYear, $semester, $teachers, $students, $rooms);
         $inventoryItems = $this->seedInventoryItems($institution->id, $inventoryCategories, $rooms, $admin);
+        $this->seedIndividualInventoryAssets($institution, $inventoryItems, $rooms, $admin);
         $this->seedInventoryOps($institution, $inventoryItems, $rooms, $teachers, $students, $admin);
         $this->seedLibrary($institution, $students, $admin);
         $this->seedFinance($institution, $academicYear, $students, $admin);
@@ -1794,6 +1798,70 @@ class DemoSchoolService
         }
 
         return $items;
+    }
+
+    /**
+     * @param  list<InventoryItem>  $items
+     * @param  list<Room>  $rooms
+     */
+    private function seedIndividualInventoryAssets(
+        Institution $institution,
+        array $items,
+        array $rooms,
+        User $admin
+    ): void {
+        $mikroskop = collect($items)->first(fn ($i) => $i->code === 'MIC-01');
+        if (! $mikroskop) {
+            return;
+        }
+
+        $mikroskop->update([
+            'tracking_type' => InventoryCatalog::TRACKING_INDIVIDUAL,
+            'identity_status' => InventoryCatalog::IDENTITY_COMPLETE,
+            'master_code' => $mikroskop->code,
+            'quantity' => 0,
+            'updated_by' => $admin->id,
+        ]);
+
+        /** @var \App\Services\InventoryAssetService $assetService */
+        $assetService = app(\App\Services\InventoryAssetService::class);
+        $labRoom = collect($rooms)->first(fn ($r) => str_contains(strtolower($r->name ?? ''), 'lab')) ?? ($rooms[0] ?? null);
+
+        $assets = $assetService->createForItem($mikroskop->fresh(), 3, $admin->id, [
+            'room_id' => $labRoom?->id,
+            'condition' => 'Baik',
+        ]);
+
+        if (count($assets) >= 2 && ($rooms[1] ?? null)) {
+            $assetService->transfer($assets[1], $rooms[1]->id, $admin->id, now()->subDays(10)->toDateString(), 'DEMO-MUT-001', 'Mutasi demo mikroskop');
+        }
+
+        $opname = InventoryStockOpname::create([
+            'institution_id' => $institution->id,
+            'opname_number' => 'OPNAME/' . date('Y') . '/001',
+            'opname_date' => now()->subDays(7)->toDateString(),
+            'room_id' => null,
+            'status' => 'finalized',
+            'notes' => 'Stock opname demo (sudah difinalisasi)',
+            'finalized_at' => now()->subDays(6),
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+
+        $stockItems = InventoryItem::where('institution_id', $institution->id)
+            ->where('tracking_type', InventoryCatalog::TRACKING_STOCK)
+            ->limit(3)
+            ->get();
+
+        foreach ($stockItems as $item) {
+            InventoryStockOpnameLine::create([
+                'opname_id' => $opname->id,
+                'item_id' => $item->id,
+                'book_quantity' => (int) $item->quantity,
+                'counted_quantity' => (int) $item->quantity,
+                'variance' => 0,
+            ]);
+        }
     }
 
     /**

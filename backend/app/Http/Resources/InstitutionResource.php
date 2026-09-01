@@ -16,6 +16,8 @@ class InstitutionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $principal = $this->resolvedPrincipal();
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -40,8 +42,9 @@ class InstitutionResource extends JsonResource
             'phone' => $this->phone,
             'email' => $this->email,
             'website' => $this->website,
-            'principal_name' => $this->principal_name,
-            'principal_nip' => $this->principal_nip,
+            'principal_name' => $principal['name'],
+            'principal_nip' => $principal['nip'],
+            'principal_title' => $principal['role'],
             'description' => $this->description,
             'vision' => $this->vision,
             'mission' => $this->mission,

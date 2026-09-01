@@ -4,9 +4,9 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
-use App\Models\AdditionalDuty;
 use App\Models\Institution;
 use App\Services\BkReportService;
+use App\Support\StructuralPositionResolver;
 use App\Support\WaliKelasAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,7 +39,7 @@ class BkReportController extends Controller
             }
             $data = $this->bkReportService->getSummary($institutionId, $filters);
             $data['scope'] = $this->scopeMeta($user);
-            $data['signers'] = $this->signersMeta($institutionId);
+            $data['signers'] = $this->signersMeta($institutionId, StructuralPositionResolver::reportAsOfDate($filters));
 
             return response()->json(['data' => $data]);
         } catch (\Exception $e) {
@@ -73,7 +73,7 @@ class BkReportController extends Controller
             }
             $data = $this->bkReportService->getViolationDetail($institutionId, $filters);
             $data['scope'] = $this->scopeMeta($user);
-            $data['signers'] = $this->signersMeta($institutionId);
+            $data['signers'] = $this->signersMeta($institutionId, StructuralPositionResolver::reportAsOfDate($filters));
 
             return response()->json(['data' => $data]);
         } catch (\Exception $e) {
@@ -315,21 +315,22 @@ class BkReportController extends Controller
     /**
      * @return array{principal: array{role: string, name: ?string, nip: ?string}, bk: array{role: string, name: ?string, nip: ?string}}
      */
-    protected function signersMeta(int $institutionId): array
+    protected function signersMeta(int $institutionId, ?\Carbon\CarbonInterface $asOfDate = null): array
     {
         $institution = Institution::find($institutionId);
-        $bk = AdditionalDuty::resolveActiveHolder('koordinator_bk', $institutionId);
+        $principal = StructuralPositionResolver::principalAt($institution, $asOfDate);
+        $bk = StructuralPositionResolver::holderAt('koordinator_bk', $institutionId, $asOfDate);
 
         return [
             'principal' => [
-                'role' => Institution::principalTitleForLevel($institution?->level),
-                'name' => $institution?->principal_name,
-                'nip' => $institution?->principal_nip,
+                'role' => $principal['role'],
+                'name' => $principal['name'],
+                'nip' => $principal['nip'],
             ],
             'bk' => [
                 'role' => 'Guru Bimbingan Konseling',
-                'name' => $bk?->name,
-                'nip' => $bk?->nip,
+                'name' => $bk['name'] ?? null,
+                'nip' => $bk['nip'] ?? null,
             ],
         ];
     }

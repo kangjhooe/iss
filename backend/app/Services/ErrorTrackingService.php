@@ -84,11 +84,11 @@ class ErrorTrackingService
     protected function notifyAdmins(array $errorData): void
     {
         // Only send email if configured
-        if (!config('app.error_notification_enabled', false)) {
+        if (!config('error_notification.enabled', false)) {
             return;
         }
 
-        $admins = config('app.error_notification_emails', []);
+        $admins = config('error_notification.emails', []);
 
         if (empty($admins)) {
             return;

@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use App\Models\InventoryItem;
+use App\Models\InventoryAsset;
+use App\Models\InventoryAssetMovement;
 use App\Models\InventoryTransaction;
 use App\Models\InventoryMaintenance;
 use App\Models\InventoryLoan;
+use App\Support\InventoryCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -14,21 +17,29 @@ class InventoryReportService
     public const REPORT_TYPES = [
         'summary',
         'stock',
+        'location',
+        'category',
         'asset',
         'damaged',
         'loaned',
         'transactions',
         'maintenance',
+        'disposal',
+        'asset_movements',
     ];
 
     public const REPORT_TYPE_LABELS = [
         'summary' => 'Ringkasan Inventaris',
         'stock' => 'Daftar Stok Barang',
-        'asset' => 'Nilai Aset',
+        'location' => 'Inventaris per Ruangan',
+        'category' => 'Inventaris per Kategori',
+        'asset' => 'Estimasi Nilai Perolehan',
         'damaged' => 'Barang Rusak / Hilang',
         'loaned' => 'Peminjaman Aktif',
         'transactions' => 'Mutasi / Transaksi',
         'maintenance' => 'Pemeliharaan',
+        'disposal' => 'Penghapusan Barang',
+        'asset_movements' => 'Mutasi Aset Individual',
     ];
 
     /**
@@ -103,6 +114,8 @@ class InventoryReportService
 
     protected function applyItemFilters(Builder $query, array $filters, string $table = 'inventory_item'): Builder
     {
+        $query->whereNull("{$table}.disposed_at");
+
         if (!empty($filters['category_id'])) {
             $query->where("{$table}.category_id", $filters['category_id']);
         }
@@ -117,6 +130,9 @@ class InventoryReportService
         }
         if (!empty($filters['room_id'])) {
             $query->where("{$table}.room_id", $filters['room_id']);
+        }
+        if (! empty($filters['room_ids']) && is_array($filters['room_ids'])) {
+            $query->whereIn("{$table}.room_id", $filters['room_ids']);
         }
 
         return $query;
@@ -134,6 +150,93 @@ class InventoryReportService
         return $item->location_note ?: '-';
     }
 
+    protected function assetLocationLabel(InventoryAsset $asset): string
+    {
+        if ($asset->room) {
+            return $asset->room->name;
+        }
+        if ($asset->building) {
+            return $asset->building->name;
+        }
+
+        return $asset->location_note ?: '-';
+    }
+
+    protected function activeAssetQuery(?int $institutionId, array $filters): Builder
+    {
+        $query = InventoryAsset::query()
+            ->where('inventory_asset.disposal_status', InventoryCatalog::DISPOSAL_ACTIVE)
+            ->whereNull('inventory_asset.disposed_at');
+
+        if ($institutionId) {
+            $query->where('inventory_asset.institution_id', $institutionId);
+        }
+        if (! empty($filters['building_id'])) {
+            $query->where('inventory_asset.building_id', $filters['building_id']);
+        }
+        if (! empty($filters['room_id'])) {
+            $query->where('inventory_asset.room_id', $filters['room_id']);
+        }
+        if (! empty($filters['room_ids']) && is_array($filters['room_ids'])) {
+            $query->whereIn('inventory_asset.room_id', $filters['room_ids']);
+        }
+        if (! empty($filters['status'])) {
+            $query->where('inventory_asset.status', $filters['status']);
+        }
+        if (! empty($filters['condition'])) {
+            $query->where('inventory_asset.condition', $filters['condition']);
+        }
+        if (! empty($filters['category_id'])) {
+            $query->whereHas('item', fn ($q) => $q->where('category_id', $filters['category_id']));
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, object>  $rows
+     * @return array<string, array{count:int, quantity:int}>
+     */
+    protected function statRowsToMap($rows): array
+    {
+        return $rows->mapWithKeys(fn ($item) => [$item->status ?? $item->condition ?? $item->name => [
+            'count' => (int) ($item->total ?? 0),
+            'quantity' => (int) ($item->total_quantity ?? 0),
+        ]])->toArray();
+    }
+
+    /**
+     * @param  array<string, array{count:int, quantity:int}>  ...$buckets
+     * @return array<string, array{count:int, quantity:int}>
+     */
+    protected function mergeStatBuckets(array ...$buckets): array
+    {
+        $merged = [];
+        foreach ($buckets as $bucket) {
+            foreach ($bucket as $key => $row) {
+                if (! isset($merged[$key])) {
+                    $merged[$key] = ['count' => 0, 'quantity' => 0];
+                }
+                $merged[$key]['count'] += (int) ($row['count'] ?? 0);
+                $merged[$key]['quantity'] += (int) ($row['quantity'] ?? 0);
+            }
+        }
+
+        return $merged;
+    }
+
+    protected function assetUnitPrice(InventoryAsset $asset): ?float
+    {
+        if ($asset->purchase_price !== null) {
+            return (float) $asset->purchase_price;
+        }
+        if ($asset->item?->purchase_price !== null) {
+            return (float) $asset->item->purchase_price;
+        }
+
+        return null;
+    }
+
     protected function mapStockItem(InventoryItem $item): array
     {
         $unitPrice = $item->purchase_price !== null ? (float) $item->purchase_price : null;
@@ -143,6 +246,7 @@ class InventoryReportService
             'id' => $item->id,
             'code' => $item->code,
             'name' => $item->name,
+            'tracking_type' => $item->tracking_type ?? InventoryCatalog::TRACKING_STOCK,
             'brand' => $item->brand,
             'model' => $item->model,
             'serial_number' => $item->serial_number,
@@ -166,66 +270,102 @@ class InventoryReportService
      */
     public function getStatistics(?int $institutionId = null, ?string $year = null, array $filters = []): array
     {
-        $query = InventoryItem::query();
+        $itemQuery = InventoryItem::query();
 
         if ($institutionId) {
-            $query->where('inventory_item.institution_id', $institutionId);
+            $itemQuery->where('inventory_item.institution_id', $institutionId);
         }
 
-        $this->applyItemFilters($query, $filters);
+        $this->applyItemFilters($itemQuery, $filters);
 
         if ($year) {
-            $query->whereYear('inventory_item.purchase_date', $year);
+            $itemQuery->whereYear('inventory_item.purchase_date', $year);
         }
 
-        $totalByStatus = (clone $query)
-            ->select('inventory_item.status', DB::raw('count(*) as total'), DB::raw('sum(inventory_item.quantity) as total_quantity'))
-            ->groupBy('inventory_item.status')
-            ->get()
-            ->mapWithKeys(fn($item) => [$item->status => [
-                'count' => $item->total,
-                'quantity' => $item->total_quantity,
-            ]])
-            ->toArray();
+        $stockQuery = (clone $itemQuery)->where('inventory_item.tracking_type', InventoryCatalog::TRACKING_STOCK);
 
-        $totalByCondition = (clone $query)
-            ->select('inventory_item.condition', DB::raw('count(*) as total'), DB::raw('sum(inventory_item.quantity) as total_quantity'))
-            ->groupBy('inventory_item.condition')
-            ->get()
-            ->mapWithKeys(fn($item) => [$item->condition => [
-                'count' => $item->total,
-                'quantity' => $item->total_quantity,
-            ]])
-            ->toArray();
+        $stockByStatus = $this->statRowsToMap(
+            (clone $stockQuery)
+                ->select('inventory_item.status', DB::raw('count(*) as total'), DB::raw('sum(inventory_item.quantity) as total_quantity'))
+                ->groupBy('inventory_item.status')
+                ->get()
+        );
 
-        $totalByCategory = (clone $query)
+        $stockByCondition = $this->statRowsToMap(
+            (clone $stockQuery)
+                ->select('inventory_item.condition', DB::raw('count(*) as total'), DB::raw('sum(inventory_item.quantity) as total_quantity'))
+                ->groupBy('inventory_item.condition')
+                ->get()
+        );
+
+        $assetQuery = $this->activeAssetQuery($institutionId, $filters);
+        if ($year) {
+            $assetQuery->where(function ($q) use ($year) {
+                $q->whereYear('inventory_asset.purchase_date', $year)
+                    ->orWhereHas('item', fn ($iq) => $iq->whereYear('purchase_date', $year));
+            });
+        }
+
+        $assetByStatus = $this->statRowsToMap(
+            (clone $assetQuery)
+                ->select('inventory_asset.status as status', DB::raw('count(*) as total'), DB::raw('count(*) as total_quantity'))
+                ->groupBy('inventory_asset.status')
+                ->get()
+        );
+
+        $assetByCondition = $this->statRowsToMap(
+            (clone $assetQuery)
+                ->select('inventory_asset.condition as condition', DB::raw('count(*) as total'), DB::raw('count(*) as total_quantity'))
+                ->groupBy('inventory_asset.condition')
+                ->get()
+        );
+
+        $stockByCategory = (clone $stockQuery)
             ->join('inventory_category', 'inventory_item.category_id', '=', 'inventory_category.id')
             ->select('inventory_category.name', DB::raw('count(*) as total'), DB::raw('sum(inventory_item.quantity) as total_quantity'))
             ->groupBy('inventory_category.name')
             ->get()
-            ->mapWithKeys(fn($item) => [$item->name => [
-                'count' => $item->total,
-                'quantity' => $item->total_quantity,
+            ->mapWithKeys(fn ($item) => [$item->name => [
+                'count' => (int) $item->total,
+                'quantity' => (int) $item->total_quantity,
             ]])
             ->toArray();
 
-        $totalValue = (clone $query)
+        $assetByCategory = (clone $assetQuery)
+            ->join('inventory_item', 'inventory_asset.item_id', '=', 'inventory_item.id')
+            ->join('inventory_category', 'inventory_item.category_id', '=', 'inventory_category.id')
+            ->select('inventory_category.name', DB::raw('count(*) as total'), DB::raw('count(*) as total_quantity'))
+            ->groupBy('inventory_category.name')
+            ->get()
+            ->mapWithKeys(fn ($item) => [$item->name => [
+                'count' => (int) $item->total,
+                'quantity' => (int) $item->total_quantity,
+            ]])
+            ->toArray();
+
+        $stockValue = (clone $stockQuery)
             ->whereNotNull('inventory_item.purchase_price')
             ->selectRaw('sum(inventory_item.purchase_price * inventory_item.quantity) as total')
             ->value('total') ?? 0;
 
-        $warrantyExpiring = (clone $query)
+        $assetValue = (clone $assetQuery)
+            ->leftJoin('inventory_item as ii', 'inventory_asset.item_id', '=', 'ii.id')
+            ->selectRaw('sum(COALESCE(inventory_asset.purchase_price, ii.purchase_price, 0)) as total')
+            ->value('total') ?? 0;
+
+        $warrantyExpiring = (clone $itemQuery)
             ->whereNotNull('inventory_item.warranty_expiry')
             ->whereBetween('inventory_item.warranty_expiry', [now(), now()->addMonths(3)])
             ->count();
 
         return [
-            'total_items' => (clone $query)->count(),
-            'total_quantity' => (clone $query)->sum('inventory_item.quantity'),
-            'total_value' => $totalValue,
-            'by_status' => $totalByStatus,
-            'by_condition' => $totalByCondition,
-            'by_category' => $totalByCategory,
+            'total_items' => (clone $itemQuery)->count(),
+            'total_quantity' => (int) (clone $stockQuery)->sum('inventory_item.quantity') + (clone $assetQuery)->count(),
+            'total_value' => (float) $stockValue + (float) $assetValue,
+            'individual_asset_count' => (clone $assetQuery)->count(),
+            'by_status' => $this->mergeStatBuckets($stockByStatus, $assetByStatus),
+            'by_condition' => $this->mergeStatBuckets($stockByCondition, $assetByCondition),
+            'by_category' => $this->mergeStatBuckets($stockByCategory, $assetByCategory),
             'warranty_expiring_soon' => $warrantyExpiring,
         ];
     }
@@ -301,48 +441,58 @@ class InventoryReportService
         $this->applyItemFilters($query, $filters);
         $items = $query->get();
 
-        $byRoom = $items->whereNotNull('room_id')
-            ->groupBy(fn($item) => $item->room?->name ?? '-')
-            ->map(function ($grouped, $roomName) {
-                return [
-                    'location_type' => 'room',
-                    'location_name' => $roomName,
-                    'count' => $grouped->count(),
-                    'total_quantity' => $grouped->sum('quantity'),
-                    'items' => $grouped->map(fn($item) => [
-                        'id' => $item->id,
-                        'code' => $item->code,
-                        'name' => $item->name,
-                        'quantity' => $item->quantity,
-                        'category' => $item->category?->name ?? '-',
-                    ])->values(),
-                ];
-            })
-            ->values();
+        $assetQuery = $this->activeAssetQuery($institutionId, $filters)->with(['room', 'item.category']);
+        $assets = $assetQuery->whereNotNull('room_id')->get();
 
-        $byBuilding = $items->whereNotNull('building_id')
-            ->whereNull('room_id')
-            ->groupBy(fn($item) => $item->building?->name ?? '-')
-            ->map(function ($grouped, $buildingName) {
-                return [
-                    'location_type' => 'building',
-                    'location_name' => $buildingName,
-                    'count' => $grouped->count(),
-                    'total_quantity' => $grouped->sum('quantity'),
-                    'items' => $grouped->map(fn($item) => [
-                        'id' => $item->id,
-                        'code' => $item->code,
-                        'name' => $item->name,
-                        'quantity' => $item->quantity,
-                        'category' => $item->category?->name ?? '-',
-                    ])->values(),
-                ];
-            })
-            ->values();
+        $roomGroups = [];
+
+        foreach ($items->whereNotNull('room_id') as $item) {
+            $roomName = $item->room?->name ?? '-';
+            if (! isset($roomGroups[$roomName])) {
+                $roomGroups[$roomName] = ['items' => collect(), 'quantity' => 0];
+            }
+            $roomGroups[$roomName]['items']->push([
+                'id' => $item->id,
+                'code' => $item->code,
+                'name' => $item->name,
+                'quantity' => $item->quantity,
+                'category' => $item->category?->name ?? '-',
+                'tracking_type' => $item->tracking_type ?? InventoryCatalog::TRACKING_STOCK,
+                'entity_type' => 'item',
+            ]);
+            $roomGroups[$roomName]['quantity'] += (int) $item->quantity;
+        }
+
+        foreach ($assets as $asset) {
+            $roomName = $asset->room?->name ?? '-';
+            if (! isset($roomGroups[$roomName])) {
+                $roomGroups[$roomName] = ['items' => collect(), 'quantity' => 0];
+            }
+            $roomGroups[$roomName]['items']->push([
+                'id' => $asset->id,
+                'code' => $asset->asset_number,
+                'name' => ($asset->item?->name ?? '-') . ' (unit)',
+                'quantity' => 1,
+                'category' => $asset->item?->category?->name ?? '-',
+                'tracking_type' => InventoryCatalog::TRACKING_INDIVIDUAL,
+                'entity_type' => 'asset',
+                'item_code' => $asset->item?->code,
+            ]);
+            $roomGroups[$roomName]['quantity'] += 1;
+        }
+
+        $byRoom = collect($roomGroups)->map(function ($group, $roomName) {
+            return [
+                'location_type' => 'room',
+                'location_name' => $roomName,
+                'count' => $group['items']->count(),
+                'total_quantity' => $group['quantity'],
+                'items' => $group['items']->values(),
+            ];
+        })->values();
 
         return [
             'by_room' => $byRoom->toArray(),
-            'by_building' => $byBuilding->toArray(),
         ];
     }
 
@@ -374,6 +524,7 @@ class InventoryReportService
                 'unit' => $item->unit,
                 'location' => $this->itemLocationLabel($item),
                 'label' => $item->condition ?? 'Rusak',
+                'entity_type' => 'item',
             ]);
 
         $missing = (clone $query)
@@ -391,7 +542,52 @@ class InventoryReportService
                 'unit' => $item->unit,
                 'location' => $this->itemLocationLabel($item),
                 'label' => 'Hilang',
+                'entity_type' => 'item',
             ]);
+
+        $assetFilters = array_diff_key($filters, array_flip(['status', 'condition']));
+        $assetQuery = $this->activeAssetQuery($institutionId, $assetFilters)->with(['item.category', 'room', 'building']);
+
+        $assetDamaged = (clone $assetQuery)
+            ->whereIn('inventory_asset.condition', ['Rusak Ringan', 'Rusak Berat'])
+            ->orderBy('asset_number')
+            ->get()
+            ->map(fn (InventoryAsset $asset) => [
+                'id' => $asset->id,
+                'code' => $asset->asset_number,
+                'name' => ($asset->item?->name ?? '-') . ' (unit)',
+                'category' => $asset->item?->category?->name ?? '-',
+                'condition' => $asset->condition,
+                'status' => $asset->status,
+                'quantity' => 1,
+                'unit' => $asset->item?->unit ?? 'Unit',
+                'location' => $this->assetLocationLabel($asset),
+                'label' => $asset->condition ?? 'Rusak',
+                'entity_type' => 'asset',
+                'item_code' => $asset->item?->code,
+            ]);
+
+        $assetMissing = (clone $assetQuery)
+            ->where('inventory_asset.status', 'Hilang')
+            ->orderBy('asset_number')
+            ->get()
+            ->map(fn (InventoryAsset $asset) => [
+                'id' => $asset->id,
+                'code' => $asset->asset_number,
+                'name' => ($asset->item?->name ?? '-') . ' (unit)',
+                'category' => $asset->item?->category?->name ?? '-',
+                'condition' => $asset->condition,
+                'status' => $asset->status,
+                'quantity' => 1,
+                'unit' => $asset->item?->unit ?? 'Unit',
+                'location' => $this->assetLocationLabel($asset),
+                'label' => 'Hilang',
+                'entity_type' => 'asset',
+                'item_code' => $asset->item?->code,
+            ]);
+
+        $damaged = $damaged->concat($assetDamaged);
+        $missing = $missing->concat($assetMissing);
 
         return [
             'damaged' => $damaged->toArray(),
@@ -407,7 +603,7 @@ class InventoryReportService
      */
     public function getLoanedItems(?int $institutionId = null, array $filters = []): array
     {
-        $query = InventoryLoan::with(['item.category', 'borrowerEmployee', 'borrowerStudent']);
+        $query = InventoryLoan::with(['item.category', 'asset', 'borrowerEmployee', 'borrowerStudent']);
 
         if ($institutionId) {
             $query->where('institution_id', $institutionId);
@@ -438,6 +634,7 @@ class InventoryReportService
                     'id' => $loan->id,
                     'item_code' => $loan->item?->code ?? '-',
                     'item_name' => $loan->item?->name ?? '-',
+                    'asset_number' => $loan->asset?->asset_number,
                     'category' => $loan->item?->category?->name ?? '-',
                     'borrower_type' => $loan->borrower_type,
                     'borrower_name' => $borrowerName,
@@ -462,32 +659,76 @@ class InventoryReportService
      */
     public function getAssetValueReport(?int $institutionId = null, array $filters = []): array
     {
-        $query = InventoryItem::with(['category']);
+        $query = InventoryItem::with(['category', 'assets' => fn ($q) => $q->active()]);
 
         if ($institutionId) {
             $query->where('institution_id', $institutionId);
         }
 
         $this->applyItemFilters($query, $filters);
-        $items = $query->whereNotNull('purchase_price')->orderBy('name')->get();
+        $items = $query->orderBy('name')->get();
 
-        $byCategory = $items->groupBy(fn($item) => $item->category?->name ?? 'Tanpa Kategori')
+        $rows = collect();
+
+        foreach ($items as $item) {
+            if ($item->tracking_type === InventoryCatalog::TRACKING_INDIVIDUAL) {
+                $activeAssets = $item->assets->filter(fn ($a) => $a->disposal_status === InventoryCatalog::DISPOSAL_ACTIVE && ! $a->disposed_at);
+                foreach ($activeAssets as $asset) {
+                    $unitPrice = $this->assetUnitPrice($asset);
+                    if ($unitPrice === null) {
+                        continue;
+                    }
+                    $rows->push([
+                        'item' => $item,
+                        'asset' => $asset,
+                        'code' => $asset->asset_number,
+                        'name' => $item->name . ' (unit)',
+                        'quantity' => 1,
+                        'unit' => $item->unit,
+                        'unit_price' => $unitPrice,
+                        'total_value' => $unitPrice,
+                        'purchase_date' => ($asset->purchase_date ?? $item->purchase_date)?->format('Y-m-d'),
+                        'tracking_type' => InventoryCatalog::TRACKING_INDIVIDUAL,
+                    ]);
+                }
+                continue;
+            }
+
+            if ($item->purchase_price === null) {
+                continue;
+            }
+
+            $unitPrice = (float) $item->purchase_price;
+            $rows->push([
+                'item' => $item,
+                'asset' => null,
+                'code' => $item->code,
+                'name' => $item->name,
+                'quantity' => (int) $item->quantity,
+                'unit' => $item->unit,
+                'unit_price' => $unitPrice,
+                'total_value' => $unitPrice * (int) $item->quantity,
+                'purchase_date' => $item->purchase_date?->format('Y-m-d'),
+                'tracking_type' => InventoryCatalog::TRACKING_STOCK,
+            ]);
+        }
+
+        $byCategory = $rows->groupBy(fn ($row) => $row['item']->category?->name ?? 'Tanpa Kategori')
             ->map(function ($grouped, $categoryName) {
-                $totalValue = $grouped->sum(fn($item) => (float) $item->purchase_price * (int) $item->quantity);
-
                 return [
                     'category' => $categoryName,
                     'item_count' => $grouped->count(),
                     'total_quantity' => $grouped->sum('quantity'),
-                    'total_value' => $totalValue,
-                    'items' => $grouped->map(fn($item) => [
-                        'code' => $item->code,
-                        'name' => $item->name,
-                        'quantity' => $item->quantity,
-                        'unit' => $item->unit,
-                        'unit_price' => (float) $item->purchase_price,
-                        'total_value' => (float) $item->purchase_price * (int) $item->quantity,
-                        'purchase_date' => $item->purchase_date?->format('Y-m-d'),
+                    'total_value' => $grouped->sum('total_value'),
+                    'items' => $grouped->map(fn ($row) => [
+                        'code' => $row['code'],
+                        'name' => $row['name'],
+                        'quantity' => $row['quantity'],
+                        'unit' => $row['unit'],
+                        'unit_price' => $row['unit_price'],
+                        'total_value' => $row['total_value'],
+                        'purchase_date' => $row['purchase_date'],
+                        'tracking_type' => $row['tracking_type'],
                     ])->values(),
                 ];
             })
@@ -495,9 +736,9 @@ class InventoryReportService
 
         return [
             'by_category' => $byCategory->toArray(),
-            'grand_total_value' => $items->sum(fn($item) => (float) $item->purchase_price * (int) $item->quantity),
-            'total_items' => $items->count(),
-            'total_quantity' => $items->sum('quantity'),
+            'grand_total_value' => $rows->sum('total_value'),
+            'total_items' => $rows->count(),
+            'total_quantity' => $rows->sum('quantity'),
         ];
     }
 
@@ -625,6 +866,103 @@ class InventoryReportService
                 'to_location' => $t->toLocation?->name,
                 'notes' => $t->notes,
                 'created_by' => $t->creator?->name ?? '-',
+            ])->toArray(),
+        ];
+    }
+
+    /**
+     * Get formally disposed items (penghapusan administratif).
+     */
+    public function getDisposedItems(?int $institutionId = null, array $filters = []): array
+    {
+        $query = \App\Models\InventoryDisposal::with(['item.category', 'item.room', 'item.building']);
+
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
+        }
+
+        if (!empty($filters['category_id'])) {
+            $query->whereHas('item', fn ($q) => $q->where('category_id', $filters['category_id']));
+        }
+        if (!empty($filters['building_id'])) {
+            $query->whereHas('item', fn ($q) => $q->where('building_id', $filters['building_id']));
+        }
+        if (!empty($filters['room_id'])) {
+            $query->whereHas('item', fn ($q) => $q->where('room_id', $filters['room_id']));
+        }
+        if (!empty($filters['date_from'])) {
+            $query->whereDate('disposal_date', '>=', $filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $query->whereDate('disposal_date', '<=', $filters['date_to']);
+        }
+
+        $records = $query->orderByDesc('disposal_date')->orderByDesc('id')->get();
+
+        return [
+            'items' => $records->map(fn ($disposal) => [
+                'id' => $disposal->id,
+                'item_id' => $disposal->item_id,
+                'code' => $disposal->item?->code,
+                'name' => $disposal->item?->name,
+                'category' => $disposal->item?->category?->name ?? '-',
+                'status' => $disposal->status,
+                'condition' => $disposal->item?->condition,
+                'quantity' => $disposal->quantity,
+                'unit' => $disposal->item?->unit,
+                'location' => $disposal->item ? $this->itemLocationLabel($disposal->item) : '-',
+                'disposed_at' => $disposal->disposal_date?->format('Y-m-d'),
+                'disposal_reason' => $disposal->disposal_reason,
+                'disposal_document_number' => $disposal->disposal_document_number,
+            ])->values()->toArray(),
+            'total' => $records->count(),
+            'total_quantity' => $records->sum('quantity'),
+        ];
+    }
+
+    /**
+     * Get individual asset movement report.
+     */
+    public function getAssetMovementReport(?int $institutionId = null, array $filters = []): array
+    {
+        $query = InventoryAssetMovement::with(['asset', 'item.category', 'fromRoom', 'toRoom', 'creator']);
+
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
+        }
+
+        if (! empty($filters['date_from'])) {
+            $query->whereDate('movement_date', '>=', $filters['date_from']);
+        }
+        if (! empty($filters['date_to'])) {
+            $query->whereDate('movement_date', '<=', $filters['date_to']);
+        }
+        if (! empty($filters['room_id'])) {
+            $roomId = (int) $filters['room_id'];
+            $query->where(function ($q) use ($roomId) {
+                $q->where('from_room_id', $roomId)->orWhere('to_room_id', $roomId);
+            });
+        }
+        if (! empty($filters['category_id'])) {
+            $query->whereHas('item', fn ($q) => $q->where('category_id', $filters['category_id']));
+        }
+
+        $movements = $query->orderByDesc('movement_date')->orderByDesc('id')->limit(5000)->get();
+
+        return [
+            'total' => $movements->count(),
+            'movements' => $movements->map(fn ($m) => [
+                'id' => $m->id,
+                'movement_date' => $m->movement_date?->format('Y-m-d'),
+                'asset_number' => $m->asset?->asset_number ?? '-',
+                'item_code' => $m->item?->code ?? '-',
+                'item_name' => $m->item?->name ?? '-',
+                'category' => $m->item?->category?->name ?? '-',
+                'from_location' => $m->fromRoom?->name,
+                'to_location' => $m->toRoom?->name,
+                'reference_number' => $m->reference_number,
+                'notes' => $m->notes,
+                'created_by' => $m->creator?->name ?? '-',
             ])->toArray(),
         ];
     }

@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Layout from '@/components/Layout.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -211,9 +210,7 @@ async function remove(item) {
 onMounted(load)
 </script>
 
-<template>
-  <Layout>
-    <div class="tpl-page">
+<template>    <div class="tpl-page">
       <SuratSubNav
         title="Template Surat"
         subtitle="Pakai template platform atau buat template milik sekolah"
@@ -403,9 +400,7 @@ onMounted(load)
       :loading="confirmDialog.loading"
       @confirm="handleConfirm"
       @cancel="handleCancel"
-    />
-  </Layout>
-</template>
+    /></template>
 
 <style scoped>
 .tpl-page {

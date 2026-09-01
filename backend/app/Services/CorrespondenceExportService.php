@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Correspondence;
 use App\Repositories\CorrespondenceRepository;
+use App\Support\StructuralPositionResolver;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 
@@ -88,11 +89,15 @@ class CorrespondenceExportService
         $filePath = 'exports/' . $fileName;
         Storage::disk('public')->makeDirectory('exports');
 
+        $generatedAt = now();
+        $asOfDate = StructuralPositionResolver::reportAsOfDate($filters);
+
         $pdf = DomPDF::loadView('correspondence.report', [
             'correspondence' => $correspondence->items(),
             'filters' => $filters,
             'institution' => $institution,
-            'generated_at' => now(),
+            'generated_at' => $generatedAt,
+            'as_of_date' => $asOfDate,
         ])->setPaper('a4', 'landscape');
 
         Storage::disk('public')->put($filePath, $pdf->output());

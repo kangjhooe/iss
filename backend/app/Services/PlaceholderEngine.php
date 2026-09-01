@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\Institution;
 use App\Models\Student;
+use App\Support\StructuralPositionResolver;
 use Carbon\Carbon;
 
 class PlaceholderEngine
@@ -91,6 +92,8 @@ class PlaceholderEngine
 
         $kabupatenKota = trim((string) ($institution?->district ?? ''));
 
+        $principal = StructuralPositionResolver::principalAt($institution, $date);
+
         return [
             'nomor_surat' => $nomorSurat ?? '',
             'nama' => $person?->name ?? '',
@@ -108,8 +111,8 @@ class PlaceholderEngine
             'mata_pelajaran' => $employee?->subject ?? '',
             'status_kepegawaian' => $employee?->employment_status ?? '',
             'tipe_pegawai' => $employee?->type ?? '',
-            'kepala_madrasah' => $institution?->principal_name ?? '',
-            'nip' => $institution?->principal_nip ?? '',
+            'kepala_madrasah' => $principal['name'] ?? '',
+            'nip' => $principal['nip'] ?? '',
             'tanggal' => $date->format('d'),
             'bulan' => $bulanId[(int) $date->format('n')] ?? $date->format('F'),
             'tahun' => $date->format('Y'),

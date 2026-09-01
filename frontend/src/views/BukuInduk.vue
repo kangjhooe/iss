@@ -1,6 +1,4 @@
-<template>
-  <Layout>
-    <div class="buku-induk-page">
+<template>    <div class="buku-induk-page">
       <div class="tab-header">
         <router-link :to="backLink" class="back-link">{{ backLabel }}</router-link>
         <div v-if="data" class="header-actions">
@@ -416,9 +414,7 @@
 
         <p v-if="data.printed_at" class="meta-printed">Data diambil: {{ data.printed_at }}</p>
       </div>
-    </div>
-  </Layout>
-</template>
+    </div></template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
@@ -437,10 +433,16 @@ const downloadingPdf = ref(false)
 
 const studentId = computed(() => route.params.id)
 
-const backLink = computed(() => (route.query.from === 'alumni' ? '/alumni' : '/student'))
-const backLabel = computed(() =>
-  route.query.from === 'alumni' ? '← Kembali ke Alumni' : '← Kembali ke Daftar Siswa'
-)
+const backLink = computed(() => {
+  if (route.query.from === 'alumni') return '/alumni'
+  if (route.query.from === 'siswa-keluar') return '/siswa-keluar'
+  return '/student'
+})
+const backLabel = computed(() => {
+  if (route.query.from === 'alumni') return '← Kembali ke Alumni'
+  if (route.query.from === 'siswa-keluar') return '← Kembali ke Siswa Keluar'
+  return '← Kembali ke Daftar Siswa'
+})
 
 const classDisplay = computed(() => {
   if (!data.value?.student) return '-'
