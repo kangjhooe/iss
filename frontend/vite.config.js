@@ -96,7 +96,8 @@ export default defineConfig(({ mode }) => {
         ]
       },
       devOptions: {
-        enabled: true,
+        // SW di dev sering cache respons kosong → halaman putih; aktifkan hanya saat uji PWA.
+        enabled: false,
         type: 'module'
       }
     })
