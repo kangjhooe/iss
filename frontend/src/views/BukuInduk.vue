@@ -1,4 +1,5 @@
-<template>    <div class="buku-induk-page">
+<template>
+    <div class="buku-induk-page">
       <div class="tab-header">
         <router-link :to="backLink" class="back-link">{{ backLabel }}</router-link>
         <div v-if="data" class="header-actions">
@@ -12,7 +13,7 @@
               <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>{{ downloadingPdf ? 'Mengunduh...' : 'Cetak PDF' }}</span>
+            <span>{{ downloadingPdf ? 'Membuka...' : 'Cetak PDF' }}</span>
           </button>
         </div>
       </div>
@@ -414,7 +415,8 @@
 
         <p v-if="data.printed_at" class="meta-printed">Data diambil: {{ data.printed_at }}</p>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
@@ -422,6 +424,8 @@ import { useRoute } from 'vue-router'
 import { studentApi } from '@/api/student'
 import { useToast } from '@/composables/useToast'
 import { formatFullAddress } from '@/utils/addressFields'
+import { openPdfBlob } from '@/utils/pdfPreview'
+import { parseBlobError } from '@/utils/blobError'
 
 const route = useRoute()
 const toast = useToast()
@@ -589,17 +593,15 @@ async function downloadPdf() {
   downloadingPdf.value = true
   try {
     const res = await studentApi.downloadBukuIndukPdf(studentId.value)
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Buku_Induk_${data.value.student?.name || studentId.value}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Berhasil', 'Buku induk berhasil diunduh')
+    const filename = `Buku_Induk_${data.value.student?.name || studentId.value}.pdf`
+    if (!openPdfBlob(res, filename)) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan pop-up untuk preview PDF.')
+      return
+    }
+    toast.success('Berhasil', 'Buku induk dibuka di tab baru')
   } catch (err) {
     console.error(err)
-    toast.error('Gagal mengunduh buku induk', err.response?.data?.message || 'Buku induk tidak dapat diunduh. Periksa koneksi dan coba lagi.')
+    toast.error('Gagal mengunduh buku induk', await parseBlobError(err, 'Buku induk tidak dapat dicetak. Periksa koneksi dan coba lagi.'))
   } finally {
     downloadingPdf.value = false
   }

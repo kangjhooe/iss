@@ -186,10 +186,6 @@
         </tbody>
     </table>
 
-    <div class="footer">
-        Dicetak pada {{ $generated_at }} &mdash; {{ $summary['total_logs'] }} log · {{ $summary['total_incidents'] }} insiden
-    </div>
-
     <div class="standard-signature-wrap">
         <div class="standard-signature-left">
             @include('partials.print-signature', [
@@ -207,6 +203,10 @@
                 'date' => now()->locale('id')->translatedFormat('d F Y'),
             ])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $generated_at }} &mdash; {{ $summary['total_logs'] }} log · {{ $summary['total_incidents'] }} insiden
     </div>
 </body>
 </html>

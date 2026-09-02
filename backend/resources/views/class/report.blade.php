@@ -214,14 +214,15 @@
     </div>
     @endif
 
-    <div class="footer">
-        Total: {{ count($classes) }} kelas
-    </div>
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>
         <div class="standard-signature-right">
             @include('partials.print-signature', ['institution' => $institution, 'date' => $generated_at->locale('id')->translatedFormat('d F Y'), 'as_of_date' => $generated_at])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Total: {{ count($classes) }} kelas
     </div>
 </body>
 </html>

@@ -233,14 +233,6 @@
                 <p class="muted" style="margin:6px 0 0;">Nilai harian pertemuan ini belum diisi.</p>
             @endif
 
-            <div class="footer">
-                Dicetak pada {{ $printed_at }}
-                @if(!empty($printed_by))
-                    · oleh {{ $printed_by }}
-                @endif
-                · {{ $session['attendance']['student_count'] ?? 0 }} siswa
-            </div>
-
             <div class="standard-signature-wrap">
                 <div class="standard-signature-left">
                     @include('partials.print-signature', [
@@ -259,6 +251,14 @@
                         'show_place_date' => true,
                     ])
                 </div>
+            </div>
+
+            <div class="footer print-document-footer">
+                Dicetak pada {{ $printed_at }}
+                @if(!empty($printed_by))
+                    · oleh {{ $printed_by }}
+                @endif
+                · {{ $session['attendance']['student_count'] ?? 0 }} siswa
             </div>
         </div>
     @endforeach

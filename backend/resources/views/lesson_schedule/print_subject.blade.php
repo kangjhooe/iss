@@ -85,13 +85,6 @@
         </tbody>
     </table>
 
-    <div class="footer">
-        Dicetak pada {{ $printed_at }}
-        @if($rows->count())
-            &mdash; {{ $rows->count() }} slot
-        @endif
-    </div>
-
     <div class="standard-signature-wrap">
         <div class="standard-signature-left">
             @include('partials.print-signature', [
@@ -110,6 +103,13 @@
                     'as_of_date' => $as_of_date ?? null,
             ])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $printed_at }}
+        @if($rows->count())
+            &mdash; {{ $rows->count() }} slot
+        @endif
     </div>
 </body>
 </html>

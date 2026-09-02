@@ -84,9 +84,6 @@
         </tbody>
     </table>
 
-    <div class="footer">
-        Dicetak pada {{ $printed_at }} &mdash; {{ $employees->count() }} catatan
-    </div>
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>
         <div class="standard-signature-right">
@@ -95,6 +92,10 @@
                 'date' => now()->locale('id')->translatedFormat('d F Y'),
             ])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $printed_at }} &mdash; {{ $employees->count() }} catatan
     </div>
 </body>
 </html>

@@ -17,6 +17,7 @@
 Fondasi dark launch sudah ada (`/super-admin/monetisasi`). Default **tersembunyi** dari semua sekolah sampai Super Admin centang “Tampilkan monetisasi ke sekolah”.
 
 - [ ] Billing & subscription penuh (invoice, trial otomatis, suspend tenant, gateway)
+- [ ] Footer branding PDF (“dicetak melalui servr.in”) sebagai add-on / paket berbayar; audit trail “dicetak oleh” tetap gratis
 
 ## Peningkatan operasional sekolah
 

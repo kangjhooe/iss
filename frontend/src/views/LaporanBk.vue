@@ -1,4 +1,5 @@
-<template>    <div class="laporan-bk-page">
+<template>
+    <div class="laporan-bk-page">
       <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
         <symbol id="bk-empty" viewBox="0 0 24 24" fill="none">
           <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -427,7 +428,8 @@
       </div>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
@@ -1023,7 +1025,7 @@ function printPdf() {
     .stat-label { font-size: 9px; text-transform: uppercase; color: #555; }
     .stat-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
     .note { font-size: 10px; color: #444; margin: 0 0 10px; }
-    .printed-at { font-size: 9px; color: #555; margin-top: 18px; }
+    .printed-at { font-size: 9px; color: #555; margin-top: 12px; text-align: center; }
     .sig-wrap { display: table; width: 100%; margin-top: 28px; page-break-inside: avoid; }
     .sig-col { display: table-cell; width: 50%; vertical-align: top; }
     .sig { text-align: center; min-width: 220px; }
@@ -1062,7 +1064,6 @@ function printPdf() {
   <div class="subtitle">Bimbingan Konseling</div>
   <div class="period"><strong>Periode / Filter:</strong> ${escapeHtml(periodLabel.value)}</div>
   ${buildPrintBodyHtml()}
-  <div class="printed-at">Dicetak pada: ${escapeHtml(createdAt)}</div>
   <div class="sig-wrap">
     <div class="sig-col">
       <div class="sig">
@@ -1083,6 +1084,7 @@ function printPdf() {
       </div>
     </div>
   </div>
+  <div class="printed-at">Dicetak pada: ${escapeHtml(createdAt)}</div>
 </body>
 </html>`
 

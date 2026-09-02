@@ -59,6 +59,12 @@ export const studentApi = {
       responseType: 'blob'
     })
   },
+  printBiodataPdf(id, mode = 'lengkap') {
+    return api.get(`/v1/student/${id}/biodata/pdf`, {
+      params: { mode },
+      responseType: 'blob'
+    })
+  },
   promote(data) {
     return api.post('/v1/student/promote', data)
   },

@@ -66,14 +66,15 @@
         </tbody>
     </table>
 
-    <div class="footer">
-        Dicetak pada {{ now()->locale('id')->isoFormat('D MMMM YYYY HH:mm') }} &mdash; {{ $visits->count() }} catatan
-    </div>
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>
         <div class="standard-signature-right">
             @include('partials.print-signature', ['institution' => $institution])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ now()->locale('id')->isoFormat('D MMMM YYYY HH:mm') }} &mdash; {{ $visits->count() }} catatan
     </div>
 </body>
 </html>

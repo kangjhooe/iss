@@ -331,6 +331,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/student/{id}', [StudentController::class, 'show']);
         Route::get('/student/{id}/buku-induk', [BukuIndukController::class, 'show'])->name('student.buku-induk');
         Route::get('/student/{id}/buku-induk/pdf', [BukuIndukController::class, 'print'])->name('student.buku-induk.pdf');
+        Route::get('/student/{id}/biodata/pdf', [StudentController::class, 'printBiodata'])->name('student.biodata.pdf');
         Route::put('/student/{id}', [StudentController::class, 'update']);
         Route::post('/student/{id}/ensure-account', [StudentController::class, 'ensureAccount'])->name('student.ensure-account');
         Route::post('/student/{id}/reset-password', [StudentController::class, 'resetPassword'])->name('student.reset-password');

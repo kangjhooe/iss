@@ -110,8 +110,6 @@
         </table>
     @endif
 
-    <div class="footer">Dicetak pada {{ $printed_at }}</div>
-
     <div class="standard-signature-wrap">
         <div class="standard-signature-left">
             @if(!empty($left_signer))
@@ -155,5 +153,7 @@
             @endif
         </div>
     </div>
+
+    <div class="footer print-document-footer">Dicetak pada {{ $printed_at }}</div>
 </body>
 </html>

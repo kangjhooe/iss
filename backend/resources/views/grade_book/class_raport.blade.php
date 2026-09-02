@@ -179,14 +179,6 @@
         Siswa dengan rata-rata sama mendapat ranking sama.
         Predikat: &lt;KKM = D; di atas KKM dibagi C, B, A.
     </p>
-    <div class="footer">
-        Dicetak pada {{ $printed_at }}
-        @if(!empty($printed_by))
-            · oleh {{ $printed_by }}
-        @endif
-        · {{ count($rows) }} siswa · {{ count($subjects) }} mapel
-    </div>
-
     <div class="standard-signature-wrap">
         <div class="standard-signature-left">
             @include('partials.print-signature', [
@@ -205,6 +197,14 @@
                 'show_place_date' => true,
             ])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $printed_at }}
+        @if(!empty($printed_by))
+            · oleh {{ $printed_by }}
+        @endif
+        · {{ count($rows) }} siswa · {{ count($subjects) }} mapel
     </div>
 </body>
 </html>

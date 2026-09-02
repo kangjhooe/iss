@@ -1,4 +1,5 @@
-<template>    <div class="student-page">
+<template>
+    <div class="student-page">
       <div class="list-tabs">
         <button
           type="button"
@@ -1109,21 +1110,29 @@
           <div class="modal-header">
             <h3>Biodata Lengkap Siswa</h3>
             <div class="header-actions">
-              <button @click="downloadBukuIndukPdf" class="btn-print" title="Cetak Buku Induk (PDF)">
+              <button @click="previewBukuIndukPdf" class="btn-print" :disabled="printingBukuInduk" title="Cetak Buku Induk (PDF)">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>Buku Induk (PDF)</span>
+                <span>{{ printingBukuInduk ? 'Membuka...' : 'Buku Induk' }}</span>
               </button>
-              <button @click="printPDF" class="btn-print btn-print-biodata" title="Cetak Biodata">
+              <button @click="printBiodataPdf('lengkap')" class="btn-print btn-print-biodata" :disabled="printingBiodata" title="Cetak Biodata Lengkap">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>Cetak Biodata</span>
+                <span>{{ printingBiodata === 'lengkap' ? 'Membuka...' : 'Biodata Lengkap' }}</span>
+              </button>
+              <button @click="printBiodataPdf('singkat')" class="btn-print btn-print-biodata" :disabled="!!printingBiodata" title="Cetak Biodata Singkat (1 lembar)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>{{ printingBiodata === 'singkat' ? 'Membuka...' : 'Biodata Singkat' }}</span>
               </button>
               <router-link v-if="viewingStudent" :to="{ name: 'BukuInduk', params: { id: viewingStudent.id } }" class="btn-buku-induk-link" @click="closeViewModal">Lihat Buku Induk →</router-link>
               <button @click="closeViewModal" class="btn-close">×</button>
@@ -1856,7 +1865,8 @@
       :file="photoCropSourceFile"
       @confirm="onStudentPhotoCropped"
       @cancel="onStudentPhotoCropCancel"
-    /></template>
+    />
+</template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
@@ -1894,6 +1904,8 @@ import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import { studentLoginCredentials, mapStudentCreatedAccounts } from '@/utils/accountCredentials'
 import { PROFILE_PHOTO_ACCEPT, profilePhotoFormData, validateProfilePhoto, validateProfilePhotoSource } from '@/utils/profilePhoto'
+import { openPdfBlob } from '@/utils/pdfPreview'
+import { parseBlobError } from '@/utils/blobError'
 import * as XLSX from 'xlsx'
 
 const toast = useToast()
@@ -3373,330 +3385,47 @@ async function confirmImportExcel() {
   }
 }
 
-const downloadBukuIndukPdf = async () => {
+const printingBukuInduk = ref(false)
+const printingBiodata = ref(null)
+
+const previewBukuIndukPdf = async () => {
   if (!viewingStudent.value?.id) return
+  printingBukuInduk.value = true
   try {
     const res = await studentApi.downloadBukuIndukPdf(viewingStudent.value.id)
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Buku_Induk_${viewingStudent.value.name || viewingStudent.value.id}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Berhasil', 'Buku induk berhasil diunduh')
+    const filename = `Buku_Induk_${viewingStudent.value.name || viewingStudent.value.id}.pdf`
+    if (!openPdfBlob(res, filename)) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan pop-up untuk preview PDF.')
+      return
+    }
+    toast.success('Berhasil', 'Buku induk dibuka di tab baru')
   } catch (err) {
     console.error(err)
-    toast.error('Gagal', err.response?.data?.message || 'Gagal mengunduh buku induk')
+    toast.error('Gagal', await parseBlobError(err, 'Gagal membuka buku induk'))
+  } finally {
+    printingBukuInduk.value = false
   }
 }
 
-const printPDF = async () => {
-  if (!viewingStudent.value) return
-  
+const printBiodataPdf = async (mode = 'lengkap') => {
+  if (!viewingStudent.value?.id) return
+  printingBiodata.value = mode
   try {
-    // Ambil data institusi
-    const institutionResponse = await institutionApi.getMy()
-    const institution = institutionResponse.data?.data || institutionResponse.data || {}
-    
-    const printWindow = window.open('', '_blank')
-    const student = viewingStudent.value
-    const filename = `${student.nik || 'NIK'}_${student.name || 'Siswa'}.pdf`
-    
-    // Format alamat lengkap
-    const addressParts = []
-    if (institution.address) addressParts.push(institution.address)
-    if (institution.village) addressParts.push(institution.village)
-    if (institution.sub_district) addressParts.push(`Kec. ${institution.sub_district}`)
-    if (institution.district) addressParts.push(institution.district)
-    if (institution.province) addressParts.push(institution.province)
-    if (institution.postal_code) addressParts.push(institution.postal_code)
-    const fullAddress = addressParts.join(', ') || '-'
-    const principalLabel = getPrincipalTitle(institution?.level)
-    
-    const content = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Biodata ${student.name}</title>
-        <style>
-        @media print {
-          @page {
-            size: A4;
-            margin: 1.2cm 2cm 2cm 2cm;
-          }
-        }
-        body {
-          font-family: 'Times New Roman', serif;
-          line-height: 1.3;
-          color: #000;
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 0;
-        }
-        .kop { border-bottom: 3px double #111; padding: 0 8px 8px; margin-bottom: 10px; }
-        .kop-inner { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; min-height: 70px; }
-        .kop-logo { width: 66px; height: 66px; object-fit: contain; }
-        .kop-text { min-width: 0; text-align: center; }
-        .foundation { overflow: hidden; font-family: "Times New Roman", serif; font-size: 14px; font-weight: 600; line-height: 1.15; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.02em; }
-        .school { font-family: "Times New Roman", serif; font-size: 18px; font-weight: 700; text-transform: uppercase; }
-        .school-address { font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; margin-top: 3px; }
-        .school-info { font-family: Arial, Helvetica, sans-serif; font-size: 9px; margin-top: 2px; }
-        .header {
-          text-align: center;
-          margin-bottom: 20px;
-          margin-top: 15px;
-        }
-        .header h1 {
-          color: #000;
-          margin: 0;
-          font-size: 18px;
-          font-weight: bold;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          line-height: 1.2;
-        }
-        .header p {
-          margin-top: 4px;
-          font-size: 13px;
-          line-height: 1.2;
-        }
-        .section {
-          margin-bottom: 20px;
-          page-break-inside: avoid;
-        }
-        .section-title {
-          background: #f0f0f0;
-          color: #000;
-          padding: 8px 12px;
-          margin: 0 0 10px 0;
-          font-size: 14px;
-          font-weight: bold;
-          border-left: 4px solid #000;
-          line-height: 1.2;
-        }
-        .biodata-grid {
-          display: grid;
-          grid-template-columns: 1fr 2fr;
-          gap: 0;
-          margin-bottom: 12px;
-          width: calc(100% - 2px);
-          max-width: calc(100% - 2px);
-          border: 1px solid #ddd;
-        }
-        .biodata-item {
-          display: contents;
-        }
-        .label {
-          font-weight: bold;
-          color: #000;
-          padding: 7px 10px;
-          background: #f8f8f8;
-          border-right: 1px solid #ddd;
-          border-bottom: 1px solid #ddd;
-          font-size: 13px;
-          line-height: 1.2;
-        }
-        .value {
-          padding: 7px 10px;
-          border-bottom: 1px solid #ddd;
-          font-size: 13px;
-          line-height: 1.2;
-        }
-        .biodata-grid .biodata-item:last-child .label,
-        .biodata-grid .biodata-item:nth-last-child(2) .label {
-          border-bottom: none;
-        }
-        .biodata-grid .biodata-item:last-child .value,
-        .biodata-grid .biodata-item:nth-last-child(2) .value {
-          border-bottom: none;
-        }
-        .footer {
-          margin-top: 40px;
-          padding-top: 20px;
-          border-top: 1px solid #ddd;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          page-break-inside: avoid;
-        }
-        .footer-left {
-          flex: 1;
-        }
-        .footer-right {
-          flex: 1;
-          text-align: right;
-        }
-        .footer-date {
-          font-size: 12px;
-          margin-bottom: 40px;
-          line-height: 1.3;
-        }
-        .footer-signature {
-          font-size: 12px;
-          line-height: 1.3;
-        }
-        .footer-signature-label {
-          margin-bottom: 60px;
-          font-weight: bold;
-        }
-        .footer-signature-name {
-          font-weight: bold;
-          text-decoration: underline;
-        }
-        .footer-signature-nip {
-          font-size: 11px;
-          margin-top: 5px;
-        }
-        .no-print {
-          display: none;
-        }
-        </style>
-      </head>
-      <body>
-        <header class="kop">
-          <div class="kop-inner">
-            <div>${institution.logo ? `<img src="${institution.logo}" alt="Logo ${getInstitutionTypeLabel(institution?.level) || 'Sekolah/Madrasah'}" class="kop-logo" />` : ''}</div>
-            <div class="kop-text">
-              ${institution.foundation_name ? `<div class="foundation">${institution.foundation_name}</div>` : ''}
-              <div class="school">${institution.name || 'NAMA LEMBAGA'}</div>
-              <div class="school-address">${fullAddress || '-'}</div>
-              <div class="school-info">
-                NPSN: ${institution.npsn || '-'}
-                ${institution.nss ? ` · ${getNssLabel(institution.level)}: ${institution.nss}` : ''}
-                ${institution.phone ? ` · Telp: ${institution.phone}` : ''}
-                ${institution.email ? ` · Email: ${institution.email}` : ''}
-                ${institution.website ? ` · ${institution.website}` : ''}
-              </div>
-            </div>
-            <div></div>
-          </div>
-        </header>
-        
-        <div class="header">
-          <h1>BIODATA SISWA</h1>
-          <p>${student.name || ''}</p>
-          ${student.photo_url ? `<img src="${student.photo_url}" alt="Foto" style="width:2.7cm;height:3.6cm;object-fit:cover;border:1px solid #333;margin-top:8px;" />` : ''}
-        </div>
-        
-        <div class="section">
-        <h3 class="section-title">Identitas Siswa</h3>
-        <div class="biodata-grid">
-          <div class="biodata-item"><span class="label">NIK</span><span class="value">${student.nik || '-'}</span></div>
-          <div class="biodata-item"><span class="label">NIS</span><span class="value">${student.nis || '-'}</span></div>
-          <div class="biodata-item"><span class="label">NISN</span><span class="value">${student.nisn || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Nama Lengkap</span><span class="value">${student.name || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Jenis Kelamin</span><span class="value">${student.gender === 'L' ? 'Laki-laki' : student.gender === 'P' ? 'Perempuan' : '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tempat Lahir</span><span class="value">${student.birth_place || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tanggal Lahir</span><span class="value">${formatDate(student.birth_date)}</span></div>
-          <div class="biodata-item"><span class="label">Alamat</span><span class="value">${formatFullAddress(student) || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Telepon</span><span class="value">${student.phone || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Email</span><span class="value">${student.email || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Kelas</span><span class="value">${studentClassName(student) || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tahun Ajaran</span><span class="value">${student.academic_year || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Status</span><span class="value">${student.status || '-'}</span></div>
-        </div>
-      </div>
-      
-      <div class="section">
-        <h3 class="section-title">Data Tambahan</h3>
-        <div class="biodata-grid">
-          <div class="biodata-item"><span class="label">No KK</span><span class="value">${student.no_kk || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Cita-cita</span><span class="value">${student.aspiration || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Hobi</span><span class="value">${student.hobby || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Agama</span><span class="value">${student.religion || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Disabilitas</span><span class="value">${student.disability || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tempat Tinggal</span><span class="value">${student.residence_type ? formatResidenceType(student.residence_type) : '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tinggi Badan</span><span class="value">${student.height ? student.height + ' cm' : '-'}</span></div>
-          <div class="biodata-item"><span class="label">Berat Badan</span><span class="value">${student.weight ? student.weight + ' kg' : '-'}</span></div>
-          <div class="biodata-item"><span class="label">Asal Sekolah</span><span class="value">${student.previous_school || '-'}</span></div>
-          <div class="biodata-item"><span class="label">NPSN Sekolah Asal</span><span class="value">${student.previous_school_npsn || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Alamat Sekolah Asal</span><span class="value">${student.previous_school_address || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Catatan</span><span class="value">${student.notes || '-'}</span></div>
-        </div>
-      </div>
-      
-      <div class="section">
-        <h3 class="section-title">Data Ayah Kandung</h3>
-        <div class="biodata-grid">
-          <div class="biodata-item"><span class="label">Status</span><span class="value">${student.father_status ? formatStatus(student.father_status) : '-'}</span></div>
-          <div class="biodata-item"><span class="label">NIK</span><span class="value">${student.father_nik || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Nama Lengkap</span><span class="value">${student.father_name || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tempat Lahir</span><span class="value">${student.father_birth_place || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tanggal Lahir</span><span class="value">${formatDate(student.father_birth_date)}</span></div>
-          <div class="biodata-item"><span class="label">Pendidikan</span><span class="value">${student.father_education || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Pekerjaan</span><span class="value">${student.father_occupation || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Penghasilan per Bulan</span><span class="value">${student.father_income ? 'Rp ' + formatCurrency(student.father_income) : '-'}</span></div>
-        </div>
-      </div>
-      
-      <div class="section">
-        <h3 class="section-title">Data Ibu Kandung</h3>
-        <div class="biodata-grid">
-          <div class="biodata-item"><span class="label">Status</span><span class="value">${student.mother_status ? formatStatus(student.mother_status) : '-'}</span></div>
-          <div class="biodata-item"><span class="label">NIK</span><span class="value">${student.mother_nik || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Nama Lengkap</span><span class="value">${student.mother_name || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tempat Lahir</span><span class="value">${student.mother_birth_place || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tanggal Lahir</span><span class="value">${formatDate(student.mother_birth_date)}</span></div>
-          <div class="biodata-item"><span class="label">Pendidikan</span><span class="value">${student.mother_education || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Pekerjaan</span><span class="value">${student.mother_occupation || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Penghasilan per Bulan</span><span class="value">${student.mother_income ? 'Rp ' + formatCurrency(student.mother_income) : '-'}</span></div>
-        </div>
-      </div>
-      
-      <div class="section">
-        <h3 class="section-title">Data Wali</h3>
-        <div class="biodata-grid">
-          <div class="biodata-item"><span class="label">Wali</span><span class="value">${student.guardian_type ? formatGuardianType(student.guardian_type) : '-'}</span></div>
-          <div class="biodata-item"><span class="label">Status</span><span class="value">${student.guardian_status ? formatStatus(student.guardian_status) : '-'}</span></div>
-          <div class="biodata-item"><span class="label">NIK</span><span class="value">${student.guardian_nik || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Nama Lengkap</span><span class="value">${student.guardian_name || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Telepon</span><span class="value">${student.guardian_phone || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tempat Lahir</span><span class="value">${student.guardian_birth_place || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Tanggal Lahir</span><span class="value">${formatDate(student.guardian_birth_date)}</span></div>
-          <div class="biodata-item"><span class="label">Pendidikan</span><span class="value">${student.guardian_education || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Pekerjaan</span><span class="value">${student.guardian_occupation || '-'}</span></div>
-          <div class="biodata-item"><span class="label">Penghasilan per Bulan</span><span class="value">${student.guardian_income ? 'Rp ' + formatCurrency(student.guardian_income) : '-'}</span></div>
-        </div>
-      </div>
-      
-      <div class="footer">
-        <div class="footer-left">
-          <div class="footer-date">
-            <strong>Catatan:</strong><br>
-            Dokumen ini adalah data resmi yang tercatat dalam sistem sekolah.
-          </div>
-        </div>
-        <div class="footer-right">
-          <div class="footer-date">
-            ${institution.district || 'Kota/Kabupaten'}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </div>
-          <div class="footer-signature">
-            <div class="footer-signature-label">${principalLabel}</div>
-            <div class="footer-signature-name">${institution.principal_name || '___________________'}</div>
-            <div class="footer-signature-nip">${institution.principal_nip ? 'NIP. ' + institution.principal_nip : 'NIP. ___________________'}</div>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
-  `
-  
-    printWindow.document.write(content)
-    printWindow.document.close()
-    
-    setTimeout(() => {
-      printWindow.print()
-      // Set filename saat save PDF
-      printWindow.document.title = filename
-    }, 250)
+    const res = await studentApi.printBiodataPdf(viewingStudent.value.id, mode)
+    const label = mode === 'singkat' ? 'Singkat' : 'Lengkap'
+    const filename = `Biodata_${label}_${viewingStudent.value.name || viewingStudent.value.id}.pdf`
+    if (!openPdfBlob(res, filename)) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan pop-up untuk preview PDF.')
+      return
+    }
+    toast.success('Berhasil', `Biodata ${label.toLowerCase()} dibuka di tab baru`)
   } catch (err) {
-    console.error('Error loading institution data:', err)
-    toast.error('Gagal', 'Gagal memuat data institusi untuk KOP surat')
+    console.error(err)
+    toast.error('Gagal', await parseBlobError(err, 'Gagal mencetak biodata'))
+  } finally {
+    printingBiodata.value = null
   }
 }
-
 function clearPendingPhoto() {
   if (pendingPhotoPreview.value) URL.revokeObjectURL(pendingPhotoPreview.value)
   pendingPhotoPreview.value = ''

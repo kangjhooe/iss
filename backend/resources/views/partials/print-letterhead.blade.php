@@ -1,24 +1,8 @@
 @php
+    use App\Support\StandardLetterhead;
+
     $standardInstitution = $institution ?? null;
-    $standardLogoPath = null;
-
-    if ($standardInstitution && !empty($standardInstitution->logo)) {
-        $standardLogoValue = (string) $standardInstitution->logo;
-        $standardLogoUrlPath = parse_url($standardLogoValue, PHP_URL_PATH) ?: $standardLogoValue;
-        $standardLogoUrlPath = ltrim($standardLogoUrlPath, '/\\');
-
-        if (str_starts_with($standardLogoUrlPath, 'storage/')) {
-            $standardLogoCandidate = public_path(str_replace('/', DIRECTORY_SEPARATOR, $standardLogoUrlPath));
-        } else {
-            $standardLogoCandidate = public_path(
-                'storage' . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $standardLogoUrlPath)
-            );
-        }
-
-        if (is_file($standardLogoCandidate)) {
-            $standardLogoPath = $standardLogoCandidate;
-        }
-    }
+    $standardLogoPath = StandardLetterhead::resolveLogoPathForPdf($standardInstitution);
 
     $standardAddress = $standardInstitution
         ? collect([

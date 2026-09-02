@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\BukuIndukService;
 use App\Services\StudentService;
 use App\Support\InstitutionContext;
+use App\Support\PrintImage;
 use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -75,18 +76,26 @@ class BukuIndukController extends Controller
             }
 
             $data = $this->bukuIndukService->getDataForStudent((int) $id);
+            $data['photo_base64'] = PrintImage::studentPhoto($student->loadMissing('documents'));
+            $data['as_of_date'] = now();
+            $data['signature_date'] = now()->locale('id')->translatedFormat('d F Y');
 
-            $pdf = DomPDF::loadView('buku_induk.print', $data);
+            $pdf = DomPDF::loadView('buku_induk.print', $data)
+                ->setPaper('a4', 'portrait');
 
             $filename = 'Buku_Induk_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $student->name ?? $student->id) . '_' . ($student->nis ?? $student->id) . '.pdf';
 
-            return $pdf->download($filename);
+            return $pdf->stream($filename, ['Attachment' => false]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
         } catch (\Exception $e) {
             Log::error('Buku induk print failed', ['student_id' => $id, 'error' => $e->getMessage()]);
+            $message = 'Terjadi kesalahan saat mencetak buku induk';
+            if (str_contains($e->getMessage(), 'GD extension')) {
+                $message = 'Cetak gagal: ekstensi PHP GD belum aktif di server. Aktifkan extension=gd di php.ini lalu restart Apache.';
+            }
             return response()->json([
-                'message' => 'Terjadi kesalahan saat mencetak buku induk',
+                'message' => $message,
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

@@ -71,11 +71,12 @@
         </tbody>
     </table>
 
-    <div class="footer">Dokumen digenerate sistem · {{ $printed_at }}</div>
     @include('library.partials.signature', [
         'institution' => $institution,
         'kepala_perpustakaan' => $kepala_perpustakaan ?? null,
         'as_of_date' => $as_of_date ?? null,
     ])
+
+    <div class="footer print-document-footer">Dokumen digenerate sistem · {{ $printed_at }}</div>
 </body>
 </html>

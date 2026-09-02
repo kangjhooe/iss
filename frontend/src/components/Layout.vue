@@ -57,19 +57,87 @@
         </div>
         <p v-if="academicPeriodText" class="logo-period">{{ academicPeriodText }}</p>
       </div>
+
+      <div class="sidebar-toolbar">
+        <button type="button" class="sidebar-search-btn" @click="openMenuSearch">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+            <path d="M20 20L16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <span class="sidebar-search-label">Cari menu...</span>
+          <kbd class="sidebar-search-kbd">Ctrl+K</kbd>
+        </button>
+        <button
+          type="button"
+          class="sidebar-accordion-btn"
+          :class="{ 'sidebar-accordion-btn--active': accordionEnabled }"
+          :title="`Grup menu: ${accordionModeLabel}`"
+          :aria-label="`Mode grup menu: ${accordionModeLabel}`"
+          @click="cycleAccordionMode"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 6H20M4 12H14M4 18H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
       
       <ul ref="navMenuRef" class="nav-menu" @scroll="onNavMenuScroll">
-        <template v-for="entry in menuEntries" :key="entry.key">
+        <template v-if="pinnedMenuItems.length">
+          <li class="nav-divider nav-divider--compact" aria-hidden="true">
+            <span>Favorit</span>
+          </li>
+          <li v-for="item in pinnedMenuItems" :key="`pin-${item.pinId}`" class="nav-pin-item">
+            <router-link :to="item.to" class="nav-item nav-item--pinned">
+              <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z" fill="currentColor" />
+              </svg>
+              <span class="nav-item-label">
+                <span class="nav-pin-label">{{ item.label }}</span>
+                <span v-if="item.groupLabel" class="nav-pin-sublabel">{{ item.groupLabel }}</span>
+              </span>
+            </router-link>
+            <button
+              type="button"
+              class="nav-pin-remove"
+              title="Lepas pin"
+              aria-label="Lepas pin"
+              @click.stop="removePin(item.pinId)"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </button>
+          </li>
+        </template>
+        <template v-for="entry in displayMenuEntries" :key="entry.key">
           <li v-if="entry.type === 'divider'" class="nav-divider" aria-hidden="true">
             <span>{{ entry.label }}</span>
           </li>
-          <li v-else-if="entry.type === 'link'">
+          <li v-else-if="entry.type === 'link'" class="nav-link-row">
             <router-link :to="entry.to" class="nav-item">
               <component :is="entry.icon" />
               <span class="nav-item-label">{{ entry.label }}</span>
               <span v-if="entry.maturity === 'beta'" class="nav-badge">Beta</span>
               <span v-if="entry.badgeCount" class="nav-count-badge">{{ entry.badgeCount }}</span>
             </router-link>
+            <button
+              type="button"
+              class="nav-pin-toggle"
+              :class="{ 'nav-pin-toggle--on': isPinned(entry.to) }"
+              :title="isPinned(entry.to) ? 'Lepas pin' : 'Pin ke favorit'"
+              :aria-label="isPinned(entry.to) ? 'Lepas pin' : 'Pin ke favorit'"
+              @click.stop="handleTogglePin(entry.to)"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z"
+                  :fill="isPinned(entry.to) ? 'currentColor' : 'none'"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
           </li>
           <li v-else-if="entry.type === 'group'" class="nav-group">
             <button
@@ -88,19 +156,41 @@
             </button>
             <Transition name="nav-group">
               <div v-show="isGroupExpanded(entry.key)" class="nav-group-body">
-                <router-link
+                <div
                   v-for="child in entry.visibleChildren"
                   :key="child.to"
-                  :to="child.to"
-                  class="nav-subitem"
-                  active-class=""
-                  exact-active-class=""
-                  :class="{ 'nav-subitem--active': child.active }"
-                  :aria-current="child.active ? 'page' : undefined"
+                  class="nav-subitem-row"
                 >
-                  <span>{{ child.label }}</span>
-                  <span v-if="child.badgeCount" class="nav-count-badge">{{ child.badgeCount }}</span>
-                </router-link>
+                  <router-link
+                    :to="child.to"
+                    class="nav-subitem"
+                    active-class=""
+                    exact-active-class=""
+                    :class="{ 'nav-subitem--active': child.active }"
+                    :aria-current="child.active ? 'page' : undefined"
+                  >
+                    <span>{{ child.label }}</span>
+                    <span v-if="child.badgeCount" class="nav-count-badge">{{ child.badgeCount }}</span>
+                  </router-link>
+                  <button
+                    type="button"
+                    class="nav-pin-toggle nav-pin-toggle--sub"
+                    :class="{ 'nav-pin-toggle--on': isPinned(child.to) }"
+                    :title="isPinned(child.to) ? 'Lepas pin' : 'Pin ke favorit'"
+                    :aria-label="isPinned(child.to) ? 'Lepas pin' : 'Pin ke favorit'"
+                    @click.stop="handleTogglePin(child.to)"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z"
+                        :fill="isPinned(child.to) ? 'currentColor' : 'none'"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </Transition>
           </li>
@@ -165,6 +255,14 @@
         </Transition>
       </div>
     </nav>
+
+    <MenuSearchPalette
+      v-model:open="menuSearchOpen"
+      :items="searchableMenuItems"
+      :is-pinned="isPinned"
+      :toggle-pin="togglePin"
+      @pin-limit="onPinLimit"
+    />
     
     <main class="main-content">
       <header class="topbar">
@@ -346,10 +444,15 @@ import {
   writeExpandedGroups,
   writeSidebarScrollTop,
 } from '@/composables/useSidebarState'
+import { useSidebarPins } from '@/composables/useSidebarPins'
+import { useSidebarAccordion } from '@/composables/useSidebarAccordion'
+import { flattenMenuEntries } from '@/utils/sidebarMenu'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import AppLogo from '@/components/AppLogo.vue'
+import MenuSearchPalette from '@/components/MenuSearchPalette.vue'
 import NotificationPanel from '@/components/NotificationPanel.vue'
 import { useNotifications } from '@/composables/useNotifications'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
@@ -421,6 +524,9 @@ const userMenuOpen = ref(false)
 const userMenuRef = ref(null)
 const navMenuRef = ref(null)
 const expandedGroups = ref(readExpandedGroups())
+const menuSearchOpen = ref(false)
+const { pinnedIds, isPinned, togglePin, removePin, MAX_PINS } = useSidebarPins(() => authStore.user?.id)
+const { accordionEnabled, accordionModeLabel, cycleAccordionMode } = useSidebarAccordion()
 
 // Top-level menu icons (only these use icons per spec)
 const IconDashboard = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
@@ -966,6 +1072,56 @@ const menuEntries = computed(() => {
   }
   return pruned
 })
+
+const searchableMenuItems = computed(() => flattenMenuEntries(menuEntries.value))
+
+const pinnedMenuItems = computed(() => {
+  const byPinId = new Map(searchableMenuItems.value.map((item) => [item.pinId, item]))
+  return pinnedIds.value.map((id) => byPinId.get(id)).filter(Boolean)
+})
+
+const displayMenuEntries = computed(() => {
+  const pinnedTos = new Set(pinnedMenuItems.value.map((item) => item.to))
+  const result = []
+  for (const entry of menuEntries.value) {
+    if (entry.type === 'divider') {
+      result.push(entry)
+      continue
+    }
+    if (entry.type === 'link') {
+      if (pinnedTos.has(entry.to)) continue
+      result.push(entry)
+      continue
+    }
+    if (entry.type === 'group') {
+      const children = (entry.visibleChildren || []).filter((c) => !pinnedTos.has(c.to))
+      if (!children.length) continue
+      result.push({ ...entry, visibleChildren: children })
+    }
+  }
+  return pruneNavDividers(result)
+})
+
+function openMenuSearch() {
+  menuSearchOpen.value = true
+}
+
+function handleTogglePin(pinId) {
+  const ok = togglePin(pinId)
+  if (!ok) onPinLimit()
+}
+
+function onPinLimit() {
+  toast.warning('Batas favorit', `Maksimal ${MAX_PINS} menu. Lepas pin lain terlebih dahulu.`)
+}
+
+function onGlobalKeydown(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    menuSearchOpen.value = !menuSearchOpen.value
+  }
+}
+
 const hasActiveChild = (entry) => {
   if (entry.type !== 'group' || !entry.children) return false
   const path = route.path
@@ -995,12 +1151,25 @@ function restoreNavMenuScroll() {
 
 function toggleGroup(key) {
   const next = new Set(expandedGroups.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
+  if (next.has(key)) {
+    next.delete(key)
+  } else if (accordionEnabled.value) {
+    next.clear()
+    next.add(key)
+  } else {
+    next.add(key)
+  }
   expandedGroups.value = next
   persistExpandedGroups()
 }
 function ensureGroupExpandedForKey(key) {
+  if (accordionEnabled.value) {
+    if (!expandedGroups.value.has(key) || expandedGroups.value.size !== 1) {
+      expandedGroups.value = new Set([key])
+      persistExpandedGroups()
+    }
+    return
+  }
   if (!expandedGroups.value.has(key)) {
     expandedGroups.value = new Set([...expandedGroups.value, key])
     persistExpandedGroups()
@@ -1126,6 +1295,7 @@ const showInstitutionInTopbar = computed(() => {
 const showTopbarDivider = computed(() => showInstitutionInTopbar.value && showNotificationBell.value)
 
 const { unreadCount: unreadNotificationCount, refreshUnreadCount } = useNotifications()
+const toast = useToast()
 const notificationPanelOpen = ref(false)
 const notificationBellRef = ref(null)
 
@@ -1208,6 +1378,7 @@ onMounted(() => {
   })
   router.afterEach(handleRouteChange)
   window.addEventListener('resize', handleResize)
+  window.addEventListener('keydown', onGlobalKeydown)
   document.addEventListener('click', closeUserMenuOnClickOutside)
   fetchUnreadNotificationCount()
   fetchParentChildren()
@@ -1218,6 +1389,7 @@ onUnmounted(() => {
   onNavMenuScroll()
   persistExpandedGroups()
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('keydown', onGlobalKeydown)
   document.removeEventListener('click', closeUserMenuOnClickOutside)
   document.body.style.overflow = ''
   if (notificationPollInterval) clearInterval(notificationPollInterval)
@@ -1437,6 +1609,83 @@ const handleLogout = async () => {
   letter-spacing: 0.2px;
 }
 
+.sidebar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-search-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-search-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.sidebar-search-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-search-kbd {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-family: inherit;
+  color: #64748b;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.sidebar-accordion-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-accordion-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.sidebar-accordion-btn--active {
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.35);
+  background: rgba(5, 150, 105, 0.2);
+}
+
 .nav-menu {
   list-style: none;
   padding: 10px 10px;
@@ -1469,6 +1718,127 @@ const handleLogout = async () => {
   text-transform: uppercase;
   color: #64748b;
   padding: 0 4px;
+}
+
+.nav-divider--compact {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.nav-link-row,
+.nav-subitem-row,
+.nav-pin-item {
+  position: relative;
+}
+
+.nav-subitem-row {
+  display: flex;
+  align-items: center;
+}
+
+.nav-pin-item {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.nav-pin-item .nav-item--pinned {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-pin-label {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-pin-sublabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-pin-remove {
+  flex-shrink: 0;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.nav-pin-item:hover .nav-pin-remove,
+.nav-pin-remove:focus-visible {
+  opacity: 1;
+}
+
+.nav-pin-remove:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fca5a5;
+}
+
+.nav-pin-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  z-index: 1;
+}
+
+.nav-pin-toggle--sub {
+  right: 4px;
+  width: 20px;
+  height: 20px;
+}
+
+.nav-link-row:hover .nav-pin-toggle,
+.nav-subitem-row:hover .nav-pin-toggle,
+.nav-pin-toggle:focus-visible {
+  opacity: 1;
+}
+
+.nav-pin-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+.nav-pin-toggle--on {
+  opacity: 1;
+  color: #fbbf24;
+}
+
+.nav-link-row .nav-item,
+.nav-subitem-row .nav-subitem {
+  padding-right: 30px;
 }
 
 .nav-item-label {
@@ -1620,6 +1990,8 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
   padding: 6px 10px;
   color: #94a3b8;
   text-decoration: none;
@@ -2205,6 +2577,10 @@ const handleLogout = async () => {
 
   .logo-text h2 {
     font-size: 16px;
+  }
+
+  .sidebar-search-kbd {
+    display: none;
   }
 
   .nav-item {

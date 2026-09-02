@@ -166,14 +166,6 @@
         Peringkat dihitung dari nilai akhir (nilai tertinggi = peringkat 1). Siswa dengan nilai sama mendapat peringkat sama.
         Nilai akhir = rata penilaian × bobot + UTS × bobot + UAS × bobot.
     </p>
-    <div class="footer">
-        Dicetak pada {{ $printed_at }}
-        @if(!empty($printed_by))
-            · oleh {{ $printed_by }}
-        @endif
-        · {{ count($rows) }} siswa
-    </div>
-
     <div class="standard-signature-wrap">
         <div class="standard-signature-left">
             @include('partials.print-signature', [
@@ -192,6 +184,14 @@
                 'show_place_date' => true,
             ])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $printed_at }}
+        @if(!empty($printed_by))
+            · oleh {{ $printed_by }}
+        @endif
+        · {{ count($rows) }} siswa
     </div>
 </body>
 </html>

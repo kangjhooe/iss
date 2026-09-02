@@ -45,3 +45,10 @@
     font-size: 8px;
     margin-top: 2px;
 }
+.print-document-footer {
+    margin-top: 12px;
+    font-size: 7pt;
+    text-align: center;
+    color: #666;
+    page-break-inside: avoid;
+}

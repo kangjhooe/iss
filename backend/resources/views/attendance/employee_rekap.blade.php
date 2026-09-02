@@ -117,9 +117,6 @@
         @endif
     </table>
 
-    <div class="footer">
-        Dicetak pada {{ $printed_at }} &mdash; {{ count($rows) }} pegawai
-    </div>
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>
         <div class="standard-signature-right">
@@ -129,6 +126,10 @@
                 'as_of_date' => $as_of_date ?? null,
             ])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $printed_at }} &mdash; {{ count($rows) }} pegawai
     </div>
 </body>
 </html>

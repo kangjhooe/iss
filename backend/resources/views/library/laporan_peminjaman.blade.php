@@ -87,12 +87,13 @@
         </tbody>
     </table>
 
-    <div class="footer">
-        Dicetak pada {{ $printed_at }} &mdash; {{ $loans->count() }} catatan
-    </div>
     @include('library.partials.signature', [
         'institution' => $institution,
         'kepala_perpustakaan' => $kepala_perpustakaan ?? null,
     ])
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $printed_at }} &mdash; {{ $loans->count() }} catatan
+    </div>
 </body>
 </html>

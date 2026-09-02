@@ -1,4 +1,5 @@
-<template>    <div class="buku-tamu-page">
+<template>
+    <div class="buku-tamu-page">
       <div class="toolbar">
         <div class="toolbar-left">
           <span class="stat-badge">{{ pagination.total }} kunjungan</span>
@@ -228,7 +229,8 @@
         @confirm="doDelete"
         @cancel="deleteTarget = null"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
@@ -447,9 +449,9 @@ async function exportPdf() {
     .td-photo { width: 48px; text-align: center; padding: 2px; }
     .photo-thumb { width: 40px; height: 40px; object-fit: cover; display: block; margin: 0 auto; }
     .time { white-space: nowrap; }
-    .footer { display: flex; justify-content: space-between; margin-top: 28px; page-break-inside: avoid; font-size: 9pt; }
-    .footer-meta { font-size: 7pt; color: #666; }
-    .footer-right { text-align: center; min-width: 220px; }
+    .footer { margin-top: 28px; page-break-inside: avoid; font-size: 9pt; }
+    .footer-meta { font-size: 7pt; color: #666; margin-top: 12px; text-align: center; }
+    .footer-right { text-align: center; min-width: 220px; margin-left: auto; }
     .sig-space { height: 56px; }
   </style>
 </head>
@@ -493,15 +495,15 @@ async function exportPdf() {
     <tbody>${rows}</tbody>
   </table>
   <div class="footer">
-    <div class="footer-meta">
-      Dicetak pada ${new Date().toLocaleString('id-ID')}<br>${visits.length} catatan
-    </div>
     <div class="footer-right">
       ${escapeHtml(institution.district || institution.city || '........................')}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br>
       ${escapeHtml(getPrincipalTitle(institution.level))}
       <div class="sig-space"></div>
       <strong>${escapeHtml(institution.principal_name || '___________________')}</strong><br>
       NIP. ${escapeHtml(institution.principal_nip || '___________________')}
+    </div>
+    <div class="footer-meta">
+      Dicetak pada ${new Date().toLocaleString('id-ID')}<br>${visits.length} catatan
     </div>
   </div>
 </body>

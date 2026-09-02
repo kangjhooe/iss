@@ -15,6 +15,8 @@ use App\Services\StudentAccountService;
 use App\Services\StudentImportService;
 use App\Services\StudentService;
 use App\Support\InstitutionContext;
+use App\Support\PrintImage;
+use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -1262,6 +1264,54 @@ class StudentController extends Controller
 
             return response()->json([
                 'message' => 'Terjadi kesalahan saat menghapus foto',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /student/{id}/biodata/pdf?mode=lengkap|singkat
+     */
+    public function printBiodata(Request $request, $id)
+    {
+        try {
+            $student = $this->studentService->find($id, ['institution', 'class', 'academicYear', 'documents']);
+
+            if (!$this->userCanAccessStudent($request, $student)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $mode = strtolower((string) $request->query('mode', 'lengkap'));
+            if (!in_array($mode, ['lengkap', 'singkat'], true)) {
+                $mode = 'lengkap';
+            }
+
+            $asOf = now();
+            $pdf = DomPDF::loadView('student.biodata_print', [
+                'student' => $student,
+                'institution' => $student->institution,
+                'mode' => $mode,
+                'photo_base64' => PrintImage::studentPhoto($student),
+                'printed_at' => $asOf->locale('id')->isoFormat('D MMMM YYYY HH:mm'),
+                'signature_date' => $asOf->locale('id')->translatedFormat('d F Y'),
+                'as_of_date' => $asOf,
+            ])->setPaper('a4', 'portrait');
+
+            $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $student->name ?? (string) $student->id);
+            $filename = 'Biodata_'.($mode === 'singkat' ? 'Singkat_' : 'Lengkap_').$safeName.'.pdf';
+
+            return $pdf->stream($filename, ['Attachment' => false]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        } catch (\Exception $e) {
+            Log::error('Student biodata print failed', ['student_id' => $id, 'error' => $e->getMessage()]);
+            $message = 'Terjadi kesalahan saat mencetak biodata';
+            if (str_contains($e->getMessage(), 'GD extension')) {
+                $message = 'Cetak gagal: ekstensi PHP GD belum aktif di server. Aktifkan extension=gd di php.ini lalu restart Apache.';
+            }
+
+            return response()->json([
+                'message' => $message,
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

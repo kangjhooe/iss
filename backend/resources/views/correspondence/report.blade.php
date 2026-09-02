@@ -203,9 +203,6 @@
     </div>
     @endif
 
-    <div class="footer">
-        Total: {{ count($correspondence) }} surat
-    </div>
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>
         <div class="standard-signature-right">
@@ -215,6 +212,10 @@
                 'as_of_date' => $as_of_date ?? $generated_at,
             ])
         </div>
+    </div>
+
+    <div class="footer print-document-footer">
+        Total: {{ count($correspondence) }} surat
     </div>
 </body>
 </html>

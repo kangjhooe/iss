@@ -126,9 +126,6 @@
         % (tercatat) = Hadir ÷ absensi yang tercatat. % (JP) = Hadir ÷ jumlah JP.
     </p>
 
-    <div class="footer">
-        Dicetak pada {{ $printed_at }} &mdash; {{ count($rows) }} siswa
-    </div>
     @if(!empty($use_wali_signatures))
         @include('partials.print-wali-signatures', [
             'institution' => $institution,
@@ -151,5 +148,9 @@
             </div>
         </div>
     @endif
+
+    <div class="footer print-document-footer">
+        Dicetak pada {{ $printed_at }} &mdash; {{ count($rows) }} siswa
+    </div>
 </body>
 </html>

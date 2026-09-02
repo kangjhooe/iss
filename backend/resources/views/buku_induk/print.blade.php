@@ -54,6 +54,15 @@
         ];
         $fmtDate = fn ($v) => $v ? \Carbon\Carbon::parse($v)->locale('id')->isoFormat('D MMMM YYYY') : '-';
         $fmtMoney = fn ($v) => $v !== null && $v !== '' ? 'Rp ' . number_format((float) $v, 0, ',', '.') : '-';
+        $classRel = $student->relationLoaded('class') ? $student->getRelation('class') : null;
+        $classDisplay = (is_object($classRel) && isset($classRel->name))
+            ? $classRel->name
+            : ($student->getRawOriginal('class') ?? '-');
+        $ayRel = $student->relationLoaded('academicYear') ? $student->getRelation('academicYear') : null;
+        $academicYearDisplay = $student->academic_year
+            ?? ((is_object($ayRel) && isset($ayRel->name)) ? $ayRel->name : '-');
+        $semRel = $student->relationLoaded('semester') ? $student->getRelation('semester') : null;
+        $semesterDisplay = (is_object($semRel) && isset($semRel->name)) ? $semRel->name : '-';
     @endphp
     @include('partials.print-letterhead', ['institution' => $institution])
     <div class="section-title">BUKU INDUK SISWA</div>
@@ -73,10 +82,9 @@
                 </table>
             </td>
             <td style="width:2.9cm; vertical-align:top; text-align:right;">
-                @php $photoUri = $student->resolvePrintPhotoDataUri(); @endphp
                 <div style="width:2.7cm; height:3.6cm; border:1px solid #333; text-align:center;">
-                    @if($photoUri)
-                        <img src="{{ $photoUri }}" alt="Foto" style="width:2.7cm; height:3.6cm; object-fit:cover;">
+                    @if(!empty($photo_base64))
+                        <img src="{!! $photo_base64 !!}" alt="Foto" style="width:2.7cm; height:3.6cm; object-fit:cover;">
                     @else
                         <div style="padding-top:1.2cm; font-size:8pt; color:#666;">Pas foto 3×4</div>
                     @endif
@@ -95,8 +103,8 @@
         <tr class="border"><td class="label">NPSN Sekolah Asal</td><td>{{ $student->previous_school_npsn ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Alamat Sekolah Asal</td><td>{{ $student->previous_school_address ?? '-' }}</td></tr>
         <tr class="border"><td class="label">Tingkat</td><td>{{ $student->tingkat ?? '-' }}</td></tr>
-        <tr class="border"><td class="label">Kelas / Tahun Ajaran</td><td>{{ ($student->relationLoaded('class') && $student->class ? $student->class->name : ($student->getRawOriginal('class') ?? '-')) }} / {{ $student->academic_year ?? ($student->academicYear->name ?? '-') }}</td></tr>
-        <tr class="border"><td class="label">Semester</td><td>{{ $student->relationLoaded('semester') && $student->semester ? $student->semester->name : '-' }}</td></tr>
+        <tr class="border"><td class="label">Kelas / Tahun Ajaran</td><td>{{ $classDisplay }} / {{ $academicYearDisplay }}</td></tr>
+        <tr class="border"><td class="label">Semester</td><td>{{ $semesterDisplay }}</td></tr>
         <tr class="border"><td class="label">Status</td><td>{{ $student->status ?? '-' }}</td></tr>
         @if($student->graduation_year)
         <tr class="border"><td class="label">Tahun Lulus</td><td>{{ $student->graduation_year }}</td></tr>
@@ -521,18 +529,17 @@
     <p>{{ $student->notes }}</p>
     @endif
 
-    <div class="footer">
-        <p>Dicetak pada: {{ $printed_at }}</p>
-    </div>
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>
         <div class="standard-signature-right">
             @include('partials.print-signature', [
                 'institution' => $institution,
-                'date' => now()->locale('id')->translatedFormat('d F Y'),
+                'date' => $signature_date ?? now()->locale('id')->translatedFormat('d F Y'),
                 'as_of_date' => $as_of_date ?? now(),
             ])
         </div>
     </div>
+
+    <p class="print-document-footer">Dicetak: {{ $printed_at }}</p>
 </body>
 </html>
