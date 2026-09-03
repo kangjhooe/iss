@@ -167,7 +167,7 @@ class InstitutionController extends Controller
             }
 
             // Hanya admin/super admin atau user dari institusi yang sama yang boleh mengubah
-            if (!$user->isAdminOrSuperAdmin() && (int) $user->institution_id !== (int) $institution->id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $institution->id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -432,7 +432,7 @@ class InstitutionController extends Controller
             }
 
             // Only institution admin/super admin can update their own institution
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $institution->id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $institution->id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -532,7 +532,7 @@ class InstitutionController extends Controller
             }
 
             // Only institution admin/super admin can upload logo
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $institution->id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $institution->id)) {
                 return \App\Helpers\ApiResponse::forbidden();
             }
 
@@ -599,7 +599,7 @@ class InstitutionController extends Controller
                 return \App\Helpers\ApiResponse::unauthorized();
             }
 
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $institution->id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $institution->id)) {
                 return \App\Helpers\ApiResponse::forbidden();
             }
 
@@ -664,7 +664,7 @@ class InstitutionController extends Controller
             if (!$user) {
                 return response()->json(['message' => 'Unauthorized'], 401);
             }
-            if (!$user->isAdminOrSuperAdmin() && (int) $user->institution_id !== (int) $institution->id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $institution->id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 

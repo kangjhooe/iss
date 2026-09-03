@@ -269,9 +269,7 @@
             </tr>
         </table>
 
-        <div class="footer-note">
-            Dokumen ini dicetak dari sistem ISS · Slip No. {{ $slip->id }}
-        </div>
+        @include('partials.print-document-footer', ['footer_class' => 'footer-note', 'footer_suffix' => '· Slip No. '.$slip->id])
     </div>
 </body>
 </html>

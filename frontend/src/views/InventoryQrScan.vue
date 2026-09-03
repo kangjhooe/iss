@@ -72,6 +72,7 @@
 import { ref } from 'vue'
 import QrScanner from '@/components/QrScanner.vue'
 import { inventoryApi } from '@/api/inventory'
+import { openPdfBlob } from '@/utils/pdfPreview'
 import { formatDate, formatCurrency, getConditionClass, getStatusClass } from '@/composables/inventory/inventoryFormatters'
 import { useToast } from '@/composables/useToast'
 import '@/assets/inventory-page.css'
@@ -134,12 +135,9 @@ async function exportKib() {
   exportingKib.value = true
   try {
     const response = await inventoryApi.exportAssetKib(asset.value.id)
-    const blob = response.data instanceof Blob
-      ? response.data
-      : new Blob([response.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    if (!openPdfBlob(response, `kib-aset-${asset.value.asset_number || asset.value.id}.pdf`)) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+    }
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || 'Gagal cetak KIB')
   } finally {

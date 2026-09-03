@@ -91,7 +91,7 @@
             </div>
             <div class="form-group">
               <label>{{ form.calc_mode === 'thr' ? 'Pengali THR (× gaji pokok)' : 'Nominal default' }}</label>
-              <input v-model.number="form.default_amount" type="number" min="0" step="0.1" class="form-input" />
+              <MoneyInput v-model="form.default_amount" :min="0" :decimals="1" class="form-input" />
             </div>
             <div class="form-group full">
               <label>Deskripsi</label>
@@ -113,6 +113,7 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { payrollComponentApi } from '@/api/payroll'

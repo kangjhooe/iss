@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StorePpdbChannelRequest;
 use App\Http\Requests\UpdatePpdbChannelRequest;
 use App\Http\Resources\PpdbChannelResource;
@@ -14,19 +15,14 @@ use Illuminate\Support\Facades\Log;
 
 class PpdbChannelController extends Controller
 {
+    use ResolvesInstitution;
+
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
-            if (! $institutionId && ! $user->isSuperAdmin()) {
-                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
-            if ($user->isSuperAdmin() && $request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (! $institutionId) {
-                return response()->json(['message' => 'Pilih institusi.'], 403);
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $activeOnly = filter_var($request->get('active_only', false), FILTER_VALIDATE_BOOLEAN);
@@ -50,8 +46,7 @@ class PpdbChannelController extends Controller
     public function store(StorePpdbChannelRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -62,7 +57,6 @@ class PpdbChannelController extends Controller
             $data['sort_order'] = $data['sort_order'] ?? 0;
             $data['required_documents'] = \App\Support\PpdbDocumentChecklist::normalize($data['required_documents'] ?? []);
 
-            // Unique code per institution
             if (PpdbChannel::where('institution_id', $institutionId)->where('code', $data['code'])->exists()) {
                 return response()->json([
                     'message' => 'Kode jalur sudah digunakan di institusi ini.',
@@ -86,9 +80,8 @@ class PpdbChannelController extends Controller
 
     public function show(Request $request, PpdbChannel $ppdb_channel): PpdbChannelResource|JsonResponse
     {
-        $user = $request->user();
-        if ($user->institution_id !== $ppdb_channel->institution_id && ! $user->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $ppdb_channel->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         return new PpdbChannelResource($ppdb_channel);
@@ -97,9 +90,8 @@ class PpdbChannelController extends Controller
     public function update(UpdatePpdbChannelRequest $request, PpdbChannel $ppdb_channel): PpdbChannelResource|JsonResponse
     {
         try {
-            $user = $request->user();
-            if ($user->institution_id !== $ppdb_channel->institution_id && ! $user->isSuperAdmin()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $ppdb_channel->institution_id, 'Unauthorized')) {
+                return $resp;
             }
 
             $data = $request->validated();
@@ -129,9 +121,8 @@ class PpdbChannelController extends Controller
 
     public function destroy(Request $request, PpdbChannel $ppdb_channel): JsonResponse
     {
-        $user = $request->user();
-        if ($user->institution_id !== $ppdb_channel->institution_id && ! $user->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $ppdb_channel->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         if ($ppdb_channel->applicants()->exists()) {

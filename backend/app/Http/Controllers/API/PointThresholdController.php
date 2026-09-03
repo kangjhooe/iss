@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StorePointThresholdRequest;
 use App\Http\Requests\UpdatePointThresholdRequest;
 use App\Http\Resources\PointThresholdResource;
@@ -14,10 +15,12 @@ use Illuminate\Support\Facades\Log;
 
 class PointThresholdController extends Controller
 {
+    use ResolvesInstitution;
+
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -37,7 +40,7 @@ class PointThresholdController extends Controller
     public function store(StorePointThresholdRequest $request): JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -54,16 +57,16 @@ class PointThresholdController extends Controller
 
     public function show(Request $request, PointThreshold $point_threshold): PointThresholdResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $point_threshold->institution_id && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $point_threshold->institution_id, 'Unauthorized')) {
+            return $resp;
         }
         return new PointThresholdResource($point_threshold);
     }
 
     public function update(UpdatePointThresholdRequest $request, PointThreshold $point_threshold): PointThresholdResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $point_threshold->institution_id && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $point_threshold->institution_id, 'Unauthorized')) {
+            return $resp;
         }
         $point_threshold->update($request->validated());
         return new PointThresholdResource($point_threshold->fresh());
@@ -71,8 +74,8 @@ class PointThresholdController extends Controller
 
     public function destroy(Request $request, PointThreshold $point_threshold): JsonResponse
     {
-        if ($request->user()->institution_id !== $point_threshold->institution_id && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $point_threshold->institution_id, 'Unauthorized')) {
+            return $resp;
         }
         $point_threshold->delete();
         return response()->json(['message' => 'Aturan tindakan berhasil dihapus.']);

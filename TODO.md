@@ -19,6 +19,15 @@ Fondasi dark launch sudah ada (`/super-admin/monetisasi`). Default **tersembunyi
 - [ ] Billing & subscription penuh (invoice, trial otomatis, suspend tenant, gateway)
 - [ ] Footer branding PDF (“dicetak melalui servr.in”) sebagai add-on / paket berbayar; audit trail “dicetak oleh” tetap gratis
 
+## Portal Orang Tua (`/parent/*`)
+
+Dasar sudah ada (role `parent`, dashboard, jadwal/nilai/absensi/pelanggaran per anak, `parent_links`). Satu akun multi-anak satu sekolah sudah didukung.
+
+- [ ] UI admin untuk buat akun ortu + tautkan/lepaskan anak (`parent_links`) — saat ini hanya seed/DB
+- [ ] Multi-sekolah: pengumuman/kalender gabungan dari semua sekolah anak (sekarang hanya institusi anak pertama)
+- [ ] Multi-sekolah: match otomatis via `guardian_phone` tidak terbatas satu `user.institution_id`
+- [ ] Mobile nav: pintasan Nilai/Absensi tidak hanya anak pertama
+
 ## Peningkatan operasional sekolah
 
 - [ ] Template raport sesuai format resmi (jika belum lengkap)

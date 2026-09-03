@@ -111,12 +111,7 @@ export const payrollMyApi = {
   },
 }
 
-export function openPdfBlob(res, filename) {
-  const blob = new Blob([res.data], { type: 'application/pdf' })
-  const url = window.URL.createObjectURL(blob)
-  window.open(url, '_blank', 'noopener,noreferrer')
-  setTimeout(() => window.URL.revokeObjectURL(url), 60000)
-}
+export { openPdfBlob } from '@/utils/pdfPreview'
 
 export function downloadBlob(res, fallbackName, mimeType) {
   const blob = new Blob([res.data], { type: mimeType })

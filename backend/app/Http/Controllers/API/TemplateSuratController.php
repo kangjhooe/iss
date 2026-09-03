@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Models\TemplateSurat;
 use App\Services\PlaceholderEngine;
 use App\Services\TemplateSuratService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
 class TemplateSuratController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         private TemplateSuratService $service
     ) {}
@@ -67,7 +71,7 @@ class TemplateSuratController extends Controller
                 ? $data['institution_id']
                 : null;
         } else {
-            $data['institution_id'] = $user->institution_id;
+            $data['institution_id'] = $this->resolveInstitutionId($request);
             if (!$data['institution_id']) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 422);
             }
@@ -205,7 +209,7 @@ class TemplateSuratController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $institutionId = $request->user()->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if (!$institutionId) {
             return response()->json([
                 'message' => 'Hanya akun sekolah yang dapat menyalin template ke institusinya.',
@@ -240,34 +244,24 @@ class TemplateSuratController extends Controller
         return response()->json(['data' => PlaceholderEngine::availablePlaceholders()]);
     }
 
-    private function resolveInstitutionId(Request $request): ?int
-    {
-        if ($request->user()->isSuperAdmin()) {
-            return $request->institution_id ? (int) $request->institution_id : null;
-        }
-
-        if ($request->user()->isAdmin()) {
-            return $request->institution_id
-                ? (int) $request->institution_id
-                : $request->user()->institution_id;
-        }
-
-        return $request->user()->institution_id;
-    }
-
     private function canReadTemplate(Request $request, TemplateSurat $template): bool
     {
-        if ($request->user()->isSuperAdmin() || $request->user()->isAdmin()) {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
             return true;
         }
 
-        return $template->institution_id === null
-            || $template->institution_id === $request->user()->institution_id;
+        // Platform templates are readable by any authenticated school user
+        if ($template->institution_id === null) {
+            return true;
+        }
+
+        return InstitutionContext::canAccessInstitution($user, (int) $template->institution_id);
     }
 
     /**
      * Platform templates: hanya Super Admin.
-     * Template sekolah: hanya pemilik institusi yang sama.
+     * Template sekolah: hanya user yang boleh mengakses institusi pemilik.
      */
     private function canWriteTemplate(Request $request, TemplateSurat $template): bool
     {
@@ -275,11 +269,12 @@ class TemplateSuratController extends Controller
             return $request->user()->isSuperAdmin();
         }
 
-        if ($request->user()->isSuperAdmin() || $request->user()->isAdmin()) {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
             return true;
         }
 
-        return $template->institution_id === $request->user()->institution_id;
+        return InstitutionContext::canAccessInstitution($user, (int) $template->institution_id);
     }
 
     private function kodeTaken(string $kode, ?int $institutionId, ?int $exceptId = null): bool

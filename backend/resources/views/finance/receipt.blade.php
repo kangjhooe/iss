@@ -117,6 +117,6 @@
         </tr>
     </table>
 
-    <div class="footer">Dokumen ini dicetak dari sistem ISS · Kwitansi #{{ $payment->id }}</div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· Kwitansi #'.$payment->id])
 </body>
 </html>

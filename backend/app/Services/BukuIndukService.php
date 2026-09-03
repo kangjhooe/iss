@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Achievement;
 use App\Models\AlumniDestination;
 use App\Models\ExtracurricularGrade;
+use App\Models\Violation;
 use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\StudentAttendance;
@@ -66,8 +68,14 @@ class BukuIndukService
             'institution' => $student->institution,
             'class_history' => $student->classHistory->sortBy('start_date')->values(),
             'mutations' => $mutations,
-            'achievements' => $student->achievements->sortByDesc('achievement_date')->values(),
-            'violations' => $student->violations->sortByDesc('violation_date')->values(),
+            'achievements' => $student->achievements
+                ->filter(fn ($a) => ! in_array($a->status, [Achievement::STATUS_PENDING, Achievement::STATUS_DITOLAK], true))
+                ->sortByDesc('achievement_date')
+                ->values(),
+            'violations' => $student->violations
+                ->filter(fn ($v) => ! in_array($v->status, [Violation::STATUS_PENDING, Violation::STATUS_DITOLAK], true))
+                ->sortByDesc('violation_date')
+                ->values(),
             'counseling_sessions' => $student->counselingSessions->sortByDesc('session_date')->values(),
             'document_pickups' => $student->documentPickups->sortByDesc('pickup_date')->values(),
             'attendance_summary' => $attendanceSummary,

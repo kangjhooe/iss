@@ -948,9 +948,10 @@ const menuEntries = computed(() => {
       { to: '/ppdb/pembayaran', label: 'Pembayaran', visible: canAccessModule('ppdb') },
     ]}),
     addVisible({ type: 'group', key: 'bk', label: 'Bimbingan Konseling', icon: IconCounseling, children: [
-      { to: '/violation', label: 'Pelanggaran', visible: canAccessModule('violation') },
+      { to: '/bk/pelanggaran', label: 'Pelanggaran', visible: canAccessModule('violation') },
+      { to: '/bk/prestasi', label: 'Prestasi', visible: canAccessModule('violation') },
       { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
-      { to: '/laporan-bk', label: 'Laporan BK', visible: showBkReportInBkGroup }
+      { to: '/bk/laporan', label: 'Laporan', visible: showBkReportInBkGroup },
     ]}),
     addVisible({ type: 'group', key: 'uks', label: 'UKS', icon: IconUks, children: [
       { to: '/uks', label: 'Kunjungan UKS', visible: canAccessModule('uks') },
@@ -1247,8 +1248,8 @@ const bottomNavItems = computed(() => {
     if (canAccessModule('student')) items.push({ to: '/student', label: 'Siswa', icon: 'student' })
     if (canAccessModule('attendance')) items.push({ to: '/attendance/employee', label: 'Absensi', icon: 'attendance' })
     if (canAccessModule('correspondence')) items.push({ to: '/correspondence', label: 'Surat', icon: 'correspondence' })
-    if (canAccessModule('violation')) items.push({ to: '/violation', label: 'Pelanggaran', icon: 'violation' })
-    else if (canAccessModule('bk_report')) items.push({ to: '/laporan-bk', label: 'Laporan BK', icon: 'violation' })
+    if (canAccessModule('violation')) items.push({ to: '/bk/pelanggaran', label: 'Pelanggaran', icon: 'violation' })
+    else if (canAccessModule('bk_report')) items.push({ to: '/bk/laporan', label: 'Laporan', icon: 'violation' })
     return items.slice(0, 5)
   }
   const items = []

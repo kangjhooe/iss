@@ -3,16 +3,21 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreAcademicCalendarEventRequest;
 use App\Http\Requests\UpdateAcademicCalendarEventRequest;
 use App\Http\Resources\AcademicCalendarEventResource;
 use App\Models\AcademicCalendarEvent;
 use App\Notifications\AcademicCalendarParentNotification;
+use App\Services\AcademicCalendarService;
 use App\Support\ParentAccess;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 
 class AcademicCalendarController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected AcademicCalendarService $academicCalendarService
     ) {}
@@ -22,7 +27,6 @@ class AcademicCalendarController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
         $filters = $request->only([
             'academic_year_id',
             'semester_id',
@@ -30,14 +34,17 @@ class AcademicCalendarController extends Controller
             'status',
             'start_date',
             'end_date',
-            'search'
+            'search',
         ]);
-        
-        // Always filter by institution
-        $filters['institution_id'] = $user->institution_id;
-        
+
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+        $filters['institution_id'] = $institutionId;
+
         $perPage = min($request->get('per_page', 15), 100);
-        
+
         $events = $this->academicCalendarService->list($filters, $perPage);
 
         return AcademicCalendarEventResource::collection($events);
@@ -48,8 +55,13 @@ class AcademicCalendarController extends Controller
      */
     public function store(StoreAcademicCalendarEventRequest $request)
     {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
         $validated = $request->validated();
-        $validated['institution_id'] = $request->user()->institution_id;
+        $validated['institution_id'] = $institutionId;
         $validated['created_by'] = $request->user()->id;
 
         $event = $this->academicCalendarService->create($validated);
@@ -72,12 +84,8 @@ class AcademicCalendarController extends Controller
     {
         $event = $this->academicCalendarService->find($id);
 
-        // Check if event belongs to user's institution
-        $user = $request->user();
-        if ($event->institution_id !== $user->institution_id) {
-            return response()->json([
-                'message' => 'Event tidak ditemukan atau tidak memiliki akses',
-            ], 404);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $event->institution_id, 'Event tidak ditemukan atau tidak memiliki akses')) {
+            return $resp;
         }
 
         return new AcademicCalendarEventResource($event);
@@ -90,12 +98,8 @@ class AcademicCalendarController extends Controller
     {
         $event = AcademicCalendarEvent::findOrFail($id);
 
-        // Check if event belongs to user's institution
-        $user = $request->user();
-        if ($event->institution_id !== $user->institution_id) {
-            return response()->json([
-                'message' => 'Event tidak ditemukan atau tidak memiliki akses',
-            ], 404);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $event->institution_id, 'Event tidak ditemukan atau tidak memiliki akses')) {
+            return $resp;
         }
 
         $event = $this->academicCalendarService->update($event, $request->validated());
@@ -113,12 +117,8 @@ class AcademicCalendarController extends Controller
     {
         $event = AcademicCalendarEvent::findOrFail($id);
 
-        // Check if event belongs to user's institution
-        $user = $request->user();
-        if ($event->institution_id !== $user->institution_id) {
-            return response()->json([
-                'message' => 'Event tidak ditemukan atau tidak memiliki akses',
-            ], 404);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $event->institution_id, 'Event tidak ditemukan atau tidak memiliki akses')) {
+            return $resp;
         }
 
         $this->academicCalendarService->delete($event);
@@ -137,12 +137,15 @@ class AcademicCalendarController extends Controller
             'start_date' => ['nullable', 'date', 'date_format:Y-m-d'],
             'end_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
         ]);
-        $user = $request->user();
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
         $events = $this->academicCalendarService->getByDateRange(
-            $user->institution_id,
+            $institutionId,
             $startDate,
             $endDate
         );
@@ -156,12 +159,12 @@ class AcademicCalendarController extends Controller
     public function upcoming(Request $request)
     {
         $user = $request->user();
-        $institutionId = $user->institution_id;
+        $institutionId = $this->resolveInstitutionId($request);
         if ($user->isStudent() && $user->studentProfile) {
             $institutionId = $user->studentProfile->institution_id;
         }
         if ($user->isParent()) {
-            $child = \App\Support\ParentAccess::linkedStudents($user)->first();
+            $child = ParentAccess::linkedStudents($user)->first();
             if ($child) {
                 $institutionId = $child->institution_id;
             }

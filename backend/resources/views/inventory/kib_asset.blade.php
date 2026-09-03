@@ -84,9 +84,7 @@
             'as_of_date' => $as_of_date ?? null,
         ])
 
-        <div class="footer print-document-footer">
-            Dicetak: {{ $printed_at }}@if(!empty($printed_by)) — {{ $printed_by }}@endif
-        </div>
+        @include('partials.print-document-footer')
     </div>
 </body>
 </html>

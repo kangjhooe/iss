@@ -319,12 +319,13 @@ class BkkApplicationController extends Controller
         if ($application->alumni_destination_id) {
             $dest = AlumniDestination::find($application->alumni_destination_id);
             if ($dest) {
+                $existingNotes = $dest->cleanApprovedNotes();
                 $dest->update([
                     'destination_type' => 'Kerja',
                     'destination_name' => $company,
                     'program_or_position' => $position,
                     'year_entered' => (int) date('Y'),
-                    'notes' => trim(($dest->notes ? $dest->notes . "\n" : '') . 'Dari BKK: ' . $vacancy->title),
+                    'notes' => trim(($existingNotes ? $existingNotes . "\n" : '') . 'Dari BKK: ' . $vacancy->title),
                 ]);
 
                 return;

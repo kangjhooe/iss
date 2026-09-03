@@ -10,6 +10,7 @@ use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use App\Models\TeacherChangeRequest;
 use App\Models\User;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -165,7 +166,7 @@ class TeacherChangeRequestController extends Controller
             } elseif ($user->isSuperAdmin()) {
                 // super admin sees all
             } elseif ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
-                $institutionId = $user->institution_id;
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
                 if (!$institutionId) {
                     return response()->json(['data' => []], 200);
                 }
@@ -272,11 +273,10 @@ class TeacherChangeRequestController extends Controller
                 if ((int) $changeRequest->requested_by !== (int) $user->id) {
                     return response()->json(['message' => 'Unauthorized'], 403);
                 }
-            } elseif (!$user->isSuperAdmin()) {
-                if ($user->isInstitutionAdmin() || $user->isAdminOrSuperAdmin()) {
-                    if ($changeRequest->employee->institution_id !== $user->institution_id) {
-                        return response()->json(['message' => 'Unauthorized'], 403);
-                    }
+            } elseif (!$user->isAdminOrSuperAdmin()) {
+                if ($user->isInstitutionAdmin()
+                    && InstitutionContext::canAccessInstitution($user, (int) $changeRequest->employee->institution_id)) {
+                    // ok
                 } else {
                     return response()->json(['message' => 'Unauthorized'], 403);
                 }
@@ -301,7 +301,11 @@ class TeacherChangeRequestController extends Controller
             }
 
             $user = $request->user();
-            if (!$user->isSuperAdmin() && $changeRequest->employee->institution_id !== $user->institution_id) {
+            if (! $user->isAdminOrSuperAdmin() && ! $user->isInstitutionAdmin()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+            if (! $user->isAdminOrSuperAdmin()
+                && ! InstitutionContext::canAccessInstitution($user, (int) $changeRequest->employee->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -385,7 +389,7 @@ class TeacherChangeRequestController extends Controller
 
             $query = TeacherChangeRequest::pending();
             if (!$user->isSuperAdmin()) {
-                $institutionId = $user->institution_id;
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
                 if (!$institutionId) {
                     return response()->json(['count' => 0], 200);
                 }

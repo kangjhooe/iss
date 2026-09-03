@@ -76,6 +76,6 @@
     <p class="hint">Gunakan nomor pendaftaran di atas untuk cek hasil seleksi dan unggah berkas. Jangan bagikan nomor ini kepada pihak yang tidak berkepentingan.</p>
     @include('partials.print-signature', ['institution' => $institution])
 
-    <div class="footer print-document-footer">Dicetak: {{ $printed_at }}</div>
+    @include('partials.print-document-footer')
 </body>
 </html>

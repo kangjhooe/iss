@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StorePpdbPeriodRequest;
 use App\Http\Requests\UpdatePpdbPeriodRequest;
 use App\Http\Resources\PpdbPeriodResource;
@@ -14,19 +15,14 @@ use Illuminate\Support\Facades\Log;
 
 class PpdbPeriodController extends Controller
 {
+    use ResolvesInstitution;
+
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
-            if (!$institutionId && !$user->isSuperAdmin()) {
-                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
-            if ($user->isSuperAdmin() && $request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
-                return response()->json(['message' => 'Pilih institusi.'], 403);
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $query = PpdbPeriod::forInstitution($institutionId)
@@ -57,8 +53,7 @@ class PpdbPeriodController extends Controller
     public function store(StorePpdbPeriodRequest $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -82,9 +77,8 @@ class PpdbPeriodController extends Controller
 
     public function show(Request $request, PpdbPeriod $ppdb_period): PpdbPeriodResource|JsonResponse
     {
-        $user = $request->user();
-        if ($user->institution_id !== $ppdb_period->institution_id && !$user->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $ppdb_period->institution_id, 'Unauthorized')) {
+            return $resp;
         }
         $ppdb_period->load(['academicYear', 'institution']);
         $ppdb_period->loadCount('applicants');
@@ -94,9 +88,8 @@ class PpdbPeriodController extends Controller
     public function update(UpdatePpdbPeriodRequest $request, PpdbPeriod $ppdb_period): PpdbPeriodResource|JsonResponse
     {
         try {
-            $user = $request->user();
-            if ($user->institution_id !== $ppdb_period->institution_id && !$user->isSuperAdmin()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $ppdb_period->institution_id, 'Unauthorized')) {
+                return $resp;
             }
 
             $ppdb_period->update($request->validated());
@@ -112,9 +105,8 @@ class PpdbPeriodController extends Controller
 
     public function destroy(Request $request, PpdbPeriod $ppdb_period): JsonResponse
     {
-        $user = $request->user();
-        if ($user->institution_id !== $ppdb_period->institution_id && !$user->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $ppdb_period->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         if ($ppdb_period->applicants()->exists()) {
@@ -132,9 +124,8 @@ class PpdbPeriodController extends Controller
      */
     public function statistics(Request $request, PpdbPeriod $ppdb_period): JsonResponse
     {
-        $user = $request->user();
-        if ($user->institution_id !== $ppdb_period->institution_id && !$user->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $ppdb_period->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $total = $ppdb_period->applicants()->count();

@@ -1,10 +1,26 @@
+function toPdfBlob(source) {
+  if (source instanceof Blob) {
+    return source.type && source.type !== 'application/pdf'
+      ? new Blob([source], { type: 'application/pdf' })
+      : source
+  }
+  const data = source?.data ?? source
+  if (data instanceof Blob) {
+    return data.type && data.type !== 'application/pdf'
+      ? new Blob([data], { type: 'application/pdf' })
+      : data
+  }
+  return new Blob([data], { type: 'application/pdf' })
+}
+
 /**
  * Buka PDF di tab preview baru (bukan unduh langsung).
+ * @param {Blob|{ data: Blob|ArrayBuffer }} source — Blob atau respons axios (responseType: blob)
+ * @param {string} filename — judul tab / nama file
+ * @returns {boolean} false jika bukan PDF atau popup diblokir
  */
-export function openPdfBlob(res, filename = 'document.pdf') {
-  const blob = res?.data instanceof Blob
-    ? res.data
-    : new Blob([res?.data ?? res], { type: 'application/pdf' })
+export function openPdfBlob(source, filename = 'document.pdf') {
+  const blob = toPdfBlob(source)
 
   if (blob.type && blob.type !== 'application/pdf') {
     return false

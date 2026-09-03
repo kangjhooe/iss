@@ -4,33 +4,7 @@
     <meta charset="UTF-8">
     <title>Biodata {{ $student->name ?? '' }} — {{ $mode === 'singkat' ? 'Singkat' : 'Lengkap' }}</title>
     <style>
-        @page { margin: 1.2cm 1.4cm 1.3cm 1.4cm; size: A4 portrait; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 9pt; color: #000; }
-        .doc-title { text-align: center; margin: 8px 0 10px 0; }
-        .doc-title h1 { font-size: 13pt; margin: 0; text-transform: uppercase; letter-spacing: .04em; }
-        .doc-title p { font-size: 9pt; margin: 3px 0 0 0; color: #333; }
-        .title-row { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        .title-row td { vertical-align: top; }
-        .photo-box {
-            width: 2.7cm; height: 3.6cm; border: 1px solid #333;
-            text-align: center; vertical-align: middle;
-        }
-        .photo-box img { width: 2.7cm; height: 3.6cm; object-fit: cover; }
-        .photo-empty { font-size: 8pt; color: #666; padding: 8px 4px; line-height: 1.3; }
-        .section-title {
-            font-weight: bold; font-size: 9.5pt; margin: 8px 0 4px 0;
-            background: #e8e8e8; padding: 3px 6px; text-transform: uppercase;
-        }
-        table.data { width: 100%; border-collapse: collapse; }
-        table.data td { padding: 2px 5px; vertical-align: top; border-bottom: 1px solid #ddd; }
-        table.data td.label { width: 28%; font-weight: bold; color: #222; }
-        table.data td.sep { width: 2%; color: #666; }
-        table.two-col { width: 100%; border-collapse: collapse; }
-        table.two-col > tbody > tr > td { width: 50%; vertical-align: top; padding: 0 4px 0 0; }
-        table.two-col > tbody > tr > td + td { padding: 0 0 0 4px; }
-        .printed-at { font-size: 8pt; color: #666; text-align: center; }
-        @include('partials.print-letterhead-styles')
-        @include('partials.print-signature-styles')
+        @include('partials.student-print-styles')
     </style>
 </head>
 <body>
@@ -101,93 +75,97 @@
     </tr>
 </table>
 
-<div class="section-title">A. Identitas Siswa</div>
-<table class="data">
-    @if($isSingkat)
-        <tr><td class="label">Nama Lengkap</td><td class="sep">:</td><td>{{ $val($student->name) }}</td></tr>
-        <tr><td class="label">NIS / NISN</td><td class="sep">:</td><td>{{ $val($student->nis) }} / {{ $val($student->nisn) }}</td></tr>
-        <tr><td class="label">NIK</td><td class="sep">:</td><td>{{ $val($student->nik) }}</td></tr>
-        <tr><td class="label">Jenis Kelamin</td><td class="sep">:</td><td>{{ $genderLabel($student->gender) }}</td></tr>
-        <tr><td class="label">Tempat, Tanggal Lahir</td><td class="sep">:</td><td>{{ $val($student->birth_place) }}, {{ $fmtDate($student->birth_date) }}</td></tr>
-        <tr><td class="label">Agama</td><td class="sep">:</td><td>{{ $val($student->religion) }}</td></tr>
-        <tr><td class="label">Alamat</td><td class="sep">:</td><td>{{ \App\Support\RegionAddress::format($student) ?: $val($student->address) }}</td></tr>
-        <tr><td class="label">Telepon / Email</td><td class="sep">:</td><td>{{ $val($student->phone) }} / {{ $val($student->email) }}</td></tr>
-        <tr><td class="label">Kelas / Tahun Ajaran</td><td class="sep">:</td><td>{{ $className }} / {{ $academicYearName }}</td></tr>
-        <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $val($student->status) }}</td></tr>
-    @else
-        <tr><td class="label">Nama Lengkap</td><td class="sep">:</td><td>{{ $val($student->name) }}</td></tr>
-        <tr><td class="label">NIS / NISN</td><td class="sep">:</td><td>{{ $val($student->nis) }} / {{ $val($student->nisn) }}</td></tr>
-        <tr><td class="label">NIK / No. KK</td><td class="sep">:</td><td>{{ $val($student->nik) }} / {{ $val($student->no_kk) }}</td></tr>
-        <tr><td class="label">Jenis Kelamin</td><td class="sep">:</td><td>{{ $genderLabel($student->gender) }}</td></tr>
-        <tr><td class="label">Tempat, Tanggal Lahir</td><td class="sep">:</td><td>{{ $val($student->birth_place) }}, {{ $fmtDate($student->birth_date) }}</td></tr>
-        <tr><td class="label">Agama</td><td class="sep">:</td><td>{{ $val($student->religion) }}</td></tr>
-        <tr><td class="label">Alamat</td><td class="sep">:</td><td>{{ \App\Support\RegionAddress::format($student) ?: $val($student->address) }}</td></tr>
-        <tr><td class="label">Telepon / Email</td><td class="sep">:</td><td>{{ $val($student->phone) }} / {{ $val($student->email) }}</td></tr>
-        <tr><td class="label">Tinggi / Berat</td><td class="sep">:</td><td>{{ $student->height ? $student->height.' cm' : '-' }} / {{ $student->weight ? $student->weight.' kg' : '-' }}</td></tr>
-        <tr><td class="label">Tempat Tinggal</td><td class="sep">:</td><td>{{ $lookup($residenceLabels, $student->residence_type) ?? $val($student->residence_type) }}</td></tr>
-        <tr><td class="label">Kebutuhan Khusus</td><td class="sep">:</td><td>{{ $val($student->disability) }}</td></tr>
-        <tr><td class="label">Cita-cita / Hobi</td><td class="sep">:</td><td>{{ $val($student->aspiration) }} / {{ $val($student->hobby) }}</td></tr>
-        <tr><td class="label">Sekolah Asal</td><td class="sep">:</td><td>{{ $val($student->previous_school) }}</td></tr>
-        <tr><td class="label">NPSN / Alamat Sekolah Asal</td><td class="sep">:</td><td>{{ $val($student->previous_school_npsn) }} / {{ $val($student->previous_school_address) }}</td></tr>
-        <tr><td class="label">Kelas / Tahun Ajaran</td><td class="sep">:</td><td>{{ $className }} / {{ $academicYearName }}</td></tr>
-        <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $val($student->status) }}</td></tr>
-        @if($student->notes)
-            <tr><td class="label">Catatan</td><td class="sep">:</td><td>{{ $val($student->notes) }}</td></tr>
-        @endif
-    @endif
-</table>
-
-<div class="section-title">B. Data Orang Tua / Wali</div>
-@if($isSingkat)
+<div class="section-block">
+    <div class="section-title">A. Identitas Siswa</div>
     <table class="data">
-        <tr><td class="label">Ayah</td><td class="sep">:</td><td>{{ $val($student->father_name) }}</td></tr>
-        <tr><td class="label">Ibu</td><td class="sep">:</td><td>{{ $val($student->mother_name) }}</td></tr>
-        <tr>
-            <td class="label">Wali</td><td class="sep">:</td>
-            <td>
-                {{ $lookup($guardianTypeLabels, $student->guardian_type) ?? $val($student->guardian_type) }}
-                · {{ $val($student->guardian_name) }}
-                · {{ $val($student->guardian_phone) }}
-            </td>
-        </tr>
+        @if($isSingkat)
+            <tr><td class="label">Nama Lengkap</td><td class="sep">:</td><td>{{ $val($student->name) }}</td></tr>
+            <tr><td class="label">NIS / NISN</td><td class="sep">:</td><td>{{ $val($student->nis) }} / {{ $val($student->nisn) }}</td></tr>
+            <tr><td class="label">NIK</td><td class="sep">:</td><td>{{ $val($student->nik) }}</td></tr>
+            <tr><td class="label">Jenis Kelamin</td><td class="sep">:</td><td>{{ $genderLabel($student->gender) }}</td></tr>
+            <tr><td class="label">Tempat, Tanggal Lahir</td><td class="sep">:</td><td>{{ $val($student->birth_place) }}, {{ $fmtDate($student->birth_date) }}</td></tr>
+            <tr><td class="label">Agama</td><td class="sep">:</td><td>{{ $val($student->religion) }}</td></tr>
+            <tr><td class="label">Alamat</td><td class="sep">:</td><td>{{ \App\Support\RegionAddress::format($student) ?: $val($student->address) }}</td></tr>
+            <tr><td class="label">Telepon / Email</td><td class="sep">:</td><td>{{ $val($student->phone) }} / {{ $val($student->email) }}</td></tr>
+            <tr><td class="label">Kelas / Tahun Ajaran</td><td class="sep">:</td><td>{{ $className }} / {{ $academicYearName }}</td></tr>
+            <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $val($student->status) }}</td></tr>
+        @else
+            <tr><td class="label">Nama Lengkap</td><td class="sep">:</td><td>{{ $val($student->name) }}</td></tr>
+            <tr><td class="label">NIS / NISN</td><td class="sep">:</td><td>{{ $val($student->nis) }} / {{ $val($student->nisn) }}</td></tr>
+            <tr><td class="label">NIK / No. KK</td><td class="sep">:</td><td>{{ $val($student->nik) }} / {{ $val($student->no_kk) }}</td></tr>
+            <tr><td class="label">Jenis Kelamin</td><td class="sep">:</td><td>{{ $genderLabel($student->gender) }}</td></tr>
+            <tr><td class="label">Tempat, Tanggal Lahir</td><td class="sep">:</td><td>{{ $val($student->birth_place) }}, {{ $fmtDate($student->birth_date) }}</td></tr>
+            <tr><td class="label">Agama</td><td class="sep">:</td><td>{{ $val($student->religion) }}</td></tr>
+            <tr><td class="label">Alamat</td><td class="sep">:</td><td>{{ \App\Support\RegionAddress::format($student) ?: $val($student->address) }}</td></tr>
+            <tr><td class="label">Telepon / Email</td><td class="sep">:</td><td>{{ $val($student->phone) }} / {{ $val($student->email) }}</td></tr>
+            <tr><td class="label">Tinggi / Berat</td><td class="sep">:</td><td>{{ $student->height ? $student->height.' cm' : '-' }} / {{ $student->weight ? $student->weight.' kg' : '-' }}</td></tr>
+            <tr><td class="label">Tempat Tinggal</td><td class="sep">:</td><td>{{ $lookup($residenceLabels, $student->residence_type) ?? $val($student->residence_type) }}</td></tr>
+            <tr><td class="label">Kebutuhan Khusus</td><td class="sep">:</td><td>{{ $val($student->disability) }}</td></tr>
+            <tr><td class="label">Cita-cita / Hobi</td><td class="sep">:</td><td>{{ $val($student->aspiration) }} / {{ $val($student->hobby) }}</td></tr>
+            <tr><td class="label">Sekolah Asal</td><td class="sep">:</td><td>{{ $val($student->previous_school) }}</td></tr>
+            <tr><td class="label">NPSN / Alamat Sekolah Asal</td><td class="sep">:</td><td>{{ $val($student->previous_school_npsn) }} / {{ $val($student->previous_school_address) }}</td></tr>
+            <tr><td class="label">Kelas / Tahun Ajaran</td><td class="sep">:</td><td>{{ $className }} / {{ $academicYearName }}</td></tr>
+            <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $val($student->status) }}</td></tr>
+            @if($student->notes)
+                <tr><td class="label">Catatan</td><td class="sep">:</td><td>{{ $val($student->notes) }}</td></tr>
+            @endif
+        @endif
     </table>
-@else
-    <table class="two-col">
-        <tr>
-            <td>
-                <table class="data">
-                    <tr><td class="label">Ayah</td><td class="sep">:</td><td>{{ $val($student->father_name) }}</td></tr>
-                    <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $lookup($parentStatus, $student->father_status) ?? $val($student->father_status) }}</td></tr>
-                    <tr><td class="label">NIK</td><td class="sep">:</td><td>{{ $val($student->father_nik) }}</td></tr>
-                    <tr><td class="label">TTL</td><td class="sep">:</td><td>{{ $val($student->father_birth_place) }}, {{ $fmtDate($student->father_birth_date) }}</td></tr>
-                    <tr><td class="label">Pendidikan</td><td class="sep">:</td><td>{{ $val($student->father_education) }}</td></tr>
-                    <tr><td class="label">Pekerjaan</td><td class="sep">:</td><td>{{ $val($student->father_occupation) }}</td></tr>
-                    <tr><td class="label">Penghasilan</td><td class="sep">:</td><td>{{ $fmtMoney($student->father_income) }}</td></tr>
-                </table>
-            </td>
-            <td>
-                <table class="data">
-                    <tr><td class="label">Ibu</td><td class="sep">:</td><td>{{ $val($student->mother_name) }}</td></tr>
-                    <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $lookup($parentStatus, $student->mother_status) ?? $val($student->mother_status) }}</td></tr>
-                    <tr><td class="label">NIK</td><td class="sep">:</td><td>{{ $val($student->mother_nik) }}</td></tr>
-                    <tr><td class="label">TTL</td><td class="sep">:</td><td>{{ $val($student->mother_birth_place) }}, {{ $fmtDate($student->mother_birth_date) }}</td></tr>
-                    <tr><td class="label">Pendidikan</td><td class="sep">:</td><td>{{ $val($student->mother_education) }}</td></tr>
-                    <tr><td class="label">Pekerjaan</td><td class="sep">:</td><td>{{ $val($student->mother_occupation) }}</td></tr>
-                    <tr><td class="label">Penghasilan</td><td class="sep">:</td><td>{{ $fmtMoney($student->mother_income) }}</td></tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-    <table class="data" style="margin-top:4px;">
-        <tr><td class="label">Jenis Wali</td><td class="sep">:</td><td>{{ $lookup($guardianTypeLabels, $student->guardian_type) ?? $val($student->guardian_type) }}</td></tr>
-        <tr><td class="label">Nama Wali</td><td class="sep">:</td><td>{{ $val($student->guardian_name) }}</td></tr>
-        <tr><td class="label">Status / NIK</td><td class="sep">:</td><td>{{ $lookup($parentStatus, $student->guardian_status) ?? $val($student->guardian_status) }} / {{ $val($student->guardian_nik) }}</td></tr>
-        <tr><td class="label">Telepon</td><td class="sep">:</td><td>{{ $val($student->guardian_phone) }}</td></tr>
-        <tr><td class="label">TTL</td><td class="sep">:</td><td>{{ $val($student->guardian_birth_place) }}, {{ $fmtDate($student->guardian_birth_date) }}</td></tr>
-        <tr><td class="label">Pendidikan / Pekerjaan</td><td class="sep">:</td><td>{{ $val($student->guardian_education) }} / {{ $val($student->guardian_occupation) }}</td></tr>
-        <tr><td class="label">Penghasilan</td><td class="sep">:</td><td>{{ $fmtMoney($student->guardian_income) }}</td></tr>
-    </table>
-@endif
+</div>
+
+<div class="section-block">
+    <div class="section-title">B. Data Orang Tua / Wali</div>
+    @if($isSingkat)
+        <table class="data">
+            <tr><td class="label">Ayah</td><td class="sep">:</td><td>{{ $val($student->father_name) }}</td></tr>
+            <tr><td class="label">Ibu</td><td class="sep">:</td><td>{{ $val($student->mother_name) }}</td></tr>
+            <tr>
+                <td class="label">Wali</td><td class="sep">:</td>
+                <td>
+                    {{ $lookup($guardianTypeLabels, $student->guardian_type) ?? $val($student->guardian_type) }}
+                    · {{ $val($student->guardian_name) }}
+                    · {{ $val($student->guardian_phone) }}
+                </td>
+            </tr>
+        </table>
+    @else
+        <table class="two-col">
+            <tr>
+                <td>
+                    <table class="data">
+                        <tr><td class="label">Ayah</td><td class="sep">:</td><td>{{ $val($student->father_name) }}</td></tr>
+                        <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $lookup($parentStatus, $student->father_status) ?? $val($student->father_status) }}</td></tr>
+                        <tr><td class="label">NIK</td><td class="sep">:</td><td>{{ $val($student->father_nik) }}</td></tr>
+                        <tr><td class="label">TTL</td><td class="sep">:</td><td>{{ $val($student->father_birth_place) }}, {{ $fmtDate($student->father_birth_date) }}</td></tr>
+                        <tr><td class="label">Pendidikan</td><td class="sep">:</td><td>{{ $val($student->father_education) }}</td></tr>
+                        <tr><td class="label">Pekerjaan</td><td class="sep">:</td><td>{{ $val($student->father_occupation) }}</td></tr>
+                        <tr><td class="label">Penghasilan</td><td class="sep">:</td><td>{{ $fmtMoney($student->father_income) }}</td></tr>
+                    </table>
+                </td>
+                <td>
+                    <table class="data">
+                        <tr><td class="label">Ibu</td><td class="sep">:</td><td>{{ $val($student->mother_name) }}</td></tr>
+                        <tr><td class="label">Status</td><td class="sep">:</td><td>{{ $lookup($parentStatus, $student->mother_status) ?? $val($student->mother_status) }}</td></tr>
+                        <tr><td class="label">NIK</td><td class="sep">:</td><td>{{ $val($student->mother_nik) }}</td></tr>
+                        <tr><td class="label">TTL</td><td class="sep">:</td><td>{{ $val($student->mother_birth_place) }}, {{ $fmtDate($student->mother_birth_date) }}</td></tr>
+                        <tr><td class="label">Pendidikan</td><td class="sep">:</td><td>{{ $val($student->mother_education) }}</td></tr>
+                        <tr><td class="label">Pekerjaan</td><td class="sep">:</td><td>{{ $val($student->mother_occupation) }}</td></tr>
+                        <tr><td class="label">Penghasilan</td><td class="sep">:</td><td>{{ $fmtMoney($student->mother_income) }}</td></tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <table class="data" style="margin-top:4px;">
+            <tr><td class="label">Jenis Wali</td><td class="sep">:</td><td>{{ $lookup($guardianTypeLabels, $student->guardian_type) ?? $val($student->guardian_type) }}</td></tr>
+            <tr><td class="label">Nama Wali</td><td class="sep">:</td><td>{{ $val($student->guardian_name) }}</td></tr>
+            <tr><td class="label">Status / NIK</td><td class="sep">:</td><td>{{ $lookup($parentStatus, $student->guardian_status) ?? $val($student->guardian_status) }} / {{ $val($student->guardian_nik) }}</td></tr>
+            <tr><td class="label">Telepon</td><td class="sep">:</td><td>{{ $val($student->guardian_phone) }}</td></tr>
+            <tr><td class="label">TTL</td><td class="sep">:</td><td>{{ $val($student->guardian_birth_place) }}, {{ $fmtDate($student->guardian_birth_date) }}</td></tr>
+            <tr><td class="label">Pendidikan / Pekerjaan</td><td class="sep">:</td><td>{{ $val($student->guardian_education) }} / {{ $val($student->guardian_occupation) }}</td></tr>
+            <tr><td class="label">Penghasilan</td><td class="sep">:</td><td>{{ $fmtMoney($student->guardian_income) }}</td></tr>
+        </table>
+    @endif
+</div>
 
 <div class="standard-signature-wrap">
     <div class="standard-signature-left"></div>
@@ -200,6 +178,6 @@
     </div>
 </div>
 
-<p class="printed-at print-document-footer">Dicetak: {{ $printed_at }}</p>
+@include('partials.print-document-footer', ['footer_tag' => 'p', 'footer_class' => 'printed-at'])
 </body>
 </html>

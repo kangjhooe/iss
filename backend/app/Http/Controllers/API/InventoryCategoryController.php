@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Resources\InventoryCategoryResource;
 use App\Models\InventoryCategory;
 use App\Repositories\InventoryCategoryRepository;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 
 class InventoryCategoryController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         private InventoryCategoryRepository $repository
     ) {}
@@ -24,14 +27,7 @@ class InventoryCategoryController extends Controller
     {
         try {
             $filters = $request->only(['is_active', 'search']);
-            $institutionId = null;
-            if ($request->user()->isSuperAdmin()) {
-                $institutionId = $request->get('institution_id');
-            } elseif ($request->user()->isAdmin()) {
-                $institutionId = $request->get('institution_id') ?? $request->user()->institution_id;
-            } else {
-                $institutionId = $request->user()->institution_id;
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if ($institutionId === null) {
                 $perPage = min($request->get('per_page', 15), 100);
                 return InventoryCategoryResource::collection(
@@ -70,9 +66,7 @@ class InventoryCategoryController extends Controller
         }
 
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? $request->institution_id 
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -110,8 +104,8 @@ class InventoryCategoryController extends Controller
     public function show(Request $request, InventoryCategory $category)
     {
         try {
-            if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $category->institution_id, 'Unauthorized')) {
+                return $resp;
             }
             $category->load(['institution', 'items']);
             return new InventoryCategoryResource($category);
@@ -129,8 +123,8 @@ class InventoryCategoryController extends Controller
             return InventoryAccess::forbiddenManageResponse();
         }
 
-        if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $category->institution_id, 'Unauthorized')) {
+            return $resp;
         }
         $validator = Validator::make($request->all(), [
             'code' => 'sometimes|string|max:10',
@@ -181,8 +175,8 @@ class InventoryCategoryController extends Controller
                 return InventoryAccess::forbiddenManageResponse();
             }
 
-            if (!$request->user()->isAdminOrSuperAdmin() && (int) $category->institution_id !== (int) $request->user()->institution_id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $category->institution_id, 'Unauthorized')) {
+                return $resp;
             }
             // Check if category has items
             if ($category->items()->count() > 0) {

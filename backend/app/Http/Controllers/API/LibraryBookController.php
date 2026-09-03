@@ -120,16 +120,11 @@ class LibraryBookController extends Controller
     }
 
     /**
-     * Pastikan buku milik institusi aktif (cegah akses lintas tenant via ID).
+     * Pastikan buku milik institusi yang boleh diakses user (cegah akses lintas tenant via ID).
      */
     private function denyUnlessBookInInstitution(Request $request, LibraryBook $book): ?\Illuminate\Http\JsonResponse
     {
-        $institutionId = $this->resolveInstitutionId($request);
-        if (!$institutionId || (int) $book->institution_id !== (int) $institutionId) {
-            return response()->json(['message' => 'Akses ditolak.'], 403);
-        }
-
-        return null;
+        return $this->denyUnlessCanAccessInstitution($request, (int) $book->institution_id);
     }
 
     /**
@@ -319,9 +314,8 @@ class LibraryBookController extends Controller
     public function streamEbook(Request $request, LibraryBook $book): StreamedResponse|\Illuminate\Http\JsonResponse
     {
         try {
-            $institutionId = $this->resolveInstitutionId($request);
-            if (!$institutionId || (int) $book->institution_id !== (int) $institutionId) {
-                return response()->json(['message' => 'Akses ditolak.'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $book->institution_id)) {
+                return $resp;
             }
             if (!$book->hasEbook() || !Storage::disk('local')->exists($book->ebook_path)) {
                 return response()->json(['message' => 'Ebook tidak tersedia.'], 404);

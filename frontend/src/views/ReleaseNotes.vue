@@ -1,20 +1,6 @@
 <template>
   <div class="release-page">
-    <nav class="navbar">
-      <div class="navbar-inner">
-        <router-link to="/" class="navbar-brand">
-          <div class="navbar-logo">
-            <AppLogo :size="36" />
-          </div>
-          <span class="navbar-title">{{ appName }}</span>
-        </router-link>
-        <div class="navbar-actions">
-          <router-link to="/" class="nav-link">Beranda</router-link>
-          <router-link to="/login" class="btn btn-ghost">Masuk</router-link>
-          <router-link to="/register" class="btn btn-primary">Daftar</router-link>
-        </div>
-      </div>
-    </nav>
+    <PublicNavbar />
 
     <main class="release-main">
       <section class="release-hero">
@@ -157,6 +143,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { appName, appTagline, appVersion } from '@/config/app'
 import AppLogo from '@/components/AppLogo.vue'
+import PublicNavbar from '@/components/PublicNavbar.vue'
 import { releasesApi } from '@/api/releases'
 
 const currentYear = computed(() => new Date().getFullYear())
@@ -224,58 +211,6 @@ onMounted(loadReleases)
   flex-direction: column;
   background: #f8fafc;
   color: #0f172a;
-}
-
-.navbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.navbar-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 14px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.navbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
-  color: #1e293b;
-  font-weight: 600;
-  font-size: 18px;
-}
-
-.navbar-brand:hover {
-  color: #059669;
-}
-
-.navbar-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.nav-link {
-  color: #64748b;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 500;
-  padding: 8px 4px;
-}
-
-.nav-link:hover {
-  color: #059669;
 }
 
 .btn {

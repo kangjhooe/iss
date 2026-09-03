@@ -333,6 +333,10 @@ class BkReportService
                 'class_name' => $className ?? 'Tanpa Kelas',
                 'achievement_type' => $a->achievementType?->name ?? '-',
                 'category' => $a->achievementType?->category ?? '-',
+                'purpose' => $a->purpose ?? Achievement::PURPOSE_AKREDITASI,
+                'title' => $a->title,
+                'level' => $a->level,
+                'rank' => $a->rank,
                 'point_value' => (int) $a->point_value,
                 'notes' => $a->notes,
                 'giver_name' => $a->giver?->name,
@@ -490,6 +494,10 @@ class BkReportService
                     ->whereColumn('student.id', 'achievements.student_id')
                     ->where('student.class_id', $filters['class_id']);
             });
+        }
+
+        if (!empty($filters['purpose'])) {
+            $query->where('achievements.purpose', $filters['purpose']);
         }
 
         return $query;

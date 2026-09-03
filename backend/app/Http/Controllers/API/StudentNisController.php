@@ -204,9 +204,11 @@ class StudentNisController extends Controller
     private function resolveInstitution(Request $request): ?Institution
     {
         $user = $request->user();
-        $institutionId = $user->isAdminOrSuperAdmin()
-            ? ($request->filled('institution_id') ? (int) $request->get('institution_id') : $user->institution_id)
-            : InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+        $institutionId = InstitutionContext::resolveForUser(
+            $user,
+            $request,
+            $request->filled('institution_id') ? $request->get('institution_id') : null
+        );
 
         if (!$institutionId) {
             return null;

@@ -51,9 +51,11 @@ class PermissionController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $institutionId = $user->isAdminOrSuperAdmin()
-                ? $request->get('institution_id')
-                : $user->institution_id;
+            $institutionId = InstitutionContext::resolveForUser(
+                $user,
+                $request,
+                $request->get('institution_id')
+            );
 
             $employeesQuery = Employee::where('type', 'Guru')
                 ->whereHas('userAccount')
@@ -61,6 +63,8 @@ class PermissionController extends Controller
 
             if ($institutionId !== null) {
                 $employeesQuery->where('institution_id', $institutionId);
+            } elseif (! $user->isAdminOrSuperAdmin()) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $teachers = $employeesQuery->get()
@@ -127,7 +131,8 @@ class PermissionController extends Controller
                 ], 422);
             }
 
-            if (! $user->isAdminOrSuperAdmin() && $targetUser->institution_id !== $user->institution_id) {
+            if (! $user->isAdminOrSuperAdmin()
+                && ! \App\Support\InstitutionContext::canAccessInstitution($user, (int) $targetUser->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -261,14 +266,10 @@ class PermissionController extends Controller
 
     private function resolveManagedInstitutionId(Request $request, User $user): ?int
     {
-        if ($user->isAdminOrSuperAdmin()) {
-            return InstitutionContext::resolveForUser(
-                $user,
-                $request,
-                $request->get('institution_id')
-            );
-        }
-
-        return $user->institution_id ? (int) $user->institution_id : null;
+        return InstitutionContext::resolveForUser(
+            $user,
+            $request,
+            $request->get('institution_id')
+        );
     }
 }

@@ -4,12 +4,20 @@
  * Generate PWA icons from the existing servr.in brand logo.
  */
 
-$source = dirname(__DIR__, 2) . '/backend/public/storage/app_branding/favicon_1771841108_logo_servr.id.png';
-$fallback = dirname(__DIR__, 2) . '/backend/public/storage/app_branding/app_logo_1771841100_logo_servr.id.png';
+$source = dirname(__DIR__, 2) . '/backend/storage/app/public/app_branding/favicon_1771841108_logo_servr.id.png';
+$fallback = dirname(__DIR__, 2) . '/backend/storage/app/public/app_branding/app_logo_1771841100_logo_servr.id.png';
+$legacySource = dirname(__DIR__, 2) . '/backend/public/storage/app_branding/favicon_1771841108_logo_servr.id.png';
+$legacyFallback = dirname(__DIR__, 2) . '/backend/public/storage/app_branding/app_logo_1771841100_logo_servr.id.png';
 $outDir = dirname(__DIR__) . '/public';
 
 if (!is_file($source)) {
     $source = $fallback;
+}
+if (!is_file($source)) {
+    $source = $legacySource;
+}
+if (!is_file($source)) {
+    $source = $legacyFallback;
 }
 
 if (!is_file($source)) {
@@ -61,13 +69,13 @@ function makeIcon($srcImg, $srcW, $srcH, $size, $paddingRatio, $bgRgb, $destPath
 }
 
 $white = [255, 255, 255];
-$sky = [14, 165, 233]; // #0ea5e9 theme_color
+$green = [5, 150, 105]; // #059669 theme_color (brand primary)
 
 $jobs = [
     ['pwa-192x192.png', 192, 0.08, $white],
     ['pwa-512x512.png', 512, 0.08, $white],
-    ['pwa-maskable-192x192.png', 192, 0.18, $sky],
-    ['pwa-maskable-512x512.png', 512, 0.18, $sky],
+    ['pwa-maskable-192x192.png', 192, 0.18, $green],
+    ['pwa-maskable-512x512.png', 512, 0.18, $green],
     ['apple-touch-icon.png', 180, 0.10, $white],
     ['favicon-32x32.png', 32, 0.06, $white],
     ['favicon-192x192.png', 192, 0.08, $white],

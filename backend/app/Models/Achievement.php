@@ -15,6 +15,31 @@ class Achievement extends Model
     public const STATUS_DICATAT = 'dicatat';
     public const STATUS_DITOLAK = 'ditolak';
 
+    public const PURPOSE_AKREDITASI = 'akreditasi';
+    public const PURPOSE_APRESIASI = 'apresiasi';
+
+    public const PURPOSES = [
+        self::PURPOSE_AKREDITASI,
+        self::PURPOSE_APRESIASI,
+    ];
+
+    public const LEVELS = [
+        'sekolah',
+        'kabupaten',
+        'provinsi',
+        'nasional',
+        'internasional',
+    ];
+
+    public const RANKS = [
+        'juara_1',
+        'juara_2',
+        'juara_3',
+        'finalis',
+        'peserta',
+        'lainnya',
+    ];
+
     public const STATUSES_COUNTING_POINTS = [
         self::STATUS_DICATAT,
     ];
@@ -23,6 +48,10 @@ class Achievement extends Model
         'institution_id',
         'student_id',
         'achievement_type_id',
+        'purpose',
+        'title',
+        'level',
+        'rank',
         'given_by',
         'achievement_date',
         'point_value',

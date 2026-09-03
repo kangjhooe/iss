@@ -147,6 +147,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import { inventoryApi } from '@/api/inventory'
+import { openPdfBlob } from '@/utils/pdfPreview'
 import { safeArray, parsePagination, inventoryRowNumber } from '@/composables/inventory/inventoryApiHelpers'
 import { formatDate, formatCurrency, getConditionClass, getStatusClass } from '@/composables/inventory/inventoryFormatters'
 import { useToast } from '@/composables/useToast'
@@ -243,10 +244,10 @@ async function printSingleQr(row) {
   printingQrId.value = row.id
   try {
     const response = await inventoryApi.printAssetQrPdf({ asset_ids: [row.id] })
-    const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    if (!openPdfBlob(response, `qr-aset-${row.asset_number || row.id}.pdf`)) {
+      toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
+      return
+    }
     toast.success('Berhasil', 'Label QR dibuka')
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal cetak label QR')
@@ -262,10 +263,10 @@ async function printBulkQr() {
     if (filters.value.room_id) params.room_id = filters.value.room_id
     if (filters.value.item_id) params.item_id = filters.value.item_id
     const response = await inventoryApi.printAssetQrPdf(params)
-    const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    if (!openPdfBlob(response, 'label-qr-inventaris.pdf')) {
+      toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
+      return
+    }
     toast.success('Berhasil', 'PDF label QR dibuka')
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || err.response?.data?.message || 'Gagal cetak label QR')
@@ -278,10 +279,10 @@ async function exportKib(asset) {
   exportingKib.value = true
   try {
     const response = await inventoryApi.exportAssetKib(asset.id)
-    const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    if (!openPdfBlob(response, `kib-aset-${asset.asset_number || asset.id}.pdf`)) {
+      toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
+      return
+    }
     toast.success('Berhasil', 'KIB aset dibuka')
   } catch (err) {
     toast.error('Gagal', err.formattedMessage || 'Gagal cetak KIB')

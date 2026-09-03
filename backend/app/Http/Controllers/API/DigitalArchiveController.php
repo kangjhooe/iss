@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreDigitalArchiveCategoryRequest;
 use App\Http\Requests\StoreDigitalArchiveRequest;
 use App\Http\Requests\UpdateDigitalArchiveRequest;
@@ -19,16 +20,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DigitalArchiveController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected DigitalArchiveService $service
     ) {}
 
     protected function getInstitutionId(Request $request): ?int
     {
-        if ($request->user()->isAdminOrSuperAdmin() && $request->has('institution_id')) {
-            return (int) $request->institution_id;
-        }
-        return $request->user()->institution_id;
+        return $this->resolveInstitutionId($request);
     }
 
     /**
@@ -92,9 +92,8 @@ class DigitalArchiveController extends Controller
      */
     public function show(Request $request, DigitalArchive $digital_archive): DigitalArchiveResource|JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $digital_archive->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $digital_archive->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $digital_archive->load(['category', 'creator']);
@@ -107,9 +106,8 @@ class DigitalArchiveController extends Controller
     public function update(UpdateDigitalArchiveRequest $request, DigitalArchive $digital_archive): JsonResponse
     {
         try {
-            $institutionId = $this->getInstitutionId($request);
-            if ($institutionId && (int) $digital_archive->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $digital_archive->institution_id, 'Unauthorized')) {
+                return $resp;
             }
 
             $data = $request->validated();
@@ -136,9 +134,8 @@ class DigitalArchiveController extends Controller
      */
     public function destroy(Request $request, DigitalArchive $digital_archive): JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $digital_archive->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $digital_archive->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $this->service->delete($digital_archive);
@@ -150,9 +147,8 @@ class DigitalArchiveController extends Controller
      */
     public function download(Request $request, DigitalArchive $digital_archive): StreamedResponse|JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $digital_archive->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $digital_archive->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         if (!$digital_archive->file_path || !Storage::disk('public')->exists($digital_archive->file_path)) {

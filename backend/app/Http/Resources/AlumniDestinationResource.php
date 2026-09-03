@@ -27,7 +27,7 @@ class AlumniDestinationResource extends JsonResource
             'destination_name' => $this->destination_name,
             'program_or_position' => $this->program_or_position,
             'year_entered' => $this->year_entered,
-            'notes' => $this->notes,
+            'notes' => $this->notesForDisplay(),
             'status' => $this->status ?: AlumniDestination::STATUS_APPROVED,
             'source' => $this->source ?: AlumniDestination::SOURCE_MANUAL,
             'related_student_id' => $this->related_student_id,

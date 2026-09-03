@@ -1,4 +1,5 @@
-<template>    <div class="uks-page">
+<template>
+    <div class="uks-page">
       <div class="page-header">
         <div class="header-content">
           <h2 class="page-title">Kunjungan UKS</h2>
@@ -200,48 +201,94 @@
           <form class="form-grid" @submit.prevent="submitForm">
             <div v-if="editingVisit" class="full student-picker-locked">
               <span class="field-label">Siswa</span>
-              <p>
-                {{ editingVisit.student?.name || '—' }}
-                <span class="student-meta">
-                  {{ editingVisit.student?.nis || editingVisit.student?.nisn || '' }}
-                  <template v-if="editingVisit.student?.class?.name"> · {{ editingVisit.student.class.name }}</template>
-                </span>
-              </p>
+              <div class="picker-student-card is-static">
+                <span class="picker-avatar" :style="avatarStyle(editingVisit.student)">{{ studentInitials(editingVisit.student) }}</span>
+                <div class="picker-student-meta">
+                  <strong>{{ editingVisit.student?.name || '—' }}</strong>
+                  <span>{{ studentIdLabel(editingVisit.student) }}<template v-if="studentClassLabel(editingVisit.student)"> · {{ studentClassLabel(editingVisit.student) }}</template></span>
+                </div>
+              </div>
             </div>
             <div v-else class="full student-picker">
-              <div class="picker-row">
-                <label>Kelas
-                  <select v-model="pickerClassId" @change="onPickerClassChange">
-                    <option value="">Semua kelas</option>
-                    <option v-for="c in classes" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
-                  </select>
-                </label>
-                <label>Cari siswa
-                  <input
-                    v-model="pickerStudentSearch"
-                    type="text"
-                    placeholder="Nama, NIS, NISN, atau NIK"
-                    @input="debouncePickerStudentSearch"
-                  />
-                </label>
+              <div class="picker-heading">
+                <span class="field-label">Siswa *</span>
+                <span v-if="selectedPickerStudent" class="picker-selected-hint">1 dipilih</span>
               </div>
-              <p class="field-hint">
-                <template v-if="!pickerClassId && !pickerStudentSearch.trim()">Pilih kelas atau ketik nama/NIS siswa.</template>
-                <template v-else-if="loadingPickerStudents">Memuat siswa...</template>
-                <template v-else-if="pickerStudentError">{{ pickerStudentError }}</template>
-                <template v-else-if="pickerStudents.length">{{ pickerStudents.length }} siswa — pilih di daftar bawah.</template>
-                <template v-else>Tidak ada siswa cocok.</template>
-              </p>
-              <select
-                v-model="form.student_id"
-                required
-                class="student-listbox"
-                size="7"
-                :disabled="loadingPickerStudents || (!pickerClassId && !pickerStudentSearch.trim())"
-              >
-                <option value="">Pilih siswa</option>
-                <option v-for="s in pickerStudents" :key="s.id" :value="String(s.id)">{{ studentOptionLabel(s) }}</option>
-              </select>
+
+              <div v-if="selectedPickerStudent" class="picker-student-card is-selected">
+                <span class="picker-avatar" :style="avatarStyle(selectedPickerStudent)">{{ studentInitials(selectedPickerStudent) }}</span>
+                <div class="picker-student-meta">
+                  <strong>{{ selectedPickerStudent.name }}</strong>
+                  <span>{{ studentIdLabel(selectedPickerStudent) }}<template v-if="studentClassLabel(selectedPickerStudent)"> · {{ studentClassLabel(selectedPickerStudent) }}</template></span>
+                </div>
+                <button v-if="!pickerPanelOpen" type="button" class="picker-clear" @click="pickerPanelOpen = true">Ganti</button>
+              </div>
+
+              <div v-show="!selectedPickerStudent || pickerPanelOpen" class="picker-panel">
+                <div class="picker-toolbar">
+                  <label class="picker-field">
+                    <span>Kelas</span>
+                    <select v-model="pickerClassId" @change="onPickerClassChange">
+                      <option value="">Semua kelas</option>
+                      <option v-for="c in classes" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                    </select>
+                  </label>
+                  <label class="picker-field picker-field-search">
+                    <span>Cari siswa</span>
+                    <div class="picker-search-wrap">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                        <path d="M20 20L17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                      <input
+                        v-model="pickerStudentSearch"
+                        type="text"
+                        placeholder="Nama, NIS, NISN, atau NIK"
+                        autocomplete="off"
+                        @input="debouncePickerStudentSearch"
+                      />
+                    </div>
+                  </label>
+                </div>
+
+                <div class="picker-list" role="listbox" aria-label="Daftar siswa" :aria-busy="loadingPickerStudents">
+                  <div v-if="loadingPickerStudents" class="picker-state">
+                    <span class="picker-spinner"></span>
+                    Memuat siswa...
+                  </div>
+                  <div v-else-if="!pickerStudents.length && !pickerClassId && !pickerStudentSearch.trim()" class="picker-state">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p>Pilih kelas atau ketik nama/NIS untuk menampilkan siswa.</p>
+                  </div>
+                  <div v-else-if="pickerStudentError" class="picker-state is-error">{{ pickerStudentError }}</div>
+                  <div v-else-if="!pickerStudents.length" class="picker-state">Tidak ada siswa cocok.</div>
+                  <template v-else>
+                    <div class="picker-list-meta">{{ pickerStudents.length }} siswa — pilih satu</div>
+                    <button
+                      v-for="s in pickerStudents"
+                      :key="s.id"
+                      type="button"
+                      role="option"
+                      class="picker-option"
+                      :aria-selected="isPickerStudentSelected(s)"
+                      :class="{ active: isPickerStudentSelected(s) }"
+                      @click="selectPickerStudent(s)"
+                    >
+                      <span class="picker-avatar" :style="avatarStyle(s)">{{ studentInitials(s) }}</span>
+                      <span class="picker-student-meta">
+                        <strong>{{ s.name }}</strong>
+                        <span>{{ studentIdLabel(s) }}<template v-if="studentClassLabel(s)"> · {{ studentClassLabel(s) }}</template></span>
+                      </span>
+                      <svg v-if="isPickerStudentSelected(s)" class="picker-check" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" fill="#0ea5e9"/>
+                        <path d="M8 12.5l2.5 2.5L16 9.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
             </div>
 
             <label>Tanggal *
@@ -371,7 +418,8 @@
         @confirm="confirmDeleteType"
         @cancel="deleteTypeTarget = null"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
@@ -432,6 +480,8 @@ const pickerStudentSearch = ref('')
 const pickerStudents = ref([])
 const loadingPickerStudents = ref(false)
 const pickerStudentError = ref('')
+const pickerPanelOpen = ref(true)
+const selectedPickerStudent = ref(null)
 let pickerStudentTimer = null
 
 const showDetailModal = ref(false)
@@ -520,10 +570,46 @@ function truncate(str, len) {
   return str.length <= len ? str : str.slice(0, len) + '…'
 }
 
-function studentOptionLabel(s) {
-  const id = s.nis || s.nisn || s.nik || '-'
-  const kelas = s.class_name || s.class?.name
-  return kelas ? `${s.name} (${id}) · ${kelas}` : `${s.name} (${id})`
+const AVATAR_COLORS = [
+  { bg: '#d1fae5', fg: '#047857' },
+  { bg: '#e0f2fe', fg: '#0369a1' },
+  { bg: '#fef3c7', fg: '#b45309' },
+  { bg: '#ede9fe', fg: '#6d28d9' },
+  { bg: '#fce7f3', fg: '#be185d' },
+  { bg: '#ffedd5', fg: '#c2410c' },
+]
+
+function studentInitials(s) {
+  const parts = String(s?.name || '').trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function avatarStyle(s) {
+  const name = s?.name || ''
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  const color = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+  return { background: color.bg, color: color.fg }
+}
+
+function studentIdLabel(s) {
+  return s?.nis || s?.nisn || s?.nik || '—'
+}
+
+function studentClassLabel(s) {
+  return s?.class_name || s?.class?.name || ''
+}
+
+function isPickerStudentSelected(s) {
+  return String(form.value.student_id) === String(s?.id)
+}
+
+function selectPickerStudent(s) {
+  form.value.student_id = String(s.id)
+  selectedPickerStudent.value = s
+  pickerPanelOpen.value = false
 }
 
 function switchTab(tab) {
@@ -663,7 +749,9 @@ function debouncePickerStudentSearch() {
 
 function onPickerClassChange() {
   form.value.student_id = ''
+  selectedPickerStudent.value = null
   pickerStudentSearch.value = ''
+  pickerPanelOpen.value = true
   loadPickerStudents()
 }
 
@@ -672,6 +760,8 @@ function resetStudentPicker() {
   pickerStudentSearch.value = ''
   pickerStudents.value = []
   pickerStudentError.value = ''
+  pickerPanelOpen.value = true
+  selectedPickerStudent.value = null
   clearTimeout(pickerStudentTimer)
 }
 
@@ -999,22 +1089,248 @@ onMounted(async () => {
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .form-error { color: #b91c1c; font-size: 13px; margin: 0 0 8px; }
 .student-picker {
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1rem 1rem;
   background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+.picker-heading .field-label {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+.picker-selected-hint {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+.picker-student-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
 }
-.picker-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
-.field-hint { margin: 0.4rem 0 0; font-size: 12px; color: #64748b; font-weight: 400; }
-.student-listbox { margin-top: 0.5rem; min-height: 150px; width: 100%; }
+.picker-student-card.is-selected {
+  border-color: #0ea5e9;
+  background: #f0f9ff;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+.picker-student-card.is-static {
+  background: #fff;
+}
+.picker-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.picker-student-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.picker-student-meta strong,
+.picker-student-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-student-meta strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.25;
+}
+.picker-student-meta span {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+.picker-clear {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.picker-clear:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+.picker-student-card + .picker-panel {
+  margin-top: 0.7rem;
+}
+.picker-toolbar {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.9fr) minmax(160px, 1.4fr);
+  gap: 0.65rem;
+}
+.student-picker .picker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+.picker-field select,
+.picker-search-wrap {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+.picker-field select {
+  padding: 0.5rem 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #0f172a;
+}
+.picker-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.7rem;
+  color: #94a3b8;
+}
+.student-picker .picker-search-wrap input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #0f172a;
+  background: transparent;
+  box-shadow: none;
+}
+.picker-search-wrap input:focus {
+  outline: none;
+}
+.picker-search-wrap:focus-within {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+.picker-list {
+  margin-top: 0.65rem;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.picker-list-meta {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+}
+.picker-option {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+  cursor: pointer;
+}
+.picker-option:last-child {
+  border-bottom: none;
+}
+.picker-option:hover {
+  background: #f8fafc;
+}
+.picker-option.active {
+  background: #f0f9ff;
+}
+.picker-option.active .picker-student-meta strong {
+  color: #0369a1;
+}
+.picker-check {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.picker-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 132px;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+.picker-state p {
+  margin: 0;
+  max-width: 16rem;
+  line-height: 1.4;
+}
+.picker-state.is-error {
+  color: #b45309;
+}
+.picker-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #e0f2fe;
+  border-top-color: #0ea5e9;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
 .student-picker-locked {
   margin: 0;
-  padding: 0.75rem 1rem;
+  padding: 0.9rem 1rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
 }
-.student-picker-locked p { margin: 4px 0 0; font-weight: 600; color: #0f172a; }
+.student-picker-locked .field-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.55rem;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 .detail-student { margin: 0; font-size: 16px; font-weight: 700; }
 .detail-dl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin: 16px 0; }
 .detail-dl .full { grid-column: 1 / -1; }
@@ -1027,9 +1343,9 @@ onMounted(async () => {
 .history-note { grid-column: 1 / -1; font-size: 12px; color: #64748b; }
 @media (max-width: 1100px) {
   .uks-stats { grid-template-columns: 1fr 1fr; }
-  .uks-charts, .vital-grid, .picker-row { grid-template-columns: 1fr 1fr; }
+  .uks-charts, .vital-grid, .picker-toolbar { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 700px) {
-  .uks-stats, .uks-charts, .form-grid, .vital-grid, .picker-row, .detail-dl, .history-list li { grid-template-columns: 1fr; }
+  .uks-stats, .uks-charts, .form-grid, .vital-grid, .picker-toolbar, .detail-dl, .history-list li { grid-template-columns: 1fr; }
 }
 </style>

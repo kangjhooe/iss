@@ -60,6 +60,6 @@
         'signature_date' => $signature_date ?? null,
     ])
 
-    <div class="footer print-document-footer">Dicetak: {{ $printed_at ?? now() }}</div>
+    @include('partials.print-document-footer')
 </body>
 </html>

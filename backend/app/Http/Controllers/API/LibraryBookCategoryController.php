@@ -25,6 +25,9 @@ class LibraryBookCategoryController extends Controller
     {
         try {
             $institutionId = $this->resolveInstitutionId($request);
+            if (!$request->user()->isAdminOrSuperAdmin() && $institutionId === null) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
             $filters = $request->only(['search', 'is_active']);
             $perPage = min((int) $request->get('per_page', 15), 100);
             $items = $this->service->listCategories($filters, $institutionId, $perPage);
@@ -57,9 +60,12 @@ class LibraryBookCategoryController extends Controller
         }
     }
 
-    public function show(LibraryBookCategory $category)
+    public function show(Request $request, LibraryBookCategory $category)
     {
         try {
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $category->institution_id)) {
+                return $resp;
+            }
             $category->loadCount('books');
             return response()->json(['data' => new LibraryBookCategoryResource($category)]);
         } catch (\Exception $e) {
@@ -71,6 +77,9 @@ class LibraryBookCategoryController extends Controller
     public function update(UpdateLibraryBookCategoryRequest $request, LibraryBookCategory $category)
     {
         try {
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $category->institution_id)) {
+                return $resp;
+            }
             $updated = $this->service->updateCategory($category, $request->validated());
             return response()->json([
                 'message' => 'Kategori buku berhasil diperbarui.',
@@ -82,9 +91,12 @@ class LibraryBookCategoryController extends Controller
         }
     }
 
-    public function destroy(LibraryBookCategory $category)
+    public function destroy(Request $request, LibraryBookCategory $category)
     {
         try {
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $category->institution_id)) {
+                return $resp;
+            }
             if ($category->books()->count() > 0) {
                 return response()->json(['message' => 'Kategori masih memiliki buku. Hapus atau pindahkan buku terlebih dahulu.'], 422);
             }

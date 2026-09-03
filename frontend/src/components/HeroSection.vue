@@ -108,11 +108,11 @@ import { ref, computed } from 'vue'
 const props = defineProps({
   headline: {
     type: String,
-    default: 'Satu Platform untuk Mengelola Sekolah & Madrasah',
+    default: 'Sistem Informasi Sekolah & Madrasah dalam Satu Platform',
   },
   subheadline: {
     type: String,
-    default: 'Profil institusi, data siswa & guru, PPDB, rapor—semua dalam satu tempat. Tanpa ribet.',
+    default: 'Kelola PPDB, data siswa & guru, raport, absensi, dan administrasi—semua dalam satu tempat. Tanpa ribet.',
   },
   heroImageUrl: {
     type: String,

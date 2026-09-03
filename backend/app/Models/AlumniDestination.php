@@ -94,6 +94,35 @@ class AlumniDestination extends Model
         return $this->source === self::SOURCE_AUTO_ENROLLMENT;
     }
 
+    /**
+     * Hapus sufiks status pending dari catatan (untuk data yang sudah disetujui).
+     */
+    public function cleanApprovedNotes(): ?string
+    {
+        $notes = trim((string) ($this->notes ?? ''));
+        if ($notes === '') {
+            return null;
+        }
+
+        $notes = trim((string) preg_replace('/\s*Menunggu persetujuan admin\.?\s*$/iu', '', $notes));
+
+        return $notes !== '' ? $notes : null;
+    }
+
+    /**
+     * Catatan yang ditampilkan di laporan/cetak (tanpa teks pending jika sudah disetujui).
+     */
+    public function notesForDisplay(): ?string
+    {
+        if ($this->isPending()) {
+            $notes = trim((string) ($this->notes ?? ''));
+
+            return $notes !== '' ? $notes : null;
+        }
+
+        return $this->cleanApprovedNotes();
+    }
+
     public function scopeForInstitution($query, int $institutionId)
     {
         return $query->where('institution_id', $institutionId);

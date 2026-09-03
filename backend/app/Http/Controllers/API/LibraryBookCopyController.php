@@ -3,17 +3,20 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreLibraryBookCopyRequest;
 use App\Http\Requests\UpdateLibraryBookCopyRequest;
 use App\Http\Resources\LibraryBookCopyResource;
+use App\Models\LibraryBook;
 use App\Models\LibraryBookCopy;
 use App\Models\LibraryLoan;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LibraryBookCopyController extends Controller
 {
+    use ResolvesInstitution;
+
     public function index(Request $request)
     {
         try {
@@ -33,13 +36,13 @@ class LibraryBookCopyController extends Controller
                 });
             }
 
-            $institutionId = null;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
-            if ($institutionId !== null) {
+                if ($institutionId === null) {
+                    return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+                }
+                $query->whereHas('book', fn ($q) => $q->where('institution_id', $institutionId));
+            } elseif ($institutionId !== null) {
                 $query->whereHas('book', fn ($q) => $q->where('institution_id', $institutionId));
             }
 
@@ -56,9 +59,9 @@ class LibraryBookCopyController extends Controller
     {
         try {
             $data = $request->validated();
-            $book = \App\Models\LibraryBook::findOrFail($data['book_id']);
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id !== $book->institution_id) {
-                return response()->json(['message' => 'Akses ditolak.'], 403);
+            $book = LibraryBook::findOrFail($data['book_id']);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $book->institution_id)) {
+                return $resp;
             }
             $exists = LibraryBookCopy::where('book_id', $book->id)->where('copy_code', $data['copy_code'])->exists();
             if ($exists) {
@@ -82,10 +85,13 @@ class LibraryBookCopyController extends Controller
         }
     }
 
-    public function show(LibraryBookCopy $copy)
+    public function show(Request $request, LibraryBookCopy $copy)
     {
         try {
             $copy->load(['book', 'loans' => fn ($q) => $q->orderBy('loan_date', 'desc')->limit(10)]);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) ($copy->book?->institution_id))) {
+                return $resp;
+            }
             return response()->json(['data' => new LibraryBookCopyResource($copy)]);
         } catch (\Exception $e) {
             Log::error('Library copy show', ['error' => $e->getMessage()]);
@@ -96,6 +102,10 @@ class LibraryBookCopyController extends Controller
     public function update(UpdateLibraryBookCopyRequest $request, LibraryBookCopy $copy)
     {
         try {
+            $copy->loadMissing('book');
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) ($copy->book?->institution_id))) {
+                return $resp;
+            }
             $data = $request->validated();
             if (isset($data['copy_code'])) {
                 $exists = LibraryBookCopy::where('book_id', $copy->book_id)->where('copy_code', $data['copy_code'])->where('id', '!=', $copy->id)->exists();
@@ -115,9 +125,13 @@ class LibraryBookCopyController extends Controller
         }
     }
 
-    public function destroy(LibraryBookCopy $copy)
+    public function destroy(Request $request, LibraryBookCopy $copy)
     {
         try {
+            $copy->loadMissing('book');
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) ($copy->book?->institution_id))) {
+                return $resp;
+            }
             $active = LibraryLoan::where('copy_id', $copy->id)->whereIn('status', ['Dipinjam', 'Terlambat'])->exists();
             if ($active) {
                 return response()->json(['message' => 'Eksemplar sedang dipinjam. Tidak dapat dihapus.'], 422);

@@ -241,7 +241,7 @@
             </div>
           </router-link>
 
-          <router-link to="/violation" class="action-card action-card-danger">
+          <router-link to="/bk/pelanggaran" class="action-card action-card-danger">
             <div class="action-icon action-icon-danger">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18C1.64 18.3 1.55 18.64 1.55 19C1.55 19.36 1.64 19.7 1.82 20C2 20.3 2.26 20.56 2.58 20.73C2.9 20.9 3.26 20.97 3.63 20.97H20.37C20.74 20.97 21.1 20.9 21.42 20.73C21.74 20.56 22 20.3 22.18 20C22.36 19.7 22.45 19.36 22.45 19C22.45 18.64 22.36 18.3 22.18 18L13.71 3.86C13.53 3.57 13.27 3.31 12.95 3.14C12.63 2.97 12.27 2.9 11.9 2.9C11.53 2.9 11.17 2.97 10.85 3.14C10.53 3.31 10.27 3.57 10.29 3.86Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -360,13 +360,12 @@
         </ul>
       </div>
     </div>    </div>
-    <HelpSidebar />
+    <!-- HelpSidebar disembunyikan: panduan dipindah ke /panduan -->
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import HelpSidebar from '@/components/HelpSidebar.vue'
 import AppChart from '@/components/AppChart.vue'
 import { useAuthStore } from '@/stores/auth'
 import { institutionApi } from '@/api/institution'

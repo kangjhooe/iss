@@ -141,7 +141,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Biaya (Rp)</label>
-              <input v-model.number="maintenanceForm.cost" type="number" min="0" step="0.01" />
+              <MoneyInput v-model="maintenanceForm.cost" :min="0" :decimals="2" />
             </div>
             <div class="form-group">
               <label>Vendor / Teknisi</label>
@@ -175,6 +175,7 @@
 
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import { inventoryApi } from '@/api/inventory'

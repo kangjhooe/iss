@@ -1,4 +1,5 @@
 import api from './index'
+import { openPdfBlob } from '@/utils/pdfPreview'
 
 function downloadBlob(res, fallbackName) {
   const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' })
@@ -94,12 +95,7 @@ export const financePaymentApi = {
   /** Buka kwitansi PDF (DomPDF + kop resmi) di tab baru */
   openReceipt(id) {
     return api.get(`/v1/finance/payments/${id}/receipt`, { responseType: 'blob' }).then((res) => {
-      const blob = res.data instanceof Blob
-        ? res.data
-        : new Blob([res.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-      window.open(url, '_blank')
-      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      openPdfBlob(res, `kwitansi-${id}.pdf`)
       return res
     })
   },
@@ -147,12 +143,7 @@ export const studentFinanceApi = {
   },
   openReceipt(id) {
     return api.get(`/v1/finance/my/payments/${id}/receipt`, { responseType: 'blob' }).then((res) => {
-      const blob = res.data instanceof Blob
-        ? res.data
-        : new Blob([res.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-      window.open(url, '_blank')
-      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      openPdfBlob(res, `kwitansi-${id}.pdf`)
       return res
     })
   },

@@ -1,4 +1,5 @@
-<template>    <div class="ppdb-page">
+<template>
+    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -35,10 +36,10 @@
                   <td><strong>{{ p.name }}</strong></td>
                   <td><span :class="['status-badge', 'status-' + p.status]">{{ statusPeriodLabel(p.status) }}</span></td>
                   <td>
-                    <input v-model.number="feeForms[p.id].registration_fee" type="number" min="0" step="1000" class="fee-input" placeholder="0" />
+                    <MoneyInput v-model="feeForms[p.id].registration_fee" :min="0" class="fee-input" placeholder="0" />
                   </td>
                   <td>
-                    <input v-model.number="feeForms[p.id].re_registration_fee" type="number" min="0" step="1000" class="fee-input" placeholder="0" />
+                    <MoneyInput v-model="feeForms[p.id].re_registration_fee" :min="0" class="fee-input" placeholder="0" />
                   </td>
                   <td>
                     <button type="button" class="btn-action btn-edit" :disabled="savingFeeId === p.id" @click="saveFees(p)">
@@ -113,11 +114,13 @@
           />
         </section>
       </main>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

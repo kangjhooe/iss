@@ -101,6 +101,7 @@ use App\Http\Controllers\API\PpdbChannelController;
 use App\Http\Controllers\API\PpdbDashboardController;
 use App\Http\Controllers\API\PpdbPeriodController;
 use App\Http\Controllers\API\ProgramKeahlianController;
+use App\Http\Controllers\API\PublicGuideController;
 use App\Http\Controllers\API\PublicLibraryController;
 use App\Http\Controllers\API\PublicPpdbController;
 use App\Http\Controllers\API\PublicReleaseController;
@@ -264,6 +265,10 @@ Route::middleware('throttle:60,1')->prefix('public/library')->group(function () 
 Route::middleware('throttle:30,1')->get('/public/stats', [PublicSchoolController::class, 'stats'])->name('public.stats');
 Route::middleware('throttle:30,1')->get('/public/institutions/recent', [PublicSchoolController::class, 'recentInstitutions'])->name('public.institutions.recent');
 Route::middleware('throttle:30,1')->get('/public/releases', [PublicReleaseController::class, 'index'])->name('public.releases.index');
+Route::middleware('throttle:20,1')->get('/public/guides/admin.pdf', [PublicGuideController::class, 'adminPdf'])->name('public.guides.admin-pdf');
+Route::middleware('throttle:20,1')->get('/public/guides/guru.pdf', [PublicGuideController::class, 'guruPdf'])->name('public.guides.guru-pdf');
+Route::middleware('throttle:20,1')->get('/public/guides/siswa.pdf', [PublicGuideController::class, 'siswaPdf'])->name('public.guides.siswa-pdf');
+Route::middleware('throttle:20,1')->get('/public/guides/orang-tua.pdf', [PublicGuideController::class, 'orangTuaPdf'])->name('public.guides.orang-tua-pdf');
 
 // App branding (logo & favicon) - public, no auth. Tidak mengubah logo institusi.
 Route::middleware('throttle:120,1')->get('/app-branding', [AppBrandingController::class, 'show'])->name('app-branding.show');
@@ -328,10 +333,12 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/student/revoke-graduation-bulk', [AlumniController::class, 'revokeGraduationBulk']);
         Route::get('/alumni', [AlumniController::class, 'index']);
         Route::get('/alumni/graduation-years', [AlumniController::class, 'graduationYears']);
-        Route::get('/student/{id}', [StudentController::class, 'show']);
+        // Sub-resource siswa harus didaftarkan sebelum /student/{id}
         Route::get('/student/{id}/buku-induk', [BukuIndukController::class, 'show'])->name('student.buku-induk');
         Route::get('/student/{id}/buku-induk/pdf', [BukuIndukController::class, 'print'])->name('student.buku-induk.pdf');
-        Route::get('/student/{id}/biodata/pdf', [StudentController::class, 'printBiodata'])->name('student.biodata.pdf');
+        Route::get('/student/{id}/print-biodata', [BukuIndukController::class, 'printBiodata'])->name('student.print-biodata');
+        Route::get('/student/{id}/biodata/pdf', [BukuIndukController::class, 'printBiodata'])->name('student.biodata.pdf');
+        Route::get('/student/{id}', [StudentController::class, 'show']);
         Route::put('/student/{id}', [StudentController::class, 'update']);
         Route::post('/student/{id}/ensure-account', [StudentController::class, 'ensureAccount'])->name('student.ensure-account');
         Route::post('/student/{id}/reset-password', [StudentController::class, 'resetPassword'])->name('student.reset-password');
@@ -850,13 +857,20 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::put('/app-branding/maintenance', [AppBrandingController::class, 'updateMaintenance'])->name('app-branding.update-maintenance');
     });
 
-    // Semester routes
+    // Semester routes — list/show for authenticated users; mutations Super Admin only
     Route::get('/semesters/active', [SemesterController::class, 'active'])->name('semesters.active');
     Route::get('/semesters/academic-year/{academicYearId}', [SemesterController::class, 'byAcademicYear'])->name('semesters.by-academic-year');
     Route::get('/semesters/academic-year/{academicYearId}/active', [SemesterController::class, 'activeForAcademicYear'])->name('semesters.active-for-academic-year');
-    Route::post('/semesters/academic-year/{academicYearId}/auto-generate', [SemesterController::class, 'autoGenerate'])->name('semesters.auto-generate');
-    Route::post('/semesters/{id}/activate', [SemesterController::class, 'activate'])->name('semesters.activate');
-    Route::apiResource('semesters', SemesterController::class);
+    Route::get('/semesters', [SemesterController::class, 'index'])->name('semesters.index');
+    Route::get('/semesters/{id}', [SemesterController::class, 'show'])->name('semesters.show');
+    Route::middleware(\App\Http\Middleware\EnsureSuperAdmin::class)->group(function () {
+        Route::post('/semesters/academic-year/{academicYearId}/auto-generate', [SemesterController::class, 'autoGenerate'])->name('semesters.auto-generate');
+        Route::post('/semesters/{id}/activate', [SemesterController::class, 'activate'])->name('semesters.activate');
+        Route::post('/semesters', [SemesterController::class, 'store'])->name('semesters.store');
+        Route::put('/semesters/{id}', [SemesterController::class, 'update'])->name('semesters.update');
+        Route::patch('/semesters/{id}', [SemesterController::class, 'update']);
+        Route::delete('/semesters/{id}', [SemesterController::class, 'destroy'])->name('semesters.destroy');
+    });
 
     // Academic Calendar routes (Kalender Akademik)
     Route::middleware('module:academic_calendar')->group(function () {

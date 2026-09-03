@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\BankSoalBackupService;
 use App\Services\BankSoalShareService;
 use App\Services\ClassService;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -29,7 +30,8 @@ class BankSoalController extends Controller
     ) {}
 
     /**
-     * User can access bank if: same institution, or shared with user, or owner, or institution_admin for that institution.
+     * User can access bank if: active institution matches, or shared with user, or owner,
+     * or institution_admin for an accessible institution that owns the bank.
      */
     private function canAccessBank(Request $request, BankSoal $bank): bool
     {
@@ -37,8 +39,11 @@ class BankSoalController extends Controller
         if (!$user) {
             return false;
         }
+        if ($user->isAdminOrSuperAdmin()) {
+            return true;
+        }
         $institutionId = $this->resolveInstitutionId($request);
-        if ($bank->institution_id == $institutionId) {
+        if ($institutionId && (int) $bank->institution_id === (int) $institutionId) {
             return true;
         }
         if ($bank->created_by_user_id === $user->id) {
@@ -47,9 +52,11 @@ class BankSoalController extends Controller
         if ($bank->sharedWithUsers()->where('id', $user->id)->exists()) {
             return true;
         }
-        if ($user->isInstitutionAdmin() && $user->institution_id == $bank->institution_id) {
+        if ($user->isInstitutionAdmin()
+            && InstitutionContext::canAccessInstitution($user, (int) $bank->institution_id)) {
             return true;
         }
+
         return false;
     }
 
@@ -62,10 +69,15 @@ class BankSoalController extends Controller
         if (!$user) {
             return false;
         }
+        if ($user->isAdminOrSuperAdmin()) {
+            return true;
+        }
         if ($bank->created_by_user_id === $user->id) {
             return true;
         }
-        return $user->isInstitutionAdmin() && $user->institution_id == $bank->institution_id;
+
+        return $user->isInstitutionAdmin()
+            && InstitutionContext::canAccessInstitution($user, (int) $bank->institution_id);
     }
 
     public function index(Request $request): AnonymousResourceCollection|JsonResponse

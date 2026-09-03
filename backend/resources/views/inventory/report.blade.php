@@ -613,9 +613,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">
-        Dicetak pada {{ $printed_at }}
-        @if(!empty($printed_by)) &mdash; oleh {{ $printed_by }}@endif
-    </div>
+    @include('partials.print-document-footer')
 </body>
 </html>

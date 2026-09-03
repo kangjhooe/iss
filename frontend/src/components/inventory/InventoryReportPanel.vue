@@ -537,6 +537,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { inventoryApi } from '@/api/inventory'
+import { openPdfBlob } from '@/utils/pdfPreview'
 import { formatDate, formatCurrency } from '@/composables/inventory/inventoryFormatters'
 import { safeArray } from '@/composables/inventory/inventoryApiHelpers'
 import {
@@ -624,21 +625,6 @@ async function loadReportCategories() {
   }
 }
 
-function openPdfPreview(blob, title) {
-  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-  const win = window.open('', '_blank')
-  if (!win) {
-    toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-    URL.revokeObjectURL(url)
-    return false
-  }
-  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title></head><body>
-    <iframe src="${url}" style="width:100%;height:100vh;border:0"></iframe></body></html>`)
-  win.document.close()
-  setTimeout(() => URL.revokeObjectURL(url), 120_000)
-  return true
-}
-
 async function exportReportPdf() {
   exportingReportPdf.value = true
   try {
@@ -650,8 +636,10 @@ async function exportReportPdf() {
     const blob = response.data instanceof Blob
       ? response.data
       : new Blob([response.data], { type: 'application/pdf' })
-    if (openPdfPreview(blob, `Preview ${currentReportLabel.value}`)) {
+    if (openPdfBlob(blob, `${currentReportLabel.value}.pdf`)) {
       toast.success('Berhasil', 'Preview PDF Inventaris dibuka.')
+    } else {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
     }
   } catch (err) {
     toast.error('Gagal', err.message || err.formattedMessage || err.response?.data?.message || 'Gagal mencetak laporan inventaris.')

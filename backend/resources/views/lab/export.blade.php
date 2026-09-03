@@ -416,10 +416,6 @@
     </div>
 @endif
 
-<div class="footer">
-    Dicetak pada {{ $printedAt }}
-    @if(!empty($printedBy)) · oleh {{ $printedBy }}@endif
-    · Dokumen ini digenerate oleh sistem ISS
-</div>
+@include('partials.print-document-footer')
 </body>
 </html>

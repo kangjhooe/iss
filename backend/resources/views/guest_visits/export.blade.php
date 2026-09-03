@@ -73,8 +73,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">
-        Dicetak pada {{ now()->locale('id')->isoFormat('D MMMM YYYY HH:mm') }} &mdash; {{ $visits->count() }} catatan
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· '.$visits->count().' catatan'])
 </body>
 </html>

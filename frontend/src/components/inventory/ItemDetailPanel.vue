@@ -284,6 +284,7 @@ import {
 } from '@/composables/inventory/inventoryFormatters'
 import { trackingTypeLabel } from '@/composables/inventory/inventoryConstants'
 import { inventoryApi } from '@/api/inventory'
+import { openPdfBlob } from '@/utils/pdfPreview'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -346,8 +347,10 @@ async function exportKib() {
       ? response.data
       : new Blob([response.data], { type: 'application/pdf' })
     const label = item.value?.code || props.itemId
-    if (openPdfPreview(blob, `KIB ${label}`)) {
+    if (openPdfBlob(blob, `KIB-${label}.pdf`)) {
       toast.success('Berhasil', 'Preview KIB dibuka.')
+    } else {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
     }
   } catch (err) {
     toast.error('Gagal', err.message || err.formattedMessage || err.response?.data?.message || 'Gagal mencetak KIB.')
@@ -359,21 +362,6 @@ async function exportKib() {
 function close() {
   emit('update:modelValue', false)
   emit('close')
-}
-
-function openPdfPreview(blob, title) {
-  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-  const win = window.open('', '_blank')
-  if (!win) {
-    toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-    URL.revokeObjectURL(url)
-    return false
-  }
-  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title></head><body>
-    <iframe src="${url}" style="width:100%;height:100vh;border:0"></iframe></body></html>`)
-  win.document.close()
-  setTimeout(() => URL.revokeObjectURL(url), 120_000)
-  return true
 }
 
 function openSplitModal() {

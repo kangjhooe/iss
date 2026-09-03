@@ -343,7 +343,7 @@
             </div>
             <div class="form-group">
               <label>Harga Beli</label>
-              <input v-model.number="itemForm.purchase_price" type="number" min="0" step="0.01" />
+              <MoneyInput v-model="itemForm.purchase_price" :min="0" :decimals="2" />
             </div>
           </div>
           <div class="form-row">
@@ -473,6 +473,7 @@
 
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'

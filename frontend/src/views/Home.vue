@@ -1,69 +1,6 @@
 <template>
   <div class="home-page">
-    <!-- Navbar sticky -->
-    <nav class="navbar">
-      <div class="navbar-inner">
-        <router-link to="/" class="navbar-brand">
-          <div class="navbar-logo">
-            <AppLogo :size="36" />
-          </div>
-          <span class="navbar-title">{{ appName }}</span>
-        </router-link>
-
-        <div class="navbar-links">
-          <router-link to="/catatan-rilis" class="nav-link">Update</router-link>
-          <router-link to="/login?demo=1" class="nav-link">Coba Demo</router-link>
-        </div>
-
-        <div class="navbar-auth">
-          <router-link to="/login" class="navbar-login">Masuk</router-link>
-          <router-link to="/register" class="btn btn-primary navbar-register">Daftar</router-link>
-          <button
-            type="button"
-            class="navbar-toggle"
-            :aria-expanded="menuOpen"
-            aria-controls="home-mobile-menu"
-            :aria-label="menuOpen ? 'Tutup menu' : 'Buka menu'"
-            @click="menuOpen = !menuOpen"
-          >
-            <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
-            <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
-            <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
-          </button>
-        </div>
-      </div>
-    </nav>
-
-    <Teleport to="body">
-      <Transition name="menu">
-        <div
-          v-if="menuOpen"
-          class="mobile-menu-backdrop"
-          @click="closeMenu"
-        ></div>
-      </Transition>
-      <Transition name="drawer">
-        <div
-          v-if="menuOpen"
-          id="home-mobile-menu"
-          class="mobile-menu-drawer"
-          role="dialog"
-          aria-label="Menu"
-        >
-          <button type="button" class="mobile-menu-close" aria-label="Tutup menu" @click="closeMenu">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
-          <router-link to="/catatan-rilis" class="mobile-menu-link" @click="closeMenu">Update</router-link>
-          <router-link to="/login?demo=1" class="mobile-menu-link" @click="closeMenu">Coba Demo</router-link>
-          <div class="mobile-menu-auth">
-            <router-link to="/login" class="navbar-login" @click="closeMenu">Masuk</router-link>
-            <router-link to="/register" class="btn btn-primary navbar-register" @click="closeMenu">Daftar</router-link>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <PublicNavbar />
 
     <!-- Hero (teks & gambar dari Branding Aplikasi) -->
     <HeroSection
@@ -474,9 +411,24 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <span>&copy; {{ currentYear }} {{ appName }}</span>
-          <span class="footer-sep">·</span>
-          <router-link to="/catatan-rilis" class="footer-version">v{{ appVersion }}</router-link>
+          <nav class="footer-nav" aria-label="Tautan footer">
+            <a href="#fitur" class="footer-link">Fitur</a>
+            <span class="footer-sep">·</span>
+            <a href="#mengapa" class="footer-link">Mengapa Kami</a>
+            <span class="footer-sep">·</span>
+            <router-link to="/panduan" class="footer-link">Panduan</router-link>
+            <span class="footer-sep">·</span>
+            <router-link to="/login?demo=1" class="footer-link">Demo</router-link>
+            <span class="footer-sep">·</span>
+            <router-link to="/register" class="footer-link">Daftar</router-link>
+            <span class="footer-sep">·</span>
+            <router-link to="/catatan-rilis" class="footer-link">Update</router-link>
+          </nav>
+          <div class="footer-copy">
+            <span>&copy; {{ currentYear }} {{ appName }}</span>
+            <span class="footer-sep">·</span>
+            <router-link to="/catatan-rilis" class="footer-version">v{{ appVersion }}</router-link>
+          </div>
         </div>
       </div>
     </footer>
@@ -489,9 +441,11 @@ import { useRouter } from 'vue-router'
 import { appName, appTagline, appVersion } from '@/config/app'
 import AppLogo from '@/components/AppLogo.vue'
 import HeroSection from '@/components/HeroSection.vue'
+import PublicNavbar from '@/components/PublicNavbar.vue'
 import { useAppBrandingStore } from '@/stores/appBranding'
 import { schoolPublicApi } from '@/api/schoolPublic'
 import { validators } from '@/utils/validation'
+import { homepageJsonLd, removeJsonLd, upsertJsonLd } from '@/utils/seo'
 
 const router = useRouter()
 const appBranding = useAppBrandingStore()
@@ -499,21 +453,7 @@ const appBranding = useAppBrandingStore()
 const findNpsn = ref('')
 const findError = ref('')
 const findLoading = ref(false)
-const menuOpen = ref(false)
 const showAllFeatures = ref(false)
-
-function closeMenu() {
-  menuOpen.value = false
-}
-
-function onMenuKeydown(e) {
-  if (e.key === 'Escape') closeMenu()
-}
-
-watch(menuOpen, (open) => {
-  if (typeof document === 'undefined') return
-  document.body.style.overflow = open ? 'hidden' : ''
-})
 
 function onFindNpsnInput(e) {
   findError.value = ''
@@ -685,7 +625,7 @@ function onLogoError(id) {
 }
 
 onMounted(async () => {
-  window.addEventListener('keydown', onMenuKeydown)
+  upsertJsonLd('homepage-jsonld', homepageJsonLd())
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -730,8 +670,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', onMenuKeydown)
-  document.body.style.overflow = ''
+  removeJsonLd('homepage-jsonld')
 })
 </script>
 
@@ -741,257 +680,6 @@ onUnmounted(() => {
   background: #ffffff;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-}
-
-/* Navbar */
-.navbar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid #e2e8f0;
-  padding-top: env(safe-area-inset-top, 0);
-}
-
-.navbar-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 12px 24px;
-  padding-left: max(24px, env(safe-area-inset-left));
-  padding-right: max(24px, env(safe-area-inset-right));
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-wrap: nowrap;
-}
-
-.navbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
-  color: #1e293b;
-  font-weight: 600;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.navbar-brand:hover {
-  color: #059669;
-}
-
-.navbar-logo svg {
-  flex-shrink: 0;
-}
-
-.navbar-title {
-  white-space: nowrap;
-}
-
-.navbar-links {
-  display: flex;
-  align-items: center;
-  gap: 4px 20px;
-  flex: 1;
-  min-width: 0;
-}
-
-.nav-link {
-  color: #64748b;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 500;
-  transition: color 0.2s;
-  padding: 8px 4px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.nav-link:hover {
-  color: #059669;
-}
-
-.nav-link:focus-visible {
-  outline: 2px solid #059669;
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-.navbar-auth {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  padding-left: 20px;
-  border-left: 1px solid #e2e8f0;
-  flex-shrink: 0;
-}
-
-.navbar-login {
-  color: #475569;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  padding: 8px 12px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 8px;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.navbar-login:hover {
-  color: #059669;
-  background: #f8fafc;
-}
-
-.navbar-login:focus-visible {
-  outline: 2px solid #059669;
-  outline-offset: 2px;
-}
-
-.navbar-register {
-  font-weight: 600;
-  padding: 10px 18px;
-}
-
-/* Hamburger: only on mobile */
-.navbar-toggle {
-  display: none;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  padding: 10px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  border-radius: 8px;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  color: #1e293b;
-}
-.navbar-toggle:focus-visible {
-  outline: 2px solid #059669;
-  outline-offset: 2px;
-}
-.navbar-toggle-bar {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: currentColor;
-  border-radius: 1px;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-.navbar-toggle-bar.open:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
-}
-.navbar-toggle-bar.open:nth-child(2) {
-  opacity: 0;
-}
-.navbar-toggle-bar.open:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
-}
-
-/* Mobile menu backdrop & drawer */
-.mobile-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 199;
-  -webkit-tap-highlight-color: transparent;
-}
-.mobile-menu-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(280px, 85vw);
-  background: #ffffff;
-  z-index: 200;
-  padding: 72px 24px 24px;
-  padding-top: max(72px, calc(env(safe-area-inset-top) + 56px));
-  padding-right: max(24px, env(safe-area-inset-right));
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
-}
-.mobile-menu-close {
-  position: absolute;
-  top: max(16px, env(safe-area-inset-top));
-  right: max(16px, env(safe-area-inset-right));
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: #f8fafc;
-  border-radius: 10px;
-  color: #334155;
-  cursor: pointer;
-}
-.mobile-menu-close:hover {
-  background: #ecfdf5;
-  color: #059669;
-}
-.mobile-menu-link {
-  padding: 14px 16px;
-  border-radius: 8px;
-  color: #1e293b;
-  text-decoration: none;
-  font-size: 16px;
-  font-weight: 500;
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s, color 0.15s;
-}
-.mobile-menu-link:hover {
-  background: #f1f5f9;
-  color: #059669;
-}
-.mobile-menu-link:focus-visible {
-  outline: 2px solid #059669;
-  outline-offset: 2px;
-}
-.mobile-menu-auth {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.mobile-menu-auth .navbar-login,
-.mobile-menu-auth .navbar-register {
-  flex: 1;
-  justify-content: center;
-}
-.menu-enter-active,
-.menu-leave-active {
-  transition: opacity 0.2s ease;
-}
-.menu-enter-from,
-.menu-leave-to {
-  opacity: 0;
-}
-.drawer-enter-active,
-.drawer-leave-active {
-  transition: transform 0.25s ease;
-}
-.drawer-enter-from,
-.drawer-leave-to {
-  transform: translateX(100%);
 }
 
 /* Why section SVG icons */
@@ -1990,14 +1678,41 @@ a.btn:focus-visible {
 
 .footer-bottom {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 6px 8px;
-  padding-top: 10px;
+  gap: 10px;
+  padding-top: 14px;
   border-top: 1px solid rgba(51, 65, 85, 0.8);
   font-size: 12px;
   color: #64748b;
+}
+
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 8px;
+}
+
+.footer-link {
+  color: #94a3b8;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: #a7f3d0;
+  text-decoration: underline;
+}
+
+.footer-copy {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 8px;
 }
 
 .footer-sep {
@@ -2050,27 +1765,6 @@ a.btn:focus-visible {
 
 /* ========== Responsive: Tablet portrait / large phone (≤768px) ========== */
 @media (max-width: 768px) {
-  .navbar-links {
-    display: none;
-  }
-
-  .navbar-toggle {
-    display: flex;
-  }
-
-  .navbar-auth {
-    border-left: none;
-    padding-left: 0;
-    gap: 6px;
-  }
-
-  .navbar-inner {
-    padding: 12px 20px;
-    padding-left: max(20px, env(safe-area-inset-left));
-    padding-right: max(20px, env(safe-area-inset-right));
-    gap: 12px;
-  }
-
   .find-school-section {
     padding: 0 20px 8px;
     margin-top: -16px;
@@ -2205,33 +1899,6 @@ a.btn:focus-visible {
 
 /* ========== Responsive: Smartphone (≤480px) ========== */
 @media (max-width: 480px) {
-  .navbar-inner {
-    padding: 12px 16px;
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-  }
-
-  .navbar-brand {
-    font-size: 16px;
-  }
-
-  .navbar-title {
-    font-size: 15px;
-    white-space: nowrap;
-    line-height: 1.3;
-  }
-
-  .navbar-login {
-    padding: 8px 8px;
-    font-size: 13px;
-  }
-
-  .navbar-register {
-    padding: 8px 14px;
-    min-height: 40px;
-    font-size: 13px;
-  }
-
   .hero {
     padding: 40px 16px 56px;
     padding-left: max(16px, env(safe-area-inset-left));
@@ -2504,8 +2171,7 @@ a.btn:focus-visible {
     box-shadow: none;
   }
 
-  .btn:active,
-  .nav-link:active {
+  .btn:active {
     opacity: 0.9;
   }
 }

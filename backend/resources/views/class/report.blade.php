@@ -221,8 +221,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">
-        Total: {{ count($classes) }} kelas
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· '.count($classes).' kelas'])
 </body>
 </html>

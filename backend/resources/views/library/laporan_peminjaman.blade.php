@@ -92,8 +92,6 @@
         'kepala_perpustakaan' => $kepala_perpustakaan ?? null,
     ])
 
-    <div class="footer print-document-footer">
-        Dicetak pada {{ $printed_at }} &mdash; {{ $loans->count() }} catatan
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· '.$loans->count().' catatan'])
 </body>
 </html>

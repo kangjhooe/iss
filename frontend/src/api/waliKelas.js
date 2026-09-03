@@ -1,4 +1,5 @@
 import api from './index'
+import { openPdfBlob } from '@/utils/pdfPreview'
 
 export const waliKelasApi = {
   getStudent(classId, studentId) {
@@ -121,12 +122,7 @@ export const waliKelasApi = {
     return api.get(`/v1/teacher/wali/classes/${classId}/finance/payments/${paymentId}/receipt`, {
       responseType: 'blob',
     }).then((res) => {
-      const blob = res.data instanceof Blob
-        ? res.data
-        : new Blob([res.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-      window.open(url, '_blank')
-      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      openPdfBlob(res, `kwitansi-${paymentId}.pdf`)
       return res
     })
   },

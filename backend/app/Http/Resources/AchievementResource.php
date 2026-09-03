@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Achievement;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,10 @@ class AchievementResource extends JsonResource
             'institution_id' => $this->institution_id,
             'student_id' => $this->student_id,
             'achievement_type_id' => $this->achievement_type_id,
+            'purpose' => $this->purpose ?? Achievement::PURPOSE_AKREDITASI,
+            'title' => $this->title,
+            'level' => $this->level,
+            'rank' => $this->rank,
             'given_by' => $this->given_by,
             'achievement_date' => $this->achievement_date?->format('Y-m-d'),
             'point_value' => $this->point_value,
@@ -35,6 +40,7 @@ class AchievementResource extends JsonResource
                 'id' => $this->achievementType->id,
                 'name' => $this->achievementType->name,
                 'point_value' => $this->achievementType->point_value,
+                'purpose' => $this->achievementType->purpose,
             ]),
             'giver' => $this->whenLoaded('giver', fn () => [
                 'id' => $this->giver->id,

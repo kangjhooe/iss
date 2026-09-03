@@ -1,4 +1,5 @@
-<template>    <div class="violation-page">
+<template>
+    <div class="violation-page">
       <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
         <symbol id="vl-icon-edit" viewBox="0 0 24 24" fill="none">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -19,17 +20,17 @@
         <div class="toolbar-spacer"></div>
         <div class="header-actions toolbar-actions">
           <template v-if="mainTab === 'catatan'">
-            <button type="button" @click="openAddFromToolbar('list')" class="btn-primary btn-compact">
+            <button v-if="isPelanggaranMode" type="button" @click="openAddFromToolbar('list')" class="btn-primary btn-compact">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span>Tambah Pelanggaran</span>
             </button>
-            <button type="button" @click="openAddFromToolbar('prestasi')" class="btn-secondary btn-compact">
+            <button v-if="isPrestasiMode" type="button" @click="openAddPrestasiModal()" class="btn-primary btn-compact">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span>Tambah Prestasi</span>
+              <span>{{ prestasiPurpose === 'apresiasi' ? 'Tambah Apresiasi' : 'Tambah Prestasi' }}</span>
             </button>
           </template>
           <button v-else-if="primaryActionLabel" type="button" @click="primaryActionClick" class="btn-primary btn-compact">
@@ -43,12 +44,12 @@
 
       <!-- 4 tab operasional; master data di Pengaturan -->
       <div class="tab-shell">
-      <nav class="section-nav" aria-label="Navigasi modul Pelanggaran">
+      <nav class="section-nav" :aria-label="isPrestasiMode ? 'Navigasi modul Prestasi' : 'Navigasi modul Pelanggaran'">
           <button type="button" :class="['sec-btn', { active: mainTab === 'catatan' }]" @click="switchMainTab('catatan')">
             <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
             <span class="sec-text">
               <span class="sec-label">Catatan</span>
-              <span class="sec-hint">Pelanggaran & prestasi</span>
+              <span class="sec-hint">{{ isPrestasiMode ? 'Prestasi siswa' : 'Pelanggaran siswa' }}</span>
             </span>
           </button>
           <button type="button" :class="['sec-btn', { active: mainTab === 'pending' }]" @click="switchMainTab('pending')">
@@ -59,7 +60,7 @@
             </span>
             <span v-if="pendingProposalCount" class="sec-badge">{{ pendingProposalCount }}</span>
           </button>
-          <button type="button" :class="['sec-btn', { active: mainTab === 'points' }]" @click="switchMainTab('points')">
+          <button v-if="isPelanggaranMode" type="button" :class="['sec-btn', { active: mainTab === 'points' }]" @click="switchMainTab('points')">
             <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
             <span class="sec-text">
               <span class="sec-label">Tindakan</span>
@@ -70,32 +71,14 @@
             <span class="sec-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" stroke="currentColor" stroke-width="2"/></svg></span>
             <span class="sec-text">
               <span class="sec-label">Pengaturan</span>
-              <span class="sec-hint">Jenis & aturan</span>
+              <span class="sec-hint">{{ isPrestasiMode ? 'Jenis prestasi' : 'Jenis & aturan' }}</span>
             </span>
           </button>
       </nav>
       <div class="tab-main">
         <p v-if="tabDescription" class="tab-description">{{ tabDescription }}</p>
-      <!-- Sub-nav: Catatan -->
-      <div v-if="mainTab === 'catatan'" class="sub-nav" role="tablist" aria-label="Jenis catatan">
-        <button
-          type="button"
-          role="tab"
-          :class="['sub-nav-btn', { active: activeTab === 'list' }]"
-          :aria-selected="activeTab === 'list'"
-          @click="switchTab('list')"
-        >Pelanggaran</button>
-        <button
-          type="button"
-          role="tab"
-          :class="['sub-nav-btn', { active: activeTab === 'prestasi' }]"
-          :aria-selected="activeTab === 'prestasi'"
-          @click="switchTab('prestasi')"
-        >Prestasi</button>
-      </div>
-
-      <!-- Sub-nav: Pengaturan -->
-      <div v-if="mainTab === 'settings'" class="sub-nav" role="tablist" aria-label="Pengaturan BK">
+      <!-- Sub-nav: Pengaturan (pelanggaran) -->
+      <div v-if="mainTab === 'settings' && isPelanggaranMode" class="sub-nav" role="tablist" aria-label="Pengaturan BK">
         <button
           type="button"
           role="tab"
@@ -106,13 +89,6 @@
         <button
           type="button"
           role="tab"
-          :class="['sub-nav-btn', { active: activeTab === 'achievement_types' }]"
-          :aria-selected="activeTab === 'achievement_types'"
-          @click="switchTab('achievement_types')"
-        >Jenis Prestasi</button>
-        <button
-          type="button"
-          role="tab"
           :class="['sub-nav-btn', { active: activeTab === 'thresholds' }]"
           :aria-selected="activeTab === 'thresholds'"
           @click="switchTab('thresholds')"
@@ -120,7 +96,7 @@
       </div>
 
       <!-- Tab: Daftar Pelanggaran / Usulan Piket -->
-      <template v-if="activeTab === 'list' || activeTab === 'pending'">
+      <template v-if="isPelanggaranMode && (activeTab === 'list' || activeTab === 'pending')">
         <div v-if="activeTab === 'pending'" class="pending-banner">
           Usulan dari guru piket atau wali kelas. Setujui agar poin masuk ke skor siswa, atau tolak jika tidak sesuai.
         </div>
@@ -257,7 +233,7 @@
       </template>
 
       <!-- Tab: Jenis Pelanggaran -->
-      <template v-if="activeTab === 'types'">
+      <template v-if="isPelanggaranMode && activeTab === 'types'">
         <div v-if="typesLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat jenis pelanggaran...</p></div>
         <div v-else-if="violationTypes.length === 0" class="empty-state">
           <h3 class="empty-title">Belum ada jenis pelanggaran</h3>
@@ -287,7 +263,7 @@
       </template>
 
       <!-- Tab: Tindakan (skor pelanggaran → tindakan BK) -->
-      <template v-if="activeTab === 'points'">
+      <template v-if="isPelanggaranMode && activeTab === 'points'">
         <div class="points-info-banner">
           <div class="points-info-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -484,8 +460,29 @@
         />
       </template>
 
-      <!-- Tab: Prestasi -->
-      <template v-if="activeTab === 'prestasi'">
+      <!-- Sub-nav: jenis prestasi (akreditasi / apresiasi) -->
+      <div v-if="isPrestasiMode && (activeTab === 'prestasi' || activeTab === 'achievement_types')" class="sub-nav" role="tablist" aria-label="Jenis prestasi">
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: prestasiPurpose === 'akreditasi' }]"
+          :aria-selected="prestasiPurpose === 'akreditasi'"
+          @click="setPrestasiPurpose('akreditasi')"
+        >Prestasi</button>
+        <button
+          type="button"
+          role="tab"
+          :class="['sub-nav-btn', { active: prestasiPurpose === 'apresiasi' }]"
+          :aria-selected="prestasiPurpose === 'apresiasi'"
+          @click="setPrestasiPurpose('apresiasi')"
+        >Apresiasi</button>
+      </div>
+
+      <!-- Tab: Prestasi / Usulan prestasi -->
+      <template v-if="isPrestasiMode && (activeTab === 'prestasi' || activeTab === 'pending_prestasi')">
+        <div v-if="activeTab === 'pending_prestasi'" class="pending-banner">
+          Usulan prestasi dari wali kelas. Setujui agar tercatat, atau tolak dengan alasan.
+        </div>
         <div class="filters filters-inline">
           <input
             v-model="achievementFilters.search"
@@ -494,7 +491,7 @@
             class="search-input"
             @input="debounceLoadAchievements"
           />
-          <select v-model="achievementFilters.status" class="filter-select" @change="onAchievementFilterChange">
+          <select v-if="activeTab !== 'pending_prestasi'" v-model="achievementFilters.status" class="filter-select" @change="onAchievementFilterChange">
             <option value="">Semua status</option>
             <option value="pending">Menunggu</option>
             <option value="dicatat">Dicatat</option>
@@ -502,7 +499,7 @@
           </select>
           <select v-model="achievementFilters.achievement_type_id" class="filter-select" @change="onAchievementFilterChange">
             <option value="">Semua jenis</option>
-            <option v-for="t in achievementTypes" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
+            <option v-for="t in filteredAchievementTypes" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
           </select>
           <select v-model="achievementFilters.academic_year_id" class="filter-select" @change="onAchievementFilterChange">
             <option value="">Semua Tahun</option>
@@ -515,17 +512,28 @@
         </div>
         <div v-if="achievementsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat prestasi...</p></div>
         <div v-else-if="achievements.length === 0" class="empty-state">
-          <h3 class="empty-title">Belum ada prestasi</h3>
+          <h3 class="empty-title">{{ activeTab === 'pending_prestasi' ? 'Tidak ada usulan menunggu' : (prestasiPurpose === 'apresiasi' ? 'Belum ada apresiasi' : 'Belum ada prestasi') }}</h3>
           <p class="empty-desc">
-            Prestasi mengurangi skor pelanggaran pada periode terpilih.
-            <template v-if="achievementTypes.length === 0"> Buat Jenis Prestasi dulu sebelum mencatat.</template>
+            <template v-if="activeTab === 'pending_prestasi'">
+              Belum ada usulan prestasi dari wali kelas yang menunggu persetujuan.
+            </template>
+            <template v-else-if="prestasiPurpose === 'apresiasi'">
+              Catat laporan positif atau kejadian penting yang dilaporkan siswa ke guru.
+              <template v-if="filteredAchievementTypes.length === 0"> Buat jenis apresiasi dulu di Pengaturan.</template>
+            </template>
+            <template v-else>
+              Catat prestasi lomba/kompetisi untuk keperluan akreditasi dan laporan sekolah.
+              <template v-if="filteredAchievementTypes.length === 0"> Buat jenis prestasi dulu di Pengaturan.</template>
+            </template>
           </p>
           <button
-            v-if="achievementTypes.length === 0"
+            v-if="activeTab !== 'pending_prestasi' && filteredAchievementTypes.length === 0"
             @click="switchTab('achievement_types'); openAddAchievementTypeModal()"
             class="btn-primary btn-empty-cta"
-          >Tambah Jenis Prestasi</button>
-          <button v-else @click="openAddPrestasiModal" class="btn-primary btn-empty-cta">Tambah Prestasi</button>
+          >Tambah Jenis</button>
+          <button v-else-if="activeTab !== 'pending_prestasi'" @click="openAddPrestasiModal()" class="btn-primary btn-empty-cta">
+            {{ prestasiPurpose === 'apresiasi' ? 'Tambah Apresiasi' : 'Tambah Prestasi' }}
+          </button>
         </div>
         <div v-else class="table-container">
           <table class="data-table">
@@ -533,7 +541,9 @@
               <tr>
                 <th>Tanggal</th>
                 <th>Siswa</th>
-                <th>Jenis Prestasi</th>
+                <th>{{ prestasiPurpose === 'apresiasi' ? 'Uraian' : 'Lomba / Kegiatan' }}</th>
+                <th>Jenis</th>
+                <th v-if="prestasiPurpose === 'akreditasi'">Tingkat</th>
                 <th>Poin</th>
                 <th>Status</th>
                 <th>Pemberi</th>
@@ -547,7 +557,9 @@
                   <span class="student-name">{{ a.student?.name }}</span>
                   <span class="student-meta">{{ a.student?.nisn || a.student?.nis || '—' }}</span>
                 </td>
+                <td>{{ a.title || a.notes || '—' }}</td>
                 <td>{{ a.achievement_type?.name }}</td>
+                <td v-if="prestasiPurpose === 'akreditasi'">{{ levelLabel(a.level) }}<template v-if="a.rank"> · {{ rankLabel(a.rank) }}</template></td>
                 <td class="num-sub">+{{ a.point_value }}</td>
                 <td><span class="status-badge" :class="`status-${a.status || 'dicatat'}`">{{ a.status || 'dicatat' }}</span></td>
                 <td>{{ a.giver?.name }}</td>
@@ -576,7 +588,7 @@
           </table>
         </div>
         <PaginationBar
-          v-if="activeTab === 'prestasi'"
+          v-if="activeTab === 'prestasi' || activeTab === 'pending_prestasi'"
           :page="achievementsPagination.current_page"
           :last-page="achievementsPagination.last_page"
           :per-page="achievementsPagination.per_page"
@@ -588,19 +600,20 @@
       </template>
 
       <!-- Tab: Jenis Prestasi -->
-      <template v-if="activeTab === 'achievement_types'">
+      <template v-if="isPrestasiMode && activeTab === 'achievement_types'">
         <div v-if="achievementTypesLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat jenis prestasi...</p></div>
-        <div v-else-if="achievementTypes.length === 0" class="empty-state">
-          <h3 class="empty-title">Belum ada jenis prestasi</h3>
-          <p class="empty-desc">Tambahkan jenis prestasi (mis. Juara kelas, Kerapian) beserta poin plus.</p>
-          <button @click="openAddAchievementTypeModal" class="btn-primary btn-empty-cta">Tambah Jenis Prestasi</button>
+        <div v-else-if="filteredAchievementTypes.length === 0" class="empty-state">
+          <h3 class="empty-title">Belum ada jenis {{ prestasiPurpose === 'apresiasi' ? 'apresiasi' : 'prestasi' }}</h3>
+          <p class="empty-desc">{{ prestasiPurpose === 'apresiasi' ? 'Contoh: Melaporkan kejadian, Menolong teman, Kejujuran.' : 'Contoh: Juara olimpiade, Juara lomba, Penghargaan sains.' }}</p>
+          <button @click="openAddAchievementTypeModal" class="btn-primary btn-empty-cta">Tambah Jenis</button>
         </div>
         <div v-else class="types-grid">
-          <div v-for="t in achievementTypes" :key="t.id" class="type-card">
+          <div v-for="t in filteredAchievementTypes" :key="t.id" class="type-card">
             <div class="type-header">
               <span class="type-name">{{ t.name }}</span>
               <span class="type-point">+{{ t.point_value }} poin</span>
             </div>
+            <p v-if="t.category" class="type-meta">{{ categoryLabel(t.category) }}</p>
             <div class="type-actions">
               <button type="button" @click="openEditAchievementTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis prestasi">
                 <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
@@ -614,7 +627,7 @@
       </template>
 
       <!-- Tab: Aturan Tindakan -->
-      <template v-if="activeTab === 'thresholds'">
+      <template v-if="isPelanggaranMode && activeTab === 'thresholds'">
         <p class="form-hint thresholds-hint">Skor pelanggaran = poin pelanggaran − poin prestasi. <strong>Makin besar skor = makin buruk.</strong> Atur rentang skor dan tindakan wajib (mis. skor 40–999 = Panggilan orang tua, 20–39 = Peringatan tertulis).</p>
         <div v-if="thresholdsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat aturan...</p></div>
         <div v-else-if="thresholds.length === 0" class="empty-state">
@@ -717,58 +730,20 @@
             <button @click="showFormModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitViolation" class="modal-body">
-            <div v-if="editingViolation" class="form-group">
-              <label>Siswa</label>
-              <p class="student-picker-locked">
-                {{ editingViolation.student?.name || '—' }}
-                <span class="student-meta">
-                  {{ editingViolation.student?.nis || editingViolation.student?.nisn || '' }}
-                  <template v-if="editingViolation.student?.class?.name || editingViolation.student?.class_name">
-                    · {{ editingViolation.student?.class?.name || editingViolation.student?.class_name }}
-                  </template>
-                </span>
-              </p>
-            </div>
-            <div v-else class="student-picker">
-              <div class="form-group">
-                <label>Kelas *</label>
-                <select v-model="pickerClassId" class="form-select" required @change="onPickerClassChange()">
-                  <option value="">Pilih kelas dulu</option>
-                  <option v-for="c in pickerClasses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Siswa *</label>
-                <input
-                  v-model="pickerStudentSearch"
-                  type="text"
-                  class="form-input"
-                  placeholder="Filter nama / NIS (opsional)"
-                  :disabled="!pickerClassId"
-                  @input="debouncePickerStudentSearch"
-                />
-                <p class="field-hint">
-                  <template v-if="!pickerClassId">Pilih kelas untuk menampilkan daftar siswa.</template>
-                  <template v-else-if="loadingPickerStudents">Memuat siswa...</template>
-                  <template v-else-if="pickerStudentError">{{ pickerStudentError }}</template>
-                  <template v-else-if="students.length">
-                    {{ students.length }} siswa — pilih di daftar bawah.
-                  </template>
-                  <template v-else>Tidak ada siswa aktif di kelas ini.</template>
-                </p>
-                <select
-                  v-model="form.student_id"
-                  required
-                  class="form-select student-listbox"
-                  size="8"
-                  :disabled="!pickerClassId || loadingPickerStudents"
-                >
-                  <option value="">Pilih siswa</option>
-                  <option v-for="s in students" :key="s.id" :value="String(s.id)">
-                    {{ studentOptionLabel(s) }}
-                  </option>
-                </select>
-              </div>
+            <div class="form-group">
+            <StudentPicker
+              v-if="editingViolation"
+              label="Siswa"
+              :locked-student="editingViolation.student"
+            />
+            <StudentPicker
+              v-else
+              ref="violationStudentPickerRef"
+              v-model="form.student_id"
+              require-class
+              check-color="#dc2626"
+              focus-ring-color="rgba(220, 38, 38, 0.12)"
+            />
             </div>
             <div class="form-group">
               <label>Jenis Pelanggaran *</label>
@@ -885,74 +860,69 @@
       <div v-if="showPrestasiModal" class="modal-overlay" @click="showPrestasiModal = false">
         <div class="modal-content form-modal" @click.stop>
           <div class="modal-header">
-            <h3>{{ editingPrestasi ? 'Edit Prestasi' : 'Tambah Prestasi' }}</h3>
+            <h3>{{ editingPrestasi ? 'Edit' : 'Tambah' }} {{ prestasiPurpose === 'apresiasi' ? 'Apresiasi' : 'Prestasi' }}</h3>
             <button @click="showPrestasiModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitPrestasi" class="modal-body">
-            <div v-if="editingPrestasi" class="form-group">
-              <label>Siswa</label>
-              <p class="student-picker-locked">
-                {{ editingPrestasi.student?.name || '—' }}
-                <span class="student-meta">
-                  {{ editingPrestasi.student?.nis || editingPrestasi.student?.nisn || '' }}
-                </span>
-              </p>
-            </div>
-            <div v-else class="student-picker">
-              <div class="form-group">
-                <label>Kelas *</label>
-                <select v-model="pickerClassId" class="form-select" required @change="onPickerClassChange()">
-                  <option value="">Pilih kelas dulu</option>
-                  <option v-for="c in pickerClasses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Siswa *</label>
-                <input
-                  v-model="pickerStudentSearch"
-                  type="text"
-                  class="form-input"
-                  placeholder="Filter nama / NIS (opsional)"
-                  :disabled="!pickerClassId"
-                  @input="debouncePickerStudentSearch"
-                />
-                <p class="field-hint">
-                  <template v-if="!pickerClassId">Pilih kelas untuk menampilkan daftar siswa.</template>
-                  <template v-else-if="loadingPickerStudents">Memuat siswa...</template>
-                  <template v-else-if="pickerStudentError">{{ pickerStudentError }}</template>
-                  <template v-else-if="students.length">
-                    {{ students.length }} siswa — pilih di daftar bawah.
-                  </template>
-                  <template v-else>Tidak ada siswa aktif di kelas ini.</template>
-                </p>
-                <select
-                  v-model="prestasiForm.student_id"
-                  required
-                  class="form-select student-listbox"
-                  size="8"
-                  :disabled="!pickerClassId || loadingPickerStudents"
-                >
-                  <option value="">Pilih siswa</option>
-                  <option v-for="s in students" :key="s.id" :value="String(s.id)">
-                    {{ studentOptionLabel(s) }}
-                  </option>
-                </select>
-              </div>
+            <div class="form-group">
+            <StudentPicker
+              v-if="editingPrestasi"
+              label="Siswa"
+              :locked-student="editingPrestasi.student"
+            />
+            <StudentPicker
+              v-else
+              ref="prestasiStudentPickerRef"
+              v-model="prestasiForm.student_id"
+              require-class
+            />
             </div>
             <div class="form-group">
-              <label>Jenis Prestasi *</label>
+              <label>Jenis {{ prestasiPurpose === 'apresiasi' ? 'Apresiasi' : 'Prestasi' }} *</label>
               <select v-model="prestasiForm.achievement_type_id" required class="form-select">
                 <option value="">Pilih jenis</option>
-                <option v-for="t in achievementTypes" :key="t.id" :value="t.id">{{ t.name }} (+{{ t.point_value }})</option>
+                <option v-for="t in filteredAchievementTypes" :key="t.id" :value="t.id">{{ t.name }} (+{{ t.point_value }})</option>
               </select>
+              <p v-if="!filteredAchievementTypes.length" class="field-hint">Belum ada jenis untuk kategori ini. Buat dulu di tab Pengaturan.</p>
             </div>
+            <div class="form-group">
+              <label>{{ prestasiPurpose === 'apresiasi' ? 'Uraian kejadian *' : 'Nama lomba / kegiatan *' }}</label>
+              <input
+                v-model="prestasiForm.title"
+                type="text"
+                required
+                :placeholder="prestasiPurpose === 'apresiasi' ? 'Contoh: Melaporkan tindakan bullying ke wali kelas' : 'Contoh: Olimpiade Matematika SD 2025'"
+              />
+            </div>
+            <template v-if="prestasiPurpose === 'akreditasi'">
+              <div class="form-group">
+                <label>Tingkat</label>
+                <select v-model="prestasiForm.level" class="form-select">
+                  <option value="">— Pilih —</option>
+                  <option v-for="(label, key) in LEVEL_LABELS" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Peringkat</label>
+                <select v-model="prestasiForm.rank" class="form-select">
+                  <option value="">— Pilih —</option>
+                  <option v-for="(label, key) in RANK_LABELS" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </div>
+              <p v-if="selectedPrestasiType" class="field-hint">
+                Poin BK: <strong>{{ resolvedPrestasiPoints }}</strong>
+                <template v-if="prestasiForm.level && hasLevelPointValues(selectedPrestasiType)">
+                  (khusus tingkat {{ levelLabel(prestasiForm.level) }})
+                </template>
+              </p>
+            </template>
             <div class="form-group">
               <label>Tanggal *</label>
               <input v-model="prestasiForm.achievement_date" type="date" required />
             </div>
             <div class="form-group">
-              <label>Catatan</label>
-              <textarea v-model="prestasiForm.notes" rows="2" placeholder="Opsional"></textarea>
+              <label>Catatan tambahan</label>
+              <textarea v-model="prestasiForm.notes" rows="2" placeholder="Opsional — keterangan pelaksana, penyelenggara, dll." />
             </div>
             <div v-if="prestasiFormError" class="error-message">{{ prestasiFormError }}</div>
             <div class="modal-footer">
@@ -967,17 +937,35 @@
       <div v-if="showAchievementTypeModal" class="modal-overlay" @click="showAchievementTypeModal = false">
         <div class="modal-content form-modal" @click.stop>
           <div class="modal-header">
-            <h3>{{ editingAchievementType ? 'Edit' : 'Tambah' }} Jenis Prestasi</h3>
+            <h3>{{ editingAchievementType ? 'Edit' : 'Tambah' }} Jenis {{ prestasiPurpose === 'apresiasi' ? 'Apresiasi' : 'Prestasi' }}</h3>
             <button @click="showAchievementTypeModal = false" class="btn-close">×</button>
           </div>
           <form @submit.prevent="submitAchievementType" class="modal-body">
             <div class="form-group">
               <label>Nama *</label>
-              <input v-model="achievementTypeForm.name" type="text" required placeholder="Contoh: Juara kelas" />
+              <input v-model="achievementTypeForm.name" type="text" required :placeholder="prestasiPurpose === 'apresiasi' ? 'Contoh: Melaporkan kejadian penting' : 'Contoh: Juara olimpiade'" />
             </div>
             <div class="form-group">
-              <label>Poin (plus) *</label>
+              <label>{{ prestasiPurpose === 'apresiasi' ? 'Poin (plus) *' : 'Poin dasar *' }}</label>
               <input v-model.number="achievementTypeForm.point_value" type="number" min="0" max="100" required />
+              <p v-if="prestasiPurpose === 'akreditasi'" class="field-hint">Digunakan jika tingkat tidak diisi atau belum diatur khusus di bawah.</p>
+            </div>
+            <div v-if="prestasiPurpose === 'akreditasi'" class="form-group">
+              <label>Poin per tingkat (opsional)</label>
+              <p class="field-hint">Isi jika poin berbeda per tingkat lomba, mis. olimpiade kabupaten vs provinsi.</p>
+              <div class="level-point-grid">
+                <div v-for="(label, key) in LEVEL_LABELS" :key="key" class="level-point-row">
+                  <span class="level-point-label">{{ label }}</span>
+                  <input
+                    v-model.number="achievementTypeForm.level_point_values[key]"
+                    type="number"
+                    min="0"
+                    max="100"
+                    class="level-point-input"
+                    :placeholder="String(achievementTypeForm.point_value || 0)"
+                  />
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label>Kategori</label>
@@ -1160,13 +1148,16 @@
       <ConfirmDialog v-if="deleteAchievementTarget" :show="!!deleteAchievementTarget" title="Hapus Prestasi" :message="'Yakin menghapus prestasi ini?'" confirmText="Hapus" @confirm="doDeleteAchievement" @cancel="deleteAchievementTarget = null" />
       <ConfirmDialog v-if="deleteAchievementTypeTarget" :show="!!deleteAchievementTypeTarget" title="Hapus Jenis Prestasi" :message="deleteAchievementTypeMessage" confirmText="Hapus" @confirm="doDeleteAchievementType" @cancel="deleteAchievementTypeTarget = null" />
       <ConfirmDialog v-if="deleteThresholdTarget" :show="!!deleteThresholdTarget" title="Hapus Aturan Tindakan" :message="deleteThresholdMessage" confirmText="Hapus" @confirm="doDeleteThreshold" @cancel="deleteThresholdTarget = null" />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import StudentPicker from '@/components/StudentPicker.vue'
 import { violationApi, violationTypeApi, achievementApi, achievementTypeApi, pointThresholdApi, studentActionLogApi, studentPointApi } from '@/api/violation'
 import { institutionApi } from '@/api/institution'
 import { useReferenceDataStore } from '@/stores/referenceData'
@@ -1174,16 +1165,129 @@ import { semesterApi } from '@/api/semester'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
+const route = useRoute()
+
+const bkMode = computed(() => route.meta.bkMode || 'pelanggaran')
+const isPelanggaranMode = computed(() => bkMode.value === 'pelanggaran')
+const isPrestasiMode = computed(() => bkMode.value === 'prestasi')
+
+const prestasiPurpose = ref('akreditasi')
+
+const LEVEL_LABELS = {
+  sekolah: 'Sekolah',
+  kabupaten: 'Kabupaten/Kota',
+  provinsi: 'Provinsi',
+  nasional: 'Nasional',
+  internasional: 'Internasional',
+}
+
+const RANK_LABELS = {
+  juara_1: 'Juara 1',
+  juara_2: 'Juara 2',
+  juara_3: 'Juara 3',
+  finalis: 'Finalis',
+  peserta: 'Peserta',
+  lainnya: 'Lainnya',
+}
+
+const ACHIEVEMENT_CATEGORY_LABELS = {
+  akademik: 'Akademik',
+  non_akademik: 'Non Akademik',
+  sikap: 'Sikap',
+}
+
+const filteredAchievementTypes = computed(() =>
+  achievementTypes.value.filter((t) => (t.purpose || 'akreditasi') === prestasiPurpose.value)
+)
+
+function defaultLevelPointValues() {
+  return { sekolah: '', kabupaten: '', provinsi: '', nasional: '', internasional: '' }
+}
+
+function resolveAchievementPointValue(type, level) {
+  if (!type) return 0
+  const levelPoints = type.level_point_values || {}
+  if (level && levelPoints[level] != null && levelPoints[level] !== '') {
+    return Number(levelPoints[level])
+  }
+  return Number(type.point_value) || 0
+}
+
+function hasLevelPointValues(type) {
+  if (!type?.level_point_values) return false
+  return Object.values(type.level_point_values).some((v) => v != null && v !== '')
+}
+
+const selectedPrestasiType = computed(() =>
+  filteredAchievementTypes.value.find((t) => String(t.id) === String(prestasiForm.value.achievement_type_id))
+)
+
+const resolvedPrestasiPoints = computed(() =>
+  resolveAchievementPointValue(selectedPrestasiType.value, prestasiForm.value.level)
+)
+
+function cleanLevelPointValues(values) {
+  const out = {}
+  for (const [key, val] of Object.entries(values || {})) {
+    if (val !== '' && val != null) out[key] = Number(val)
+  }
+  return Object.keys(out).length ? out : null
+}
+
+function levelLabel(v) {
+  return LEVEL_LABELS[v] || v || '—'
+}
+
+function rankLabel(v) {
+  return RANK_LABELS[v] || v || ''
+}
+
+function categoryLabel(v) {
+  return ACHIEVEMENT_CATEGORY_LABELS[v] || v || ''
+}
+
+function setPrestasiPurpose(purpose) {
+  if (prestasiPurpose.value === purpose) return
+  prestasiPurpose.value = purpose
+  achievementFilters.value.achievement_type_id = ''
+  if (activeTab.value === 'prestasi') {
+    achievementsPagination.value.current_page = 1
+    loadAchievements()
+  } else if (activeTab.value === 'achievement_types') {
+    loadAchievementTypes()
+  }
+}
+
+function defaultPrestasiForm() {
+  return {
+    student_id: '',
+    achievement_type_id: '',
+    achievement_date: new Date().toISOString().slice(0, 10),
+    purpose: prestasiPurpose.value,
+    title: '',
+    level: '',
+    rank: '',
+    notes: '',
+  }
+}
 
 const activeTab = ref('list')
-const CATATAN_TABS = ['list', 'prestasi']
-const SETTINGS_TABS = ['types', 'achievement_types', 'thresholds']
+const PELANGGARAN_CATATAN_TABS = ['list']
+const PRESTASI_CATATAN_TABS = ['prestasi']
+const PELANGGARAN_SETTINGS_TABS = ['types', 'thresholds']
+const PRESTASI_SETTINGS_TABS = ['achievement_types']
 
 const mainTab = computed(() => {
-  if (CATATAN_TABS.includes(activeTab.value)) return 'catatan'
+  if (isPrestasiMode.value) {
+    if (PRESTASI_CATATAN_TABS.includes(activeTab.value)) return 'catatan'
+    if (activeTab.value === 'pending_prestasi') return 'pending'
+    if (PRESTASI_SETTINGS_TABS.includes(activeTab.value)) return 'settings'
+    return 'catatan'
+  }
+  if (PELANGGARAN_CATATAN_TABS.includes(activeTab.value)) return 'catatan'
   if (activeTab.value === 'pending') return 'pending'
   if (activeTab.value === 'points') return 'points'
-  if (SETTINGS_TABS.includes(activeTab.value)) return 'settings'
+  if (PELANGGARAN_SETTINGS_TABS.includes(activeTab.value)) return 'settings'
   return 'catatan'
 })
 
@@ -1215,18 +1319,34 @@ function openAddFromToolbar(kind) {
 }
 
 const tabDescription = computed(() => {
+  if (isPrestasiMode.value) {
+    const byMain = {
+      catatan: prestasiPurpose.value === 'apresiasi'
+      ? 'Catat apresiasi atau laporan positif siswa (mis. melaporkan kejadian penting ke guru).'
+      : 'Catat prestasi lomba/kompetisi untuk keperluan akreditasi dan arsip sekolah.',
+      pending: 'Usulan prestasi dari wali kelas. Setujui agar tercatat, atau tolak dengan alasan.',
+      settings: 'Kelola jenis prestasi dan nilai poin pengurang skor pelanggaran.',
+    }
+    const bySection = {
+      achievement_types: prestasiPurpose.value === 'apresiasi'
+        ? 'Atur jenis apresiasi/lapor siswa dan nilai poin pengurang (jika dipakai).'
+        : 'Atur jenis prestasi akreditasi (lomba, kompetisi) dan nilai poin.',
+      prestasi: byMain.catatan,
+    }
+    if (mainTab.value === 'settings') return bySection[activeTab.value] || byMain.settings
+    if (mainTab.value === 'catatan') return bySection[activeTab.value] || byMain.catatan
+    return byMain[mainTab.value] || ''
+  }
   const byMain = {
-    catatan: 'Catat pelanggaran dan prestasi siswa. Prestasi mengurangi skor pada periode yang sama. Usulan piket tidak dihitung sampai disetujui di tab Usulan.',
+    catatan: 'Catat pelanggaran siswa. Usulan piket/wali kelas ditinjau di tab Usulan.',
     pending: 'Usulan pelanggaran dari guru piket atau wali kelas. Setujui agar poin masuk, atau tolak dengan alasan.',
     points: 'Skor = Σ pelanggaran − prestasi per periode. Catat tindakan BK di sini. Pelanggaran baru setelah tindakan (atau skor naik) membuka ulang status Menunggu.',
-    settings: 'Kelola master jenis pelanggaran, jenis prestasi, dan aturan tindakan berdasarkan skor. Jarang diubah saat pencatatan harian.',
+    settings: 'Kelola master jenis pelanggaran dan aturan tindakan berdasarkan skor.',
   }
   const bySection = {
     types: 'Atur jenis pelanggaran (mis. Terlambat, Tidak pakai atribut) beserta kategori dan bobot poin.',
-    achievement_types: 'Atur jenis prestasi dan nilai poin pengurang.',
     thresholds: 'Atur rentang skor pelanggaran dan tindakan wajib (mis. skor 40–999 = Panggilan orang tua).',
     list: byMain.catatan,
-    prestasi: 'Prestasi mengurangi skor pelanggaran pada periode yang sama. Pastikan Jenis Prestasi sudah ada di Pengaturan.',
   }
   if (mainTab.value === 'settings') return bySection[activeTab.value] || byMain.settings
   if (mainTab.value === 'catatan') return bySection[activeTab.value] || byMain.catatan
@@ -1234,14 +1354,20 @@ const tabDescription = computed(() => {
 })
 
 function switchMainTab(tab) {
+  if (isPrestasiMode.value) {
+    if (tab === 'catatan') switchTab('prestasi')
+    else if (tab === 'pending') switchTab('pending_prestasi')
+    else if (tab === 'settings') switchTab('achievement_types')
+    return
+  }
   if (tab === 'catatan') {
-    switchTab(activeTab.value === 'prestasi' ? 'prestasi' : 'list')
+    switchTab('list')
   } else if (tab === 'pending') {
     switchTab('pending')
   } else if (tab === 'points') {
     switchTab('points')
   } else if (tab === 'settings') {
-    switchTab(SETTINGS_TABS.includes(activeTab.value) ? activeTab.value : 'types')
+    switchTab(PELANGGARAN_SETTINGS_TABS.includes(activeTab.value) ? activeTab.value : 'types')
   }
 }
 
@@ -1252,24 +1378,61 @@ function switchTab(tab) {
     loadViolations()
   } else if (tab === 'types') loadTypes()
   else if (tab === 'points') loadStudentPoints()
-  else if (tab === 'prestasi') loadAchievements()
-  else if (tab === 'achievement_types') loadAchievementTypes()
+  else if (tab === 'prestasi' || tab === 'pending_prestasi') {
+    if (tab === 'pending_prestasi') {
+      achievementFilters.value.status = 'pending'
+    } else if (achievementFilters.value.status === 'pending') {
+      achievementFilters.value.status = ''
+    }
+    achievementsPagination.value.current_page = 1
+    loadAchievements()
+  } else if (tab === 'achievement_types') loadAchievementTypes()
   else if (tab === 'thresholds') loadThresholds()
 }
 const loading = ref(true)
 const typesLoading = ref(false)
 const violations = ref([])
 const violationTypes = ref([])
-const students = ref([])
-const pickerClasses = ref([])
-const pickerClassId = ref('')
-const pickerStudentSearch = ref('')
-const loadingPickerStudents = ref(false)
-const pickerStudentError = ref('')
-const pickerTarget = ref('violation') // 'violation' | 'prestasi'
-let pickerStudentTimer = null
+const violationStudentPickerRef = ref(null)
+const prestasiStudentPickerRef = ref(null)
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 const pendingProposalCount = ref(0)
+async function loadPendingProposalCount() {
+  try {
+    if (isPrestasiMode.value) {
+      const res = await achievementApi.getAll({ status: 'pending', per_page: 1 })
+      const metaExtra = res.data?.meta_extra || {}
+      pendingProposalCount.value = typeof metaExtra.pending_count === 'number'
+        ? metaExtra.pending_count
+        : (res.data?.meta?.total ?? 0)
+      return
+    }
+    const res = await violationApi.getAll({ status: 'pending', per_page: 1 })
+    const metaExtra = res.data?.meta_extra || {}
+    pendingProposalCount.value = typeof metaExtra.pending_count === 'number'
+      ? metaExtra.pending_count
+      : (res.data?.meta?.total ?? 0)
+  } catch {
+    pendingProposalCount.value = 0
+  }
+}
+
+function initForMode() {
+  if (isPrestasiMode.value) {
+    activeTab.value = 'prestasi'
+    loadAchievements()
+    loadAchievementTypes()
+  } else {
+    activeTab.value = 'list'
+    loadViolations()
+    loadTypes()
+  }
+  loadPendingProposalCount()
+}
+
+watch(() => route.path, () => {
+  initForMode()
+})
 const showRejectModal = ref(false)
 const rejectTarget = ref(null)
 const rejectNotes = ref('')
@@ -1378,7 +1541,7 @@ const achievementTypes = ref([])
 const achievementTypesLoading = ref(false)
 const showPrestasiModal = ref(false)
 const editingPrestasi = ref(null)
-const prestasiForm = ref({ student_id: '', achievement_type_id: '', achievement_date: '', notes: '' })
+const prestasiForm = ref(defaultPrestasiForm())
 const prestasiFormError = ref('')
 const prestasiFormSubmitting = ref(false)
 const rejectAchievementTarget = ref(null)
@@ -1388,7 +1551,7 @@ const rejectAchievementSubmitting = ref(false)
 const rejectAchievementError = ref('')
 const showAchievementTypeModal = ref(false)
 const editingAchievementType = ref(null)
-const achievementTypeForm = ref({ name: '', point_value: 10, category: '' })
+const achievementTypeForm = ref({ name: '', point_value: 10, category: '', purpose: 'akreditasi', level_point_values: defaultLevelPointValues() })
 const achievementTypeFormError = ref('')
 const achievementTypeFormSubmitting = ref(false)
 let achievementsDebounceTimer = null
@@ -1507,7 +1670,7 @@ async function loadViolations() {
       per_page: meta.per_page ?? 15,
       total: meta.total ?? 0,
     }
-    if (typeof metaExtra.pending_count === 'number') {
+    if (isPelanggaranMode.value && typeof metaExtra.pending_count === 'number') {
       pendingProposalCount.value = metaExtra.pending_count
     }
   } catch (e) {
@@ -1521,7 +1684,7 @@ async function approveViolation(v) {
   try {
     await violationApi.approve(v.id)
     toast.success('Usulan disetujui — poin siswa diperbarui')
-    await loadViolations()
+    await Promise.all([loadViolations(), loadPendingProposalCount()])
   } catch (e) {
     toast.error('Gagal menyetujui', e.formattedMessage || e.response?.data?.message || 'Coba lagi.')
   }
@@ -1562,85 +1725,6 @@ async function loadTypes() {
   }
 }
 
-function studentOptionLabel(s) {
-  const id = s.nis || s.nisn || '-'
-  return `${s.name} (${id})`
-}
-
-function resetStudentPicker(target = 'violation') {
-  pickerTarget.value = target
-  pickerClassId.value = ''
-  pickerStudentSearch.value = ''
-  pickerStudentError.value = ''
-  students.value = []
-  loadingPickerStudents.value = false
-  clearTimeout(pickerStudentTimer)
-}
-
-async function loadPickerClasses() {
-  try {
-    const res = await violationApi.classesLite()
-    pickerClasses.value = res.data?.data || []
-  } catch {
-    pickerClasses.value = []
-  }
-}
-
-async function loadPickerStudents() {
-  if (!pickerClassId.value) {
-    students.value = []
-    pickerStudentError.value = ''
-    return
-  }
-  loadingPickerStudents.value = true
-  pickerStudentError.value = ''
-  try {
-    const params = { class_id: pickerClassId.value }
-    const q = pickerStudentSearch.value.trim()
-    if (q) params.q = q
-    const res = await violationApi.studentsLite(params)
-    students.value = res.data?.data || []
-    if (!students.value.length) {
-      pickerStudentError.value = q
-        ? 'Tidak ada siswa cocok. Coba kata kunci lain.'
-        : 'Tidak ada siswa aktif di kelas ini.'
-    }
-  } catch (e) {
-    students.value = []
-    pickerStudentError.value = e.response?.data?.message || e.formattedMessage || 'Gagal memuat data siswa'
-  } finally {
-    loadingPickerStudents.value = false
-  }
-}
-
-function debouncePickerStudentSearch() {
-  clearTimeout(pickerStudentTimer)
-  pickerStudentTimer = setTimeout(() => {
-    loadPickerStudents()
-  }, 300)
-}
-
-function onPickerClassChange() {
-  if (pickerTarget.value === 'prestasi') {
-    prestasiForm.value.student_id = ''
-  } else {
-    form.value.student_id = ''
-  }
-  pickerStudentSearch.value = ''
-  loadPickerStudents()
-}
-
-function goToPage(page) {
-  pagination.value.current_page = page
-  loadViolations()
-}
-
-function changePerPage(n) {
-  pagination.value.per_page = n
-  pagination.value.current_page = 1
-  loadViolations()
-}
-
 function openAddModal() {
   editingViolation.value = null
   form.value = {
@@ -1653,10 +1737,20 @@ function openAddModal() {
     follow_up_notes: '',
   }
   formError.value = ''
-  resetStudentPicker('violation')
-  loadPickerClasses()
-  if (violationTypes.value.length === 0) loadTypes()
   showFormModal.value = true
+  nextTick(() => violationStudentPickerRef.value?.reset())
+  if (violationTypes.value.length === 0) loadTypes()
+}
+
+function goToPage(page) {
+  pagination.value.current_page = page
+  loadViolations()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadViolations()
 }
 
 function openEditModal(v) {
@@ -1684,6 +1778,10 @@ async function submitViolation() {
   formSubmitting.value = true
   formError.value = ''
   try {
+    if (!editingViolation.value && !form.value.student_id) {
+      formError.value = 'Pilih siswa terlebih dahulu.'
+      return
+    }
     if (editingViolation.value) {
       await violationApi.update(editingViolation.value.id, {
         violation_type_id: form.value.violation_type_id,
@@ -1865,6 +1963,9 @@ async function loadAchievements() {
       academic_year_id: achievementFilters.value.academic_year_id,
       semester_id: achievementFilters.value.semester_id,
     }
+    if (activeTab.value !== 'pending_prestasi') {
+      params.purpose = prestasiPurpose.value
+    }
     const res = await achievementApi.getAll(params)
     achievements.value = res.data.data || []
     const meta = res.data.meta || {}
@@ -1895,7 +1996,7 @@ async function approveAchievement(a) {
   try {
     await achievementApi.approve(a.id)
     toast.success('Usulan prestasi disetujui')
-    await loadAchievements()
+    await Promise.all([loadAchievements(), loadPendingProposalCount()])
   } catch (e) {
     toast.error('Gagal menyetujui', e.formattedMessage || e.response?.data?.message || 'Coba lagi.')
   }
@@ -1918,7 +2019,7 @@ async function submitRejectAchievement() {
     })
     toast.success('Usulan prestasi ditolak')
     showRejectAchievementModal.value = false
-    await loadAchievements()
+    await Promise.all([loadAchievements(), loadPendingProposalCount()])
   } catch (e) {
     rejectAchievementError.value = e.formattedMessage || e.response?.data?.message || 'Gagal menolak usulan.'
   } finally {
@@ -1952,12 +2053,11 @@ async function loadThresholds() {
 
 function openAddPrestasiModal() {
   editingPrestasi.value = null
-  prestasiForm.value = { student_id: '', achievement_type_id: '', achievement_date: new Date().toISOString().slice(0, 10), notes: '' }
+  prestasiForm.value = defaultPrestasiForm()
   prestasiFormError.value = ''
-  resetStudentPicker('prestasi')
-  loadPickerClasses()
-  if (achievementTypes.value.length === 0) loadAchievementTypes()
   showPrestasiModal.value = true
+  nextTick(() => prestasiStudentPickerRef.value?.reset())
+  if (achievementTypes.value.length === 0) loadAchievementTypes()
 }
 function openEditPrestasiModal(a) {
   editingPrestasi.value = a
@@ -1965,10 +2065,13 @@ function openEditPrestasiModal(a) {
     student_id: String(a.student_id ?? a.student?.id ?? ''),
     achievement_type_id: String(a.achievement_type_id ?? a.achievement_type?.id ?? ''),
     achievement_date: a.achievement_date || '',
+    purpose: a.purpose || prestasiPurpose.value,
+    title: a.title || '',
+    level: a.level || '',
+    rank: a.rank || '',
     notes: a.notes || '',
   }
   prestasiFormError.value = ''
-  resetStudentPicker('prestasi')
   if (achievementTypes.value.length === 0) loadAchievementTypes()
   showPrestasiModal.value = true
 }
@@ -1976,15 +2079,25 @@ async function submitPrestasi() {
   prestasiFormSubmitting.value = true
   prestasiFormError.value = ''
   try {
+    if (!editingPrestasi.value && !prestasiForm.value.student_id) {
+      prestasiFormError.value = 'Pilih siswa terlebih dahulu.'
+      return
+    }
+    const purpose = prestasiForm.value.purpose || prestasiPurpose.value
+    const payload = {
+      achievement_type_id: prestasiForm.value.achievement_type_id,
+      achievement_date: prestasiForm.value.achievement_date,
+      purpose,
+      title: prestasiForm.value.title || null,
+      level: purpose === 'akreditasi' ? (prestasiForm.value.level || null) : null,
+      rank: purpose === 'akreditasi' ? (prestasiForm.value.rank || null) : null,
+      notes: prestasiForm.value.notes || null,
+    }
     if (editingPrestasi.value) {
-      await achievementApi.update(editingPrestasi.value.id, {
-        achievement_type_id: prestasiForm.value.achievement_type_id,
-        achievement_date: prestasiForm.value.achievement_date,
-        notes: prestasiForm.value.notes,
-      })
+      await achievementApi.update(editingPrestasi.value.id, payload)
       toast.success('Prestasi diperbarui')
     } else {
-      await achievementApi.create(prestasiForm.value)
+      await achievementApi.create({ ...payload, student_id: prestasiForm.value.student_id })
       toast.success('Prestasi berhasil dicatat')
     }
     showPrestasiModal.value = false
@@ -1999,13 +2112,19 @@ async function submitPrestasi() {
 
 function openAddAchievementTypeModal() {
   editingAchievementType.value = null
-  achievementTypeForm.value = { name: '', point_value: 10, category: '' }
+  achievementTypeForm.value = { name: '', point_value: 10, category: '', purpose: prestasiPurpose.value, level_point_values: defaultLevelPointValues() }
   achievementTypeFormError.value = ''
   showAchievementTypeModal.value = true
 }
 function openEditAchievementTypeModal(t) {
   editingAchievementType.value = t
-  achievementTypeForm.value = { name: t.name, point_value: t.point_value || 10, category: t.category || '' }
+  achievementTypeForm.value = {
+    name: t.name,
+    point_value: t.point_value || 10,
+    category: t.category || '',
+    purpose: t.purpose || prestasiPurpose.value,
+    level_point_values: { ...defaultLevelPointValues(), ...(t.level_point_values || {}) },
+  }
   achievementTypeFormError.value = ''
   showAchievementTypeModal.value = true
 }
@@ -2013,11 +2132,20 @@ async function submitAchievementType() {
   achievementTypeFormSubmitting.value = true
   achievementTypeFormError.value = ''
   try {
+    const payload = {
+      name: achievementTypeForm.value.name,
+      point_value: achievementTypeForm.value.point_value,
+      category: achievementTypeForm.value.category,
+      purpose: prestasiPurpose.value,
+      level_point_values: prestasiPurpose.value === 'akreditasi'
+        ? cleanLevelPointValues(achievementTypeForm.value.level_point_values)
+        : null,
+    }
     if (editingAchievementType.value) {
-      await achievementTypeApi.update(editingAchievementType.value.id, achievementTypeForm.value)
+      await achievementTypeApi.update(editingAchievementType.value.id, payload)
       toast.success('Jenis prestasi diperbarui')
     } else {
-      await achievementTypeApi.create(achievementTypeForm.value)
+      await achievementTypeApi.create(payload)
       toast.success('Jenis prestasi ditambahkan')
     }
     showAchievementTypeModal.value = false
@@ -2204,8 +2332,7 @@ async function loadInstitutionAndDefaults() {
 
 onMounted(async () => {
   await loadInstitutionAndDefaults()
-  loadViolations()
-  loadTypes()
+  initForMode()
 })
 </script>
 
@@ -2519,37 +2646,6 @@ onMounted(async () => {
 }
 .student-name { display: block; font-weight: 500; }
 .student-meta { font-size: 0.8rem; color: #64748b; }
-.student-picker {
-  margin-bottom: 0.5rem;
-  padding: 0.85rem 1rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-}
-.student-picker .field-hint {
-  margin: 0.35rem 0 0;
-  font-size: 0.78rem;
-  color: #64748b;
-  line-height: 1.4;
-}
-.student-picker .student-listbox {
-  margin-top: 0.5rem;
-  min-height: 160px;
-}
-.student-picker-locked {
-  margin: 0;
-  padding: 0.65rem 0.85rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-weight: 500;
-  color: #334155;
-}
-.student-picker-locked .student-meta {
-  display: block;
-  margin-top: 0.2rem;
-  font-weight: 400;
-}
 .category-badge {
   display: inline-block;
   padding: 0.2rem 0.5rem;
@@ -3019,7 +3115,7 @@ onMounted(async () => {
 }
 .type-name { font-weight: 600; font-size: 1.05rem; color: #0f172a; }
 .type-body { margin-bottom: 0.85rem; }
-.type-sanction, .type-point { margin: 0.3rem 0; font-size: 0.9rem; color: #64748b; }
+.type-sanction, .type-point, .type-meta { margin: 0.3rem 0; font-size: 0.9rem; color: #64748b; }
 .type-actions { display: flex; gap: 0.5rem; }
 .modal-overlay {
   position: fixed;
@@ -3044,6 +3140,33 @@ onMounted(async () => {
   margin-bottom: 0.75rem;
   font-size: 0.85rem;
   padding: 0.5rem 0;
+}
+.field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.level-point-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.level-point-row {
+  display: grid;
+  grid-template-columns: 1fr 5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+.level-point-label {
+  font-size: 0.85rem;
+  color: #334155;
+}
+.level-point-input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
 }
 .modal-header {
   display: flex;

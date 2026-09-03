@@ -117,6 +117,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { qrAttendanceApi } from '@/api/attendance'
+import { openPdfBlob } from '@/utils/pdfPreview'
 import { studentApi } from '@/api/student'
 import { employeeApi } from '@/api/teacher'
 import { classApi } from '@/api/class'
@@ -454,9 +455,7 @@ async function openPdf() {
       throw new Error(json.message || 'Gagal mencetak PDF.')
     }
     const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const win = window.open(url, '_blank')
-    if (!win) {
+    if (!openPdfBlob(blob, `qr-absensi-${qrType.value}.pdf`)) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat PDF.')
     }
   } catch (e) {

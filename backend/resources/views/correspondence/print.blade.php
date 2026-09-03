@@ -116,6 +116,7 @@
             margin-bottom: 10px;
         }
         @include('partials.print-letterhead-styles')
+        @include('partials.print-document-footer-styles')
     </style>
 </head>
 <body>
@@ -213,8 +214,6 @@
     @endif
 
     <!-- Footer -->
-    <div class="footer">
-        <p>Dicetak pada: {{ \Carbon\Carbon::now()->locale('id')->isoFormat('D MMMM YYYY HH:mm') }}</p>
-    </div>
+    @include('partials.print-document-footer')
 </body>
 </html>

@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
 import { hasModuleAccess, hasAnyModuleAccess } from '@/utils/moduleAccess'
 import { INVENTORY_NAV_ITEMS, INVENTORY_TAB_BY_ROUTE_NAME, canAccessInventoryTab } from '@/composables/inventory/inventoryRoutes'
+import { applyRouteSeo } from '@/utils/seo'
 
 const inventoryRoutes = INVENTORY_NAV_ITEMS.map((item) => ({
   path: item.path,
@@ -24,54 +25,92 @@ const router = createRouter({
     {
       path: '/',
       name: 'Home',
-      component: () => import('@/views/Home.vue')
+      component: () => import('@/views/Home.vue'),
+      meta: { index: true }
     },
     {
       path: '/catatan-rilis',
       name: 'ReleaseNotes',
-      component: () => import('@/views/ReleaseNotes.vue')
+      component: () => import('@/views/ReleaseNotes.vue'),
+      meta: { index: true }
+    },
+    {
+      path: '/panduan',
+      name: 'Panduan',
+      component: () => import('@/views/Panduan.vue'),
+      meta: { index: true }
+    },
+    {
+      path: '/panduan/admin',
+      name: 'PanduanAdmin',
+      component: () => import('@/views/PanduanAdmin.vue'),
+      meta: { index: true }
+    },
+    {
+      path: '/panduan/guru',
+      name: 'PanduanGuru',
+      component: () => import('@/views/PanduanGuru.vue'),
+      meta: { index: true }
+    },
+    {
+      path: '/panduan/siswa',
+      name: 'PanduanSiswa',
+      component: () => import('@/views/PanduanSiswa.vue'),
+      meta: { index: true }
+    },
+    {
+      path: '/panduan/orang-tua',
+      name: 'PanduanOrangTua',
+      component: () => import('@/views/PanduanOrangTua.vue'),
+      meta: { index: true }
     },
     {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/Login.vue'),
-      meta: { requiresGuest: true }
+      meta: { requiresGuest: true, noindex: true }
     },
     {
       path: '/register',
       name: 'Register',
       component: () => import('@/views/Register.vue'),
-      meta: { requiresGuest: true }
+      meta: { requiresGuest: true, noindex: true }
     },
     {
       path: '/daftar-ppdb',
       name: 'PpdbPublicRegister',
-      component: () => import('@/views/PpdbPublicRegister.vue')
+      component: () => import('@/views/PpdbPublicRegister.vue'),
+      meta: { index: true }
     },
     {
       path: '/:npsn/daftar-ppdb',
       name: 'PpdbPublicRegisterByNpsn',
-      component: () => import('@/views/PpdbPublicRegister.vue')
+      component: () => import('@/views/PpdbPublicRegister.vue'),
+      meta: { index: true }
     },
     {
       path: '/:npsn/ebooks',
       name: 'PublicEbooks',
-      component: () => import('@/views/PublicEbooks.vue')
+      component: () => import('@/views/PublicEbooks.vue'),
+      meta: { index: true }
     },
     {
       path: '/:npsn/buku-tamu',
       name: 'PublicGuestBook',
-      component: () => import('@/views/PublicGuestBook.vue')
+      component: () => import('@/views/PublicGuestBook.vue'),
+      meta: { index: true }
     },
     {
       path: '/cek-hasil-ppdb',
       name: 'PpdbCheckResult',
-      component: () => import('@/views/PpdbCheckResult.vue')
+      component: () => import('@/views/PpdbCheckResult.vue'),
+      meta: { index: true }
     },
     {
       path: '/lengkapi-berkas-ppdb',
       name: 'PpdbLengkapiBerkas',
-      component: () => import('@/views/PpdbLengkapiBerkas.vue')
+      component: () => import('@/views/PpdbLengkapiBerkas.vue'),
+      meta: { index: true }
     },
     {
       path: '/dashboard',
@@ -385,9 +424,19 @@ const router = createRouter({
     },
     {
       path: '/violation',
-      name: 'Violation',
+      redirect: '/bk/pelanggaran',
+    },
+    {
+      path: '/bk/pelanggaran',
+      name: 'BkPelanggaran',
       component: () => import('../views/Violation.vue'),
-      meta: { requiresAuth: true, requiresModule: 'violation' }
+      meta: { requiresAuth: true, requiresModule: 'violation', bkMode: 'pelanggaran' },
+    },
+    {
+      path: '/bk/prestasi',
+      name: 'BkPrestasi',
+      component: () => import('../views/Violation.vue'),
+      meta: { requiresAuth: true, requiresModule: 'violation', bkMode: 'prestasi' },
     },
     {
       path: '/counseling',
@@ -397,9 +446,31 @@ const router = createRouter({
     },
     {
       path: '/laporan-bk',
+      redirect: '/bk/laporan',
+    },
+    {
+      path: '/bk/laporan',
       name: 'LaporanBk',
       component: () => import('../views/LaporanBk.vue'),
-      meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'] }
+      meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'combined' },
+    },
+    {
+      path: '/bk/laporan/pelanggaran',
+      name: 'LaporanPelanggaran',
+      component: () => import('../views/LaporanBk.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'violations' },
+    },
+    {
+      path: '/bk/laporan/prestasi',
+      name: 'LaporanPrestasi',
+      component: () => import('../views/LaporanBk.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'achievements', reportPurpose: 'akreditasi' },
+    },
+    {
+      path: '/bk/laporan/apresiasi',
+      name: 'LaporanApresiasi',
+      component: () => import('../views/LaporanBk.vue'),
+      meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'achievements', reportPurpose: 'apresiasi' },
     },
     {
       path: '/uks',
@@ -938,9 +1009,22 @@ const router = createRouter({
     {
       path: '/:npsn',
       name: 'SchoolPublic',
-      component: () => import('@/views/SchoolPublic.vue')
+      component: () => import('@/views/SchoolPublic.vue'),
+      meta: { index: true }
     }
-  ]
+  ],
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) {
+      return {
+        el: to.hash,
+        top: 80,
+        behavior: 'smooth',
+      }
+    }
+    // Selalu mulai dari atas saat pindah halaman (mis. Panduan → Catatan Rilis)
+    return { top: 0, left: 0 }
+  },
 })
 
 const getDefaultRoute = (role) => {
@@ -1323,6 +1407,10 @@ router.beforeEach(async (to, from, next) => {
   } else {
     next()
   }
+})
+
+router.afterEach((to) => {
+  applyRouteSeo(to)
 })
 
 export default router

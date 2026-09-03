@@ -104,21 +104,41 @@ class BkReportController extends Controller
             } else {
                 $rows = $this->bkReportService->exportByClassRows($institutionId, $filters);
             }
+            $reportScope = $this->resolveReportScope($request);
             $filename = 'laporan-bk-per-kelas-'.now()->format('Y-m-d').'.csv';
 
-            return response()->streamDownload(function () use ($rows) {
+            return response()->streamDownload(function () use ($rows, $reportScope) {
                 $out = fopen('php://output', 'w');
                 fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-                fputcsv($out, ['Kelas', 'Jumlah Pelanggaran', 'Jumlah Prestasi', 'Poin Prestasi', 'Jumlah Konseling', 'Total Kasus']);
+
+                $headers = ['Kelas'];
+                if ($reportScope !== 'achievements') {
+                    $headers[] = 'Jumlah Pelanggaran';
+                }
+                if ($reportScope !== 'violations') {
+                    $headers[] = 'Jumlah Prestasi';
+                    $headers[] = 'Poin Prestasi';
+                }
+                if ($reportScope === 'combined') {
+                    $headers[] = 'Jumlah Konseling';
+                    $headers[] = 'Total Kasus';
+                }
+                fputcsv($out, $headers);
+
                 foreach ($rows as $row) {
-                    fputcsv($out, [
-                        $row['class_name'],
-                        $row['violation_count'],
-                        $row['achievement_count'] ?? 0,
-                        $row['achievement_points'] ?? 0,
-                        $row['counseling_count'],
-                        $row['violation_count'] + $row['counseling_count'] + ($row['achievement_count'] ?? 0),
-                    ]);
+                    $line = [$row['class_name']];
+                    if ($reportScope !== 'achievements') {
+                        $line[] = $row['violation_count'];
+                    }
+                    if ($reportScope !== 'violations') {
+                        $line[] = $row['achievement_count'] ?? 0;
+                        $line[] = $row['achievement_points'] ?? 0;
+                    }
+                    if ($reportScope === 'combined') {
+                        $line[] = $row['counseling_count'];
+                        $line[] = $row['violation_count'] + $row['counseling_count'] + ($row['achievement_count'] ?? 0);
+                    }
+                    fputcsv($out, $line);
                 }
                 fclose($out);
             }, $filename, [
@@ -160,93 +180,149 @@ class BkReportController extends Controller
                 }
                 $data = $this->bkReportService->getViolationDetail($institutionId, $filters);
             }
+            $reportScope = $this->resolveReportScope($request);
+            $isApresiasi = $request->input('purpose') === 'apresiasi';
+            $exportView = $request->input('export_view', 'catatan');
+            $notesKind = $request->input('notes_kind', 'violations');
             $filename = 'laporan-bk-detail-skor-siswa-'.now()->format('Y-m-d').'.csv';
 
-            return response()->streamDownload(function () use ($data) {
+            return response()->streamDownload(function () use ($data, $reportScope, $isApresiasi, $exportView, $notesKind) {
                 $out = fopen('php://output', 'w');
                 fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
 
-                fputcsv($out, ['=== REKAP SKOR PER SISWA ===']);
-                fputcsv($out, [
-                    'NIS', 'NISN', 'Nama Siswa', 'Kelas',
-                    'Jml Pelanggaran', 'Poin Pelanggaran',
-                    'Jml Prestasi', 'Poin Prestasi', 'Skor',
-                ]);
-                foreach ($data['by_student'] as $row) {
-                    fputcsv($out, [
-                        $row['nis'],
-                        $row['nisn'],
-                        $row['student_name'],
-                        $row['class_name'],
-                        $row['violation_count'],
-                        $row['violation_points'] ?? $row['total_points'],
-                        $row['achievement_count'] ?? 0,
-                        $row['achievement_points'] ?? 0,
-                        $row['score'] ?? (($row['violation_points'] ?? $row['total_points']) - ($row['achievement_points'] ?? 0)),
-                    ]);
+                $includeScore = false;
+                $includeViolations = false;
+                $includeAchievements = false;
+                $includeCounseling = false;
+                $scoreIncludesAchCols = false;
+
+                if ($reportScope === 'combined') {
+                    if ($exportView === 'skor') {
+                        $includeScore = true;
+                        $scoreIncludesAchCols = true;
+                    } elseif (in_array($notesKind, ['violations', 'achievements', 'counseling'], true)) {
+                        $includeViolations = $notesKind === 'violations';
+                        $includeAchievements = $notesKind === 'achievements';
+                        $includeCounseling = $notesKind === 'counseling';
+                    }
+                } elseif ($reportScope === 'violations') {
+                    if ($exportView === 'skor') {
+                        $includeScore = true;
+                        $scoreIncludesAchCols = true;
+                    } else {
+                        $includeViolations = true;
+                    }
+                } elseif ($reportScope === 'achievements') {
+                    $includeAchievements = true;
                 }
 
-                fputcsv($out, []);
-                fputcsv($out, ['=== DAFTAR PELANGGARAN ===']);
-                fputcsv($out, [
-                    'Tanggal', 'NIS', 'NISN', 'Nama Siswa', 'Kelas',
-                    'Jenis Pelanggaran', 'Kategori', 'Poin', 'Status', 'Sanksi', 'Pelapor',
-                ]);
-                foreach ($data['items'] as $row) {
-                    fputcsv($out, [
-                        $row['violation_date'],
-                        $row['nis'],
-                        $row['nisn'],
-                        $row['student_name'],
-                        $row['class_name'],
-                        $row['violation_type'],
-                        $row['category'],
-                        $row['point_weight'],
-                        $row['status'],
-                        $row['sanction'],
-                        $row['reporter_name'],
-                    ]);
+                if ($includeScore) {
+                    fputcsv($out, ['=== REKAP SKOR PER SISWA ===']);
+                    $scoreHeaders = ['NIS', 'NISN', 'Nama Siswa', 'Kelas', 'Jml Pelanggaran', 'Poin Pelanggaran'];
+                    if ($scoreIncludesAchCols) {
+                        $scoreHeaders[] = 'Jml Prestasi';
+                        $scoreHeaders[] = 'Poin Prestasi';
+                    }
+                    $scoreHeaders[] = 'Skor';
+                    fputcsv($out, $scoreHeaders);
+                    foreach ($data['by_student'] as $row) {
+                        $line = [
+                            $row['nis'],
+                            $row['nisn'],
+                            $row['student_name'],
+                            $row['class_name'],
+                            $row['violation_count'],
+                            $row['violation_points'] ?? $row['total_points'],
+                        ];
+                        if ($scoreIncludesAchCols) {
+                            $line[] = $row['achievement_count'] ?? 0;
+                            $line[] = $row['achievement_points'] ?? 0;
+                        }
+                        $line[] = $row['score'] ?? (($row['violation_points'] ?? $row['total_points']) - ($row['achievement_points'] ?? 0));
+                        fputcsv($out, $line);
+                    }
+                    fputcsv($out, []);
                 }
 
-                fputcsv($out, []);
-                fputcsv($out, ['=== DAFTAR PRESTASI ===']);
-                fputcsv($out, [
-                    'Tanggal', 'NIS', 'NISN', 'Nama Siswa', 'Kelas',
-                    'Jenis Prestasi', 'Kategori', 'Poin', 'Pemberi', 'Catatan',
-                ]);
-                foreach ($data['achievements'] ?? [] as $row) {
+                if ($includeViolations) {
+                    fputcsv($out, ['=== DAFTAR PELANGGARAN ===']);
                     fputcsv($out, [
-                        $row['achievement_date'],
-                        $row['nis'],
-                        $row['nisn'],
-                        $row['student_name'],
-                        $row['class_name'],
-                        $row['achievement_type'],
-                        $row['category'],
-                        $row['point_value'],
-                        $row['giver_name'],
-                        $row['notes'],
+                        'Tanggal', 'NIS', 'NISN', 'Nama Siswa', 'Kelas',
+                        'Jenis Pelanggaran', 'Kategori', 'Poin', 'Status', 'Sanksi', 'Pelapor',
                     ]);
+                    foreach ($data['items'] as $row) {
+                        fputcsv($out, [
+                            $row['violation_date'],
+                            $row['nis'],
+                            $row['nisn'],
+                            $row['student_name'],
+                            $row['class_name'],
+                            $row['violation_type'],
+                            $row['category'],
+                            $row['point_weight'],
+                            $row['status'],
+                            $row['sanction'],
+                            $row['reporter_name'],
+                        ]);
+                    }
+                    fputcsv($out, []);
                 }
 
-                fputcsv($out, []);
-                fputcsv($out, ['=== DAFTAR KONSELING ===']);
-                fputcsv($out, [
-                    'Tanggal', 'NIS', 'NISN', 'Nama Siswa', 'Kelas',
-                    'Jenis Konseling', 'Status', 'Konselor', 'Ringkasan',
-                ]);
-                foreach ($data['counseling'] ?? [] as $row) {
+                if ($includeAchievements) {
+                    fputcsv($out, [$isApresiasi ? '=== DAFTAR APRESIASI ===' : '=== DAFTAR PRESTASI ===']);
+                    $achHeaders = [
+                        'Tanggal', 'NIS', 'NISN', 'Nama Siswa', 'Kelas',
+                        $isApresiasi ? 'Uraian' : 'Lomba / Kegiatan',
+                        'Jenis Prestasi',
+                    ];
+                    if (!$isApresiasi) {
+                        $achHeaders[] = 'Tingkat';
+                        $achHeaders[] = 'Peringkat';
+                    }
+                    $achHeaders = array_merge($achHeaders, ['Kategori', 'Poin', 'Pemberi', 'Catatan']);
+                    fputcsv($out, $achHeaders);
+                    foreach ($data['achievements'] ?? [] as $row) {
+                        $line = [
+                            $row['achievement_date'],
+                            $row['nis'],
+                            $row['nisn'],
+                            $row['student_name'],
+                            $row['class_name'],
+                            $row['title'] ?? $row['notes'] ?? '',
+                            $row['achievement_type'],
+                        ];
+                        if (!$isApresiasi) {
+                            $line[] = $row['level'] ?? '';
+                            $line[] = $row['rank'] ?? '';
+                        }
+                        $line[] = $row['category'];
+                        $line[] = $row['point_value'];
+                        $line[] = $row['giver_name'];
+                        $line[] = $row['notes'];
+                        fputcsv($out, $line);
+                    }
+                    fputcsv($out, []);
+                }
+
+                if ($includeCounseling) {
+                    fputcsv($out, ['=== DAFTAR KONSELING ===']);
                     fputcsv($out, [
-                        $row['session_date'],
-                        $row['nis'],
-                        $row['nisn'],
-                        $row['student_name'],
-                        $row['class_name'],
-                        $row['counseling_type'],
-                        $row['status'],
-                        $row['counselor_name'],
-                        $row['summary'],
+                        'Tanggal', 'NIS', 'NISN', 'Nama Siswa', 'Kelas',
+                        'Jenis Konseling', 'Status', 'Konselor', 'Ringkasan',
                     ]);
+                    foreach ($data['counseling'] ?? [] as $row) {
+                        fputcsv($out, [
+                            $row['session_date'],
+                            $row['nis'],
+                            $row['nisn'],
+                            $row['student_name'],
+                            $row['class_name'],
+                            $row['counseling_type'],
+                            $row['status'],
+                            $row['counselor_name'],
+                            $row['summary'],
+                        ]);
+                    }
                 }
 
                 fclose($out);
@@ -269,7 +345,7 @@ class BkReportController extends Controller
     protected function resolveFilters(Request $request, int $institutionId, $user): ?array
     {
         $filters = $request->only([
-            'academic_year_id', 'semester_id', 'class_id', 'date_from', 'date_to', 'year', 'month',
+            'academic_year_id', 'semester_id', 'class_id', 'date_from', 'date_to', 'year', 'month', 'purpose',
         ]);
 
         // Missing key → default to active period. Empty string → explicit "all" (no filter).
@@ -283,7 +359,7 @@ class BkReportController extends Controller
             }
         }
 
-        foreach (['academic_year_id', 'semester_id', 'class_id', 'date_from', 'date_to', 'year', 'month'] as $key) {
+        foreach (['academic_year_id', 'semester_id', 'class_id', 'date_from', 'date_to', 'year', 'month', 'purpose'] as $key) {
             if (array_key_exists($key, $filters) && ($filters[$key] === '' || $filters[$key] === null)) {
                 unset($filters[$key]);
             }
@@ -297,6 +373,13 @@ class BkReportController extends Controller
         }
 
         return WaliKelasAccess::constrainBkFilters($user, $filters);
+    }
+
+    protected function resolveReportScope(Request $request): string
+    {
+        $scope = $request->input('report_scope', 'combined');
+
+        return in_array($scope, ['combined', 'violations', 'achievements'], true) ? $scope : 'combined';
     }
 
     /**

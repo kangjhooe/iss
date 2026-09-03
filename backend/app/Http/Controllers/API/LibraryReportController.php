@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Models\Institution;
 use App\Models\LibraryBook;
 use App\Models\LibraryBookCategory;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 
 class LibraryReportController extends Controller
 {
+    use ResolvesInstitution;
     public function statistics(Request $request)
     {
         try {
@@ -317,14 +319,4 @@ class LibraryReportController extends Controller
         }
     }
 
-    private function resolveInstitutionId(Request $request): ?int
-    {
-        if (!$request->user()->isAdminOrSuperAdmin()) {
-            return $request->user()->institution_id ? (int) $request->user()->institution_id : null;
-        }
-        if ($request->filled('institution_id')) {
-            return (int) $request->institution_id;
-        }
-        return $request->user()->institution_id ? (int) $request->user()->institution_id : null;
-    }
 }

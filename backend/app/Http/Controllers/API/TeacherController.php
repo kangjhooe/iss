@@ -29,9 +29,12 @@ class TeacherController extends Controller
                 $query->withTrashed();
             }
 
-            // Filter berdasarkan institusi aktif (induk / non-induk)
+            // Filter berdasarkan institusi aktif (induk / non-induk) — fail-closed
             if (!$user->isAdminOrSuperAdmin()) {
                 $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+                if (!$institutionId) {
+                    return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+                }
             } elseif ($request->has('institution_id')) {
                 $institutionId = $request->institution_id;
             }
@@ -44,6 +47,8 @@ class TeacherController extends Controller
                                 ->where('status', 'approved');
                         });
                 });
+            } elseif (!$user->isAdminOrSuperAdmin()) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             if ($request->has('search')) {
@@ -101,9 +106,11 @@ class TeacherController extends Controller
     public function store(StoreTeacherRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() 
-                ? $request->institution_id 
-                : $request->user()->institution_id;
+            $institutionId = InstitutionContext::resolveForUser(
+                $request->user(),
+                $request,
+                $request->get('institution_id')
+            );
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -209,8 +216,9 @@ class TeacherController extends Controller
         try {
             $teacher = Teacher::findOrFail($id);
 
-            // Jika bukan admin/super admin, hanya bisa update guru dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $teacher->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa update guru dari institusi yang boleh diakses
+            if (!$request->user()->isAdminOrSuperAdmin()
+                && !InstitutionContext::canAccessInstitution($request->user(), (int) $teacher->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -250,8 +258,9 @@ class TeacherController extends Controller
         try {
             $teacher = Teacher::findOrFail($id);
 
-            // Jika bukan admin/super admin, hanya bisa hapus guru dari institusi sendiri
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $teacher->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa hapus guru dari institusi yang boleh diakses
+            if (!$request->user()->isAdminOrSuperAdmin()
+                && !InstitutionContext::canAccessInstitution($request->user(), (int) $teacher->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -290,7 +299,8 @@ class TeacherController extends Controller
         try {
             $teacher = Teacher::withTrashed()->findOrFail($id);
 
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $teacher->institution_id) {
+            if (!$request->user()->isAdminOrSuperAdmin()
+                && !InstitutionContext::canAccessInstitution($request->user(), (int) $teacher->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 

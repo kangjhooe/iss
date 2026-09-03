@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\EmployeeInstitutionAssignmentResource;
 use App\Models\Employee;
 use App\Models\EmployeeInstitutionAssignment;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -42,7 +43,10 @@ class EmployeeInstitutionAssignmentController extends Controller
                     });
                 }
             } else {
-                $institutionId = $user->institution_id;
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+                if (!$institutionId) {
+                    return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+                }
                 $query->whereHas('employee', function ($employeeQuery) use ($institutionId) {
                     $employeeQuery->where('institution_id', $institutionId);
                 });
@@ -83,9 +87,11 @@ class EmployeeInstitutionAssignmentController extends Controller
                 'assignment_notes' => 'nullable|string',
             ]);
 
-            $institutionId = $user->isAdminOrSuperAdmin() && isset($validated['institution_id'])
-                ? $validated['institution_id']
-                : $user->institution_id;
+            $institutionId = InstitutionContext::resolveForUser(
+                $user,
+                $request,
+                $validated['institution_id'] ?? null
+            );
 
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -148,7 +154,7 @@ class EmployeeInstitutionAssignmentController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $assignment->employee->institution_id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $assignment->employee->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -203,7 +209,7 @@ class EmployeeInstitutionAssignmentController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $assignment->employee->institution_id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $assignment->employee->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -252,7 +258,7 @@ class EmployeeInstitutionAssignmentController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $assignment->institution_id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $assignment->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -298,7 +304,7 @@ class EmployeeInstitutionAssignmentController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user->isAdminOrSuperAdmin() && $user->institution_id != $assignment->employee->institution_id) {
+            if (!$user->isAdminOrSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $assignment->employee->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 

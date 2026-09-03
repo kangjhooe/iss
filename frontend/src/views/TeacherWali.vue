@@ -1,4 +1,5 @@
-<template>    <div class="wali-page">
+<template>
+    <div class="wali-page">
       <div v-if="!homeroomClasses.length" class="state-card empty">
         <h3>Anda belum diangkat sebagai wali kelas</h3>
         <p>Menu ini muncul setelah Anda ditetapkan sebagai wali pada kelas aktif di sekolah ini.</p>
@@ -58,7 +59,7 @@
               <router-link v-if="canAccessModule('grade_book')" :to="{ path: '/raport', query: { class_id: selectedClassId } }" class="btn-secondary link-btn-sm">Raport siswa</router-link>
             </template>
             <template v-else-if="panel === 'usulan'">
-              <router-link v-if="canAccessBk" :to="{ path: '/laporan-bk', query: { class_id: selectedClassId } }" class="btn-secondary link-btn-sm">Laporan BK</router-link>
+              <router-link v-if="canAccessBk" :to="{ path: '/bk/laporan', query: { class_id: selectedClassId } }" class="btn-secondary link-btn-sm">Laporan BK</router-link>
             </template>
             <template v-else-if="panel === 'jadwal'">
               <button type="button" class="btn-secondary" :disabled="scheduleLoading || exporting" @click="runExport('schedule')">Preview PDF</button>
@@ -525,7 +526,7 @@
         <div v-if="financePayError" class="form-error">{{ financePayError }}</div>
         <form class="modal-form" @submit.prevent="saveFinancePay">
           <label class="field-label">Nominal *</label>
-          <input v-model.number="financePayForm.amount" type="number" min="1" step="1000" class="form-input" required />
+          <MoneyInput v-model="financePayForm.amount" :min="1" class="form-input" required />
           <label class="field-label">Metode</label>
           <select v-model="financePayForm.method" class="form-select">
             <option v-for="o in financePaymentMethods" :key="o.value" :value="o.value">{{ o.label }}</option>
@@ -557,7 +558,7 @@
           <label class="field-label">Judul *</label>
           <input v-model="financeGenForm.title" class="form-input" required placeholder="Contoh: Kas kelas Maret 2026" />
           <label class="field-label">Nominal *</label>
-          <input v-model.number="financeGenForm.amount" type="number" min="1" step="1000" class="form-input" required />
+          <MoneyInput v-model="financeGenForm.amount" :min="1" class="form-input" required />
           <label class="field-label">Jatuh tempo</label>
           <input v-model="financeGenForm.due_date" type="date" class="form-input" />
           <label class="field-label">Catatan</label>
@@ -796,7 +797,7 @@
                       <option v-for="opt in occupationOptions" :key="opt" :value="opt">{{ opt }}</option>
                     </select>
                   </label>
-                  <label>Penghasilan / bulan (Rp)<input v-model.number="editForm.father_income" type="number" min="0" /></label>
+                  <label>Penghasilan / bulan (Rp)<MoneyInput v-model="editForm.father_income" :min="0" /></label>
                 </div>
               </div>
 
@@ -830,7 +831,7 @@
                       <option v-for="opt in occupationOptions" :key="opt" :value="opt">{{ opt }}</option>
                     </select>
                   </label>
-                  <label>Penghasilan / bulan (Rp)<input v-model.number="editForm.mother_income" type="number" min="0" /></label>
+                  <label>Penghasilan / bulan (Rp)<MoneyInput v-model="editForm.mother_income" :min="0" /></label>
                 </div>
               </div>
 
@@ -876,7 +877,7 @@
                         <option v-for="opt in occupationOptions" :key="opt" :value="opt">{{ opt }}</option>
                       </select>
                     </label>
-                    <label>Penghasilan / bulan (Rp)<input v-model.number="editForm.guardian_income" type="number" min="0" /></label>
+                    <label>Penghasilan / bulan (Rp)<MoneyInput v-model="editForm.guardian_income" :min="0" /></label>
                   </div>
                 </template>
               </div>
@@ -1123,7 +1124,7 @@
                 </div>
                 <router-link
                   v-if="canAccessBk"
-                  :to="{ path: '/laporan-bk', query: { class_id: selectedClassId } }"
+                  :to="{ path: '/bk/laporan', query: { class_id: selectedClassId } }"
                   class="chip-link"
                 >Laporan BK</router-link>
               </div>
@@ -1176,7 +1177,8 @@
           <template v-else>
             <div class="notes-block">
               <form class="note-form" @submit.prevent="saveNote">
-                <textarea v-model="noteBody" rows="3" placeholder="Tulis catatan perkembangan / tindak lanjut…" required maxlength="5000"></textarea>
+                <label class="note-form-label">Tulis catatan baru</label>
+                <textarea v-model="noteBody" rows="3" placeholder="Contoh: Perlu follow-up orang tua minggu depan, atau catat perkembangan akademik siswa…" required maxlength="5000"></textarea>
                 <div class="note-form-bar">
                   <span class="metric-hint">{{ noteBody.length }}/5000</span>
                   <div class="note-form-actions">
@@ -1185,29 +1187,62 @@
                   </div>
                 </div>
               </form>
-              <div v-if="notesLoading" class="muted">Memuat catatan…</div>
-              <ul v-else-if="notes.length" class="notes-list">
-                <li v-for="n in notes" :key="n.id">
-                  <div class="note-meta">
-                    <strong>{{ n.author?.name || 'Wali' }}</strong>
-                    <span class="muted">{{ formatDateTime(n.created_at) }}</span>
-                  </div>
-                  <p>{{ n.body }}</p>
-                  <div v-if="n.can_edit" class="note-actions">
-                    <TableAction kind="edit" @click="startEditNote(n)" />
-                    <TableAction kind="delete" @click="removeNote(n)" />
+              <p v-if="notesFromOtherClassCount" class="notes-history-hint">
+                {{ notesFromOtherClassCount }} catatan dari kelas sebelumnya ikut ditampilkan di riwayat siswa ini.
+              </p>
+              <div v-if="notesLoading" class="notes-loading">
+                <div class="notes-skel" aria-busy="true" aria-label="Memuat catatan">
+                  <div class="notes-skel-item"></div>
+                  <div class="notes-skel-item"></div>
+                </div>
+              </div>
+              <ol v-else-if="notes.length" class="notes-timeline" aria-label="Riwayat catatan wali">
+                <li v-for="n in notes" :key="n.id" class="note-card" :class="{ 'is-other-class': isNoteFromOtherClass(n) }">
+                  <div class="note-timeline-dot" aria-hidden="true"></div>
+                  <div class="note-card-inner">
+                    <div class="note-card-head">
+                      <div class="note-author">
+                        <span class="note-avatar" aria-hidden="true">{{ initials(n.author?.name || 'Wali') }}</span>
+                        <div class="note-author-meta">
+                          <strong>{{ n.author?.name || 'Wali kelas' }}</strong>
+                          <div class="note-time-row">
+                            <time :datetime="n.created_at" :title="formatDateTime(n.created_at)">{{ formatRelative(n.created_at) }}</time>
+                            <span v-if="noteWasEdited(n)" class="note-edited-badge" :title="'Diperbarui ' + formatDateTime(n.updated_at)">diedit</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span v-if="isNoteFromOtherClass(n)" class="note-class-badge" :title="'Catatan dari kelas ' + (n.class?.name || 'lain')">
+                        {{ n.class?.name || 'Kelas lain' }}
+                      </span>
+                    </div>
+                    <p class="note-body">{{ n.body }}</p>
+                    <div v-if="n.can_edit" class="note-actions">
+                      <TableAction kind="edit" @click="startEditNote(n)" />
+                      <TableAction kind="delete" @click="removeNote(n)" />
+                    </div>
                   </div>
                 </li>
-              </ul>
-              <div v-else class="pf-empty">
-                <p>Belum ada catatan. Tulis tindak lanjut agar riwayat wali tetap terhubung.</p>
+              </ol>
+              <div v-else class="notes-empty">
+                <div class="notes-empty-icon" aria-hidden="true">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 13H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 17H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 9H9H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <p class="notes-empty-title">Belum ada catatan</p>
+                <p class="notes-empty-desc">Tulis tindak lanjut atau perkembangan siswa. Riwayat ini mengikuti siswa meski pindah kelas.</p>
               </div>
             </div>
           </template>
         </div>
       </div>
     </div>
-    </Teleport>  <AccountCredentialsModal
+    </Teleport>
+  <AccountCredentialsModal
     :show="!!accountCredentials"
     :title="accountCredentials?.title"
     :name="accountCredentials?.name"
@@ -1223,6 +1258,7 @@
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
@@ -1529,6 +1565,33 @@ function formatDateTime(iso) {
     return iso
   }
 }
+function formatRelative(iso) {
+  if (!iso) return '—'
+  try {
+    const date = new Date(iso)
+    const diffMs = Date.now() - date.getTime()
+    const mins = Math.floor(diffMs / 60000)
+    if (mins < 1) return 'Baru saja'
+    if (mins < 60) return `${mins} mnt lalu`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours} jam lalu`
+    const days = Math.floor(hours / 24)
+    if (days < 7) return `${days} hari lalu`
+    return formatDateTime(iso)
+  } catch {
+    return iso
+  }
+}
+function noteWasEdited(n) {
+  if (!n?.updated_at || !n?.created_at) return false
+  return new Date(n.updated_at).getTime() - new Date(n.created_at).getTime() > 1000
+}
+function isNoteFromOtherClass(n) {
+  if (n.is_current_class === false) return true
+  if (n.is_current_class === true) return false
+  return String(n.class_id) !== String(selectedClassId.value)
+}
+const notesFromOtherClassCount = computed(() => notes.value.filter((n) => isNoteFromOtherClass(n)).length)
 function formatDate(ymd) {
   if (!ymd) return '—'
   try {
@@ -1970,6 +2033,7 @@ async function openProfile(student) {
   notes.value = []
   noteBody.value = ''
   editingNoteId.value = null
+  notesLoading.value = true
   try {
     const [stuRes, notesRes] = await Promise.all([
       waliKelasApi.getStudent(selectedClassId.value, student.id),
@@ -3231,19 +3295,75 @@ onBeforeUnmount(() => {
 .pf-skel { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
 .pf-skel-card { height: 132px; border-radius: 14px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: pf-pulse 1.2s ease infinite; }
 @keyframes pf-pulse { to { background-position: -200% 0; } }
-.notes-block h4 { margin: 0 0 .65rem; }
-.note-form { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .85rem; }
+.notes-block { margin-top: .15rem; }
+.note-form-label { display: block; font-size: .82rem; font-weight: 650; color: #334155; margin-bottom: .4rem; }
+.note-form { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; padding: .9rem 1rem; background: linear-gradient(180deg, #f8fafc 0%, #fff 100%); border: 1px solid #e2e8f0; border-radius: 14px; }
 .note-form textarea {
-  border: 1px solid #e2e8f0; border-radius: 12px; padding: .75rem .85rem; font: inherit; resize: vertical; min-height: 84px;
+  border: 1px solid #e2e8f0; border-radius: 12px; padding: .75rem .85rem; font: inherit; resize: vertical; min-height: 84px; background: #fff;
 }
 .note-form textarea:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12); }
 .note-form-bar { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .note-form-actions { display: flex; gap: .4rem; }
-.notes-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .65rem; }
-.notes-list li { border: 1px solid #e2e8f0; border-radius: 12px; padding: .75rem .85rem; background: #fff; }
-.note-meta { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; font-size: .82rem; }
-.notes-list p { margin: 0; white-space: pre-wrap; color: #334155; }
-.note-actions { margin-top: .45rem; display: flex; gap: .4rem; }
+.notes-history-hint {
+  margin: 0 0 .85rem; padding: .55rem .75rem; font-size: .78rem; color: #92400e; background: #fffbeb;
+  border: 1px solid #fde68a; border-radius: 10px;
+}
+.notes-loading { padding: .25rem 0 .5rem; }
+.notes-skel { display: flex; flex-direction: column; gap: .75rem; }
+.notes-skel-item {
+  height: 88px; border-radius: 14px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%; animation: pf-pulse 1.2s ease infinite;
+}
+.notes-timeline {
+  list-style: none; margin: 0; padding: 0 0 0 1.35rem; position: relative;
+  display: flex; flex-direction: column; gap: .85rem;
+}
+.notes-timeline::before {
+  content: ''; position: absolute; left: .42rem; top: .5rem; bottom: .5rem; width: 2px;
+  background: linear-gradient(180deg, #a7f3d0 0%, #e2e8f0 100%); border-radius: 2px;
+}
+.note-card { position: relative; }
+.note-timeline-dot {
+  position: absolute; left: -1.35rem; top: 1.1rem; width: 10px; height: 10px; border-radius: 50%;
+  background: #059669; border: 2px solid #fff; box-shadow: 0 0 0 2px #a7f3d0; z-index: 1;
+}
+.note-card.is-other-class .note-timeline-dot { background: #d97706; box-shadow: 0 0 0 2px #fde68a; }
+.note-card-inner {
+  border: 1px solid #e2e8f0; border-radius: 14px; padding: .85rem .95rem; background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); transition: border-color .15s, box-shadow .15s;
+}
+.note-card-inner:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06); }
+.note-card.is-other-class .note-card-inner { background: #fffdf7; border-color: #fde68a; }
+.note-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .65rem; margin-bottom: .55rem; }
+.note-author { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+.note-avatar {
+  flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700; color: #065f46; background: #d1fae5; letter-spacing: .02em;
+}
+.note-card.is-other-class .note-avatar { color: #92400e; background: #fef3c7; }
+.note-author-meta { min-width: 0; }
+.note-author-meta strong { display: block; font-size: .88rem; color: #0f172a; line-height: 1.3; }
+.note-time-row { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-top: .1rem; }
+.note-time-row time { font-size: .76rem; color: #64748b; }
+.note-edited-badge {
+  font-size: .68rem; font-weight: 650; text-transform: uppercase; letter-spacing: .03em;
+  color: #64748b; background: #f1f5f9; border-radius: 999px; padding: .1rem .4rem;
+}
+.note-class-badge {
+  flex: 0 0 auto; font-size: .7rem; font-weight: 650; color: #92400e; background: #fffbeb;
+  border: 1px solid #fcd34d; border-radius: 999px; padding: .2rem .55rem; white-space: nowrap;
+}
+.note-body { margin: 0; white-space: pre-wrap; color: #334155; font-size: .9rem; line-height: 1.55; }
+.note-actions { margin-top: .55rem; display: flex; gap: .4rem; padding-top: .45rem; border-top: 1px dashed #e2e8f0; }
+.notes-empty {
+  text-align: center; padding: 2.25rem 1.25rem; color: #64748b;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  border: 1px dashed #cbd5e1; border-radius: 14px;
+}
+.notes-empty-icon { color: #94a3b8; margin-bottom: .65rem; }
+.notes-empty-title { margin: 0 0 .35rem; font-size: .95rem; font-weight: 650; color: #334155; }
+.notes-empty-desc { margin: 0; font-size: .84rem; line-height: 1.5; max-width: 28rem; margin-inline: auto; }
 .metric-hint { font-size: .78rem; color: #94a3b8; margin: .35rem 0 0; }
 .metric-row { display: flex; flex-wrap: wrap; gap: .55rem; font-size: .82rem; color: #334155; }
 

@@ -1,4 +1,5 @@
-<template>    <div class="keuangan-page">
+<template>
+    <div class="keuangan-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-left">
@@ -118,7 +119,7 @@
               </div>
               <div class="form-group">
                 <label>Nominal default</label>
-                <input v-model.number="form.default_amount" type="number" min="0" step="1000" class="form-input" />
+                <MoneyInput v-model="form.default_amount" :min="0" class="form-input" />
               </div>
               <div class="form-group">
                 <label>Frekuensi *</label>
@@ -149,10 +150,12 @@
           </form>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\AdminResetEmployeePasswordRequest;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
@@ -29,6 +30,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EmployeeController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected StructuralDutySync $structuralDutySync,
         protected \App\Services\EmployeeService $employeeService
@@ -78,9 +81,12 @@ class EmployeeController extends Controller
                 $query->withTrashed();
             }
 
-            // Filter berdasarkan institusi aktif (induk / non-induk)
+            // Filter berdasarkan institusi aktif (induk / non-induk) — fail-closed
             if (! $user->isAdminOrSuperAdmin()) {
                 $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+                if (! $institutionId) {
+                    return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+                }
             } elseif ($request->has('institution_id')) {
                 $institutionId = $request->institution_id;
             }
@@ -93,6 +99,8 @@ class EmployeeController extends Controller
                                 ->where('status', 'approved');
                         });
                 });
+            } elseif (! $user->isAdminOrSuperAdmin()) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             if ($request->has('search')) {
@@ -166,6 +174,9 @@ class EmployeeController extends Controller
 
             if (! $user->isAdminOrSuperAdmin()) {
                 $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
+                if (! $institutionId) {
+                    return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+                }
             } elseif ($request->has('institution_id')) {
                 $institutionId = $request->institution_id;
             }
@@ -178,6 +189,8 @@ class EmployeeController extends Controller
                                 ->where('status', 'approved');
                         });
                 });
+            } elseif (! $user->isAdminOrSuperAdmin()) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             if ($request->filled('search')) {
@@ -409,9 +422,7 @@ class EmployeeController extends Controller
     public function store(StoreEmployeeRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin()
-                ? $request->institution_id
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
 
             if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
@@ -544,14 +555,16 @@ class EmployeeController extends Controller
                 $request->get('institution_id')
             );
 
-            // Jika bukan admin/super admin, hanya bisa melihat pegawai dari institusi sendiri atau non-induk yang disetujui
-            if (! $user->isAdminOrSuperAdmin() && $currentInstitutionId != $employee->institution_id) {
-                $hasApprovedAssignment = $employee->assignments()
-                    ->where('institution_id', $currentInstitutionId)
-                    ->where('status', 'approved')
-                    ->exists();
+            // Akses: platform admin, atau canAccess home institution, atau assignment di institusi aktif
+            if (! $user->isAdminOrSuperAdmin()) {
+                $canHome = InstitutionContext::canAccessInstitution($user, (int) $employee->institution_id);
+                $hasApprovedAssignment = $currentInstitutionId
+                    && $employee->assignments()
+                        ->where('institution_id', $currentInstitutionId)
+                        ->where('status', 'approved')
+                        ->exists();
 
-                if (! $hasApprovedAssignment) {
+                if (! $canHome && ! $hasApprovedAssignment) {
                     return response()->json(['message' => 'Unauthorized'], 403);
                 }
             }
@@ -623,8 +636,8 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($id);
             $previousEmail = $employee->email;
 
-            // Jika bukan admin, hanya bisa update pegawai dari institusi sendiri
-            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa update pegawai dari institusi yang boleh diakses
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -772,7 +785,7 @@ class EmployeeController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            if (! $user->isAdminOrSuperAdmin() && $user->institution_id != $employee->institution_id) {
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -846,8 +859,8 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::findOrFail($id);
 
-            // Jika bukan admin, hanya bisa hapus pegawai dari institusi sendiri
-            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa hapus pegawai dari institusi yang boleh diakses
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -886,7 +899,7 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::withTrashed()->findOrFail($id);
 
-            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -923,7 +936,7 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::withTrashed()->findOrFail($id);
 
-            if (! $request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -1033,8 +1046,8 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::findOrFail($id);
 
-            // Jika bukan admin, hanya bisa upload dokumen pegawai dari institusi sendiri
-            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa upload dokumen pegawai dari institusi yang boleh diakses
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -1120,8 +1133,8 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::findOrFail($id);
 
-            // Jika bukan admin, hanya bisa hapus dokumen pegawai dari institusi sendiri
-            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa hapus dokumen pegawai dari institusi yang boleh diakses
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -1169,8 +1182,8 @@ class EmployeeController extends Controller
         try {
             $employee = Employee::findOrFail($id);
 
-            // Jika bukan admin, hanya bisa download dokumen pegawai dari institusi sendiri
-            if (! $request->user()->isAdmin() && $request->user()->institution_id != $employee->institution_id) {
+            // Jika bukan admin/super admin, hanya bisa download dokumen pegawai dari institusi yang boleh diakses
+            if (! $this->userCanManageEmployee($request, $employee)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -1273,7 +1286,7 @@ class EmployeeController extends Controller
             return true;
         }
 
-        return (int) $user->institution_id === (int) $employee->institution_id;
+        return InstitutionContext::canAccessInstitution($user, (int) $employee->institution_id);
     }
 
     /**
@@ -1290,9 +1303,7 @@ class EmployeeController extends Controller
                 ], 400);
             }
 
-            $institutionId = $request->user()->isAdmin()
-                ? $request->input('institution_id')
-                : $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
 
             if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan'], 400);

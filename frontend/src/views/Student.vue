@@ -828,7 +828,7 @@
                 </div>
                 <div class="form-group">
                   <label>Penghasilan per Bulan (Rp)</label>
-                  <input type="number" v-model.number="form.father_income" min="0" />
+                  <MoneyInput v-model="form.father_income" :min="0" />
                 </div>
               </div>
             </div>
@@ -904,7 +904,7 @@
                 </div>
                 <div class="form-group">
                   <label>Penghasilan per Bulan (Rp)</label>
-                  <input type="number" v-model.number="form.mother_income" min="0" />
+                  <MoneyInput v-model="form.mother_income" :min="0" />
                 </div>
               </div>
             </div>
@@ -1000,7 +1000,7 @@
                 <div class="form-row">
                   <div class="form-group">
                     <label>Penghasilan per Bulan (Rp)</label>
-                    <input type="number" v-model.number="form.guardian_income" min="0" />
+                    <MoneyInput v-model="form.guardian_income" :min="0" />
                   </div>
                 </div>
               </div>
@@ -1106,53 +1106,59 @@
 
       <!-- View Student Modal -->
       <div v-if="showViewModal" class="modal-overlay" @click="closeViewModal">
-        <div class="modal-content view-modal" @click.stop id="student-biodata">
-          <div class="modal-header">
-            <h3>Biodata Lengkap Siswa</h3>
-            <div class="header-actions">
-              <button @click="previewBukuIndukPdf" class="btn-print" :disabled="printingBukuInduk" title="Cetak Buku Induk (PDF)">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>{{ printingBukuInduk ? 'Membuka...' : 'Buku Induk' }}</span>
-              </button>
-              <button @click="printBiodataPdf('lengkap')" class="btn-print btn-print-biodata" :disabled="printingBiodata" title="Cetak Biodata Lengkap">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>{{ printingBiodata === 'lengkap' ? 'Membuka...' : 'Biodata Lengkap' }}</span>
-              </button>
-              <button @click="printBiodataPdf('singkat')" class="btn-print btn-print-biodata" :disabled="!!printingBiodata" title="Cetak Biodata Singkat (1 lembar)">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M18 14H6V22H18V14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>{{ printingBiodata === 'singkat' ? 'Membuka...' : 'Biodata Singkat' }}</span>
-              </button>
-              <router-link v-if="viewingStudent" :to="{ name: 'BukuInduk', params: { id: viewingStudent.id } }" class="btn-buku-induk-link" @click="closeViewModal">Lihat Buku Induk →</router-link>
-              <button @click="closeViewModal" class="btn-close">×</button>
+        <div class="modal-content view-modal biodata-view-modal" @click.stop id="student-biodata">
+          <div class="modal-header biodata-modal-header">
+            <div class="biodata-modal-title-wrap">
+              <h3>Biodata Siswa</h3>
+              <p v-if="viewingStudent" class="biodata-modal-subtitle">Profil lengkap peserta didik</p>
             </div>
+            <button type="button" @click="closeViewModal" class="btn-close" aria-label="Tutup">×</button>
           </div>
-          
-          <div class="view-body" v-if="viewingStudent">
+
+          <div class="view-body biodata-view-body" v-if="viewingStudent">
+            <div class="biodata-hero">
+              <div class="biodata-hero-main">
+                <div class="biodata-hero-photo">
+                  <img v-if="viewingStudent.photo_url" :src="viewingStudent.photo_url" :alt="viewingStudent.name" />
+                  <div v-else class="biodata-hero-photo-empty">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/></svg>
+                    <span>3×4</span>
+                  </div>
+                </div>
+                <div class="biodata-hero-info">
+                  <div class="biodata-hero-top">
+                    <h2 class="biodata-hero-name">{{ viewingStudent.name || '-' }}</h2>
+                    <span class="biodata-status-pill" :class="getStatusClass(viewingStudent.status)">{{ viewingStudent.status || '-' }}</span>
+                  </div>
+                  <div class="biodata-hero-chips">
+                    <span class="biodata-chip">NIS {{ viewingStudent.nis || '—' }}</span>
+                    <span class="biodata-chip">NISN {{ viewingStudent.nisn || '—' }}</span>
+                    <span class="biodata-chip">{{ studentClassName(viewingStudent) || 'Kelas belum diisi' }}</span>
+                    <span v-if="viewingStudent.tingkat" class="biodata-chip">Tingkat {{ viewingStudent.tingkat }}</span>
+                    <span v-if="viewingStudent.academic_year" class="biodata-chip">{{ viewingStudent.academic_year }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="biodata-hero-actions">
+                <button type="button" @click="previewBukuIndukPdf" class="biodata-action-btn" :disabled="printingBukuInduk">Buku Induk</button>
+                <button type="button" @click="printBiodataPdf('lengkap')" class="biodata-action-btn" :disabled="!!printingBiodata">{{ printingBiodata === 'lengkap' ? 'Membuka…' : 'Biodata Lengkap' }}</button>
+                <button type="button" @click="printBiodataPdf('singkat')" class="biodata-action-btn biodata-action-btn--ghost" :disabled="!!printingBiodata">{{ printingBiodata === 'singkat' ? 'Membuka…' : 'Singkat' }}</button>
+                <router-link :to="{ name: 'BukuInduk', params: { id: viewingStudent.id } }" class="biodata-action-link" @click="closeViewModal">Detail buku induk →</router-link>
+              </div>
+            </div>
+
+            <nav class="biodata-section-nav" aria-label="Navigasi bagian biodata">
+              <button v-for="section in biodataNavSections" :key="section.id" type="button" class="biodata-nav-pill" @click="scrollToBiodataSection(section.id)">{{ section.label }}</button>
+            </nav>
             <!-- Identitas Siswa -->
-            <div class="biodata-section">
+            <div id="biodata-identitas" class="biodata-section view-card">
               <h4 class="section-title">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
                 Identitas Siswa
               </h4>
-              <div class="biodata-photo-wrap">
-                <img v-if="viewingStudent.photo_url" :src="viewingStudent.photo_url" class="biodata-photo" :alt="viewingStudent.name" />
-                <div v-else class="biodata-photo biodata-photo-empty">3×4</div>
-              </div>
               <div class="biodata-grid">
                 <div class="biodata-item">
                   <span class="label">NIK</span>
@@ -1160,7 +1166,7 @@
                 </div>
                 <div class="biodata-item">
                   <span class="label">NIS</span>
-                  <span class="value">
+                  <span class="value value-inline">
                     {{ viewingStudent.nis || '-' }}
                     <button
                       v-if="canManageStudentAccount && !viewingStudent.nis"
@@ -1172,14 +1178,6 @@
                       {{ nisGenerateLoading ? 'Mengisi…' : 'Generate NIS' }}
                     </button>
                   </span>
-                </div>
-                <div class="biodata-item">
-                  <span class="label">NISN</span>
-                  <span class="value">{{ viewingStudent.nisn || '-' }}</span>
-                </div>
-                <div class="biodata-item">
-                  <span class="label">Nama Lengkap</span>
-                  <span class="value">{{ viewingStudent.name || '-' }}</span>
                 </div>
                 <div class="biodata-item">
                   <span class="label">Jenis Kelamin</span>
@@ -1194,6 +1192,10 @@
                   <span class="value">{{ formatDate(viewingStudent.birth_date) }}</span>
                 </div>
                 <div class="biodata-item">
+                  <span class="label">Agama</span>
+                  <span class="value">{{ viewingStudent.religion || '-' }}</span>
+                </div>
+                <div class="biodata-item full-width">
                   <span class="label">Alamat</span>
                   <span class="value">{{ formatFullAddress(viewingStudent) || '-' }}</span>
                 </div>
@@ -1205,27 +1207,11 @@
                   <span class="label">Email</span>
                   <span class="value">{{ viewingStudent.email || '-' }}</span>
                 </div>
-                <div class="biodata-item">
-                  <span class="label">Kelas</span>
-                  <span class="value">{{ studentClassName(viewingStudent) || '-' }}</span>
-                </div>
-                <div class="biodata-item">
-                  <span class="label">Tingkat</span>
-                  <span class="value">{{ viewingStudent.tingkat ?? '-' }}</span>
-                </div>
-                <div class="biodata-item">
-                  <span class="label">Tahun Ajaran</span>
-                  <span class="value">{{ viewingStudent.academic_year || '-' }}</span>
-                </div>
-                <div class="biodata-item">
-                  <span class="label">Status</span>
-                  <span class="value" :class="getStatusClass(viewingStudent.status)">{{ viewingStudent.status || '-' }}</span>
-                </div>
               </div>
             </div>
 
             <!-- Akun Login -->
-            <div class="biodata-section">
+            <div id="biodata-akun" class="biodata-section view-card biodata-section-akun">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1287,7 +1273,7 @@
             </div>
 
             <!-- Data Tambahan -->
-            <div class="biodata-section">
+            <div id="biodata-tambahan" class="biodata-section view-card">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1348,8 +1334,9 @@
               </div>
             </div>
 
+            <div id="biodata-orangtua" class="biodata-parents-grid">
             <!-- Data Ayah -->
-            <div class="biodata-section">
+            <div class="biodata-section view-card parent-card">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1396,7 +1383,7 @@
             </div>
 
             <!-- Data Ibu -->
-            <div class="biodata-section">
+            <div class="biodata-section view-card parent-card">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1440,8 +1427,10 @@
               </div>
             </div>
 
+            </div>
+
             <!-- Data Wali -->
-            <div class="biodata-section">
+            <div id="biodata-wali" class="biodata-section view-card">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1496,7 +1485,7 @@
             </div>
 
             <!-- Riwayat Konseling (jika user punya akses modul konseling) -->
-            <div v-if="canAccessCounseling" class="biodata-section">
+            <div v-if="canAccessCounseling" id="biodata-konseling" class="biodata-section view-card">
               <h4 class="section-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1871,6 +1860,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import MoneyInput from '@/components/MoneyInput.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -3387,6 +3377,25 @@ async function confirmImportExcel() {
 
 const printingBukuInduk = ref(false)
 const printingBiodata = ref(null)
+
+const biodataNavSections = computed(() => {
+  const items = [
+    { id: 'identitas', label: 'Identitas' },
+    { id: 'akun', label: 'Akun' },
+    { id: 'tambahan', label: 'Tambahan' },
+    { id: 'orangtua', label: 'Orang Tua' },
+    { id: 'wali', label: 'Wali' },
+  ]
+  if (canAccessCounseling.value) {
+    items.push({ id: 'konseling', label: 'BK' })
+  }
+  return items
+})
+
+function scrollToBiodataSection(sectionId) {
+  const el = document.getElementById(`biodata-${sectionId}`)
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const previewBukuIndukPdf = async () => {
   if (!viewingStudent.value?.id) return
@@ -4959,7 +4968,232 @@ watch(() => route.query.trashed, (value) => {
 }
 
 .view-modal {
-  max-width: 1000px;
+  max-width: 1040px;
+}
+
+.biodata-view-modal .biodata-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.biodata-modal-title-wrap h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.biodata-modal-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.biodata-view-body {
+  padding: 20px 24px 24px;
+  max-height: calc(92vh - 140px);
+  overflow-y: auto;
+  background: #f1f5f9;
+  scroll-behavior: smooth;
+}
+
+.biodata-hero {
+  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 55%, #f8fafc 100%);
+  border: 1px solid #d1fae5;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.biodata-hero-main {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.biodata-hero-photo {
+  flex-shrink: 0;
+  width: 88px;
+  height: 116px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  background: #e2e8f0;
+}
+
+.biodata-hero-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biodata-hero-photo-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.biodata-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.biodata-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.biodata-hero-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.biodata-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.biodata-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.biodata-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #e2e8f0;
+}
+
+.biodata-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.biodata-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.biodata-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.3);
+}
+
+.biodata-action-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.biodata-action-btn--ghost {
+  background: #fff;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  box-shadow: none;
+}
+
+.biodata-action-link {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #047857;
+  text-decoration: none;
+  padding: 8px 4px;
+}
+
+.biodata-action-link:hover {
+  text-decoration: underline;
+}
+
+.biodata-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 0;
+  background: linear-gradient(180deg, #f1f5f9 75%, transparent);
+}
+
+.biodata-nav-pill {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.biodata-nav-pill:hover {
+  border-color: #6ee7b7;
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.biodata-parents-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.biodata-parents-grid .parent-card {
+  margin-bottom: 0;
+}
+
+.biodata-parents-grid .biodata-grid {
+  grid-template-columns: 1fr;
 }
 
 .view-body {
@@ -4969,8 +5203,93 @@ watch(() => route.query.trashed, (value) => {
 }
 
 .biodata-section {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
   page-break-inside: avoid;
+}
+
+.biodata-section.view-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px 22px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.biodata-section.view-card:last-child {
+  margin-bottom: 0;
+}
+
+.biodata-section-akun .section-title {
+  border-left-color: #059669;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0 0 16px 0;
+  padding: 0 0 0 12px;
+  border-left: 4px solid #059669;
+  border-bottom: none;
+}
+
+.section-title svg {
+  color: #059669;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.biodata-view-modal .biodata-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.biodata-view-modal .biodata-item {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #f1f5f9;
+  padding-right: 12px;
+}
+
+.biodata-view-modal .biodata-item:nth-last-child(-n+2) {
+  border-bottom: none;
+}
+
+.biodata-view-modal .biodata-item .label {
+  padding: 10px 0 4px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+}
+
+.biodata-view-modal .biodata-item .value {
+  padding: 0 0 14px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  line-height: 1.45;
+}
+
+.biodata-view-modal .biodata-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.biodata-view-modal .value-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .biodata-photo-wrap {
@@ -4996,57 +5315,11 @@ watch(() => route.query.trashed, (value) => {
   font-weight: 700;
 }
 
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #059669;
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.biodata-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.biodata-item {
-  display: contents;
-}
-
-.biodata-item .label {
-  padding: 14px 18px;
-  background: #f8fafc;
-  font-weight: 600;
-  color: #475569;
-  font-size: 14px;
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.biodata-item:last-child .label,
-.biodata-item:nth-last-child(2) .label {
-  border-bottom: none;
-}
-
-.biodata-item .value {
-  padding: 14px 18px;
-  color: #1e293b;
-  font-size: 14px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.biodata-item:last-child .value,
-.biodata-item:nth-last-child(2) .value {
-  border-bottom: none;
-}
+.biodata-status-pill.status-active { background: #d1fae5; color: #047857; }
+.biodata-status-pill.status-success { background: #dbeafe; color: #1d4ed8; }
+.biodata-status-pill.status-warning { background: #fef3c7; color: #b45309; }
+.biodata-status-pill.status-danger { background: #fee2e2; color: #b91c1c; }
+.biodata-status-pill.status-inactive { background: #f1f5f9; color: #64748b; }
 
 .biodata-item .value .hint {
   display: block;
@@ -5163,6 +5436,7 @@ watch(() => route.query.trashed, (value) => {
   }
   
   .modal-header .header-actions,
+  .biodata-hero-actions,
   .modal-footer {
     display: none !important;
   }
@@ -5794,6 +6068,47 @@ watch(() => route.query.trashed, (value) => {
 
   .form-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .biodata-view-body {
+    padding: 14px 14px 18px;
+    max-height: calc(92vh - 120px);
+  }
+
+  .biodata-hero {
+    padding: 14px;
+  }
+
+  .biodata-hero-main {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .biodata-hero-top {
+    justify-content: center;
+  }
+
+  .biodata-hero-chips {
+    justify-content: center;
+  }
+
+  .biodata-hero-actions {
+    justify-content: center;
+  }
+
+  .biodata-action-link {
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  .biodata-parents-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .biodata-view-modal .biodata-grid {
+    grid-template-columns: 1fr;
   }
 
   .biodata-grid {

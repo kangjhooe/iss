@@ -367,13 +367,15 @@ class WaliKelasController extends Controller
             return response()->json(['message' => 'Akses ditolak.'], 403);
         }
 
-        $notes = WaliNote::with('author:id,name')
-            ->where('class_id', $classId)
+        $notes = WaliNote::with(['author:id,name', 'schoolClass:id,name'])
             ->where('student_id', $studentId)
+            ->where('institution_id', $student->institution_id)
             ->orderByDesc('created_at')
             ->get();
 
-        return WaliNoteResource::collection($notes)->response();
+        return WaliNoteResource::collection($notes)->additional([
+            'meta' => ['current_class_id' => $classId],
+        ])->response();
     }
 
     public function storeNote(Request $request, int $classId, int $studentId): JsonResponse
@@ -396,7 +398,7 @@ class WaliKelasController extends Controller
             'author_user_id' => $user->id,
             'body' => $data['body'],
         ]);
-        $note->load('author:id,name');
+        $note->load(['author:id,name', 'schoolClass:id,name']);
 
         return (new WaliNoteResource($note))->response()->setStatusCode(201);
     }
@@ -409,7 +411,6 @@ class WaliKelasController extends Controller
         }
 
         $note = WaliNote::where('id', $noteId)
-            ->where('class_id', $classId)
             ->where('student_id', $studentId)
             ->firstOrFail();
 
@@ -421,7 +422,7 @@ class WaliKelasController extends Controller
             'body' => ['required', 'string', 'max:5000'],
         ]);
         $note->update(['body' => $data['body']]);
-        $note->load('author:id,name');
+        $note->load(['author:id,name', 'schoolClass:id,name']);
 
         return (new WaliNoteResource($note))->response();
     }
@@ -434,7 +435,6 @@ class WaliKelasController extends Controller
         }
 
         $note = WaliNote::where('id', $noteId)
-            ->where('class_id', $classId)
             ->where('student_id', $studentId)
             ->firstOrFail();
 

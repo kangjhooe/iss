@@ -205,8 +205,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">
-        Dicetak pada {{ $generated_at }} &mdash; {{ $summary['total_logs'] }} log · {{ $summary['total_incidents'] }} insiden
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· '.$summary['total_logs'].' log · '.$summary['total_incidents'].' insiden'])
 </body>
 </html>

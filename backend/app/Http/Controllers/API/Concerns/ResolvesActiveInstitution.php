@@ -59,6 +59,11 @@ trait ResolvesActiveInstitution
             return InventoryAccess::forbiddenReportsResponse();
         }
 
+        $user = $request->user();
+        if (! $user->isAdminOrSuperAdmin() && ! $this->resolveInstitutionId($request)) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
+
         return null;
     }
 

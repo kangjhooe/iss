@@ -158,7 +158,8 @@ class InventoryAssetController extends Controller
                 return response()->json(['message' => 'QR aset tidak valid atau tidak ditemukan'], 404);
             }
 
-            if ($institutionId && (int) $asset->institution_id !== (int) $institutionId) {
+            if (! $request->user()->isAdminOrSuperAdmin()
+                && (! $institutionId || (int) $asset->institution_id !== (int) $institutionId)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 

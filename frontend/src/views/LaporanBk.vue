@@ -29,6 +29,16 @@
         </div>
       </div>
 
+      <nav v-if="reportKindNav.length > 1" class="report-kind-nav" aria-label="Jenis laporan">
+        <button
+          v-for="item in reportKindNav"
+          :key="item.to"
+          type="button"
+          :class="['sub-nav-btn', { active: isReportKindActive(item) }]"
+          @click="switchReportKind(item.to)"
+        >{{ item.label }}</button>
+      </nav>
+
       <div class="tab-shell">
         <nav class="section-nav" aria-label="Navigasi laporan BK">
           <button type="button" :class="['sec-btn', { active: viewTab === 'ringkasan' }]" @click="switchTab('ringkasan')">
@@ -40,7 +50,7 @@
               <span class="sec-hint">Rekap kelas & tren</span>
             </span>
           </button>
-          <button type="button" :class="['sec-btn', { active: viewTab === 'skor' }]" @click="switchTab('skor')">
+          <button type="button" :class="['sec-btn', { active: viewTab === 'skor' }]" @click="switchTab('skor')" v-if="isCombinedReport || isViolationsReport">
             <span class="sec-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
             </span>
@@ -55,7 +65,7 @@
             </span>
             <span class="sec-text">
               <span class="sec-label">Catatan</span>
-              <span class="sec-hint">Pelanggaran, prestasi, konseling</span>
+              <span class="sec-hint">{{ isAchievementsReport ? 'Prestasi siswa' : isViolationsReport ? 'Pelanggaran siswa' : 'Pelanggaran, prestasi, konseling' }}</span>
             </span>
           </button>
         </nav>
@@ -63,14 +73,14 @@
         <div class="tab-main">
           <p class="tab-description">{{ tabDescription }}</p>
 
-          <div v-if="viewTab === 'catatan'" class="sub-nav" role="tablist" aria-label="Jenis catatan">
-            <button type="button" role="tab" :class="['sub-nav-btn', { active: notesKind === 'violations' }]" :aria-selected="notesKind === 'violations'" @click="notesKind = 'violations'">
+          <div v-if="viewTab === 'catatan' && (isCombinedReport || isViolationsReport || isAchievementsReport)" class="sub-nav" role="tablist" aria-label="Jenis catatan">
+            <button v-if="!isAchievementsReport" type="button" role="tab" :class="['sub-nav-btn', { active: notesKind === 'violations' }]" :aria-selected="notesKind === 'violations'" @click="notesKind = 'violations'">
               Pelanggaran ({{ detail?.total ?? 0 }})
             </button>
-            <button type="button" role="tab" :class="['sub-nav-btn', { active: notesKind === 'achievements' }]" :aria-selected="notesKind === 'achievements'" @click="notesKind = 'achievements'">
+            <button v-if="!isViolationsReport" type="button" role="tab" :class="['sub-nav-btn', { active: notesKind === 'achievements' }]" :aria-selected="notesKind === 'achievements'" @click="notesKind = 'achievements'">
               Prestasi ({{ detail?.achievements_total ?? detail?.achievements?.length ?? 0 }})
             </button>
-            <button type="button" role="tab" :class="['sub-nav-btn', { active: notesKind === 'counseling' }]" :aria-selected="notesKind === 'counseling'" @click="notesKind = 'counseling'">
+            <button v-if="isCombinedReport" type="button" role="tab" :class="['sub-nav-btn', { active: notesKind === 'counseling' }]" :aria-selected="notesKind === 'counseling'" @click="notesKind = 'counseling'">
               Konseling ({{ detail?.counseling_total ?? detail?.counseling?.length ?? 0 }})
             </button>
           </div>
@@ -125,7 +135,7 @@
       <!-- ========== RINGKASAN ========== -->
       <template v-else-if="viewTab === 'ringkasan' && report">
         <div class="stat-cards">
-          <button type="button" class="summary-card card-warning" @click="openNotes('violations')">
+          <button v-if="!isAchievementsReport" type="button" class="summary-card card-warning" @click="openNotes('violations')">
             <span class="summary-icon summary-icon-warning" aria-hidden="true">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
             </span>
@@ -134,16 +144,16 @@
               <span class="summary-label">Pelanggaran · {{ report.summary?.total_violation_points ?? 0 }} poin</span>
             </span>
           </button>
-          <button type="button" class="summary-card card-good" @click="openNotes('achievements')">
+          <button v-if="!isViolationsReport" type="button" class="summary-card card-good" @click="openNotes('achievements')">
             <span class="summary-icon summary-icon-good" aria-hidden="true">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.9H22l-5.6 4.1 2.1 6.9L12 16.8 5.5 19.9 7.6 13 2 8.9h7.6L12 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
             </span>
             <span class="summary-body">
               <span class="summary-value">{{ report.summary?.total_achievements ?? 0 }}</span>
-              <span class="summary-label">Prestasi · −{{ report.summary?.total_achievement_points ?? 0 }} poin</span>
+              <span class="summary-label">{{ isApresiasiReport ? 'Apresiasi' : 'Prestasi' }} · −{{ report.summary?.total_achievement_points ?? 0 }} poin</span>
             </span>
           </button>
-          <button type="button" class="summary-card card-score" @click="switchTab('skor')">
+          <button v-if="isCombinedReport" type="button" class="summary-card card-score" @click="switchTab('skor')">
             <span class="summary-icon summary-icon-score" aria-hidden="true">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </span>
@@ -152,7 +162,7 @@
               <span class="summary-label">Skor bersih</span>
             </span>
           </button>
-          <button type="button" class="summary-card card-total" @click="openNotes('counseling')">
+          <button v-if="isCombinedReport" type="button" class="summary-card card-total" @click="openNotes('counseling')">
             <span class="summary-icon summary-icon-total" aria-hidden="true">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
@@ -170,16 +180,16 @@
               <svg width="80" height="80" aria-hidden="true"><use href="#bk-empty"/></svg>
             </div>
             <h3 class="empty-title">Belum ada data</h3>
-            <p class="empty-desc">Tidak ada pelanggaran, prestasi, atau konseling untuk filter yang dipilih.</p>
+            <p class="empty-desc">{{ isApresiasiReport ? 'Tidak ada apresiasi untuk filter yang dipilih.' : isAchievementsReport ? 'Tidak ada prestasi untuk filter yang dipilih.' : isViolationsReport ? 'Tidak ada pelanggaran untuk filter yang dipilih.' : 'Tidak ada pelanggaran, prestasi, atau konseling untuk filter yang dipilih.' }}</p>
           </div>
           <div v-else class="table-container">
               <table class="data-table">
                 <thead>
                   <tr>
                     <th>Kelas</th>
-                    <th class="th-num">Pelanggaran</th>
-                    <th class="th-num">Prestasi</th>
-                    <th class="th-num">Konseling</th>
+                    <th v-if="!isAchievementsReport" class="th-num">Pelanggaran</th>
+                    <th v-if="!isViolationsReport" class="th-num">Prestasi</th>
+                    <th v-if="isCombinedReport" class="th-num">Konseling</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -191,11 +201,13 @@
                     @click="drillToClass(row)"
                   >
                     <td>{{ row.class_name }}</td>
-                    <td class="td-num">{{ row.violation_count }}</td>
-                    <td class="td-num td-good">{{ row.achievement_count ?? 0 }}</td>
-                    <td class="td-num">{{ row.counseling_count }}</td>
+                    <td v-if="!isAchievementsReport" class="td-num">{{ row.violation_count }}</td>
+                    <td v-if="!isViolationsReport" class="td-num td-good">{{ row.achievement_count ?? 0 }}</td>
+                    <td v-if="isCombinedReport" class="td-num">{{ row.counseling_count }}</td>
                     <td class="td-action">
-                      <button type="button" class="link-btn" @click.stop="drillToClass(row)">Skor siswa →</button>
+                      <button type="button" class="link-btn" @click.stop="drillToClass(row)">
+                        {{ isAchievementsReport ? 'Lihat prestasi →' : isViolationsReport ? 'Skor siswa →' : 'Skor siswa →' }}
+                      </button>
                     </td>
                   </tr>
                 </tbody>
@@ -218,7 +230,7 @@
         </section>
 
         <div class="split-tables">
-          <section class="report-section">
+          <section v-if="!isAchievementsReport" class="report-section">
             <h3 class="section-title">Jenis pelanggaran</h3>
             <div v-if="report.top_violation_types?.length" class="table-container">
               <table class="data-table">
@@ -240,7 +252,7 @@
             </div>
             <p v-else class="empty-desc muted">Belum ada catatan pelanggaran.</p>
           </section>
-          <section class="report-section">
+          <section v-if="!isViolationsReport" class="report-section">
             <h3 class="section-title">Jenis prestasi</h3>
             <div v-if="report.top_achievement_types?.length" class="table-container">
               <table class="data-table">
@@ -351,8 +363,8 @@
             <div class="empty-icon">
               <svg width="80" height="80" aria-hidden="true"><use href="#bk-empty"/></svg>
             </div>
-            <h3 class="empty-title">Belum ada prestasi</h3>
-            <p class="empty-desc">Tidak ada catatan prestasi untuk filter yang dipilih.</p>
+            <h3 class="empty-title">Belum ada {{ isApresiasiReport ? 'apresiasi' : 'prestasi' }}</h3>
+            <p class="empty-desc">Tidak ada catatan {{ isApresiasiReport ? 'apresiasi' : 'prestasi' }} untuk filter yang dipilih.</p>
           </div>
           <div v-else class="table-container">
               <table class="data-table">
@@ -361,7 +373,9 @@
                     <th>Tanggal</th>
                     <th>Siswa</th>
                     <th>Kelas</th>
-                    <th>Jenis Prestasi</th>
+                    <th>{{ isApresiasiReport ? 'Uraian' : 'Lomba / Kegiatan' }}</th>
+                    <th>Jenis</th>
+                    <th v-if="showAchievementLevelColumn">Tingkat</th>
                     <th class="th-num">Poin</th>
                   </tr>
                 </thead>
@@ -373,7 +387,14 @@
                       <span class="student-meta">{{ row.nis || '—' }}</span>
                     </td>
                     <td>{{ row.class_name }}</td>
+                    <td>{{ row.title || row.notes || '—' }}</td>
                     <td>{{ row.achievement_type }}</td>
+                    <td v-if="showAchievementLevelColumn">
+                      <template v-if="(row.purpose || 'akreditasi') === 'akreditasi'">
+                        {{ levelLabel(row.level) }}<template v-if="row.rank"> · {{ rankLabel(row.rank) }}</template>
+                      </template>
+                      <template v-else>—</template>
+                    </td>
                     <td class="td-num td-good">−{{ row.point_value }}</td>
                   </tr>
                 </tbody>
@@ -432,8 +453,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
@@ -443,15 +464,165 @@ import { classApi } from '@/api/class'
 import { semesterApi } from '@/api/semester'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { useAuthStore } from '@/stores/auth'
+import { formatPrintFooterLine } from '@/utils/printFooter'
 import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
+import { hasModuleAccess as userHasModuleAccess } from '@/utils/moduleAccess'
 import { useToast } from '@/composables/useToast'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const toast = useToast()
 const route = useRoute()
+const router = useRouter()
 const referenceStore = useReferenceDataStore()
 const authStore = useAuthStore()
+
+const canAccessViolation = computed(() => userHasModuleAccess(authStore.user, 'violation'))
+
+const REPORT_KINDS = [
+  { to: '/bk/laporan', label: 'Gabungan', scope: 'combined' },
+  { to: '/bk/laporan/pelanggaran', label: 'Pelanggaran', scope: 'violations', requiresViolation: true },
+  { to: '/bk/laporan/prestasi', label: 'Prestasi', scope: 'achievements', purpose: 'akreditasi', requiresViolation: true },
+  { to: '/bk/laporan/apresiasi', label: 'Apresiasi', scope: 'achievements', purpose: 'apresiasi', requiresViolation: true },
+]
+
+const reportKindNav = computed(() =>
+  REPORT_KINDS.filter((item) => !item.requiresViolation || canAccessViolation.value)
+)
+
+const reportScope = computed(() => route.meta.reportScope || 'combined')
+const reportPurpose = computed(() => route.meta.reportPurpose || null)
+const isCombinedReport = computed(() => reportScope.value === 'combined')
+const isViolationsReport = computed(() => reportScope.value === 'violations')
+const isAchievementsReport = computed(() => reportScope.value === 'achievements')
+const isApresiasiReport = computed(() => reportPurpose.value === 'apresiasi')
+const isAkreditasiReport = computed(() => reportPurpose.value === 'akreditasi')
+const showAchievementLevelColumn = computed(() => !isApresiasiReport.value)
+
+function isReportKindActive(item) {
+  if (item.scope === 'combined') return isCombinedReport.value
+  if (item.scope === 'violations') return isViolationsReport.value
+  if (item.purpose === 'apresiasi') return isApresiasiReport.value
+  if (item.purpose === 'akreditasi') return isAkreditasiReport.value
+  return route.path === item.to
+}
+
+function switchReportKind(to) {
+  if (route.path === to) return
+  router.push(to)
+}
+
+const reportKindLabel = computed(() => {
+  if (isApresiasiReport.value) return 'Laporan Apresiasi'
+  if (isAkreditasiReport.value) return 'Laporan Prestasi'
+  if (isViolationsReport.value) return 'Laporan Pelanggaran'
+  return 'Laporan BK'
+})
+
+const reportFilenamePrefix = computed(() => {
+  if (isApresiasiReport.value) return 'Laporan_Apresiasi'
+  if (isAkreditasiReport.value) return 'Laporan_Prestasi'
+  if (isViolationsReport.value) return 'Laporan_Pelanggaran'
+  return 'Laporan_BK'
+})
+
+const LEVEL_LABELS = {
+  sekolah: 'Sekolah',
+  kabupaten: 'Kabupaten/Kota',
+  provinsi: 'Provinsi',
+  nasional: 'Nasional',
+  internasional: 'Internasional',
+}
+
+const RANK_LABELS = {
+  juara_1: 'Juara 1',
+  juara_2: 'Juara 2',
+  juara_3: 'Juara 3',
+  finalis: 'Finalis',
+  peserta: 'Peserta',
+  lainnya: 'Lainnya',
+}
+
+function levelLabel(v) {
+  return LEVEL_LABELS[v] || v || '—'
+}
+
+function rankLabel(v) {
+  return RANK_LABELS[v] || v || ''
+}
+
+const ACHIEVEMENT_CATEGORY_LABELS = {
+  akademik: 'Akademik',
+  non_akademik: 'Non Akademik',
+  sikap: 'Sikap',
+}
+
+const LEVEL_ORDER = {
+  internasional: 1,
+  nasional: 2,
+  provinsi: 3,
+  kabupaten: 4,
+  sekolah: 5,
+}
+
+function categoryLabel(v) {
+  return ACHIEVEMENT_CATEGORY_LABELS[v] || v || '—'
+}
+
+function sortAchievementsForAkreditasi(rows) {
+  return [...(rows || [])].sort((a, b) => {
+    const classCmp = (a.class_name || '').localeCompare(b.class_name || '')
+    if (classCmp !== 0) return classCmp
+    const la = LEVEL_ORDER[a.level] ?? 6
+    const lb = LEVEL_ORDER[b.level] ?? 6
+    if (la !== lb) return la - lb
+    return (b.achievement_date || '').localeCompare(a.achievement_date || '')
+  })
+}
+
+function groupAchievementsByClass(rows) {
+  return groupRowsByClassName(sortAchievementsForAkreditasi(rows))
+}
+
+function computeAkreditasiStats(achievements) {
+  const list = achievements || []
+  const studentIds = new Set()
+  const byLevel = {}
+  const byCategory = {}
+  const byRank = {}
+  for (const a of list) {
+    if (a.student_id) studentIds.add(a.student_id)
+    const lv = a.level || '_kosong'
+    byLevel[lv] = (byLevel[lv] || 0) + 1
+    const cat = a.category || '_lainnya'
+    byCategory[cat] = (byCategory[cat] || 0) + 1
+    if (a.rank) byRank[a.rank] = (byRank[a.rank] || 0) + 1
+  }
+  return { total: list.length, students: studentIds.size, byLevel, byCategory, byRank }
+}
+
+const RANK_ORDER = ['juara_1', 'juara_2', 'juara_3', 'finalis', 'peserta', 'lainnya']
+
+function sortRankKeys(keys) {
+  return [...keys].sort((a, b) => {
+    const ia = RANK_ORDER.indexOf(a)
+    const ib = RANK_ORDER.indexOf(b)
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+  })
+}
+
+function levelLabelForPrint(v) {
+  if (!v || v === '_kosong') return 'Belum diisi'
+  return levelLabel(v)
+}
+
+function sortedLevelKeys(byLevel) {
+  return Object.keys(byLevel).sort((a, b) => {
+    const oa = a === '_kosong' ? 99 : (LEVEL_ORDER[a] ?? 98)
+    const ob = b === '_kosong' ? 99 : (LEVEL_ORDER[b] ?? 98)
+    return oa - ob
+  })
+}
 
 const loading = ref(true)
 const exporting = ref(false)
@@ -471,6 +642,19 @@ const homeroomClassIds = computed(() => (authStore.user?.homeroom_class_ids || [
 const isDetailTab = computed(() => viewTab.value !== 'ringkasan')
 const tabDescription = computed(() => {
   if (isHomeroomScoped.value) return 'Menampilkan siswa di kelas yang Anda walikan saja.'
+  if (isAchievementsReport.value) {
+    if (isApresiasiReport.value) {
+      if (viewTab.value === 'ringkasan') return 'Rekap apresiasi dan laporan positif siswa per kelas.'
+      return 'Daftar apresiasi / laporan siswa sesuai filter yang dipilih.'
+    }
+    if (viewTab.value === 'ringkasan') return 'Rekap prestasi lomba/kompetisi (akreditasi) per kelas, kategori, dan jenis.'
+    return 'Daftar prestasi akreditasi sesuai filter yang dipilih.'
+  }
+  if (isViolationsReport.value) {
+    if (viewTab.value === 'ringkasan') return 'Rekap pelanggaran siswa per kelas dan jenis.'
+    if (viewTab.value === 'skor') return 'Skor per siswa = poin pelanggaran − poin prestasi.'
+    return 'Daftar pelanggaran siswa sesuai filter yang dipilih.'
+  }
   if (viewTab.value === 'ringkasan') return 'Rekap kelas. Skor bersih = poin pelanggaran − poin prestasi.'
   if (viewTab.value === 'skor') return 'Skor per siswa = poin pelanggaran − poin prestasi. Contoh: 40 − 20 = 20.'
   return 'Catatan pelanggaran, prestasi, dan konseling sesuai filter yang dipilih.'
@@ -598,6 +782,151 @@ const periodLabel = computed(() => {
   return parts.join(' · ')
 })
 
+const selectedAcademicYear = computed(() => {
+  const id = filters.value.academic_year_id
+  if (!id) return null
+  return academicYears.value.find((y) => String(y.id) === String(id)) || null
+})
+
+const selectedAcademicYearName = computed(() => selectedAcademicYear.value?.name || '—')
+
+function parseAcademicYearRange(academicYear) {
+  if (academicYear?.start_date && academicYear?.end_date) {
+    const start = new Date(academicYear.start_date)
+    const end = new Date(academicYear.end_date)
+    return {
+      startYear: start.getFullYear(),
+      endYear: end.getFullYear(),
+    }
+  }
+  const match = String(academicYear?.name || '').match(/(\d{4})\s*\/\s*(\d{4})/)
+  if (match) {
+    return { startYear: parseInt(match[1], 10), endYear: parseInt(match[2], 10) }
+  }
+  const now = new Date()
+  const y = now.getFullYear()
+  const startYear = now.getMonth() + 1 >= 7 ? y : y - 1
+  return { startYear, endYear: startYear + 1 }
+}
+
+function buildAcademicYearMonthTrend(achievements, academicYear) {
+  const { startYear, endYear } = parseAcademicYearRange(academicYear)
+  const counts = {}
+  for (const a of achievements || []) {
+    if (!a.achievement_date) continue
+    const [y, m] = a.achievement_date.split('-').map(Number)
+    if (!y || !m) continue
+    const key = `${y}-${m}`
+    counts[key] = (counts[key] || 0) + 1
+  }
+  const slots = []
+  for (let i = 0; i < 12; i++) {
+    const month = ((6 + i) % 12) + 1
+    const year = month >= 7 ? startYear : endYear
+    slots.push({
+      month,
+      year,
+      label: `${monthFullLabel(month)} ${year}`,
+      count: counts[`${year}-${month}`] || 0,
+    })
+  }
+  return { slots, rangeLabel: `${monthFullLabel(7)} ${startYear} – ${monthFullLabel(6)} ${endYear}` }
+}
+
+function buildAkreditasiDataTableBodyHtml(achievements) {
+  if (!achievements?.length) {
+    return '<tr><td colspan="9">Belum ada data prestasi untuk filter yang dipilih.</td></tr>'
+  }
+  const groups = groupAchievementsByClass(achievements)
+  const colspan = 9
+  return groups.flatMap((group) => {
+    const header = `<tr class="group-row"><td colspan="${colspan}">Kelas ${escapeHtml(group.name)} · ${group.rows.length} prestasi</td></tr>`
+    const rows = group.rows.map((row, i) => {
+      const nisLine = [row.nis, row.nisn].filter(Boolean).join(' / ') || '—'
+      const keterangan = row.notes && row.title && row.notes !== row.title ? row.notes : (row.notes || '—')
+      return `
+      <tr>
+        <td class="center">${group.start + i + 1}</td>
+        <td>
+          <strong>${escapeHtml(row.student_name || '—')}</strong><br>
+          <span class="cell-sub">${escapeHtml(nisLine)}</span>
+        </td>
+        <td>${escapeHtml(row.title || row.notes || '—')}</td>
+        <td>${escapeHtml(categoryLabel(row.category))}</td>
+        <td>${escapeHtml(row.achievement_type || '—')}</td>
+        <td>${escapeHtml(levelLabelForPrint(row.level))}</td>
+        <td class="center">${escapeHtml(row.rank ? rankLabel(row.rank) : '—')}</td>
+        <td class="center nowrap">${escapeHtml(formatDate(row.achievement_date))}</td>
+        <td>${escapeHtml(keterangan)}</td>
+      </tr>`
+    }).join('')
+    return header + rows
+  }).join('')
+}
+
+function buildAkreditasiDataTableHtml(achievements, sectionTitle = 'Data Prestasi') {
+  return `
+    <h2>${escapeHtml(sectionTitle)}</h2>
+    <table class="table-akreditasi">
+      <thead>
+        <tr>
+          <th class="center col-no">No</th>
+          <th class="col-nama">Nama Siswa</th>
+          <th class="col-lomba">Lomba / Kegiatan</th>
+          <th class="col-kat">Kategori</th>
+          <th class="col-jenis">Jenis</th>
+          <th class="col-tingkat">Tingkat</th>
+          <th class="center col-rank">Peringkat</th>
+          <th class="center col-tgl">Tanggal</th>
+          <th class="col-ket">Keterangan</th>
+        </tr>
+      </thead>
+      <tbody>${buildAkreditasiDataTableBodyHtml(achievements)}</tbody>
+    </table>
+  `
+}
+
+function buildAkreditasiTrendTableHtml(achievements, sectionTitle = '2. Tren Bulanan') {
+  const { slots, rangeLabel } = buildAcademicYearMonthTrend(achievements, selectedAcademicYear.value)
+  const monthRows = slots.map((slot) => `
+    <tr>
+      <td>${escapeHtml(slot.label)}</td>
+      <td class="num">${slot.count}</td>
+    </tr>
+  `).join('')
+  return `
+    <h2>${escapeHtml(sectionTitle)} <span class="h2-sub">(${escapeHtml(rangeLabel)})</span></h2>
+    <table class="table-trend">
+      <thead>
+        <tr><th>Bulan</th><th class="num">Jumlah Prestasi</th></tr>
+      </thead>
+      <tbody>${monthRows}</tbody>
+    </table>
+  `
+}
+
+function printPeriodLineHtml() {
+  if (isAkreditasiReport.value && viewTab.value === 'ringkasan') {
+    const extras = []
+    const semName = filteredSemesters.value.find((s) => String(s.id) === String(filters.value.semester_id))?.name
+    if (semName) extras.push(semName)
+    if (selectedClassName.value) extras.push(`Kelas ${selectedClassName.value}`)
+    if (!extras.length) return ''
+    return `<div class="period"><strong>Filter tambahan:</strong> ${escapeHtml(extras.join(' · '))}</div>`
+  }
+  return `<div class="period"><strong>Periode / Filter:</strong> ${escapeHtml(periodLabel.value)}</div>`
+}
+
+function printSubtitleHtml() {
+  if (isAkreditasiReport.value && viewTab.value === 'ringkasan') {
+    return `<div class="subtitle academic-year">Tahun Ajaran ${escapeHtml(selectedAcademicYearName.value)}</div>`
+  }
+  if (isAkreditasiReport.value) {
+    return `<div class="subtitle">Prestasi Lomba & Kompetisi · Bimbingan Konseling</div>`
+  }
+  return `<div class="subtitle">${escapeHtml(reportKindLabel.value)} · Bimbingan Konseling</div>`
+}
+
 function cleanParams({ forDetail = false } = {}) {
   const params = {
     academic_year_id: filters.value.academic_year_id,
@@ -619,34 +948,45 @@ function cleanParams({ forDetail = false } = {}) {
     if (k === 'academic_year_id' || k === 'semester_id') return
     if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k]
   })
+  if (reportPurpose.value) {
+    params.purpose = reportPurpose.value
+  }
+  params.report_scope = reportScope.value
   return params
 }
 
 const monthChartData = computed(() => {
   const months = report.value?.by_month?.months
   if (!months?.length) return null
+  const datasets = []
+  if (!isAchievementsReport.value) {
+    datasets.push({
+      label: 'Pelanggaran',
+      data: months.map(m => m.violation_count),
+      backgroundColor: 'rgba(239, 68, 68, 0.7)',
+      borderRadius: 4,
+    })
+  }
+  if (!isViolationsReport.value) {
+    datasets.push({
+      label: 'Prestasi',
+      data: months.map(m => m.achievement_count ?? 0),
+      backgroundColor: 'rgba(16, 185, 129, 0.7)',
+      borderRadius: 4,
+    })
+  }
+  if (isCombinedReport.value) {
+    datasets.push({
+      label: 'Konseling',
+      data: months.map(m => m.counseling_count),
+      backgroundColor: 'rgba(14, 165, 233, 0.7)',
+      borderRadius: 4,
+    })
+  }
+  if (!datasets.length) return null
   return {
     labels: months.map(m => m.label || MONTH_NAMES[m.month]),
-    datasets: [
-      {
-        label: 'Pelanggaran',
-        data: months.map(m => m.violation_count),
-        backgroundColor: 'rgba(239, 68, 68, 0.7)',
-        borderRadius: 4,
-      },
-      {
-        label: 'Prestasi',
-        data: months.map(m => m.achievement_count ?? 0),
-        backgroundColor: 'rgba(16, 185, 129, 0.7)',
-        borderRadius: 4,
-      },
-      {
-        label: 'Konseling',
-        data: months.map(m => m.counseling_count),
-        backgroundColor: 'rgba(14, 165, 233, 0.7)',
-        borderRadius: 4,
-      },
-    ],
+    datasets,
   }
 })
 
@@ -672,6 +1012,17 @@ async function loadSummary() {
     toast.error('Gagal memuat ringkasan', e.formattedMessage || 'Periksa koneksi dan coba lagi.')
   } finally {
     loading.value = false
+  }
+}
+
+async function ensureDetailForPrint() {
+  if (detail.value && Array.isArray(detail.value.achievements)) return
+  try {
+    const res = await bkReportApi.getViolationDetail(cleanParams({ forDetail: true }))
+    detail.value = res.data?.data ?? null
+    captureSigners(detail.value)
+  } catch {
+    /* cetak tetap lanjut dengan data ringkasan */
   }
 }
 
@@ -726,6 +1077,12 @@ async function drillToClass(row) {
   }
   report.value = null
   detail.value = null
+  if (isAchievementsReport.value) {
+    notesKind.value = 'achievements'
+    viewTab.value = 'catatan'
+    await loadDetail()
+    return
+  }
   viewTab.value = 'skor'
   await loadDetail()
 }
@@ -745,17 +1102,25 @@ async function exportCsv() {
   exporting.value = true
   try {
     const isDetail = isDetailTab.value
+    const params = cleanParams({ forDetail: isDetail })
+    if (isDetail) {
+      params.export_view = viewTab.value
+      if (isCombinedReport.value && viewTab.value === 'catatan') {
+        params.notes_kind = notesKind.value
+      }
+    }
     const res = isDetail
-      ? await bkReportApi.exportViolations(cleanParams({ forDetail: true }))
-      : await bkReportApi.export(cleanParams({ forDetail: false }))
+      ? await bkReportApi.exportViolations(params)
+      : await bkReportApi.export(params)
     const url = window.URL.createObjectURL(new Blob([res.data]))
     const link = document.createElement('a')
     link.href = url
+    const scopePrefix = reportFilenamePrefix.value.replace(/_/g, '-').toLowerCase()
     link.setAttribute(
       'download',
       isDetail
-        ? `laporan-bk-detail-${new Date().toISOString().slice(0, 10)}.csv`
-        : `laporan-bk-per-kelas-${new Date().toISOString().slice(0, 10)}.csv`
+        ? `${scopePrefix}-detail-${new Date().toISOString().slice(0, 10)}.csv`
+        : `${scopePrefix}-per-kelas-${new Date().toISOString().slice(0, 10)}.csv`
     )
     document.body.appendChild(link)
     link.click()
@@ -777,17 +1142,21 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
-function buildPrintBodyHtml() {
-  if (isDetailTab.value) {
-    if (!detail.value) return '<p>Tidak ada data.</p>'
-
-    const studentRows = (bkStudentGroups.value || []).flatMap((group) => {
-      const header = `<tr class="group-row"><td colspan="9">Kelas ${escapeHtml(group.name)} (${group.rows.length} siswa)</td></tr>`
-      const body = group.rows.map((row, i) => {
-        const vPts = row.violation_points ?? row.total_points ?? 0
-        const aPts = row.achievement_points ?? 0
-        const score = row.score ?? (vPts - aPts)
-        return `
+function buildPrintSkorHtml() {
+  if (!detail.value) return '<p>Tidak ada data.</p>'
+  const showAchievements = !isViolationsReport.value
+  const colspan = showAchievements ? 9 : 7
+  const studentRows = (bkStudentGroups.value || []).flatMap((group) => {
+    const header = `<tr class="group-row"><td colspan="${colspan}">Kelas ${escapeHtml(group.name)} (${group.rows.length} siswa)</td></tr>`
+    const body = group.rows.map((row, i) => {
+      const vPts = row.violation_points ?? row.total_points ?? 0
+      const aPts = row.achievement_points ?? 0
+      const score = row.score ?? (vPts - aPts)
+      const achCols = showAchievements
+        ? `<td class="num">${escapeHtml(row.achievement_count ?? 0)}</td>
+        <td class="num">−${escapeHtml(aPts)}</td>`
+        : ''
+      return `
       <tr>
         <td>${group.start + i + 1}</td>
         <td>${escapeHtml(row.nis || '—')}</td>
@@ -795,178 +1164,323 @@ function buildPrintBodyHtml() {
         <td>${escapeHtml(row.class_name)}</td>
         <td class="num">${escapeHtml(row.violation_count)}</td>
         <td class="num">${escapeHtml(vPts)}</td>
-        <td class="num">${escapeHtml(row.achievement_count ?? 0)}</td>
-        <td class="num">−${escapeHtml(aPts)}</td>
+        ${achCols}
         <td class="num"><strong>${escapeHtml(score)}</strong></td>
       </tr>`
-      }).join('')
-      return header + body
-    }).join('') || '<tr><td colspan="9">Belum ada data</td></tr>'
+    }).join('')
+    return header + body
+  }).join('') || `<tr><td colspan="${colspan}">Belum ada data</td></tr>`
 
-    const listRows = (detail.value.items || []).map((row) => `
-      <tr>
-        <td>${escapeHtml(formatDate(row.violation_date))}</td>
-        <td>${escapeHtml(row.nis || '—')}</td>
-        <td>${escapeHtml(row.student_name || '—')}</td>
-        <td>${escapeHtml(row.class_name)}</td>
-        <td>${escapeHtml(row.violation_type)}</td>
-        <td>${escapeHtml(row.category)}</td>
-        <td class="num">${escapeHtml(row.point_weight)}</td>
-        <td>${escapeHtml(statusLabel(row.status))}</td>
-        <td>${escapeHtml(row.reporter_name || '—')}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="9">Belum ada data</td></tr>'
+  const achHeader = showAchievements ? '<th>Jml Prestasi</th><th>Poin Prestasi</th>' : ''
+  const note = showAchievements
+    ? '<p class="note">Skor = poin pelanggaran − poin prestasi. Contoh: 40 − 20 = 20.</p>'
+    : '<p class="note">Rekap skor berdasarkan poin pelanggaran siswa.</p>'
 
-    const achRows = (detail.value.achievements || []).map((row) => `
+  return `
+    ${note}
+    <h2>Rekap Skor per Siswa</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>NIS</th><th>Nama</th><th>Kelas</th>
+          <th>Jml Pelanggaran</th><th>Poin Pelanggaran</th>
+          ${achHeader}<th>Skor</th>
+        </tr>
+      </thead>
+      <tbody>${studentRows}</tbody>
+    </table>
+  `
+}
+
+function buildPrintViolationsTableHtml() {
+  const listRows = (detail.value?.items || []).map((row) => `
+    <tr>
+      <td>${escapeHtml(formatDate(row.violation_date))}</td>
+      <td>${escapeHtml(row.nis || '—')}</td>
+      <td>${escapeHtml(row.student_name || '—')}</td>
+      <td>${escapeHtml(row.class_name)}</td>
+      <td>${escapeHtml(row.violation_type)}</td>
+      <td>${escapeHtml(row.category)}</td>
+      <td class="num">${escapeHtml(row.point_weight)}</td>
+      <td>${escapeHtml(statusLabel(row.status))}</td>
+      <td>${escapeHtml(row.reporter_name || '—')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="9">Belum ada data</td></tr>'
+
+  return `
+    <h2>Daftar Pelanggaran</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th>
+          <th>Jenis</th><th>Kategori</th><th>Poin</th><th>Status</th><th>Pelapor</th>
+        </tr>
+      </thead>
+      <tbody>${listRows}</tbody>
+    </table>
+  `
+}
+
+function buildPrintAchievementsTableHtml() {
+  if (isAkreditasiReport.value) return buildPrintAkreditasiDetailHtml()
+
+  const showLevel = showAchievementLevelColumn.value
+  const titleCol = isApresiasiReport.value ? 'Uraian' : 'Lomba / Kegiatan'
+  const sectionTitle = isApresiasiReport.value ? 'Daftar Apresiasi' : 'Daftar Prestasi'
+  const levelHeader = showLevel ? '<th>Tingkat</th>' : ''
+  const achRows = (detail.value?.achievements || []).map((row) => {
+    const isAkreditasi = (row.purpose || 'akreditasi') === 'akreditasi'
+    const levelCol = showLevel
+      ? `<td>${isAkreditasi ? `${escapeHtml(levelLabel(row.level))}${row.rank ? ` · ${escapeHtml(rankLabel(row.rank))}` : ''}` : '—'}</td>`
+      : ''
+    return `
       <tr>
         <td>${escapeHtml(formatDate(row.achievement_date))}</td>
         <td>${escapeHtml(row.nis || '—')}</td>
         <td>${escapeHtml(row.student_name || '—')}</td>
         <td>${escapeHtml(row.class_name)}</td>
+        <td>${escapeHtml(row.title || row.notes || '—')}</td>
         <td>${escapeHtml(row.achievement_type)}</td>
+        ${levelCol}
         <td class="num">−${escapeHtml(row.point_value)}</td>
         <td>${escapeHtml(row.giver_name || '—')}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="7">Belum ada data</td></tr>'
-
-    const counselingRows = (detail.value.counseling || []).map((row) => `
-      <tr>
-        <td>${escapeHtml(formatDate(row.session_date))}</td>
-        <td>${escapeHtml(row.nis || '—')}</td>
-        <td>${escapeHtml(row.student_name || '—')}</td>
-        <td>${escapeHtml(row.class_name)}</td>
-        <td>${escapeHtml(row.counseling_type)}</td>
-        <td>${escapeHtml(counselingStatusLabel(row.status))}</td>
-        <td>${escapeHtml(row.counselor_name || '—')}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="7">Belum ada data</td></tr>'
-
-    return `
-      <p class="note">Skor = poin pelanggaran − poin prestasi. Contoh: 40 − 20 = 20.</p>
-      <h2>1. Rekap Skor per Siswa</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th><th>NIS</th><th>Nama</th><th>Kelas</th>
-            <th>Jml Pelanggaran</th><th>Poin Pelanggaran</th>
-            <th>Jml Prestasi</th><th>Poin Prestasi</th><th>Skor</th>
-          </tr>
-        </thead>
-        <tbody>${studentRows}</tbody>
-      </table>
-      <h2>2. Daftar Pelanggaran</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th>
-            <th>Jenis</th><th>Kategori</th><th>Poin</th><th>Status</th><th>Pelapor</th>
-          </tr>
-        </thead>
-        <tbody>${listRows}</tbody>
-      </table>
-      <h2>3. Daftar Prestasi</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th>
-            <th>Jenis Prestasi</th><th>Poin</th><th>Pemberi</th>
-          </tr>
-        </thead>
-        <tbody>${achRows}</tbody>
-      </table>
-      <h2>4. Daftar Konseling</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th>
-            <th>Jenis</th><th>Status</th><th>Konselor</th>
-          </tr>
-        </thead>
-        <tbody>${counselingRows}</tbody>
-      </table>
-    `
-  }
-
-  if (!report.value) return '<p>Tidak ada data.</p>'
-  const s = report.value.summary || {}
-  const classRows = (report.value.by_class || []).map((row) => `
-    <tr>
-      <td>${escapeHtml(row.class_name)}</td>
-      <td class="num">${escapeHtml(row.violation_count)}</td>
-      <td class="num">${escapeHtml(row.achievement_count ?? 0)}</td>
-      <td class="num">${escapeHtml(row.counseling_count)}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="4">Belum ada data</td></tr>'
-
-  const monthRows = (report.value.by_month?.months || []).map((m) => `
-    <tr>
-      <td>${escapeHtml(monthFullLabel(m.month))}</td>
-      <td class="num">${escapeHtml(m.violation_count)}</td>
-      <td class="num">${escapeHtml(m.achievement_count ?? 0)}</td>
-      <td class="num">${escapeHtml(m.counseling_count)}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="4">Belum ada data</td></tr>'
-
-  const typeRows = (report.value.top_violation_types || []).map((row, idx) => `
-    <tr>
-      <td>${idx + 1}</td>
-      <td>${escapeHtml(row.type_name)}</td>
-      <td>${escapeHtml(row.category)}</td>
-      <td class="num">${escapeHtml(row.count)}</td>
-      <td class="num">${escapeHtml(row.total_points)}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="5">Belum ada data</td></tr>'
-
-  const achTypeRows = (report.value.top_achievement_types || []).map((row, idx) => `
-    <tr>
-      <td>${idx + 1}</td>
-      <td>${escapeHtml(row.type_name)}</td>
-      <td>${escapeHtml(row.category || '—')}</td>
-      <td class="num">${escapeHtml(row.count)}</td>
-      <td class="num">${escapeHtml(row.total_points)}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="5">Belum ada data</td></tr>'
+      </tr>`
+  }).join('') || `<tr><td colspan="${showLevel ? 9 : 8}">Belum ada data</td></tr>`
 
   return `
-    <div class="stats">
-      <div class="stat"><div class="stat-label">Total Pelanggaran</div><div class="stat-value">${s.total_violations ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Total Prestasi</div><div class="stat-value">${s.total_achievements ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Skor Bersih</div><div class="stat-value">${s.net_score ?? 0}</div></div>
-      <div class="stat"><div class="stat-label">Total Konseling</div><div class="stat-value">${s.total_counseling ?? 0}</div></div>
-    </div>
-    <p class="note">Skor bersih = poin pelanggaran − poin prestasi.</p>
-    <h2>1. Rekap per Kelas</h2>
+    <h2>${sectionTitle}</h2>
     <table>
-      <thead><tr><th>Kelas</th><th>Pelanggaran</th><th>Prestasi</th><th>Konseling</th></tr></thead>
-      <tbody>${classRows}</tbody>
-    </table>
-    <h2>2. Rekap per Bulan (${escapeHtml(report.value.by_month?.year || filters.value.year)})</h2>
-    <table>
-      <thead><tr><th>Bulan</th><th>Pelanggaran</th><th>Prestasi</th><th>Konseling</th></tr></thead>
-      <tbody>${monthRows}</tbody>
-    </table>
-    <h2>3. Top Jenis Pelanggaran</h2>
-    <table>
-      <thead><tr><th>#</th><th>Jenis</th><th>Kategori</th><th>Jumlah</th><th>Total Poin</th></tr></thead>
-      <tbody>${typeRows}</tbody>
-    </table>
-    <h2>4. Top Jenis Prestasi</h2>
-    <table>
-      <thead><tr><th>#</th><th>Jenis</th><th>Kategori</th><th>Jumlah</th><th>Total Poin</th></tr></thead>
-      <tbody>${achTypeRows}</tbody>
+      <thead>
+        <tr>
+          <th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th>
+          <th>${titleCol}</th><th>Jenis</th>${levelHeader}<th>Poin</th><th>Pemberi</th>
+        </tr>
+      </thead>
+      <tbody>${achRows}</tbody>
     </table>
   `
 }
 
-function printPdf() {
+function buildPrintAkreditasiDetailHtml() {
+  const achievements = detail.value?.achievements || []
+  if (!achievements.length) return '<p>Belum ada data prestasi untuk filter yang dipilih.</p>'
+  const stats = computeAkreditasiStats(achievements)
+  return `
+    <div class="stats stats-akreditasi">
+      <div class="stat"><div class="stat-label">Total Prestasi</div><div class="stat-value">${stats.total}</div></div>
+      <div class="stat"><div class="stat-label">Siswa Berprestasi</div><div class="stat-value">${stats.students}</div></div>
+    </div>
+    ${buildAkreditasiDataTableHtml(achievements, 'Daftar Prestasi per Siswa')}
+  `
+}
+
+function buildPrintAkreditasiSummaryHtml() {
+  const achievements = detail.value?.achievements || []
+  const stats = computeAkreditasiStats(achievements)
+  const s = report.value?.summary || {}
+  const totalPrestasi = achievements.length ? stats.total : (s.total_achievements ?? 0)
+  const totalSiswa = stats.students
+
+  return `
+    <div class="stats stats-akreditasi">
+      <div class="stat"><div class="stat-label">Total Prestasi</div><div class="stat-value">${totalPrestasi}</div></div>
+      <div class="stat"><div class="stat-label">Siswa Berprestasi</div><div class="stat-value">${totalSiswa}</div></div>
+    </div>
+    ${buildAkreditasiDataTableHtml(achievements, '1. Data Prestasi')}
+    ${buildAkreditasiTrendTableHtml(achievements, '2. Tren Bulanan')}
+  `
+}
+
+function buildPrintCounselingTableHtml() {
+  const counselingRows = (detail.value?.counseling || []).map((row) => `
+    <tr>
+      <td>${escapeHtml(formatDate(row.session_date))}</td>
+      <td>${escapeHtml(row.nis || '—')}</td>
+      <td>${escapeHtml(row.student_name || '—')}</td>
+      <td>${escapeHtml(row.class_name)}</td>
+      <td>${escapeHtml(row.counseling_type)}</td>
+      <td>${escapeHtml(counselingStatusLabel(row.status))}</td>
+      <td>${escapeHtml(row.counselor_name || '—')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="7">Belum ada data</td></tr>'
+
+  return `
+    <h2>Daftar Konseling</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Tanggal</th><th>NIS</th><th>Nama</th><th>Kelas</th>
+          <th>Jenis</th><th>Status</th><th>Konselor</th>
+        </tr>
+      </thead>
+      <tbody>${counselingRows}</tbody>
+    </table>
+  `
+}
+
+function effectiveNotesKind() {
+  if (isViolationsReport.value) return 'violations'
+  if (isAchievementsReport.value) return 'achievements'
+  return notesKind.value
+}
+
+function buildPrintCatatanHtml() {
+  if (!detail.value) return '<p>Tidak ada data.</p>'
+  const kind = effectiveNotesKind()
+  if (kind === 'violations') return buildPrintViolationsTableHtml()
+  if (kind === 'achievements') return buildPrintAchievementsTableHtml()
+  return buildPrintCounselingTableHtml()
+}
+
+function buildPrintSummaryHtml() {
+  if (isAkreditasiReport.value) {
+    if (!report.value && !(detail.value?.achievements?.length)) return '<p>Tidak ada data.</p>'
+    return buildPrintAkreditasiSummaryHtml()
+  }
+  if (!report.value) return '<p>Tidak ada data.</p>'
+  const s = report.value.summary || {}
+  const parts = []
+  let section = 1
+
+  const stats = []
+  if (!isAchievementsReport.value) {
+    stats.push(`<div class="stat"><div class="stat-label">Total Pelanggaran</div><div class="stat-value">${s.total_violations ?? 0}</div></div>`)
+  }
+  if (!isViolationsReport.value) {
+    const achLabel = isApresiasiReport.value ? 'Total Apresiasi' : 'Total Prestasi'
+    stats.push(`<div class="stat"><div class="stat-label">${achLabel}</div><div class="stat-value">${s.total_achievements ?? 0}</div></div>`)
+  }
+  if (isCombinedReport.value) {
+    stats.push(`<div class="stat"><div class="stat-label">Skor Bersih</div><div class="stat-value">${s.net_score ?? 0}</div></div>`)
+    stats.push(`<div class="stat"><div class="stat-label">Total Konseling</div><div class="stat-value">${s.total_counseling ?? 0}</div></div>`)
+  }
+  if (stats.length) {
+    parts.push(`<div class="stats">${stats.join('')}</div>`)
+  }
+  if (isCombinedReport.value) {
+    parts.push('<p class="note">Skor bersih = poin pelanggaran − poin prestasi.</p>')
+  }
+
+  const classHeaders = ['<th>Kelas</th>']
+  if (!isAchievementsReport.value) classHeaders.push('<th>Pelanggaran</th>')
+  if (!isViolationsReport.value) classHeaders.push(`<th>${isApresiasiReport.value ? 'Apresiasi' : 'Prestasi'}</th>`)
+  if (isCombinedReport.value) classHeaders.push('<th>Konseling</th>')
+  const classRows = (report.value.by_class || []).map((row) => {
+    const cols = [`<td>${escapeHtml(row.class_name)}</td>`]
+    if (!isAchievementsReport.value) cols.push(`<td class="num">${escapeHtml(row.violation_count)}</td>`)
+    if (!isViolationsReport.value) cols.push(`<td class="num">${escapeHtml(row.achievement_count ?? 0)}</td>`)
+    if (isCombinedReport.value) cols.push(`<td class="num">${escapeHtml(row.counseling_count)}</td>`)
+    return `<tr>${cols.join('')}</tr>`
+  }).join('') || `<tr><td colspan="${classHeaders.length}">Belum ada data</td></tr>`
+  parts.push(`
+    <h2>${section++}. Rekap per Kelas</h2>
+    <table>
+      <thead><tr>${classHeaders.join('')}</tr></thead>
+      <tbody>${classRows}</tbody>
+    </table>
+  `)
+
+  const monthHeaders = ['<th>Bulan</th>']
+  if (!isAchievementsReport.value) monthHeaders.push('<th>Pelanggaran</th>')
+  if (!isViolationsReport.value) monthHeaders.push(`<th>${isApresiasiReport.value ? 'Apresiasi' : 'Prestasi'}</th>`)
+  if (isCombinedReport.value) monthHeaders.push('<th>Konseling</th>')
+  const monthRows = (report.value.by_month?.months || []).map((m) => {
+    const cols = [`<td>${escapeHtml(monthFullLabel(m.month))}</td>`]
+    if (!isAchievementsReport.value) cols.push(`<td class="num">${escapeHtml(m.violation_count)}</td>`)
+    if (!isViolationsReport.value) cols.push(`<td class="num">${escapeHtml(m.achievement_count ?? 0)}</td>`)
+    if (isCombinedReport.value) cols.push(`<td class="num">${escapeHtml(m.counseling_count)}</td>`)
+    return `<tr>${cols.join('')}</tr>`
+  }).join('') || `<tr><td colspan="${monthHeaders.length}">Belum ada data</td></tr>`
+  parts.push(`
+    <h2>${section++}. Rekap per Bulan (${escapeHtml(report.value.by_month?.year || filters.value.year)})</h2>
+    <table>
+      <thead><tr>${monthHeaders.join('')}</tr></thead>
+      <tbody>${monthRows}</tbody>
+    </table>
+  `)
+
+  if (!isAchievementsReport.value && report.value.top_violation_types?.length) {
+    const typeRows = report.value.top_violation_types.map((row, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${escapeHtml(row.type_name)}</td>
+        <td>${escapeHtml(row.category)}</td>
+        <td class="num">${escapeHtml(row.count)}</td>
+        <td class="num">${escapeHtml(row.total_points)}</td>
+      </tr>
+    `).join('')
+    parts.push(`
+      <h2>${section++}. Top Jenis Pelanggaran</h2>
+      <table>
+        <thead><tr><th>#</th><th>Jenis</th><th>Kategori</th><th>Jumlah</th><th>Total Poin</th></tr></thead>
+        <tbody>${typeRows}</tbody>
+      </table>
+    `)
+  }
+
+  if (!isViolationsReport.value && report.value.top_achievement_types?.length) {
+    const achTypeRows = report.value.top_achievement_types.map((row, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${escapeHtml(row.type_name)}</td>
+        <td>${escapeHtml(row.category || '—')}</td>
+        <td class="num">${escapeHtml(row.count)}</td>
+        <td class="num">${escapeHtml(row.total_points)}</td>
+      </tr>
+    `).join('')
+    const topTitle = isApresiasiReport.value ? 'Top Jenis Apresiasi' : 'Top Jenis Prestasi'
+    parts.push(`
+      <h2>${section++}. ${topTitle}</h2>
+      <table>
+        <thead><tr><th>#</th><th>Jenis</th><th>Kategori</th><th>Jumlah</th><th>Total Poin</th></tr></thead>
+        <tbody>${achTypeRows}</tbody>
+      </table>
+    `)
+  }
+
+  return parts.join('')
+}
+
+function buildPrintBodyHtml() {
+  if (viewTab.value === 'ringkasan') return buildPrintSummaryHtml()
+  if (viewTab.value === 'skor') return buildPrintSkorHtml()
+  return buildPrintCatatanHtml()
+}
+
+function printPageOrientation() {
+  if (isAkreditasiReport.value) return 'landscape'
+  if (isDetailTab.value) return 'landscape'
+  return 'portrait'
+}
+
+function printDocumentTitle() {
+  if (isAkreditasiReport.value) {
+    if (viewTab.value === 'ringkasan') return 'Rekapitulasi Prestasi Siswa'
+    if (viewTab.value === 'catatan') return 'Daftar Prestasi Siswa — Lomba & Kompetisi'
+  }
+  const tabPart = viewTab.value === 'ringkasan' ? 'Ringkasan' : viewTab.value === 'skor' ? 'Skor Siswa' : 'Catatan'
+  return `${reportKindLabel.value} — ${tabPart}`
+}
+
+async function printPdf() {
   const hasData = isDetailTab.value ? !!detail.value : !!report.value
-  if (!hasData) {
+  if (!hasData && !isAkreditasiReport.value) {
     toast.error('Gagal', 'Tidak ada data untuk dicetak')
     return
   }
 
   printing.value = true
   try {
+    if (isAkreditasiReport.value) {
+      await ensureDetailForPrint()
+    }
+    const hasDataAfterLoad = isAkreditasiReport.value
+      ? !!(report.value || detail.value?.achievements?.length)
+      : (isDetailTab.value ? !!detail.value : !!report.value)
+    if (!hasDataAfterLoad) {
+      toast.error('Gagal', 'Tidak ada data untuk dicetak')
+      return
+    }
     const inst = institution.value || {}
     const instName = inst.name || 'Sekolah'
     const fullAddress = [
@@ -977,16 +1491,14 @@ function printPdf() {
       inst.province,
       inst.postal_code,
     ].filter(Boolean).join(', ')
-    const title = isDetailTab.value
-      ? 'Laporan BK — Skor Siswa & Catatan'
-      : 'Laporan BK — Ringkasan'
-    const createdAt = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    })
+    const tabLabel = viewTab.value === 'ringkasan' ? 'Ringkasan' : viewTab.value === 'skor' ? 'Skor_Siswa' : 'Catatan'
+    const title = printDocumentTitle()
+    const pageOrientation = printPageOrientation()
+    const printFooterLine = formatPrintFooterLine(authStore.user?.name)
     const placeDate = `${inst.district || inst.city || '........................'}, ${new Date().toLocaleDateString('id-ID', {
       day: 'numeric', month: 'long', year: 'numeric',
     })}`
-    const filename = `Laporan_BK_${isDetailTab.value ? 'Detail' : 'Ringkasan'}_${new Date().toISOString().slice(0, 10)}.pdf`
+    const filename = `${reportFilenamePrefix.value}_${tabLabel}_${new Date().toISOString().slice(0, 10)}.pdf`
 
     const principalRole = signers.value?.principal?.role || getPrincipalTitle(inst.level)
     const principalName = signers.value?.principal?.name || inst.principal_name || ''
@@ -1013,19 +1525,22 @@ function printPdf() {
     .school-address { font-size: 10px; line-height: 1.35; margin-top: 3px; }
     .school-info { font-size: 9px; margin-top: 2px; }
     .subtitle { text-align: center; color: #444; margin-bottom: 12px; }
+    .subtitle.academic-year { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 14px; }
     .period { text-align: center; margin-bottom: 16px; font-size: 11px; }
     h2 { font-size: 12px; margin: 18px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+    h2 .h2-sub { font-weight: 400; font-size: 11px; color: #555; text-transform: none; }
     table { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 8px; }
     th, td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
     th { background: #eee; font-size: 10px; text-transform: uppercase; }
     tr.group-row td { background: #e2e8f0; font-weight: 700; text-transform: none; }
     td.num, th.num { text-align: right; }
     .stats { display: flex; gap: 8px; margin-bottom: 12px; }
+    .stats-akreditasi { max-width: 420px; margin-left: auto; margin-right: auto; }
     .stat { flex: 1; border: 1px solid #333; padding: 8px; text-align: center; }
     .stat-label { font-size: 9px; text-transform: uppercase; color: #555; }
     .stat-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
     .note { font-size: 10px; color: #444; margin: 0 0 10px; }
-    .printed-at { font-size: 9px; color: #555; margin-top: 12px; text-align: center; }
+    .printed-at { font-size: 9px; color: #555; text-align: center; }
     .sig-wrap { display: table; width: 100%; margin-top: 28px; page-break-inside: avoid; }
     .sig-col { display: table-cell; width: 50%; vertical-align: top; }
     .sig { text-align: center; min-width: 220px; }
@@ -1035,9 +1550,34 @@ function printPdf() {
     .sig-space { height: 56px; }
     .sig-name { font-size: 11px; font-weight: 700; text-decoration: underline; }
     .sig-nip { font-size: 9px; margin-top: 2px; }
+    .center { text-align: center; }
+    .nowrap { white-space: nowrap; }
+    .cell-sub { font-size: 9px; color: #555; }
+    .stats-compact .stat-value-sm { font-size: 11px; line-height: 1.3; }
+    .table-akreditasi th, .table-akreditasi td { font-size: 10px; padding: 5px 6px; }
+    .table-akreditasi .col-no { width: 28px; }
+    .table-akreditasi .col-nama { width: 14%; }
+    .table-akreditasi .col-lomba { width: 18%; }
+    .table-akreditasi .col-kat { width: 9%; }
+    .table-akreditasi .col-jenis { width: 11%; }
+    .table-akreditasi .col-tingkat { width: 10%; }
+    .table-akreditasi .col-rank { width: 8%; }
+    .table-akreditasi .col-tgl { width: 7%; }
+    .table-akreditasi .col-ket { width: 14%; }
+    .table-compact { max-width: 360px; }
+    .table-trend { max-width: 320px; }
+    .split-tables-print { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+    .split-tables-print > table { flex: 1; min-width: 200px; }
     @media print {
-      @page { size: A4 ${isDetailTab.value ? 'landscape' : 'portrait'}; margin: 10mm 12mm 10mm 10mm; }
+      @page { size: A4 ${pageOrientation}; margin: 10mm 12mm 14mm 10mm; }
       body { margin: 0; padding-right: 1px; }
+      .printed-at {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0;
+      }
     }
   </style>
 </head>
@@ -1061,8 +1601,8 @@ function printPdf() {
     </div>
   </header>
   <h1>${escapeHtml(title)}</h1>
-  <div class="subtitle">Bimbingan Konseling</div>
-  <div class="period"><strong>Periode / Filter:</strong> ${escapeHtml(periodLabel.value)}</div>
+  ${printSubtitleHtml()}
+  ${printPeriodLineHtml()}
   ${buildPrintBodyHtml()}
   <div class="sig-wrap">
     <div class="sig-col">
@@ -1084,7 +1624,7 @@ function printPdf() {
       </div>
     </div>
   </div>
-  <div class="printed-at">Dicetak pada: ${escapeHtml(createdAt)}</div>
+  <div class="printed-at">${escapeHtml(printFooterLine)}</div>
 </body>
 </html>`
 
@@ -1175,10 +1715,39 @@ onMounted(async () => {
   const qTab = String(route.query.tab || '')
   if (qTab === 'detail' || qTab === 'skor') viewTab.value = 'skor'
   else if (qTab === 'catatan') viewTab.value = 'catatan'
+  else if (isAchievementsReport.value) viewTab.value = 'ringkasan'
+  else if (isViolationsReport.value && viewTab.value === 'catatan' && !qTab) viewTab.value = 'ringkasan'
   const qNotes = String(route.query.notes || '')
   if (['violations', 'achievements', 'counseling'].includes(qNotes)) {
     notesKind.value = qNotes
+  } else if (isAchievementsReport.value) {
+    notesKind.value = 'achievements'
+  } else if (isViolationsReport.value) {
+    notesKind.value = 'violations'
   }
+  if (isAchievementsReport.value && viewTab.value === 'skor') viewTab.value = 'ringkasan'
+  if (isDetailTab.value) await loadDetail()
+  else await loadSummary()
+})
+
+function applyReportScopeDefaults() {
+  if (isAchievementsReport.value) {
+    notesKind.value = 'achievements'
+    if (viewTab.value === 'skor') viewTab.value = 'ringkasan'
+  } else if (isViolationsReport.value) {
+    notesKind.value = 'violations'
+  }
+}
+
+watch(() => route.path, async () => {
+  applyReportScopeDefaults()
+  invalidateCache()
+  if (isDetailTab.value) await loadDetail()
+  else await loadSummary()
+})
+
+watch(() => route.meta.reportPurpose, async () => {
+  invalidateCache()
   if (isDetailTab.value) await loadDetail()
   else await loadSummary()
 })
@@ -1208,6 +1777,17 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
+}
+.report-kind-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .tab-shell {
   display: grid;

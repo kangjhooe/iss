@@ -65,6 +65,9 @@ class AchievementController extends Controller
             if ($request->filled('achievement_type_id')) {
                 $query->where('achievement_type_id', $request->achievement_type_id);
             }
+            if ($request->filled('purpose')) {
+                $query->where('purpose', $request->purpose);
+            }
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
             }
@@ -192,13 +195,24 @@ class AchievementController extends Controller
             }
 
             if ($achievement->status !== Achievement::STATUS_PENDING) {
+                $institutionId = $this->resolveInstitutionId($request) ?: (int) $achievement->institution_id;
+                $type = AchievementType::where('id', $request->achievement_type_id)
+                    ->where('institution_id', $institutionId)
+                    ->where('is_active', true)
+                    ->firstOrFail();
+
                 $incomingType = (int) $request->achievement_type_id;
                 $incomingDate = (string) $request->achievement_date;
                 $incomingPoints = $request->input('point_value');
                 $currentDate = optional($achievement->achievement_date)?->format('Y-m-d');
+                $newPoint = $type->resolvePointValue(
+                    $request->input('level') ?: null,
+                    $request->has('point_value') ? (int) $incomingPoints : null
+                );
+
                 $materialChanged = $incomingType !== (int) $achievement->achievement_type_id
                     || $incomingDate !== (string) $currentDate
-                    || ($incomingPoints !== null && (float) $incomingPoints !== (float) $achievement->point_value);
+                    || ($incomingPoints !== null && (int) $incomingPoints !== (int) $achievement->point_value);
 
                 $reviewedByOther = $achievement->reviewed_by
                     && (int) $achievement->reviewed_by !== (int) $achievement->given_by;
@@ -210,8 +224,17 @@ class AchievementController extends Controller
                     ], 422);
                 }
 
-                if ($materialChanged === false && $achievement->status !== Achievement::STATUS_PENDING) {
-                    $achievement->update(['notes' => $request->notes]);
+                $detailPayload = [
+                    'title' => $request->input('title'),
+                    'level' => $request->input('level'),
+                    'rank' => $request->input('rank'),
+                    'notes' => $request->notes,
+                    'purpose' => $request->input('purpose', $type->purpose ?? Achievement::PURPOSE_AKREDITASI),
+                    'point_value' => $newPoint,
+                ];
+
+                if ($materialChanged === false) {
+                    $achievement->update($detailPayload);
                     $achievement->load(['student', 'achievementType', 'giver', 'reviewer', 'academicYear:id,name,code', 'semester:id,name']);
                     return new AchievementResource($achievement);
                 }
@@ -220,12 +243,19 @@ class AchievementController extends Controller
             $institutionId = $this->resolveInstitutionId($request) ?: (int) $achievement->institution_id;
             $type = AchievementType::where('id', $request->achievement_type_id)->where('institution_id', $institutionId)->where('is_active', true)->firstOrFail();
 
-            $pointValue = $request->input('point_value', $type->point_value);
+            $pointValue = $type->resolvePointValue(
+                $request->input('level') ?: null,
+                $request->has('point_value') ? (int) $request->input('point_value') : null
+            );
             $institution = Institution::find($institutionId);
             $achievement->loadMissing('student');
 
             $payload = [
                 'achievement_type_id' => $type->id,
+                'purpose' => $request->input('purpose', $type->purpose ?? Achievement::PURPOSE_AKREDITASI),
+                'title' => $request->input('title'),
+                'level' => $request->input('level'),
+                'rank' => $request->input('rank'),
                 'achievement_date' => $request->achievement_date,
                 'point_value' => $pointValue,
                 'notes' => $request->notes,

@@ -22,6 +22,11 @@ class WaliNoteResource extends JsonResource
                 'id' => $this->author->id,
                 'name' => $this->author->name,
             ]),
+            'class' => $this->whenLoaded('schoolClass', fn () => [
+                'id' => $this->schoolClass->id,
+                'name' => $this->schoolClass->name,
+            ]),
+            'is_current_class' => (int) $this->class_id === (int) ($request->route('classId') ?? 0),
             'can_edit' => $request->user()
                 ? (int) $request->user()->id === (int) $this->author_user_id
                 : false,

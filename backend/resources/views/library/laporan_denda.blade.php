@@ -84,6 +84,6 @@
         'kepala_perpustakaan' => $kepala_perpustakaan ?? null,
     ])
 
-    <div class="footer print-document-footer">Dokumen digenerate sistem · {{ $printed_at }}</div>
+    @include('partials.print-document-footer')
 </body>
 </html>

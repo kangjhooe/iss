@@ -1,4 +1,5 @@
-<template>    <div class="ppdb-page">
+<template>
+    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -181,11 +182,11 @@
             <div class="form-row">
               <div class="form-group">
                 <label>Biaya pendaftaran</label>
-                <input v-model.number="periodForm.registration_fee" type="number" min="0" step="1000" placeholder="Opsional" />
+                <MoneyInput v-model="periodForm.registration_fee" :min="0" placeholder="Opsional" />
               </div>
               <div class="form-group">
                 <label>Biaya daftar ulang</label>
-                <input v-model.number="periodForm.re_registration_fee" type="number" min="0" step="1000" placeholder="Opsional" />
+                <MoneyInput v-model="periodForm.re_registration_fee" :min="0" placeholder="Opsional" />
               </div>
             </div>
             <div class="form-group">
@@ -263,10 +264,12 @@
 
       <ConfirmDialog v-if="deletePeriodTarget" :show="!!deletePeriodTarget" title="Hapus Periode" message="Yakin menghapus periode ini? Periode yang sudah memiliki calon tidak dapat dihapus." confirmText="Hapus" @confirm="doDeletePeriod" @cancel="deletePeriodTarget = null" />
       <ConfirmDialog v-if="deleteChannelTarget" :show="!!deleteChannelTarget" title="Hapus Jalur" message="Yakin menghapus jalur ini? Jalur yang sudah dipakai calon tidak dapat dihapus." confirmText="Hapus" @confirm="doDeleteChannel" @cancel="deleteChannelTarget = null" />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

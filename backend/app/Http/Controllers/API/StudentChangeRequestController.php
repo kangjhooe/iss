@@ -10,6 +10,7 @@ use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use App\Models\StudentChangeRequest;
 use App\Models\User;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -119,7 +120,7 @@ class StudentChangeRequestController extends Controller
                 }
                 $query->where('student_id', $profile->id);
             } elseif (!$user->isSuperAdmin()) {
-                $institutionId = $user->institution_id;
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
                 if (!$institutionId) {
                     return response()->json(['data' => []], 200);
                 }
@@ -221,10 +222,9 @@ class StudentChangeRequestController extends Controller
                 if (!$profile || $changeRequest->student_id !== (int) $profile->id) {
                     return response()->json(['message' => 'Unauthorized'], 403);
                 }
-            } elseif (!$user->isSuperAdmin()) {
-                if ($changeRequest->student->institution_id !== $user->institution_id) {
-                    return response()->json(['message' => 'Unauthorized'], 403);
-                }
+            } elseif (!$user->isAdminOrSuperAdmin()
+                && !InstitutionContext::canAccessInstitution($user, (int) $changeRequest->student->institution_id)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
             }
 
             return response()->json($changeRequest);
@@ -246,7 +246,8 @@ class StudentChangeRequestController extends Controller
             }
 
             $user = $request->user();
-            if (!$user->isSuperAdmin() && $changeRequest->student->institution_id !== $user->institution_id) {
+            if (!$user->isAdminOrSuperAdmin()
+                && !InstitutionContext::canAccessInstitution($user, (int) $changeRequest->student->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -330,7 +331,7 @@ class StudentChangeRequestController extends Controller
 
             $query = StudentChangeRequest::pending();
             if (!$user->isSuperAdmin()) {
-                $institutionId = $user->institution_id;
+                $institutionId = InstitutionContext::resolveForUser($user, $request, $request->get('institution_id'));
                 if (!$institutionId) {
                     return response()->json(['count' => 0], 200);
                 }

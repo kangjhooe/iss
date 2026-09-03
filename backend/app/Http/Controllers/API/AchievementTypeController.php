@@ -30,6 +30,9 @@ class AchievementTypeController extends Controller
             if ($activeOnly) {
                 $query->active();
             }
+            if ($request->filled('purpose')) {
+                $query->where('purpose', $request->purpose);
+            }
             $items = $query->get();
             return AchievementTypeResource::collection($items);
         } catch (\Exception $e) {

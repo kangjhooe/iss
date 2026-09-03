@@ -46,11 +46,9 @@
                 <td><strong>{{ row.label }}</strong></td>
                 <td class="muted">{{ row.key }}</td>
                 <td class="num">
-                  <input
-                    v-model.number="row.amount"
-                    type="number"
-                    min="0"
-                    step="1000"
+                  <MoneyInput
+                    v-model="row.amount"
+                    :min="0"
                     class="form-input"
                     style="max-width:160px;margin-left:auto"
                     :disabled="!row.is_active"
@@ -70,6 +68,7 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { payrollPositionAllowanceApi } from '@/api/payroll'
 import { apiError } from './penggajianConstants'

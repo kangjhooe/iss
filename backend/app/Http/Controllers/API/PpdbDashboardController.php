@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Resources\PpdbChannelResource;
 use App\Http\Resources\PpdbPeriodResource;
 use App\Models\PpdbApplicant;
@@ -14,22 +15,17 @@ use Illuminate\Support\Facades\Log;
 
 class PpdbDashboardController extends Controller
 {
+    use ResolvesInstitution;
+
     /**
      * Ringkasan dashboard PPDB untuk institusi aktif.
      */
     public function summary(Request $request): JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
-            if ($user->isSuperAdmin() && $request->filled('institution_id')) {
-                $institutionId = (int) $request->institution_id;
-            }
-            if (!$institutionId && !$user->isSuperAdmin()) {
-                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
-            }
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
-                return response()->json(['message' => 'Pilih institusi.'], 403);
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $periods = PpdbPeriod::forInstitution($institutionId)

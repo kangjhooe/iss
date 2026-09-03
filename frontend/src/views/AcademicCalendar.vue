@@ -1,4 +1,5 @@
-<template>    <div class="calendar-page">
+<template>
+    <div class="calendar-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -85,37 +86,57 @@
           <div v-if="monthLoading" class="loading-wrap">
             <LoadingSkeleton type="table" :rows="5" :columns="7" />
           </div>
-          <div v-else class="month-grid">
-            <div v-for="d in weekDayLabels" :key="d" class="month-dow">{{ d }}</div>
-            <div
-              v-for="(cell, idx) in monthCells"
-              :key="idx"
-              class="month-cell"
-              :class="{ outside: !cell.inMonth, today: cell.isToday }"
-            >
-              <div class="cell-day">{{ cell.day }}</div>
-              <button
-                v-for="ev in cell.events"
-                :key="ev.id"
-                type="button"
-                class="cell-event"
-                :style="{ borderLeftColor: ev.color || typeColor(ev.event_type) }"
-                :title="ev.title"
-                @click="editEvent(ev)"
-              >
-                {{ ev.title }}
-              </button>
-            </div>
+          <div v-else-if="monthError" class="empty-state is-error">
+            <h3>Gagal memuat kalender</h3>
+            <p>{{ monthError }}</p>
+            <button type="button" class="btn-primary" @click="loadMonthEvents">Coba lagi</button>
           </div>
+          <template v-else>
+            <div class="type-legend" aria-label="Legenda jenis event">
+              <span v-for="t in eventTypes" :key="t" class="legend-item">
+                <i class="legend-dot" :style="{ background: typeColor(t) }" />
+                {{ t }}
+              </span>
+            </div>
+            <div class="month-grid">
+              <div v-for="d in weekDayLabels" :key="d" class="month-dow">{{ d }}</div>
+              <div
+                v-for="(cell, idx) in monthCells"
+                :key="idx"
+                class="month-cell"
+                :class="{ outside: !cell.inMonth, today: cell.isToday }"
+              >
+                <div class="cell-day">{{ cell.day }}</div>
+                <button
+                  v-for="ev in cell.events.slice(0, 3)"
+                  :key="ev.id"
+                  type="button"
+                  class="cell-event"
+                  :style="{ borderLeftColor: ev.color || typeColor(ev.event_type) }"
+                  :title="ev.title"
+                  @click="editEvent(ev)"
+                >
+                  {{ ev.title }}
+                </button>
+                <span v-if="cell.events.length > 3" class="cell-more">+{{ cell.events.length - 3 }} lagi</span>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div v-else class="content-card">
           <div v-if="loading" class="loading-wrap">
             <LoadingSkeleton type="table" :rows="6" :columns="7" />
           </div>
+          <div v-else-if="listError" class="empty-state is-error">
+            <h3>Gagal memuat event</h3>
+            <p>{{ listError }}</p>
+            <button type="button" class="btn-primary" @click="loadEvents(pagination?.current_page || 1)">Coba lagi</button>
+          </div>
           <div v-else-if="events.length === 0" class="empty-state">
             <h3>Belum ada event</h3>
             <p>Tambah libur, ujian, atau kegiatan agar muncul di dashboard siswa.</p>
+            <button type="button" class="btn-primary" @click="openCreate">+ Tambah Event</button>
           </div>
           <div v-else class="table-wrap">
             <table class="data-table">
@@ -283,7 +304,8 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    /></template>
+    />
+</template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
@@ -320,6 +342,8 @@ const events = ref([])
 const monthEvents = ref([])
 const loading = ref(true)
 const monthLoading = ref(false)
+const listError = ref('')
+const monthError = ref('')
 const pagination = ref(null)
 const perPage = ref(15)
 const filterSemesters = ref([])
@@ -454,24 +478,28 @@ function cleanParams(obj) {
 
 async function loadEvents(page = 1) {
   loading.value = true
+  listError.value = ''
   try {
     const response = await academicCalendarApi.getAll(cleanParams({
       page,
       per_page: perPage.value,
       ...filters.value
     }))
-    events.value = response.data.data || []
-    pagination.value = response.data.meta
+    const payload = response.data
+    events.value = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : [])
+    pagination.value = payload?.meta
       ? {
-          current_page: response.data.meta.current_page,
-          last_page: response.data.meta.last_page,
-          per_page: response.data.meta.per_page ?? perPage.value,
-          total: response.data.meta.total ?? 0,
+          current_page: payload.meta.current_page,
+          last_page: payload.meta.last_page,
+          per_page: payload.meta.per_page ?? perPage.value,
+          total: payload.meta.total ?? 0,
         }
       : null
     if (pagination.value) perPage.value = pagination.value.per_page
   } catch (e) {
-    toast.error('Gagal memuat event', e.response?.data?.message || '')
+    const msg = e.response?.data?.message || e.formattedMessage || 'Server tidak merespons.'
+    listError.value = msg
+    toast.error('Gagal memuat event', msg)
     events.value = []
   } finally {
     loading.value = false
@@ -485,12 +513,14 @@ function changePerPage(n) {
 
 async function loadMonthEvents() {
   monthLoading.value = true
+  monthError.value = ''
   try {
     const response = await academicCalendarApi.getCalendar({
       start_date: monthRange.value.start_date,
       end_date: monthRange.value.end_date
     })
-    let list = response.data.data || response.data || []
+    const payload = response.data
+    let list = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : [])
     if (filters.value.academic_year_id) {
       list = list.filter((e) => String(e.academic_year_id) === String(filters.value.academic_year_id))
     }
@@ -509,7 +539,9 @@ async function loadMonthEvents() {
     }
     monthEvents.value = list
   } catch (e) {
-    toast.error('Gagal memuat kalender', e.response?.data?.message || '')
+    const msg = e.response?.data?.message || e.formattedMessage || 'Server tidak merespons.'
+    monthError.value = msg
+    toast.error('Gagal memuat kalender', msg)
     monthEvents.value = []
   } finally {
     monthLoading.value = false
@@ -687,7 +719,11 @@ watch(viewMode, (mode) => {
 })
 
 onMounted(async () => {
-  await referenceStore.getAcademicYears()
+  try {
+    await referenceStore.getAcademicYears()
+  } catch (e) {
+    toast.error('Gagal memuat tahun ajaran', e.response?.data?.message || '')
+  }
   await loadEvents()
 })
 </script>

@@ -30,6 +30,9 @@ class AchievementService
         if (!empty($filters['student_id'])) {
             $query->where('student_id', $filters['student_id']);
         }
+        if (!empty($filters['purpose'])) {
+            $query->where('purpose', $filters['purpose']);
+        }
         if (!empty($filters['achievement_type_id'])) {
             $query->where('achievement_type_id', $filters['achievement_type_id']);
         }
@@ -80,7 +83,11 @@ class AchievementService
         $institution = Institution::find($institutionId);
         $academicYearId = $student->academic_year_id ?: $institution?->active_academic_year_id;
         $semesterId = $student->semester_id ?: $institution?->active_semester_id;
-        $pointValue = $data['point_value'] ?? $type->point_value;
+        $pointValue = $type->resolvePointValue(
+            !empty($data['level']) ? $data['level'] : null,
+            isset($data['point_value']) ? (int) $data['point_value'] : null
+        );
+        $purpose = $data['purpose'] ?? $type->purpose ?? Achievement::PURPOSE_AKREDITASI;
 
         $status = $asPending ? Achievement::STATUS_PENDING : Achievement::STATUS_DICATAT;
 
@@ -88,6 +95,10 @@ class AchievementService
             'institution_id' => $institutionId,
             'student_id' => $student->id,
             'achievement_type_id' => $type->id,
+            'purpose' => $purpose,
+            'title' => $data['title'] ?? null,
+            'level' => $data['level'] ?? null,
+            'rank' => $data['rank'] ?? null,
             'given_by' => $givenBy,
             'achievement_date' => $data['achievement_date'],
             'point_value' => $pointValue,
@@ -117,12 +128,18 @@ class AchievementService
             ]);
         }
 
+        $achievement->loadMissing('achievementType');
+        $type = $achievement->achievementType;
+        $pointValue = isset($data['point_value'])
+            ? (int) $data['point_value']
+            : ($type ? $type->resolvePointValue($achievement->level) : (int) $achievement->point_value);
+
         $achievement->update([
             'status' => Achievement::STATUS_DICATAT,
             'reviewed_by' => $reviewer->id,
             'reviewed_at' => now(),
             'review_notes' => $data['review_notes'] ?? null,
-            'point_value' => $data['point_value'] ?? $achievement->point_value,
+            'point_value' => $pointValue,
         ]);
 
         return $achievement->fresh([

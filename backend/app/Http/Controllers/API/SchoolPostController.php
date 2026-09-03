@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreSchoolPostRequest;
 use App\Http\Requests\UpdateSchoolPostRequest;
 use App\Http\Resources\SchoolPostResource;
 use App\Models\SchoolPost;
 use App\Services\SchoolPostService;
-use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -16,17 +16,15 @@ use Illuminate\Support\Facades\Log;
 
 class SchoolPostController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected SchoolPostService $service
     ) {}
 
     protected function getInstitutionId(Request $request): ?int
     {
-        return InstitutionContext::resolveForUser(
-            $request->user(),
-            $request,
-            $request->filled('institution_id') ? $request->get('institution_id') : null
-        );
+        return $this->resolveInstitutionId($request);
     }
 
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
@@ -83,9 +81,8 @@ class SchoolPostController extends Controller
 
     public function show(Request $request, SchoolPost $school_post): SchoolPostResource|JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $school_post->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $school_post->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $school_post->load(['images', 'creator:id,name']);
@@ -96,9 +93,8 @@ class SchoolPostController extends Controller
     public function update(UpdateSchoolPostRequest $request, SchoolPost $school_post): JsonResponse
     {
         try {
-            $institutionId = $this->getInstitutionId($request);
-            if ($institutionId && (int) $school_post->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $school_post->institution_id, 'Unauthorized')) {
+                return $resp;
             }
 
             $data = $request->validated();
@@ -122,9 +118,8 @@ class SchoolPostController extends Controller
 
     public function destroy(Request $request, SchoolPost $school_post): JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $school_post->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $school_post->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $this->service->delete($school_post);

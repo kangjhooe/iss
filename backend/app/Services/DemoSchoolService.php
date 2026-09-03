@@ -9,6 +9,8 @@ use App\Models\AchievementType;
 use App\Models\AdditionalDuty;
 use App\Models\AlumniDestination;
 use App\Models\BankSoal;
+use App\Models\BkkApplication;
+use App\Models\BkkVacancy;
 use App\Models\Building;
 use App\Models\Correspondence;
 use App\Models\CorrespondenceCategory;
@@ -38,6 +40,7 @@ use App\Models\FinanceInvoice;
 use App\Models\FinancePayment;
 use App\Models\Grade;
 use App\Models\GuestVisit;
+use App\Models\IndustryPartner;
 use App\Models\Institution;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
@@ -56,11 +59,18 @@ use App\Models\LibraryBookCategory;
 use App\Models\LibraryBookCopy;
 use App\Models\LibraryLoan;
 use App\Models\ParentLink;
+use App\Models\PayrollComponent;
+use App\Models\PayrollEmployeeProfile;
+use App\Models\PayrollPeriod;
+use App\Models\PayrollPositionAllowance;
 use App\Models\Permission;
 use App\Models\PiketIncident;
 use App\Models\PiketLog;
 use App\Models\PiketSchedule;
 use App\Models\PiketSetting;
+use App\Models\PklMonitoringLog;
+use App\Models\PklPeriod;
+use App\Models\PklPlacement;
 use App\Models\PointThreshold;
 use App\Models\PpdbApplicant;
 use App\Models\PpdbChannel;
@@ -91,6 +101,7 @@ use App\Models\UksVisitType;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationType;
+use App\Models\WaliNote;
 use App\Notifications\AcademicCalendarParentNotification;
 use App\Support\ExtracurricularAccess;
 use App\Support\TeacherAccess;
@@ -398,10 +409,13 @@ class DemoSchoolService
         $this->seedSchoolPosts($institution, $admin);
         $this->seedPpdb($institution, $academicYear);
         $this->seedKepegawaian($institution, $teachers, $admin);
+        $this->seedPayroll($institution, $teachers, $admin);
         $this->seedEmployeeAttendance($institution, $teachers);
         $this->seedCorrespondence($institution, $correspondenceCategories, $admin);
         $this->seedLabs($institution, $teachers, $admin, $building);
         $this->seedAlumni($institution, $academicYear, $semester, $classes, $admin);
+        $this->seedPklAndBkk($institution, $academicYear, $students, $teachers, $admin);
+        $this->seedWaliNotes($institution, $classes, $students, $teachers, $admin);
         $this->seedDigitalArchive($institution, $admin);
         $this->seedGuestBook($institution, $admin);
         $this->seedPiketLogs($institution, $teachers, $students, $classes, $admin);
@@ -1566,9 +1580,48 @@ class DemoSchoolService
         User $admin
     ): void {
         $typeDefs = [
-            ['code' => 'OLM', 'name' => 'Juara olimpiade', 'point_value' => 20, 'category' => 'akademik'],
-            ['code' => 'ORK', 'name' => 'Juara olahraga', 'point_value' => 15, 'category' => 'non_akademik'],
-            ['code' => 'SEN', 'name' => 'Juara seni', 'point_value' => 15, 'category' => 'non_akademik'],
+            [
+                'code' => 'OLM',
+                'name' => 'Juara olimpiade',
+                'point_value' => 20,
+                'category' => 'akademik',
+                'purpose' => AchievementType::PURPOSE_AKREDITASI,
+                'level_point_values' => [
+                    'sekolah' => 5,
+                    'kabupaten' => 10,
+                    'provinsi' => 15,
+                    'nasional' => 20,
+                    'internasional' => 30,
+                ],
+            ],
+            [
+                'code' => 'ORK',
+                'name' => 'Juara olahraga',
+                'point_value' => 15,
+                'category' => 'non_akademik',
+                'purpose' => AchievementType::PURPOSE_APRESIASI,
+                'level_point_values' => [
+                    'sekolah' => 3,
+                    'kabupaten' => 8,
+                    'provinsi' => 12,
+                    'nasional' => 15,
+                    'internasional' => 25,
+                ],
+            ],
+            [
+                'code' => 'SEN',
+                'name' => 'Juara seni',
+                'point_value' => 15,
+                'category' => 'non_akademik',
+                'purpose' => AchievementType::PURPOSE_AKREDITASI,
+                'level_point_values' => [
+                    'sekolah' => 3,
+                    'kabupaten' => 8,
+                    'provinsi' => 12,
+                    'nasional' => 15,
+                    'internasional' => 25,
+                ],
+            ],
         ];
 
         $types = [];
@@ -1578,22 +1631,40 @@ class DemoSchoolService
                 'name' => $def['name'],
                 'code' => $def['code'],
                 'point_value' => $def['point_value'],
+                'level_point_values' => $def['level_point_values'],
                 'category' => $def['category'],
+                'purpose' => $def['purpose'],
                 'description' => $def['name'] . ' (demo)',
                 'is_active' => true,
             ]);
         }
 
+        $levels = ['sekolah', 'kabupaten', 'provinsi', 'nasional'];
+        $ranks = ['juara_1', 'juara_2', 'juara_3', 'finalis'];
+        $titles = [
+            'Olimpiade Matematika',
+            'Lomba Basket Antar Sekolah',
+            'Festival Seni Budaya',
+            'Olimpiade Fisika',
+            'Kejuaraan Futsal',
+            'Lomba Paduan Suara',
+        ];
+
         for ($i = 0; $i < 6; $i++) {
             $type = $types[$i % count($types)];
             $student = $students[$i * 7] ?? $students[0];
+            $level = $levels[$i % count($levels)];
             Achievement::create([
                 'institution_id' => $institution->id,
                 'student_id' => $student->id,
                 'achievement_type_id' => $type->id,
+                'purpose' => $type->purpose,
+                'title' => $titles[$i],
+                'level' => $level,
+                'rank' => $ranks[$i % count($ranks)],
                 'given_by' => $admin->id,
                 'achievement_date' => now()->subDays($i * 3)->toDateString(),
-                'point_value' => $type->point_value,
+                'point_value' => $type->resolvePointValue($level),
                 'notes' => 'Prestasi demo #' . ($i + 1),
                 'status' => Achievement::STATUS_DICATAT,
                 'reviewed_by' => $admin->id,
@@ -2003,6 +2074,27 @@ class DemoSchoolService
     ): ?AcademicCalendarEvent {
         $defs = [
             [
+                'title' => 'Rapat Koordinasi Guru',
+                'type' => 'Kegiatan',
+                'start' => now()->startOfMonth()->addDays(2),
+                'end' => null,
+                'color' => '#0f766e',
+            ],
+            [
+                'title' => 'Try Out Ujian Sekolah',
+                'type' => 'Ujian',
+                'start' => now()->startOfMonth()->addDays(8),
+                'end' => now()->startOfMonth()->addDays(10),
+                'color' => '#dc2626',
+            ],
+            [
+                'title' => 'Libur Isra Miraj',
+                'type' => 'Libur',
+                'start' => now()->startOfMonth()->addDays(14),
+                'end' => null,
+                'color' => '#16a34a',
+            ],
+            [
                 'title' => 'Upacara Hari Kemerdekaan',
                 'type' => 'Kegiatan',
                 'start' => now()->month === 8 ? now()->copy()->setDate((int) now()->year, 8, 17) : now(),
@@ -2044,10 +2136,19 @@ class DemoSchoolService
                 'end' => now()->subDays(37),
                 'color' => '#0f766e',
             ],
+            [
+                'title' => 'Workshop Literasi Digital',
+                'type' => 'Other',
+                'start' => now()->addDays(5),
+                'end' => null,
+                'color' => '#64748b',
+            ],
         ];
 
         $created = [];
         foreach ($defs as $def) {
+            $start = $def['start']->copy();
+            $end = $def['end']?->copy() ?? $start->copy();
             $created[] = AcademicCalendarEvent::create([
                 'institution_id' => $institution->id,
                 'academic_year_id' => $academicYear->id,
@@ -2055,16 +2156,24 @@ class DemoSchoolService
                 'title' => $def['title'],
                 'description' => $def['title'] . ' (kalender demo)',
                 'event_type' => $def['type'],
-                'start_date' => $def['start']->toDateString(),
-                'end_date' => $def['end']?->toDateString(),
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
                 'is_all_day' => true,
+                'reminder_days_before' => in_array($def['type'], ['Ujian', 'Libur'], true) ? [3, 7] : [1],
                 'color' => $def['color'],
                 'status' => 'Aktif',
                 'created_by' => $admin->id,
             ]);
         }
 
-        return $created[1] ?? $created[0] ?? null;
+        // Prefer event di bulan berjalan untuk notifikasi demo
+        foreach ($created as $event) {
+            if ($event->start_date && $event->start_date->isSameMonth(now())) {
+                return $event;
+            }
+        }
+
+        return $created[0] ?? null;
     }
 
     private function seedSchoolPosts(Institution $institution, User $admin): void
@@ -2506,18 +2615,24 @@ class DemoSchoolService
         User $admin
     ): void {
         $xii = $classes[4] ?? $classes[0] ?? null;
-        $year = max(2024, (int) now()->year - 1);
+        $yearLatest = max(2024, (int) now()->year - 1);
+        $yearPrev = $yearLatest - 1;
+        $yearOlder = $yearLatest - 2;
+
         $alumniDefs = [
-            ['Rina Maharani', 'P', 'Perguruan_Tinggi', 'Universitas Demo', 'Kedokteran'],
-            ['Yoga Firmansyah', 'L', 'Perguruan_Tinggi', 'ITB Demo', 'Teknik Informatika'],
-            ['Putri Anggraini', 'P', 'Kerja', 'Bank Demo', 'Customer Service'],
-            ['Andi Kurniawan', 'L', 'Wirausaha', 'Toko ATK Demo', 'Pemilik'],
-            ['Sari Melati', 'P', 'Perguruan_Tinggi', 'UNPAD Demo', 'Psikologi'],
-            ['Reza Hakim', 'L', 'Kerja', 'PT Demo Digital', 'Staff IT'],
+            ['Rina Maharani', 'P', 'Perguruan_Tinggi', 'Universitas Demo', 'Kedokteran', $yearLatest],
+            ['Yoga Firmansyah', 'L', 'Perguruan_Tinggi', 'ITB Demo', 'Teknik Informatika', $yearLatest],
+            ['Putri Anggraini', 'P', 'Kerja', 'Bank Demo', 'Customer Service', $yearLatest],
+            ['Andi Kurniawan', 'L', 'Wirausaha', 'Toko ATK Demo', 'Pemilik', $yearPrev],
+            ['Sari Melati', 'P', 'Perguruan_Tinggi', 'UNPAD Demo', 'Psikologi', $yearPrev],
+            ['Reza Hakim', 'L', 'Kerja', 'PT Demo Digital', 'Staff IT', $yearPrev],
+            ['Dewi Lestari', 'P', 'Perguruan_Tinggi', 'UI Demo', 'Hukum', $yearOlder],
+            ['Fajar Nugroho', 'L', 'Kerja', 'Pemda Demo', 'Staf Administrasi', $yearOlder],
+            ['Nadia Putri', 'P', 'Perguruan_Tinggi', 'UGM Demo', 'Farmasi', $yearOlder],
         ];
 
         $alumni = [];
-        foreach ($alumniDefs as $i => [$name, $gender, $destType, $destName, $program]) {
+        foreach ($alumniDefs as $i => [$name, $gender, $destType, $destName, $program, $year]) {
             $student = Student::create([
                 'institution_id' => $institution->id,
                 'nik' => sprintf('320197%010d', $i + 1),
@@ -2525,7 +2640,7 @@ class DemoSchoolService
                 'nisn' => sprintf('00%08d', 30000000 + $i + 1),
                 'name' => $name,
                 'gender' => $gender,
-                'birth_date' => sprintf('2007-%02d-%02d', ($i % 12) + 1, ($i % 27) + 1),
+                'birth_date' => sprintf('%04d-%02d-%02d', 2007 - ($yearLatest - $year), ($i % 12) + 1, ($i % 27) + 1),
                 'birth_place' => 'Kota Demo',
                 'address' => 'Jl. Alumni No. ' . ($i + 1) . ', Kota Demo',
                 'religion' => 'Islam',
@@ -2540,32 +2655,326 @@ class DemoSchoolService
                 'mother_name' => 'Ibu ' . $name,
             ]);
 
-            AlumniDestination::create([
+            $dest = AlumniDestination::create([
                 'institution_id' => $institution->id,
                 'student_id' => $student->id,
                 'destination_type' => $destType,
                 'destination_name' => $destName,
                 'program_or_position' => $program,
                 'year_entered' => $year,
-                'notes' => 'Destinasi alumni demo',
+                'notes' => $i === 2 ? 'Menunggu verifikasi petugas (demo pending)' : 'Destinasi alumni demo',
+                'status' => $i === 2 ? AlumniDestination::STATUS_PENDING : AlumniDestination::STATUS_APPROVED,
+                'source' => AlumniDestination::SOURCE_MANUAL,
+                'reviewed_by' => $i === 2 ? null : $admin->id,
+                'reviewed_at' => $i === 2 ? null : now()->subDays(10 + $i),
             ]);
 
             $alumni[] = $student;
+            unset($dest);
         }
 
-        foreach (array_slice($alumni, 0, 2) as $i => $student) {
+        $pickupDefs = [
+            [0, true, true, true, 'Surat Keterangan Lulus, Transkrip'],
+            [1, true, true, false, 'Piagam Prestasi'],
+            [3, true, false, true, null],
+            [6, true, true, false, 'SKHUN Cadangan, Kartu Pelajar'],
+        ];
+
+        foreach ($pickupDefs as $i => [$idx, $ijazah, $raport, $skhun, $lainnya]) {
+            $student = $alumni[$idx] ?? null;
+            if (! $student) {
+                continue;
+            }
             DocumentPickup::create([
                 'institution_id' => $institution->id,
                 'student_id' => $student->id,
-                'pickup_date' => now()->subDays(20 - $i)->toDateString(),
-                'taken_ijazah' => true,
-                'taken_raport' => true,
-                'taken_skhun' => $i === 0,
-                'nomor_ijazah' => sprintf('DN-%02d/2025', $i + 1),
+                'pickup_date' => now()->subDays(25 - ($i * 4)),
+                'taken_ijazah' => $ijazah,
+                'taken_raport' => $raport,
+                'taken_skhun' => $skhun,
+                'nomor_ijazah' => sprintf('DN-%02d/%d', $i + 1, $student->graduation_year),
                 'kode_blangko' => sprintf('BL-%04d', $i + 1),
-                'received_by' => $student->name,
+                'dokumen_lainnya' => $lainnya,
+                'received_by' => 'Petugas TU Demo',
                 'notes' => 'Pengambilan ijazah demo',
                 'created_by' => $admin->id,
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<Employee>  $teachers
+     */
+    private function seedPayroll(Institution $institution, array $teachers, User $admin): void
+    {
+        if (! Schema::hasTable('payroll_components')) {
+            return;
+        }
+
+        app(PayrollService::class)->ensureDefaultComponents($institution->id);
+
+        $transport = PayrollComponent::query()
+            ->where('institution_id', $institution->id)
+            ->where('code', PayrollComponent::CODE_TRANSPORT)
+            ->first();
+        if ($transport) {
+            $transport->update(['default_amount' => 300000]);
+        }
+
+        $baseSalaries = [4500000, 5200000, 4800000, 5500000, 5000000];
+        foreach (array_slice($teachers, 0, 5) as $i => $teacher) {
+            PayrollEmployeeProfile::updateOrCreate(
+                [
+                    'institution_id' => $institution->id,
+                    'employee_id' => $teacher->id,
+                ],
+                [
+                    'base_salary' => $baseSalaries[$i % count($baseSalaries)],
+                    'payment_method' => 'transfer',
+                    'bank_name' => 'Bank Demo',
+                    'bank_account' => sprintf('77%08d', $i + 1),
+                    'effective_from' => now()->startOfYear()->toDateString(),
+                    'notes' => 'Profil gaji demo',
+                ]
+            );
+        }
+
+        $month = (int) now()->month;
+        $year = (int) now()->year;
+        PayrollPeriod::firstOrCreate(
+            [
+                'institution_id' => $institution->id,
+                'year' => $year,
+                'month' => $month,
+            ],
+            [
+                'label' => now()->translatedFormat('F Y'),
+                'start_date' => now()->startOfMonth()->toDateString(),
+                'end_date' => now()->endOfMonth()->toDateString(),
+                'working_days' => 22,
+                'status' => PayrollPeriod::STATUS_OPEN,
+            ]
+        );
+
+        // Tunjangan jabatan struktural (modul baru penggajian)
+        if (Schema::hasTable('payroll_position_allowances') && Schema::hasTable('structural_positions')) {
+            $allowanceMap = [
+                'kepala_sekolah' => 1500000,
+                'waka_kurikulum' => 750000,
+                'waka_kesiswaan' => 750000,
+                'waka_sarpras' => 750000,
+            ];
+            foreach ($allowanceMap as $key => $amount) {
+                $position = StructuralPosition::query()->where('key', $key)->active()->first();
+                if (! $position) {
+                    continue;
+                }
+                PayrollPositionAllowance::updateOrCreate(
+                    [
+                        'institution_id' => $institution->id,
+                        'structural_position_id' => $position->id,
+                    ],
+                    [
+                        'amount' => $amount,
+                        'is_active' => true,
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * @param  list<Student>  $students
+     * @param  list<Employee>  $teachers
+     */
+    private function seedPklAndBkk(
+        Institution $institution,
+        AcademicYear $academicYear,
+        array $students,
+        array $teachers,
+        User $admin
+    ): void {
+        if (! Schema::hasTable('industry_partners') || ! Schema::hasTable('pkl_periods')) {
+            return;
+        }
+
+        $partnerA = IndustryPartner::create([
+            'institution_id' => $institution->id,
+            'name' => 'PT Demo Teknologi',
+            'business_field' => 'Teknologi Informasi',
+            'address' => 'Jl. Industri No. 10, Kota Demo',
+            'city' => 'Kota Demo',
+            'phone' => '022-5551001',
+            'email' => 'hr@demoteknologi.example',
+            'pic_name' => 'Budi Santoso',
+            'pic_phone' => '08123456001',
+            'status' => 'Aktif',
+            'notes' => 'Mitra industri demo untuk PKL & BKK',
+        ]);
+
+        $partnerB = IndustryPartner::create([
+            'institution_id' => $institution->id,
+            'name' => 'Bank Demo Nusantara',
+            'business_field' => 'Perbankan',
+            'address' => 'Jl. Keuangan No. 5, Kota Demo',
+            'city' => 'Kota Demo',
+            'phone' => '022-5551002',
+            'email' => 'rekrutmen@bankdemo.example',
+            'pic_name' => 'Siti Rahayu',
+            'pic_phone' => '08123456002',
+            'status' => 'Aktif',
+            'notes' => 'Mitra BKK demo',
+        ]);
+
+        $period = PklPeriod::create([
+            'institution_id' => $institution->id,
+            'academic_year_id' => $academicYear->id,
+            'name' => 'PKL Semester Genap ' . $academicYear->code,
+            'start_date' => now()->subWeeks(2)->toDateString(),
+            'end_date' => now()->addMonths(2)->toDateString(),
+            'status' => 'berlangsung',
+            'notes' => 'Periode PKL demo',
+        ]);
+
+        $xiiStudents = array_values(array_filter($students, fn ($s) => (int) ($s->tingkat ?? 0) === 12));
+        if ($xiiStudents === []) {
+            $xiiStudents = array_slice($students, 0, 4);
+        }
+
+        $supervisor = $teachers[2] ?? $teachers[0] ?? null;
+        foreach (array_slice($xiiStudents, 0, 3) as $i => $student) {
+            $placement = PklPlacement::create([
+                'institution_id' => $institution->id,
+                'pkl_period_id' => $period->id,
+                'student_id' => $student->id,
+                'industry_partner_id' => $i === 2 ? $partnerB->id : $partnerA->id,
+                'supervisor_employee_id' => $supervisor?->id,
+                'industry_supervisor_name' => $i === 2 ? 'Siti Rahayu' : 'Budi Santoso',
+                'start_date' => now()->subWeeks(2)->toDateString(),
+                'end_date' => now()->addMonths(2)->toDateString(),
+                'status' => 'berlangsung',
+                'notes' => 'Penempatan PKL demo #' . ($i + 1),
+            ]);
+
+            if (Schema::hasTable('pkl_monitoring_logs')) {
+                PklMonitoringLog::create([
+                    'institution_id' => $institution->id,
+                    'pkl_placement_id' => $placement->id,
+                    'logged_by_employee_id' => $supervisor?->id,
+                    'visit_date' => now()->subDays(5)->toDateString(),
+                    'method' => 'kunjungan',
+                    'notes' => 'Monitoring awal — siswa sudah beradaptasi (demo)',
+                ]);
+            }
+        }
+
+        if (! Schema::hasTable('bkk_vacancies')) {
+            return;
+        }
+
+        $vacancy = BkkVacancy::create([
+            'institution_id' => $institution->id,
+            'industry_partner_id' => $partnerA->id,
+            'title' => 'Staff IT Junior',
+            'company_name' => $partnerA->name,
+            'position' => 'Staff IT',
+            'quota' => 3,
+            'deadline' => now()->addDays(30)->toDateString(),
+            'status' => 'buka',
+            'description' => 'Lowongan BKK demo untuk alumni / siswa tingkat akhir.',
+            'requirements' => "Lulus SMA/SMK\nMenguasai komputer dasar\nBersedia full-time",
+        ]);
+
+        BkkVacancy::create([
+            'institution_id' => $institution->id,
+            'industry_partner_id' => $partnerB->id,
+            'title' => 'Customer Service',
+            'company_name' => $partnerB->name,
+            'position' => 'CS',
+            'quota' => 2,
+            'deadline' => now()->addDays(20)->toDateString(),
+            'status' => 'buka',
+            'description' => 'Lowongan CS demo Bank Demo Nusantara.',
+            'requirements' => 'Komunikatif, siap bekerja shift',
+        ]);
+
+        $alumni = Student::query()
+            ->where('institution_id', $institution->id)
+            ->where('status', 'Lulus')
+            ->orderBy('id')
+            ->limit(2)
+            ->get();
+
+        if (Schema::hasTable('bkk_applications')) {
+            foreach ($alumni as $i => $alum) {
+                BkkApplication::create([
+                    'institution_id' => $institution->id,
+                    'bkk_vacancy_id' => $vacancy->id,
+                    'student_id' => $alum->id,
+                    'status' => $i === 0 ? 'seleksi' : 'diajukan',
+                    'applied_at' => now()->subDays(3 - $i)->toDateString(),
+                    'notes' => 'Lamaran BKK demo',
+                ]);
+            }
+        }
+
+        unset($admin);
+    }
+
+    /**
+     * @param  list<SchoolClass>  $classes
+     * @param  list<Student>  $students
+     * @param  list<Employee>  $teachers
+     */
+    private function seedWaliNotes(
+        Institution $institution,
+        array $classes,
+        array $students,
+        array $teachers,
+        User $admin
+    ): void {
+        if (! Schema::hasTable('wali_notes')) {
+            return;
+        }
+
+        $class = $classes[0] ?? null;
+        if (! $class) {
+            return;
+        }
+
+        $waliEmployee = null;
+        foreach ($teachers as $t) {
+            if ((int) $t->id === (int) ($class->teacher_id ?? 0)) {
+                $waliEmployee = $t;
+                break;
+            }
+        }
+        $waliEmployee = $waliEmployee ?? ($teachers[0] ?? null);
+        $author = $waliEmployee
+            ? (User::where('email', $waliEmployee->email)->first() ?? $admin)
+            : $admin;
+
+        $classStudents = array_values(array_filter(
+            $students,
+            fn ($s) => (int) ($s->class_id ?? 0) === (int) $class->id
+        ));
+        if ($classStudents === []) {
+            $classStudents = array_slice($students, 0, 3);
+        }
+
+        $bodies = [
+            'Siswa aktif di kelas, partisipasi diskusi baik. (catatan wali demo)',
+            'Perlu pendampingan PR Matematika minggu ini. Sudah dihubungi orang tua. (demo)',
+            'Prestasi baik di kegiatan kelas — dipertimbangkan untuk pengurus OSIS. (demo)',
+        ];
+
+        foreach (array_slice($classStudents, 0, 3) as $i => $student) {
+            WaliNote::create([
+                'institution_id' => $institution->id,
+                'class_id' => $class->id,
+                'student_id' => $student->id,
+                'author_user_id' => $author->id,
+                'body' => $bodies[$i] ?? $bodies[0],
             ]);
         }
     }

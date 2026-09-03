@@ -12,11 +12,10 @@ use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Services\FeederAlumniEnrollmentService;
 use App\Services\StudentAccountService;
+use App\Services\StudentBiodataPrintService;
 use App\Services\StudentImportService;
 use App\Services\StudentService;
 use App\Support\InstitutionContext;
-use App\Support\PrintImage;
-use Barryvdh\DomPDF\Facade\Pdf as DomPDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -34,16 +33,20 @@ class StudentController extends Controller
 
     protected FeederAlumniEnrollmentService $feederAlumniEnrollmentService;
 
+    protected StudentBiodataPrintService $biodataPrintService;
+
     public function __construct(
         StudentService $studentService,
         StudentAccountService $studentAccountService,
         StudentImportService $studentImportService,
-        FeederAlumniEnrollmentService $feederAlumniEnrollmentService
+        FeederAlumniEnrollmentService $feederAlumniEnrollmentService,
+        StudentBiodataPrintService $biodataPrintService
     ) {
         $this->studentService = $studentService;
         $this->studentAccountService = $studentAccountService;
         $this->studentImportService = $studentImportService;
         $this->feederAlumniEnrollmentService = $feederAlumniEnrollmentService;
+        $this->biodataPrintService = $biodataPrintService;
     }
 
     /**
@@ -113,6 +116,9 @@ class StudentController extends Controller
     {
         try {
             $institutionId = $this->resolveStudentInstitutionId($request);
+            if (! $request->user()->isAdminOrSuperAdmin() && ! $institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
 
             $filters = $this->resolveListFilters($request, $institutionId);
 
@@ -142,6 +148,9 @@ class StudentController extends Controller
     {
         try {
             $institutionId = $this->resolveStudentInstitutionId($request);
+            if (! $request->user()->isAdminOrSuperAdmin() && ! $institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
 
             $filters = $this->resolveListFilters($request, $institutionId);
             $students = $this->studentService->listForExport($filters, $institutionId);
@@ -1271,6 +1280,7 @@ class StudentController extends Controller
 
     /**
      * GET /student/{id}/biodata/pdf?mode=lengkap|singkat
+     * Alias lama — gunakan /student/{id}/print-biodata di frontend baru.
      */
     public function printBiodata(Request $request, $id)
     {
@@ -1282,25 +1292,8 @@ class StudentController extends Controller
             }
 
             $mode = strtolower((string) $request->query('mode', 'lengkap'));
-            if (!in_array($mode, ['lengkap', 'singkat'], true)) {
-                $mode = 'lengkap';
-            }
 
-            $asOf = now();
-            $pdf = DomPDF::loadView('student.biodata_print', [
-                'student' => $student,
-                'institution' => $student->institution,
-                'mode' => $mode,
-                'photo_base64' => PrintImage::studentPhoto($student),
-                'printed_at' => $asOf->locale('id')->isoFormat('D MMMM YYYY HH:mm'),
-                'signature_date' => $asOf->locale('id')->translatedFormat('d F Y'),
-                'as_of_date' => $asOf,
-            ])->setPaper('a4', 'portrait');
-
-            $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $student->name ?? (string) $student->id);
-            $filename = 'Biodata_'.($mode === 'singkat' ? 'Singkat_' : 'Lengkap_').$safeName.'.pdf';
-
-            return $pdf->stream($filename, ['Attachment' => false]);
+            return $this->biodataPrintService->stream($student, $mode, $request->user()?->name);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
         } catch (\Exception $e) {

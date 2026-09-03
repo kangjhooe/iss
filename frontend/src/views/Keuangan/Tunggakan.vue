@@ -1,4 +1,5 @@
-<template>    <div class="keuangan-page">
+<template>
+    <div class="keuangan-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-left">
@@ -101,7 +102,7 @@
             <div class="form-grid">
               <div class="form-group">
                 <label>Nominal *</label>
-                <input v-model.number="payForm.amount" type="number" min="1" step="1000" class="form-input" required />
+                <MoneyInput v-model="payForm.amount" :min="1" class="form-input" required />
               </div>
               <div class="form-group">
                 <label>Metode</label>
@@ -121,10 +122,12 @@
           </form>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { financeInvoiceApi, financePaymentApi } from '@/api/finance'

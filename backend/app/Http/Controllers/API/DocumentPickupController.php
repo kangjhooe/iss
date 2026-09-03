@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreDocumentPickupRequest;
 use App\Http\Requests\UpdateDocumentPickupRequest;
 use App\Http\Resources\DocumentPickupResource;
@@ -16,16 +17,15 @@ use InvalidArgumentException;
 
 class DocumentPickupController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected DocumentPickupService $service
     ) {}
 
     protected function getInstitutionId(Request $request): ?int
     {
-        if ($request->user()->isAdminOrSuperAdmin() && $request->has('institution_id')) {
-            return (int) $request->institution_id;
-        }
-        return $request->user()->institution_id;
+        return $this->resolveInstitutionId($request);
     }
 
     /**
@@ -91,9 +91,8 @@ class DocumentPickupController extends Controller
      */
     public function show(Request $request, DocumentPickup $document_pickup): DocumentPickupResource|JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $document_pickup->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $document_pickup->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $document_pickup->load(['student', 'student.class', 'creator']);
@@ -106,9 +105,8 @@ class DocumentPickupController extends Controller
     public function update(UpdateDocumentPickupRequest $request, DocumentPickup $document_pickup): JsonResponse
     {
         try {
-            $institutionId = $this->getInstitutionId($request);
-            if ($institutionId && (int) $document_pickup->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $document_pickup->institution_id, 'Unauthorized')) {
+                return $resp;
             }
 
             $data = $request->validated();
@@ -135,9 +133,8 @@ class DocumentPickupController extends Controller
      */
     public function destroy(Request $request, DocumentPickup $document_pickup): JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $document_pickup->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $document_pickup->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $this->service->delete($document_pickup);

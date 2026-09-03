@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Institution;
 use App\Models\KopSurat;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -186,18 +187,21 @@ class KopSuratController extends Controller
 
     private function resolveInstitutionId(Request $request): ?int
     {
-        if (!$request->user()->isAdminOrSuperAdmin()) {
-            return $request->user()->institution_id;
-        }
-        return $request->institution_id ? (int) $request->institution_id : $request->user()->institution_id;
+        return InstitutionContext::resolveForUser(
+            $request->user(),
+            $request,
+            $request->filled('institution_id') ? $request->get('institution_id') : null
+        );
     }
 
     private function canAccess(Request $request, int $institutionId): bool
     {
-        if ($request->user()->isAdminOrSuperAdmin()) {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
             return true;
         }
-        return $request->user()->institution_id === $institutionId;
+
+        return InstitutionContext::canAccessInstitution($user, $institutionId);
     }
 
     /**

@@ -54,6 +54,9 @@ class CorrespondenceController extends Controller
             $filters['only_trashed'] = filter_var($request->get('only_trashed'), FILTER_VALIDATE_BOOLEAN);
 
             $institutionId = $this->resolveCorrespondenceInstitutionId($request);
+            if (! $request->user()->isAdminOrSuperAdmin() && ! $institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
 
             $perPage = min($request->get('per_page', 15), 100);
             $correspondence = $this->service->list($filters, $institutionId, $perPage);
@@ -326,11 +329,17 @@ class CorrespondenceController extends Controller
     {
         try {
             $institutionId = $this->resolveCorrespondenceInstitutionId($request);
+            if (! $request->user()->isAdminOrSuperAdmin() && ! $institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
 
             $query = CorrespondenceCategory::query();
             
             if ($institutionId) {
                 $query->where('institution_id', $institutionId);
+            } else {
+                // Platform admin without institution filter: empty rather than all tenants
+                $query->whereRaw('1 = 0');
             }
 
             if ($request->has('type')) {
@@ -359,11 +368,9 @@ class CorrespondenceController extends Controller
     public function users(Request $request)
     {
         try {
-            $institutionId = $this->resolveCorrespondenceInstitutionId($request)
-                ?: ($request->user()->institution_id ? (int) $request->user()->institution_id : null);
-
-            if (!$institutionId) {
-                return response()->json(['message' => 'Institusi tidak ditemukan'], 400);
+            $institutionId = $this->resolveCorrespondenceInstitutionId($request);
+            if (! $institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             $users = \App\Models\User::where('institution_id', $institutionId)

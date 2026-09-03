@@ -187,7 +187,7 @@
             <h4 style="margin:0 0 0.5rem">Pendapatan</h4>
             <div v-for="(line, idx) in earningLines" :key="'e-' + idx" class="slip-line-row">
               <input v-model="line.label" class="form-input" :disabled="!canEditSlip" />
-              <input v-model.number="line.amount" type="number" min="0" step="1000" class="form-input" :disabled="!canEditSlip" />
+              <MoneyInput v-model="line.amount" :min="0" class="form-input" :disabled="!canEditSlip" />
               <button v-if="canEditSlip" type="button" class="btn-secondary btn-sm" @click="removeLine(line)">×</button>
             </div>
           </div>
@@ -195,7 +195,7 @@
             <h4 style="margin:0 0 0.5rem">Potongan</h4>
             <div v-for="(line, idx) in deductionLines" :key="'d-' + idx" class="slip-line-row">
               <input v-model="line.label" class="form-input" :disabled="!canEditSlip" />
-              <input v-model.number="line.amount" type="number" min="0" step="1000" class="form-input" :disabled="!canEditSlip" />
+              <MoneyInput v-model="line.amount" :min="0" class="form-input" :disabled="!canEditSlip" />
               <button v-if="canEditSlip" type="button" class="btn-secondary btn-sm" @click="removeLine(line)">×</button>
             </div>
           </div>
@@ -231,6 +231,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import {

@@ -94,7 +94,7 @@
             </div>
             <div class="form-group">
               <label>Gaji pokok *</label>
-              <input v-model.number="form.base_salary" type="number" min="0" step="1000" class="form-input" required />
+              <MoneyInput v-model="form.base_salary" :min="0" class="form-input" required />
             </div>
             <div class="form-group">
               <label>Metode bayar</label>
@@ -121,7 +121,7 @@
             <h4 style="margin:0 0 0.75rem;font-size:0.95rem">Override komponen (opsional)</h4>
             <div v-for="(c, idx) in componentOverrides" :key="c.component_id" class="slip-line-row">
               <span>{{ c.name }} <small class="muted">({{ typeLabel(c.type) }})</small></span>
-              <input v-model.number="c.amount" type="number" min="0" step="1000" class="form-input" placeholder="default" />
+              <MoneyInput v-model="c.amount" :min="0" class="form-input" placeholder="default" />
               <label><input v-model="c.is_active" type="checkbox" /></label>
             </div>
           </div>
@@ -138,6 +138,7 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

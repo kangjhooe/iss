@@ -57,6 +57,9 @@ class ClassController extends Controller
         ]);
         
         $institutionId = $this->resolveInstitutionId($request);
+        if (! $request->user()?->isAdminOrSuperAdmin() && ! $institutionId) {
+            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        }
 
         // Default tahun ajaran/semester aktif hanya jika filter tidak eksplisit.
         // Semester aktif tidak boleh dipaksa jika tahun ajaran yang dipilih beda

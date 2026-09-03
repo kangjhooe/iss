@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreGuestVisitRequest;
 use App\Http\Requests\UpdateGuestVisitRequest;
 use App\Http\Resources\GuestVisitResource;
@@ -15,16 +16,15 @@ use Illuminate\Support\Facades\Log;
 
 class GuestVisitController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected GuestVisitService $service
     ) {}
 
     protected function getInstitutionId(Request $request): ?int
     {
-        if ($request->user()->isAdminOrSuperAdmin() && $request->has('institution_id')) {
-            return (int) $request->institution_id;
-        }
-        return $request->user()->institution_id;
+        return $this->resolveInstitutionId($request);
     }
 
     /**
@@ -92,9 +92,8 @@ class GuestVisitController extends Controller
      */
     public function show(Request $request, GuestVisit $guest_visit): GuestVisitResource|JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $guest_visit->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $guest_visit->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $guest_visit->load('creator');
@@ -107,9 +106,8 @@ class GuestVisitController extends Controller
     public function update(UpdateGuestVisitRequest $request, GuestVisit $guest_visit): JsonResponse
     {
         try {
-            $institutionId = $this->getInstitutionId($request);
-            if ($institutionId && (int) $guest_visit->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $guest_visit->institution_id, 'Unauthorized')) {
+                return $resp;
             }
 
             $data = $request->validated();
@@ -136,9 +134,8 @@ class GuestVisitController extends Controller
      */
     public function destroy(Request $request, GuestVisit $guest_visit): JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $guest_visit->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $guest_visit->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $this->service->delete($guest_visit);
@@ -150,9 +147,8 @@ class GuestVisitController extends Controller
      */
     public function checkout(Request $request, GuestVisit $guest_visit): JsonResponse
     {
-        $institutionId = $this->getInstitutionId($request);
-        if ($institutionId && (int) $guest_visit->institution_id !== $institutionId && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $guest_visit->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $visit = $this->service->setWaktuKeluar($guest_visit);

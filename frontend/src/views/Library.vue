@@ -1,4 +1,5 @@
-<template>    <div class="library-page">
+<template>
+    <div class="library-page">
       <!-- Quick stats strip -->
       <div class="stats-strip">
         <div class="stat-item">
@@ -769,7 +770,7 @@
             <h3>Pengembalian Buku</h3>
             <p v-if="returningLoan" class="muted">Peminjam: {{ returningLoan.borrower_name }} · Buku: {{ returningLoan.copy?.book?.title }} ({{ returningLoan.copy?.copy_code }})</p>
             <form @submit.prevent="saveReturn">
-              <div class="form-group"><label>Denda (Rp)</label><input v-model.number="returnForm.fine_amount" type="number" min="0" step="1000" /></div>
+              <div class="form-group"><label>Denda (Rp)</label><MoneyInput v-model="returnForm.fine_amount" :min="0" /></div>
               <div class="form-group"><label>Catatan</label><textarea v-model="returnForm.notes" rows="2"></textarea></div>
               <div class="modal-footer">
                 <button type="button" @click="showReturnModal = false" class="btn-secondary">Batal</button>
@@ -786,7 +787,7 @@
             <h3>Bayar Denda</h3>
             <p v-if="finePaymentLoan" class="muted">Sisa denda: Rp {{ formatNumber(finePaymentLoan.remaining_fine) }}</p>
             <form @submit.prevent="saveFinePayment">
-              <div class="form-group"><label>Jumlah (Rp) *</label><input v-model.number="finePaymentForm.amount" type="number" min="0" step="1000" required /></div>
+              <div class="form-group"><label>Jumlah (Rp) *</label><MoneyInput v-model="finePaymentForm.amount" :min="0" required /></div>
               <div class="form-group"><label>Tanggal Bayar *</label><input v-model="finePaymentForm.paid_at" type="date" required /></div>
               <div class="form-group"><label>Metode</label><input v-model="finePaymentForm.payment_method" placeholder="Tunai/Transfer/dll" /></div>
               <div class="form-group"><label>Catatan</label><textarea v-model="finePaymentForm.notes" rows="2"></textarea></div>
@@ -845,16 +846,19 @@
           </div>
         </div>
       </Transition>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
+import MoneyInput from '@/components/MoneyInput.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { libraryApi } from '@/api/library'
+import { openPdfBlob } from '@/utils/pdfPreview'
 import { useToast } from '@/composables/useToast'
 import * as XLSX from 'xlsx'
 
@@ -1580,10 +1584,10 @@ async function previewLoansPdf() {
     if (reportDateFrom.value) params.date_from = reportDateFrom.value
     if (reportDateTo.value) params.date_to = reportDateTo.value
     const res = await libraryApi.exportLoansPdf(params)
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank', 'noopener,noreferrer')
-    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    if (!openPdfBlob(res, 'laporan-peminjaman.pdf')) {
+      toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
+      return
+    }
     toast.success('Berhasil', 'PDF dibuka di tab baru. Anda dapat mencetak atau menyimpan dari sana.')
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
@@ -1599,10 +1603,10 @@ async function previewFinesPdf() {
     if (reportDateFrom.value) params.date_from = reportDateFrom.value
     if (reportDateTo.value) params.date_to = reportDateTo.value
     const res = await libraryApi.exportFinesPdf(params)
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank', 'noopener,noreferrer')
-    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    if (!openPdfBlob(res, 'laporan-denda.pdf')) {
+      toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
+      return
+    }
     toast.success('Berhasil', 'PDF dibuka di tab baru. Anda dapat mencetak atau menyimpan dari sana.')
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))
@@ -1644,10 +1648,10 @@ async function exportBooksPdf() {
   exportingBooksPdf.value = true
   try {
     const res = await libraryApi.exportBooksPdf(bookExportParams())
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank', 'noopener,noreferrer')
-    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    if (!openPdfBlob(res, 'katalog-buku.pdf')) {
+      toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
+      return
+    }
     toast.success('Berhasil', 'PDF katalog dibuka di tab baru')
   } catch (e) {
     toast.error('Gagal', getErrorMessage(e))

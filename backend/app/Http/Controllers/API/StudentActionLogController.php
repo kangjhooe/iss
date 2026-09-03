@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreStudentActionLogRequest;
 use App\Http\Resources\StudentActionLogResource;
 use App\Models\Institution;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Log;
 
 class StudentActionLogController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected StudentPointService $pointService
     ) {}
@@ -24,7 +27,7 @@ class StudentActionLogController extends Controller
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -55,7 +58,7 @@ class StudentActionLogController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -175,7 +178,7 @@ class StudentActionLogController extends Controller
     public function byStudent(Request $request, int $studentId): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }

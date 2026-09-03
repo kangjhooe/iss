@@ -1,4 +1,5 @@
-<template>    <div class="dashboard">
+<template>
+    <div class="dashboard">
       <!-- Welcome -->
       <div class="welcome-section">
         <div class="welcome-content">
@@ -486,7 +487,8 @@
           </div>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
@@ -833,10 +835,10 @@ const quickActions = computed(() => {
     actions.push({ to: '/teacher-appreciation', label: 'Lapor Pelanggaran', icon: 'alert', tone: 'danger' })
   }
   if (canAccessModule('violation')) {
-    actions.push({ to: '/violation', label: 'Pelanggaran & Poin', icon: 'alert', tone: 'danger' })
+    actions.push({ to: '/bk/pelanggaran', label: 'Pelanggaran & Poin', icon: 'alert', tone: 'danger' })
   }
   if (canAccessModule('violation') || canAccessModule('counseling') || canAccessModule('bk_report')) {
-    actions.push({ to: '/laporan-bk', label: 'Laporan BK', icon: 'report', tone: 'neutral' })
+    actions.push({ to: '/bk/laporan', label: 'Laporan BK', icon: 'report', tone: 'neutral' })
   }
   if (canAccessModule('counseling')) {
     actions.push({ to: '/counseling', label: 'Konseling', icon: 'chat', tone: 'counseling' })

@@ -154,6 +154,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">Dicetak pada {{ $printed_at }}</div>
+    @include('partials.print-document-footer')
 </body>
 </html>

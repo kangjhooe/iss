@@ -190,11 +190,17 @@ class AlumniDestinationController extends Controller
                 return response()->json(['message' => 'Destinasi ini sudah ditinjau.'], 422);
             }
 
-            $destination->update([
+            $update = [
                 'status' => $status,
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
-            ]);
+            ];
+
+            if ($status === AlumniDestination::STATUS_APPROVED) {
+                $update['notes'] = $destination->cleanApprovedNotes();
+            }
+
+            $destination->update($update);
             $destination->load(['student', 'relatedInstitution:id,name']);
 
             $action = $status === AlumniDestination::STATUS_APPROVED ? 'approved' : 'rejected';
@@ -218,16 +224,10 @@ class AlumniDestinationController extends Controller
 
     private function forbidIfOutsideInstitution(Request $request, AlumniDestination $destination): ?JsonResponse
     {
-        $institutionId = $this->resolveInstitutionId($request);
-        $user = $request->user();
-        if (
-            ! $user->isAdminOrSuperAdmin()
-            && $institutionId
-            && (int) $destination->institution_id !== (int) $institutionId
-        ) {
-            return response()->json(['message' => 'Anda tidak berwenang mengubah data ini.'], 403);
-        }
-
-        return null;
+        return $this->denyUnlessCanAccessInstitution(
+            $request,
+            (int) $destination->institution_id,
+            'Anda tidak berwenang mengubah data ini.'
+        );
     }
 }

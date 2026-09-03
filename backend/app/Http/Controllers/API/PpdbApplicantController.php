@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Exports\PpdbApplicantsExport;
 use App\Helpers\FileUploadRules;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StorePpdbApplicantRequest;
 use App\Http\Requests\UpdatePpdbApplicantRequest;
 use App\Http\Resources\PpdbApplicantResource;
@@ -24,6 +25,7 @@ use App\Services\StudentService;
 use App\Support\PpdbDocumentStorage;
 use App\Support\RegionAddress;
 use App\Support\SafeNotify;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -36,15 +38,26 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PpdbApplicantController extends Controller
 {
+    use ResolvesInstitution;
+
+    /**
+     * Institusi aktif untuk list/export/bulk (fail-closed untuk non–platform-admin).
+     */
+    private function requireListInstitutionId(Request $request): ?int
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (! $institutionId && ! $request->user()->isAdminOrSuperAdmin()) {
+            return null;
+        }
+
+        return $institutionId;
+    }
+
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
-            if ($user->isSuperAdmin() && $request->filled('institution_id')) {
-                $institutionId = (int) $request->institution_id;
-            }
-            if (! $institutionId && ! $user->isSuperAdmin()) {
+            $institutionId = $this->requireListInstitutionId($request);
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
@@ -104,7 +117,7 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = PpdbPeriod::findOrFail($request->ppdb_period_id);
-            if ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin()) {
+            if (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id)) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -134,7 +147,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $ppdb_applicant->load(['period.academicYear', 'channel', 'documents']);
@@ -147,7 +160,7 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+            if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -177,7 +190,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -193,7 +206,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -230,12 +243,8 @@ class PpdbApplicantController extends Controller
      */
     public function bulkVerification(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
-        if ($user->isSuperAdmin() && $request->filled('institution_id')) {
-            $institutionId = (int) $request->institution_id;
-        }
-        if (! $institutionId && ! $user->isSuperAdmin()) {
+        $institutionId = $this->requireListInstitutionId($request);
+        if (! $institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
@@ -288,12 +297,8 @@ class PpdbApplicantController extends Controller
      */
     public function bulkResult(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $institutionId = $user->institution_id;
-        if ($user->isSuperAdmin() && $request->filled('institution_id')) {
-            $institutionId = (int) $request->institution_id;
-        }
-        if (! $institutionId && ! $user->isSuperAdmin()) {
+        $institutionId = $this->requireListInstitutionId($request);
+        if (! $institutionId) {
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
@@ -389,7 +394,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -451,7 +456,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -480,12 +485,8 @@ class PpdbApplicantController extends Controller
     public function export(Request $request): StreamedResponse|JsonResponse
     {
         try {
-            $user = $request->user();
-            $institutionId = $user->institution_id;
-            if ($user->isSuperAdmin() && $request->filled('institution_id')) {
-                $institutionId = (int) $request->institution_id;
-            }
-            if (! $institutionId && ! $user->isSuperAdmin()) {
+            $institutionId = $this->requireListInstitutionId($request);
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
@@ -600,7 +601,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -670,7 +671,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -700,7 +701,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -888,7 +889,7 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+            if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -949,7 +950,7 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+            if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -975,7 +976,7 @@ class PpdbApplicantController extends Controller
         try {
             $user = $request->user();
             $period = $ppdb_applicant->period;
-            if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+            if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -1001,7 +1002,7 @@ class PpdbApplicantController extends Controller
     {
         $user = $request->user();
         $period = $ppdb_applicant->period;
-        if (! $period || ($user->institution_id !== $period->institution_id && ! $user->isSuperAdmin())) {
+        if (! $period || (! $user->isAdminOrSuperAdmin() && ! InstitutionContext::canAccessInstitution($user, (int) $period->institution_id))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

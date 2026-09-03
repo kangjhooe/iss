@@ -77,6 +77,6 @@
         'as_of_date' => $as_of_date ?? null,
     ])
 
-    <div class="footer print-document-footer">Dokumen digenerate sistem · {{ $printed_at }}</div>
+    @include('partials.print-document-footer')
 </body>
 </html>

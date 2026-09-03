@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreLibraryLoanRequest;
 use App\Http\Resources\LibraryLoanResource;
 use App\Models\LibraryLoan;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 
 class LibraryLoanController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         private LibraryLoanService $service
     ) {}
@@ -19,11 +22,9 @@ class LibraryLoanController extends Controller
     public function index(Request $request)
     {
         try {
-            $institutionId = null;
-            if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$request->user()->isAdminOrSuperAdmin() && $institutionId === null) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
             $filters = $request->only(['status', 'borrower_type', 'copy_id', 'search']);
             $perPage = min($request->get('per_page', 15), 100);
@@ -38,7 +39,7 @@ class LibraryLoanController extends Controller
     public function store(StoreLibraryLoanRequest $request)
     {
         try {
-            $institutionId = $request->user()->isAdminOrSuperAdmin() ? $request->input('institution_id') : $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 400);
             }
@@ -56,9 +57,12 @@ class LibraryLoanController extends Controller
         }
     }
 
-    public function show(LibraryLoan $loan)
+    public function show(Request $request, LibraryLoan $loan)
     {
         try {
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $loan->institution_id)) {
+                return $resp;
+            }
             $loan->load(['copy.book', 'finePayments', 'creator']);
             return response()->json(['data' => new LibraryLoanResource($loan)]);
         } catch (\Exception $e) {
@@ -70,6 +74,9 @@ class LibraryLoanController extends Controller
     public function returnLoan(Request $request, LibraryLoan $loan)
     {
         try {
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $loan->institution_id)) {
+                return $resp;
+            }
             $fineAmount = $request->has('fine_amount') ? (float) $request->fine_amount : null;
             $notes = $request->input('notes');
             $updated = $this->service->returnLoan($loan, $fineAmount, $notes);
@@ -86,9 +93,12 @@ class LibraryLoanController extends Controller
         }
     }
 
-    public function calculateFine(LibraryLoan $loan)
+    public function calculateFine(Request $request, LibraryLoan $loan)
     {
         try {
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $loan->institution_id)) {
+                return $resp;
+            }
             $amount = $this->service->calculateLateFine($loan);
             return response()->json(['fine_amount' => $amount]);
         } catch (\Exception $e) {
@@ -100,6 +110,9 @@ class LibraryLoanController extends Controller
     public function renewLoan(Request $request, LibraryLoan $loan)
     {
         try {
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $loan->institution_id)) {
+                return $resp;
+            }
             $extraDays = (int) $request->input('extra_days', 7);
             $extraDays = max(1, min($extraDays, 30));
             $updated = $this->service->renewLoan($loan, $extraDays);

@@ -7,6 +7,7 @@
         @page { margin: 1cm 1.2cm; size: A4 landscape; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 8.5pt; line-height: 1.35; color: #1e293b; }
         @include('partials.print-letterhead-styles')
+        @include('partials.print-document-footer-styles')
         .doc-title {
             text-align: center;
             margin: 8px 0 2px;
@@ -151,6 +152,6 @@
         </tr>
     </table>
 
-    <div class="footer">Dokumen rekap penggajian · ISS · Proses #{{ $run->id }}</div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· Proses #'.$run->id])
 </body>
 </html>

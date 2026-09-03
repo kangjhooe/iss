@@ -1,4 +1,5 @@
-<template>    <div class="ppdb-page">
+<template>
+    <div class="ppdb-page">
       <header class="page-header">
         <div class="header-bg" aria-hidden="true"></div>
         <div class="header-content">
@@ -138,7 +139,7 @@
                 <option value="registration">Biaya pendaftaran</option>
                 <option value="re_registration">Biaya daftar ulang</option>
               </select>
-              <input v-model.number="paymentForm.payment_amount" type="number" min="0" step="1000" placeholder="Nominal (opsional)" style="margin-top: 0.5rem;" />
+              <MoneyInput v-model="paymentForm.payment_amount" :min="0" placeholder="Nominal (opsional)" style="margin-top: 0.5rem;" />
               <textarea v-model="paymentForm.payment_notes" rows="2" placeholder="Catatan pembayaran" style="margin-top: 0.5rem;"></textarea>
               <button type="button" class="btn-primary btn-compact" :disabled="paymentSubmitting" @click="submitPayment">
                 {{ paymentSubmitting ? 'Menyimpan...' : 'Simpan Pembayaran' }}
@@ -262,11 +263,13 @@
       :password="accountCredentials?.password"
       :hint="accountCredentials?.hint"
       @close="accountCredentials = null"
-    /></template>
+    />
+</template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'

@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Models\Employee;
 use App\Models\Institution;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Surat;
 use App\Services\SuratService;
+use App\Support\InstitutionContext;
 use App\Support\RegionAddress;
 use App\Support\StandardLetterhead;
 use Illuminate\Http\Request;
@@ -19,6 +21,8 @@ use InvalidArgumentException;
 
 class SuratController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         private SuratService $service
     ) {}
@@ -580,15 +584,6 @@ class SuratController extends Controller
         ]);
     }
 
-    private function resolveInstitutionId(Request $request): ?int
-    {
-        if (!$request->user()->isAdminOrSuperAdmin()) {
-            return $request->user()->institution_id;
-        }
-
-        return $request->institution_id ? (int) $request->institution_id : $request->user()->institution_id;
-    }
-
     private function requireInstitutionId(Request $request): ?int
     {
         return $this->resolveInstitutionId($request);
@@ -596,10 +591,11 @@ class SuratController extends Controller
 
     private function canAccess(Request $request, Surat $surat): bool
     {
-        if ($request->user()->isAdminOrSuperAdmin()) {
+        $user = $request->user();
+        if ($user->isAdminOrSuperAdmin()) {
             return true;
         }
 
-        return $surat->institution_id === $request->user()->institution_id;
+        return InstitutionContext::canAccessInstitution($user, (int) $surat->institution_id);
     }
 }

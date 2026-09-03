@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreLibraryFinePaymentRequest;
 use App\Http\Resources\LibraryFinePaymentResource;
 use App\Models\LibraryFinePayment;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Log;
 
 class LibraryFinePaymentController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         private LibraryLoanService $loanService
     ) {}
@@ -24,13 +27,13 @@ class LibraryFinePaymentController extends Controller
             if ($request->has('loan_id')) {
                 $query->where('loan_id', $request->loan_id);
             }
-            $institutionId = null;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$request->user()->isAdminOrSuperAdmin()) {
-                $institutionId = $request->user()->institution_id;
-            } elseif ($request->has('institution_id')) {
-                $institutionId = $request->institution_id;
-            }
-            if ($institutionId !== null) {
+                if ($institutionId === null) {
+                    return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+                }
+                $query->whereHas('loan', fn ($q) => $q->where('institution_id', $institutionId));
+            } elseif ($institutionId !== null) {
                 $query->whereHas('loan', fn ($q) => $q->where('institution_id', $institutionId));
             }
             $perPage = min($request->get('per_page', 15), 100);
@@ -46,8 +49,8 @@ class LibraryFinePaymentController extends Controller
     {
         try {
             $loan = LibraryLoan::findOrFail($request->loan_id);
-            if (!$request->user()->isAdminOrSuperAdmin() && $request->user()->institution_id !== $loan->institution_id) {
-                return response()->json(['message' => 'Akses ditolak.'], 403);
+            if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $loan->institution_id)) {
+                return $resp;
             }
             $data = $request->validated();
             $payment = $this->loanService->payFine(

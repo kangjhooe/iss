@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div class="app-root">
     <ErrorBoundary>
       <Layout v-if="useAppLayout">
         <router-view />
@@ -15,7 +15,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { appName, appTagline } from '@/config/app'
+import { appName } from '@/config/app'
 import Toast from '@/components/Toast.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import Layout from '@/components/Layout.vue'
@@ -23,6 +23,7 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
 import OfflineStatus from '@/components/OfflineStatus.vue'
 import { useAppBrandingStore } from '@/stores/appBranding'
 import { routeUsesAppLayout } from '@/utils/appLayout'
+import { SEO_DESCRIPTION, SEO_TITLE, applyRouteSeo, setMetaContent } from '@/utils/seo'
 
 const router = useRouter()
 const route = useRoute()
@@ -30,14 +31,15 @@ const useAppLayout = computed(() => routeUsesAppLayout(route))
 
 onMounted(() => {
   if (router.currentRoute.value.name !== 'SchoolPublic') {
-    document.title = `${appName} - ${appTagline}`
-    const desc = document.querySelector('meta[name="description"]')
-    if (desc) desc.setAttribute('content', `${appName} - ${appTagline}. Sistem manajemen sekolah terintegrasi untuk sekolah dan madrasah di Indonesia. Kelola profil institusi, data siswa, guru, fasilitas, kelas, laporan, dan surat-menyurat dalam satu platform.`)
+    document.title = SEO_TITLE
+    setMetaContent('name', 'description', SEO_DESCRIPTION)
   }
+  applyRouteSeo(router.currentRoute.value)
   const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]')
   if (appleTitle) appleTitle.setAttribute('content', appName)
   useAppBrandingStore().fetchBranding()
 })
+
 </script>
 
 <style>
@@ -45,6 +47,10 @@ onMounted(() => {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+.app-root {
+  min-height: 100%;
 }
 
 :root {

@@ -9,6 +9,7 @@ use App\Models\FeedbackTicket;
 use App\Models\Institution;
 use App\Models\User;
 use App\Notifications\FeedbackTicketNotification;
+use App\Support\InstitutionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -48,7 +49,14 @@ class FeedbackTicketController extends Controller
                     $query->where('institution_id', (int) $request->institution_id);
                 }
             } else {
-                $institutionId = $user->currentInstitutionId() ?: $user->institution_id;
+                $institutionId = InstitutionContext::resolveForUser(
+                    $user,
+                    $request,
+                    $request->filled('institution_id') ? $request->get('institution_id') : null
+                ) ?: $user->institution_id;
+                if (! $institutionId) {
+                    return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+                }
                 $query->where('institution_id', $institutionId);
             }
 
@@ -99,7 +107,8 @@ class FeedbackTicketController extends Controller
     {
         try {
             $user = $request->user();
-            $institutionId = $user->currentInstitutionId() ?: $user->institution_id;
+            $institutionId = InstitutionContext::resolveForUser($user, $request, null)
+                ?: $user->institution_id;
             $institution = $institutionId
                 ? Institution::query()->find($institutionId)
                 : $user->institution;
@@ -202,8 +211,7 @@ class FeedbackTicketController extends Controller
             ])->findOrFail($id);
 
             if (! $user->isSuperAdmin()) {
-                $institutionId = (int) ($user->currentInstitutionId() ?: $user->institution_id);
-                if ((int) $ticket->institution_id !== $institutionId) {
+                if (! InstitutionContext::canAccessInstitution($user, (int) $ticket->institution_id)) {
                     return response()->json(['message' => 'Unauthorized'], 403);
                 }
             }
@@ -232,6 +240,10 @@ class FeedbackTicketController extends Controller
     public function update(UpdateFeedbackTicketRequest $request, $id)
     {
         try {
+            if (! $request->user()?->isSuperAdmin()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
             $ticket = FeedbackTicket::with([
                 'institution:id,name,npsn',
                 'submitter:id,name,email',

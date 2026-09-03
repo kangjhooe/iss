@@ -60,7 +60,7 @@ export const studentApi = {
     })
   },
   printBiodataPdf(id, mode = 'lengkap') {
-    return api.get(`/v1/student/${id}/biodata/pdf`, {
+    return api.get(`/v1/student/${id}/print-biodata`, {
       params: { mode },
       responseType: 'blob'
     })

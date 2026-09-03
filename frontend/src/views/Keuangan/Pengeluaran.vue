@@ -121,7 +121,7 @@
             </div>
             <div class="form-group">
               <label>Nominal *</label>
-              <input v-model.number="form.amount" type="number" min="1" step="1000" class="form-input" required />
+              <MoneyInput v-model="form.amount" :min="1" class="form-input" required />
             </div>
             <div class="form-group">
               <label>Tanggal</label>
@@ -154,6 +154,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

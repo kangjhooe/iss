@@ -105,11 +105,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">
-        Dicetak pada {{ $printed_at }}
-        @if($rows->count())
-            &mdash; {{ $rows->count() }} slot
-        @endif
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => $rows->count() ? '· '.$rows->count().' slot' : null])
 </body>
 </html>

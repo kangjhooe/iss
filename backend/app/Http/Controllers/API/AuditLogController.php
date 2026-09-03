@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\InstitutionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -38,9 +39,29 @@ class AuditLogController extends Controller
     {
         $user = $request->user();
         $query = AuditLog::with('user:id,name')->orderBy('created_at', 'desc');
-        if (! $user->isSuperAdmin() && $user->institution_id) {
-            $query->where('institution_id', $user->institution_id);
+
+        if ($user->isAdminOrSuperAdmin()) {
+            $institutionId = InstitutionContext::resolveForUser(
+                $user,
+                $request,
+                $request->filled('institution_id') ? $request->get('institution_id') : null
+            );
+            if ($institutionId) {
+                $query->where('institution_id', $institutionId);
+            }
+
+            return $query;
         }
+
+        $institutionId = InstitutionContext::resolveForUser($user, $request, null)
+            ?? $user->institution_id;
+        if (! $institutionId) {
+            $query->whereRaw('1 = 0');
+
+            return $query;
+        }
+
+        $query->where('institution_id', $institutionId);
 
         return $query;
     }

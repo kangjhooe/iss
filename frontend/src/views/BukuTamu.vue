@@ -240,9 +240,12 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import guestVisitApi from '@/api/guestVisit'
 import { institutionApi } from '@/api/institution'
 import { getPrincipalTitle, getNssLabel } from '@/utils/institution'
+import { formatPrintFooterLine } from '@/utils/printFooter'
+import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
+const authStore = useAuthStore()
 
 const loading = ref(true)
 const list = ref([])
@@ -402,6 +405,9 @@ async function exportPdf() {
         ? `Periode: ${filters.value.date_from ? formatDatePrint(filters.value.date_from).split(' ')[0] : '...'} s/d ${filters.value.date_to ? formatDatePrint(filters.value.date_to).split(' ')[0] : '...'}`
         : ''
 
+    const printFooterLine = formatPrintFooterLine(authStore.user?.name)
+      + (visits.length ? ` · ${visits.length} catatan` : '')
+
     const rows =
       visits.length === 0
         ? '<tr><td colspan="9" style="text-align:center;padding:12px;">Tidak ada data kunjungan.</td></tr>'
@@ -450,9 +456,18 @@ async function exportPdf() {
     .photo-thumb { width: 40px; height: 40px; object-fit: cover; display: block; margin: 0 auto; }
     .time { white-space: nowrap; }
     .footer { margin-top: 28px; page-break-inside: avoid; font-size: 9pt; }
-    .footer-meta { font-size: 7pt; color: #666; margin-top: 12px; text-align: center; }
+    .footer-meta { font-size: 7pt; color: #666; text-align: center; }
     .footer-right { text-align: center; min-width: 220px; margin-left: auto; }
     .sig-space { height: 56px; }
+    @media print {
+      .footer-meta {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -503,7 +518,7 @@ async function exportPdf() {
       NIP. ${escapeHtml(institution.principal_nip || '___________________')}
     </div>
     <div class="footer-meta">
-      Dicetak pada ${new Date().toLocaleString('id-ID')}<br>${visits.length} catatan
+      ${escapeHtml(printFooterLine)}
     </div>
   </div>
 </body>

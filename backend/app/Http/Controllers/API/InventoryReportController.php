@@ -34,6 +34,9 @@ class InventoryReportController extends Controller
     {
         $filters = $this->service->normalizeFilters($request->all());
         $institutionId = $this->institutionIdForJson($request);
+        if (! $institutionId && ! $request->user()?->isAdminOrSuperAdmin()) {
+            $filters['_deny'] = true;
+        }
         if ($institutionId) {
             return $this->inventoryFiltersWithRoomScope($request, $filters, $institutionId);
         }
@@ -46,6 +49,10 @@ class InventoryReportController extends Controller
      */
     public function statistics(Request $request)
     {
+        if ($denied = $this->denyUnlessInventoryReports($request)) {
+            return $denied;
+        }
+
         try {
             $filters = $this->filtersFromRequest($request);
             $statistics = $this->service->getStatistics(

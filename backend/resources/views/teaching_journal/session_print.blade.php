@@ -253,14 +253,10 @@
                 </div>
             </div>
 
-            <div class="footer print-document-footer">
-                Dicetak pada {{ $printed_at }}
-                @if(!empty($printed_by))
-                    · oleh {{ $printed_by }}
-                @endif
-                · {{ $session['attendance']['student_count'] ?? 0 }} siswa
             </div>
         </div>
     @endforeach
+
+    @include('partials.print-document-footer')
 </body>
 </html>

@@ -149,8 +149,6 @@
         </div>
     @endif
 
-    <div class="footer print-document-footer">
-        Dicetak pada {{ $printed_at }} &mdash; {{ count($rows) }} siswa
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· '.count($rows).' siswa'])
 </body>
 </html>

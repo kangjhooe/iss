@@ -93,8 +93,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">
-        Dicetak pada {{ $printed_at }} &mdash; {{ $mutations->count() }} catatan
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· '.$mutations->count().' catatan'])
 </body>
 </html>

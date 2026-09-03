@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Services\BukuIndukService;
+use App\Services\StudentBiodataPrintService;
 use App\Services\StudentService;
 use App\Support\InstitutionContext;
 use App\Support\PrintImage;
@@ -15,7 +16,8 @@ class BukuIndukController extends Controller
 {
     public function __construct(
         private BukuIndukService $bukuIndukService,
-        private StudentService $studentService
+        private StudentService $studentService,
+        private StudentBiodataPrintService $biodataPrintService
     ) {}
 
     /**
@@ -46,7 +48,10 @@ class BukuIndukController extends Controller
                     'attendance_summary' => $data['attendance_summary'],
                     'grades_summary' => $data['grades_summary'],
                     'extracurriculars' => $data['extracurriculars']->values()->all(),
-                    'alumni_destinations' => $data['alumni_destinations']->toArray(),
+                    'alumni_destinations' => $data['alumni_destinations']
+                        ->map(fn ($d) => array_merge($d->toArray(), ['notes' => $d->notesForDisplay()]))
+                        ->values()
+                        ->all(),
                     'library_loans_summary' => $data['library_loans_summary'],
                     'health_records' => $data['health_records'],
                     'printed_at' => $data['printed_at'],
@@ -79,6 +84,7 @@ class BukuIndukController extends Controller
             $data['photo_base64'] = PrintImage::studentPhoto($student->loadMissing('documents'));
             $data['as_of_date'] = now();
             $data['signature_date'] = now()->locale('id')->translatedFormat('d F Y');
+            $data['printed_by'] = $request->user()?->name;
 
             $pdf = DomPDF::loadView('buku_induk.print', $data)
                 ->setPaper('a4', 'portrait');
@@ -94,6 +100,38 @@ class BukuIndukController extends Controller
             if (str_contains($e->getMessage(), 'GD extension')) {
                 $message = 'Cetak gagal: ekstensi PHP GD belum aktif di server. Aktifkan extension=gd di php.ini lalu restart Apache.';
             }
+            return response()->json([
+                'message' => $message,
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Print biodata singkat/lengkap as PDF.
+     * GET /student/{id}/print-biodata?mode=lengkap|singkat
+     */
+    public function printBiodata(Request $request, $id)
+    {
+        try {
+            $student = $this->studentService->find($id, ['institution', 'class', 'academicYear', 'documents']);
+
+            if (!$this->userCanAccessStudent($request, $student)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $mode = strtolower((string) $request->query('mode', 'lengkap'));
+
+            return $this->biodataPrintService->stream($student, $mode, $request->user()?->name);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        } catch (\Exception $e) {
+            Log::error('Student biodata print failed', ['student_id' => $id, 'error' => $e->getMessage()]);
+            $message = 'Terjadi kesalahan saat mencetak biodata';
+            if (str_contains($e->getMessage(), 'GD extension')) {
+                $message = 'Cetak gagal: ekstensi PHP GD belum aktif di server. Aktifkan extension=gd di php.ini lalu restart Apache.';
+            }
+
             return response()->json([
                 'message' => $message,
                 'error' => config('app.debug') ? $e->getMessage() : null,

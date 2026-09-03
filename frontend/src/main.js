@@ -15,4 +15,8 @@ app.use(router)
 
 usePWA()
 
-app.mount('#app')
+// Tunggu navigasi awal selesai supaya halaman publik (mis. /panduan/*)
+// tidak sempat me-render Layout/sidebar sebelum route.name tersedia.
+router.isReady().then(() => {
+  app.mount('#app')
+})

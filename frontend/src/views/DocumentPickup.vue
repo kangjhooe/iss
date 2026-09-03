@@ -1,4 +1,5 @@
-<template>    <div class="document-pickup-page">
+<template>
+    <div class="document-pickup-page">
       <header class="page-header">
         <div class="header-content">
           <div class="header-text">
@@ -196,6 +197,7 @@
             <section class="form-section">
               <h3 class="form-section-title">Alumni <span class="required">*</span></h3>
               <div v-if="editingItem" class="selected-alumni">
+                <span class="alumni-avatar" :style="alumniAvatarStyle(editingItem.student)">{{ alumniInitials(editingItem.student) }}</span>
                 <div class="selected-alumni-info">
                   <strong>{{ editingItem.student?.name }}</strong>
                   <span>
@@ -203,11 +205,11 @@
                     <template v-if="editingItem.student?.graduation_year"> · Lulus {{ editingItem.student.graduation_year }}</template>
                   </span>
                 </div>
-                <p class="form-hint">Alumni tidak dapat diubah saat edit.</p>
+                <p class="form-hint alumni-locked-hint">Alumni tidak dapat diubah saat edit.</p>
               </div>
-              <div v-else class="field alumni-combobox-wrap">
-                <label>Cari & pilih alumni</label>
+              <div v-else class="alumni-picker">
                 <div v-if="selectedAlumni" class="selected-alumni">
+                  <span class="alumni-avatar" :style="alumniAvatarStyle(selectedAlumni)">{{ alumniInitials(selectedAlumni) }}</span>
                   <div class="selected-alumni-info">
                     <strong>{{ selectedAlumni.name }}</strong>
                     <span>
@@ -218,35 +220,78 @@
                   </div>
                   <button type="button" class="btn-clear-alumni" @click="clearAlumni">Ganti</button>
                 </div>
-                <template v-else>
-                  <input
-                    v-model="alumniSearch"
-                    type="text"
-                    placeholder="Ketik nama, NIS, atau NISN..."
-                    class="form-select"
-                    autocomplete="off"
-                    @focus="alumniDropdownOpen = true"
-                    @blur="closeAlumniDropdown"
-                    @input="debounceAlumniSearch"
-                  />
-                  <div v-if="alumniDropdownOpen" class="alumni-dropdown" @mousedown.prevent>
-                    <p v-if="alumniLoading" class="alumni-dropdown-hint">Memuat daftar alumni...</p>
-                    <ul v-else-if="alumniOptions.length === 0" class="alumni-list">
-                      <li class="alumni-list-empty">Tidak ditemukan. Pastikan siswa berstatus Lulus.</li>
-                    </ul>
-                    <ul v-else class="alumni-list">
-                      <li
-                        v-for="a in alumniOptions"
-                        :key="a.id"
-                        class="alumni-option"
-                        @mousedown="selectAlumni(a)"
+                <div v-show="!selectedAlumni || alumniPickerOpen" class="alumni-picker-panel">
+                  <div class="alumni-step">
+                    <label class="alumni-step-label">1. Tahun lulus</label>
+                    <div v-if="graduationYearsLoading" class="alumni-picker-state">Memuat tahun...</div>
+                    <div v-else-if="!graduationYears.length" class="alumni-picker-state">Belum ada data alumni.</div>
+                    <div v-else class="year-chip-row" role="group" aria-label="Tahun lulus">
+                      <button
+                        v-for="y in graduationYears"
+                        :key="y"
+                        type="button"
+                        class="year-chip"
+                        :class="{ active: String(alumniYear) === String(y) }"
+                        @click="selectAlumniYear(y)"
                       >
-                        <strong>{{ a.name }}</strong>
-                        <span>{{ a.nisn || a.nis || '—' }} · Lulus {{ a.graduation_year || '?' }}</span>
-                      </li>
-                    </ul>
+                        {{ y }}
+                      </button>
+                    </div>
                   </div>
-                </template>
+                  <div class="alumni-step">
+                    <label class="alumni-step-label">2. Pilih nama alumni</label>
+                    <template v-if="!alumniYear">
+                      <div class="alumni-picker-state">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.6"/>
+                          <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        </svg>
+                        <p>Pilih tahun lulus terlebih dahulu.</p>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div class="alumni-search-wrap">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                          <path d="M20 20L17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <input
+                          v-model="alumniSearch"
+                          type="text"
+                          placeholder="Cari nama, NIS, atau NISN..."
+                          autocomplete="off"
+                          @input="debounceAlumniSearch"
+                        />
+                      </div>
+                      <div class="alumni-list-panel" role="listbox" aria-label="Daftar alumni" :aria-busy="alumniLoading">
+                        <div v-if="alumniLoading" class="alumni-picker-state">Memuat alumni...</div>
+                        <div v-else-if="!alumniOptions.length" class="alumni-picker-state">Tidak ada alumni untuk tahun {{ alumniYear }}.</div>
+                        <template v-else>
+                          <div class="alumni-list-meta">{{ alumniOptions.length }} alumni — pilih satu</div>
+                          <button
+                            v-for="a in alumniOptions"
+                            :key="a.id"
+                            type="button"
+                            role="option"
+                            class="alumni-option-card"
+                            :class="{ active: String(form.student_id) === String(a.id) }"
+                            @click="selectAlumni(a)"
+                          >
+                            <span class="alumni-avatar" :style="alumniAvatarStyle(a)">{{ alumniInitials(a) }}</span>
+                            <span class="alumni-option-meta">
+                              <strong>{{ a.name }}</strong>
+                              <span>{{ a.nisn || a.nis || '—' }} · Lulus {{ a.graduation_year || alumniYear }}</span>
+                            </span>
+                            <svg v-if="String(form.student_id) === String(a.id)" class="alumni-check" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <circle cx="12" cy="12" r="10" fill="#059669"/>
+                              <path d="M8 12.5l2.5 2.5L16 9.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                          </button>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -274,8 +319,42 @@
                 </div>
               </div>
               <div class="field">
-                <label>Dokumen lainnya</label>
-                <textarea v-model="form.dokumen_lainnya" rows="2" maxlength="1000" placeholder="Contoh: Surat Keterangan, Transkrip, Piagam" class="form-select"></textarea>
+                <div class="field-label-row">
+                  <label>Dokumen lainnya</label>
+                  <button type="button" class="btn-add-doc" @click="addDokumenLainnya" title="Tambah dokumen">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    + Tambah
+                  </button>
+                </div>
+                <div v-if="dokumenLainnyaList.length === 0" class="dokumen-lainnya-empty">
+                  Belum ada dokumen tambahan. Klik <strong>+</strong> untuk menambah.
+                </div>
+                <div v-else class="dokumen-lainnya-list">
+                  <div
+                    v-for="(doc, idx) in dokumenLainnyaList"
+                    :key="'doc-' + idx"
+                    class="dokumen-lainnya-row"
+                  >
+                    <input
+                      v-model="dokumenLainnyaList[idx]"
+                      type="text"
+                      maxlength="120"
+                      :placeholder="`Dokumen tambahan ${idx + 1}`"
+                      class="form-select"
+                    />
+                    <button
+                      type="button"
+                      class="btn-remove-doc"
+                      title="Hapus"
+                      aria-label="Hapus dokumen"
+                      @click="removeDokumenLainnya(idx)"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
               </div>
               <div class="form-row">
                 <div class="field">
@@ -380,7 +459,8 @@
         @confirm="doDelete"
         @cancel="deleteTarget = null"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
@@ -413,20 +493,32 @@ const form = ref({
   taken_ijazah: false,
   taken_raport: false,
   taken_skhun: false,
-  dokumen_lainnya: '',
   nomor_ijazah: '',
   kode_blangko: '',
   received_by: '',
   notes: '',
 })
+const dokumenLainnyaList = ref([])
 const formSubmitting = ref(false)
 const formError = ref('')
 
 const alumniOptions = ref([])
 const alumniSearch = ref('')
 const alumniLoading = ref(false)
-const alumniDropdownOpen = ref(false)
+const alumniPickerOpen = ref(true)
+const alumniYear = ref('')
+const graduationYears = ref([])
+const graduationYearsLoading = ref(false)
 let alumniSearchTimeout = null
+
+const AVATAR_COLORS = [
+  { bg: '#d1fae5', fg: '#047857' },
+  { bg: '#e0f2fe', fg: '#0369a1' },
+  { bg: '#fef3c7', fg: '#b45309' },
+  { bg: '#ede9fe', fg: '#6d28d9' },
+  { bg: '#fce7f3', fg: '#be185d' },
+  { bg: '#ffedd5', fg: '#c2410c' },
+]
 
 const photoInputRef = ref(null)
 const selectedPhoto = ref(null)
@@ -475,22 +567,80 @@ function getDocChips(item) {
   return parts
 }
 
+function alumniInitials(s) {
+  const parts = String(s?.name || '').trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function alumniAvatarStyle(s) {
+  const name = s?.name || ''
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  const color = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+  return { background: color.bg, color: color.fg }
+}
+
+function parseDokumenLainnya(raw) {
+  if (!raw) return []
+  return String(raw).split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
+}
+
+function joinDokumenLainnya() {
+  return dokumenLainnyaList.value.map((s) => String(s || '').trim()).filter(Boolean).join(', ')
+}
+
+async function addDokumenLainnya() {
+  dokumenLainnyaList.value.push('')
+  await nextTick()
+  const inputs = document.querySelectorAll('.dokumen-lainnya-row input')
+  const last = inputs[inputs.length - 1]
+  if (last) last.focus()
+}
+
+function removeDokumenLainnya(idx) {
+  dokumenLainnyaList.value.splice(idx, 1)
+}
+
 function selectAlumni(a) {
   form.value.student_id = a.id
   selectedAlumni.value = a
   alumniSearch.value = ''
-  alumniDropdownOpen.value = false
+  alumniPickerOpen.value = false
 }
 
 function clearAlumni() {
   form.value.student_id = ''
   selectedAlumni.value = null
   alumniSearch.value = ''
+  alumniPickerOpen.value = true
+  if (alumniYear.value) loadAlumniOptions()
+}
+
+function selectAlumniYear(year) {
+  alumniYear.value = year
+  alumniSearch.value = ''
+  form.value.student_id = ''
+  selectedAlumni.value = null
   loadAlumniOptions()
 }
 
-function closeAlumniDropdown() {
-  setTimeout(() => { alumniDropdownOpen.value = false }, 200)
+async function loadGraduationYears() {
+  graduationYearsLoading.value = true
+  try {
+    const res = await alumniApi.getGraduationYears()
+    graduationYears.value = res.data?.data ?? []
+    // Default ke tahun terbaru agar daftar nama langsung muncul, tetap bisa diganti
+    if (!alumniYear.value && graduationYears.value.length) {
+      alumniYear.value = graduationYears.value[0]
+      await loadAlumniOptions()
+    }
+  } catch {
+    graduationYears.value = []
+  } finally {
+    graduationYearsLoading.value = false
+  }
 }
 
 function openPhotoPreview(url) {
@@ -512,10 +662,15 @@ function debounceAlumniSearch() {
 }
 
 async function loadAlumniOptions() {
+  if (!alumniYear.value) {
+    alumniOptions.value = []
+    return
+  }
   alumniLoading.value = true
   try {
     const res = await alumniApi.getList({
       per_page: 100,
+      graduation_year: alumniYear.value,
       search: alumniSearch.value?.trim() || undefined,
     })
     alumniOptions.value = res.data?.data ?? []
@@ -585,15 +740,16 @@ function openAddModal() {
     taken_ijazah: true,
     taken_raport: false,
     taken_skhun: false,
-    dokumen_lainnya: '',
     nomor_ijazah: '',
     kode_blangko: '',
     received_by: '',
     notes: '',
   }
+  dokumenLainnyaList.value = []
   alumniSearch.value = ''
   alumniOptions.value = []
-  alumniDropdownOpen.value = false
+  alumniYear.value = ''
+  alumniPickerOpen.value = true
   showCameraUI.value = false
   stopCameraStream()
   selectedPhoto.value = null
@@ -601,7 +757,7 @@ function openAddModal() {
   formError.value = ''
   if (photoInputRef.value) photoInputRef.value.value = ''
   showFormModal.value = true
-  loadAlumniOptions()
+  loadGraduationYears()
 }
 
 function openEditModal(item) {
@@ -614,13 +770,15 @@ function openEditModal(item) {
     taken_ijazah: !!item.taken_ijazah,
     taken_raport: !!item.taken_raport,
     taken_skhun: !!item.taken_skhun,
-    dokumen_lainnya: item.dokumen_lainnya || '',
     nomor_ijazah: item.nomor_ijazah || '',
     kode_blangko: item.kode_blangko || '',
     received_by: item.received_by || '',
     notes: item.notes || '',
   }
+  dokumenLainnyaList.value = parseDokumenLainnya(item.dokumen_lainnya)
   alumniOptions.value = item.student ? [item.student] : []
+  alumniYear.value = item.student?.graduation_year || ''
+  alumniPickerOpen.value = false
   showCameraUI.value = false
   stopCameraStream()
   selectedPhoto.value = null
@@ -736,6 +894,15 @@ async function submitForm() {
     formError.value = 'Foto serah terima wajib diisi (kamera atau file).'
     return
   }
+  const dokumenLainnyaJoined = joinDokumenLainnya()
+  if (dokumenLainnyaJoined.length > 1000) {
+    formError.value = 'Total dokumen lainnya terlalu panjang (maks. 1000 karakter). Hapus atau singkat beberapa item.'
+    return
+  }
+  if (!form.value.taken_ijazah && !form.value.taken_raport && !form.value.taken_skhun && !dokumenLainnyaJoined) {
+    formError.value = 'Pilih minimal satu dokumen (ijazah/raport/SKHUN) atau tambah dokumen lainnya.'
+    return
+  }
 
   formSubmitting.value = true
   try {
@@ -745,7 +912,7 @@ async function submitForm() {
       taken_ijazah: form.value.taken_ijazah ? 1 : 0,
       taken_raport: form.value.taken_raport ? 1 : 0,
       taken_skhun: form.value.taken_skhun ? 1 : 0,
-      dokumen_lainnya: form.value.dokumen_lainnya?.trim() || '',
+      dokumen_lainnya: dokumenLainnyaJoined,
       nomor_ijazah: form.value.nomor_ijazah?.trim() || '',
       kode_blangko: form.value.kode_blangko?.trim() || '',
       received_by: form.value.received_by?.trim() || '',
@@ -1249,21 +1416,26 @@ onMounted(() => {
 .selected-alumni {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   background: rgba(5, 150, 105, 0.06);
   border: 1px solid rgba(5, 150, 105, 0.2);
   border-radius: 10px;
+  flex-wrap: wrap;
 }
 .selected-alumni-info {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   min-width: 0;
+  flex: 1;
 }
 .selected-alumni-info strong { font-size: 0.9375rem; }
 .selected-alumni-info span { font-size: 0.75rem; color: #6b7280; }
+.alumni-locked-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
 .btn-clear-alumni {
   flex-shrink: 0;
   padding: 0.375rem 0.75rem;
@@ -1275,47 +1447,177 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.alumni-combobox-wrap { position: relative; }
-.alumni-dropdown {
+.alumni-picker { display: flex; flex-direction: column; gap: 0.75rem; }
+.alumni-picker-panel {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px;
+  background: #fafafa;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.alumni-step { display: flex; flex-direction: column; gap: 0.45rem; }
+.alumni-step-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+.year-chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.year-chip {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+.year-chip.active {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
+}
+.year-chip:hover:not(.active) { background: #f1f5f9; }
+.alumni-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.alumni-search-wrap svg {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  margin-top: 4px;
+  left: 10px;
+  color: #9ca3af;
+  pointer-events: none;
+}
+.alumni-search-wrap input {
+  width: 100%;
+  padding: 0.55rem 0.75rem 0.55rem 2rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: #fff;
+  box-sizing: border-box;
+}
+.alumni-list-panel {
   max-height: 240px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid var(--color-border, #d1d5db);
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  z-index: 20;
+  background: #fff;
 }
-.alumni-dropdown-hint {
-  padding: 0.875rem 1rem;
-  margin: 0;
-  font-size: 0.8125rem;
-  color: #6b7280;
+.alumni-list-meta {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  border-bottom: 1px solid #f1f5f9;
 }
-.alumni-list {
-  list-style: none;
-  margin: 0;
-  padding: 0.35rem 0;
+.alumni-option-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
-.alumni-option {
+.alumni-option-card:last-child { border-bottom: none; }
+.alumni-option-card:hover,
+.alumni-option-card.active { background: rgba(5, 150, 105, 0.08); }
+.alumni-option-meta {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
-  padding: 0.625rem 1rem;
+  min-width: 0;
+  flex: 1;
+}
+.alumni-option-meta strong { font-size: 0.875rem; color: #0f172a; }
+.alumni-option-meta span { font-size: 0.75rem; color: #6b7280; }
+.alumni-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.alumni-check { flex-shrink: 0; }
+.alumni-picker-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.25rem 0.75rem;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+.alumni-picker-state p { margin: 0; }
+.alumni-picker-state svg { color: #cbd5e1; }
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.field-label-row label { margin: 0; }
+.btn-add-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px dashed #059669;
+  border-radius: 8px;
+  background: rgba(5, 150, 105, 0.06);
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 600;
   cursor: pointer;
 }
-.alumni-option strong { font-size: 0.875rem; }
-.alumni-option span { font-size: 0.75rem; color: #6b7280; }
-.alumni-option:hover { background: rgba(5, 150, 105, 0.08); }
-.alumni-list-empty {
-  padding: 0.875rem 1rem;
+.btn-add-doc:hover { background: rgba(5, 150, 105, 0.12); }
+.dokumen-lainnya-empty {
+  padding: 0.75rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
   font-size: 0.8125rem;
   color: #6b7280;
+  background: #fafafa;
 }
+.dokumen-lainnya-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.dokumen-lainnya-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.dokumen-lainnya-row .form-select { flex: 1; }
+.btn-remove-doc {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.btn-remove-doc:hover { background: #fef2f2; }
 
 .doc-toggle-group {
   display: flex;

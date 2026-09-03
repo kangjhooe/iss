@@ -214,8 +214,6 @@
         </div>
     </div>
 
-    <div class="footer print-document-footer">
-        Total: {{ count($correspondence) }} surat
-    </div>
+    @include('partials.print-document-footer', ['footer_suffix' => '· '.count($correspondence).' surat'])
 </body>
 </html>

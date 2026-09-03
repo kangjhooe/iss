@@ -173,10 +173,10 @@ class StudentResource extends JsonResource
                     'destination_name' => $d->destination_name,
                     'program_or_position' => $d->program_or_position,
                     'year_entered' => $d->year_entered,
-                    'notes' => $d->notes,
+                    'notes' => $d->notesForDisplay(),
                     'status' => $d->status ?: 'approved',
                     'source' => $d->source ?: 'manual',
-                    'is_pending' => $d->status === 'pending',
+                    'is_pending' => $d->isPending(),
                 ];
             }),
             'alumni_destinations' => $this->whenLoaded('alumniDestinations', function () {
@@ -187,9 +187,10 @@ class StudentResource extends JsonResource
                         'destination_name' => $d->destination_name,
                         'program_or_position' => $d->program_or_position,
                         'year_entered' => $d->year_entered,
-                        'notes' => $d->notes,
+                        'notes' => $d->notesForDisplay(),
                         'status' => $d->status ?: 'approved',
                         'source' => $d->source ?: 'manual',
+                        'is_pending' => $d->isPending(),
                         'created_at' => $d->created_at?->toIso8601String(),
                     ];
                 });

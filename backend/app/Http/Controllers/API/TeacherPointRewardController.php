@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StoreTeacherPointRewardRequest;
 use App\Http\Requests\UpdateTeacherPointRewardRequest;
 use App\Http\Resources\TeacherPointRewardResource;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Log;
 
 class TeacherPointRewardController extends Controller
 {
+    use ResolvesInstitution;
+
     public function __construct(
         protected TeacherPointService $pointService
     ) {}
@@ -22,7 +25,7 @@ class TeacherPointRewardController extends Controller
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -48,7 +51,7 @@ class TeacherPointRewardController extends Controller
     public function store(StoreTeacherPointRewardRequest $request): JsonResponse
     {
         try {
-            $institutionId = $request->user()->institution_id;
+            $institutionId = $this->resolveInstitutionId($request);
             if (!$institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
@@ -69,8 +72,8 @@ class TeacherPointRewardController extends Controller
 
     public function show(Request $request, TeacherPointReward $teacher_point_reward): TeacherPointRewardResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_point_reward->institution_id && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $teacher_point_reward->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         return new TeacherPointRewardResource($teacher_point_reward);
@@ -78,8 +81,8 @@ class TeacherPointRewardController extends Controller
 
     public function update(UpdateTeacherPointRewardRequest $request, TeacherPointReward $teacher_point_reward): TeacherPointRewardResource|JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_point_reward->institution_id && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $teacher_point_reward->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         $teacher_point_reward->update($request->validated());
@@ -89,8 +92,8 @@ class TeacherPointRewardController extends Controller
 
     public function destroy(Request $request, TeacherPointReward $teacher_point_reward): JsonResponse
     {
-        if ($request->user()->institution_id !== $teacher_point_reward->institution_id && !$request->user()->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($resp = $this->denyUnlessCanAccessInstitution($request, (int) $teacher_point_reward->institution_id, 'Unauthorized')) {
+            return $resp;
         }
 
         if ($teacher_point_reward->rewardLogs()->exists()) {
