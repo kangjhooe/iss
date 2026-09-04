@@ -17,12 +17,25 @@ use App\Support\TeacherAccess;
  */
 class StructuralDutySync
 {
+    /** @var list<string>|null */
+    protected ?array $cachedPositionKeys = null;
+
+    /** @var list<int>|null */
+    protected ?array $cachedStructuralDutyIds = null;
+
+    /** @var list<string>|null */
+    protected ?array $cachedAllDutyPermissionKeys = null;
+
     /**
      * @return list<string>
      */
     public function positionKeys(): array
     {
-        return StructuralPosition::query()->pluck('key')->filter()->values()->all();
+        return $this->cachedPositionKeys ??= StructuralPosition::query()
+            ->pluck('key')
+            ->filter()
+            ->values()
+            ->all();
     }
 
     public function isKey(?string $key): bool
@@ -35,7 +48,7 @@ class StructuralDutySync
      */
     public function structuralDutyIds(): array
     {
-        return AdditionalDuty::query()
+        return $this->cachedStructuralDutyIds ??= AdditionalDuty::query()
             ->whereIn('key', $this->positionKeys())
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -131,15 +144,17 @@ class StructuralDutySync
         return $final;
     }
 
-    public function grant(Employee $employee, string $positionKey, string $startedAt): void
+    public function grant(Employee $employee, string $positionKey, string $startedAt, ?int $institutionId = null): void
     {
         $duty = AdditionalDuty::query()->where('key', $positionKey)->first();
         if (! $duty) {
             return;
         }
 
+        $scopeInstitutionId = $institutionId ?: (int) $employee->institution_id;
+
         $others = Employee::query()
-            ->where('institution_id', $employee->institution_id)
+            ->forInstitution($scopeInstitutionId)
             ->where('id', '!=', $employee->id)
             ->whereHas('additionalDuties', function ($query) use ($duty) {
                 $query->where('additional_duties.id', $duty->id)
@@ -208,10 +223,7 @@ class StructuralDutySync
 
         $employee->unsetRelation('additionalDuties');
         $activeDutyPerms = $this->activeDutyPermissionKeys($employee);
-        $allDutyPerms = Permission::query()
-            ->whereHas('additionalDuties')
-            ->pluck('key')
-            ->all();
+        $allDutyPerms = $this->allDutyPermissionKeys();
 
         $current = $user->permissions()->pluck('key')->all();
         $manual = array_values(array_diff($current, $allDutyPerms));
@@ -225,6 +237,17 @@ class StructuralDutySync
 
         $permissionIds = Permission::query()->whereIn('key', $effective)->pluck('id')->all();
         $user->permissions()->sync($permissionIds);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function allDutyPermissionKeys(): array
+    {
+        return $this->cachedAllDutyPermissionKeys ??= Permission::query()
+            ->whereHas('additionalDuties')
+            ->pluck('key')
+            ->all();
     }
 
     /**

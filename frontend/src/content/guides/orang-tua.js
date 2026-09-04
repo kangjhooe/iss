@@ -13,6 +13,9 @@ export const parentGuide = {
   roadmap:
     'Akun → Login → Ringkasan → Pilih anak → Jadwal → Nilai → Absensi → Pelanggaran → Pengumuman',
   readTime: '±5 menit baca · lompat lewat daftar isi',
+  pdf: {
+    filename: 'panduan-orang-tua.pdf',
+  },
   cta: {
     title: 'Siap memantau anak Anda?',
     desc: 'Masuk dengan akun orang tua dari sekolah, atau kembali ke daftar panduan.',
@@ -31,7 +34,7 @@ export const parentGuide = {
         'Pastikan akun sudah tertaut ke anak yang benar',
         'Siapkan email/HP yang bisa dihubungi sekolah',
       ],
-      tip: 'Satu akun dapat terhubung ke lebih dari satu anak jika sekolah mengaturnya demikian.',
+      tip: 'Satu akun dapat terhubung ke lebih dari satu anak, termasuk di sekolah berbeda jika admin menautkannya.',
     },
     {
       id: 'login',
@@ -66,7 +69,7 @@ export const parentGuide = {
       shortTitle: 'Pilih anak',
       title: 'Pilih anak yang dipantau',
       summary:
-        'Jika punya lebih dari satu anak di sekolah yang sama, pilih nama anak di sidebar untuk membuka menu terkait.',
+        'Jika punya lebih dari satu anak (satu sekolah atau beda sekolah), pilih nama anak di sidebar atau lewat picker di menu bawah (mobile).',
       actions: [
         'Di sidebar, temukan grup nama anak',
         'Pilih anak yang ingin dipantau',

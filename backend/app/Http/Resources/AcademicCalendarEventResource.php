@@ -17,6 +17,10 @@ class AcademicCalendarEventResource extends JsonResource
         return [
             'id' => $this->id,
             'institution_id' => $this->institution_id,
+            'institution_name' => $this->when(
+                $this->relationLoaded('institution'),
+                fn () => $this->institution?->name
+            ),
             'academic_year_id' => $this->academic_year_id,
             'semester_id' => $this->semester_id,
             'title' => $this->title,

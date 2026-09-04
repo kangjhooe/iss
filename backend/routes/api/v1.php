@@ -83,6 +83,7 @@ use App\Http\Controllers\API\LibraryLoanController;
 use App\Http\Controllers\API\LibraryReportController;
 use App\Http\Controllers\API\MyTeacherAppreciationController;
 use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\ParentAccountController;
 use App\Http\Controllers\API\ParentPortalController;
 use App\Http\Controllers\API\PasswordResetRequestController;
 use App\Http\Controllers\API\PermissionController;
@@ -360,6 +361,17 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/alumni-destinations/{alumni_destination}/approve', [AlumniDestinationController::class, 'approve'])->name('alumni-destinations.approve');
         Route::post('/alumni-destinations/{alumni_destination}/reject', [AlumniDestinationController::class, 'reject'])->name('alumni-destinations.reject');
         Route::delete('/alumni-destinations/{alumni_destination}', [AlumniDestinationController::class, 'destroy'])->name('alumni-destinations.destroy');
+
+        // Akun orang tua / wali (tautan ke siswa)
+        Route::get('/parent-accounts', [ParentAccountController::class, 'index'])->name('parent-accounts.index');
+        Route::get('/parent-accounts/candidates', [ParentAccountController::class, 'candidates'])->name('parent-accounts.candidates');
+        Route::post('/parent-accounts', [ParentAccountController::class, 'store'])->name('parent-accounts.store');
+        Route::get('/parent-accounts/{id}', [ParentAccountController::class, 'show'])->name('parent-accounts.show');
+        Route::put('/parent-accounts/{id}', [ParentAccountController::class, 'update'])->name('parent-accounts.update');
+        Route::post('/parent-accounts/{id}/link', [ParentAccountController::class, 'link'])->name('parent-accounts.link');
+        Route::delete('/parent-accounts/{id}/links/{studentId}', [ParentAccountController::class, 'unlink'])->name('parent-accounts.unlink');
+        Route::post('/parent-accounts/{id}/reset-password', [ParentAccountController::class, 'resetPassword'])->name('parent-accounts.reset-password');
+
         // Student mutation (mutasi siswa)
         Route::get('/student-mutations/target-institutions', [StudentMutationController::class, 'searchTargetInstitutions'])->name('student-mutations.target-institutions');
         Route::get('/student-mutations/origin-institutions', [StudentMutationController::class, 'searchOriginInstitutions'])->name('student-mutations.origin-institutions');
@@ -481,7 +493,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/employee-structural-positions', [EmployeeStructuralPositionController::class, 'index']);
         Route::post('/employee-structural-positions', [EmployeeStructuralPositionController::class, 'store']);
         Route::get('/employee-structural-positions/{employee_structural_position}', [EmployeeStructuralPositionController::class, 'show']);
+        Route::match(['put', 'patch'], '/employee-structural-positions/{employee_structural_position}', [EmployeeStructuralPositionController::class, 'update']);
         Route::post('/employee-structural-positions/{employee_structural_position}/end', [EmployeeStructuralPositionController::class, 'end']);
+        Route::delete('/employee-structural-positions/{employee_structural_position}', [EmployeeStructuralPositionController::class, 'destroy']);
 
         Route::get('/employee-career-history/{employeeId}', [EmployeeCareerHistoryController::class, 'show']);
     });

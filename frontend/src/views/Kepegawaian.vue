@@ -1,4 +1,5 @@
-<template>    <div class="kepegawaian-page">
+<template>
+    <div class="kepegawaian-page">
       <header class="page-header">
         <div class="header-text">
           <h1 class="page-title">Cuti, SK &amp; Jabatan</h1>
@@ -17,6 +18,7 @@
         </button>
       </header>
 
+      <!-- Ringkasan stat sementara disembunyikan
       <div class="stat-grid">
         <button type="button" class="stat-card" :class="{ active: tab === 'cuti' }" @click="switchTab('cuti')">
           <span class="stat-label">Cuti menunggu</span>
@@ -31,6 +33,7 @@
           <span class="stat-value">{{ summaries.activePositions }}</span>
         </button>
       </div>
+      -->
 
       <div class="tab-shell">
       <nav class="section-nav" role="tablist">
@@ -332,8 +335,11 @@
                   </td>
                   <td>{{ item.decree_number || item.decree?.number || '—' }}</td>
                   <td class="col-actions">
-                    <button v-if="item.is_active" type="button" class="btn-sm btn-ghost" @click="openEndPositionModal(item)">Akhiri</button>
-                    <span v-else class="muted">Selesai</span>
+                    <div class="action-row">
+                      <TableAction kind="edit" @click="openPositionModal(item)" />
+                      <TableAction kind="delete" @click="askDeletePosition(item)" />
+                      <button v-if="item.is_active" type="button" class="btn-sm btn-ghost" @click="openEndPositionModal(item)">Akhiri</button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -354,7 +360,11 @@
                 {{ formatDate(item.started_at) }} – {{ item.ended_at ? formatDate(item.ended_at) : 'Sekarang' }}
                 <template v-if="item.decree_number || item.decree?.number"> · SK {{ item.decree_number || item.decree?.number }}</template>
               </p>
-              <button v-if="item.is_active" type="button" class="btn-sm btn-ghost" @click="openEndPositionModal(item)">Akhiri</button>
+              <div class="action-row">
+                <TableAction kind="edit" @click="openPositionModal(item)" />
+                <TableAction kind="delete" @click="askDeletePosition(item)" />
+                <button v-if="item.is_active" type="button" class="btn-sm btn-ghost" @click="openEndPositionModal(item)">Akhiri</button>
+              </div>
             </article>
           </div>
           <PaginationBar
@@ -594,11 +604,15 @@
       <div v-if="showPositionModal" class="modal-overlay" @click.self="showPositionModal = false">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
-            <h3>Tetapkan Jabatan Struktural</h3>
+            <h3>{{ positionForm.id ? 'Edit Jabatan Struktural' : 'Tetapkan Jabatan Struktural' }}</h3>
             <button type="button" class="btn-close" @click="showPositionModal = false" aria-label="Tutup">×</button>
           </div>
           <form class="modal-body" @submit.prevent="submitPosition">
-            <p class="form-hint">Pemegang jabatan yang sama sebelumnya akan diakhiri otomatis. Tugas tambahan dan akses modul ikut berubah.</p>
+            <p class="form-hint">
+              {{ positionForm.id
+                ? 'Perubahan pegawai/jabatan aktif akan menyesuaikan tugas tambahan dan akses modul.'
+                : 'Pemegang jabatan yang sama sebelumnya akan diakhiri otomatis. Tugas tambahan dan akses modul ikut berubah.' }}
+            </p>
             <div class="form-group">
               <label>Pegawai *</label>
               <select v-model="positionForm.employee_id" required @change="loadEmployeeDecrees">
@@ -702,7 +716,8 @@
         @confirm="runConfirm"
         @cancel="confirm.show = false"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
@@ -807,6 +822,7 @@ const decreeForm = reactive({
 })
 
 const positionForm = reactive({
+  id: null,
   employee_id: '',
   structural_position_id: '',
   employee_decree_id: '',
@@ -1060,7 +1076,7 @@ async function submitLeave() {
     toast.success('Pengajuan cuti disimpan')
     showLeaveModal.value = false
     loadLeaves(1)
-    loadSummaries()
+    // loadSummaries()
   } catch (e) {
     formError.value = e.response?.data?.message || Object.values(e.response?.data?.errors || {})[0]?.[0] || 'Gagal menyimpan'
   } finally {
@@ -1073,7 +1089,7 @@ async function decideLeave(item, action) {
     await employeeLeaveApi.decide(item.id, { action })
     toast.success(action === 'approve' ? 'Cuti disetujui' : 'Cuti ditolak')
     loadLeaves(leavePage.current_page)
-    loadSummaries()
+    // loadSummaries()
   } catch (e) {
     toast.error(e.response?.data?.message || 'Gagal memproses')
   }
@@ -1098,7 +1114,7 @@ async function submitReject() {
     toast.success('Cuti ditolak')
     showRejectModal.value = false
     loadLeaves(leavePage.current_page)
-    loadSummaries()
+    // loadSummaries()
   } catch (e) {
     formError.value = e.response?.data?.message || 'Gagal menolak'
   } finally {
@@ -1116,7 +1132,7 @@ function askCancelLeave(item) {
     await employeeLeaveApi.cancel(item.id)
     toast.success('Cuti dibatalkan')
     loadLeaves(leavePage.current_page)
-    loadSummaries()
+    // loadSummaries()
   }
   confirm.show = true
 }
@@ -1197,7 +1213,7 @@ async function submitDecree() {
     }
     showDecreeModal.value = false
     loadDecrees(1)
-    loadSummaries()
+    // loadSummaries()
   } catch (e) {
     formError.value = e.response?.data?.message || Object.values(e.response?.data?.errors || {})[0]?.[0] || 'Gagal menyimpan'
   } finally {
@@ -1229,23 +1245,38 @@ function askDeleteDecree(item) {
     await employeeDecreeApi.delete(item.id)
     toast.success('SK dihapus')
     loadDecrees(1)
-    loadSummaries()
+    // loadSummaries()
   }
   confirm.show = true
 }
 
-function openPositionModal() {
+function openPositionModal(item = null) {
   formError.value = ''
-  Object.assign(positionForm, {
-    employee_id: '',
-    structural_position_id: '',
-    employee_decree_id: '',
-    started_at: '',
-    ended_at: '',
-    decree_number: '',
-    notes: '',
-  })
-  employeeDecrees.value = []
+  if (item) {
+    Object.assign(positionForm, {
+      id: item.id,
+      employee_id: item.employee_id || item.employee?.id || '',
+      structural_position_id: item.structural_position_id || item.position?.id || '',
+      employee_decree_id: item.employee_decree_id || '',
+      started_at: item.started_at || '',
+      ended_at: item.ended_at || '',
+      decree_number: item.decree_number || '',
+      notes: item.notes || '',
+    })
+    loadEmployeeDecrees()
+  } else {
+    Object.assign(positionForm, {
+      id: null,
+      employee_id: '',
+      structural_position_id: '',
+      employee_decree_id: '',
+      started_at: '',
+      ended_at: '',
+      decree_number: '',
+      notes: '',
+    })
+    employeeDecrees.value = []
+  }
   showPositionModal.value = true
 }
 
@@ -1275,16 +1306,40 @@ async function submitPosition() {
       notes: positionForm.notes || null,
       employee_decree_id: positionForm.employee_decree_id ? Number(positionForm.employee_decree_id) : null,
     }
-    await structuralPositionApi.assign(payload)
-    toast.success('Jabatan ditetapkan')
+    if (positionForm.id) {
+      await structuralPositionApi.update(positionForm.id, payload)
+      toast.success('Jabatan diperbarui')
+    } else {
+      const { data } = await structuralPositionApi.assign(payload)
+      const created = data?.data
+      if (created?.id) {
+        positions.value = [created, ...positions.value.filter((p) => p.id !== created.id)]
+      }
+      toast.success('Jabatan ditetapkan')
+    }
     showPositionModal.value = false
-    loadPositions(1)
-    loadSummaries()
+    await loadPositions(1)
   } catch (e) {
     formError.value = e.response?.data?.message || Object.values(e.response?.data?.errors || {})[0]?.[0] || 'Gagal menyimpan'
   } finally {
     saving.value = false
   }
+}
+
+function askDeletePosition(item) {
+  confirm.title = 'Hapus jabatan?'
+  confirm.message = `${item.position?.label || 'Jabatan'} · ${item.employee?.name || 'Pegawai'} akan dihapus dari arsip.`
+  confirm.warning = item.is_active
+    ? 'Jika masih aktif, tugas tambahan dan akses modul terkait ikut dicabut.'
+    : ''
+  confirm.confirmText = 'Hapus'
+  confirm.variant = 'danger'
+  confirm.action = async () => {
+    await structuralPositionApi.delete(item.id)
+    toast.success('Jabatan dihapus')
+    await loadPositions(positionPage.current_page)
+  }
+  confirm.show = true
 }
 
 function openEndPositionModal(item) {
@@ -1302,8 +1357,8 @@ async function submitEndPosition() {
     await structuralPositionApi.end(endTarget.value.id, { ended_at: endDate.value })
     toast.success('Jabatan diakhiri')
     showEndModal.value = false
-    loadPositions(positionPage.current_page)
-    loadSummaries()
+    await loadPositions(positionPage.current_page)
+    // await loadSummaries()
   } catch (e) {
     formError.value = e.response?.data?.message || 'Gagal mengakhiri jabatan'
   } finally {
@@ -1312,7 +1367,8 @@ async function submitEndPosition() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadEmployees(), loadMeta(), loadSummaries()])
+  await Promise.all([loadEmployees(), loadMeta()])
+  // loadSummaries() — dinonaktifkan bersama kartu ringkasan
   loadLeaves(1)
 })
 </script>
@@ -1520,6 +1576,13 @@ onMounted(async () => {
 .data-table tbody tr:hover { background: #f8fafc; }
 
 .col-actions { white-space: nowrap; }
+
+.action-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
 
 .person-cell {
   display: flex;
@@ -1897,3 +1960,4 @@ onMounted(async () => {
   .mobile-cards { display: flex; }
 }
 </style>
+

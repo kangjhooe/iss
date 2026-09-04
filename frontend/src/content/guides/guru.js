@@ -9,9 +9,23 @@ export const guruGuide = {
   subtitle:
     'Ikuti langkah berurutan: masuk, kenali dashboard, isi absensi & jurnal, nilai, lalu peran tambahan seperti wali kelas.',
   audience: 'Guru & Staf',
+  breadcrumb: 'Guru & Staf',
+  roadmap:
+    'Akun → Login → Dashboard → Profil → Jadwal → Absen & Jurnal → Nilai → Wali Kelas → Tambahan → Tips',
+  readTime: '±7 menit baca · lompat lewat daftar isi',
+  pdf: {
+    filename: 'panduan-guru.pdf',
+  },
+  cta: {
+    title: 'Siap mengajar dengan lebih rapi?',
+    desc: 'Masuk dengan akun dari admin sekolah, atau kembali ke daftar panduan.',
+    primary: { to: '/login', label: 'Masuk sekarang' },
+    secondary: { to: '/panduan', label: 'Semua panduan' },
+  },
   steps: [
     {
       id: 'akun',
+      shortTitle: 'Akun',
       title: 'Dapatkan akun dari admin sekolah',
       summary:
         'Akun guru/staf dibuat oleh Admin Institusi, bukan lewat halaman Daftar publik. Siapkan email aktif yang diberikan ke admin.',
@@ -26,6 +40,7 @@ export const guruGuide = {
     },
     {
       id: 'login',
+      shortTitle: 'Login',
       title: 'Masuk ke aplikasi',
       summary:
         'Login dengan kredensial yang diberikan admin. Setelah berhasil, Anda diarahkan ke Dashboard Guru.',
@@ -40,6 +55,7 @@ export const guruGuide = {
     },
     {
       id: 'dashboard',
+      shortTitle: 'Dashboard',
       title: 'Kenali Dashboard Guru',
       summary:
         'Dashboard merangkum tugas harian: jadwal, piket, disposisi surat, dan pintasan ke menu yang relevan dengan peran Anda.',
@@ -53,6 +69,7 @@ export const guruGuide = {
     },
     {
       id: 'profil',
+      shortTitle: 'Profil',
       title: 'Lengkapi profil Anda',
       summary:
         'Profil dipakai untuk identitas di dokumen, absensi, dan data kepegawaian. Perbarui data yang belum lengkap.',
@@ -66,6 +83,7 @@ export const guruGuide = {
     },
     {
       id: 'jadwal',
+      shortTitle: 'Jadwal',
       title: 'Cek jadwal & jam mengajar hari ini',
       summary:
         'Setelah admin menyusun jadwal pelajaran, Anda melihat sesi mengajar di Jadwal Mengajar dan Jam Mengajar Hari Ini.',
@@ -79,6 +97,7 @@ export const guruGuide = {
     },
     {
       id: 'absen-jurnal',
+      shortTitle: 'Absen & Jurnal',
       title: 'Isi absensi siswa & jurnal mengajar',
       summary:
         'Alur harian utama: dari sesi mengajar, absenkan siswa lalu isi jurnal. Ini fondasi rekap kehadiran dan dokumentasi mengajar.',
@@ -92,6 +111,7 @@ export const guruGuide = {
     },
     {
       id: 'nilai',
+      shortTitle: 'Nilai',
       title: 'Kelola nilai mata pelajaran',
       summary:
         'Isi nilai lewat Hub Mata Pelajaran (per kelas–mapel) atau Buku Nilai jika menu generik tersedia. Ikuti KKM/bobot yang sudah disetel.',
@@ -105,6 +125,7 @@ export const guruGuide = {
     },
     {
       id: 'wali',
+      shortTitle: 'Wali Kelas',
       title: 'Peran wali kelas (jika ditunjuk)',
       summary:
         'Guru yang ditunjuk wali kelas mendapat menu Wali Kelas: data siswa, absensi, nilai, usulan, jadwal, dan ringkasan keuangan siswa.',
@@ -118,6 +139,7 @@ export const guruGuide = {
     },
     {
       id: 'tambahan',
+      shortTitle: 'Tambahan',
       title: 'Peran & modul tambahan',
       summary:
         'Bergantung penugasan dan akses modul: piket, BK, ekskul, lab, ujian online, atau tugas operasional lain.',
@@ -131,6 +153,7 @@ export const guruGuide = {
     },
     {
       id: 'tips',
+      shortTitle: 'Tips',
       title: 'Tips harian & FAQ',
       summary:
         'Setelah terbiasa, jaga konsistensi pengisian dan komunikasi dengan admin bila ada kendala akses.',

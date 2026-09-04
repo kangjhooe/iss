@@ -13,6 +13,9 @@ export const studentGuide = {
   roadmap:
     'Akun → Login → Dashboard → Jadwal → Absensi & Nilai → Poin → Tagihan → Layanan → Profil',
   readTime: '±6 menit baca · lompat lewat daftar isi',
+  pdf: {
+    filename: 'panduan-siswa.pdf',
+  },
   cta: {
     title: 'Siap masuk portal siswa?',
     desc: 'Gunakan akun yang diberikan sekolah, atau kembali ke daftar panduan.',

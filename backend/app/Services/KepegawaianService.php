@@ -56,7 +56,7 @@ class KepegawaianService
 
     public function createLeave(int $institutionId, array $data, int $userId, ?UploadedFile $attachment = null): EmployeeLeaveRequest
     {
-        $employee = Employee::where('institution_id', $institutionId)->findOrFail($data['employee_id']);
+        $employee = $this->findEmployeeForInstitution($institutionId, (int) $data['employee_id']);
 
         if (($data['end_date'] ?? null) < ($data['start_date'] ?? null)) {
             throw ValidationException::withMessages([
@@ -220,7 +220,7 @@ class KepegawaianService
 
     public function createDecree(int $institutionId, array $data, int $userId, ?UploadedFile $file = null): EmployeeDecree
     {
-        $employee = Employee::where('institution_id', $institutionId)->findOrFail($data['employee_id']);
+        $employee = $this->findEmployeeForInstitution($institutionId, (int) $data['employee_id']);
 
         $payload = [
             'institution_id' => $institutionId,
@@ -253,7 +253,7 @@ class KepegawaianService
     public function updateDecree(EmployeeDecree $decree, array $data, ?UploadedFile $file = null): EmployeeDecree
     {
         if (isset($data['employee_id']) && (int) $data['employee_id'] !== (int) $decree->employee_id) {
-            Employee::where('institution_id', $decree->institution_id)->findOrFail($data['employee_id']);
+            $this->findEmployeeForInstitution((int) $decree->institution_id, (int) $data['employee_id']);
         }
 
         $payload = collect($data)->only([
@@ -306,7 +306,8 @@ class KepegawaianService
         if (!empty($filters['employee_id'])) {
             $query->where('employee_id', $filters['employee_id']);
         }
-        if (($filters['active_only'] ?? null) === true || ($filters['active_only'] ?? null) === '1') {
+        if (array_key_exists('active_only', $filters)
+            && filter_var($filters['active_only'], FILTER_VALIDATE_BOOLEAN)) {
             $query->active();
         }
         if (!empty($filters['search'])) {
@@ -322,9 +323,17 @@ class KepegawaianService
 
     public function assignStructuralPosition(int $institutionId, array $data, int $userId): EmployeeStructuralPosition
     {
-        return DB::transaction(function () use ($institutionId, $data, $userId) {
-            $employee = Employee::where('institution_id', $institutionId)->findOrFail($data['employee_id']);
+        // Duty/permission sync sengaja di luar transaksi agar lock DB tidak
+        // menahan request list jabatan (gejala: simpan lama → muat gagal timeout,
+        // padahal data sudah tersimpan).
+        $toRevoke = [];
+        $positionKey = null;
+        $startedAt = $data['started_at'];
+
+        $assignment = DB::transaction(function () use ($institutionId, $data, $userId, &$toRevoke, &$positionKey) {
+            $employee = $this->findEmployeeForInstitution($institutionId, (int) $data['employee_id']);
             $position = StructuralPosition::active()->findOrFail($data['structural_position_id']);
+            $positionKey = $position->key;
 
             if (!empty($data['employee_decree_id'])) {
                 EmployeeDecree::where('institution_id', $institutionId)
@@ -333,7 +342,7 @@ class KepegawaianService
             }
 
             // End previous active holder of the same structural position at this institution.
-            $previous = EmployeeStructuralPosition::with(['employee', 'position'])
+            $previous = EmployeeStructuralPosition::with(['employee'])
                 ->where('institution_id', $institutionId)
                 ->where('structural_position_id', $position->id)
                 ->where(function ($q) {
@@ -347,13 +356,13 @@ class KepegawaianService
                 ]);
 
             foreach ($previous as $old) {
-                if ((int) $old->employee_id === (int) $employee->id) {
+                if ((int) $old->employee_id === (int) $employee->id || ! $old->employee) {
                     continue;
                 }
-                $this->structuralDutySync->revoke($old->employee, $position->key);
+                $toRevoke[] = $old->employee;
             }
 
-            $assignment = EmployeeStructuralPosition::create([
+            return EmployeeStructuralPosition::create([
                 'institution_id' => $institutionId,
                 'employee_id' => $employee->id,
                 'structural_position_id' => $position->id,
@@ -369,15 +378,160 @@ class KepegawaianService
                 'decree:id,number,title,decree_date',
                 'creator:id,name',
             ]);
-
-            $this->structuralDutySync->grant($employee, $position->key, $data['started_at']);
-
-            if ($position->key === 'kepala_sekolah') {
-                Institution::find($institutionId)?->syncPrincipalCache();
-            }
-
-            return $assignment;
         });
+
+        foreach ($toRevoke as $oldEmployee) {
+            $this->structuralDutySync->revoke($oldEmployee, $positionKey);
+        }
+
+        $isActive = empty($data['ended_at']) || $data['ended_at'] >= now()->toDateString();
+        if ($isActive && $assignment->employee && $positionKey) {
+            $this->structuralDutySync->grant(
+                $assignment->employee,
+                $positionKey,
+                $startedAt,
+                $institutionId
+            );
+        }
+
+        if ($positionKey === 'kepala_sekolah') {
+            Institution::find($institutionId)?->syncPrincipalCache();
+        }
+
+        return $assignment;
+    }
+
+    public function updateStructuralAssignment(
+        EmployeeStructuralPosition $assignment,
+        array $data
+    ): EmployeeStructuralPosition {
+        $institutionId = (int) $assignment->institution_id;
+        $assignment->loadMissing(['employee', 'position']);
+
+        $wasActive = $assignment->is_active;
+        $oldEmployee = $assignment->employee;
+        $oldKey = $assignment->position?->key;
+
+        $employee = isset($data['employee_id'])
+            ? $this->findEmployeeForInstitution($institutionId, (int) $data['employee_id'])
+            : $oldEmployee;
+
+        $position = isset($data['structural_position_id'])
+            ? StructuralPosition::active()->findOrFail($data['structural_position_id'])
+            : $assignment->position;
+
+        if (! empty($data['employee_decree_id'])) {
+            EmployeeDecree::where('institution_id', $institutionId)
+                ->where('employee_id', $employee->id)
+                ->findOrFail($data['employee_decree_id']);
+        }
+
+        $startedAt = $data['started_at'] ?? $assignment->started_at?->toDateString();
+        $endedAt = array_key_exists('ended_at', $data)
+            ? ($data['ended_at'] ?: null)
+            : $assignment->ended_at?->toDateString();
+
+        if ($endedAt && $startedAt && $endedAt < $startedAt) {
+            throw ValidationException::withMessages([
+                'ended_at' => ['Tanggal berakhir tidak boleh sebelum tanggal mulai.'],
+            ]);
+        }
+
+        // Jika jabatan diganti ke slot yang sedang dipegang orang lain, akhiri pemegang lama.
+        $toRevoke = [];
+        if ($position && (int) $position->id !== (int) $assignment->structural_position_id) {
+            $previous = EmployeeStructuralPosition::with(['employee'])
+                ->where('institution_id', $institutionId)
+                ->where('structural_position_id', $position->id)
+                ->where('id', '!=', $assignment->id)
+                ->where(function ($q) {
+                    $q->whereNull('ended_at')->orWhere('ended_at', '>=', now()->toDateString());
+                })
+                ->get();
+
+            if ($previous->isNotEmpty()) {
+                EmployeeStructuralPosition::whereIn('id', $previous->pluck('id'))
+                    ->update([
+                        'ended_at' => date('Y-m-d', strtotime($startedAt . ' -1 day')),
+                    ]);
+                foreach ($previous as $old) {
+                    if ((int) $old->employee_id === (int) $employee->id || ! $old->employee) {
+                        continue;
+                    }
+                    $toRevoke[] = $old->employee;
+                }
+            }
+        }
+
+        $assignment->update([
+            'employee_id' => $employee->id,
+            'structural_position_id' => $position->id,
+            'employee_decree_id' => array_key_exists('employee_decree_id', $data)
+                ? ($data['employee_decree_id'] ?: null)
+                : $assignment->employee_decree_id,
+            'started_at' => $startedAt,
+            'ended_at' => $endedAt,
+            'decree_number' => array_key_exists('decree_number', $data)
+                ? ($data['decree_number'] ?: null)
+                : $assignment->decree_number,
+            'notes' => array_key_exists('notes', $data)
+                ? ($data['notes'] ?: null)
+                : $assignment->notes,
+        ]);
+
+        $assignment = $assignment->fresh([
+            'employee:id,name,nip,nuptk,type,email',
+            'position',
+            'decree:id,number,title,decree_date',
+            'creator:id,name',
+        ]);
+
+        $nowActive = $assignment->is_active;
+        $newKey = $assignment->position?->key;
+        $sameHolder = $oldEmployee && (int) $oldEmployee->id === (int) $assignment->employee_id;
+        $sameKey = $oldKey && $newKey && $oldKey === $newKey;
+
+        if ($wasActive && $oldEmployee && $oldKey && (! $sameHolder || ! $sameKey || ! $nowActive)) {
+            $this->structuralDutySync->revoke($oldEmployee, $oldKey);
+        }
+
+        foreach ($toRevoke as $oldEmployeeToRevoke) {
+            $this->structuralDutySync->revoke($oldEmployeeToRevoke, $newKey);
+        }
+
+        if ($nowActive && $assignment->employee && $newKey) {
+            $this->structuralDutySync->grant(
+                $assignment->employee,
+                $newKey,
+                $assignment->started_at->toDateString(),
+                $institutionId
+            );
+        }
+
+        if (in_array('kepala_sekolah', array_filter([$oldKey, $newKey]), true)) {
+            Institution::find($institutionId)?->syncPrincipalCache();
+        }
+
+        return $assignment;
+    }
+
+    public function deleteStructuralAssignment(EmployeeStructuralPosition $assignment): void
+    {
+        $assignment->loadMissing(['employee', 'position']);
+        $institutionId = (int) $assignment->institution_id;
+        $wasActive = $assignment->is_active;
+        $employee = $assignment->employee;
+        $positionKey = $assignment->position?->key;
+
+        $assignment->delete();
+
+        if ($wasActive && $employee && $positionKey) {
+            $this->structuralDutySync->revoke($employee, $positionKey);
+        }
+
+        if ($positionKey === 'kepala_sekolah') {
+            Institution::find($institutionId)?->syncPrincipalCache();
+        }
     }
 
     public function endStructuralAssignment(EmployeeStructuralPosition $assignment, ?string $endedAt = null, ?string $notes = null): EmployeeStructuralPosition
@@ -395,6 +549,11 @@ class KepegawaianService
             ]);
         }
 
+        $assignment->loadMissing(['employee', 'position']);
+        $employee = $assignment->employee;
+        $positionKey = $assignment->position?->key;
+        $institutionId = (int) $assignment->institution_id;
+
         $assignment->update([
             'ended_at' => $ended,
             'notes' => $notes !== null
@@ -402,13 +561,12 @@ class KepegawaianService
                 : $assignment->notes,
         ]);
 
-        $assignment->loadMissing(['employee', 'position']);
-        if ($assignment->employee && $assignment->position?->key) {
-            $this->structuralDutySync->revoke($assignment->employee, $assignment->position->key);
+        if ($employee && $positionKey) {
+            $this->structuralDutySync->revoke($employee, $positionKey);
         }
 
-        if ($assignment->position?->key === 'kepala_sekolah') {
-            Institution::find($assignment->institution_id)?->syncPrincipalCache();
+        if ($positionKey === 'kepala_sekolah') {
+            Institution::find($institutionId)?->syncPrincipalCache();
         }
 
         return $assignment->fresh([
@@ -417,6 +575,16 @@ class KepegawaianService
             'decree:id,number,title,decree_date',
             'creator:id,name',
         ]);
+    }
+
+    /**
+     * Pegawai induk atau non-induk (penempatan approved) di institusi aktif.
+     */
+    protected function findEmployeeForInstitution(int $institutionId, int $employeeId): Employee
+    {
+        return Employee::query()
+            ->forInstitution($institutionId)
+            ->findOrFail($employeeId);
     }
 
     public function listStructuralPositions(): Collection

@@ -14,7 +14,7 @@
           <h1>Panduan menjalankan<br><span>{{ appName }}</span></h1>
           <p>
             Pilih peran Anda untuk melihat langkah-langkah memakai aplikasi.
-            Panduan Admin dan Guru & Staf sudah tersedia; peran lain menyusul.
+            Panduan tersedia untuk Admin, Guru & Staf, Siswa, dan Orang Tua.
           </p>
         </div>
       </section>
@@ -31,6 +31,8 @@
               `role-card--${role.accent}`,
               { 'role-card--disabled': !role.available }
             ]"
+            @mouseenter="role.available && prefetchRole(role.slug)"
+            @focus="role.available && prefetchRole(role.slug)"
           >
             <div class="role-card__top">
               <span class="role-badge" :class="`role-badge--${role.accent}`">
@@ -77,6 +79,23 @@ import { absoluteUrl } from '@/utils/seo'
 
 const currentYear = computed(() => new Date().getFullYear())
 const { setMeta } = usePageMeta()
+
+const PREFETCHERS = {
+  admin: () => import('@/views/PanduanAdmin.vue'),
+  guru: () => import('@/views/PanduanGuru.vue'),
+  siswa: () => import('@/views/PanduanSiswa.vue'),
+  'orang-tua': () => import('@/views/PanduanOrangTua.vue'),
+}
+const prefetched = new Set()
+
+function prefetchRole(slug) {
+  const load = PREFETCHERS[slug]
+  if (!load || prefetched.has(slug)) return
+  prefetched.add(slug)
+  load().catch(() => {
+    prefetched.delete(slug)
+  })
+}
 
 onMounted(() => {
   setMeta({

@@ -1,5 +1,10 @@
 <template>
   <div class="app-root">
+    <div
+      class="route-progress"
+      :class="{ 'route-progress--active': isRouteLoading }"
+      aria-hidden="true"
+    />
     <ErrorBoundary>
       <Layout v-if="useAppLayout">
         <router-view />
@@ -22,12 +27,14 @@ import Layout from '@/components/Layout.vue'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
 import OfflineStatus from '@/components/OfflineStatus.vue'
 import { useAppBrandingStore } from '@/stores/appBranding'
+import { useRouteLoading } from '@/composables/useRouteLoading'
 import { routeUsesAppLayout } from '@/utils/appLayout'
 import { SEO_DESCRIPTION, SEO_TITLE, applyRouteSeo, setMetaContent } from '@/utils/seo'
 
 const router = useRouter()
 const route = useRoute()
 const useAppLayout = computed(() => routeUsesAppLayout(route))
+const { isRouteLoading } = useRouteLoading()
 
 onMounted(() => {
   if (router.currentRoute.value.name !== 'SchoolPublic') {
@@ -51,6 +58,43 @@ onMounted(() => {
 
 .app-root {
   min-height: 100%;
+}
+
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, #059669 0%, #34d399 50%, #059669 100%);
+  background-size: 200% 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: opacity 0.15s ease, transform 0.2s ease;
+}
+
+.route-progress--active {
+  opacity: 1;
+  transform: scaleX(0.35);
+  animation: route-progress-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes route-progress-pulse {
+  0% {
+    transform: scaleX(0.2);
+    background-position: 0% 0;
+  }
+  50% {
+    transform: scaleX(0.7);
+    background-position: 100% 0;
+  }
+  100% {
+    transform: scaleX(0.35);
+    background-position: 0% 0;
+  }
 }
 
 :root {

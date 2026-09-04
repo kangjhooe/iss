@@ -72,8 +72,14 @@ export const structuralPositionApi = {
   assign(data) {
     return api.post('/v1/employee-structural-positions', data)
   },
+  update(id, data) {
+    return api.put(`/v1/employee-structural-positions/${id}`, data)
+  },
   end(id, data) {
     return api.post(`/v1/employee-structural-positions/${id}/end`, data)
+  },
+  delete(id) {
+    return api.delete(`/v1/employee-structural-positions/${id}`)
   },
 }
 

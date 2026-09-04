@@ -6,6 +6,7 @@ use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EndEmployeeStructuralPositionRequest;
 use App\Http\Requests\StoreEmployeeStructuralPositionRequest;
+use App\Http\Requests\UpdateEmployeeStructuralPositionRequest;
 use App\Http\Resources\EmployeeStructuralPositionResource;
 use App\Models\EmployeeStructuralPosition;
 use App\Services\KepegawaianService;
@@ -125,6 +126,59 @@ class EmployeeStructuralPositionController extends Controller
 
             return response()->json([
                 'message' => 'Gagal mengakhiri jabatan struktural.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function update(
+        UpdateEmployeeStructuralPositionRequest $request,
+        EmployeeStructuralPosition $employee_structural_position
+    ): EmployeeStructuralPositionResource|JsonResponse {
+        try {
+            $user = $request->user();
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $employee_structural_position->institution_id)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $assignment = $this->service->updateStructuralAssignment(
+                $employee_structural_position,
+                $request->validated()
+            );
+
+            return new EmployeeStructuralPositionResource($assignment);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Pegawai, jabatan, atau SK tidak ditemukan.'], 404);
+        } catch (\Exception $e) {
+            Log::error('Structural position update failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal memperbarui jabatan struktural.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function destroy(
+        Request $request,
+        EmployeeStructuralPosition $employee_structural_position
+    ): JsonResponse {
+        try {
+            $user = $request->user();
+            if (!$user->isSuperAdmin() && !InstitutionContext::canAccessInstitution($user, (int) $employee_structural_position->institution_id)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $this->service->deleteStructuralAssignment($employee_structural_position);
+
+            return response()->json(['message' => 'Jabatan struktural dihapus.']);
+        } catch (\Exception $e) {
+            Log::error('Structural position delete failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Gagal menghapus jabatan struktural.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

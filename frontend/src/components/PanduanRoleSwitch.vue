@@ -11,17 +11,31 @@
         :key="role.slug"
         :to="role.to"
         class="role-switch__link"
-        :class="`role-switch__link--${role.accent}`"
+        :class="[
+          `role-switch__link--${role.accent}`,
+          { 'role-switch__link--pending': pendingSlug === role.slug },
+        ]"
+        :aria-busy="pendingSlug === role.slug ? 'true' : undefined"
+        @mouseenter="prefetchRole(role)"
+        @focus="prefetchRole(role)"
+        @click="onRoleClick(role, $event)"
       >
-        {{ role.navLabel }}
+        <span
+          v-if="pendingSlug === role.slug"
+          class="role-switch__spinner"
+          aria-hidden="true"
+        />
+        {{ pendingSlug === role.slug ? 'Memuat…' : role.navLabel }}
       </router-link>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { guideRoles } from '@/content/guides'
+import { useRouteLoading } from '@/composables/useRouteLoading'
 
 const props = defineProps({
   currentSlug: {
@@ -37,6 +51,18 @@ const NAV_LABELS = {
   'orang-tua': 'Orang Tua',
 }
 
+const PREFETCHERS = {
+  admin: () => import('@/views/PanduanAdmin.vue'),
+  guru: () => import('@/views/PanduanGuru.vue'),
+  siswa: () => import('@/views/PanduanSiswa.vue'),
+  'orang-tua': () => import('@/views/PanduanOrangTua.vue'),
+}
+
+const route = useRoute()
+const { isRouteLoading } = useRouteLoading()
+const pendingSlug = ref(null)
+const prefetched = new Set()
+
 const roles = computed(() =>
   guideRoles
     .filter((role) => role.available && role.slug !== props.currentSlug)
@@ -45,6 +71,49 @@ const roles = computed(() =>
       navLabel: NAV_LABELS[role.slug] || role.title,
     }))
 )
+
+function prefetchRole(role) {
+  const load = PREFETCHERS[role.slug]
+  if (!load || prefetched.has(role.slug)) return
+  prefetched.add(role.slug)
+  load().catch(() => {
+    prefetched.delete(role.slug)
+  })
+}
+
+function onRoleClick(role, event) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+    return
+  }
+  if (isRouteLoading.value && pendingSlug.value) {
+    event.preventDefault()
+    return
+  }
+  pendingSlug.value = role.slug
+  prefetchRole(role)
+}
+
+watch(
+  () => route.path,
+  () => {
+    pendingSlug.value = null
+  }
+)
+
+watch(isRouteLoading, (loading) => {
+  if (!loading) pendingSlug.value = null
+})
+
+onMounted(() => {
+  const run = () => {
+    roles.value.forEach((role) => prefetchRole(role))
+  }
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(run, { timeout: 2500 })
+  } else {
+    setTimeout(run, 600)
+  }
+})
 </script>
 
 <style scoped>
@@ -72,6 +141,7 @@ const roles = computed(() =>
 .role-switch__link {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 7px 14px;
   border-radius: 999px;
   border: 1px solid #e2e8f0;
@@ -85,6 +155,25 @@ const roles = computed(() =>
 
 .role-switch__link:hover {
   transform: translateY(-1px);
+}
+
+.role-switch__link--pending {
+  pointer-events: none;
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.role-switch__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: role-switch-spin 0.7s linear infinite;
+}
+
+@keyframes role-switch-spin {
+  to { transform: rotate(360deg); }
 }
 
 .role-switch__link--teal:hover {

@@ -1,10 +1,23 @@
-<template>    <div class="sp-page">
+<template>
+    <div class="sp-page">
       <div class="sp-page-header">
         <div>
           <router-link to="/parent/dashboard" class="back-link">← Dashboard</router-link>
           <h1>{{ pageTitle }}</h1>
           <p v-if="studentName" class="page-meta">{{ studentName }}</p>
         </div>
+      </div>
+
+      <div v-if="siblings.length > 1" class="sibling-switch">
+        <router-link
+          v-for="c in siblings"
+          :key="c.id"
+          :to="`/parent/anak/${c.id}/${section}`"
+          class="sibling-chip"
+          :class="{ active: c.id === studentId }"
+        >
+          {{ c.name }}
+        </router-link>
       </div>
 
       <div v-if="loading" class="sp-loading"><p>Memuat...</p></div>
@@ -94,10 +107,11 @@
           </div>
         </div>
       </template>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppChart from '@/components/AppChart.vue'
 import { parentApi } from '@/api/parent'
@@ -115,11 +129,23 @@ const error = ref('')
 const rows = ref([])
 const summary = ref(null)
 const studentName = ref('')
+const siblings = ref([])
 
 const pageTitle = computed(() => {
   const map = { jadwal: 'Jadwal', nilai: 'Nilai', absensi: 'Absensi', pelanggaran: 'Pelanggaran' }
   return map[props.section] || 'Detail'
 })
+
+async function loadSiblings() {
+  try {
+    const res = await parentApi.children()
+    siblings.value = Array.isArray(res.data?.data) ? res.data.data : []
+  } catch {
+    siblings.value = []
+  }
+}
+
+onMounted(loadSiblings)
 
 const attendanceChart = computed(() => {
   const fromSummary = doughnutFromCounts(summary.value)
@@ -204,6 +230,27 @@ watch([studentId, () => props.section], load, { immediate: true })
   font-size: 0.85rem;
   text-decoration: none;
   font-weight: 600;
+}
+.sibling-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.sibling-chip {
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+.sibling-chip.active {
+  color: #047857;
+  background: #d1fae5;
+  border-color: #a7f3d0;
 }
 .chart-solo {
   max-width: 520px;

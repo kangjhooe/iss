@@ -220,6 +220,9 @@ const pdfDownloading = ref(false)
 
 const PDF_DOWNLOADERS = {
   admin: () => guidesPublicApi.downloadAdminPdf(),
+  guru: () => guidesPublicApi.downloadGuruPdf(),
+  siswa: () => guidesPublicApi.downloadSiswaPdf(),
+  'orang-tua': () => guidesPublicApi.downloadOrangTuaPdf(),
 }
 
 const canDownloadPdf = computed(() => (

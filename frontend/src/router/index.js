@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getActiveInstitutionLevel, isVocationalLevel } from '@/utils/institution'
 import { hasModuleAccess, hasAnyModuleAccess } from '@/utils/moduleAccess'
 import { INVENTORY_NAV_ITEMS, INVENTORY_TAB_BY_ROUTE_NAME, canAccessInventoryTab } from '@/composables/inventory/inventoryRoutes'
+import { startRouteLoading, stopRouteLoading } from '@/composables/useRouteLoading'
 import { applyRouteSeo } from '@/utils/seo'
 
 const inventoryRoutes = INVENTORY_NAV_ITEMS.map((item) => ({
@@ -677,6 +678,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
+      path: '/orang-tua',
+      name: 'ParentAccounts',
+      component: () => import('@/views/ParentAccounts.vue'),
+      meta: { requiresAuth: true, requiresModule: 'student' }
+    },
+    {
       path: '/teacher-change-requests',
       name: 'TeacherChangeRequestsAdmin',
       component: () => import('@/views/TeacherChangeRequestsAdmin.vue'),
@@ -1052,6 +1059,8 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
+  startRouteLoading()
+
   // Redirect logged-in users from home to their dashboard
   if (to.path === '/' && authStore.isAuthenticated) {
     if (!authStore.user) {
@@ -1410,7 +1419,12 @@ router.beforeEach(async (to, from, next) => {
 })
 
 router.afterEach((to) => {
+  stopRouteLoading()
   applyRouteSeo(to)
+})
+
+router.onError(() => {
+  stopRouteLoading()
 })
 
 export default router

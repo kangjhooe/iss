@@ -16,6 +16,7 @@ use App\Support\ParentAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Log;
 
 class ParentPortalController extends Controller
@@ -59,13 +60,7 @@ class ParentPortalController extends Controller
         }
 
         $children = ParentAccess::linkedStudents($user);
-        $institutionId = $children->first()?->institution_id ?? $user->institution_id;
-        $announcements = [];
-        if ($institutionId) {
-            $announcements = $this->academicCalendarService->getUpcoming((int) $institutionId, 30)
-                ->take(5)
-                ->values();
-        }
+        $announcements = $this->upcomingForChildren($children, 30)->take(5)->values();
 
         return response()->json([
             'data' => [
@@ -73,6 +68,7 @@ class ParentPortalController extends Controller
                     'id' => $s->id,
                     'name' => $s->name,
                     'class_name' => $s->schoolClass?->name,
+                    'institution_id' => $s->institution_id,
                     'institution_name' => $s->institution?->name,
                 ]),
                 'announcements' => AcademicCalendarEventResource::collection($announcements)->resolve(),
@@ -226,15 +222,56 @@ class ParentPortalController extends Controller
         }
 
         $children = ParentAccess::linkedStudents($user);
-        $institutionId = $children->first()?->institution_id ?? $user->institution_id;
-        if (!$institutionId) {
-            return AcademicCalendarEventResource::collection(collect());
-        }
-
         $days = min((int) $request->get('days', 60), 90);
-        $events = $this->academicCalendarService->getUpcoming((int) $institutionId, $days);
+        $events = $this->upcomingForChildren($children, $days);
 
         return AcademicCalendarEventResource::collection($events);
+    }
+
+    /**
+     * Merge upcoming calendar events from all children's institutions.
+     *
+     * @param  \Illuminate\Support\Collection<int, Student>  $children
+     * @return \Illuminate\Support\Collection<int, \App\Models\AcademicCalendarEvent>
+     */
+    protected function upcomingForChildren($children, int $days)
+    {
+        $institutionIds = $children
+            ->pluck('institution_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($institutionIds->isEmpty()) {
+            $fallback = $children->first()?->institution_id
+                ?? request()->user()?->institution_id;
+            if (!$fallback) {
+                return collect();
+            }
+            $institutionIds = collect([(int) $fallback]);
+        }
+
+        $events = collect();
+        foreach ($institutionIds as $institutionId) {
+            $events = $events->merge(
+                $this->academicCalendarService->getUpcoming($institutionId, $days)
+            );
+        }
+
+        $sorted = new EloquentCollection(
+            $events
+                ->unique('id')
+                ->sortBy(fn ($e) => $e->start_date?->format('Y-m-d') ?? '')
+                ->values()
+                ->all()
+        );
+
+        if ($sorted->isNotEmpty()) {
+            $sorted->loadMissing('institution:id,name');
+        }
+
+        return $sorted;
     }
 
     /**

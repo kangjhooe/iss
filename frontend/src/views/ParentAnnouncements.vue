@@ -1,4 +1,5 @@
-<template>    <div class="sp-page">
+<template>
+    <div class="sp-page">
       <div class="sp-page-header">
         <div>
           <router-link to="/parent/dashboard" class="back-link">← Dashboard</router-link>
@@ -15,11 +16,13 @@
         <div v-for="ev in events" :key="ev.id" class="sp-list-item sp-list-item--info">
           <span class="sp-list-title">{{ ev.title }}</span>
           <span class="sp-list-meta">{{ formatDate(ev.start_date) }}</span>
+          <span v-if="ev.institution_name" class="sp-chip">{{ ev.institution_name }}</span>
           <span v-if="ev.event_type" class="sp-chip">{{ ev.event_type }}</span>
           <p v-if="ev.description" class="desc">{{ ev.description }}</p>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, onMounted } from 'vue'

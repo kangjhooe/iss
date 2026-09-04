@@ -1,4 +1,5 @@
-<template>    <div class="sp-page dashboard">
+<template>
+    <div class="sp-page dashboard">
       <section class="sp-hero">
         <h1>Halo, {{ authStore.user?.name || 'Orang Tua' }}</h1>
         <p>Portal orang tua / wali murid — pantau akademik anak secara ringkas.</p>
@@ -12,7 +13,7 @@
             <h2 class="sp-panel-title">Anak / Wali</h2>
           </div>
           <div v-if="!children.length" class="sp-empty">
-            <p class="sp-empty-desc">Belum ada siswa terhubung. Pastikan nomor HP wali cocok dengan akun, atau minta admin menautkan lewat parent_links.</p>
+            <p class="sp-empty-desc">Belum ada siswa terhubung. Minta admin sekolah menautkan lewat menu Akun Orang Tua, atau pastikan nomor HP wali cocok dengan akun login Anda.</p>
           </div>
           <div v-else class="children-grid">
             <div v-for="c in children" :key="c.id" class="child-card">
@@ -40,12 +41,14 @@
             <div v-for="ev in announcements" :key="ev.id" class="sp-list-item sp-list-item--info">
               <span class="sp-list-title">{{ ev.title }}</span>
               <span class="sp-list-meta">{{ formatDate(ev.start_date) }}</span>
+              <span v-if="ev.institution_name" class="sp-chip">{{ ev.institution_name }}</span>
               <span v-if="ev.event_type" class="sp-chip">{{ ev.event_type }}</span>
             </div>
           </div>
         </section>
       </template>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, onMounted } from 'vue'

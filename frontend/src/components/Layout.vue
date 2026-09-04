@@ -342,13 +342,32 @@
 
     <!-- Bottom Navigation (mobile - admin sekolah & guru) -->
     <nav v-if="showBottomNav" class="bottom-nav" aria-label="Menu utama">
-      <router-link
-        v-for="item in bottomNavItems"
-        :key="item.to"
-        :to="item.to"
-        class="bottom-nav-item"
-        :class="{ 'bottom-nav-item-active': isBottomNavActive(item.to) }"
-      >
+      <template v-for="item in bottomNavItems" :key="item.key || item.to">
+        <button
+          v-if="item.pickChild"
+          type="button"
+          class="bottom-nav-item"
+          :class="{ 'bottom-nav-item-active': isBottomNavActive(item) }"
+          @click="openParentChildPicker(item.section)"
+        >
+          <span class="bottom-nav-icon">
+            <svg v-if="item.icon === 'class'" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg v-else-if="item.icon === 'attendance'" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 12V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="bottom-nav-label">{{ item.label }}</span>
+        </button>
+        <router-link
+          v-else
+          :to="item.to"
+          class="bottom-nav-item"
+          :class="{ 'bottom-nav-item-active': isBottomNavActive(item.to) }"
+        >
         <span class="bottom-nav-icon">
           <svg v-if="item.icon === 'home'" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -424,7 +443,31 @@
         </span>
         <span class="bottom-nav-label">{{ item.label }}</span>
       </router-link>
+      </template>
     </nav>
+
+    <div
+      v-if="parentChildPicker.open"
+      class="parent-child-sheet-overlay"
+      @click.self="closeParentChildPicker"
+    >
+      <div class="parent-child-sheet" role="dialog" aria-modal="true" aria-label="Pilih anak">
+        <div class="parent-child-sheet-head">
+          <h3>Pilih anak — {{ parentChildPicker.section === 'nilai' ? 'Nilai' : 'Absensi' }}</h3>
+          <button type="button" class="parent-child-sheet-close" aria-label="Tutup" @click="closeParentChildPicker">×</button>
+        </div>
+        <button
+          v-for="c in parentChildren"
+          :key="c.id"
+          type="button"
+          class="parent-child-sheet-item"
+          @click="goParentChildSection(c)"
+        >
+          <strong>{{ c.name }}</strong>
+          <span>{{ c.class_name || '—' }}<template v-if="c.institution_name"> · {{ c.institution_name }}</template></span>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -684,6 +727,8 @@ function getDashboardTo() {
 }
 
 const parentChildren = ref([])
+const parentChildPicker = ref({ open: false, section: 'nilai' })
+
 async function fetchParentChildren() {
   if (authStore.user?.role !== 'parent') {
     parentChildren.value = []
@@ -695,6 +740,22 @@ async function fetchParentChildren() {
     parentChildren.value = Array.isArray(res.data?.data) ? res.data.data : []
   } catch {
     parentChildren.value = []
+  }
+}
+
+function openParentChildPicker(section) {
+  parentChildPicker.value = { open: true, section: section || 'nilai' }
+}
+
+function closeParentChildPicker() {
+  parentChildPicker.value = { ...parentChildPicker.value, open: false }
+}
+
+function goParentChildSection(child) {
+  const section = parentChildPicker.value.section || 'nilai'
+  closeParentChildPicker()
+  if (child?.id) {
+    router.push(`/parent/anak/${child.id}/${section}`)
   }
 }
 
@@ -902,6 +963,7 @@ const menuEntries = computed(() => {
       : []),
     addVisible({ type: 'group', key: 'kesiswaan', label: 'Kesiswaan', icon: IconStudents, children: [
       { to: '/student', label: 'Data Siswa', visible: canAccessModule('student') },
+      { to: '/orang-tua', label: 'Akun Orang Tua', visible: canAccessModule('student') },
       { to: '/siswa-keluar', label: 'Siswa Keluar', visible: canAccessModule('student') },
       { to: '/student-mutation', label: 'Mutasi', visible: canAccessModule('student') },
       { to: '/naik-kelas', label: 'Naik Kelas', visible: canAccessModule('student') },
@@ -1220,13 +1282,16 @@ const bottomNavItems = computed(() => {
   }
   if (role === 'parent') {
     const items = [
-      { to: '/parent/dashboard', label: 'Beranda', icon: 'home' },
-      { to: '/parent/pengumuman', label: 'Pengumuman', icon: 'report' }
+      { key: 'parent-home', to: '/parent/dashboard', label: 'Beranda', icon: 'home' },
+      { key: 'parent-announce', to: '/parent/pengumuman', label: 'Pengumuman', icon: 'report' }
     ]
-    const firstChild = parentChildren.value[0]
-    if (firstChild?.id) {
-      items.push({ to: `/parent/anak/${firstChild.id}/nilai`, label: 'Nilai', icon: 'class' })
-      items.push({ to: `/parent/anak/${firstChild.id}/absensi`, label: 'Absensi', icon: 'attendance' })
+    const kids = parentChildren.value
+    if (kids.length === 1 && kids[0]?.id) {
+      items.push({ key: 'parent-nilai', to: `/parent/anak/${kids[0].id}/nilai`, label: 'Nilai', icon: 'class' })
+      items.push({ key: 'parent-absensi', to: `/parent/anak/${kids[0].id}/absensi`, label: 'Absensi', icon: 'attendance' })
+    } else if (kids.length > 1) {
+      items.push({ key: 'parent-nilai', pickChild: true, section: 'nilai', label: 'Nilai', icon: 'class' })
+      items.push({ key: 'parent-absensi', pickChild: true, section: 'absensi', label: 'Absensi', icon: 'attendance' })
     }
     return items.slice(0, 5)
   }
@@ -1262,7 +1327,13 @@ const bottomNavItems = computed(() => {
   return items.slice(0, 5)
 })
 
-const isBottomNavActive = (path) => {
+const isBottomNavActive = (pathOrItem) => {
+  if (pathOrItem && typeof pathOrItem === 'object') {
+    if (pathOrItem.section === 'nilai') return /^\/parent\/anak\/\d+\/nilai/.test(route.path)
+    if (pathOrItem.section === 'absensi') return /^\/parent\/anak\/\d+\/absensi/.test(route.path)
+    return false
+  }
+  const path = pathOrItem
   if (path === '/dashboard') return route.path === '/dashboard'
   if (path === '/super-admin/dashboard') return route.path === '/super-admin/dashboard'
   if (path === '/teacher/dashboard') return route.path === '/teacher/dashboard'
@@ -1270,6 +1341,8 @@ const isBottomNavActive = (path) => {
   if (path === '/student/absensi') return route.path === '/student/absensi'
   if (path === '/student/profil') return route.path === '/student/profil'
   if (path === '/parent/dashboard') return route.path === '/parent/dashboard'
+  if (/^\/parent\/anak\/\d+\/nilai$/.test(path)) return /^\/parent\/anak\/\d+\/nilai/.test(route.path)
+  if (/^\/parent\/anak\/\d+\/absensi$/.test(path)) return /^\/parent\/anak\/\d+\/absensi/.test(route.path)
   return route.path.startsWith(path)
 }
 
@@ -2442,6 +2515,10 @@ const handleLogout = async () => {
     border-radius: 10px;
     transition: all 0.2s ease;
     min-height: 52px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
   }
 
   .bottom-nav-item:hover {
@@ -2479,6 +2556,74 @@ const handleLogout = async () => {
 
   .layout:has(.bottom-nav) .content {
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+  }
+
+  .parent-child-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(15, 23, 42, 0.4);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .parent-child-sheet {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 14px 14px calc(16px + env(safe-area-inset-bottom, 0));
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .parent-child-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .parent-child-sheet-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #0f172a;
+  }
+
+  .parent-child-sheet-close {
+    border: none;
+    background: #f1f5f9;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #475569;
+  }
+
+  .parent-child-sheet-item {
+    width: 100%;
+    text-align: left;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+
+  .parent-child-sheet-item strong {
+    display: block;
+    color: #0f172a;
+    font-size: 0.95rem;
+  }
+
+  .parent-child-sheet-item span {
+    display: block;
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-top: 2px;
   }
 }
 
