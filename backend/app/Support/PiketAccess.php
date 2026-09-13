@@ -86,13 +86,21 @@ class PiketAccess
 
     public static function isScheduled(User $user, ?int $institutionId = null): bool
     {
-        if (!Schema::hasTable('piket_schedules')) {
+        if (! self::piketTableExists()) {
             return false;
         }
 
-        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user);
+        $request = request();
+        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user, $request);
+        $cacheKey = 'piket_scheduled_'.$user->id.'_'.($resolvedInstitutionId ?: 0);
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
         $employee = self::employeeFor($user, $resolvedInstitutionId);
-        if (!$employee) {
+        if (! $employee) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
 
@@ -102,21 +110,34 @@ class PiketAccess
                 $query->where('institution_id', $resolvedInstitutionId);
             }
 
-            return $query->exists();
+            $ok = $query->exists();
+            $request->attributes->set($cacheKey, $ok);
+
+            return $ok;
         } catch (\Throwable $e) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
     }
 
     public static function isOnDutyToday(User $user, ?int $institutionId = null): bool
     {
-        if (!Schema::hasTable('piket_schedules')) {
+        if (! self::piketTableExists()) {
             return false;
         }
 
-        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user);
+        $request = request();
+        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user, $request);
+        $cacheKey = 'piket_on_duty_'.$user->id.'_'.($resolvedInstitutionId ?: 0);
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
         $employee = self::employeeFor($user, $resolvedInstitutionId);
-        if (!$employee) {
+        if (! $employee) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
 
@@ -130,10 +151,31 @@ class PiketAccess
                 $query->where('institution_id', $resolvedInstitutionId);
             }
 
-            return $query->exists();
+            $ok = $query->exists();
+            $request->attributes->set($cacheKey, $ok);
+
+            return $ok;
         } catch (\Throwable $e) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
+    }
+
+    private static function piketTableExists(): bool
+    {
+        static $exists = null;
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        try {
+            $exists = Schema::hasTable('piket_schedules');
+        } catch (\Throwable $e) {
+            $exists = false;
+        }
+
+        return $exists;
     }
 
     /**

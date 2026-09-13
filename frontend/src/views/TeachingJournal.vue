@@ -22,6 +22,15 @@
           <input v-model="filters.date_to" type="date" class="filter-select" @change="loadJournals" />
         </div>
         <div class="toolbar-actions">
+          <button
+            v-if="selectedIds.length"
+            type="button"
+            class="btn-danger btn-compact"
+            :disabled="bulkDeleting"
+            @click="confirmBulkDelete"
+          >
+            {{ bulkDeleting ? 'Menghapus...' : `Hapus terpilih (${selectedIds.length})` }}
+          </button>
           <button @click="exportToCsv" :disabled="exporting" class="btn-secondary btn-compact">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -58,6 +67,16 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th class="col-check">
+                <input
+                  type="checkbox"
+                  :checked="allSelected"
+                  :indeterminate="someSelected"
+                  title="Pilih semua di halaman ini"
+                  @change="toggleSelectAll"
+                />
+              </th>
+              <th class="col-no">No</th>
               <th>Tanggal</th>
               <th>Kelas</th>
               <th>Mapel</th>
@@ -69,7 +88,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="j in journals" :key="j.id">
+            <tr v-for="(j, index) in journals" :key="j.id">
+              <td class="col-check">
+                <input type="checkbox" :value="j.id" v-model="selectedIds" />
+              </td>
+              <td class="col-no">{{ rowNumber(index) }}</td>
               <td>{{ formatDate(j.journal_date) }}</td>
               <td>{{ displayValue(j.school_class?.name) }}</td>
               <td>{{ displayValue(j.subject?.name) }}</td>
@@ -175,13 +198,13 @@
       </div>
 
       <ConfirmDialog
-        v-if="deleteTarget"
-        :show="!!deleteTarget"
-        title="Hapus Jurnal Mengajar"
-        :message="deleteMessage"
+        v-if="deleteTarget || bulkDeletePending"
+        :show="!!deleteTarget || bulkDeletePending"
+        :title="bulkDeletePending ? 'Hapus Jurnal Terpilih' : 'Hapus Jurnal Mengajar'"
+        :message="bulkDeletePending ? bulkDeleteMessage : deleteMessage"
         confirmText="Hapus"
-        @confirm="doDelete"
-        @cancel="deleteTarget = null"
+        @confirm="bulkDeletePending ? doBulkDelete() : doDelete()"
+        @cancel="cancelDelete"
       />
     </div>
 </template>
@@ -250,6 +273,16 @@ const formSubmitting = ref(false)
 const formError = ref('')
 const deleteTarget = ref(null)
 const exporting = ref(false)
+const selectedIds = ref([])
+const bulkDeletePending = ref(false)
+const bulkDeleting = ref(false)
+
+const allSelected = computed(() =>
+  journals.value.length > 0 && selectedIds.value.length === journals.value.length
+)
+const someSelected = computed(() =>
+  selectedIds.value.length > 0 && selectedIds.value.length < journals.value.length
+)
 
 const formSubjects = computed(() => {
   if (!isTeacher.value || !form.value.class_id) return subjects.value
@@ -286,6 +319,16 @@ const deleteMessage = computed(() => {
   return `Yakin menghapus jurnal ${formatDate(j.journal_date)} - ${j.school_class?.name || ''} ${j.subject?.name || ''}?`
 })
 
+const bulkDeleteMessage = computed(() =>
+  `Yakin ingin menghapus ${selectedIds.value.length} jurnal yang dipilih? Tindakan ini tidak dapat dibatalkan.`
+)
+
+function rowNumber(index) {
+  const page = Number(pagination.value.current_page) || 1
+  const perPage = Number(pagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
+}
+
 function displayValue(v) {
   if (v === null || v === undefined || v === '') return 'Belum ada data'
   return String(v).trim() || 'Belum ada data'
@@ -305,6 +348,7 @@ function truncate(str, len) {
 async function loadJournals() {
   loading.value = true
   formError.value = ''
+  selectedIds.value = []
   try {
     const params = {
       page: pagination.value.current_page,
@@ -539,7 +583,27 @@ async function submitForm() {
 }
 
 function confirmDelete(j) {
+  bulkDeletePending.value = false
   deleteTarget.value = j
+}
+
+function confirmBulkDelete() {
+  if (!selectedIds.value.length) return
+  deleteTarget.value = null
+  bulkDeletePending.value = true
+}
+
+function cancelDelete() {
+  deleteTarget.value = null
+  bulkDeletePending.value = false
+}
+
+function toggleSelectAll(event) {
+  if (event?.target?.checked) {
+    selectedIds.value = journals.value.map((j) => j.id)
+  } else {
+    selectedIds.value = []
+  }
 }
 
 async function doDelete() {
@@ -551,6 +615,29 @@ async function doDelete() {
     loadJournals()
   } catch (e) {
     toast.error('Gagal menghapus jurnal mengajar', e.formattedMessage || 'Jurnal tidak dapat dihapus. Coba lagi.')
+  }
+}
+
+async function doBulkDelete() {
+  if (!selectedIds.value.length) return
+  bulkDeleting.value = true
+  try {
+    const ids = [...selectedIds.value]
+    const results = await Promise.allSettled(ids.map((id) => teachingJournalApi.delete(id)))
+    const ok = results.filter((r) => r.status === 'fulfilled').length
+    const fail = results.length - ok
+    bulkDeletePending.value = false
+    selectedIds.value = []
+    if (fail === 0) {
+      toast.success(`${ok} jurnal berhasil dihapus`)
+    } else {
+      toast.error('Sebagian gagal dihapus', `${ok} berhasil, ${fail} gagal.`)
+    }
+    loadJournals()
+  } catch (e) {
+    toast.error('Gagal menghapus jurnal', e.formattedMessage || 'Coba lagi.')
+  } finally {
+    bulkDeleting.value = false
   }
 }
 
@@ -732,6 +819,37 @@ onMounted(async () => {
   font-weight: 600;
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   color: #065f46;
+}
+.col-check {
+  width: 40px;
+  text-align: center;
+}
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .summary-cell {
   max-width: 200px;

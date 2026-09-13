@@ -23,14 +23,19 @@ class EnsureModuleAccess
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $activeInstitutionId = InstitutionContext::resolveActiveInstitutionId($user, $request);
+        $attr = $request->attributes->get('current_institution_id');
+        $activeInstitutionId = ($attr !== null && $attr !== '')
+            ? (int) $attr
+            : InstitutionContext::resolveActiveInstitutionId($user, $request);
 
         // Support multiple modules separated by | (user needs access to any one)
         $keys = array_map('trim', explode('|', $moduleKey));
         $hasAccess = false;
+        $fromPermission = false;
         foreach ($keys as $key) {
             if ($key && $user->hasModuleAccess($key)) {
                 $hasAccess = true;
+                $fromPermission = true;
                 break;
             }
         }
@@ -66,7 +71,8 @@ class EnsureModuleAccess
             }
         }
 
-        if ($hasAccess && ! $user->isSuperAdmin()) {
+        // hasModuleAccess sudah cek visibility; ulang hanya untuk jalur bypass jabatan.
+        if ($hasAccess && ! $fromPermission && ! $user->isSuperAdmin()) {
             $anyVisible = false;
             foreach ($keys as $key) {
                 if ($key && InstitutionModuleVisibility::isVisible($activeInstitutionId, $key)) {

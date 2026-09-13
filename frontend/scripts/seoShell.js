@@ -1,7 +1,6 @@
 /**
- * Konten HTML statis untuk crawler (fallback jika prerender gagal / JS off).
- * Vue akan mengganti isi #app saat mount di client.
- * Dengan JS: disembunyikan via `.js .seo-shell` di vite.config (hindari FOUC hard-refresh).
+ * Konten HTML statis untuk crawler / no-JS (dibungkus <noscript> di index.html).
+ * Dengan JS aktif, Vue mengganti #app — shell tidak pernah di-render ke viewport.
  */
 export function buildSeoShell({ appName, appTagline, pageDescription }) {
   const features = [

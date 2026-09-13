@@ -115,6 +115,13 @@ class User extends Authenticatable
      */
     public function currentInstitutionId(?\Illuminate\Http\Request $request = null): ?int
     {
+        $request = $request ?? request();
+        // Prefer nilai yang sudah di-set middleware institution.context (hindari resolve ulang).
+        $attr = $request?->attributes->get('current_institution_id');
+        if ($attr !== null && $attr !== '') {
+            return (int) $attr;
+        }
+
         return \App\Support\InstitutionContext::resolveActiveInstitutionId($this, $request);
     }
 
@@ -127,20 +134,36 @@ class User extends Authenticatable
             return true;
         }
 
-        $institutionId = $this->currentInstitutionId();
+        $request = request();
+        $cacheKey = 'user_has_module_'.$this->id.'_'.$moduleKey;
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
+        $institutionId = $this->currentInstitutionId($request);
         if ($institutionId && \App\Support\InstitutionModuleVisibility::isHidden($institutionId, $moduleKey)) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
 
         if ($this->isAdmin() || $this->isInstitutionAdmin()) {
+            $request->attributes->set($cacheKey, true);
+
             return true;
         }
 
         if ($moduleKey === \App\Support\ReportAccess::MODULE_KEY) {
-            return \App\Support\ReportAccess::canAccess($this);
+            $ok = \App\Support\ReportAccess::canAccess($this);
+            $request->attributes->set($cacheKey, $ok);
+
+            return $ok;
         }
 
-        return \App\Support\InstitutionContext::hasEffectivePermission($this, $moduleKey);
+        $ok = \App\Support\InstitutionContext::hasEffectivePermission($this, $moduleKey, $institutionId, $request);
+        $request->attributes->set($cacheKey, $ok);
+
+        return $ok;
     }
 
     /**
@@ -404,20 +427,31 @@ class User extends Authenticatable
             return false;
         }
 
-        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $institutionId);
+        $request = request();
+        $resolvedInstitutionId = $institutionId ?? $this->currentInstitutionId($request);
+        $cacheKey = 'user_is_room_resp_'.$this->id.'_'.($resolvedInstitutionId ?: 0);
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
+        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $resolvedInstitutionId, $request);
         if (! $employee) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
 
         $query = Room::query()
             ->where('responsible_employee_id', $employee->id);
 
-        $resolvedInstitutionId = $institutionId ?? \App\Support\InstitutionContext::resolveActiveInstitutionId($this);
         if ($resolvedInstitutionId) {
             $query->where('institution_id', $resolvedInstitutionId);
         }
 
-        return $query->exists();
+        $ok = $query->exists();
+        $request->attributes->set($cacheKey, $ok);
+
+        return $ok;
     }
 
     /**
@@ -430,8 +464,17 @@ class User extends Authenticatable
             return false;
         }
 
-        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $institutionId);
+        $request = request();
+        $resolvedInstitutionId = $institutionId ?? $this->currentInstitutionId($request);
+        $cacheKey = 'user_is_lab_resp_'.$this->id.'_'.($resolvedInstitutionId ?: 0);
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
+        $employee = \App\Support\InstitutionContext::employeeForInstitution($this, $resolvedInstitutionId, $request);
         if (! $employee) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
 
@@ -439,12 +482,14 @@ class User extends Authenticatable
             ->where('type', 'Laboratorium')
             ->where('responsible_employee_id', $employee->id);
 
-        $resolvedInstitutionId = $institutionId ?? \App\Support\InstitutionContext::resolveActiveInstitutionId($this);
         if ($resolvedInstitutionId) {
             $query->where('institution_id', $resolvedInstitutionId);
         }
 
-        return $query->exists();
+        $ok = $query->exists();
+        $request->attributes->set($cacheKey, $ok);
+
+        return $ok;
     }
 
     /**

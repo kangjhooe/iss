@@ -16,7 +16,7 @@ class ReportAccess
 
     public static function employeeFor(User $user): ?Employee
     {
-        return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        return InstitutionContext::employeeFor($user);
     }
 
     public static function isKepalaSekolah(User $user): bool
@@ -25,9 +25,17 @@ class ReportAccess
             return false;
         }
 
-        $employee = self::employeeFor($user);
+        $request = request();
+        $cacheKey = 'report_is_ks_'.$user->id;
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
 
-        return $employee ? self::employeeIsKepalaSekolah($employee) : false;
+        $employee = self::employeeFor($user);
+        $ok = $employee ? self::employeeIsKepalaSekolah($employee) : false;
+        $request->attributes->set($cacheKey, $ok);
+
+        return $ok;
     }
 
     public static function employeeIsKepalaSekolah(Employee $employee): bool

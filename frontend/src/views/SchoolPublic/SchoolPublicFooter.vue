@@ -27,7 +27,7 @@
 
       <div class="footer-bottom">
         <p>&copy; {{ currentYear }} {{ institution?.name }}</p>
-        <router-link to="/" class="footer-home">Beranda ISS</router-link>
+        <router-link to="/" class="footer-home">Beranda {{ appName }}</router-link>
       </div>
     </div>
   </footer>
@@ -35,6 +35,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { appName } from '@/config/app'
 
 defineProps({
   institution: { type: Object, default: null },

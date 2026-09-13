@@ -2,9 +2,13 @@
   <div class="school-public-page">
     <a href="#main-content" class="skip-link">Langsung ke konten</a>
 
-    <nav class="navbar" :class="{ 'navbar--scrolled': scrolled, 'navbar--open': menuOpen }">
+    <nav
+      ref="navbarEl"
+      class="navbar"
+      :class="{ 'navbar--scrolled': scrolled, 'navbar--open': menuOpen }"
+    >
       <div class="navbar-inner">
-        <router-link :to="`/${npsn}`" class="navbar-brand" @click="menuOpen = false">
+        <router-link :to="`/${npsn}`" class="navbar-brand" @click="closeMenu">
           <img v-if="institution?.logo_url" :src="institution.logo_url" alt="" class="navbar-logo-img" />
           <div v-else class="navbar-logo">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -15,35 +19,74 @@
           <span class="navbar-title">{{ institution?.name || 'Sekolah/Madrasah' }}</span>
         </router-link>
 
-        <button
-          type="button"
-          class="navbar-toggle"
-          :aria-expanded="menuOpen"
-          aria-controls="school-nav-menu"
-          aria-label="Menu navigasi"
-          @click="menuOpen = !menuOpen"
-        >
-          <span class="navbar-toggle-bar"></span>
-          <span class="navbar-toggle-bar"></span>
-          <span class="navbar-toggle-bar"></span>
-        </button>
-
-        <div id="school-nav-menu" class="navbar-links">
-          <a href="#tentang" class="nav-link" @click="menuOpen = false">Tentang</a>
-          <a href="#layanan" class="nav-link" @click="menuOpen = false">Layanan</a>
-          <a href="#berita" class="nav-link" @click="menuOpen = false">Berita</a>
-          <a href="#kontak" class="nav-link" @click="menuOpen = false">Lokasi</a>
-          <router-link :to="`/${npsn}/buku-tamu`" class="nav-link" @click="menuOpen = false">Buku Tamu</router-link>
+        <div class="navbar-links navbar-links--desktop">
+          <a href="#tentang" class="nav-link">Tentang</a>
+          <a href="#layanan" class="nav-link">Layanan</a>
+          <a href="#berita" class="nav-link">Berita</a>
+          <a href="#kontak" class="nav-link">Lokasi</a>
+          <router-link :to="`/${npsn}/buku-tamu`" class="nav-link">Buku Tamu</router-link>
           <router-link
             v-if="admissionOpen"
             :to="`/${npsn}/daftar-ppdb`"
             class="nav-link"
-            @click="menuOpen = false"
           >{{ admissionLabel }}</router-link>
-          <router-link to="/login" class="btn btn-primary" @click="menuOpen = false">Masuk</router-link>
+          <router-link to="/login" class="btn btn-primary">Masuk</router-link>
         </div>
+
+        <button
+          type="button"
+          class="navbar-toggle"
+          :aria-expanded="menuOpen"
+          aria-controls="school-nav-drawer"
+          :aria-label="menuOpen ? 'Tutup menu' : 'Buka menu'"
+          @click="menuOpen = !menuOpen"
+        >
+          <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
+          <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
+          <span class="navbar-toggle-bar" :class="{ open: menuOpen }"></span>
+        </button>
       </div>
     </nav>
+    <div class="navbar-spacer" :style="{ height: `${navHeight}px` }" aria-hidden="true" />
+
+    <Teleport to="body">
+      <Transition name="school-nav-menu">
+        <div
+          v-if="menuOpen"
+          class="navbar-backdrop"
+          @click="closeMenu"
+        />
+      </Transition>
+      <Transition name="school-nav-drawer">
+        <div
+          v-if="menuOpen"
+          id="school-nav-drawer"
+          class="navbar-drawer"
+          role="dialog"
+          aria-label="Menu navigasi"
+        >
+          <button type="button" class="navbar-drawer-close" aria-label="Tutup menu" @click="closeMenu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+          <a href="#tentang" class="navbar-drawer-link" @click="closeMenu">Tentang</a>
+          <a href="#layanan" class="navbar-drawer-link" @click="closeMenu">Layanan</a>
+          <a href="#berita" class="navbar-drawer-link" @click="closeMenu">Berita</a>
+          <a href="#kontak" class="navbar-drawer-link" @click="closeMenu">Lokasi</a>
+          <router-link :to="`/${npsn}/buku-tamu`" class="navbar-drawer-link" @click="closeMenu">Buku Tamu</router-link>
+          <router-link
+            v-if="admissionOpen"
+            :to="`/${npsn}/daftar-ppdb`"
+            class="navbar-drawer-link"
+            @click="closeMenu"
+          >{{ admissionLabel }}</router-link>
+          <div class="navbar-drawer-auth">
+            <router-link to="/login" class="btn btn-primary" @click="closeMenu">Masuk</router-link>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <div v-if="loading" class="skeleton-wrap" aria-busy="true" aria-label="Memuat data sekolah">
       <div class="skeleton-hero">
@@ -113,6 +156,11 @@ const institution = ref(null)
 const loading = ref(true)
 const error = ref('')
 const menuOpen = ref(false)
+const navbarEl = ref(null)
+const navHeight = ref(64)
+const scrolled = ref(false)
+let scrollRaf = 0
+let resizeObserver = null
 
 const admissionOpen = computed(() => !!institution.value?.admission_open)
 const admissionLabel = computed(() => institution.value?.admission_label || 'PPDB')
@@ -123,9 +171,22 @@ const servicesRef = ref(null)
 const identityRef = ref(null)
 const contactRef = ref(null)
 const footerRef = ref(null)
-const scrolled = ref(false)
 
 let revealObserver = null
+
+function closeMenu() {
+  menuOpen.value = false
+}
+
+function measureNavHeight() {
+  if (!navbarEl.value) return
+  const next = Math.ceil(navbarEl.value.getBoundingClientRect().height)
+  if (next > 0) navHeight.value = next
+}
+
+function onMenuKeydown(e) {
+  if (e.key === 'Escape') closeMenu()
+}
 
 async function fetchInstitution() {
   if (!npsn.value) return
@@ -146,6 +207,7 @@ async function fetchInstitution() {
     institution.value = null
   } finally {
     loading.value = false
+    nextTick(measureNavHeight)
   }
 }
 
@@ -153,12 +215,29 @@ onMounted(() => {
   fetchInstitution()
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onResize, { passive: true })
+  window.addEventListener('keydown', onMenuKeydown)
+  nextTick(() => {
+    measureNavHeight()
+    if (typeof ResizeObserver !== 'undefined' && navbarEl.value) {
+      resizeObserver = new ResizeObserver(() => measureNavHeight())
+      resizeObserver.observe(navbarEl.value)
+    }
+  })
+})
+
+watch(menuOpen, (open) => {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = open ? 'hidden' : ''
 })
 
 watch(npsn, () => fetchInstitution())
+watch(scrolled, () => nextTick(measureNavHeight))
 watch(institution, (val) => {
   if (val) {
-    nextTick(() => setTimeout(setupReveal, 120))
+    nextTick(() => {
+      measureNavHeight()
+      setTimeout(setupReveal, 120)
+    })
     const baseUrl = typeof window !== 'undefined' ? window.location.origin + route.fullPath : ''
     pageMeta.setMeta({
       title: `${val.name} - Profil ${getInstitutionTypeLabel(val.level) || 'Sekolah/Madrasah'}`,
@@ -199,11 +278,16 @@ function removeJsonLd() {
 }
 
 function onScroll() {
-  scrolled.value = window.scrollY > 24
+  if (scrollRaf) return
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0
+    scrolled.value = window.scrollY > 12
+  })
 }
 
 function onResize() {
-  if (window.innerWidth > 860) menuOpen.value = false
+  if (window.innerWidth > 860) closeMenu()
+  measureNavHeight()
 }
 
 function setupReveal() {
@@ -231,6 +315,11 @@ onBeforeUnmount(() => {
   removeJsonLd()
   window.removeEventListener('scroll', onScroll)
   window.removeEventListener('resize', onResize)
+  window.removeEventListener('keydown', onMenuKeydown)
+  if (scrollRaf) cancelAnimationFrame(scrollRaf)
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  document.body.style.overflow = ''
   if (revealObserver) revealObserver.disconnect()
 })
 </script>
@@ -265,29 +354,48 @@ onBeforeUnmount(() => {
 }
 
 .navbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid transparent;
-  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  padding-top: env(safe-area-inset-top, 0);
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 .navbar--scrolled {
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom-color: #e2e8f0;
-  box-shadow: 0 1px 16px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.04),
+    0 10px 28px -16px rgba(15, 23, 42, 0.18);
+}
+.navbar-spacer {
+  flex-shrink: 0;
+  width: 100%;
 }
 .navbar-inner {
   max-width: 1100px;
   margin: 0 auto;
   padding: 12px 24px;
+  padding-left: max(24px, env(safe-area-inset-left));
+  padding-right: max(24px, env(safe-area-inset-right));
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  position: relative;
-  z-index: 10;
+  transition: padding 0.25s ease;
+}
+.navbar--scrolled .navbar-inner {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 .navbar-brand {
   display: flex;
@@ -298,6 +406,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   font-size: 16px;
   min-width: 0;
+  flex-shrink: 1;
   transition: color 0.2s;
 }
 .navbar-brand:hover { color: #059669; }
@@ -313,53 +422,90 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: min(280px, 42vw);
+  max-width: min(320px, 48vw);
   font-size: 0.975rem;
 }
 .navbar-toggle {
   display: none;
+  margin-left: auto;
   flex-direction: column;
   justify-content: center;
   gap: 5px;
   width: 44px;
+  min-width: 44px;
   height: 44px;
   padding: 10px;
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 8px;
+  color: #1e293b;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .navbar-toggle:hover { background: #f1f5f9; }
+.navbar-toggle:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
 .navbar-toggle-bar {
   display: block;
-  width: 100%;
+  width: 22px;
   height: 2px;
-  background: #334155;
-  border-radius: 2px;
-  transition: transform 0.2s, opacity 0.2s;
+  background: currentColor;
+  border-radius: 1px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.navbar--open .navbar-toggle-bar:nth-child(1) {
+.navbar-toggle-bar.open:nth-child(1) {
   transform: translateY(7px) rotate(45deg);
 }
-.navbar--open .navbar-toggle-bar:nth-child(2) { opacity: 0; }
-.navbar--open .navbar-toggle-bar:nth-child(3) {
+.navbar-toggle-bar.open:nth-child(2) { opacity: 0; }
+.navbar-toggle-bar.open:nth-child(3) {
   transform: translateY(-7px) rotate(-45deg);
 }
-.navbar-links {
+.navbar-links--desktop {
   display: flex;
-  gap: 8px 18px;
+  gap: 4px 18px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  margin-left: auto;
+  min-width: 0;
 }
 .nav-link {
+  position: relative;
   color: #64748b;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
   transition: color 0.2s;
-  padding: 0.35rem 0;
+  padding: 8px 4px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  -webkit-tap-highlight-color: transparent;
 }
-.nav-link:hover { color: #059669; }
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 6px;
+  height: 1.5px;
+  background: #059669;
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.2s ease;
+  pointer-events: none;
+}
+.nav-link:hover,
+.nav-link.router-link-active {
+  color: #059669;
+}
+.nav-link:hover::after,
+.nav-link.router-link-active::after {
+  transform: scaleX(1);
+}
 .btn {
   padding: 9px 18px;
   min-height: 40px;
@@ -373,6 +519,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   cursor: pointer;
   border: none;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn-primary {
   background: #059669;
@@ -382,6 +530,94 @@ onBeforeUnmount(() => {
 .btn-primary:hover {
   background: #047857;
   transform: translateY(-1px);
+}
+
+.navbar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 199;
+  -webkit-tap-highlight-color: transparent;
+}
+.navbar-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(300px, 85vw);
+  background: #ffffff;
+  z-index: 200;
+  padding: 72px 24px 24px;
+  padding-top: max(72px, calc(env(safe-area-inset-top) + 56px));
+  padding-right: max(24px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+}
+.navbar-drawer-close {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #f8fafc;
+  border-radius: 10px;
+  color: #334155;
+  cursor: pointer;
+}
+.navbar-drawer-close:hover {
+  background: #ecfdf5;
+  color: #059669;
+}
+.navbar-drawer-link {
+  padding: 14px 16px;
+  border-radius: 8px;
+  color: #1e293b;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 500;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.navbar-drawer-link:hover,
+.navbar-drawer-link.router-link-active {
+  background: #f1f5f9;
+  color: #059669;
+}
+.navbar-drawer-auth {
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+.navbar-drawer-auth .btn {
+  width: 100%;
+  min-height: 48px;
+}
+
+.school-nav-menu-enter-active,
+.school-nav-menu-leave-active {
+  transition: opacity 0.2s ease;
+}
+.school-nav-menu-enter-from,
+.school-nav-menu-leave-to {
+  opacity: 0;
+}
+.school-nav-drawer-enter-active,
+.school-nav-drawer-leave-active {
+  transition: transform 0.25s ease;
+}
+.school-nav-drawer-enter-from,
+.school-nav-drawer-leave-to {
+  transform: translateX(100%);
 }
 
 .skeleton-wrap { position: relative; z-index: 1; }
@@ -458,28 +694,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 860px) {
   .navbar-toggle { display: flex; }
-  .navbar-links {
-    display: none;
-    position: absolute;
-    top: calc(100% + 1px);
-    left: 0;
-    right: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    padding: 0.5rem 1rem 1rem;
-    background: #fff;
-    border-bottom: 1px solid #e2e8f0;
-    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-  }
-  .navbar--open .navbar-links { display: flex; }
-  .nav-link {
-    padding: 0.85rem 0.5rem;
-    border-bottom: 1px solid #f1f5f9;
-  }
-  .navbar-links .btn {
-    margin-top: 0.5rem;
-    width: 100%;
-  }
+  .navbar-links--desktop { display: none; }
+  .navbar-title { max-width: min(240px, 55vw); }
 }
 </style>

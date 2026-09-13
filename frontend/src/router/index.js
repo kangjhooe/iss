@@ -1052,7 +1052,12 @@ const getDefaultRoute = (role) => {
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  
+
+  // Pastikan bootstrap /me selesai sebelum keputusan route (terutama hard-refresh).
+  if (!authStore.authChecked) {
+    await authStore.ensureAuthChecked()
+  }
+
   // Prevent infinite redirects
   if (to.path === from.path) {
     next()
@@ -1077,7 +1082,7 @@ router.beforeEach(async (to, from, next) => {
     next(defaultRoute)
     return
   }
-  
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Token via httpOnly cookie: coba /me dulu; kalau ada cookie, fetchUser berhasil
     try {

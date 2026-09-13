@@ -21,7 +21,8 @@ function syncActiveInstitutionGlobal(user) {
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    isAuthenticated: false // Ditentukan dari /me atau setelah login; token via httpOnly cookie
+    isAuthenticated: false, // Ditentukan dari /me atau setelah login; token via httpOnly cookie
+    authChecked: false, // true setelah bootstrap /me selesai (sukses atau gagal)
   }),
 
   getters: {
@@ -68,6 +69,24 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    /**
+     * Satu kali cek sesi (cookie httpOnly) sebelum render route.
+     * Mencegah flash halaman publik saat hard-refresh di /dashboard dll.
+     */
+    async ensureAuthChecked() {
+      if (this.authChecked) return this.isAuthenticated
+      try {
+        await this.fetchUser()
+      } catch {
+        this.isAuthenticated = false
+        this.user = null
+        syncActiveInstitutionGlobal(null)
+      } finally {
+        this.authChecked = true
+      }
+      return this.isAuthenticated
+    },
+
     async login(credentials) {
       try {
         const response = await authApi.login(credentials)
@@ -85,6 +104,7 @@ export const useAuthStore = defineStore('auth', {
         // Auth token & refresh token disimpan di httpOnly cookie oleh backend; tidak disimpan di localStorage
         this.user = responseData.user
         this.isAuthenticated = true
+        this.authChecked = true
         syncActiveInstitutionGlobal(this.user)
         return responseData
       } catch (error) {
@@ -123,6 +143,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await authApi.register(data)
         this.user = response.data.user
         this.isAuthenticated = true
+        this.authChecked = true
         syncActiveInstitutionGlobal(this.user)
         return response.data
       } catch (error) {
@@ -138,6 +159,7 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.user = null
         this.isAuthenticated = false
+        this.authChecked = true
         syncActiveInstitutionGlobal(null)
         clearAuth()
         // Full reload ke /login agar cookie/state bersih dan request login berikutnya tidak terpengaruh cache atau state lama
@@ -150,6 +172,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await authApi.me()
         this.user = response.data.user
         this.isAuthenticated = true
+        this.authChecked = true
         syncActiveInstitutionGlobal(this.user)
         return response.data.user
       } catch (error) {

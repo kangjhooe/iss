@@ -549,20 +549,15 @@ class TeacherTodaySessionService
             $dateKeys = $dateKeys->push($dateStr)->sort()->values();
         }
 
-        $isNewDate = $primaryJournal === null || ! TeachingJournal::query()
-            ->where('institution_id', $institutionId)
-            ->where('semester_id', $semesterId)
-            ->where('class_id', $classId)
-            ->where('subject_id', $subjectId)
-            ->where('employee_id', $employeeId)
-            ->whereDate('journal_date', $dateStr)
-            ->exists();
-
         $meetingFromDates = max(1, (int) $dateKeys->search($dateStr) + 1);
 
         $penilaianFromJournal = $primaryJournal?->penilaian_index
             ? (int) $primaryJournal->penilaian_index
             : null;
+
+        // Journal kosong dari absensi sudah "exists", tapi belum punya P —
+        // anggap tanggal ini belum ter-assign kolom nilai.
+        $needsNextPenilaian = $penilaianFromJournal === null;
 
         $gradeService = app(GradeService::class);
         $maxPenilaianFromJournals = (int) (TeachingJournal::query()
@@ -579,17 +574,20 @@ class TeacherTodaySessionService
         if ($penilaianFromJournal !== null) {
             $suggestedPenilaian = $penilaianFromJournal;
         } else {
-            $nextFromPriorGrades = $maxUsedPenilaian > 0 && $isNewDate
+            // Pertemuan baru (belum punya penilaian_index): naik ke P berikutnya.
+            $nextFromPrior = $maxUsedPenilaian > 0 && $needsNextPenilaian
                 ? $maxUsedPenilaian + 1
-                : $maxUsedPenilaian;
-            $suggestedPenilaian = max($meetingFromDates, $nextFromPriorGrades, 1);
+                : max($maxUsedPenilaian, 1);
+            $suggestedPenilaian = max($meetingFromDates, $nextFromPrior, 1);
         }
 
         $weights = $gradeService->resolveWeights($institutionId, $classId, $subjectId, $semesterId);
         $assessmentCount = max(
             (int) $weights['assessment_count'],
             $maxPenilaianFromGrades,
+            $maxUsedPenilaian,
             $suggestedPenilaian,
+            $meetingFromDates,
             1
         );
 

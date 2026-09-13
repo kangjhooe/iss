@@ -32,20 +32,36 @@ api.interceptors.request.use(
   }
 )
 
+const AUTH_NO_REFRESH_RE = /\/v1\/(login|refresh-token|register|forgot-password|reset-password|verify-email|resend-verification|password-reset-requests)(\?|$)/
+
+function shouldSkipTokenRefresh(config) {
+  if (!config) return true
+  if (config._retry) return true
+  const url = String(config.url || '')
+  return AUTH_NO_REFRESH_RE.test(url)
+}
+
 // Response interceptor untuk handle error
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      // Coba refresh: refresh_token dikirim otomatis via httpOnly cookie
+    const originalRequest = error.config
+
+    // Jangan recursive-refresh pada endpoint auth; satu kali retry saja.
+    // Tanpa ini, 401 dari /me atau cookie basi memicu storm /refresh-token
+    // yang menghabiskan throttle login (bucket bersama) sebelum user sempat masuk.
+    if (error.response?.status === 401 && !shouldSkipTokenRefresh(originalRequest)) {
+      originalRequest._retry = true
       try {
-        const refreshResponse = await api.post('/v1/refresh-token')
+        await api.post('/v1/refresh-token')
         // Backend set cookie auth_token baru; retry request (cookie ikut terkirim)
-        return api.request(error.config)
+        return api.request(originalRequest)
       } catch (refreshError) {
-        // Refresh gagal (cookie kedaluwarsa / tidak ada) -> logout
         clearAuth()
-        window.location.href = '/login'
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login'
+        }
+        return Promise.reject(refreshError)
       }
     }
 

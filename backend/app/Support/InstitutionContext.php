@@ -36,9 +36,31 @@ class InstitutionContext
         'schedule',
     ];
 
-    public static function employeeFor(User $user): ?Employee
+    private static function requestBag(?Request $request = null): ?Request
     {
-        return $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        if ($request) {
+            return $request;
+        }
+
+        try {
+            return request();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public static function employeeFor(User $user, ?Request $request = null): ?Employee
+    {
+        $request = self::requestBag($request);
+        $cacheKey = 'ic_employee_for_'.$user->id;
+        if ($request && $request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
+        }
+
+        $employee = $user->employeeProfile()->first() ?? $user->teacherProfile()->first();
+        $request?->attributes->set($cacheKey, $employee);
+
+        return $employee;
     }
 
     /**
@@ -48,18 +70,28 @@ class InstitutionContext
      */
     public static function employeeForInstitution(User $user, ?int $institutionId = null, ?Request $request = null): ?Employee
     {
-        if (!$user->email) {
-            return self::employeeFor($user);
+        $request = self::requestBag($request);
+        $institutionId = $institutionId ?? self::resolveActiveInstitutionId($user, $request);
+        $cacheKey = 'ic_employee_for_inst_'.$user->id.'_'.($institutionId ?: 0);
+
+        if ($request && $request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
         }
 
-        $request = $request ?? request();
-        $institutionId = $institutionId ?? self::resolveActiveInstitutionId($user, $request);
+        if (! $user->email) {
+            $employee = self::employeeFor($user, $request);
+            $request?->attributes->set($cacheKey, $employee);
+
+            return $employee;
+        }
 
         $baseQuery = Employee::query()->where('email', $user->email);
 
         if ($institutionId) {
             $direct = (clone $baseQuery)->where('institution_id', $institutionId)->first();
             if ($direct) {
+                $request?->attributes->set($cacheKey, $direct);
+
                 return $direct;
             }
 
@@ -69,11 +101,16 @@ class InstitutionContext
                 })
                 ->first();
             if ($assigned) {
+                $request?->attributes->set($cacheKey, $assigned);
+
                 return $assigned;
             }
         }
 
-        return self::employeeFor($user);
+        $employee = self::employeeFor($user, $request);
+        $request?->attributes->set($cacheKey, $employee);
+
+        return $employee;
     }
 
     /**
@@ -81,8 +118,14 @@ class InstitutionContext
      *
      * @return Collection<int, array{id:int,name:?string,npsn:?string,affiliation:string}>
      */
-    public static function availableInstitutions(User $user): Collection
+    public static function availableInstitutions(User $user, ?Request $request = null): Collection
     {
+        $request = self::requestBag($request);
+        $cacheKey = 'ic_available_institutions_'.$user->id;
+        if ($request && $request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
+        }
+
         $items = collect();
 
         if ($user->institution_id) {
@@ -101,8 +144,10 @@ class InstitutionContext
             }
         }
 
-        $employee = self::employeeFor($user);
-        if (!$employee) {
+        $employee = self::employeeFor($user, $request);
+        if (! $employee) {
+            $request?->attributes->set($cacheKey, $items->values());
+
             return $items->values();
         }
 
@@ -114,7 +159,7 @@ class InstitutionContext
 
         foreach ($assignments as $assignment) {
             $inst = $assignment->institution;
-            if (!$inst) {
+            if (! $inst) {
                 continue;
             }
             if ($items->contains(fn ($row) => (int) $row['id'] === (int) $inst->id)) {
@@ -129,46 +174,83 @@ class InstitutionContext
             ]);
         }
 
-        return $items->values();
+        $result = $items->values();
+        $request?->attributes->set($cacheKey, $result);
+
+        return $result;
     }
 
-    public static function canAccessInstitution(User $user, int $institutionId): bool
+    /**
+     * ID institusi yang boleh diakses user (dihitung sekali per request).
+     *
+     * @return list<int>
+     */
+    public static function accessibleInstitutionIds(User $user, ?Request $request = null): array
+    {
+        $request = self::requestBag($request);
+        $cacheKey = 'ic_accessible_ids_'.$user->id;
+        if ($request && $request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
+        }
+
+        $ids = [];
+
+        if ($user->institution_id) {
+            $ids[] = (int) $user->institution_id;
+        }
+
+        $employee = self::employeeFor($user, $request);
+        if ($employee) {
+            if ($employee->institution_id) {
+                $ids[] = (int) $employee->institution_id;
+            }
+
+            $assignmentIds = EmployeeInstitutionAssignment::query()
+                ->approved()
+                ->where('employee_id', $employee->id)
+                ->pluck('institution_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $ids = array_merge($ids, $assignmentIds);
+        }
+
+        $ids = array_values(array_unique(array_filter($ids, fn ($id) => $id > 0)));
+        $request?->attributes->set($cacheKey, $ids);
+
+        return $ids;
+    }
+
+    public static function canAccessInstitution(User $user, int $institutionId, ?Request $request = null): bool
     {
         if ($user->isAdminOrSuperAdmin()) {
             return true;
         }
 
-        if ($user->institution_id && (int) $user->institution_id === $institutionId) {
-            return true;
-        }
-
-        $employee = self::employeeFor($user);
-        if (!$employee) {
-            return false;
-        }
-
-        if ((int) $employee->institution_id === $institutionId) {
-            return true;
-        }
-
-        return EmployeeInstitutionAssignment::query()
-            ->approved()
-            ->where('employee_id', $employee->id)
-            ->where('institution_id', $institutionId)
-            ->exists();
+        return in_array($institutionId, self::accessibleInstitutionIds($user, $request), true);
     }
 
-    public static function employeeBelongsToInstitution(Employee $employee, int $institutionId): bool
+    public static function employeeBelongsToInstitution(Employee $employee, int $institutionId, ?Request $request = null): bool
     {
         if ((int) $employee->institution_id === $institutionId) {
             return true;
         }
 
-        return EmployeeInstitutionAssignment::query()
+        $request = self::requestBag($request);
+        $cacheKey = 'ic_emp_belongs_'.$employee->id.'_'.$institutionId;
+        if ($request && $request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
+        $belongs = EmployeeInstitutionAssignment::query()
             ->approved()
             ->where('employee_id', $employee->id)
             ->where('institution_id', $institutionId)
             ->exists();
+
+        $request?->attributes->set($cacheKey, $belongs);
+
+        return $belongs;
     }
 
     /**
@@ -177,39 +259,57 @@ class InstitutionContext
      */
     public static function resolveActiveInstitutionId(User $user, ?Request $request = null): ?int
     {
-        $request = $request ?? request();
-        $candidates = [];
+        $request = self::requestBag($request);
+        $cacheKey = 'ic_resolved_active_'.$user->id;
+
+        // Sudah di-resolve di request ini (kecuali force baru dari switch).
+        if ($request && $request->attributes->has($cacheKey) && ! $request->attributes->get('force_institution_id')) {
+            return $request->attributes->get($cacheKey);
+        }
+
+        $resolved = null;
 
         // Explicit force (e.g. switch-institution) must win over stale header/cookie.
         if ($request?->attributes->get('force_institution_id')) {
             $forced = (int) $request->attributes->get('current_institution_id');
-            if ($forced > 0 && self::canAccessInstitution($user, $forced)) {
-                return $forced;
+            if ($forced > 0 && self::canAccessInstitution($user, $forced, $request)) {
+                $resolved = $forced;
             }
         }
 
-        $header = $request?->header(self::HEADER_ACTIVE_INSTITUTION);
-        if ($header !== null && $header !== '') {
-            $candidates[] = (int) $header;
-        }
+        if ($resolved === null) {
+            $candidates = [];
 
-        $cookie = $request?->cookie(self::COOKIE_ACTIVE_INSTITUTION);
-        if ($cookie !== null && $cookie !== '') {
-            $candidates[] = (int) $cookie;
-        }
+            $header = $request?->header(self::HEADER_ACTIVE_INSTITUTION);
+            if ($header !== null && $header !== '') {
+                $candidates[] = (int) $header;
+            }
 
-        $attr = $request?->attributes->get('current_institution_id');
-        if ($attr !== null && $attr !== '') {
-            $candidates[] = (int) $attr;
-        }
+            $cookie = $request?->cookie(self::COOKIE_ACTIVE_INSTITUTION);
+            if ($cookie !== null && $cookie !== '') {
+                $candidates[] = (int) $cookie;
+            }
 
-        foreach ($candidates as $id) {
-            if ($id > 0 && self::canAccessInstitution($user, $id)) {
-                return $id;
+            $attr = $request?->attributes->get('current_institution_id');
+            if ($attr !== null && $attr !== '') {
+                $candidates[] = (int) $attr;
+            }
+
+            foreach ($candidates as $id) {
+                if ($id > 0 && self::canAccessInstitution($user, $id, $request)) {
+                    $resolved = $id;
+                    break;
+                }
             }
         }
 
-        return $user->institution_id ? (int) $user->institution_id : null;
+        if ($resolved === null) {
+            $resolved = $user->institution_id ? (int) $user->institution_id : null;
+        }
+
+        $request?->attributes->set($cacheKey, $resolved);
+
+        return $resolved;
     }
 
     /**
@@ -217,7 +317,7 @@ class InstitutionContext
      */
     public static function forceActiveInstitution(Request $request, User $user, int $institutionId): void
     {
-        if (!self::canAccessInstitution($user, $institutionId)) {
+        if (! self::canAccessInstitution($user, $institutionId, $request)) {
             return;
         }
 
@@ -229,11 +329,12 @@ class InstitutionContext
         );
         $request->headers->set(self::HEADER_ACTIVE_INSTITUTION, (string) $institutionId);
         $request->attributes->remove('effective_permission_keys');
+        $request->attributes->remove('ic_resolved_active_'.$user->id);
     }
 
     public static function isHomeInstitution(User $user, ?int $institutionId): bool
     {
-        if (!$institutionId || !$user->institution_id) {
+        if (! $institutionId || ! $user->institution_id) {
             return false;
         }
 
@@ -245,13 +346,23 @@ class InstitutionContext
      *
      * @return array<int, string>
      */
-    public static function storedPermissionKeys(User $user): array
+    public static function storedPermissionKeys(User $user, ?Request $request = null): array
     {
-        if ($user->relationLoaded('permissions')) {
-            return $user->permissions->pluck('key')->filter()->values()->all();
+        $request = self::requestBag($request);
+        $cacheKey = 'ic_stored_permission_keys_'.$user->id;
+        if ($request && $request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
         }
 
-        return $user->permissions()->pluck('permissions.key')->filter()->values()->all();
+        if ($user->relationLoaded('permissions')) {
+            $keys = $user->permissions->pluck('key')->filter()->values()->all();
+        } else {
+            $keys = $user->permissions()->pluck('permissions.key')->filter()->values()->all();
+        }
+
+        $request?->attributes->set($cacheKey, $keys);
+
+        return $keys;
     }
 
     /**
@@ -262,9 +373,10 @@ class InstitutionContext
      */
     public static function effectivePermissionKeys(User $user, ?int $institutionId = null, ?Request $request = null): array
     {
-        $request = $request ?? request();
+        $request = self::requestBag($request);
         $institutionId = $institutionId
             ?? ($request?->attributes->get('current_institution_id') !== null
+                && $request->attributes->get('current_institution_id') !== ''
                 ? (int) $request->attributes->get('current_institution_id')
                 : null)
             ?? self::resolveActiveInstitutionId($user, $request);
@@ -276,11 +388,11 @@ class InstitutionContext
             return $cached['keys'];
         }
 
-        $stored = self::storedPermissionKeys($user);
+        $stored = self::storedPermissionKeys($user, $request);
 
         if ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
             $keys = $stored;
-        } elseif (!$institutionId || self::isHomeInstitution($user, $institutionId)) {
+        } elseif (! $institutionId || self::isHomeInstitution($user, $institutionId)) {
             $keys = $stored;
         } else {
             $keys = array_values(array_intersect($stored, self::NON_INDUK_TEACHING_PERMISSIONS));
@@ -311,12 +423,12 @@ class InstitutionContext
      */
     public static function resolveForUser(User $user, ?Request $request = null, $requestInstitutionId = null): ?int
     {
-        $request = $request ?? request();
+        $request = self::requestBag($request);
 
         // Platform-level only — never treat institution_admin as global.
         if ($user->isAdminOrSuperAdmin()) {
             $id = $requestInstitutionId ?: (
-                $request->attributes->get('current_institution_id')
+                $request?->attributes->get('current_institution_id')
                 ?: $user->institution_id
             );
 
@@ -325,7 +437,7 @@ class InstitutionContext
 
         if ($requestInstitutionId) {
             $requested = (int) $requestInstitutionId;
-            if (self::canAccessInstitution($user, $requested)) {
+            if (self::canAccessInstitution($user, $requested, $request)) {
                 return $requested;
             }
         }
@@ -335,7 +447,7 @@ class InstitutionContext
 
     public static function affiliationFor(User $user, ?int $activeInstitutionId): ?string
     {
-        if (!$activeInstitutionId) {
+        if (! $activeInstitutionId) {
             return null;
         }
 
@@ -358,6 +470,37 @@ class InstitutionContext
         }
 
         return $activeId;
+    }
+
+    /**
+     * Active academic year / semester for an institution (cached per request).
+     *
+     * @return array{active_academic_year_id:?int,active_semester_id:?int}
+     */
+    public static function institutionActivePeriod(int $institutionId, ?Request $request = null): array
+    {
+        $request = self::requestBag($request);
+        $cacheKey = 'ic_inst_period_'.$institutionId;
+        if ($request && $request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
+        }
+
+        $row = Institution::query()
+            ->where('id', $institutionId)
+            ->first(['active_academic_year_id', 'active_semester_id']);
+
+        $period = [
+            'active_academic_year_id' => $row?->active_academic_year_id
+                ? (int) $row->active_academic_year_id
+                : null,
+            'active_semester_id' => $row?->active_semester_id
+                ? (int) $row->active_semester_id
+                : null,
+        ];
+
+        $request?->attributes->set($cacheKey, $period);
+
+        return $period;
     }
 
     /**

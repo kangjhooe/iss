@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Employee;
-use App\Models\Institution;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
@@ -73,7 +72,7 @@ class WaliKelasAccess
         if ($academicYearId) {
             $query->where('academic_year_id', $academicYearId);
         } elseif ($scopeInstitutionId) {
-            $activeYearId = Institution::where('id', $scopeInstitutionId)->value('active_academic_year_id');
+            $activeYearId = InstitutionContext::institutionActivePeriod($scopeInstitutionId)['active_academic_year_id'];
             if ($activeYearId) {
                 $query->where('academic_year_id', $activeYearId);
             }

@@ -1,4 +1,5 @@
-<template>    <div class="schedule-page">
+<template>
+    <div class="schedule-page">
       <div class="toolbar">
         <div class="toolbar-actions">
           <router-link to="/subject" class="btn-secondary btn-compact">Mata Pelajaran</router-link>
@@ -294,25 +295,46 @@
 
       <!-- Tab: Daftar Slot -->
       <template v-if="activeTab === 'list'">
-        <div class="filters filters-inline">
-          <select v-model="listFilters.semester_id" @change="onListSemesterChange" class="filter-select">
-            <option value="">Semua Semester</option>
-            <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-          <select v-model="listFilters.class_id" @change="loadSchedules" class="filter-select">
-            <option value="">Semua Kelas</option>
-            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-          <select v-model="listFilters.day_of_week" @change="loadSchedules" class="filter-select">
-            <option value="">Semua Hari</option>
-            <option v-for="(label, key) in dayNamesMap" :key="key" :value="key">{{ label }}</option>
-          </select>
+        <div class="list-toolbar">
+          <div class="filters filters-inline">
+            <select v-model="listFilters.semester_id" @change="onListSemesterChange" class="filter-select">
+              <option value="">Semua Semester</option>
+              <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+            <select v-model="listFilters.class_id" @change="onListFilterChange" class="filter-select">
+              <option value="">Semua Kelas</option>
+              <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <select v-model="listFilters.day_of_week" @change="onListFilterChange" class="filter-select">
+              <option value="">Semua Hari</option>
+              <option v-for="(label, key) in dayNamesMap" :key="key" :value="key">{{ label }}</option>
+            </select>
+          </div>
+          <button
+            v-if="selectedSlotIds.length"
+            type="button"
+            class="btn-danger btn-compact"
+            :disabled="bulkDeletingSlots"
+            @click="confirmBulkDeleteSlots"
+          >
+            {{ bulkDeletingSlots ? 'Menghapus...' : `Hapus terpilih (${selectedSlotIds.length})` }}
+          </button>
         </div>
         <div v-if="loadingList" class="loading-state"><p>Memuat data...</p></div>
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
               <tr>
+                <th class="col-check">
+                  <input
+                    type="checkbox"
+                    :checked="allSlotsSelected"
+                    :indeterminate="someSlotsSelected"
+                    title="Pilih semua di halaman ini"
+                    @change="toggleSelectAllSlots"
+                  />
+                </th>
+                <th class="col-no">No</th>
                 <th>Kelas</th>
                 <th>Hari</th>
                 <th>Jam</th>
@@ -323,7 +345,11 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in scheduleList" :key="row.id">
+              <tr v-for="(row, index) in scheduleList" :key="row.id">
+                <td class="col-check">
+                  <input type="checkbox" :value="row.id" v-model="selectedSlotIds" />
+                </td>
+                <td class="col-no">{{ slotRowNumber(index) }}</td>
                 <td>{{ row.school_class?.name || '-' }}</td>
                 <td>{{ row.day_name || dayNamesMap[row.day_of_week] || '-' }}</td>
                 <td>{{ row.period }}</td>
@@ -338,6 +364,17 @@
             </tbody>
           </table>
           <div v-if="scheduleList.length === 0" class="empty-state"><p>Belum ada slot jadwal.</p></div>
+          <PaginationBar
+            v-if="listPagination.total > 0"
+            embedded
+            :page="listPagination.current_page"
+            :last-page="listPagination.last_page"
+            :per-page="listPagination.per_page"
+            :total="listPagination.total"
+            item-label="slot"
+            @page-change="goToListPage"
+            @per-page-change="changeListPerPage"
+          />
         </div>
       </template>
 
@@ -433,11 +470,13 @@
           </form>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import TableAction from '@/components/TableAction.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { subjectApi } from '@/api/subject'
 import { classApi } from '@/api/class'
@@ -461,6 +500,9 @@ const scheduleMatrix = ref(null)
 const scheduleList = ref([])
 const loadingMatrix = ref(false)
 const loadingList = ref(false)
+const listPagination = ref({ current_page: 1, last_page: 1, per_page: 25, total: 0 })
+const selectedSlotIds = ref([])
+const bulkDeletingSlots = ref(false)
 const savingSlot = ref(false)
 const copying = ref(false)
 const copyResult = ref('')
@@ -508,6 +550,43 @@ const listFilters = reactive({
   class_id: '',
   day_of_week: '',
 })
+
+const allSlotsSelected = computed(() =>
+  scheduleList.value.length > 0 && selectedSlotIds.value.length === scheduleList.value.length
+)
+const someSlotsSelected = computed(() =>
+  selectedSlotIds.value.length > 0 && selectedSlotIds.value.length < scheduleList.value.length
+)
+
+function slotRowNumber(index) {
+  const page = Number(listPagination.value.current_page) || 1
+  const perPage = Number(listPagination.value.per_page) || 25
+  return (page - 1) * perPage + index + 1
+}
+
+function toggleSelectAllSlots(event) {
+  if (event?.target?.checked) {
+    selectedSlotIds.value = scheduleList.value.map((r) => r.id)
+  } else {
+    selectedSlotIds.value = []
+  }
+}
+
+function onListFilterChange() {
+  listPagination.value.current_page = 1
+  loadSchedules()
+}
+
+function goToListPage(page) {
+  listPagination.value.current_page = page
+  loadSchedules()
+}
+
+function changeListPerPage(n) {
+  listPagination.value.per_page = n
+  listPagination.value.current_page = 1
+  loadSchedules()
+}
 
 const copyForm = reactive({
   source_semester_id: '',
@@ -926,6 +1005,7 @@ async function onFilterSemesterChange() {
 }
 
 async function onListSemesterChange() {
+  listPagination.value.current_page = 1
   await loadClassesForSemester(listFilters.semester_id || filterSemesterId.value)
   loadSchedules()
 }
@@ -1176,17 +1256,58 @@ async function deleteSlot(id) {
   }
 }
 
+function confirmBulkDeleteSlots() {
+  if (!selectedSlotIds.value.length) return
+  if (!confirm(`Hapus ${selectedSlotIds.value.length} slot terpilih?`)) return
+  doBulkDeleteSlots()
+}
+
+async function doBulkDeleteSlots() {
+  if (!selectedSlotIds.value.length) return
+  bulkDeletingSlots.value = true
+  try {
+    const ids = [...selectedSlotIds.value]
+    const results = await Promise.allSettled(ids.map((id) => lessonScheduleApi.delete(id)))
+    const ok = results.filter((r) => r.status === 'fulfilled').length
+    const fail = results.length - ok
+    selectedSlotIds.value = []
+    if (fail === 0) {
+      toast.success(`${ok} slot berhasil dihapus`)
+    } else {
+      toast.error('Sebagian gagal dihapus', `${ok} berhasil, ${fail} gagal.`)
+    }
+    loadByClassIfNeeded()
+    loadSchedules()
+  } catch (e) {
+    toast.error('Gagal menghapus slot', e.formattedMessage || 'Coba lagi.')
+  } finally {
+    bulkDeletingSlots.value = false
+  }
+}
+
 async function loadSchedules() {
   loadingList.value = true
+  selectedSlotIds.value = []
   try {
-    const params = {}
+    const params = {
+      page: listPagination.value.current_page,
+      per_page: listPagination.value.per_page,
+    }
     if (listFilters.semester_id) params.semester_id = listFilters.semester_id
     if (listFilters.class_id) params.class_id = listFilters.class_id
     if (listFilters.day_of_week) params.day_of_week = listFilters.day_of_week
     const res = await lessonScheduleApi.getAll(params)
     scheduleList.value = res.data?.data ?? res.data ?? []
+    const meta = res.data?.meta || {}
+    listPagination.value = {
+      current_page: meta.current_page ?? listPagination.value.current_page,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? listPagination.value.per_page,
+      total: meta.total ?? scheduleList.value.length,
+    }
   } catch {
     scheduleList.value = []
+    listPagination.value = { ...listPagination.value, total: 0, last_page: 1 }
   } finally {
     loadingList.value = false
   }
@@ -1422,6 +1543,37 @@ onMounted(async () => {
 .data-table thead tr { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
 .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
 .data-table th { font-weight: 600; color: #065f46; }
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.col-check { width: 40px; text-align: center; }
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { background: white; border-radius: 8px; max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; }
 .modal-wide { max-width: 520px; }

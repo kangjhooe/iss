@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Models\Employee;
 use App\Models\Extracurricular;
-use App\Models\Institution;
 use App\Models\LessonSchedule;
 use App\Models\Room;
 use App\Models\SchoolClass;
@@ -46,7 +45,7 @@ class TeacherMenuContext
             ->where('institution_id', $institutionId)
             ->select('id', 'name', 'grade', 'academic_year_id');
 
-        $activeYearId = Institution::where('id', $institutionId)->value('active_academic_year_id');
+        $activeYearId = InstitutionContext::institutionActivePeriod($institutionId, $request)['active_academic_year_id'];
         if ($activeYearId) {
             $query->where('academic_year_id', $activeYearId);
         }
@@ -88,7 +87,7 @@ class TeacherMenuContext
             return collect();
         }
 
-        $activeSemesterId = Institution::where('id', $institutionId)->value('active_semester_id');
+        $activeSemesterId = InstitutionContext::institutionActivePeriod($institutionId, $request)['active_semester_id'];
 
         $query = LessonSchedule::query()
             ->with(['subject:id,name', 'schoolClass:id,name'])

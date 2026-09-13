@@ -6,12 +6,16 @@ use App\Models\AppBranding;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureNotInMaintenance
 {
+    /** @var bool|null Schema probe result for this PHP process */
+    private static ?bool $schemaReady = null;
+
     /**
      * Paths that remain reachable during maintenance (relative to /api/v1).
      */
@@ -78,11 +82,17 @@ class EnsureNotInMaintenance
     private function isMaintenanceEnabled(): bool
     {
         try {
-            if (! Schema::hasTable('app_branding') || ! Schema::hasColumn('app_branding', 'maintenance_mode')) {
+            if (self::$schemaReady === null) {
+                self::$schemaReady = Schema::hasTable('app_branding')
+                    && Schema::hasColumn('app_branding', 'maintenance_mode');
+            }
+            if (! self::$schemaReady) {
                 return false;
             }
 
-            return (bool) AppBranding::query()->value('maintenance_mode');
+            return (bool) Cache::remember('app_branding.maintenance_mode', 30, function () {
+                return (bool) AppBranding::query()->value('maintenance_mode');
+            });
         } catch (\Throwable $e) {
             return false;
         }
@@ -91,7 +101,9 @@ class EnsureNotInMaintenance
     private function maintenanceMessage(): string
     {
         try {
-            $msg = AppBranding::query()->value('maintenance_message');
+            $msg = Cache::remember('app_branding.maintenance_message', 30, function () {
+                return AppBranding::query()->value('maintenance_message');
+            });
             if (is_string($msg) && trim($msg) !== '') {
                 return $msg;
             }

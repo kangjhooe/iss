@@ -81,6 +81,9 @@ class AppBrandingController extends Controller
                 'maintenance_message' => $validated['maintenance_message'] ?? $branding->maintenance_message,
             ]);
 
+            \Illuminate\Support\Facades\Cache::forget('app_branding.maintenance_mode');
+            \Illuminate\Support\Facades\Cache::forget('app_branding.maintenance_message');
+
             \App\Models\AuditLog::logManual(
                 $request,
                 'maintenance.updated',

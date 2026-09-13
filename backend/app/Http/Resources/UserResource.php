@@ -48,6 +48,15 @@ class UserResource extends JsonResource
             ? (int) $activeInstitutionId
             : null;
 
+        $isKaprog = false;
+        $kaprogProgramIds = [];
+        try {
+            $isKaprog = KaprogAccess::isKaprog($this->resource);
+            $kaprogProgramIds = $isKaprog ? KaprogAccess::programIds($this->resource) : [];
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
         return [
             'id' => $this->id,
             'institution_id' => $this->institution_id,
@@ -78,24 +87,8 @@ class UserResource extends JsonResource
             'teaching_assignments' => $teachingAssignments,
             'supervised_extracurriculars' => $supervisedExtracurriculars,
             'managed_labs' => $managedLabs,
-            'kaprog_program_ids' => (function () {
-                try {
-                    if (! KaprogAccess::isKaprog($this->resource)) {
-                        return [];
-                    }
-
-                    return KaprogAccess::programIds($this->resource);
-                } catch (\Throwable $e) {
-                    return [];
-                }
-            })(),
-            'is_kaprog' => (function () {
-                try {
-                    return KaprogAccess::isKaprog($this->resource);
-                } catch (\Throwable $e) {
-                    return false;
-                }
-            })(),
+            'kaprog_program_ids' => $kaprogProgramIds,
+            'is_kaprog' => $isKaprog,
             'is_kepala_sekolah' => (function () {
                 try {
                     return ReportAccess::isKepalaSekolah($this->resource);

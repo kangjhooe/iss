@@ -116,6 +116,9 @@ class TeachingJournalService
             $journal->material_taught = $data['material_taught'] ?? null;
             $journal->attendance_notes = $data['attendance_notes'] ?? null;
             $journal->notes = $data['notes'] ?? null;
+            if (array_key_exists('penilaian_index', $data) && $data['penilaian_index'] !== null && $data['penilaian_index'] !== '') {
+                $journal->penilaian_index = (int) $data['penilaian_index'];
+            }
             $journal->save();
             return $journal->load(['semester', 'schoolClass', 'subject', 'employee', 'lessonSchedule']);
         });
@@ -158,6 +161,11 @@ class TeachingJournalService
             }
             if (array_key_exists('notes', $data)) {
                 $journal->notes = $data['notes'];
+            }
+            if (array_key_exists('penilaian_index', $data)) {
+                $journal->penilaian_index = $data['penilaian_index'] !== null && $data['penilaian_index'] !== ''
+                    ? (int) $data['penilaian_index']
+                    : null;
             }
             $journal->save();
             return $journal->load(['semester', 'schoolClass', 'subject', 'employee', 'lessonSchedule']);

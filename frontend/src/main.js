@@ -7,16 +7,21 @@ import './assets/student-portal.css'
 import './assets/super-admin-responsive.css'
 import './utils/pwaInstall'
 import { usePWA } from './composables/usePWA'
+import { useAuthStore } from './stores/auth'
 
 const app = createApp(App)
+const pinia = createPinia()
 
-app.use(createPinia())
-app.use(router)
+app.use(pinia)
 
 usePWA()
 
-// Tunggu navigasi awal selesai supaya halaman publik (mis. /panduan/*)
-// tidak sempat me-render Layout/sidebar sebelum route.name tersedia.
-router.isReady().then(() => {
-  app.mount('#app')
+// Cek sesi dulu (cookie), lalu tunggu navigasi awal — cegah flash halaman publik
+// saat hard-refresh di /dashboard sebelum auth state siap.
+const authStore = useAuthStore()
+authStore.ensureAuthChecked().finally(() => {
+  app.use(router)
+  router.isReady().then(() => {
+    app.mount('#app')
+  })
 })

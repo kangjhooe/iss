@@ -207,16 +207,17 @@ Route::get('/', function () {
     ]);
 });
 
-// Public routes with rate limiting
-Route::middleware('throttle:5,1')->group(function () {
+// Auth publik: throttle terpisah per prefix agar refresh-token / register
+// tidak menghabiskan kuota login (signature Laravel = prefix + domain|ip).
+Route::middleware('throttle:10,1,login')->post('/login', [AuthController::class, 'login']);
+Route::middleware('throttle:30,1,refresh')->post('/refresh-token', [AuthController::class, 'refreshToken']);
+Route::middleware('throttle:5,1,auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/password-reset-requests', [PasswordResetRequestController::class, 'store']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
     Route::post('/resend-verification', [AuthController::class, 'resendVerificationEmail']);
-    Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
 });
 
 // Public PPDB (tanpa auth): list periode & jalur, submit pendaftaran

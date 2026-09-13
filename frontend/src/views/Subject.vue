@@ -1,4 +1,5 @@
-<template>    <div class="subject-page">
+<template>
+    <div class="subject-page">
       <div class="toolbar">
         <div class="filters filters-inline">
           <input
@@ -7,7 +8,7 @@
             placeholder="Cari kode atau nama..."
             class="search-input"
           />
-          <select v-model="filters.active_only" @change="loadSubjects" class="filter-select">
+          <select v-model="filters.active_only" @change="onActiveFilterChange" class="filter-select">
             <option :value="true">Aktif saja</option>
             <option :value="false">Semua</option>
           </select>
@@ -30,6 +31,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th class="col-no">No</th>
               <th>Kode</th>
               <th>Nama</th>
               <th>Deskripsi</th>
@@ -38,7 +40,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in subjects" :key="item.id">
+            <tr v-for="(item, index) in subjects" :key="item.id">
+              <td class="col-no">{{ rowNumber(index) }}</td>
               <td>{{ displayValue(item.code) }}</td>
               <td>{{ displayValue(item.name) }}</td>
               <td>{{ displayValue(item.description) }}</td>
@@ -59,6 +62,17 @@
         <div v-if="subjects.length === 0" class="empty-state">
           <p>Belum ada mata pelajaran. Tambah data atau ubah filter.</p>
         </div>
+        <PaginationBar
+          v-if="pagination.total > 0"
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="mapel"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </div>
 
       <!-- Add/Edit Modal -->
@@ -105,12 +119,14 @@
         @confirm="doDelete"
         @cancel="showConfirm = false; toDelete = null"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { subjectApi } from '@/api/subject'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
@@ -122,6 +138,7 @@ const showModal = ref(false)
 const showConfirm = ref(false)
 const editing = ref(null)
 const toDelete = ref(null)
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 
 const filters = reactive({
   search: '',
@@ -131,6 +148,12 @@ const filters = reactive({
 function displayValue(v) {
   if (v === null || v === undefined || v === '') return 'Belum ada data'
   return String(v).trim() || 'Belum ada data'
+}
+
+function rowNumber(index) {
+  const page = Number(pagination.value.current_page) || 1
+  const perPage = Number(pagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
 }
 
 const form = reactive({
@@ -143,17 +166,47 @@ const form = reactive({
 let debounceTimer = null
 function debounceLoad() {
   clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(loadSubjects, 300)
+  debounceTimer = setTimeout(() => {
+    pagination.value.current_page = 1
+    loadSubjects()
+  }, 300)
+}
+
+function goToPage(page) {
+  pagination.value.current_page = page
+  loadSubjects()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadSubjects()
+}
+
+function onActiveFilterChange() {
+  pagination.value.current_page = 1
+  loadSubjects()
 }
 
 async function loadSubjects() {
   loading.value = true
   error.value = ''
   try {
-    const params = { active_only: filters.active_only }
+    const params = {
+      active_only: filters.active_only,
+      page: pagination.value.current_page,
+      per_page: pagination.value.per_page,
+    }
     if (filters.search) params.search = filters.search
     const res = await subjectApi.getAll(params)
     subjects.value = res.data.data ?? res.data ?? []
+    const meta = res.data.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? pagination.value.current_page,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
+      total: meta.total ?? subjects.value.length,
+    }
   } catch (e) {
     error.value = e.formattedMessage || e.message || 'Gagal memuat data.'
   } finally {
@@ -295,6 +348,13 @@ onMounted(loadSubjects)
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
 .data-table th { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); font-weight: 600; color: #065f46; }
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
 .badge-success { background: #c6f6d5; color: #276749; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
 .badge-muted { background: #e2e8f0; color: #4a5568; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
 .action-buttons { display: flex; gap: 0.5rem; }

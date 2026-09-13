@@ -1,6 +1,7 @@
 <template>
   <div class="dashboard-page">
-    <div class="dashboard-main">        <div class="dashboard">
+    <div class="dashboard-main">
+        <div class="dashboard">
           <!-- Welcome Section (ringkas, satu baris) -->
           <div class="welcome-section">
             <div class="welcome-content">
@@ -23,22 +24,6 @@
 
           <!-- Statistics Cards -->
           <div class="stats-grid">
-            <div class="stat-card stat-card-success" :class="{ 'stat-empty-state': studentCount === 0 && !loading }">
-          <div class="stat-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="stat-body">
-            <h3 class="stat-title">Total Siswa</h3>
-            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value" :class="{ 'stat-empty': studentCount === 0 }">{{ formatStatValue(studentCount) }}</p>
-            <span class="stat-label">{{ studentCount === 0 && !loading ? 'Mulai dengan menambah data siswa' : 'Siswa Aktif' }}</span>
-            <router-link v-if="!loading" to="/student" class="stat-action">Tambah Siswa →</router-link>
-            </div>
-          </div>
-        
             <div class="stat-card stat-card-warning" :class="{ 'stat-empty-state': teacherCount === 0 && !loading }">
           <div class="stat-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -56,6 +41,22 @@
             <router-link v-if="!loading" to="/teacher" class="stat-action">Tambah Guru →</router-link>
             </div>
           </div>
+
+            <div class="stat-card stat-card-success" :class="{ 'stat-empty-state': studentCount === 0 && !loading }">
+          <div class="stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <h3 class="stat-title">Total Siswa</h3>
+            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
+            <p v-else class="stat-value" :class="{ 'stat-empty': studentCount === 0 }">{{ formatStatValue(studentCount) }}</p>
+            <span class="stat-label">{{ studentCount === 0 && !loading ? 'Mulai dengan menambah data siswa' : 'Siswa Aktif' }}</span>
+            <router-link v-if="!loading" to="/student" class="stat-action">Tambah Siswa →</router-link>
+            </div>
+          </div>
         
             <div class="stat-card stat-card-info" :class="{ 'stat-empty-state': classCount === 0 && !loading }">
           <div class="stat-icon">
@@ -66,71 +67,12 @@
             </svg>
           </div>
           <div class="stat-body">
-            <h3 class="stat-title">Kelas</h3>
+            <h3 class="stat-title">Total Kelas</h3>
             <p v-if="loading" class="stat-value loading-text">Memuat...</p>
             <p v-else class="stat-value" :class="{ 'stat-empty': classCount === 0 }">{{ formatStatValue(classCount) }}</p>
             <span class="stat-label">{{ classCount === 0 && !loading ? 'Belum ada kelas terdaftar' : 'Kelas Terdaftar' }}</span>
             </div>
           </div>
-        
-            <div class="stat-card stat-card-neutral" :class="{ 'stat-empty-state': subjectCount === 0 && !loading }">
-          <div class="stat-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M8 6H16M8 10H16M8 14H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="stat-body">
-            <h3 class="stat-title">Mata Pelajaran</h3>
-            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value" :class="{ 'stat-empty': subjectCount === 0 }">{{ formatStatValue(subjectCount) }}</p>
-            <span class="stat-label">{{ subjectCount === 0 && !loading ? 'Belum ada mapel terdaftar' : 'Mapel Terdaftar' }}</span>
-            </div>
-          </div>
-        
-            <div class="stat-card stat-card-danger" :class="{ 'stat-empty-state': violationCount === 0 && !loading }">
-          <div class="stat-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18C1.64 18.3 1.55 18.64 1.55 19C1.55 19.36 1.64 19.7 1.82 20C2 20.3 2.26 20.56 2.58 20.73C2.9 20.9 3.26 20.97 3.63 20.97H20.37C20.74 20.97 21.1 20.9 21.42 20.73C21.74 20.56 22 20.3 22.18 20C22.36 19.7 22.45 19.36 22.45 19C22.45 18.64 22.36 18.3 22.18 18L13.71 3.86C13.53 3.57 13.27 3.31 12.95 3.14C12.63 2.97 12.27 2.9 11.9 2.9C11.53 2.9 11.17 2.97 10.85 3.14C10.53 3.31 10.27 3.57 10.29 3.86Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="stat-body">
-            <h3 class="stat-title">Pelanggaran</h3>
-            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value" :class="{ 'stat-empty': violationCount === 0 }">{{ formatStatValue(violationCount) }}</p>
-            <span class="stat-label">{{ violationCount === 0 && !loading ? 'Belum ada catatan' : 'Catatan Pelanggaran' }}</span>
-            </div>
-          </div>
-
-            <div class="stat-card stat-card-danger" :class="{ 'stat-empty-state': violationCountThisMonth === 0 && !loading }">
-          <div class="stat-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8C3 5 4.5 3 8 3H16C19.5 3 21 5 21 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 13V17M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="stat-body">
-            <h3 class="stat-title">Pelanggaran Bulan Ini</h3>
-            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value" :class="{ 'stat-empty': violationCountThisMonth === 0 }">{{ formatStatValue(violationCountThisMonth) }}</p>
-            <span class="stat-label">{{ violationCountThisMonth === 0 && !loading ? 'Tidak ada di bulan ini' : 'Bulan berjalan' }}</span>
-          </div>
-          </div>
-        
-            <div class="stat-card stat-card-counseling" :class="{ 'stat-empty-state': counselingCount === 0 && !loading }">
-          <div class="stat-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="stat-body">
-            <h3 class="stat-title">Konseling</h3>
-            <p v-if="loading" class="stat-value loading-text">Memuat...</p>
-            <p v-else class="stat-value" :class="{ 'stat-empty': counselingCount === 0 }">{{ formatStatValue(counselingCount) }}</p>
-            <span class="stat-label">{{ counselingCount === 0 && !loading ? 'Belum ada sesi' : 'Sesi Konseling' }}</span>
-          </div>
-            </div>
 
             <div class="stat-card stat-card-counseling" :class="{ 'stat-empty-state': counselingPendingCount === 0 && !loading }">
           <div class="stat-icon">
@@ -185,61 +127,6 @@
               </svg>
             </div>
           </router-link>
-          
-          <router-link to="/student" class="action-card action-card-success">
-            <div class="action-icon action-icon-success">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 11V17M9 14H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="action-content">
-              <h4>Data Siswa</h4>
-            </div>
-            <div class="action-arrow">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-          </router-link>
-          
-          <router-link to="/teacher" class="action-card action-card-warning">
-            <div class="action-icon action-icon-warning">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M13 11V17M10 14H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="action-content">
-              <h4>Data Guru</h4>
-            </div>
-            <div class="action-arrow">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-          </router-link>
-
-          <router-link to="/class" class="action-card action-card-info">
-            <div class="action-icon action-icon-info">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="action-content">
-              <h4>Kelas</h4>
-            </div>
-            <div class="action-arrow">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-          </router-link>
 
           <router-link to="/bk/pelanggaran" class="action-card action-card-danger">
             <div class="action-icon action-icon-danger">
@@ -249,22 +136,6 @@
             </div>
             <div class="action-content">
               <h4>Pelanggaran</h4>
-            </div>
-            <div class="action-arrow">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-          </router-link>
-
-          <router-link to="/counseling" class="action-card action-card-counseling">
-            <div class="action-icon action-icon-counseling">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="action-content">
-              <h4>Konseling</h4>
             </div>
             <div class="action-arrow">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -359,7 +230,8 @@
           </li>
         </ul>
       </div>
-    </div>    </div>
+    </div>
+    </div>
     <!-- HelpSidebar disembunyikan: panduan dipindah ke /panduan -->
   </div>
 </template>
@@ -372,8 +244,6 @@ import { institutionApi } from '@/api/institution'
 import { studentApi } from '@/api/student'
 import { teacherApi } from '@/api/teacher'
 import { classApi } from '@/api/class'
-import { subjectApi } from '@/api/subject'
-import { violationApi } from '@/api/violation'
 import { counselingApi } from '@/api/counseling'
 import { auditLogApi } from '@/api/auditLog'
 import { dashboardApi } from '@/api/dashboard'
@@ -386,10 +256,6 @@ const institutionError = ref('')
 const studentCount = ref(0)
 const teacherCount = ref(0)
 const classCount = ref(0)
-const subjectCount = ref(0)
-const violationCount = ref(0)
-const violationCountThisMonth = ref(0)
-const counselingCount = ref(0)
 const counselingPendingCount = ref(0)
 const loading = ref(true)
 const auditLogs = ref([])
@@ -481,10 +347,7 @@ onMounted(async () => {
   loading.value = true
   try {
     institutionError.value = ''
-    const now = new Date()
-    const dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
-    const dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
-    const [instRes, studentRes, teacherRes, classRes, subjectRes, violationRes, violationMonthRes, counselingRes, counselingPendingRes, chartsRes] = await Promise.all([
+    const [instRes, studentRes, teacherRes, classRes, counselingPendingRes, chartsRes] = await Promise.all([
       institutionApi.getMy().catch((err) => {
         console.error('Dashboard institution:', err)
         institutionError.value = err.response?.data?.message || 'Gagal memuat data instansi.'
@@ -493,10 +356,6 @@ onMounted(async () => {
       studentApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
       teacherApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
       classApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
-      subjectApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
-      violationApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
-      violationApi.getAll({ per_page: 1, date_from: dateFrom, date_to: dateTo }).catch(() => ({ data: { meta: { total: 0 } } })),
-      counselingApi.getAll({ per_page: 1 }).catch(() => ({ data: { meta: { total: 0 } } })),
       counselingApi.getAll({ per_page: 1, status: 'jadwal' }).catch(() => ({ data: { meta: { total: 0 } } })),
       dashboardApi.getCharts().catch(() => ({ data: { data: null } })),
     ])
@@ -513,10 +372,6 @@ onMounted(async () => {
     studentCount.value = studentRes.data?.meta?.total ?? studentRes.data?.data?.length ?? 0
     teacherCount.value = teacherRes.data?.meta?.total ?? teacherRes.data?.data?.length ?? 0
     classCount.value = classRes.data?.meta?.total ?? classRes.data?.data?.length ?? 0
-    subjectCount.value = subjectRes.data?.meta?.total ?? subjectRes.data?.data?.length ?? 0
-    violationCount.value = violationRes.data?.meta?.total ?? violationRes.data?.data?.length ?? 0
-    violationCountThisMonth.value = violationMonthRes.data?.meta?.total ?? violationMonthRes.data?.data?.length ?? 0
-    counselingCount.value = counselingRes.data?.meta?.total ?? counselingRes.data?.data?.length ?? 0
     counselingPendingCount.value = counselingPendingRes.data?.meta?.total ?? counselingPendingRes.data?.data?.length ?? 0
     charts.value = chartsRes.data?.data ?? null
   } catch (error) {
@@ -524,10 +379,6 @@ onMounted(async () => {
     studentCount.value = 0
     teacherCount.value = 0
     classCount.value = 0
-    subjectCount.value = 0
-    violationCount.value = 0
-    violationCountThisMonth.value = 0
-    counselingCount.value = 0
     counselingPendingCount.value = 0
   } finally {
     loading.value = false

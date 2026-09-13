@@ -448,11 +448,19 @@ function stepDone(id) {
 
 function applySessionGradeContext(session) {
   if (!session) return
-  const idx = Number(session.penilaian_index ?? session.suggested_penilaian_index ?? session.meeting_number ?? 1)
+  // Utamakan suggested (P berikutnya untuk tanggal baru), baru nilai yang sudah tersimpan.
+  const idx = Number(
+    session.suggested_penilaian_index
+      ?? session.penilaian_index
+      ?? session.meeting_number
+      ?? 1
+  )
   if (idx >= 1) gradeIndex.value = idx
   assessmentCount.value = Math.max(
     1,
     Number(session.assessment_count) || 1,
+    Number(session.suggested_penilaian_index) || 0,
+    Number(session.penilaian_index) || 0,
     idx,
     Number(session.meeting_number) || 1,
   )
@@ -615,6 +623,7 @@ async function loadGrades() {
   gradeLoading.value = true
   gradeError.value = ''
   try {
+    applySessionGradeContext(activeSession.value)
     const res = await gradeBookApi.getByClassSubjectSemester({
       semester_id: activeSession.value.semester_id,
       class_id: activeSession.value.class_id,
@@ -626,12 +635,19 @@ async function loadGrades() {
     const sessionCount = Math.max(
       1,
       Number(activeSession.value?.assessment_count) || 0,
+      Number(activeSession.value?.suggested_penilaian_index) || 0,
+      Number(activeSession.value?.penilaian_index) || 0,
       Number(activeSession.value?.meeting_number) || 0,
       Number(meta.assessment_count) || 1,
+      Number(gradeIndex.value) || 1,
     )
     assessmentCount.value = sessionCount
+    // Jangan turunkan P yang sudah disarankan; perluas kolom saja.
+    if (gradeIndex.value < 1) {
+      gradeIndex.value = 1
+    }
     if (gradeIndex.value > assessmentCount.value) {
-      gradeIndex.value = assessmentCount.value
+      assessmentCount.value = gradeIndex.value
     }
     const idx = String(gradeIndex.value)
     gradeRows.value = (Array.isArray(res.data?.data) ? res.data.data : []).map((r) => {
@@ -803,7 +819,16 @@ watch(sessionFilter, () => { pickActiveSession() })
 
 watch(
   () => [selectedDate.value, authStore.activeInstitution?.id],
-  () => { loadSessions() },
+  async () => {
+    currentStep.value = 'attendance'
+    attRows.value = []
+    journalIds.value = []
+    journalForm.value = { material_taught: '', attendance_notes: '', notes: '' }
+    gradeRows.value = []
+    gradeIndex.value = 1
+    assessmentCount.value = 1
+    await loadSessions()
+  },
   { immediate: true }
 )
 

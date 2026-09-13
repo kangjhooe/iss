@@ -27,14 +27,27 @@ class KaprogAccess
             return false;
         }
 
-        $employee = self::employeeFor($user, InstitutionContext::resolveActiveInstitutionId($user));
+        $request = request();
+        $institutionId = InstitutionContext::resolveActiveInstitutionId($user, $request);
+        $cacheKey = 'kaprog_is_'.$user->id.'_'.($institutionId ?: 0);
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
+        $employee = self::employeeFor($user, $institutionId);
         if (! $employee) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
 
-        return $employee->additionalDuties()
+        $ok = $employee->additionalDuties()
             ->where('additional_duties.key', self::DUTY_KEY)
             ->exists();
+
+        $request->attributes->set($cacheKey, $ok);
+
+        return $ok;
     }
 
     /**
@@ -45,16 +58,29 @@ class KaprogAccess
      */
     public static function programIds(User $user): array
     {
-        $employee = self::employeeFor($user, InstitutionContext::resolveActiveInstitutionId($user));
+        $request = request();
+        $institutionId = InstitutionContext::resolveActiveInstitutionId($user, $request);
+        $cacheKey = 'kaprog_programs_'.$user->id.'_'.($institutionId ?: 0);
+        if ($request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
+        }
+
+        $employee = self::employeeFor($user, $institutionId);
         if (! $employee) {
+            $request->attributes->set($cacheKey, []);
+
             return [];
         }
 
-        return $employee->programKeahlians()
+        $ids = $employee->programKeahlians()
             ->pluck('program_keahlian.id')
             ->map(fn ($id) => (int) $id)
             ->values()
             ->all();
+
+        $request->attributes->set($cacheKey, $ids);
+
+        return $ids;
     }
 
     /**

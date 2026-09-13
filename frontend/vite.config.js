@@ -21,21 +21,19 @@ export default defineConfig(({ mode }) => {
     {
       name: 'html-social-meta',
       transformIndexHtml(html) {
-        // Tandai JS segera di <head> agar shell SEO tidak sempat terlihat (FOUC)
-        // sebelum Vue mount. Tanpa JS, shell tetap tampil untuk crawler / fallback.
-        const jsDetect = `<script>document.documentElement.classList.add('js')</script>`
-        const shellStyles = `<style id="seo-shell-style">.seo-shell{max-width:720px;margin:2rem auto;padding:1.25rem;font-family:system-ui,sans-serif;line-height:1.55;color:#0f172a}.seo-shell h1{font-size:1.75rem;line-height:1.25;margin:0 0 .75rem}.seo-shell h2{font-size:1.15rem;margin:1.25rem 0 .5rem}.seo-shell ul{padding-left:1.2rem}.seo-shell a{color:#047857}.js .seo-shell{display:none!important}</style>`
+        // Shell SEO hanya untuk no-JS/crawler. Jangan taruh di #app tanpa noscript —
+        // hard-refresh /dashboard sempat menampilkan halaman publik (FOUC) sebelum Vue mount.
+        const shellStyles = `<style id="seo-shell-style">.seo-shell{max-width:720px;margin:2rem auto;padding:1.25rem;font-family:system-ui,sans-serif;line-height:1.55;color:#0f172a}.seo-shell h1{font-size:1.75rem;line-height:1.25;margin:0 0 .75rem}.seo-shell h2{font-size:1.15rem;margin:1.25rem 0 .5rem}.seo-shell ul{padding-left:1.2rem}.seo-shell a{color:#047857}</style>`
         return html
           .replaceAll('@@HTML_TITLE@@', pageTitle)
           .replaceAll('@@HTML_DESCRIPTION@@', pageDescription)
           .replaceAll('@@HTML_APP_NAME@@', appName)
           .replaceAll('@@HTML_OG_URL@@', `${appUrl}/`)
           .replaceAll('@@HTML_OG_IMAGE@@', ogImage)
-          .replace('<head>', `<head>\n    ${jsDetect}`)
           .replace('</head>', `    ${shellStyles}\n    ${jsonLdTag}\n  </head>`)
           .replace(
             '<div id="app"></div>',
-            `<div id="app">${seoShell}</div>`
+            `<div id="app"><noscript>${seoShell}</noscript></div>`
           )
       }
     },

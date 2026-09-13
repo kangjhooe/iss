@@ -59,9 +59,17 @@ class ExtracurricularAccess
             return false;
         }
 
-        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user);
+        $request = request();
+        $resolvedInstitutionId = $institutionId ?? InstitutionContext::resolveActiveInstitutionId($user, $request);
+        $cacheKey = 'ekskul_is_supervisor_'.$user->id.'_'.($resolvedInstitutionId ?: 0);
+        if ($request->attributes->has($cacheKey)) {
+            return (bool) $request->attributes->get($cacheKey);
+        }
+
         $employee = self::employeeFor($user, $resolvedInstitutionId);
-        if (!$employee) {
+        if (! $employee) {
+            $request->attributes->set($cacheKey, false);
+
             return false;
         }
 
@@ -72,7 +80,10 @@ class ExtracurricularAccess
             $query->where('institution_id', $resolvedInstitutionId);
         }
 
-        return $query->exists();
+        $ok = $query->exists();
+        $request->attributes->set($cacheKey, $ok);
+
+        return $ok;
     }
 
     public static function canAccess(User $user, Extracurricular $extracurricular): bool
