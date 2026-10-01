@@ -8,8 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist dilacak di git agar shared hosting bisa update FE via `git pull`
 dist-ssr
+dev-dist
 *.local
 
 # Editor directories and files

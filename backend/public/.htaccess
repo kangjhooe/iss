@@ -14,8 +14,16 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
+    # Laravel API (+ Sanctum CSRF). Path tetap /api/... dan /sanctum/...
+    RewriteCond %{REQUEST_URI} ^/api [OR]
+    RewriteCond %{REQUEST_URI} ^/sanctum
     RewriteRule ^ index.php [L]
+
+    # File/folder nyata (assets FE, storage, favicon, dll.) — layani apa adanya
+    RewriteCond %{REQUEST_FILENAME} -d [OR]
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # SPA fallback (Vue) — document root sama dengan FE + Laravel public
+    RewriteRule ^ index.html [L]
 </IfModule>

@@ -1,16 +1,70 @@
 # Panduan Deploy Hosting
 
-Panduan singkat untuk update aplikasi ke shared hosting (FTP / File Manager). Fokus: **build frontend → upload `dist`**, **ganti file backend yang perlu**, **pertahankan data server**, lalu **jalankan migration**.
+Panduan singkat untuk update aplikasi ke shared hosting (FTP / File Manager).
+
+**Target URL (same-origin):**
+- FE: `https://servr.in`
+- API: `https://servr.in/api` (Laravel `/api/v1/...`)
+- Storage: `https://servr.in/storage/...`
 
 ---
 
-## Ringkasan alur
+## Struktur folder di shared hosting
 
-1. Backup database + folder `storage` di hosting
-2. Build frontend di lokal → upload isi folder `dist`
-3. Upload folder backend yang diganti (jangan timpa `.env` & `storage`)
-4. Jalankan `php artisan migrate`
-5. Clear cache Laravel (opsional tapi disarankan)
+Document root `servr.in` = **Laravel `public/` + isi build FE** digabung:
+
+```text
+~/
+  backend/                      ← kode Laravel (di luar document root, ideal)
+    app/
+    bootstrap/
+    config/
+    database/
+    resources/
+    routes/
+    storage/                    ← JANGAN ditimpa (data produksi)
+    vendor/
+    .env                        ← JANGAN ditimpa; edit manual
+    artisan
+    composer.json
+    public/  ─── symlink / sama dengan ───┐
+                                          │
+  public_html/                  ← document root servr.in
+    index.php                   ← Laravel (dari backend/public)
+    .htaccess                   ← SPA + /api → Laravel (dari backend/public)
+    storage/                    ← symlink ke backend/storage/app/public
+    index.html                  ← FE (dari frontend/dist)
+    assets/                     ← FE
+    favicon.ico, robots.txt, …  ← FE
+```
+
+Kalau hosting tidak memungkinkan Laravel di luar `public_html`, alternatif umum:
+
+```text
+public_html/
+  backend/          ← full Laravel (app, .env, storage, …)
+  index.php         ← salinan/isi dari backend/public
+  .htaccess
+  storage/
+  index.html        ← FE
+  assets/
+```
+
+Pastikan `index.php` masih mengarah ke folder Laravel yang benar (`require __DIR__.'/../backend/vendor/autoload.php'` dst. — sesuaikan path).
+
+### Domain `api.servr.in` (lama)
+
+Setelah cutover, arahkan `api.servr.in` ke document root yang sama, **atau** buat redirect ke `https://servr.in` (lebih bersih).
+
+---
+
+## Ringkasan alur update rutin
+
+1. Backup database + folder `backend/storage` di hosting
+2. Update FE: `git pull` lalu salin isi `frontend/dist/` ke document root (**jangan** timpa `index.php` / `.htaccess` / `storage/`)
+3. Update backend: `git pull` (atau upload folder yang diganti; jangan timpa `.env` & `storage`)
+4. Pastikan `.env` server: `APP_URL=https://servr.in`
+5. `php artisan migrate` + clear cache
 
 ---
 
@@ -18,12 +72,12 @@ Panduan singkat untuk update aplikasi ke shared hosting (FTP / File Manager). Fo
 
 ### Backup di hosting (wajib)
 
-Sebelum upload apa pun:
-
 - Export database (phpMyAdmin → Export)
-- Download/backup folder `backend/storage` (file upload user: logo, surat, foto, dll.)
+- Backup folder `backend/storage` (logo, surat, foto, dll.)
 
-### Frontend — build production
+### Frontend — build production (lalu commit `dist`)
+
+Folder `frontend/dist/` **ikut di-repo** agar hosting cukup `git pull`.
 
 ```bash
 cd frontend
@@ -31,106 +85,110 @@ npm install
 npm run build
 ```
 
-Hasil build ada di: `frontend/dist/`
-
-Pastikan `.env.production` sudah benar sebelum build, misalnya:
+Pastikan `frontend/.env.production` sebelum build:
 
 ```env
-VITE_API_BASE_URL=https://api.servr.in/api
+VITE_API_BASE_URL=/api
+VITE_APP_URL=https://servr.in
 VITE_APP_NAME=servr.in
 ```
 
-> `VITE_*` di-bake saat build. Kalau URL API salah, harus build ulang lalu upload ulang `dist`.
+Commit + push `frontend/dist/` (bersama perubahan FE). Salah URL → build ulang, commit ulang `dist`, push.
 
 ---
 
-## 2. Deploy Frontend
+## 2. Deploy Frontend (via git pull)
 
-Upload **isi** folder `frontend/dist/` ke document root frontend di hosting (bukan folder `dist` itu sendiri, kecuali document root memang menunjuk ke `.../dist`).
+Di hosting (SSH / Terminal), dari root repo:
 
-Contoh struktur:
-
-```text
-public_html/          ← document root frontend
-  index.html
-  assets/
-  ...
+```bash
+git pull
 ```
+
+Lalu salin **isi** `frontend/dist/` ke document root (`public_html/`), tanpa menimpa file Laravel:
+
+```bash
+# Contoh: sesuaikan path document root Anda
+rsync -a --exclude 'index.php' --exclude '.htaccess' --exclude 'storage' \
+  frontend/dist/ ~/public_html/
+```
+
+Atau manual (File Manager / cp): ganti `index.html`, `assets/`, icon, `robots.txt`, dll. — **jangan** timpa `index.php`, `.htaccess`, `storage/`.
 
 | Aksi | Keterangan |
 |------|------------|
-| **Ganti** | Seluruh isi document root frontend dengan isi `dist` terbaru |
-| **Tidak perlu** | Source `src/`, `node_modules/`, `package.json` — tidak diupload ke hosting |
+| **Ganti** | Isi dari `frontend/dist/` |
+| **Jangan timpa** | `index.php`, `.htaccess`, folder `storage/` |
+| **Tidak perlu di document root** | `src/`, `node_modules/`, `package.json` |
 
-Setelah upload, hard-refresh browser (Ctrl+F5) atau clear cache PWA bila perlu.
+Hard-refresh (Ctrl+F5) atau clear cache PWA setelah sync.
 
 ---
 
 ## 3. Deploy Backend — mana diganti, mana dipertahankan
 
-Path contoh: `public_html/.../backend/` atau folder API di subdomain.
-
-### Diganti / di-overwrite (upload dari lokal)
+### Diganti / di-overwrite
 
 | Folder / file | Keterangan |
 |---------------|------------|
 | `app/` | Controller, model, service, dll. |
-| `bootstrap/` | Bootstrap app (kecuali isi `bootstrap/cache` — lebih aman di-clear di server) |
+| `bootstrap/` | Kecuali isi `bootstrap/cache` — clear di server |
 | `config/` | Konfigurasi Laravel |
-| `database/migrations/` | File migrasi baru |
-| `database/seeders/` | Jika ada seeder yang dipakai |
-| `resources/` | View Blade (laporan/cetak, dll.) |
+| `database/migrations/` | Migrasi baru |
+| `database/seeders/` | Jika dipakai |
+| `resources/` | View Blade |
 | `routes/` | Route API |
-| `public/` | `index.php`, `.htaccess` (lihat catatan di bawah) |
-| `composer.json` | Dependency |
-| `composer.lock` | **Wajib ikut** agar versi package sama |
+| `public/index.php`, `public/.htaccess` | Upload ke document root |
+| `composer.json` + `composer.lock` | Lock wajib ikut |
 | `artisan` | CLI Laravel |
 
 ### Dipertahankan (JANGAN ditimpa)
 
 | Folder / file | Alasan |
 |---------------|--------|
-| `.env` | Kredensial DB, `APP_KEY`, URL production, CORS, mail |
-| `storage/` | File upload user, log, session, cache |
-| `storage/app/public/` | Logo, surat PDF, foto, dokumen — **data produksi** |
-| `storage/logs/` | Log error server |
-| `vendor/` | Jangan hapus sembarangan; update lewat `composer install` (lihat bawah) |
+| `.env` | Kredensial; edit manual (lihat bawah) |
+| `storage/` | Upload user, log, session |
+| `vendor/` | Update lewat Composer / upload terpisah |
 
-### `public/` — hati-hati
+### `.env` production (edit di server, jangan overwrite buta)
 
-- **Ganti:** `index.php`, `.htaccess`
-- **Pertahankan:** symlink/folder `storage` di dalam `public` (hasil `php artisan storage:link`), dan file upload lain jika ada di situ
-- Jangan hapus `public/storage` jika sudah ter-link ke `storage/app/public`
+Samakan dengan `backend/.env.production.example`, minimal:
+
+```env
+APP_URL=https://servr.in
+FRONTEND_URL=https://servr.in
+CORS_ALLOWED_ORIGINS=https://servr.in,https://www.servr.in
+SANCTUM_STATEFUL_DOMAINS=servr.in,www.servr.in
+SESSION_DOMAIN=.servr.in
+COOKIE_DOMAIN=.servr.in
+```
+
+### `public/` / document root — hati-hati
+
+- **Ganti:** `index.php`, `.htaccess` (versi SPA + `/api`)
+- **Pertahankan:** symlink `storage/`
+- Jangan hapus `storage` di document root jika sudah ter-link
 
 ### `vendor/`
 
-Pilih salah satu:
-
-**A. Ada SSH / terminal di hosting**
+**A. Ada SSH**
 
 ```bash
 cd backend
 composer install --no-dev --optimize-autoloader
 ```
 
-**B. Tidak ada Composer di hosting**
-
-Upload folder `vendor/` dari lokal setelah `composer install --no-dev` di lokal (bisa besar; pastikan PHP version mirip).
+**B. Tanpa Composer di hosting** — upload `vendor/` dari lokal setelah `composer install --no-dev` (PHP version mirip).
 
 ---
 
-## 4. Setelah upload backend
+## 4. Setelah upload
 
-Jalankan di terminal hosting (SSH / Terminal cPanel), dari folder `backend`:
+Dari folder `backend` (SSH / Terminal cPanel):
 
 ```bash
-# 1. Migration (wajib setelah ada migrasi baru)
 php artisan migrate --force
-
-# 2. Pastikan symlink storage ada (sekali saja / jika hilang)
 php artisan storage:link
-
-# 3. Clear & rebuild cache
 php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
@@ -139,42 +197,54 @@ php artisan view:cache
 
 ### Tanpa SSH
 
-1. Upload file migrasi ke `database/migrations/`
-2. Jalankan SQL manual di phpMyAdmin sesuai migrasi yang belum jalan  
-   (lihat juga `backend/database/migrations/MIGRATIONS_HOSTING.md`)
-3. Pastikan permission folder `storage` dan `bootstrap/cache` writable (biasanya `775` atau `755` sesuai hosting)
+1. Upload migrasi baru
+2. SQL manual di phpMyAdmin bila perlu (`backend/database/migrations/MIGRATIONS_HOSTING.md`)
+3. Permission `storage` + `bootstrap/cache` writable (`775` / `755`)
 
 ---
 
-## 5. Checklist cepat
+## 5. Checklist cutover first-time (subdomain → same-origin)
 
 - [ ] Backup DB + `storage`
-- [ ] `npm run build` dengan `VITE_API_BASE_URL` benar
-- [ ] Upload isi `frontend/dist` ke document root frontend
-- [ ] Upload folder backend yang diganti
-- [ ] `.env` & `storage/` **tidak** tertimpa
-- [ ] `php artisan migrate --force`
-- [ ] `php artisan storage:link` (jika perlu)
-- [ ] `php artisan optimize:clear` (+ cache production)
-- [ ] Test login, upload file, dan 1–2 fitur utama
+- [ ] Document root `servr.in` = Laravel public + FE
+- [ ] `.htaccess` SPA + `/api` terpasang
+- [ ] Symlink `storage` OK
+- [ ] `.env`: `APP_URL=https://servr.in` (+ Sanctum/CORS di atas)
+- [ ] Build FE dengan `VITE_API_BASE_URL=/api`, upload `dist`
+- [ ] `php artisan optimize:clear` (+ cache)
+- [ ] Test: login, panggil `/api/v1/...`, buka file `/storage/...`
+- [ ] Opsional: redirect `api.servr.in` → `servr.in`
 
 ---
 
-## 6. Troubleshooting singkat
+## 6. Checklist update rutin
+
+- [ ] Backup DB + `storage`
+- [ ] `npm run build` (`VITE_API_BASE_URL=/api`) + commit/push `frontend/dist`
+- [ ] Di hosting: `git pull`, salin isi `frontend/dist` (jangan timpa `index.php` / `.htaccess` / `storage/`)
+- [ ] Upload/pull folder backend yang diganti
+- [ ] `.env` & `storage/` **tidak** tertimpa
+- [ ] `php artisan migrate --force`
+- [ ] `php artisan optimize:clear` (+ cache production)
+- [ ] Test login + 1–2 fitur utama
+
+---
+
+## 7. Troubleshooting singkat
 
 | Gejala | Kemungkinan | Tindakan |
 |--------|-------------|----------|
-| API error "Unknown column ..." | Migrasi belum jalan | `php artisan migrate --force` |
-| Logo/file hilang | `storage` tertimpa / symlink putus | Restore backup `storage`, jalankan `storage:link` |
-| Login/CORS gagal | `.env` salah atau tertimpa | Cek `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS` |
-| Frontend masih versi lama | Cache browser/PWA atau `dist` belum ter-upload | Hard refresh; pastikan `index.html` + `assets/` baru |
-| Frontend tidak ke API | Salah URL saat build | Perbaiki `.env.production`, build ulang, upload ulang `dist` |
+| `/api/...` jadi halaman Vue | `.htaccess` belum versi SPA+API | Upload ulang `.htaccess` dari `backend/public` |
+| Logo/file 404 | `APP_URL` masih `api.servr.in` atau symlink putus | Set `APP_URL=https://servr.in`, `storage:link` |
+| Login/cookie gagal | Domain cookie / Sanctum | Cek `COOKIE_DOMAIN`, `SANCTUM_STATEFUL_DOMAINS` |
+| FE masih hit `api.servr.in` | Build lama | Build ulang dengan `/api`, upload `dist` |
+| API error "Unknown column" | Migrasi belum jalan | `php artisan migrate --force` |
 
 ---
 
-## Referensi terkait
+## Referensi
 
-- `SETUP.md` — setup & konfigurasi production
-- `RELEASE_CHECKLIST.md` — checklist sebelum rilis
-- `backend/database/migrations/MIGRATIONS_HOSTING.md` — error kolom hilang / migrate di hosting
-- `backend/.env.production.example` — contoh variabel `.env` production
+- `SETUP.md` — setup & konfigurasi
+- `RELEASE_CHECKLIST.md` — checklist rilis
+- `backend/database/migrations/MIGRATIONS_HOSTING.md`
+- `backend/.env.production.example`

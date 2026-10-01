@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+Allow: /catatan-rilis
+Allow: /panduan
+Allow: /daftar-ppdb
+Allow: /cek-hasil-ppdb
+Allow: /lengkapi-berkas-ppdb
+
+# Area aplikasi (butuh login) — jangan diindeks
+Disallow: /login
+Disallow: /register
+Disallow: /dashboard
+Disallow: /teacher/
+Disallow: /student/
+Disallow: /parent/
+Disallow: /super-admin/
+Disallow: /keuangan/
+Disallow: /penggajian/
+Disallow: /ppdb/
+Disallow: /ujian-online/
+Disallow: /inventory/
+Disallow: /lab/
+Disallow: /library/
+Disallow: /api/
+Disallow: /storage/
+
+Sitemap: https://servr.in/sitemap.xml

@@ -95,12 +95,10 @@ DB_USERNAME=...
 DB_PASSWORD=...
 ```
 
-2. **Document root untuk Laravel**  
-   Arahkan domain/subdomain ke folder `public_html/sicerdik/backend/public` (atau gunakan subdomain/alias terpisah untuk API, misalnya `api.sicerdik.kangjhooe.com` → `backend/public`).
+2. **Document root (same-origin)**  
+   Arahkan domain ke folder yang berisi **Laravel `public/` + isi build FE** (satu URL: FE di `/`, API di `/api`). Detail: `PANDUAN_DEPLOY_HOSTING.md`.
 
 ### Frontend (Vue)
-
-Di server, path: `public_html/sicerdik/frontend`
 
 1. **Build production**
 ```bash
@@ -108,15 +106,12 @@ cd frontend
 npm run build
 ```
 
-2. **URL API di production**  
-   Set `VITE_API_BASE_URL` sebelum build. Untuk sicerdik.kangjhooe.com, buat/ubah `.env.production`:
+2. **URL API di production** (same-origin):
 ```env
-VITE_API_BASE_URL=https://sicerdik.kangjhooe.com/api
+VITE_API_BASE_URL=/api
 ```
-   (Jika API di subdomain terpisah, gunakan URL tersebut, misalnya `https://api.sicerdik.kangjhooe.com/api`.)
 
-3. **Document root untuk frontend**  
-   Arahkan `sicerdik.kangjhooe.com` ke folder hasil build, misalnya `public_html/sicerdik/frontend/dist` (atau salin isi `dist` ke `public_html/sicerdik` jika itu document root).
+3. **Upload** isi `frontend/dist/` ke document root yang sama dengan Laravel `public/` — **jangan** timpa `index.php`, `.htaccess`, atau `storage/`.
 
 ## Struktur Database
 

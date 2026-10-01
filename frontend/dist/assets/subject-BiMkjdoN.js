@@ -1,0 +1,1 @@
+import{m as t}from"./index-DJ0_76y_.js";const u={getAll(e){return t.get("/v1/subjects",{params:e})},get(e){return t.get(`/v1/subjects/${e}`)},create(e){return t.post("/v1/subjects",e)},update(e,s){return t.put(`/v1/subjects/${e}`,s)},delete(e){return t.delete(`/v1/subjects/${e}`)}};export{u as s};

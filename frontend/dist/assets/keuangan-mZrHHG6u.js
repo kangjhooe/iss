@@ -1,0 +1,1 @@
+function i(a,p="Terjadi kesalahan."){var r,s,t,o,n,d;return(a==null?void 0:a.formattedMessage)||((s=(r=a==null?void 0:a.response)==null?void 0:r.data)==null?void 0:s.message)||((d=(n=Object.values(((o=(t=a==null?void 0:a.response)==null?void 0:t.data)==null?void 0:o.errors)||{}))==null?void 0:n[0])==null?void 0:d[0])||p}export{i as a};
