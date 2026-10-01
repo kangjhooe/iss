@@ -15,4 +15,6 @@ defineProps({
   </div>
 </template>
 
-<style src="@/styles/surat-page.css"></style>
+<style>
+@import '@/styles/surat-page.css';
+</style>

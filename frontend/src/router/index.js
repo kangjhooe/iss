@@ -660,6 +660,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresSuperAdmin: true }
     },
     {
+      path: '/subject-catalog',
+      name: 'SubjectCatalog',
+      component: () => import('@/views/SubjectCatalog.vue'),
+      meta: { requiresAuth: true, requiresSuperAdmin: true }
+    },
+    {
       path: '/institution-change-requests',
       name: 'InstitutionChangeRequests',
       component: () => import('@/views/InstitutionChangeRequests.vue'),
@@ -1066,17 +1072,16 @@ router.beforeEach(async (to, from, next) => {
 
   startRouteLoading()
 
-  // Redirect logged-in users from home to their dashboard
+  // Redirect logged-in users from home to their dashboard.
+  // Selalu revalidasi /me: sesi basi di memori jangan dialihkan ke dashboard → /login.
   if (to.path === '/' && authStore.isAuthenticated) {
-    if (!authStore.user) {
-      try {
-        await authStore.fetchUser()
-      } catch {
-        authStore.isAuthenticated = false
-        authStore.user = null
-        next()
-        return
-      }
+    try {
+      await authStore.fetchUser()
+    } catch {
+      authStore.isAuthenticated = false
+      authStore.user = null
+      next()
+      return
     }
     const defaultRoute = getDefaultRoute(authStore.user?.role)
     next(defaultRoute)
@@ -1149,16 +1154,14 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.requiresGuest && authStore.isAuthenticated) {
     // Redirect based on user role
-    if (!authStore.user) {
-      try {
-        await authStore.fetchUser()
-      } catch (error) {
-        // If fetchUser fails, user is not actually authenticated
-        authStore.isAuthenticated = false
-        authStore.user = null
-        next('/login')
-        return
-      }
+    try {
+      await authStore.fetchUser()
+    } catch (error) {
+      // Sesi tidak valid: biarkan halaman guest (login/register), jangan paksa /login lagi
+      authStore.isAuthenticated = false
+      authStore.user = null
+      next()
+      return
     }
 
     const defaultRoute = getDefaultRoute(authStore.user?.role)

@@ -157,4 +157,6 @@ const emit = defineEmits(['close', 'print'])
 }
 </style>
 
-<style src="@/styles/surat-page.css"></style>
+<style>
+@import '@/styles/surat-page.css';
+</style>

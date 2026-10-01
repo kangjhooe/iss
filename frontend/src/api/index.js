@@ -33,12 +33,17 @@ api.interceptors.request.use(
   }
 )
 
-const AUTH_NO_REFRESH_RE = /\/v1\/(login|refresh-token|register|forgot-password|reset-password|verify-email|resend-verification|password-reset-requests)(\?|$)/
+const AUTH_NO_REFRESH_RE = /\/v1\/(login|logout|refresh-token|register|forgot-password|reset-password|verify-email|resend-verification|password-reset-requests)(\?|$)/
 
 /** Satu flight refresh untuk semua 401 paralel; cegah storm ke /refresh-token. */
 let refreshPromise = null
 /** Setelah refresh gagal di sesi ini, jangan spam refresh lagi sampai login sukses. */
 let refreshFailed = false
+/**
+ * Saat logout/teardown sesi: jangan hard-redirect ke /login.
+ * Request 401 paralel (notifikasi, dashboard, dll.) sering menimpa redirect logout ke beranda.
+ */
+let authRedirectSuppressed = false
 
 function shouldSkipTokenRefresh(config) {
   if (!config) return true
@@ -50,10 +55,19 @@ function shouldSkipTokenRefresh(config) {
 
 function redirectToLoginIfProtectedRoute() {
   if (typeof window === 'undefined') return
+  if (authRedirectSuppressed) return
   const path = window.location.pathname || ''
   if (shouldHardRedirectToLogin(path)) {
-    window.location.href = '/login'
+    window.location.replace('/login')
   }
+}
+
+/**
+ * Blokir hard-redirect auth (dipakai selama logout agar tetap ke beranda).
+ * Tidak memblokir refresh saat memanggil /logout dengan access token kedaluwarsa.
+ */
+export function suppressAuthRedirect() {
+  authRedirectSuppressed = true
 }
 
 /**
@@ -62,6 +76,7 @@ function redirectToLoginIfProtectedRoute() {
 export function resetAuthRefreshState() {
   refreshFailed = false
   refreshPromise = null
+  authRedirectSuppressed = false
 }
 
 async function refreshAccessToken() {

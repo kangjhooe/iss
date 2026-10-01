@@ -5,6 +5,9 @@
 
     RewriteEngine On
 
+    # Prefer SPA shell over Laravel when DirectoryIndex runs for /
+    DirectoryIndex index.html index.php
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -13,6 +16,9 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
+
+    # Root → Vue SPA (jangan biarkan DirectoryIndex ke index.php / JSON API)
+    RewriteRule ^$ index.html [L]
 
     # Laravel API (+ Sanctum CSRF). Path tetap /api/... dan /sanctum/...
     RewriteCond %{REQUEST_URI} ^/api [OR]

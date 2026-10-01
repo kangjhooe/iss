@@ -1,4 +1,5 @@
-<template>    <div class="monetization-page">
+<template>
+    <div class="monetization-page">
       <div class="page-header">
         <div>
           <h2>Monetisasi</h2>
@@ -53,6 +54,7 @@
           <table>
             <thead>
               <tr>
+                <th class="col-no">No</th>
                 <th>Nama</th>
                 <th>Key</th>
                 <th>Kuota (MB)</th>
@@ -62,7 +64,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="plan in plans" :key="plan.id">
+              <tr v-for="(plan, index) in plans" :key="plan.id">
+                <td class="col-no">{{ index + 1 }}</td>
                 <td>{{ plan.name }}</td>
                 <td><code>{{ plan.key }}</code></td>
                 <td>
@@ -98,6 +101,7 @@
           <table>
             <thead>
               <tr>
+                <th class="col-no">No</th>
                 <th>Nama</th>
                 <th>Key</th>
                 <th>Storage (MB)</th>
@@ -106,7 +110,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="addon in addons" :key="addon.id">
+              <tr v-for="(addon, index) in addons" :key="addon.id">
+                <td class="col-no">{{ index + 1 }}</td>
                 <td>{{ addon.name }}</td>
                 <td><code>{{ addon.key }}</code></td>
                 <td>
@@ -146,22 +151,24 @@
             type="search"
             class="form-control"
             placeholder="Cari nama / NPSN..."
-            @keyup.enter="loadInstitutions"
+            @keyup.enter="() => { pagination.current_page = 1; loadInstitutions() }"
           />
-          <button type="button" class="btn-secondary" :disabled="loadingInstitutions" @click="loadInstitutions">
+          <button type="button" class="btn-secondary" :disabled="loadingInstitutions" @click="() => { pagination.current_page = 1; loadInstitutions() }">
             Cari
           </button>
         </div>
 
         <div v-if="loadingInstitutions" class="muted">Memuat institusi...</div>
-        <div v-else-if="institutions.length === 0" class="muted">Tidak ada data</div>
-        <div v-else class="inst-list">
-          <article v-for="inst in institutions" :key="inst.id" class="inst-card">
-            <div class="inst-head">
-              <div>
-                <strong>{{ inst.name }}</strong>
-                <div class="muted">NPSN {{ inst.npsn || '—' }} · Total storage {{ inst.storage?.total_mb ?? '—' }} MB</div>
-              </div>
+        <div v-else-if="institutions.length === 0 && pagination.total === 0" class="muted">Tidak ada data</div>
+        <div v-else>
+          <div class="inst-list">
+            <article v-for="(inst, index) in institutions" :key="inst.id" class="inst-card">
+              <div class="inst-head">
+                <div>
+                  <span class="inst-no">{{ rowNumber(index) }}.</span>
+                  <strong>{{ inst.name }}</strong>
+                  <div class="muted">NPSN {{ inst.npsn || '—' }} · Total storage {{ inst.storage?.total_mb ?? '—' }} MB</div>
+                </div>
               <span class="chip" :class="inst.online_exam_entitled ? 'chip-ok' : 'chip-mute'">
                 Ujian Online: {{ inst.online_exam_entitled ? 'entitled' : 'tidak' }}
               </span>
@@ -211,12 +218,26 @@
               </div>
             </div>
           </article>
+          </div>
+          <PaginationBar
+            v-if="pagination.total > 0"
+            embedded
+            :page="pagination.current_page"
+            :last-page="pagination.last_page"
+            :per-page="pagination.per_page"
+            :total="pagination.total"
+            item-label="institusi"
+            @page-change="goToPage"
+            @per-page-change="changePerPage"
+          />
         </div>
       </section>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { useToast } from '@/composables/useToast'
 
@@ -248,6 +269,24 @@ const institutions = ref([])
 const instForms = reactive({})
 const institutionSearch = ref('')
 const loadingInstitutions = ref(false)
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
+
+function rowNumber(index) {
+  const page = Number(pagination.value.current_page) || 1
+  const perPage = Number(pagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
+}
+
+function goToPage(page) {
+  pagination.value.current_page = page
+  loadInstitutions()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadInstitutions()
+}
 
 onMounted(async () => {
   await Promise.all([loadSummary(), loadPlans(), loadAddons(), loadInstitutions()])
@@ -350,10 +389,18 @@ async function loadInstitutions() {
   try {
     const res = await superAdminPlatformApi.getMonetizationInstitutions({
       search: institutionSearch.value || undefined,
-      per_page: 20
+      page: pagination.value.current_page,
+      per_page: pagination.value.per_page,
     })
     institutions.value = res.data?.data || []
     institutions.value.forEach(syncInstForm)
+    const meta = res.data?.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? pagination.value.current_page,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
+      total: meta.total ?? institutions.value.length,
+    }
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || 'Gagal memuat institusi')
   } finally {
@@ -577,6 +624,23 @@ td {
 th {
   color: #64748b;
   font-weight: 600;
+}
+
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.inst-no {
+  display: inline-block;
+  margin-right: 6px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 code {

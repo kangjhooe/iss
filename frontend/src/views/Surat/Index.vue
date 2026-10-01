@@ -1077,4 +1077,6 @@ onUnmounted(() => {
 }
 </style>
 
-<style src="@/styles/surat-page.css"></style>
+<style>
+@import '@/styles/surat-page.css';
+</style>

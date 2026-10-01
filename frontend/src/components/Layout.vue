@@ -805,6 +805,7 @@ const menuEntries = computed(() => {
         { to: '/institution', label: 'Kelola Institusi', visible: true },
         { to: '/super-admin/institution-admins', label: 'Admin Institusi', visible: true, badgeCount: pendingPasswordResetCount.value || null },
         { to: '/academic-year', label: 'Tahun Ajaran', visible: true },
+        { to: '/subject-catalog', label: 'Katalog Mapel', visible: true },
         { to: '/institution-change-requests', label: 'Request Perubahan', visible: true },
         { to: '/super-admin/app-branding', label: 'Branding Aplikasi', visible: true },
         { to: '/super-admin/system-settings', label: 'Pengaturan Sistem', visible: true },

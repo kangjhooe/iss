@@ -1,4 +1,5 @@
-<template>    <div class="academic-year-page">
+<template>
+    <div class="academic-year-page">
       <div class="tab-header">
         <div class="filters filters-inline">
           <input 
@@ -25,6 +26,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th class="col-no">No</th>
               <th>Kode</th>
               <th>Nama</th>
               <th>Tanggal Mulai</th>
@@ -33,7 +35,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="year in academicYears" :key="year.id">
+            <tr v-for="(year, index) in academicYears" :key="year.id">
+              <td class="col-no">{{ rowNumber(index) }}</td>
               <td><strong>{{ displayValue(year.code) }}</strong></td>
               <td>{{ displayValue(year.name) }}</td>
               <td>{{ displayValue(formatDate(year.start_date)) }}</td>
@@ -62,6 +65,7 @@
         </div>
 
         <PaginationBar
+          v-if="pagination.total > 0"
           embedded
           :page="pagination.current_page"
           :last-page="pagination.last_page"
@@ -165,7 +169,8 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    /></template>
+    />
+</template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
@@ -205,6 +210,12 @@ const form = ref({
 function displayValue(v) {
   if (v === null || v === undefined || v === '') return 'Belum ada data'
   return String(v).trim() || 'Belum ada data'
+}
+
+function rowNumber(index) {
+  const page = Number(pagination.value.current_page) || 1
+  const perPage = Number(pagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
 }
 
 const loadAcademicYears = async (page = 1) => {
@@ -485,6 +496,14 @@ onMounted(() => {
   border-top: 1px solid #e2e8f0;
   font-size: 14px;
   color: #2d3748;
+}
+
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
 }
 
 .action-buttons {

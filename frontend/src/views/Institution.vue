@@ -23,11 +23,11 @@
         <div class="filters filters-inline">
           <input 
             v-model="filters.search" 
-            @input="loadInstitutions" 
+            @input="debouncedLoadInstitutions" 
             placeholder="Cari nama atau NPSN..."
             class="search-input"
           />
-          <select v-model="filters.level" @change="loadInstitutions" class="filter-select">
+          <select v-model="filters.level" @change="loadInstitutions(1)" class="filter-select">
             <option value="">Semua Jenjang</option>
             <option value="TK">TK</option>
             <option value="SD">SD</option>
@@ -40,12 +40,12 @@
             <option value="MI">MI</option>
             <option value="PAUD">PAUD</option>
           </select>
-          <select v-model="filters.type" @change="loadInstitutions" class="filter-select">
+          <select v-model="filters.type" @change="loadInstitutions(1)" class="filter-select">
             <option value="">Semua Status</option>
             <option value="Negeri">Negeri</option>
             <option value="Swasta">Swasta</option>
           </select>
-          <select v-model="filters.is_active" @change="loadInstitutions" class="filter-select">
+          <select v-model="filters.is_active" @change="loadInstitutions(1)" class="filter-select">
             <option value="">Semua Status Aktif</option>
             <option value="1">Aktif</option>
             <option value="0">Nonaktif (dibekukan)</option>
@@ -53,13 +53,14 @@
         </div>
 
         <div v-if="loading" class="loading-wrap">
-          <LoadingSkeleton type="table" :rows="6" :columns="7" :cell-widths="['100px', '1fr', '80px', '80px', '1fr', '120px', '120px']" />
+          <LoadingSkeleton type="table" :rows="6" :columns="8" :cell-widths="['52px', '100px', '1fr', '80px', '80px', '1fr', '120px', '120px']" />
         </div>
         
         <div v-else class="table-container">
           <table class="data-table">
             <thead>
               <tr>
+                <th class="col-no">No</th>
                 <th>NPSN</th>
                 <th>Nama Sekolah/Madrasah</th>
                 <th>Jenjang</th>
@@ -71,7 +72,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="inst in institutions" :key="inst.id" :class="{ 'row-inactive': inst.is_active === false }">
+              <tr v-for="(inst, index) in institutions" :key="inst.id" :class="{ 'row-inactive': inst.is_active === false }">
+                <td class="col-no">{{ rowNumber(index) }}</td>
                 <td>{{ displayValue(inst.npsn) }}</td>
                 <td>{{ inst.name }}</td>
                 <td>{{ displayValue(inst.level) }}</td>
@@ -138,6 +140,17 @@
               <span>Tambah Instansi</span>
             </button>
           </div>
+
+          <PaginationBar
+            embedded
+            :page="pagination.current_page"
+            :last-page="pagination.last_page"
+            :per-page="pagination.per_page"
+            :total="pagination.total"
+            item-label="institusi"
+            @page-change="loadInstitutions"
+            @per-page-change="changeInstitutionsPerPage"
+          />
         </div>
       </template>
 
@@ -910,6 +923,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { institutionApi } from '@/api/institution'
 import { institutionChangeRequestApi } from '@/api/institutionChangeRequest'
 import { useReferenceDataStore } from '@/stores/referenceData'
@@ -976,6 +990,8 @@ const displayValue = (val) => (val && String(val).trim() !== '') ? val : 'Belum 
 
 // Super Admin state
 const institutions = ref([])
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
+let institutionSearchTimer = null
 const filters = ref({
   search: '',
   level: '',
@@ -987,6 +1003,25 @@ const showEditModalSuperAdmin = ref(false)
 const selectedInstitution = ref(null)
 const loadingEditDetail = ref(false)
 const statusTogglingId = ref(null)
+
+function rowNumber(index) {
+  const page = Number(pagination.value.current_page) || 1
+  const perPage = Number(pagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
+}
+
+function changeInstitutionsPerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadInstitutions(1)
+}
+
+function debouncedLoadInstitutions() {
+  clearTimeout(institutionSearchTimer)
+  institutionSearchTimer = setTimeout(() => {
+    loadInstitutions(1)
+  }, 350)
+}
 
 const requestForm = ref({
   newValue: ''
@@ -1476,13 +1511,14 @@ const handleUpdateAcademicYear = async () => {
 }
 
 // Super Admin functions
-const loadInstitutions = async () => {
+const loadInstitutions = async (page = 1) => {
   if (!isSuperAdmin.value) return
   
   loading.value = true
   try {
     const params = {
-      per_page: 100
+      page,
+      per_page: pagination.value?.per_page || 15,
     }
     if (filters.value.search) {
       params.search = filters.value.search
@@ -1499,10 +1535,18 @@ const loadInstitutions = async () => {
     
     const response = await institutionApi.getAll(params)
     institutions.value = response.data.data || []
+    const meta = response.data.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? page,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
+      total: meta.total ?? 0,
+    }
   } catch (err) {
     console.error('Failed to load institutions:', err)
     toast.error('Gagal', 'Gagal memuat data institusi')
     institutions.value = []
+    pagination.value.total = 0
   } finally {
     loading.value = false
   }
@@ -1563,7 +1607,7 @@ const deleteInstitution = async (id) => {
   try {
     await institutionApi.delete(id)
     toast.success('Berhasil', 'Institusi berhasil dihapus')
-    await loadInstitutions()
+    await loadInstitutions(pagination.value.current_page || 1)
   } catch (err) {
     const errorMsg = err.response?.data?.message || 'Gagal menghapus institusi'
     toast.error('Gagal', errorMsg)
@@ -1590,7 +1634,7 @@ const toggleInstitutionStatus = async (inst) => {
   try {
     await institutionApi.updateStatus(inst.id, willActivate)
     toast.success('Berhasil', willActivate ? 'Institusi berhasil diaktifkan' : 'Institusi berhasil dibekukan')
-    await loadInstitutions()
+    await loadInstitutions(pagination.value.current_page || 1)
   } catch (err) {
     const errorMsg = err.response?.data?.message || 'Gagal memperbarui status institusi'
     toast.error('Gagal', errorMsg)
@@ -1643,7 +1687,7 @@ const handleUpdateSuperAdmin = async () => {
     await institutionApi.update(selectedInstitution.value.id, dataToSend)
     toast.success('Berhasil', 'Institusi berhasil diperbarui')
     showEditModalSuperAdmin.value = false
-    await loadInstitutions()
+    await loadInstitutions(pagination.value.current_page || 1)
   } catch (err) {
     const errorMsg = err.formattedMessage || err.response?.data?.message || err.response?.data?.error || 'Gagal memperbarui institusi'
     error.value = errorMsg
@@ -1821,7 +1865,7 @@ const applyActiveFilterFromQuery = () => {
 watch(() => route.query.is_active, async () => {
   if (!isSuperAdmin.value) return
   applyActiveFilterFromQuery()
-  await loadInstitutions()
+  await loadInstitutions(1)
 })
 </script>
 
@@ -2331,6 +2375,17 @@ watch(() => route.query.is_active, async () => {
   border-bottom: 1px solid #e2e8f0;
   font-size: 14px;
   color: #1e293b;
+}
+
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table td.col-no {
+  color: #64748b;
 }
 
 .data-table td:last-child {

@@ -109,19 +109,27 @@ class AuthController extends Controller
 
     /**
      * Cookie untuk menghapus auth_token dan refresh_token (expire di masa lalu).
+     * Kirim varian Secure true & false agar cookie dari HTTP/HTTPS sama-sama terhapus.
      */
     private function clearAuthCookies(): array
     {
-        $secure = request()->secure();
         $domain = config('frontend.cookie_domain');
-
-        return [
-            Cookie::make(AddTokenFromCookie::COOKIE_AUTH, '', -1, '/', $domain, $secure, true, false, 'lax'),
-            Cookie::make(AddTokenFromCookie::COOKIE_REFRESH, '', -1, '/', $domain, $secure, true, false, 'lax'),
-            Cookie::make(AddTokenFromCookie::COOKIE_IMPERSONATOR, '', -1, '/', $domain, $secure, true, false, 'lax'),
-            Cookie::make(AddTokenFromCookie::COOKIE_IMPERSONATOR_REFRESH, '', -1, '/', $domain, $secure, true, false, 'lax'),
-            Cookie::make(InstitutionContext::COOKIE_ACTIVE_INSTITUTION, '', -1, '/', $domain, $secure, true, false, 'lax'),
+        $names = [
+            AddTokenFromCookie::COOKIE_AUTH,
+            AddTokenFromCookie::COOKIE_REFRESH,
+            AddTokenFromCookie::COOKIE_IMPERSONATOR,
+            AddTokenFromCookie::COOKIE_IMPERSONATOR_REFRESH,
+            InstitutionContext::COOKIE_ACTIVE_INSTITUTION,
         ];
+
+        $cookies = [];
+        foreach ([true, false] as $secure) {
+            foreach ($names as $name) {
+                $cookies[] = Cookie::make($name, '', -1, '/', $domain, $secure, true, false, 'lax');
+            }
+        }
+
+        return $cookies;
     }
 
     private function isMaintenanceEnabled(): bool
@@ -470,13 +478,33 @@ class AuthController extends Controller
 
     /**
      * Logout user.
+     * Publik (tanpa wajib auth): tetap hapus token bila dikenali, selalu clear cookie.
      */
     public function logout(Request $request)
     {
         try {
-            $user = $request->user();
+            $user = $request->user('sanctum');
+
+            if (! $user) {
+                $accessTokenValue = $request->bearerToken()
+                    ?? $request->cookie(AddTokenFromCookie::COOKIE_AUTH);
+                if (! empty($accessTokenValue)) {
+                    $accessToken = PersonalAccessToken::findToken($accessTokenValue);
+                    $user = $accessToken?->tokenable;
+                }
+            }
+
+            if (! $user) {
+                $refreshTokenValue = $request->cookie(AddTokenFromCookie::COOKIE_REFRESH);
+                if (! empty($refreshTokenValue)) {
+                    $refreshToken = PersonalAccessToken::findToken($refreshTokenValue);
+                    $user = $refreshToken?->tokenable;
+                }
+            }
+
             if ($user) {
-                $user->currentAccessToken()->delete();
+                // Hapus semua token (access + refresh) agar sesi tidak bisa dihidupkan lagi
+                $user->tokens()->delete();
                 Log::info('User logged out', ['user_id' => $user->id]);
             }
 
@@ -493,9 +521,15 @@ class AuthController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json([
+            // Tetap coba bersihkan cookie di klien meski server error
+            $response = response()->json([
                 'message' => 'Terjadi kesalahan saat logout',
             ], 500);
+            foreach ($this->clearAuthCookies() as $cookie) {
+                $response->cookie($cookie);
+            }
+
+            return $response;
         }
     }
 

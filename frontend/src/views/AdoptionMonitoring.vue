@@ -1,4 +1,5 @@
-<template>    <div class="adoption-page">
+<template>
+    <div class="adoption-page">
       <div class="page-header">
         <div>
           <h2>Monitoring Adopsi</h2>
@@ -256,6 +257,7 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th class="col-no">No</th>
                   <th>Institusi</th>
                   <th>Siswa</th>
                   <th>Guru</th>
@@ -268,10 +270,11 @@
               </thead>
               <tbody>
                 <tr
-                  v-for="inst in filteredInstitutions"
+                  v-for="(inst, index) in pagedInstitutions"
                   :key="inst.id"
                   :class="{ 'row-warn': inst.churn_risk === 'high' || inst.churn_risk === 'medium' }"
                 >
+                  <td class="col-no">{{ rowNumber(index) }}</td>
                   <td>
                     <strong>{{ inst.name }}</strong>
                     <div class="sub">{{ inst.npsn || '—' }} · {{ inst.level || '—' }}</div>
@@ -294,16 +297,29 @@
               </tbody>
             </table>
             <p v-if="filteredInstitutions.length === 0" class="empty-hint">Tidak ada institusi.</p>
+            <PaginationBar
+              v-if="filteredInstitutions.length > 0"
+              embedded
+              :page="tablePagination.current_page"
+              :last-page="tablePagination.last_page"
+              :per-page="tablePagination.per_page"
+              :total="filteredInstitutions.length"
+              item-label="institusi"
+              @page-change="goToTablePage"
+              @per-page-change="changeTablePerPage"
+            />
           </div>
         </section>
           </div>
         </div>
       </template>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { useToast } from '@/composables/useToast'
 
@@ -315,6 +331,7 @@ const search = ref('')
 const riskFilter = ref('')
 const activeTab = ref('adoption')
 const moduleSort = ref('adoption')
+const tablePagination = ref({ current_page: 1, last_page: 1, per_page: 15 })
 
 const tabs = [
   { id: 'adoption', label: 'Adopsi Modul' },
@@ -368,6 +385,41 @@ const filteredInstitutions = computed(() => {
     return (i.name || '').toLowerCase().includes(q) || (i.npsn || '').toLowerCase().includes(q)
   })
 })
+
+const pagedInstitutions = computed(() => {
+  const page = Number(tablePagination.value.current_page) || 1
+  const perPage = Number(tablePagination.value.per_page) || 15
+  const start = (page - 1) * perPage
+  return filteredInstitutions.value.slice(start, start + perPage)
+})
+
+watch([search, riskFilter], () => {
+  tablePagination.value.current_page = 1
+})
+
+watch(filteredInstitutions, (list) => {
+  const perPage = Number(tablePagination.value.per_page) || 15
+  const lastPage = Math.max(1, Math.ceil(list.length / perPage))
+  tablePagination.value.last_page = lastPage
+  if (tablePagination.value.current_page > lastPage) {
+    tablePagination.value.current_page = lastPage
+  }
+}, { immediate: true })
+
+function rowNumber(index) {
+  const page = Number(tablePagination.value.current_page) || 1
+  const perPage = Number(tablePagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
+}
+
+function goToTablePage(page) {
+  tablePagination.value.current_page = page
+}
+
+function changeTablePerPage(n) {
+  tablePagination.value.per_page = n
+  tablePagination.value.current_page = 1
+}
 
 const maxTrendEvents = computed(() => {
   const values = (usage.value.trend || []).map((p) => p.events || 0)
@@ -594,6 +646,13 @@ onMounted(loadData)
   font-size: 12px;
   color: #64748b;
   text-transform: uppercase;
+}
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
 }
 .sub { font-size: 12px; color: #94a3b8; }
 .row-warn td { background: #fffbeb; }

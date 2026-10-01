@@ -1,0 +1,1 @@
+import{m as e}from"./index-CLk5ZCzw.js";const p={getAll(r){return e.get("/v1/program-keahlian",{params:r})},get(r){return e.get(`/v1/program-keahlian/${r}`)},create(r){return e.post("/v1/program-keahlian",r)},update(r,a){return e.put(`/v1/program-keahlian/${r}`,a)},delete(r){return e.delete(`/v1/program-keahlian/${r}`)}};export{p};

@@ -1,0 +1,1 @@
+import{m as e}from"./index-CLk5ZCzw.js";const o={list(t={}){return e.get("/v1/kop-surat",{params:t})},get(t){return e.get(`/v1/kop-surat/${t}`)},create(t){return e.post("/v1/kop-surat",t)},update(t,r){return r.append("_method","PUT"),e.post(`/v1/kop-surat/${t}`,r)},remove(t){return e.delete(`/v1/kop-surat/${t}`)}};export{o as k};

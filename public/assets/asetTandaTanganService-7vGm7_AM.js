@@ -1,0 +1,1 @@
+import{m as t}from"./index-CLk5ZCzw.js";const r={list(a={}){return t.get("/v1/aset-tanda-tangan",{params:a})},get(a){return t.get(`/v1/aset-tanda-tangan/${a}`)},create(a){return t.post("/v1/aset-tanda-tangan",a)},update(a,e){return e.append("_method","PUT"),t.post(`/v1/aset-tanda-tangan/${a}`,e)},remove(a){return t.delete(`/v1/aset-tanda-tangan/${a}`)}};export{r as a};

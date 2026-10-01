@@ -1,1 +1,0 @@
-import{m as t}from"./index-DJ0_76y_.js";const s={getAll(r){return t.get("/v1/industry-partners",{params:r})},get(r){return t.get(`/v1/industry-partners/${r}`)},create(r){return t.post("/v1/industry-partners",r)},update(r,e){return t.put(`/v1/industry-partners/${r}`,e)},delete(r){return t.delete(`/v1/industry-partners/${r}`)}};export{s as i};

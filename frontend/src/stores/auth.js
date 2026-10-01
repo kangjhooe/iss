@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { authApi } from '@/api/auth'
-import { resetAuthRefreshState } from '@/api'
+import { resetAuthRefreshState, suppressAuthRedirect } from '@/api'
 import router from '@/router'
 import { clearAuth } from '@/utils/tokenStorage'
 
@@ -162,6 +162,8 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logout() {
+      // Blokir interceptor 401 agar request paralel tidak menimpa navigasi ke beranda dengan /login
+      suppressAuthRedirect()
       try {
         await authApi.logout()
       } catch {
@@ -172,9 +174,8 @@ export const useAuthStore = defineStore('auth', {
         this.authChecked = true
         syncActiveInstitutionGlobal(null)
         clearAuth()
-        // Full reload ke home agar cookie/state bersih; user bisa masuk lagi dari beranda
-        window.location.href = '/'
-
+        // replace: cegah tombol Back kembali ke halaman terproteksi → redirect ke login
+        window.location.replace('/')
       }
     },
 

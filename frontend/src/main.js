@@ -23,5 +23,7 @@ authStore.ensureAuthChecked().finally(() => {
   app.use(router)
   router.isReady().then(() => {
     app.mount('#app')
+    // Tampilkan lagi #app setelah Vue siap (lihat hidePrerenderBoot.js)
+    document.documentElement.classList.remove('hide-prerender')
   })
 })

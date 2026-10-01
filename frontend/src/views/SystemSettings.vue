@@ -1,4 +1,5 @@
-<template>    <div class="system-settings-page">
+<template>
+    <div class="system-settings-page">
       <div class="page-header">
         <div>
           <h2>Pengaturan Sistem</h2>
@@ -87,6 +88,7 @@
           <table class="backup-table">
             <thead>
               <tr>
+                <th class="col-no">No</th>
                 <th>File</th>
                 <th>Ukuran</th>
                 <th>Dibuat</th>
@@ -94,7 +96,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in backups" :key="item.filename">
+              <tr v-for="(item, index) in backups" :key="item.filename">
+                <td class="col-no">{{ index + 1 }}</td>
                 <td class="filename">{{ item.filename }}</td>
                 <td>{{ formatSize(item.size) }}</td>
                 <td>{{ formatDate(item.created_at) }}</td>
@@ -121,7 +124,8 @@
           </table>
         </div>
       </section>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
@@ -456,6 +460,14 @@ function formatDate(iso) {
 .backup-table th {
   color: #64748b;
   font-weight: 600;
+}
+
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
 }
 
 .backup-table .filename {

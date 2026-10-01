@@ -10,6 +10,7 @@ import { mkdir, writeFile, access } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import process from 'node:process'
+import { ensureHidePrerenderBoot } from './hidePrerenderBoot.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -109,10 +110,14 @@ async function prerenderRoute(page, route) {
     return '<!DOCTYPE html>\n' + document.documentElement.outerHTML
   })
 
+  // index.html dipakai SPA fallback semua rute — pastikan anti-FOUC boot tetap ada
+  // agar hard-refresh /super-admin/* tidak sekilas menampilkan Home prerender.
+  const finalHtml = route.out === 'index.html' ? ensureHidePrerenderBoot(html) : html
+
   const outPath = path.join(distDir, route.out)
   await mkdir(path.dirname(outPath), { recursive: true })
-  await writeFile(outPath, html, 'utf8')
-  log(`wrote ${path.relative(root, outPath)} (${Math.round(html.length / 1024)} KB)`)
+  await writeFile(outPath, finalHtml, 'utf8')
+  log(`wrote ${path.relative(root, outPath)} (${Math.round(finalHtml.length / 1024)} KB)`)
 }
 
 async function main() {

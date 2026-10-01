@@ -1,4 +1,5 @@
-<template>    <div class="report-page">
+<template>
+    <div class="report-page">
       <div class="page-header">
         <div class="page-header-text">
           <h2>Laporan Agregat</h2>
@@ -55,10 +56,11 @@
             <div class="table-scroll">
               <table class="data-table data-table-compact">
                 <thead>
-                  <tr><th>Jenjang</th><th>Institusi</th><th>Siswa</th><th>Guru</th></tr>
+                  <tr><th class="col-no">No</th><th>Jenjang</th><th>Institusi</th><th>Siswa</th><th>Guru</th></tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in byLevel" :key="row.level">
+                  <tr v-for="(row, index) in byLevel" :key="row.level">
+                    <td class="col-no">{{ index + 1 }}</td>
                     <td>{{ row.level }}</td>
                     <td>{{ formatNumber(row.institutions) }}</td>
                     <td>{{ formatNumber(row.students) }}</td>
@@ -75,10 +77,11 @@
             <div class="table-scroll">
               <table class="data-table data-table-compact">
                 <thead>
-                  <tr><th>Jenis</th><th>Institusi</th><th>Siswa</th><th>Guru</th></tr>
+                  <tr><th class="col-no">No</th><th>Jenis</th><th>Institusi</th><th>Siswa</th><th>Guru</th></tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in byType" :key="row.type">
+                  <tr v-for="(row, index) in byType" :key="row.type">
+                    <td class="col-no">{{ index + 1 }}</td>
                     <td>{{ row.type }}</td>
                     <td>{{ formatNumber(row.institutions) }}</td>
                     <td>{{ formatNumber(row.students) }}</td>
@@ -96,10 +99,11 @@
           <div class="table-scroll">
             <table class="data-table data-table-compact">
               <thead>
-                <tr><th>Provinsi</th><th>Institusi</th><th>Siswa</th><th>Guru</th></tr>
+                <tr><th class="col-no">No</th><th>Provinsi</th><th>Institusi</th><th>Siswa</th><th>Guru</th></tr>
               </thead>
               <tbody>
-                <tr v-for="row in byProvince" :key="row.province">
+                <tr v-for="(row, index) in byProvince" :key="row.province">
+                  <td class="col-no">{{ index + 1 }}</td>
                   <td>{{ row.province }}</td>
                   <td>{{ formatNumber(row.institutions) }}</td>
                   <td>{{ formatNumber(row.students) }}</td>
@@ -122,6 +126,7 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th class="col-no">No</th>
                   <th>Nama</th>
                   <th>NPSN</th>
                   <th>Jenjang</th>
@@ -135,7 +140,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="inst in filteredInstitutions" :key="'t-' + inst.id">
+                <tr v-for="(inst, index) in pagedInstitutions" :key="'t-' + inst.id">
+                  <td class="col-no">{{ rowNumber(index) }}</td>
                   <td>{{ inst.name }}</td>
                   <td>{{ inst.npsn || '—' }}</td>
                   <td>{{ inst.level || '—' }}</td>
@@ -173,9 +179,10 @@
 
           <!-- Mobile cards -->
           <div class="inst-cards">
-            <article v-for="inst in filteredInstitutions" :key="'c-' + inst.id" class="inst-card">
+            <article v-for="(inst, index) in pagedInstitutions" :key="'c-' + inst.id" class="inst-card">
               <div class="inst-card-top">
                 <div class="inst-card-main">
+                  <span class="inst-no">{{ rowNumber(index) }}.</span>
                   <strong>{{ inst.name }}</strong>
                   <span class="inst-meta">{{ inst.npsn || '—' }} · {{ inst.level || '—' }} · {{ inst.type || '—' }}</span>
                 </div>
@@ -225,13 +232,26 @@
           </div>
 
           <p v-if="filteredInstitutions.length === 0" class="empty-hint">Tidak ada institusi</p>
+          <PaginationBar
+            v-if="filteredInstitutions.length > 0"
+            embedded
+            :page="tablePagination.current_page"
+            :last-page="tablePagination.last_page"
+            :per-page="tablePagination.per_page"
+            :total="filteredInstitutions.length"
+            item-label="institusi"
+            @page-change="goToTablePage"
+            @per-page-change="changeTablePerPage"
+          />
         </section>
       </template>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { superAdminPlatformApi } from '@/api/superAdminPlatform'
 import { useToast } from '@/composables/useToast'
 
@@ -246,6 +266,7 @@ const byLevel = ref([])
 const byType = ref([])
 const byProvince = ref([])
 const institutions = ref([])
+const tablePagination = ref({ current_page: 1, last_page: 1, per_page: 15 })
 
 const filteredInstitutions = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -257,6 +278,41 @@ const filteredInstitutions = computed(() => {
     (i.email || '').toLowerCase().includes(q)
   )
 })
+
+const pagedInstitutions = computed(() => {
+  const page = Number(tablePagination.value.current_page) || 1
+  const perPage = Number(tablePagination.value.per_page) || 15
+  const start = (page - 1) * perPage
+  return filteredInstitutions.value.slice(start, start + perPage)
+})
+
+watch(search, () => {
+  tablePagination.value.current_page = 1
+})
+
+watch(filteredInstitutions, (list) => {
+  const perPage = Number(tablePagination.value.per_page) || 15
+  const lastPage = Math.max(1, Math.ceil(list.length / perPage))
+  tablePagination.value.last_page = lastPage
+  if (tablePagination.value.current_page > lastPage) {
+    tablePagination.value.current_page = lastPage
+  }
+}, { immediate: true })
+
+function rowNumber(index) {
+  const page = Number(tablePagination.value.current_page) || 1
+  const perPage = Number(tablePagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
+}
+
+function goToTablePage(page) {
+  tablePagination.value.current_page = page
+}
+
+function changeTablePerPage(n) {
+  tablePagination.value.per_page = n
+  tablePagination.value.current_page = 1
+}
 
 const formatNumber = (n) => new Intl.NumberFormat('id-ID').format(n || 0)
 
@@ -286,6 +342,7 @@ const loadReport = async () => {
     byType.value = data.by_type || []
     byProvince.value = data.by_province || []
     institutions.value = data.institutions || []
+    tablePagination.value.current_page = 1
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || 'Gagal memuat laporan')
   } finally {
@@ -495,12 +552,20 @@ onMounted(loadReport)
   color: #64748b;
 }
 
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
 .data-table-compact {
   min-width: 0;
 }
 
-.data-table-compact th:not(:first-child),
-.data-table-compact td:not(:first-child) {
+.data-table-compact th:nth-child(n+3),
+.data-table-compact td:nth-child(n+3) {
   text-align: right;
   white-space: nowrap;
 }
@@ -673,6 +738,12 @@ onMounted(loadReport)
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+
+  .inst-no {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
   }
 
   .inst-card-main strong {

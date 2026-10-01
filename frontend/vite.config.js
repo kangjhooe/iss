@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 import { buildHomepageJsonLd, buildSeoShell } from './scripts/seoShell.js'
+import { HIDE_PRERENDER_BOOT } from './scripts/hidePrerenderBoot.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -30,7 +31,9 @@ export default defineConfig(({ mode }) => {
           .replaceAll('@@HTML_APP_NAME@@', appName)
           .replaceAll('@@HTML_OG_URL@@', `${appUrl}/`)
           .replaceAll('@@HTML_OG_IMAGE@@', ogImage)
-          .replace('</head>', `    ${shellStyles}\n    ${jsonLdTag}\n  </head>`)
+          // HIDE_PRERENDER_BOOT: index.html prerender = Home, tapi juga SPA fallback
+          // untuk /super-admin/* dll. Sembunyikan sampai Vue mount di luar /.
+          .replace('</head>', `    ${shellStyles}\n    ${jsonLdTag}\n    ${HIDE_PRERENDER_BOOT}\n  </head>`)
           .replace(
             '<div id="app"></div>',
             `<div id="app"><noscript>${seoShell}</noscript></div>`

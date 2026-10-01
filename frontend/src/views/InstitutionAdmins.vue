@@ -1,4 +1,5 @@
-<template>    <div class="admins-page">
+<template>
+    <div class="admins-page">
       <div class="page-header">
         <div>
           <h2>Admin Institusi</h2>
@@ -56,13 +57,13 @@
           placeholder="Cari nama atau email..."
           @input="debouncedLoad"
         />
-        <select v-model="filters.institution_id" class="filter-select" @change="loadAdmins">
+        <select v-model="filters.institution_id" class="filter-select" @change="onFilterChange">
           <option value="">Semua Institusi</option>
           <option v-for="inst in institutions" :key="inst.id" :value="String(inst.id)">
             {{ inst.name }}
           </option>
         </select>
-        <select v-model="filters.is_active" class="filter-select" @change="loadAdmins">
+        <select v-model="filters.is_active" class="filter-select" @change="onFilterChange">
           <option value="">Semua Status</option>
           <option value="1">Aktif</option>
           <option value="0">Nonaktif</option>
@@ -70,10 +71,10 @@
       </div>
 
       <div v-if="loading" class="loading-wrap">
-        <LoadingSkeleton type="table" :rows="6" :columns="5" :cell-widths="['1fr', '1fr', '1fr', '100px', '160px']" />
+        <LoadingSkeleton type="table" :rows="6" :columns="6" :cell-widths="['52px', '1fr', '1fr', '1fr', '100px', '160px']" />
       </div>
 
-      <div v-else-if="admins.length === 0" class="empty-state">
+      <div v-else-if="admins.length === 0 && pagination.total === 0" class="empty-state">
         <h3>Belum ada admin institusi</h3>
         <p>Buat admin untuk sekolah yang sudah terdaftar, atau gunakan onboarding untuk sekolah baru.</p>
         <button type="button" class="btn-primary" @click="openCreateModal">Tambah Admin</button>
@@ -83,6 +84,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th class="col-no">No</th>
               <th>Nama</th>
               <th>Email</th>
               <th>Institusi</th>
@@ -91,7 +93,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="admin in admins" :key="admin.id">
+            <tr v-for="(admin, index) in admins" :key="admin.id">
+              <td class="col-no">{{ rowNumber(index) }}</td>
               <td>{{ admin.name }}</td>
               <td>{{ admin.email }}</td>
               <td>
@@ -140,6 +143,20 @@
             </tr>
           </tbody>
         </table>
+        <div v-if="admins.length === 0" class="empty-inline">
+          <p>Tidak ada admin yang cocok dengan filter.</p>
+        </div>
+        <PaginationBar
+          v-if="pagination.total > 0"
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="admin"
+          @page-change="goToPage"
+          @per-page-change="changePerPage"
+        />
       </div>
 
       <!-- Create modal -->
@@ -207,12 +224,14 @@
         :hint="accountCredentials?.hint"
         @close="accountCredentials = null"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { institutionAdminApi } from '@/api/institutionAdmin'
@@ -237,6 +256,7 @@ const busyRequestId = ref(null)
 const showCreateModal = ref(false)
 const formError = ref('')
 const accountCredentials = ref(null)
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 15, total: 0 })
 let searchTimer = null
 
 const filters = ref({
@@ -244,6 +264,28 @@ const filters = ref({
   institution_id: '',
   is_active: ''
 })
+
+function rowNumber(index) {
+  const page = Number(pagination.value.current_page) || 1
+  const perPage = Number(pagination.value.per_page) || 15
+  return (page - 1) * perPage + index + 1
+}
+
+function goToPage(page) {
+  pagination.value.current_page = page
+  loadAdmins()
+}
+
+function changePerPage(n) {
+  pagination.value.per_page = n
+  pagination.value.current_page = 1
+  loadAdmins()
+}
+
+function onFilterChange() {
+  pagination.value.current_page = 1
+  loadAdmins()
+}
 
 const form = ref({
   institution_id: '',
@@ -336,15 +378,26 @@ const loadInstitutions = async () => {
 const loadAdmins = async () => {
   loading.value = true
   try {
-    const params = { per_page: 50 }
+    const params = {
+      page: pagination.value.current_page,
+      per_page: pagination.value.per_page,
+    }
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.institution_id) params.institution_id = filters.value.institution_id
     if (filters.value.is_active !== '') params.is_active = filters.value.is_active === '1'
     const res = await institutionAdminApi.getAll(params)
     admins.value = res.data?.data || []
+    const meta = res.data?.meta || {}
+    pagination.value = {
+      current_page: meta.current_page ?? pagination.value.current_page,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? pagination.value.per_page,
+      total: meta.total ?? admins.value.length,
+    }
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || 'Gagal memuat admin institusi')
     admins.value = []
+    pagination.value.total = 0
   } finally {
     loading.value = false
   }
@@ -352,7 +405,10 @@ const loadAdmins = async () => {
 
 const debouncedLoad = () => {
   clearTimeout(searchTimer)
-  searchTimer = setTimeout(loadAdmins, 350)
+  searchTimer = setTimeout(() => {
+    pagination.value.current_page = 1
+    loadAdmins()
+  }, 350)
 }
 
 const openCreateModal = () => {
@@ -664,6 +720,21 @@ onMounted(async () => {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+}
+
+.col-no {
+  width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-inline {
+  padding: 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
 }
 
 .inst-cell {

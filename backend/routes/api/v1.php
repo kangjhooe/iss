@@ -124,6 +124,7 @@ use App\Http\Controllers\API\StudentFinanceController;
 use App\Http\Controllers\API\StudentMutationController;
 use App\Http\Controllers\API\StudentNisController;
 use App\Http\Controllers\API\StudentPointController;
+use App\Http\Controllers\API\SubjectCatalogController;
 use App\Http\Controllers\API\SubjectController;
 use App\Http\Controllers\API\SuperAdminAdoptionController;
 use App\Http\Controllers\API\SuperAdminBroadcastController;
@@ -218,6 +219,8 @@ Route::middleware('throttle:auth-public')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
     Route::post('/resend-verification', [AuthController::class, 'resendVerificationEmail']);
+    // Publik: selalu bersihkan cookie meski access token sudah invalid
+    Route::post('/logout', [AuthController::class, 'logout']);
 });
 
 // Public PPDB (tanpa auth): list periode & jalur, submit pendaftaran
@@ -278,7 +281,6 @@ Route::middleware('throttle:120,1')->get('/app-branding', [AppBrandingController
 // Protected routes with rate limiting
 Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'storage.quota'])->group(function () {
     // Auth routes
-    Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/me', [AuthController::class, 'updateProfile']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
@@ -856,6 +858,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::get('/academic-years', [AcademicYearController::class, 'index'])->name('academic-years.index');
     Route::get('/academic-years/{id}', [AcademicYearController::class, 'show'])->name('academic-years.show');
 
+    // Subject catalog (global master mapel) — list/show for authenticated; mutations Super Admin
+    Route::get('/subject-catalog/meta', [SubjectCatalogController::class, 'meta'])->name('subject-catalog.meta');
+    Route::get('/subject-catalog', [SubjectCatalogController::class, 'index'])->name('subject-catalog.index');
+    Route::get('/subject-catalog/{id}', [SubjectCatalogController::class, 'show'])->name('subject-catalog.show');
+
     // Super Admin only routes for managing academic years
     Route::middleware(\App\Http\Middleware\EnsureSuperAdmin::class)->group(function () {
         Route::get('/academic-years/active', [AcademicYearController::class, 'active'])->name('academic-years.active');
@@ -864,6 +871,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/academic-years', [AcademicYearController::class, 'store'])->name('academic-years.store');
         Route::put('/academic-years/{id}', [AcademicYearController::class, 'update'])->name('academic-years.update');
         Route::delete('/academic-years/{id}', [AcademicYearController::class, 'destroy'])->name('academic-years.destroy');
+        // Subject catalog CRUD
+        Route::post('/subject-catalog', [SubjectCatalogController::class, 'store'])->name('subject-catalog.store');
+        Route::put('/subject-catalog/{id}', [SubjectCatalogController::class, 'update'])->name('subject-catalog.update');
+        Route::delete('/subject-catalog/{id}', [SubjectCatalogController::class, 'destroy'])->name('subject-catalog.destroy');
         // App branding (logo, favicon, hero halaman awal)
         Route::post('/app-branding/logo', [AppBrandingController::class, 'uploadLogo'])->name('app-branding.upload-logo');
         Route::post('/app-branding/favicon', [AppBrandingController::class, 'uploadFavicon'])->name('app-branding.upload-favicon');
