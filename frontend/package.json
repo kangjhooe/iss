@@ -4,9 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender.mjs",
-    "build:spa": "vite build",
+    "build": "vite build && node scripts/prerender.mjs && node scripts/sync-public.mjs",
+    "build:spa": "vite build && node scripts/sync-public.mjs",
     "prerender": "node scripts/prerender.mjs",
+    "sync-public": "node scripts/sync-public.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

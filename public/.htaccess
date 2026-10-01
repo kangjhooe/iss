@@ -1,0 +1,29 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Laravel API (+ Sanctum CSRF)
+    RewriteCond %{REQUEST_URI} ^/api [OR]
+    RewriteCond %{REQUEST_URI} ^/sanctum
+    RewriteRule ^ index.php [L]
+
+    # Existing files/dirs (FE assets, storage, favicon, …)
+    RewriteCond %{REQUEST_FILENAME} -d [OR]
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # SPA fallback
+    RewriteRule ^ index.html [L]
+</IfModule>

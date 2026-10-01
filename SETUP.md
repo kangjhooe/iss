@@ -96,22 +96,22 @@ DB_PASSWORD=...
 ```
 
 2. **Document root (same-origin)**  
-   Arahkan domain ke folder yang berisi **Laravel `public/` + isi build FE** (satu URL: FE di `/`, API di `/api`). Detail: `PANDUAN_DEPLOY_HOSTING.md`.
+   Domain mengarah ke folder **`public/`** di root repo (FE + `index.php` Laravel). Detail: `PANDUAN_DEPLOY_HOSTING.md`.
 
 ### Frontend (Vue)
 
-1. **Build production**
+1. **Build production** (otomatis sync ke `/public`)
 ```bash
 cd frontend
 npm run build
 ```
 
-2. **URL API di production** (same-origin):
+2. **URL API** di `.env.production`:
 ```env
 VITE_API_BASE_URL=/api
 ```
 
-3. **Upload** isi `frontend/dist/` ke document root yang sama dengan Laravel `public/` — **jangan** timpa `index.php`, `.htaccess`, atau `storage/`.
+3. Commit & push folder **`public/`**, lalu di hosting cukup `git pull`.
 
 ## Struktur Database
 
