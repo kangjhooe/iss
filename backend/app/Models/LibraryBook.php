@@ -24,6 +24,8 @@ class LibraryBook extends Model
         'language',
         'pages',
         'shelf_code',
+        'grade',
+        'acquired_at',
         'description',
         'cover_path',
         'ebook_path',
@@ -50,6 +52,7 @@ class LibraryBook extends Model
             'pages' => 'integer',
             'is_public_ebook' => 'boolean',
             'ebook_view_count' => 'integer',
+            'acquired_at' => 'date',
         ];
     }
 

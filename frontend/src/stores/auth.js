@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { authApi } from '@/api/auth'
+import { resetAuthRefreshState } from '@/api'
 import router from '@/router'
 import { clearAuth } from '@/utils/tokenStorage'
 
@@ -75,16 +76,23 @@ export const useAuthStore = defineStore('auth', {
      */
     async ensureAuthChecked() {
       if (this.authChecked) return this.isAuthenticated
-      try {
-        await this.fetchUser()
-      } catch {
-        this.isAuthenticated = false
-        this.user = null
-        syncActiveInstitutionGlobal(null)
-      } finally {
-        this.authChecked = true
-      }
-      return this.isAuthenticated
+      if (this._authCheckPromise) return this._authCheckPromise
+
+      this._authCheckPromise = (async () => {
+        try {
+          await this.fetchUser()
+        } catch {
+          this.isAuthenticated = false
+          this.user = null
+          syncActiveInstitutionGlobal(null)
+        } finally {
+          this.authChecked = true
+          this._authCheckPromise = null
+        }
+        return this.isAuthenticated
+      })()
+
+      return this._authCheckPromise
     },
 
     async login(credentials) {
@@ -102,6 +110,7 @@ export const useAuthStore = defineStore('auth', {
           throw new Error('Data user tidak ditemukan dalam response')
         }
         // Auth token & refresh token disimpan di httpOnly cookie oleh backend; tidak disimpan di localStorage
+        resetAuthRefreshState()
         this.user = responseData.user
         this.isAuthenticated = true
         this.authChecked = true
@@ -141,6 +150,7 @@ export const useAuthStore = defineStore('auth', {
     async register(data) {
       try {
         const response = await authApi.register(data)
+        resetAuthRefreshState()
         this.user = response.data.user
         this.isAuthenticated = true
         this.authChecked = true
@@ -162,8 +172,9 @@ export const useAuthStore = defineStore('auth', {
         this.authChecked = true
         syncActiveInstitutionGlobal(null)
         clearAuth()
-        // Full reload ke /login agar cookie/state bersih dan request login berikutnya tidak terpengaruh cache atau state lama
-        window.location.href = '/login'
+        // Full reload ke home agar cookie/state bersih; user bisa masuk lagi dari beranda
+        window.location.href = '/'
+
       }
     },
 

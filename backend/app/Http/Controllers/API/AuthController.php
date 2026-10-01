@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -1022,38 +1023,30 @@ class AuthController extends Controller
                 ?? $request->cookie(AddTokenFromCookie::COOKIE_REFRESH);
 
             if (empty($refreshTokenValue)) {
-                return response()->json([
-                    'message' => 'Refresh token tidak ditemukan. Silakan login ulang.',
-                ], 401);
+                return $this->refreshFailureResponse('Refresh token tidak ditemukan. Silakan login ulang.');
             }
 
-            $token = DB::table('personal_access_tokens')
-                ->where('token', hash('sha256', $refreshTokenValue))
-                ->where('name', 'refresh_token')
-                ->first();
+            // Sanctum menyimpan hash dari bagian setelah "id|"; wajib pakai findToken.
+            $token = PersonalAccessToken::findToken($refreshTokenValue);
 
-            if (! $token) {
-                return response()->json([
-                    'message' => 'Refresh token tidak valid.',
-                ], 401);
+            if (! $token || $token->name !== 'refresh_token' || ! $token->can('refresh')) {
+                return $this->refreshFailureResponse('Refresh token tidak valid.');
             }
 
             // Check if token is expired (refresh tokens expire after 30 days)
             $tokenCreatedAt = \Carbon\Carbon::parse($token->created_at);
             if ($tokenCreatedAt->addDays(30)->isPast()) {
-                DB::table('personal_access_tokens')->where('id', $token->id)->delete();
+                $token->delete();
 
-                return response()->json([
-                    'message' => 'Refresh token sudah kedaluwarsa. Silakan login ulang.',
-                ], 401);
+                return $this->refreshFailureResponse('Refresh token sudah kedaluwarsa. Silakan login ulang.');
             }
 
             // Get user
             $user = User::find($token->tokenable_id);
             if (! $user) {
-                return response()->json([
-                    'message' => 'User tidak ditemukan.',
-                ], 404);
+                $token->delete();
+
+                return $this->refreshFailureResponse('User tidak ditemukan.', 404);
             }
 
             // Create new access token
@@ -1078,6 +1071,23 @@ class AuthController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
+    }
+
+    /**
+     * Respons gagal refresh: bersihkan cookie auth agar request berikutnya
+     * tidak terus memicu /me → /refresh-token dengan cookie basi.
+     */
+    private function refreshFailureResponse(string $message, int $status = 401)
+    {
+        $response = response()->json([
+            'message' => $message,
+        ], $status);
+
+        foreach ($this->clearAuthCookies() as $cookie) {
+            $response->cookie($cookie);
+        }
+
+        return $response;
     }
 
     /**

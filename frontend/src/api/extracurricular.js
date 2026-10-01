@@ -93,4 +93,42 @@ export const extracurricularApi = {
       responseType: 'blob',
     })
   },
+
+  // Memorization (hapalan)
+  getQuranSurahs() {
+    return api.get('/v1/quran/surahs')
+  },
+  getQuranSurah(number) {
+    return api.get(`/v1/quran/surahs/${number}`)
+  },
+  getMemorizationTargets(id) {
+    return api.get(`/v1/extracurriculars/${id}/memorization/targets`)
+  },
+  createMemorizationTarget(id, data) {
+    return api.post(`/v1/extracurriculars/${id}/memorization/targets`, data)
+  },
+  updateMemorizationTarget(id, targetId, data) {
+    return api.put(`/v1/extracurriculars/${id}/memorization/targets/${targetId}`, data)
+  },
+  deleteMemorizationTarget(id, targetId) {
+    return api.delete(`/v1/extracurriculars/${id}/memorization/targets/${targetId}`)
+  },
+  getMemorizationProgress(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/memorization/progress`, { params })
+  },
+  getStudentMemorizationProgress(id, studentId, params) {
+    return api.get(`/v1/extracurriculars/${id}/memorization/students/${studentId}/progress`, { params })
+  },
+  getSurahChecklist(id, studentId, surahNumber) {
+    return api.get(`/v1/extracurriculars/${id}/memorization/students/${studentId}/surahs/${surahNumber}`)
+  },
+  syncSurahChecklist(id, studentId, surahNumber, data) {
+    return api.put(`/v1/extracurriculars/${id}/memorization/students/${studentId}/surahs/${surahNumber}`, data)
+  },
+  getMemorizationDeposits(id, params) {
+    return api.get(`/v1/extracurriculars/${id}/memorization/deposits`, { params })
+  },
+  createMemorizationDeposit(id, data) {
+    return api.post(`/v1/extracurriculars/${id}/memorization/deposits`, data)
+  },
 }

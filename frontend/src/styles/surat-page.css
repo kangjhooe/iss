@@ -1,13 +1,16 @@
 /**
  * Dimensi halaman surat — selaras dengan backend/resources/views/surat/print.blade.php
+ * Default = compact (target 1 lembar). Override: .surat-density-relaxed
  */
 :root {
   --surat-page-width: 210mm;
   --surat-page-height: 297mm;
-  --surat-margin-top: 15mm;
-  --surat-margin-right: 20mm;
-  --surat-margin-bottom: 20mm;
-  --surat-margin-left: 25mm;
+  --surat-margin-top: 12mm;
+  --surat-margin-right: 18mm;
+  --surat-margin-bottom: 15mm;
+  --surat-margin-left: 22mm;
+  --surat-font-size: 11pt;
+  --surat-line-height: 1.4;
 }
 
 @media print {
@@ -41,9 +44,18 @@
   min-height: var(--surat-page-height);
   padding: var(--surat-margin-top) var(--surat-margin-right) var(--surat-margin-bottom) var(--surat-margin-left);
   font-family: 'Times New Roman', Times, serif;
-  font-size: 12pt;
-  line-height: 1.6;
+  font-size: var(--surat-font-size);
+  line-height: var(--surat-line-height);
   color: #000;
+}
+
+.surat-page-content.surat-density-relaxed {
+  --surat-margin-top: 15mm;
+  --surat-margin-right: 20mm;
+  --surat-margin-bottom: 20mm;
+  --surat-margin-left: 25mm;
+  --surat-font-size: 12pt;
+  --surat-line-height: 1.5;
 }
 
 .surat-page-content table {
@@ -54,6 +66,46 @@
 .surat-page-content img {
   max-width: 100%;
   height: auto;
+}
+
+.surat-page-content h2 {
+  font-size: 12pt;
+  margin: 0 0 0.4em 0;
+}
+
+.surat-page-content.surat-density-compact h2 {
+  font-size: 12pt !important;
+}
+
+.surat-page-content.surat-density-relaxed h2 {
+  font-size: 14pt;
+  margin: 0 0 0.5em 0;
+}
+
+.surat-page-content p {
+  margin: 0 0 0.35em 0;
+}
+
+.surat-page-content.surat-density-relaxed p {
+  margin: 0 0 0.5em 0;
+}
+
+.surat-page-content .blok-ttd {
+  margin-top: 20px;
+}
+
+.surat-page-content.surat-density-relaxed .blok-ttd {
+  margin-top: 28px;
+}
+
+.surat-page-content .blok-ttd-space {
+  height: 56px;
+  margin: 6px 0;
+}
+
+.surat-page-content.surat-density-relaxed .blok-ttd-space {
+  height: 72px;
+  margin: 8px 0;
 }
 
 @media (max-width: 768px) {

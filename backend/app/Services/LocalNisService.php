@@ -153,17 +153,33 @@ class LocalNisService
     }
 
     /**
+     * Nomor urut berikutnya menurut counter institusi (tanpa menulis).
+     */
+    public function nextSeq(Institution $institution, ?array $settings = null): int
+    {
+        $settings = $settings ?? $this->settingsFor($institution);
+        $yearCode = $this->yearCode($institution);
+        $periodKey = $this->periodKey($settings, $yearCode);
+
+        return $this->currentSeq($institution->id, $periodKey) + 1;
+    }
+
+    /**
      * Simulasi NIS untuk siswa tanpa nomor. Tidak menulis data dan tidak menaikkan counter.
      *
      * @param  array<int>|null  $studentIds
-     * @return array{rows: array<int, array{id:int, name:?string, class:?string, tingkat:?int, proposed_nis:string}>, truncated: bool, total_missing: int}
+     * @return array{rows: array<int, array{id:int, name:?string, class:?string, tingkat:?int, proposed_nis:string}>, truncated: bool, total_missing: int, next_seq: int, start_seq: int}
      */
-    public function previewAssignments(int $institutionId, ?array $studentIds = null, int $limit = 500): array
+    public function previewAssignments(int $institutionId, ?array $studentIds = null, int $limit = 500, ?int $startSeq = null): array
     {
         $institution = Institution::with('activeAcademicYear')->find($institutionId);
         if (! $institution) {
             throw new InvalidArgumentException('Institusi tidak ditemukan.');
         }
+
+        $settings = $this->settingsFor($institution);
+        $nextSeq = $this->nextSeq($institution, $settings);
+        $resolvedStart = $this->resolveStartSeq($startSeq, $nextSeq);
 
         $limit = max(1, min(2000, $limit));
         $aktifOnly = empty($studentIds);
@@ -173,12 +189,14 @@ class LocalNisService
             ->limit($limit)
             ->get(['id', 'name', 'class', 'tingkat', 'nis', 'academic_year_id']);
 
-        $proposed = $this->proposeForStudents($institution, $students);
+        $proposed = $this->proposeForStudents($institution, $students, $resolvedStart - 1);
 
         return [
             'rows' => $proposed['rows'],
             'truncated' => $totalMissing > $students->count(),
             'total_missing' => $totalMissing,
+            'next_seq' => $nextSeq,
+            'start_seq' => $resolvedStart,
         ];
     }
 
@@ -186,9 +204,9 @@ class LocalNisService
      * Terapkan NIS hanya untuk siswa yang dipilih. Wajib student_ids agar tidak generate massal tanpa pratinjau.
      *
      * @param  array<int>  $studentIds
-     * @return array{processed:int, assigned:int, skipped:int, errors:array<int, string>, assigned_rows:array<int, array{id:int, name:?string, class:?string, tingkat:?int, nis:string}>}
+     * @return array{processed:int, assigned:int, skipped:int, errors:array<int, string>, assigned_rows:array<int, array{id:int, name:?string, class:?string, tingkat:?int, nis:string}>, start_seq: int}
      */
-    public function assignMany(int $institutionId, array $studentIds, int $limit = 500): array
+    public function assignMany(int $institutionId, array $studentIds, int $limit = 500, ?int $startSeq = null): array
     {
         $ids = array_values(array_unique(array_map('intval', $studentIds)));
         $ids = array_values(array_filter($ids, fn ($id) => $id > 0));
@@ -206,8 +224,11 @@ class LocalNisService
         $this->assertCanGenerate($institution, $settings);
 
         $limit = max(1, min(2000, $limit));
+        if ($startSeq !== null) {
+            $this->resolveStartSeq($startSeq, 1);
+        }
 
-        return DB::transaction(function () use ($institution, $settings, $ids, $limit) {
+        return DB::transaction(function () use ($institution, $settings, $ids, $limit, $startSeq) {
             $yearCode = $this->yearCode($institution);
             $periodKey = $this->periodKey($settings, $yearCode);
             $seqRow = InstitutionNisSequence::query()
@@ -231,7 +252,8 @@ class LocalNisService
                 ->lockForUpdate()
                 ->get(['id', 'name', 'class', 'tingkat', 'nis', 'academic_year_id', 'institution_id']);
 
-            $proposed = $this->proposeForStudents($institution, $students, (int) $seqRow->last_seq);
+            $resolvedStart = $this->resolveStartSeq($startSeq, (int) $seqRow->last_seq + 1);
+            $proposed = $this->proposeForStudents($institution, $students, $resolvedStart - 1);
             $assignedRows = [];
             $errors = [];
             $skipped = count($ids) - $students->count();
@@ -270,8 +292,29 @@ class LocalNisService
                 'skipped' => max(0, $skipped),
                 'errors' => $errors,
                 'assigned_rows' => $assignedRows,
+                'start_seq' => $resolvedStart,
             ];
         });
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function resolveStartSeq(?int $startSeq, int $defaultNext): int
+    {
+        if ($startSeq === null) {
+            return max(1, $defaultNext);
+        }
+
+        if ($startSeq < 1) {
+            throw new InvalidArgumentException('Nomor urut awal minimal 1.');
+        }
+
+        if ($startSeq > 99999999) {
+            throw new InvalidArgumentException('Nomor urut awal terlalu besar.');
+        }
+
+        return $startSeq;
     }
 
     /**

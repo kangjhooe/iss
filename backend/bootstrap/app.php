@@ -18,6 +18,7 @@ Application::macro('share', function (\Closure $closure) {
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
+        \App\Providers\AppServiceProvider::class,
         \App\Providers\OptionalPurifierServiceProvider::class,
         \L5Swagger\L5SwaggerServiceProvider::class,
     ])
@@ -28,6 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Di balik reverse proxy / Cloudflare, IP klien harus dari X-Forwarded-For
+        // agar throttle login tidak menumpuk semua user ke satu bucket IP proxy.
+        $middleware->trustProxies(at: '*');
+
         // Baca token dari httpOnly cookie ke Authorization header (sebelum auth:sanctum)
         $middleware->api(prepend: [
             \App\Http\Middleware\AddTokenFromCookie::class,

@@ -683,7 +683,16 @@
                 <div class="form-group"><label>Bahasa</label><input v-model="bookForm.language" maxlength="50" /></div>
                 <div class="form-group"><label>Halaman</label><input v-model.number="bookForm.pages" type="number" min="0" /></div>
               </div>
-              <div class="form-group"><label>Rak / Lokasi</label><input v-model="bookForm.shelf_code" maxlength="50" /></div>
+              <div class="form-row">
+                <div class="form-group"><label>Kelas</label><input v-model="bookForm.grade" maxlength="20" placeholder="8 / IX / U" /></div>
+                <div class="form-group"><label>Tanggal Beli</label><input v-model="bookForm.acquired_at" type="date" /></div>
+                <div class="form-group"><label>Rak / Lokasi</label><input v-model="bookForm.shelf_code" maxlength="50" /></div>
+              </div>
+              <div class="form-group" v-if="!editingBook">
+                <label>Jumlah Eksemplar</label>
+                <input v-model.number="bookForm.copies_count" type="number" min="0" max="100" />
+                <p class="muted small" style="margin-top:0.25rem">Nomor inventaris otomatis: NPSN/YYYY/MM/KODE/KELAS/001</p>
+              </div>
               <div class="form-group"><label>Deskripsi</label><textarea v-model="bookForm.description" rows="3"></textarea></div>
               <div class="form-group"><label>Cover (gambar)</label><input type="file" accept="image/*" @change="onBookCoverChange" /></div>
               <div class="form-group">
@@ -725,7 +734,15 @@
             <h3>{{ editingCopy ? 'Edit Eksemplar' : 'Tambah Eksemplar' }}</h3>
             <form @submit.prevent="saveCopy">
               <div class="form-group"><label>Buku *</label><select v-model="copyForm.book_id" required :disabled="!!editingCopy"><option value="">Pilih</option><option v-for="b in booksList" :key="b.id" :value="b.id">{{ b.title }}</option></select></div>
-              <div class="form-group"><label>Kode Eksemplar *</label><input v-model="copyForm.copy_code" required maxlength="50" /></div>
+              <div class="form-group">
+                <label>Kode Eksemplar <span v-if="!editingCopy" class="muted">(opsional)</span><span v-else>*</span></label>
+                <input v-model="copyForm.copy_code" :required="!!editingCopy" maxlength="50" :placeholder="editingCopy ? '' : 'Kosongkan = generate otomatis'" />
+              </div>
+              <div class="form-group" v-if="!editingCopy">
+                <label>Jumlah</label>
+                <input v-model.number="copyForm.quantity" type="number" min="1" max="100" />
+                <p class="muted small" style="margin-top:0.25rem">Kosongkan kode untuk generate otomatis sesuai format inventaris.</p>
+              </div>
               <div class="form-row">
                 <div class="form-group"><label>Status</label><select v-model="copyForm.status"><option value="Tersedia">Tersedia</option><option value="Dipinjam">Dipinjam</option><option value="Rusak">Rusak</option><option value="Hilang">Hilang</option></select></div>
                 <div class="form-group"><label>Kondisi</label><select v-model="copyForm.condition"><option value="Baik">Baik</option><option value="Rusak Ringan">Rusak Ringan</option><option value="Rusak Berat">Rusak Berat</option></select></div>
@@ -934,7 +951,7 @@ const bookSortDir = ref('asc')
 const bookFilters = ref({ search: '', category_id: '' })
 const showBookModal = ref(false)
 const editingBook = ref(null)
-const bookForm = ref({ category_id: '', isbn: '', title: '', author: '', publisher: '', year: null, language: '', pages: null, shelf_code: '', description: '', is_public_ebook: false })
+const bookForm = ref({ category_id: '', isbn: '', title: '', author: '', publisher: '', year: null, language: '', pages: null, shelf_code: '', grade: '', acquired_at: '', copies_count: 1, description: '', is_public_ebook: false })
 const bookCoverFile = ref(null)
 const bookEbookFile = ref(null)
 const removeEbook = ref(false)
@@ -958,7 +975,7 @@ const copiesLoading = ref(false)
 const copyFilters = ref({ search: '', book_id: '', status: '' })
 const showCopyModal = ref(false)
 const editingCopy = ref(null)
-const copyForm = ref({ book_id: '', copy_code: '', status: 'Tersedia', condition: 'Baik', notes: '' })
+const copyForm = ref({ book_id: '', copy_code: '', quantity: 1, status: 'Tersedia', condition: 'Baik', notes: '' })
 const booksList = ref([])
 
 // Loans
@@ -1407,6 +1424,8 @@ function openBookModal(book = null) {
         language: book.language || '',
         pages: book.pages || null,
         shelf_code: book.shelf_code || '',
+        grade: book.grade || '',
+        acquired_at: book.acquired_at || '',
         description: book.description || '',
         is_public_ebook: !!book.is_public_ebook
       }
@@ -1420,6 +1439,9 @@ function openBookModal(book = null) {
         language: '',
         pages: null,
         shelf_code: '',
+        grade: '',
+        acquired_at: new Date().toISOString().slice(0, 10),
+        copies_count: 1,
         description: '',
         is_public_ebook: false
       }
@@ -1463,7 +1485,9 @@ async function saveBook() {
 
 function openCopyModal(copy = null, book = null) {
   editingCopy.value = copy
-  copyForm.value = copy ? { book_id: String(copy.book_id), copy_code: copy.copy_code, status: copy.status, condition: copy.condition || 'Baik', notes: copy.notes || '' } : { book_id: book ? String(book.id) : '', copy_code: '', status: 'Tersedia', condition: 'Baik', notes: '' }
+  copyForm.value = copy
+    ? { book_id: String(copy.book_id), copy_code: copy.copy_code, quantity: 1, status: copy.status, condition: copy.condition || 'Baik', notes: copy.notes || '' }
+    : { book_id: book ? String(book.id) : '', copy_code: '', quantity: 1, status: 'Tersedia', condition: 'Baik', notes: '' }
   showCopyModal.value = true
 }
 async function saveCopy() {
@@ -1473,7 +1497,17 @@ async function saveCopy() {
       await libraryApi.updateCopy(editingCopy.value.id, { copy_code: copyForm.value.copy_code, status: copyForm.value.status, condition: copyForm.value.condition, notes: copyForm.value.notes })
       toast.success('Berhasil', 'Eksemplar diperbarui')
     } else {
-      await libraryApi.createCopy(copyForm.value)
+      const payload = {
+        book_id: copyForm.value.book_id,
+        status: copyForm.value.status,
+        condition: copyForm.value.condition,
+        notes: copyForm.value.notes,
+        quantity: copyForm.value.quantity || 1
+      }
+      if (copyForm.value.copy_code?.trim()) {
+        payload.copy_code = copyForm.value.copy_code.trim()
+      }
+      await libraryApi.createCopy(payload)
       toast.success('Berhasil', 'Eksemplar ditambahkan')
     }
     showCopyModal.value = false
@@ -1693,6 +1727,8 @@ async function downloadBooksTemplate() {
       bahasa: 'Indonesia',
       halaman: 200,
       rak: 'R-A-01',
+      kelas: '8',
+      tanggal_beli: '2026-09-01',
       deskripsi: 'Deskripsi singkat (opsional)',
       jumlah_eksemplar: 2
     }]
@@ -1701,7 +1737,8 @@ async function downloadBooksTemplate() {
     const ws = XLSX.utils.json_to_sheet(templateData)
     ws['!cols'] = [
       { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 20 }, { wch: 18 },
-      { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 16 }
+      { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 8 },
+      { wch: 14 }, { wch: 30 }, { wch: 16 }
     ]
     XLSX.utils.book_append_sheet(wb, ws, 'Katalog Buku')
     XLSX.writeFile(wb, 'template_katalog_buku.xlsx')
@@ -1764,6 +1801,8 @@ function mapExcelBookRow(row) {
     bahasa: cellToText(get('bahasa', 'Bahasa')),
     halaman: cellToInt(get('halaman', 'Halaman')),
     rak: cellToText(get('rak', 'Rak')),
+    kelas: cellToText(get('kelas', 'Kelas')),
+    tanggal_beli: cellToText(get('tanggal_beli', 'Tanggal Beli', 'tanggal beli')),
     deskripsi: cellToText(get('deskripsi', 'Deskripsi')),
     jumlah_eksemplar: cellToInt(get('jumlah_eksemplar', 'Jumlah Eksemplar', 'eksemplar'))
   }

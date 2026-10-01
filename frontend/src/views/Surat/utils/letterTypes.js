@@ -23,6 +23,18 @@ export const LETTER_TYPES = [
   { code: '16', abbr: 'SL', name: 'Surat Lainnya' }
 ]
 
+/** Jenis surat yang boleh multi-halaman (tidak dipaksa 1 lembar). */
+export const RELAXED_LETTER_TYPE_CODES = ['01', '13', '14']
+
+/**
+ * Density cetak/preview — sinkron dengan SuratLayoutService::densityForLetterType.
+ * @returns {'compact'|'relaxed'}
+ */
+export function suratDensityForLetterType(code) {
+  const normalized = String(code || DEFAULT_LETTER_TYPE_CODE).replace(/\D/g, '').padStart(2, '0') || DEFAULT_LETTER_TYPE_CODE
+  return RELAXED_LETTER_TYPE_CODES.includes(normalized) ? 'relaxed' : 'compact'
+}
+
 const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
 
 export function getLetterType(code) {

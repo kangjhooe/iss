@@ -21,13 +21,18 @@ class LibraryBookResource extends JsonResource
             'language' => $this->language,
             'pages' => $this->pages,
             'shelf_code' => $this->shelf_code,
+            'grade' => $this->grade,
+            'acquired_at' => $this->acquired_at?->format('Y-m-d'),
             'description' => $this->description,
             'cover_url' => $this->cover_path ? asset('storage/' . $this->cover_path) : null,
             'has_ebook' => $this->hasEbook(),
             'is_public_ebook' => (bool) $this->is_public_ebook && $this->hasEbook(),
             'ebook_view_count' => (int) ($this->ebook_view_count ?? 0),
             'available_copies_count' => $this->when(isset($this->available_copies_count), fn () => $this->available_copies_count, $this->getAvailableCopiesCount()),
-            'copies_count' => $this->whenLoaded('copies', fn () => $this->copies->count()),
+            'copies_count' => $this->when(
+                isset($this->copies_count) || $this->relationLoaded('copies'),
+                fn () => (int) ($this->copies_count ?? $this->copies->count())
+            ),
             'category' => $this->when($this->relationLoaded('category'), function () {
                 return [
                     'id' => $this->category->id ?? null,

@@ -36,8 +36,11 @@ class StoreLibraryBookRequest extends FormRequest
             'language' => 'nullable|string|max:50',
             'pages' => 'nullable|integer|min:0',
             'shelf_code' => 'nullable|string|max:50',
+            'grade' => 'nullable|string|max:20',
+            'acquired_at' => 'nullable|date',
             'description' => 'nullable|string',
             'is_public_ebook' => 'nullable|boolean',
+            'copies_count' => 'nullable|integer|min:0|max:100',
         ];
         return array_merge(
             $rules,

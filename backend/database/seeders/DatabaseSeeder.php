@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             InventoryCategorySeeder::class,
             CorrespondenceCategorySeeder::class,
             TemplateSuratSeeder::class,
+            QuranSurahSeeder::class,
         ]);
     }
 }

@@ -262,6 +262,18 @@ class SuratLayoutService
             . '</tr></table></div>';
     }
 
+    /**
+     * Density cetak: compact = target 1 lembar; relaxed = boleh multi-halaman.
+     * Relaxed: SK (01), Sertifikat (13), Perjanjian Kerja (14).
+     */
+    public function densityForLetterType(?string $code): string
+    {
+        $normalized = str_pad(preg_replace('/\D/', '', (string) $code) ?: '09', 2, '0', STR_PAD_LEFT);
+        $relaxed = ['01', '13', '14'];
+
+        return in_array($normalized, $relaxed, true) ? 'relaxed' : 'compact';
+    }
+
     public function buildPrintParts(Surat $surat, bool $forPdf = false): array
     {
         $surat->loadMissing(['kop', 'tandaTangan', 'stempel', 'institution']);
@@ -282,6 +294,7 @@ class SuratLayoutService
             'kop' => $kop,
             'tandaTangan' => $ttd,
             'stempel' => $stempel,
+            'density' => $this->densityForLetterType($surat->letter_type_code),
         ];
     }
 

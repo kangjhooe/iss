@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\LibraryBook;
 use App\Models\LibraryBookCategory;
-use App\Models\LibraryBookCopy;
 use Illuminate\Support\Facades\DB;
 
 class LibraryBookImportService
@@ -19,6 +18,8 @@ class LibraryBookImportService
         'bahasa',
         'halaman',
         'rak',
+        'kelas',
+        'tanggal_beli',
         'deskripsi',
         'jumlah_eksemplar',
     ];
@@ -104,6 +105,8 @@ class LibraryBookImportService
         $language = $this->clean($row['bahasa'] ?? null);
         $pages = $this->parseInt($row['halaman'] ?? null);
         $shelf = $this->clean($row['rak'] ?? null);
+        $grade = $this->clean($row['kelas'] ?? null);
+        $acquiredAt = $this->parseDate($row['tanggal_beli'] ?? null);
         $description = $this->clean($row['deskripsi'] ?? null);
         $copiesCount = $this->parseInt($row['jumlah_eksemplar'] ?? null) ?? 0;
         if ($copiesCount < 0) {
@@ -123,6 +126,8 @@ class LibraryBookImportService
             'language' => $language,
             'pages' => $pages,
             'shelf_code' => $shelf,
+            'grade' => $grade,
+            'acquired_at' => $acquiredAt,
             'description' => $description,
             'updated_by' => $userId,
         ];
@@ -150,12 +155,21 @@ class LibraryBookImportService
             }
 
             if ($existing) {
+                if (empty($payload['acquired_at']) && $existing->acquired_at) {
+                    unset($payload['acquired_at']);
+                }
+                if (($payload['grade'] ?? null) === null && $existing->grade) {
+                    unset($payload['grade']);
+                }
                 $existing->update($payload);
                 $book = $existing;
                 $outcome = 'updated';
             } else {
                 $payload['institution_id'] = $institutionId;
                 $payload['created_by'] = $userId;
+                if (empty($payload['acquired_at'])) {
+                    $payload['acquired_at'] = now()->toDateString();
+                }
                 $book = LibraryBook::create($payload);
                 $outcome = 'created';
             }
@@ -176,22 +190,8 @@ class LibraryBookImportService
             return;
         }
 
-        for ($i = 1; $i <= $toCreate; $i++) {
-            $seq = $current + $i;
-            $code = sprintf('BK-%d-%03d', $book->id, $seq);
-            $n = 0;
-            while (LibraryBookCopy::where('copy_code', $code)->where('book_id', $book->id)->exists()
-                || LibraryBookCopy::where('copy_code', $code)->exists()) {
-                $n++;
-                $code = sprintf('BK-%d-%03d-%d', $book->id, $seq, $n);
-            }
-            LibraryBookCopy::create([
-                'book_id' => $book->id,
-                'copy_code' => $code,
-                'status' => 'Tersedia',
-                'condition' => 'Baik',
-            ]);
-        }
+        $book->loadMissing(['category', 'institution']);
+        app(LibraryInventoryNumberService::class)->createCopies($book, $toCreate);
     }
 
     /**
@@ -231,6 +231,8 @@ class LibraryBookImportService
                 $book->language ?? '',
                 $book->pages ?? '',
                 $book->shelf_code ?? '',
+                $book->grade ?? '',
+                $book->acquired_at?->format('Y-m-d') ?? '',
                 $book->description ?? '',
                 $book->copies_count ?? 0,
             ]);
@@ -303,6 +305,36 @@ class LibraryBookImportService
             return null;
         }
         return $y;
+    }
+
+    private function parseDate(mixed $value): ?string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+        if (is_numeric($value)) {
+            // Excel serial date
+            $serial = (float) $value;
+            if ($serial > 20000 && $serial < 80000) {
+                $unix = (int) (($serial - 25569) * 86400);
+                return gmdate('Y-m-d', $unix);
+            }
+        }
+        $v = $this->clean($value);
+        if ($v === null) {
+            return null;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $v)) {
+            return substr($v, 0, 10);
+        }
+        if (preg_match('/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/', $v, $m)) {
+            return sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]);
+        }
+        try {
+            return \Carbon\Carbon::parse($v)->format('Y-m-d');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function parseInt(mixed $value): ?int

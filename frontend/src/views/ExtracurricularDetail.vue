@@ -1,4 +1,5 @@
-<template>    <div class="ekskul-detail">
+<template>
+    <div class="ekskul-detail">
       <div class="detail-top">
         <button type="button" class="btn-back" @click="$router.push('/extracurricular')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -75,7 +76,7 @@
                   <span class="meta-value">{{ participants.length }} siswa</span>
                 </div>
               </div>
-              <div v-if="!canSetKkm" class="meta-item">
+              <div v-if="!canSetKkm && !isMemorization" class="meta-item">
                 <span class="meta-icon" aria-hidden="true">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
@@ -87,8 +88,20 @@
                   <span class="meta-value">{{ item?.kkm ?? '—' }} <span class="meta-hint">diisi pembina</span></span>
                 </div>
               </div>
+              <div v-if="isMemorization" class="meta-item">
+                <span class="meta-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </span>
+                <div class="meta-body">
+                  <span class="meta-label">Mode</span>
+                  <span class="meta-value">Hapalan / setoran ayat</span>
+                </div>
+              </div>
             </div>
-            <div v-if="canSetKkm" class="kkm-box">
+            <div v-if="canSetKkm && !isMemorization" class="kkm-box">
               <label class="kkm-label">KKM</label>
               <input
                 v-model.number="kkmDraft"
@@ -133,6 +146,11 @@
               <svg v-else-if="t.key === 'nilai'" width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M4 19V5a1 1 0 0 1 1-1h10l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2"/>
                 <path d="M14 4v5h5M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <svg v-else-if="t.key === 'hafalan'" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2"/>
+                <path d="M9 8h7M9 12h7M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
               <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -301,6 +319,7 @@
                         </svg>
                       </button>
                       <button
+                        v-if="!isMemorization"
                         type="button"
                         class="btn-icon"
                         :class="{ active: gradingSession?.id === s.id }"
@@ -564,6 +583,157 @@
             />
           </template>
           <div v-else class="empty-inline">Belum ada peserta aktif. Tambah pertemuan lalu isi penilaian untuk melihat rekap.</div>
+        </div>
+
+        <!-- HAFALAN -->
+        <div v-show="tab === 'hafalan'" class="panel">
+          <div class="panel-toolbar">
+            <h2 class="panel-title">Hapalan / Setoran</h2>
+            <div class="toolbar-actions">
+              <button type="button" class="btn-secondary btn-sm" :disabled="memLoading" @click="loadMemorization">Refresh</button>
+              <button
+                v-if="!memTargets.length"
+                type="button"
+                class="btn-primary btn-sm"
+                :disabled="memSavingTarget"
+                @click="createJuz30Target"
+              >
+                {{ memSavingTarget ? 'Menyimpan...' : 'Set target Juz 30' }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="memTargets.length" class="mem-targets">
+            <div v-for="t in memTargets" :key="t.id" class="mem-target-chip">
+              <strong>{{ t.name || scopeLabel(t.scope) }}</strong>
+              <span class="muted"> · {{ t.target_ayahs }} ayat</span>
+              <span v-if="t.scope === 'class' && t.class" class="muted"> · {{ t.class.name }}</span>
+              <span v-if="t.scope === 'student' && t.student" class="muted"> · {{ t.student.name }}</span>
+              <button type="button" class="btn-link danger" title="Hapus target" @click="removeTarget(t)">×</button>
+            </div>
+          </div>
+          <p v-else class="muted pad-sm">Belum ada target. Buat target Juz 30 (37 surat) atau atur custom lewat API.</p>
+
+          <div v-if="memLoading" class="muted pad-sm">Memuat progres hapalan...</div>
+          <template v-else>
+            <div class="roster-toolbar">
+              <input v-model="memPager.search" type="search" class="form-input" placeholder="Cari nama / NIS..." />
+              <select v-model="memPager.classId" class="form-input">
+                <option value="">Semua kelas</option>
+                <option v-for="c in memPager.classOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <p class="roster-meta">{{ memPager.rangeLabel }} · klik siswa untuk checklist ayat</p>
+            <div v-if="memPager.paged.length" class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-no">No</th>
+                    <th>Nama</th>
+                    <th>Kelas</th>
+                    <th>Target</th>
+                    <th class="col-center">Progres</th>
+                    <th class="col-center">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="group in memPageGroups" :key="'mem-' + group.key">
+                    <tr class="group-row">
+                      <td colspan="6">Kelas {{ group.name }} · {{ group.rows.length }} siswa</td>
+                    </tr>
+                    <tr
+                      v-for="(row, i) in group.rows"
+                      :key="row.student.id"
+                      class="row-clickable"
+                      :class="{ 'row-active': memSelectedStudentId === row.student.id }"
+                      @click="openStudentMem(row)"
+                    >
+                      <td class="col-no">{{ group.start + i + 1 }}</td>
+                      <td class="cell-strong">{{ row.student.name }}</td>
+                      <td>{{ row.student.class?.name || '—' }}</td>
+                      <td>{{ row.target_name || '—' }}</td>
+                      <td class="col-center">{{ row.deposited_ayahs }}/{{ row.target_ayahs || '—' }}</td>
+                      <td class="col-center">
+                        <span class="mem-pct" :class="pctClass(row.percent)">{{ row.percent }}%</span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <PaginationBar
+              v-if="memPager.total"
+              :page="memPager.page"
+              :last-page="memPager.lastPage"
+              :per-page="memPager.perPage"
+              :total="memPager.total"
+              item-label="siswa"
+              @page-change="memPager.goPage"
+              @per-page-change="memPager.changePerPage"
+            />
+            <div v-else class="empty-inline">Belum ada peserta aktif.</div>
+          </template>
+
+          <div v-if="memSelectedStudentId" class="add-box mem-detail">
+            <div class="panel-toolbar">
+              <strong>{{ memDetail?.student?.name || 'Siswa' }} — checklist hapalan</strong>
+              <button type="button" class="btn-secondary btn-sm" @click="closeStudentMem">Tutup</button>
+            </div>
+            <div v-if="memDetailLoading" class="muted pad-sm">Memuat detail...</div>
+            <template v-else-if="memDetail">
+              <p class="muted pad-sm" style="padding-top:0">
+                Progres {{ memDetail.deposited_ayahs }}/{{ memDetail.target_ayahs }} ayat ({{ memDetail.percent }}%)
+              </p>
+              <div class="mem-surah-list">
+                <button
+                  v-for="s in memDetail.surahs"
+                  :key="s.surah_number"
+                  type="button"
+                  class="mem-surah-btn"
+                  :class="{ active: memChecklistSurah === s.surah_number }"
+                  @click="loadChecklist(s.surah_number)"
+                >
+                  <span class="mem-surah-num">{{ s.surah_number }}</span>
+                  <span class="mem-surah-name">{{ s.name_id || s.name_latin }}</span>
+                  <span class="mem-surah-prog">{{ s.deposited_ayahs }}/{{ s.target_ayahs }}</span>
+                </button>
+              </div>
+
+              <div v-if="memChecklist" class="mem-checklist">
+                <div class="panel-toolbar">
+                  <strong>
+                    {{ memChecklist.surah.name_id }}
+                    <span class="muted">({{ memChecklist.deposited_count }}/{{ memChecklist.surah.ayah_count }})</span>
+                  </strong>
+                  <div class="toolbar-actions">
+                    <button type="button" class="btn-secondary btn-sm" @click="selectAllAyahs(true)">Centang semua</button>
+                    <button type="button" class="btn-secondary btn-sm" @click="selectAllAyahs(false)">Kosongkan</button>
+                    <button type="button" class="btn-primary btn-sm" :disabled="memSavingChecklist" @click="saveChecklist">
+                      {{ memSavingChecklist ? 'Menyimpan...' : 'Simpan setoran' }}
+                    </button>
+                  </div>
+                </div>
+                <div class="ayah-grid">
+                  <label
+                    v-for="a in memChecklist.ayahs"
+                    :key="a.ayah_number"
+                    class="ayah-check"
+                    :class="{ on: isAyahChecked(a.ayah_number) }"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="isAyahChecked(a.ayah_number)"
+                      @change="toggleAyah(a.ayah_number, $event.target.checked)"
+                    />
+                    <span class="ayah-num">{{ a.ayah_number }}</span>
+                    <span v-if="a.text_ar" class="ayah-ar" dir="rtl">{{ a.text_ar }}</span>
+                  </label>
+                </div>
+              </div>
+              <p v-else-if="memDetail.surahs?.length" class="muted pad-sm">Pilih surat di atas untuk mencentang ayat.</p>
+              <p v-else class="muted pad-sm">Belum ada target surat untuk siswa ini.</p>
+            </template>
+          </div>
         </div>
 
         <!-- LAPORAN -->
@@ -849,7 +1019,8 @@
         @cancel="handleCancel"
         @update:show="confirmDialog.show = $event"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -867,12 +1038,20 @@ const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
 
 const id = computed(() => Number(route.params.id))
-const tabs = [
-  { key: 'peserta', label: 'Peserta' },
-  { key: 'pertemuan', label: 'Pertemuan' },
-  { key: 'nilai', label: 'Rekap Nilai' },
-  { key: 'laporan', label: 'Laporan' },
-]
+const isMemorization = computed(() => (item.value?.assessment_mode || 'standard') === 'memorization')
+const tabs = computed(() => {
+  const base = [
+    { key: 'peserta', label: 'Peserta' },
+    { key: 'pertemuan', label: 'Pertemuan' },
+  ]
+  if (isMemorization.value) {
+    base.push({ key: 'hafalan', label: 'Hapalan' })
+  } else {
+    base.push({ key: 'nilai', label: 'Rekap Nilai' })
+  }
+  base.push({ key: 'laporan', label: 'Laporan' })
+  return base
+})
 const tab = ref('peserta')
 
 const item = ref(null)
@@ -1073,6 +1252,26 @@ const gradePageGroups = computed(() => groupByClass(
   ...group,
   start: (gradesPager.page - 1) * gradesPager.perPage + group.start,
 })))
+
+const memTargets = ref([])
+const memProgress = ref([])
+const memLoading = ref(false)
+const memSavingTarget = ref(false)
+const memPager = useRosterPager(memProgress, (r) => r.student)
+const memPageGroups = computed(() => groupByClass(
+  memPager.paged,
+  (r) => r.student?.class,
+).map((group) => ({
+  ...group,
+  start: (memPager.page - 1) * memPager.perPage + group.start,
+})))
+const memSelectedStudentId = ref(null)
+const memDetail = ref(null)
+const memDetailLoading = ref(false)
+const memChecklist = ref(null)
+const memChecklistSurah = ref(null)
+const memDraftAyahs = ref(new Set())
+const memSavingChecklist = ref(false)
 
 const report = ref(null)
 const reportLoading = ref(false)
@@ -1610,12 +1809,14 @@ watch(tab, (t) => {
   if (t === 'peserta') loadPeserta()
   if (t === 'pertemuan') loadSessions()
   if (t === 'nilai') loadGrades()
+  if (t === 'hafalan') loadMemorization()
   if (t === 'laporan') loadReport()
 })
 
 watch(() => route.params.id, async () => {
   await loadItem()
   tab.value = 'peserta'
+  closeStudentMem()
   await Promise.all([loadPeserta(), loadClasses(), loadSemesters()])
 })
 
@@ -1623,6 +1824,157 @@ onMounted(async () => {
   await loadItem()
   await Promise.all([loadPeserta(), loadClasses(), loadSemesters()])
 })
+
+function scopeLabel(scope) {
+  if (scope === 'class') return 'Target kelas'
+  if (scope === 'student') return 'Target siswa'
+  return 'Target ekskul'
+}
+
+function pctClass(pct) {
+  const n = Number(pct) || 0
+  if (n >= 90) return 'pct-high'
+  if (n >= 60) return 'pct-mid'
+  return 'pct-low'
+}
+
+async function loadMemorization() {
+  memLoading.value = true
+  try {
+    const [tRes, pRes] = await Promise.all([
+      extracurricularApi.getMemorizationTargets(id.value),
+      extracurricularApi.getMemorizationProgress(id.value),
+    ])
+    memTargets.value = tRes.data.data || []
+    memProgress.value = pRes.data.data || []
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal memuat hapalan')
+  } finally {
+    memLoading.value = false
+  }
+}
+
+async function createJuz30Target() {
+  memSavingTarget.value = true
+  try {
+    await extracurricularApi.createMemorizationTarget(id.value, {
+      scope: 'extracurricular',
+      template: 'juz30',
+      name: 'Juz 30',
+    })
+    toast.success('Berhasil', 'Target Juz 30 dibuat')
+    await loadMemorization()
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal membuat target')
+  } finally {
+    memSavingTarget.value = false
+  }
+}
+
+async function removeTarget(t) {
+  const ok = await showConfirm({
+    title: 'Hapus target?',
+    message: `Hapus target "${t.name || scopeLabel(t.scope)}"? Progres setoran siswa tetap tersimpan.`,
+  })
+  if (!ok) return
+  setDeleteLoading(true)
+  try {
+    await extracurricularApi.deleteMemorizationTarget(id.value, t.id)
+    toast.success('Berhasil', 'Target dihapus')
+    await loadMemorization()
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal menghapus target')
+  } finally {
+    setDeleteLoading(false)
+  }
+}
+
+async function openStudentMem(row) {
+  memSelectedStudentId.value = row.student.id
+  memChecklist.value = null
+  memChecklistSurah.value = null
+  memDraftAyahs.value = new Set()
+  memDetailLoading.value = true
+  try {
+    const res = await extracurricularApi.getStudentMemorizationProgress(id.value, row.student.id)
+    memDetail.value = res.data.data
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal memuat detail siswa')
+    memDetail.value = null
+  } finally {
+    memDetailLoading.value = false
+  }
+}
+
+function closeStudentMem() {
+  memSelectedStudentId.value = null
+  memDetail.value = null
+  memChecklist.value = null
+  memChecklistSurah.value = null
+  memDraftAyahs.value = new Set()
+}
+
+async function loadChecklist(surahNumber) {
+  if (!memSelectedStudentId.value) return
+  memChecklistSurah.value = surahNumber
+  try {
+    const res = await extracurricularApi.getSurahChecklist(id.value, memSelectedStudentId.value, surahNumber)
+    memChecklist.value = res.data.data
+    memDraftAyahs.value = new Set(
+      (memChecklist.value?.ayahs || []).filter((a) => a.deposited).map((a) => a.ayah_number)
+    )
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal memuat checklist surat')
+  }
+}
+
+function toggleAyah(num, checked) {
+  const next = new Set(memDraftAyahs.value)
+  if (checked) next.add(num)
+  else next.delete(num)
+  memDraftAyahs.value = next
+}
+
+function isAyahChecked(num) {
+  return memDraftAyahs.value.has(num)
+}
+
+function selectAllAyahs(on) {
+  if (!memChecklist.value) return
+  if (on) {
+    memDraftAyahs.value = new Set(memChecklist.value.ayahs.map((a) => a.ayah_number))
+  } else {
+    memDraftAyahs.value = new Set()
+  }
+}
+
+async function saveChecklist() {
+  if (!memSelectedStudentId.value || !memChecklistSurah.value) return
+  memSavingChecklist.value = true
+  try {
+    const res = await extracurricularApi.syncSurahChecklist(
+      id.value,
+      memSelectedStudentId.value,
+      memChecklistSurah.value,
+      {
+        ayah_numbers: [...memDraftAyahs.value].sort((a, b) => a - b),
+        replace: true,
+      }
+    )
+    memChecklist.value = res.data.data
+    memDraftAyahs.value = new Set(
+      (memChecklist.value?.ayahs || []).filter((a) => a.deposited).map((a) => a.ayah_number)
+    )
+    toast.success('Berhasil', 'Setoran disimpan')
+    const progressRes = await extracurricularApi.getStudentMemorizationProgress(id.value, memSelectedStudentId.value)
+    memDetail.value = progressRes.data.data
+    await loadMemorization()
+  } catch (e) {
+    toast.error('Gagal', e.formattedMessage || 'Gagal menyimpan checklist')
+  } finally {
+    memSavingChecklist.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -2353,5 +2705,94 @@ onMounted(async () => {
 @media (max-width: 480px) {
   .period-btn { flex: 1 1 calc(33% - 6px); text-align: center; font-size: 12px; padding: 7px 8px; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.mem-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.mem-target-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.mem-pct { font-weight: 700; }
+.pct-high { color: #047857; }
+.pct-mid { color: #b45309; }
+.pct-low { color: #b91c1c; }
+.row-clickable { cursor: pointer; }
+.row-clickable:hover { background: #f0fdf4; }
+.mem-detail { margin-top: 16px; }
+.mem-surah-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.mem-surah-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.mem-surah-btn.active {
+  border-color: #059669;
+  background: #ecfdf5;
+}
+.mem-surah-num {
+  font-weight: 700;
+  color: #047857;
+  min-width: 1.5rem;
+}
+.mem-surah-name { font-weight: 600; color: #0f172a; }
+.mem-surah-prog { color: #64748b; font-size: 12px; }
+.ayah-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.ayah-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+}
+.ayah-check.on {
+  border-color: #059669;
+  background: #ecfdf5;
+}
+.ayah-check input { accent-color: #059669; }
+.ayah-num { font-weight: 700; color: #334155; }
+.ayah-ar {
+  font-size: 11px;
+  color: #64748b;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

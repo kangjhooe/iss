@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { clearAuth } from '@/utils/tokenStorage'
+import { shouldHardRedirectToLogin } from '@/utils/appLayout'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -34,11 +35,50 @@ api.interceptors.request.use(
 
 const AUTH_NO_REFRESH_RE = /\/v1\/(login|refresh-token|register|forgot-password|reset-password|verify-email|resend-verification|password-reset-requests)(\?|$)/
 
+/** Satu flight refresh untuk semua 401 paralel; cegah storm ke /refresh-token. */
+let refreshPromise = null
+/** Setelah refresh gagal di sesi ini, jangan spam refresh lagi sampai login sukses. */
+let refreshFailed = false
+
 function shouldSkipTokenRefresh(config) {
   if (!config) return true
   if (config._retry) return true
+  if (config.skipAuthRefresh) return true
   const url = String(config.url || '')
   return AUTH_NO_REFRESH_RE.test(url)
+}
+
+function redirectToLoginIfProtectedRoute() {
+  if (typeof window === 'undefined') return
+  const path = window.location.pathname || ''
+  if (shouldHardRedirectToLogin(path)) {
+    window.location.href = '/login'
+  }
+}
+
+/**
+ * Dipanggil setelah login/register sukses agar 401 berikutnya boleh coba refresh lagi.
+ */
+export function resetAuthRefreshState() {
+  refreshFailed = false
+  refreshPromise = null
+}
+
+async function refreshAccessToken() {
+  if (refreshPromise) return refreshPromise
+  refreshPromise = api.post('/v1/refresh-token')
+    .then((res) => {
+      refreshFailed = false
+      return res
+    })
+    .catch((err) => {
+      refreshFailed = true
+      throw err
+    })
+    .finally(() => {
+      refreshPromise = null
+    })
+  return refreshPromise
 }
 
 // Response interceptor untuk handle error
@@ -48,19 +88,23 @@ api.interceptors.response.use(
     const originalRequest = error.config
 
     // Jangan recursive-refresh pada endpoint auth; satu kali retry saja.
-    // Tanpa ini, 401 dari /me atau cookie basi memicu storm /refresh-token
-    // yang menghabiskan throttle login (bucket bersama) sebelum user sempat masuk.
+    // Tanpa ini, 401 dari /me atau cookie basi memicu storm /refresh-token.
     if (error.response?.status === 401 && !shouldSkipTokenRefresh(originalRequest)) {
+      if (refreshFailed) {
+        clearAuth()
+        redirectToLoginIfProtectedRoute()
+        return Promise.reject(error)
+      }
+
       originalRequest._retry = true
       try {
-        await api.post('/v1/refresh-token')
+        await refreshAccessToken()
         // Backend set cookie auth_token baru; retry request (cookie ikut terkirim)
         return api.request(originalRequest)
       } catch (refreshError) {
         clearAuth()
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.href = '/login'
-        }
+        // Hanya hard-redirect di rute app (dashboard dll). Halaman publik (/) tetap.
+        redirectToLoginIfProtectedRoute()
         return Promise.reject(refreshError)
       }
     }

@@ -302,6 +302,7 @@ class SuratService
             'kopHtml' => $parts['kopHtml'],
             'isiHtml' => $parts['isiHtml'],
             'ttdHtml' => $parts['ttdHtml'],
+            'density' => $parts['density'] ?? 'compact',
         ])
             ->setPaper('a4', 'portrait');
     }
@@ -321,6 +322,7 @@ class SuratService
             'kopHtml' => $parts['kopHtml'],
             'isiHtml' => $parts['isiHtml'],
             'ttdHtml' => $parts['ttdHtml'],
+            'density' => $parts['density'] ?? 'compact',
         ];
     }
 

@@ -101,6 +101,16 @@ function pathLikelyNeedsAppLayout(path = '') {
   )
 }
 
+/**
+ * Hard-redirect ke /login hanya untuk rute app terproteksi.
+ * Halaman publik (/ , /login, profil sekolah, dll.) tidak boleh digusur interceptor 401.
+ */
+export function shouldHardRedirectToLogin(path = '') {
+  if (!path || path.startsWith('/login')) return false
+  if (pathWithoutAppLayout(path)) return false
+  return pathLikelyNeedsAppLayout(path)
+}
+
 export function routeUsesAppLayout(route) {
   if (route?.meta?.noLayout) return false
 

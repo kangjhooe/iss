@@ -1765,9 +1765,33 @@
               {{ nisAssignPreview.rows.length }} siswa akan mendapat NIS jika Anda menerapkan.
               Nomor di bawah belum disimpan.
             </p>
+            <div class="nis-start-seq-row">
+              <div class="form-group nis-start-seq-field">
+                <label for="nis-start-seq">Mulai dari nomor urut</label>
+                <input
+                  id="nis-start-seq"
+                  v-model.number="nisAssignPreview.start_seq"
+                  type="number"
+                  min="1"
+                  step="1"
+                  class="form-input"
+                  :disabled="nisAssignPreview.loading || nisAssignPreview.applying"
+                  @keyup.enter="refreshNisAssignPreview"
+                />
+              </div>
+              <button
+                type="button"
+                class="btn-secondary btn-compact"
+                :disabled="nisAssignPreview.loading || nisAssignPreview.applying || !nisAssignPreview.start_seq"
+                @click="refreshNisAssignPreview"
+              >
+                Perbarui pratinjau
+              </button>
+            </div>
             <p class="hint">
-              Centang siswa yang akan diisi. Batal tidak mengubah data.
-              Jika sebagian tidak dicentang, nomor urut dihitung ulang saat terapkan.
+              Default: {{ nisAssignPreview.next_seq || 1 }}.
+              Ubah jika ingin loncat (mis. mulai dari 150).
+              Centang siswa yang akan diisi. Jika sebagian tidak dicentang, nomor urut dihitung ulang saat terapkan.
             </p>
             <p v-if="nisAssignPreview.truncated" class="hint">
               Hanya {{ nisAssignPreview.rows.length }} dari {{ nisAssignPreview.total_missing }} siswa ditampilkan. Terapkan per batch.
@@ -1938,6 +1962,9 @@ const nisAssignPreview = ref({
   total_missing: 0,
   error: null,
   result: null,
+  start_seq: 1,
+  next_seq: 1,
+  student_ids: null,
 })
 const nisAssignSelectedCount = computed(() => {
   return nisAssignPreview.value.rows.filter((row) => nisAssignPreview.value.selected[row.id]).length
@@ -1960,6 +1987,7 @@ const nisNumbering = ref({
   preview_error: null,
   missing_nis_count: 0,
   year_code: '',
+  next_seq: 1,
 })
 const nisSettings = ref({
   open: false,
@@ -2109,6 +2137,7 @@ async function loadNisNumbering() {
       preview_error: data.preview_error || null,
       missing_nis_count: data.missing_nis_count || 0,
       year_code: data.year_code || '',
+      next_seq: data.next_seq || 1,
     }
   } catch {
     /* ignore banner errors */
@@ -2139,6 +2168,7 @@ async function saveNisSettings() {
       preview_error: data.preview_error || null,
       missing_nis_count: data.missing_nis_count ?? nisNumbering.value.missing_nis_count,
       year_code: data.year_code || nisNumbering.value.year_code,
+      next_seq: data.next_seq || nisNumbering.value.next_seq || 1,
     }
     nisSettings.value.open = false
     toast.success('Berhasil', res.data?.message || 'Format NIS disimpan')
@@ -2179,6 +2209,7 @@ function toggleNisAssignAll(checked) {
 }
 
 async function openNisAssignPreview(studentIds) {
+  const defaultStart = nisNumbering.value.next_seq || 1
   nisGenerateLoading.value = true
   nisAssignPreview.value = {
     open: true,
@@ -2190,18 +2221,51 @@ async function openNisAssignPreview(studentIds) {
     total_missing: 0,
     error: null,
     result: null,
+    start_seq: defaultStart,
+    next_seq: defaultStart,
+    student_ids: studentIds?.length ? [...studentIds] : null,
   }
+  await fetchNisAssignPreview({ resetSelection: true })
+  nisGenerateLoading.value = false
+}
+
+async function refreshNisAssignPreview() {
+  if (nisAssignPreview.value.loading || nisAssignPreview.value.applying) return
+  const start = Number(nisAssignPreview.value.start_seq)
+  if (!Number.isInteger(start) || start < 1) {
+    toast.error('Nomor tidak valid', 'Nomor urut awal minimal 1')
+    return
+  }
+  await fetchNisAssignPreview({ resetSelection: false })
+}
+
+async function fetchNisAssignPreview({ resetSelection }) {
+  nisAssignPreview.value.loading = true
+  nisAssignPreview.value.error = null
+  const prevSelected = { ...nisAssignPreview.value.selected }
   try {
     const payload = { limit: 500 }
-    if (studentIds?.length) payload.student_ids = studentIds
+    const start = Number(nisAssignPreview.value.start_seq)
+    if (Number.isInteger(start) && start >= 1) {
+      payload.start_seq = start
+    }
+    if (nisAssignPreview.value.student_ids?.length) {
+      payload.student_ids = nisAssignPreview.value.student_ids
+    }
     const res = await studentApi.previewGenerateNis(payload)
     const rows = res.data?.data?.rows || []
     const selected = {}
-    rows.forEach((row) => { selected[row.id] = true })
+    rows.forEach((row) => {
+      selected[row.id] = resetSelection ? true : (prevSelected[row.id] !== false)
+    })
     nisAssignPreview.value.rows = rows
     nisAssignPreview.value.selected = selected
     nisAssignPreview.value.truncated = !!res.data?.data?.truncated
     nisAssignPreview.value.total_missing = res.data?.data?.total_missing || rows.length
+    nisAssignPreview.value.next_seq = res.data?.data?.next_seq || nisAssignPreview.value.next_seq || 1
+    if (res.data?.data?.start_seq) {
+      nisAssignPreview.value.start_seq = res.data.data.start_seq
+    }
     if (!rows.length) {
       nisAssignPreview.value.error = 'Tidak ada siswa tanpa NIS untuk dipratinjau.'
     }
@@ -2209,7 +2273,6 @@ async function openNisAssignPreview(studentIds) {
     nisAssignPreview.value.error = err.response?.data?.message || 'Gagal memuat pratinjau NIS'
   } finally {
     nisAssignPreview.value.loading = false
-    nisGenerateLoading.value = false
   }
 }
 
@@ -2218,9 +2281,18 @@ async function applyNisAssignPreview() {
     .filter((row) => nisAssignPreview.value.selected[row.id])
     .map((row) => row.id)
   if (!ids.length || nisAssignPreview.value.applying) return
+  const start = Number(nisAssignPreview.value.start_seq)
+  if (!Number.isInteger(start) || start < 1) {
+    toast.error('Nomor tidak valid', 'Nomor urut awal minimal 1')
+    return
+  }
   nisAssignPreview.value.applying = true
   try {
-    const res = await studentApi.generateNisBulk({ student_ids: ids, limit: 2000 })
+    const res = await studentApi.generateNisBulk({
+      student_ids: ids,
+      limit: 2000,
+      start_seq: start,
+    })
     nisAssignPreview.value.result = {
       assigned: res.data?.data?.assigned || 0,
       assigned_rows: res.data?.data?.assigned_rows || [],
@@ -3853,6 +3925,24 @@ watch(() => route.query.trashed, (value) => {
 
 .nis-assign-modal {
   max-width: 720px;
+}
+
+.nis-start-seq-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.nis-start-seq-field {
+  flex: 0 1 200px;
+  margin-bottom: 0;
+}
+
+.nis-start-seq-field input {
+  width: 100%;
+  max-width: 160px;
 }
 
 .nis-assign-modal .col-check {

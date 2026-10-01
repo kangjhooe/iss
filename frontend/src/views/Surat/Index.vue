@@ -18,7 +18,7 @@ import suratService from './services/suratService'
 import { kopService } from './services/kopService'
 import { asetTandaTanganService } from './services/asetTandaTanganService'
 import { SuratLayoutClient } from './utils/suratLayoutClient'
-import { DEFAULT_LETTER_TYPE_CODE } from './utils/letterTypes'
+import { DEFAULT_LETTER_TYPE_CODE, suratDensityForLetterType } from './utils/letterTypes'
 
 const toast = useToast()
 const router = useRouter()
@@ -69,6 +69,7 @@ const options = ref({
 
 const hasDocument = computed(() => !!currentId.value)
 const fullPrintHtml = computed(() => `${kopHtml.value}${isiHtml.value}${ttdHtml.value}`)
+const suratDensity = computed(() => suratDensityForLetterType(letterTypeCode.value))
 
 function defaultOptions() {
   return {
@@ -540,7 +541,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <Paper :zoom="zoom">
+            <Paper :zoom="zoom" :density="suratDensity">
               <div class="print-only" v-html="fullPrintHtml" />
               <div class="editor-wrap no-print">
                 <KopPreview :html="kopHtml" />
@@ -570,6 +571,7 @@ onUnmounted(() => {
       :open="previewOpen"
       :title="judul"
       :html="fullPrintHtml"
+      :density="suratDensity"
       @close="previewOpen = false"
       @print="handlePrint"
     />

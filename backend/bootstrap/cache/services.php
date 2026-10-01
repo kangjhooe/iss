@@ -34,8 +34,9 @@
     30 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     31 => 'Termwind\\Laravel\\TermwindServiceProvider',
     32 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
-    33 => 'App\\Providers\\OptionalPurifierServiceProvider',
-    34 => 'L5Swagger\\L5SwaggerServiceProvider',
+    33 => 'App\\Providers\\AppServiceProvider',
+    34 => 'App\\Providers\\OptionalPurifierServiceProvider',
+    35 => 'L5Swagger\\L5SwaggerServiceProvider',
   ),
   'eager' => 
   array (
@@ -57,8 +58,9 @@
     15 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     16 => 'Termwind\\Laravel\\TermwindServiceProvider',
     17 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
-    18 => 'App\\Providers\\OptionalPurifierServiceProvider',
-    19 => 'L5Swagger\\L5SwaggerServiceProvider',
+    18 => 'App\\Providers\\AppServiceProvider',
+    19 => 'App\\Providers\\OptionalPurifierServiceProvider',
+    20 => 'L5Swagger\\L5SwaggerServiceProvider',
   ),
   'deferred' => 
   array (

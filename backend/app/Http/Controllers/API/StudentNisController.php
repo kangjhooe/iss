@@ -29,8 +29,10 @@ class StudentNisController extends Controller
         $settings = $this->localNisService->settingsFor($institution);
         $preview = null;
         $previewError = null;
+        $nextSeq = 1;
         try {
             $preview = $this->localNisService->preview($institution);
+            $nextSeq = $this->localNisService->nextSeq($institution, $settings);
         } catch (InvalidArgumentException $e) {
             $previewError = $e->getMessage();
         }
@@ -43,6 +45,7 @@ class StudentNisController extends Controller
                 'preview_error' => $previewError,
                 'missing_nis_count' => $this->localNisService->missingNisCount($institution->id),
                 'year_code' => $this->localNisService->yearCode($institution),
+                'next_seq' => $nextSeq,
             ],
         ]);
     }
@@ -79,6 +82,7 @@ class StudentNisController extends Controller
                 'preview_error' => null,
                 'missing_nis_count' => $this->localNisService->missingNisCount($institution->id),
                 'year_code' => $this->localNisService->yearCode($institution),
+                'next_seq' => $this->localNisService->nextSeq($institution, $settings),
             ],
         ]);
     }
@@ -129,6 +133,10 @@ class StudentNisController extends Controller
             'student_ids' => ['required', 'array', 'min:1'],
             'student_ids.*' => ['integer'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:2000'],
+            'start_seq' => ['nullable', 'integer', 'min:1', 'max:99999999'],
+        ], [
+            'start_seq.min' => 'Nomor urut awal minimal 1.',
+            'start_seq.max' => 'Nomor urut awal terlalu besar.',
         ]);
 
         $institution = $this->resolveInstitution($request);
@@ -140,7 +148,8 @@ class StudentNisController extends Controller
             $result = $this->localNisService->assignMany(
                 $institution->id,
                 $validated['student_ids'],
-                (int) ($validated['limit'] ?? 500)
+                (int) ($validated['limit'] ?? 500),
+                isset($validated['start_seq']) ? (int) $validated['start_seq'] : null
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
@@ -178,6 +187,10 @@ class StudentNisController extends Controller
             'student_ids' => ['nullable', 'array'],
             'student_ids.*' => ['integer'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:2000'],
+            'start_seq' => ['nullable', 'integer', 'min:1', 'max:99999999'],
+        ], [
+            'start_seq.min' => 'Nomor urut awal minimal 1.',
+            'start_seq.max' => 'Nomor urut awal terlalu besar.',
         ]);
 
         $institution = $this->resolveInstitution($request);
@@ -189,7 +202,8 @@ class StudentNisController extends Controller
             $result = $this->localNisService->previewAssignments(
                 $institution->id,
                 $validated['student_ids'] ?? null,
-                (int) ($validated['limit'] ?? 500)
+                (int) ($validated['limit'] ?? 500),
+                isset($validated['start_seq']) ? (int) $validated['start_seq'] : null
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

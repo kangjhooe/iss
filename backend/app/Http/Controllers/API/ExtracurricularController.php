@@ -146,6 +146,10 @@ class ExtracurricularController extends Controller
                 $data['is_pramuka'] = (bool) $data['is_pramuka'];
             }
 
+            if (empty($data['assessment_mode'])) {
+                $data['assessment_mode'] = Extracurricular::ASSESSMENT_STANDARD;
+            }
+
             $extracurricular = Extracurricular::create($data);
             ExtracurricularAccess::grantAccessForEmployee($extracurricular->supervisor_employee_id);
 

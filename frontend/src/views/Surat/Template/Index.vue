@@ -15,7 +15,8 @@ import {
   DEFAULT_LETTER_TYPE_CODE,
   LETTER_TYPES,
   exampleLetterNumber,
-  letterTypeLabel
+  letterTypeLabel,
+  suratDensityForLetterType
 } from '../utils/letterTypes'
 
 const toast = useToast()
@@ -49,6 +50,7 @@ const canEditSelected = computed(() => {
   return true
 })
 const nomorContoh = computed(() => exampleLetterNumber(form.value.letter_type_code))
+const suratDensity = computed(() => suratDensityForLetterType(form.value.letter_type_code))
 const hasNomorPlaceholder = computed(() => /\{\{\s*nomor_surat\s*\}\}/.test(form.value.isi_html || ''))
 
 const platformList = computed(() => list.value.filter((t) => t.is_platform || t.institution_id == null))
@@ -210,7 +212,8 @@ async function remove(item) {
 onMounted(load)
 </script>
 
-<template>    <div class="tpl-page">
+<template>
+    <div class="tpl-page">
       <SuratSubNav
         title="Template Surat"
         subtitle="Pakai template platform atau buat template milik sekolah"
@@ -358,7 +361,7 @@ onMounted(load)
           </div>
 
           <div class="editor-area">
-            <Paper :zoom="0.85">
+            <Paper :zoom="0.85" :density="suratDensity">
               <EditorSurat v-model="form.isi_html" :disabled="!canEditSelected" />
             </Paper>
           </div>
@@ -388,6 +391,7 @@ onMounted(load)
       :open="previewOpen"
       :title="form.nama || 'Preview Template'"
       :html="form.isi_html"
+      :density="suratDensity"
       @close="previewOpen = false"
       @print="() => { previewOpen = false; window.print() }"
     />
@@ -400,7 +404,8 @@ onMounted(load)
       :loading="confirmDialog.loading"
       @confirm="handleConfirm"
       @cancel="handleCancel"
-    /></template>
+    />
+</template>
 
 <style scoped>
 .tpl-page {

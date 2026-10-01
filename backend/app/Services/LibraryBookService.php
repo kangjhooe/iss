@@ -133,7 +133,8 @@ class LibraryBookService
     public function createBook(array $data, int $institutionId, ?int $userId, $coverFile = null, $ebookFile = null): LibraryBook
     {
         return DB::transaction(function () use ($data, $institutionId, $userId, $coverFile, $ebookFile) {
-            unset($data['cover'], $data['ebook'], $data['remove_ebook']);
+            $copiesCount = (int) ($data['copies_count'] ?? 0);
+            unset($data['cover'], $data['ebook'], $data['remove_ebook'], $data['copies_count']);
             $data['institution_id'] = $institutionId;
             $data['created_by'] = $userId;
             $data['updated_by'] = $userId;
@@ -152,7 +153,17 @@ class LibraryBookService
                 $data['is_public_ebook'] = !empty($data['is_public_ebook']);
             }
 
-            return LibraryBook::create($data);
+            if (empty($data['acquired_at'])) {
+                $data['acquired_at'] = now()->toDateString();
+            }
+
+            $book = LibraryBook::create($data);
+
+            if ($copiesCount > 0) {
+                app(LibraryInventoryNumberService::class)->createCopies($book, min($copiesCount, 100));
+            }
+
+            return $book;
         });
     }
 

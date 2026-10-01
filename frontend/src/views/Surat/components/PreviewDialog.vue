@@ -2,7 +2,8 @@
 defineProps({
   open: { type: Boolean, default: false },
   title: { type: String, default: 'Preview Surat' },
-  html: { type: String, default: '' }
+  html: { type: String, default: '' },
+  density: { type: String, default: 'compact' }
 })
 
 const emit = defineEmits(['close', 'print'])
@@ -21,7 +22,11 @@ const emit = defineEmits(['close', 'print'])
         </header>
         <div class="preview-body">
           <div class="surat-page-shell preview-paper-wrap">
-            <div class="surat-page-content preview-paper" v-html="html" />
+            <div
+              class="surat-page-content preview-paper"
+              :class="`surat-density-${density === 'relaxed' ? 'relaxed' : 'compact'}`"
+              v-html="html"
+            />
           </div>
         </div>
       </div>

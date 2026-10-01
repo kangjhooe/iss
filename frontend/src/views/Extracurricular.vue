@@ -1,4 +1,5 @@
-<template>    <div class="extracurricular-page">
+<template>
+    <div class="extracurricular-page">
       <div class="toolbar">
         <div class="filters filters-inline">
           <input
@@ -76,6 +77,7 @@
                   <button type="button" class="cell-link" @click="$router.push(`/extracurricular/${item.id}`)">
                     <span class="cell-main">{{ displayValue(item.name) }}</span>
                     <span v-if="item.is_pramuka" class="pramuka-badge">Pramuka</span>
+                    <span v-if="item.assessment_mode === 'memorization'" class="pramuka-badge mem-badge">Hapalan</span>
                     <span v-if="item.description" class="cell-sub">{{ truncate(item.description, 48) }}</span>
                   </button>
                 </td>
@@ -193,6 +195,14 @@
                   Modul Pramuka (flag khusus)
                 </label>
               </div>
+            </div>
+            <div class="form-group">
+              <label>Mode Penilaian</label>
+              <select v-model="form.assessment_mode" class="form-input">
+                <option value="standard">Standar (nilai per pertemuan)</option>
+                <option value="memorization">Hapalan / setoran ayat</option>
+              </select>
+              <p class="form-hint">Nama ekskul bebas (mis. Tahfidz, Hafalan). Mode menentukan cara penilaian.</p>
             </div>
             <div class="form-group">
               <label>Hari</label>
@@ -399,7 +409,8 @@
         @cancel="handleCancel"
         @update:show="confirmDialog.show = $event"
       />
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
@@ -448,6 +459,7 @@ const form = ref({
   capacity: null,
   status: 'Aktif',
   is_pramuka: false,
+  assessment_mode: 'standard',
   days_of_week: [],
   start_time: '',
   end_time: '',
@@ -595,6 +607,7 @@ function openAddModal() {
     capacity: null,
     status: 'Aktif',
     is_pramuka: false,
+    assessment_mode: 'standard',
     days_of_week: [],
     start_time: '',
     end_time: '',
@@ -619,6 +632,7 @@ function openEditModal(item) {
     capacity: item.capacity || null,
     status: item.status || 'Aktif',
     is_pramuka: !!item.is_pramuka,
+    assessment_mode: item.assessment_mode || 'standard',
     days_of_week: daysOfWeek,
     start_time: item.start_time || '',
     end_time: item.end_time || '',
@@ -658,6 +672,8 @@ async function saveForm() {
       supervisor_employee_id: form.value.supervisor_employee_id || null,
       capacity: form.value.capacity === '' || form.value.capacity == null ? null : form.value.capacity,
       status: form.value.status || 'Aktif',
+      is_pramuka: !!form.value.is_pramuka,
+      assessment_mode: form.value.assessment_mode || 'standard',
       days_of_week: Array.isArray(form.value.days_of_week) ? form.value.days_of_week : [],
       start_time: normalizeTime(form.value.start_time),
       end_time: normalizeTime(form.value.end_time),
@@ -1123,6 +1139,10 @@ onMounted(async () => {
   font-weight: 600;
   background: #ecfdf5;
   color: #047857;
+}
+.mem-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .cell-link {

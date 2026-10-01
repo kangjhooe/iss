@@ -43,6 +43,7 @@ use App\Http\Controllers\API\ExamParticipantController;
 use App\Http\Controllers\API\ExamSessionController;
 use App\Http\Controllers\API\ExtracurricularActivityController;
 use App\Http\Controllers\API\ExtracurricularController;
+use App\Http\Controllers\API\ExtracurricularMemorizationController;
 use App\Http\Controllers\API\FacilityController;
 use App\Http\Controllers\API\FeedbackTicketController;
 use App\Http\Controllers\API\FinanceDashboardController;
@@ -207,11 +208,10 @@ Route::get('/', function () {
     ]);
 });
 
-// Auth publik: throttle terpisah per prefix agar refresh-token / register
-// tidak menghabiskan kuota login (signature Laravel = prefix + domain|ip).
-Route::middleware('throttle:10,1,login')->post('/login', [AuthController::class, 'login']);
-Route::middleware('throttle:30,1,refresh')->post('/refresh-token', [AuthController::class, 'refreshToken']);
-Route::middleware('throttle:5,1,auth')->group(function () {
+// Auth publik: named limiter (login per kredensial+IP; refresh longgar; tidak saling menghabiskan kuota).
+Route::middleware('throttle:login')->post('/login', [AuthController::class, 'login']);
+Route::middleware('throttle:auth-refresh')->post('/refresh-token', [AuthController::class, 'refreshToken']);
+Route::middleware('throttle:auth-public')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/password-reset-requests', [PasswordResetRequestController::class, 'store']);
@@ -1333,6 +1333,20 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('extracurriculars/{extracurricular}/report', [ExtracurricularActivityController::class, 'report'])->name('extracurriculars.report');
         Route::get('extracurriculars/{extracurricular}/report/export', [ExtracurricularActivityController::class, 'exportReportCsv'])->name('extracurriculars.report.export');
         Route::get('extracurriculars/{extracurricular}/report/pdf', [ExtracurricularActivityController::class, 'exportReportPdf'])->name('extracurriculars.report.pdf');
+
+        // Mode hapalan (memorization): target, setoran, checklist ayat
+        Route::get('quran/surahs', [ExtracurricularMemorizationController::class, 'listSurahs'])->name('quran.surahs');
+        Route::get('quran/surahs/{number}', [ExtracurricularMemorizationController::class, 'showSurah'])->name('quran.surahs.show');
+        Route::get('extracurriculars/{extracurricular}/memorization/targets', [ExtracurricularMemorizationController::class, 'listTargets'])->name('extracurriculars.memorization.targets');
+        Route::post('extracurriculars/{extracurricular}/memorization/targets', [ExtracurricularMemorizationController::class, 'storeTarget'])->name('extracurriculars.memorization.targets.store');
+        Route::put('extracurriculars/{extracurricular}/memorization/targets/{target}', [ExtracurricularMemorizationController::class, 'updateTarget'])->name('extracurriculars.memorization.targets.update');
+        Route::delete('extracurriculars/{extracurricular}/memorization/targets/{target}', [ExtracurricularMemorizationController::class, 'destroyTarget'])->name('extracurriculars.memorization.targets.destroy');
+        Route::get('extracurriculars/{extracurricular}/memorization/progress', [ExtracurricularMemorizationController::class, 'rosterProgress'])->name('extracurriculars.memorization.progress');
+        Route::get('extracurriculars/{extracurricular}/memorization/students/{studentId}/progress', [ExtracurricularMemorizationController::class, 'studentProgress'])->name('extracurriculars.memorization.student-progress');
+        Route::get('extracurriculars/{extracurricular}/memorization/students/{studentId}/surahs/{surahNumber}', [ExtracurricularMemorizationController::class, 'surahChecklist'])->name('extracurriculars.memorization.checklist');
+        Route::put('extracurriculars/{extracurricular}/memorization/students/{studentId}/surahs/{surahNumber}', [ExtracurricularMemorizationController::class, 'syncChecklist'])->name('extracurriculars.memorization.checklist.sync');
+        Route::get('extracurriculars/{extracurricular}/memorization/deposits', [ExtracurricularMemorizationController::class, 'listDeposits'])->name('extracurriculars.memorization.deposits');
+        Route::post('extracurriculars/{extracurricular}/memorization/deposits', [ExtracurricularMemorizationController::class, 'storeDeposit'])->name('extracurriculars.memorization.deposits.store');
     });
 
     // PPDB (Penerimaan Peserta Didik Baru)

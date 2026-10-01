@@ -22,6 +22,7 @@ class StoreExtracurricularRequest extends FormRequest
             'kkm' => 'nullable|numeric|min:0|max:100',
             'status' => 'sometimes|string|in:Aktif,Nonaktif',
             'is_pramuka' => 'nullable|boolean',
+            'assessment_mode' => 'nullable|string|in:standard,memorization',
             'days_of_week' => 'nullable|array',
             'days_of_week.*' => 'integer|min:1|max:6',
             'start_time' => 'nullable|date_format:H:i',

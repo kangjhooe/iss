@@ -22,6 +22,14 @@ class Extracurricular extends Model
         6 => 'Sabtu',
     ];
 
+    public const ASSESSMENT_STANDARD = 'standard';
+    public const ASSESSMENT_MEMORIZATION = 'memorization';
+
+    public const ASSESSMENT_MODES = [
+        self::ASSESSMENT_STANDARD,
+        self::ASSESSMENT_MEMORIZATION,
+    ];
+
     protected $fillable = [
         'institution_id',
         'name',
@@ -33,6 +41,7 @@ class Extracurricular extends Model
         'kkm',
         'status',
         'is_pramuka',
+        'assessment_mode',
         'days_of_week',
         'start_time',
         'end_time',
@@ -52,6 +61,21 @@ class Extracurricular extends Model
             'start_time' => 'datetime:H:i',
             'end_time' => 'datetime:H:i',
         ];
+    }
+
+    public function isMemorizationMode(): bool
+    {
+        return ($this->assessment_mode ?? self::ASSESSMENT_STANDARD) === self::ASSESSMENT_MEMORIZATION;
+    }
+
+    public function memorizationTargets()
+    {
+        return $this->hasMany(MemorizationTarget::class);
+    }
+
+    public function memorizationDeposits()
+    {
+        return $this->hasMany(MemorizationDeposit::class);
     }
 
     public function getKkmValueAttribute(): float
