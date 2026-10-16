@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\TeacherMenuContext;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\Auditable;
 
 class BankSoal extends Model
 {
@@ -78,7 +79,7 @@ class BankSoal extends Model
     }
 
     /**
-     * Banks the user can access: same institution, or owner, or shared with user.
+     * Banks the user can access: same institution (guru: mapel yang diampu), or shared with user.
      */
     public function scopeAccessibleBy($query, \Illuminate\Http\Request $request)
     {
@@ -88,11 +89,22 @@ class BankSoal extends Model
         }
         $institutionId = $user->isSuperAdmin() && $request->filled('institution_id')
             ? (int) $request->get('institution_id')
-            : $user->institution_id;
-        return $query->where(function ($q) use ($institutionId, $user) {
-            $q->where('institution_id', $institutionId)
-                ->orWhere('created_by_user_id', $user->id)
-                ->orWhereHas('sharedWithUsers', fn ($q2) => $q2->where('id', $user->id));
+            : ($request->attributes->get('current_institution_id')
+                ? (int) $request->attributes->get('current_institution_id')
+                : $user->institution_id);
+        $taughtSubjectIds = TeacherMenuContext::taughtSubjectIds($user, $request);
+
+        return $query->where(function ($q) use ($institutionId, $user, $taughtSubjectIds) {
+            $q->where(function ($inner) use ($institutionId, $taughtSubjectIds) {
+                $inner->where('institution_id', $institutionId);
+                if (is_array($taughtSubjectIds)) {
+                    if ($taughtSubjectIds === []) {
+                        $inner->whereRaw('0 = 1');
+                    } else {
+                        $inner->whereIn('subject_id', $taughtSubjectIds);
+                    }
+                }
+            })->orWhereHas('sharedWithUsers', fn ($q2) => $q2->where('user.id', $user->id));
         });
     }
 }

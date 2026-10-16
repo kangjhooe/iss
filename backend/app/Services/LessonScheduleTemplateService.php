@@ -184,6 +184,42 @@ class LessonScheduleTemplateService
     }
 
     /**
+     * Count active schedules for a class.
+     * Tidak memfilter semester agar orphan (semester_id ≠ kelas) ikut terhitung.
+     */
+    public function countClassSchedules(int $institutionId, int $classId, ?int $semesterId = null): int
+    {
+        return LessonSchedule::query()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', $classId)
+            ->count();
+    }
+
+    /**
+     * Force-delete all schedules for a class (semua semester + soft-deleted).
+     * Soft-deleted/orphan rows masih memegang unique slot index dan bisa memblokir hapus mapel.
+     */
+    public function clearClassSchedules(int $institutionId, int $classId, ?int $semesterId = null): int
+    {
+        return (int) LessonSchedule::withTrashed()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', $classId)
+            ->forceDelete();
+    }
+
+    /**
+     * Hapus jadwal kelas yang semester_id-nya tidak cocok dengan semester kelas/template.
+     */
+    public function purgeOrphanClassSchedules(int $institutionId, int $classId, int $semesterId): int
+    {
+        return (int) LessonSchedule::withTrashed()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', $classId)
+            ->where('semester_id', '!=', $semesterId)
+            ->forceDelete();
+    }
+
+    /**
      * Preview impact of assigning a template to a class.
      *
      * @return array{
@@ -191,6 +227,7 @@ class LessonScheduleTemplateService
      *   current_template_id: int|null,
      *   target_template_id: int|null,
      *   target_template_name: string|null,
+     *   existing_count: int,
      *   affected_count: int,
      *   requires_prune: bool,
      *   affected_slots: array<int, array<string, mixed>>
@@ -210,6 +247,12 @@ class LessonScheduleTemplateService
             ? (int) $class->lesson_schedule_template_id
             : null;
 
+        $existingCount = $this->countClassSchedules(
+            $institutionId,
+            $classId,
+            (int) $class->semester_id
+        );
+
         if ($templateId === null || $currentId === $templateId) {
             $name = null;
             if ($templateId) {
@@ -221,6 +264,7 @@ class LessonScheduleTemplateService
                 'current_template_id' => $currentId,
                 'target_template_id' => $templateId,
                 'target_template_name' => $name,
+                'existing_count' => $existingCount,
                 'affected_count' => 0,
                 'requires_prune' => false,
                 'affected_slots' => [],
@@ -243,13 +287,22 @@ class LessonScheduleTemplateService
             $template
         );
 
+        $orphanCount = LessonSchedule::query()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', $classId)
+            ->where('semester_id', '!=', (int) $class->semester_id)
+            ->count();
+
+        $affectedCount = $affected->count() + $orphanCount;
+
         return [
             'class_id' => $class->id,
             'current_template_id' => $currentId,
             'target_template_id' => $templateId,
             'target_template_name' => $template->name,
-            'affected_count' => $affected->count(),
-            'requires_prune' => $affected->isNotEmpty(),
+            'existing_count' => $existingCount,
+            'affected_count' => $affectedCount,
+            'requires_prune' => $affectedCount > 0,
             'affected_slots' => $affected->take(10)->map(function (LessonSchedule $s) {
                 return [
                     'id' => $s->id,
@@ -264,16 +317,25 @@ class LessonScheduleTemplateService
     }
 
     /**
-     * Assign a template to a class. When switching to a narrower template,
-     * out-of-bound slots are pruned if $pruneOutOfBounds is true.
+     * Assign a template to a class.
+     * - $clearSchedules: kosongkan semua jadwal kelas sebelum ganti template.
+     * - $pruneOutOfBounds: hapus hanya slot yang tidak muat di template baru.
      *
-     * @return array{class: SchoolClass, pruned_count: int, requires_prune: bool, affected_count: int, affected_slots?: array}
+     * @return array{
+     *   class: SchoolClass,
+     *   pruned_count: int,
+     *   cleared_count: int,
+     *   requires_prune: bool,
+     *   affected_count: int,
+     *   affected_slots?: array
+     * }
      */
     public function assignToClass(
         int $institutionId,
         int $classId,
         ?int $templateId,
-        bool $pruneOutOfBounds = false
+        bool $pruneOutOfBounds = false,
+        bool $clearSchedules = false
     ): array {
         $class = SchoolClass::query()
             ->where('id', $classId)
@@ -281,15 +343,26 @@ class LessonScheduleTemplateService
             ->firstOrFail();
 
         if ($templateId === null) {
-            $class->lesson_schedule_template_id = null;
-            $class->save();
+            return DB::transaction(function () use ($institutionId, $class, $clearSchedules) {
+                $cleared = 0;
+                if ($clearSchedules) {
+                    $cleared = $this->clearClassSchedules(
+                        $institutionId,
+                        (int) $class->id
+                    );
+                }
 
-            return [
-                'class' => $class->fresh(),
-                'pruned_count' => 0,
-                'requires_prune' => false,
-                'affected_count' => 0,
-            ];
+                $class->lesson_schedule_template_id = null;
+                $class->save();
+
+                return [
+                    'class' => $class->fresh(),
+                    'pruned_count' => 0,
+                    'cleared_count' => $cleared,
+                    'requires_prune' => false,
+                    'affected_count' => 0,
+                ];
+            });
         }
 
         $template = LessonScheduleTemplate::query()
@@ -301,6 +374,33 @@ class LessonScheduleTemplateService
             throw new \InvalidArgumentException('Template harus dari semester yang sama dengan kelas.');
         }
 
+        if ($clearSchedules) {
+            return DB::transaction(function () use ($institutionId, $class, $template) {
+                $cleared = $this->clearClassSchedules(
+                    $institutionId,
+                    (int) $class->id
+                );
+
+                $class->lesson_schedule_template_id = $template->id;
+                $class->save();
+
+                return [
+                    'class' => $class->fresh(),
+                    'pruned_count' => 0,
+                    'cleared_count' => $cleared,
+                    'requires_prune' => false,
+                    'affected_count' => 0,
+                ];
+            });
+        }
+
+        // Orphan (semester_id ≠ kelas) ikut dihitung sebagai perlu dibersihkan
+        $orphanCount = LessonSchedule::query()
+            ->where('institution_id', $institutionId)
+            ->where('class_id', $classId)
+            ->where('semester_id', '!=', (int) $class->semester_id)
+            ->count();
+
         $affected = $this->findOutOfBoundSchedules(
             $institutionId,
             $classId,
@@ -308,12 +408,13 @@ class LessonScheduleTemplateService
             $template
         );
 
-        if ($affected->isNotEmpty() && ! $pruneOutOfBounds) {
+        if (($affected->isNotEmpty() || $orphanCount > 0) && ! $pruneOutOfBounds) {
             return [
                 'class' => $class,
                 'pruned_count' => 0,
+                'cleared_count' => 0,
                 'requires_prune' => true,
-                'affected_count' => $affected->count(),
+                'affected_count' => $affected->count() + $orphanCount,
                 'affected_slots' => $affected->take(10)->map(function (LessonSchedule $s) {
                     return [
                         'id' => $s->id,
@@ -327,12 +428,17 @@ class LessonScheduleTemplateService
             ];
         }
 
-        return DB::transaction(function () use ($class, $template, $affected) {
-            $pruned = 0;
+        return DB::transaction(function () use ($institutionId, $class, $template, $affected) {
+            $pruned = $this->purgeOrphanClassSchedules(
+                $institutionId,
+                (int) $class->id,
+                (int) $class->semester_id
+            );
+
             if ($affected->isNotEmpty()) {
                 // forceDelete: soft-deleted rows still occupy the unique slot index
                 // (semester_id, class_id, day_of_week, period) and would block recreate.
-                $pruned = LessonSchedule::query()
+                $pruned += (int) LessonSchedule::query()
                     ->whereIn('id', $affected->pluck('id'))
                     ->forceDelete();
             }
@@ -343,6 +449,7 @@ class LessonScheduleTemplateService
             return [
                 'class' => $class->fresh(),
                 'pruned_count' => (int) $pruned,
+                'cleared_count' => 0,
                 'requires_prune' => false,
                 'affected_count' => $affected->count(),
             ];

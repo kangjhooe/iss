@@ -404,6 +404,13 @@ class User extends Authenticatable
             return false;
         }
 
+        // Kelola lab hanya di konteks sekolah aktif (induk/non-induk),
+        // supaya tombol/aksi selaras dengan middleware module:facility.
+        $activeId = $this->currentInstitutionId();
+        if ($activeId && (int) $activeId !== (int) $room->institution_id) {
+            return false;
+        }
+
         if ($this->isInstitutionAdmin()) {
             return true;
         }

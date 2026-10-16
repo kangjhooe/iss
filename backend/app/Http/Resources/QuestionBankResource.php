@@ -16,8 +16,19 @@ class QuestionBankResource extends JsonResource
             'subject_id' => $this->subject_id,
             'stimulus_id' => $this->stimulus_id,
             'type' => $this->type,
+            'status' => $this->status ?: 'ready',
+            'topic' => $this->topic,
             'body' => $this->body,
             'weight' => (float) $this->weight,
+            'cognitive_level' => $this->cognitive_level,
+            'cognitive_level_label' => $this->cognitive_level
+                ? (\App\Models\QuestionBank::COGNITIVE_LEVELS[$this->cognitive_level] ?? strtoupper((string) $this->cognitive_level))
+                : null,
+            'difficulty' => $this->difficulty,
+            'difficulty_label' => $this->difficulty
+                ? (\App\Models\QuestionBank::DIFFICULTIES[$this->difficulty] ?? $this->difficulty)
+                : null,
+            'tags' => is_array($this->tags) ? array_values($this->tags) : [],
             'sort_order' => (int) ($this->sort_order ?? 0),
             'key_answer' => $this->when($request->user() && !$request->routeIs('exam-attempt.*'), $this->key_answer),
             'key_answer_aliases' => $this->when(

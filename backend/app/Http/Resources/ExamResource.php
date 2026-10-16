@@ -12,6 +12,7 @@ class ExamResource extends JsonResource
         return [
             'id' => $this->id,
             'institution_id' => $this->institution_id,
+            'exam_period_id' => $this->exam_period_id,
             'subject_id' => $this->subject_id,
             'code' => $this->code,
             'name' => $this->name,
@@ -20,14 +21,25 @@ class ExamResource extends JsonResource
             'shuffle_questions' => (bool) $this->shuffle_questions,
             'shuffle_options' => (bool) $this->shuffle_options,
             'start_type' => $this->start_type,
+            'delivery_mode' => $this->delivery_mode ?: 'proctored',
+            'max_attempts' => $this->max_attempts !== null ? (int) $this->max_attempts : null,
             'scheduled_start_at' => $this->scheduled_start_at?->toIso8601String(),
             'scheduled_end_at' => $this->scheduled_end_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
+            'questions_count' => $this->when(
+                $this->relationLoaded('examQuestions'),
+                fn () => $this->examQuestions->count()
+            ),
             'subject' => $this->whenLoaded('subject', fn () => $this->subject ? [
                 'id' => $this->subject->id,
                 'name' => $this->subject->name,
                 'code' => $this->subject->code,
+            ] : null),
+            'exam_period' => $this->whenLoaded('examPeriod', fn () => $this->examPeriod ? [
+                'id' => $this->examPeriod->id,
+                'code' => $this->examPeriod->code,
+                'name' => $this->examPeriod->name,
             ] : null),
             'participants_count' => $this->whenLoaded('sessions', fn () => $this->sessions->sum('participants_count')),
             'sessions' => ExamSessionResource::collection($this->whenLoaded('sessions')),

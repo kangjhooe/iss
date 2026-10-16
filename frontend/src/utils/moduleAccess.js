@@ -36,6 +36,14 @@ export function hasModuleAccess(user, moduleKey) {
   if (moduleKey === 'guru_piket' && (user.is_piket_scheduled || user.is_piket_on_duty)) {
     return true
   }
+  // Guru pengampu mapel: Bank Soal / Ujian Online tanpa grant manual
+  if (
+    moduleKey === 'online_exam'
+    && (user.role === 'teacher' || user.role === 'staff')
+    && (user.teaching_assignments || []).length > 0
+  ) {
+    return true
+  }
   return false
 }
 

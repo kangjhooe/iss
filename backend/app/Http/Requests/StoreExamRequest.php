@@ -27,7 +27,7 @@ class StoreExamRequest extends FormRequest
             ],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:5000',
-            'subject_id' => 'nullable|exists:subjects,id',
+            'subject_id' => 'required|exists:subjects,id',
             'duration_minutes' => 'nullable|integer|min:1|max:600',
             'shuffle_questions' => 'boolean',
             'shuffle_options' => 'boolean',

@@ -46,6 +46,27 @@ class BankSoalBackupService
                 copy(Storage::disk('public')->path($attachmentPath), $assetsDir . '/' . $assetName);
                 $assetMap[$attachmentPath] = 'assets/' . $assetName;
             }
+            $media = is_array($s->media) ? $s->media : [];
+            foreach ($media as $mi => $mItem) {
+                $mUrl = (string) ($mItem['url'] ?? '');
+                if (($mItem['type'] ?? '') === 'youtube' || $mUrl === '' || ! str_contains($mUrl, '/storage/')) {
+                    continue;
+                }
+                $storageRel = preg_replace('#^.*?/storage/#', '', $mUrl);
+                if (! $storageRel) {
+                    continue;
+                }
+                if (Storage::disk('public')->exists($storageRel) && ! isset($assetMap[$storageRel])) {
+                    $ext = pathinfo($storageRel, PATHINFO_EXTENSION) ?: 'bin';
+                    $assetName = 'stimulus_' . $s->id . '_m' . $mi . '.' . $ext;
+                    copy(Storage::disk('public')->path($storageRel), $assetsDir . '/' . $assetName);
+                    $assetMap[$storageRel] = 'assets/' . $assetName;
+                }
+                if (isset($assetMap[$storageRel])) {
+                    $media[$mi]['url'] = $assetMap[$storageRel];
+                }
+            }
+
             $stimuliData[] = [
                 'id' => $s->id,
                 'subject_id' => $s->subject_id,
@@ -53,6 +74,7 @@ class BankSoalBackupService
                 'content' => $s->content,
                 'type' => $s->type,
                 'attachment_path' => $attachmentPath ? ($assetMap[$attachmentPath] ?? $attachmentPath) : null,
+                'media' => $media,
             ];
         }
 
@@ -67,7 +89,9 @@ class BankSoalBackupService
                 'type' => $q->type,
                 'body' => $this->rewriteBodyPathsForBackup($q->body, $assetsDir, $assetMap),
                 'weight' => $q->weight,
+                'cognitive_level' => $q->cognitive_level,
                 'key_answer' => $q->key_answer,
+                'key_answer_aliases' => $q->key_answer_aliases,
                 'matching_data' => $q->matching_data,
             ];
             foreach ($q->options as $opt) {
@@ -239,6 +263,22 @@ class BankSoalBackupService
                         }
                     }
                 }
+                $media = is_array($s['media'] ?? null) ? $s['media'] : [];
+                foreach ($media as $mi => $mItem) {
+                    $mUrl = (string) ($mItem['url'] ?? '');
+                    if (($mItem['type'] ?? '') === 'youtube' || $mUrl === '') {
+                        continue;
+                    }
+                    if (str_starts_with($mUrl, 'assets/')) {
+                        $localFile = $tmpDir . '/' . $mUrl;
+                        if (file_exists($localFile)) {
+                            $storagePath = 'question_assets/' . $institutionId . '/' . date('Y/m') . '/' . basename($mUrl);
+                            Storage::disk('public')->put($storagePath, file_get_contents($localFile));
+                            $media[$mi]['url'] = url(Storage::url($storagePath));
+                        }
+                    }
+                }
+
                 $newStimulus = QuestionStimulus::create([
                     'institution_id' => $institutionId,
                     'bank_soal_id' => $targetBank->id,
@@ -247,6 +287,7 @@ class BankSoalBackupService
                     'content' => $s['content'] ?? '',
                     'type' => $s['type'] ?? 'text',
                     'attachment_path' => $attachmentPath,
+                    'media' => $media,
                 ]);
                 $oldToNewStimulusId[$oldId] = $newStimulus->id;
                 $result['stimuli_created']++;
@@ -267,7 +308,9 @@ class BankSoalBackupService
                     'type' => $q['type'],
                     'body' => $body,
                     'weight' => $q['weight'] ?? 1,
+                    'cognitive_level' => $q['cognitive_level'] ?? null,
                     'key_answer' => $q['key_answer'] ?? null,
+                    'key_answer_aliases' => $q['key_answer_aliases'] ?? null,
                     'matching_data' => $q['matching_data'] ?? null,
                 ]);
                 $oldToNewQuestionId[$oldQId] = $newQuestion->id;

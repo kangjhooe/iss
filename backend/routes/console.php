@@ -46,6 +46,11 @@ Schedule::command('exam:rotate-entry-pins')
     ->cron('*/20 * * * *')
     ->withoutOverlapping();
 
+// Mulai dan akhiri sesi ujian sesuai jadwal
+Schedule::command('exam:sync-schedule')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 // Mark overdue inventory loans daily
 Schedule::command('inventory:mark-loans-overdue')
     ->dailyAt('01:00')

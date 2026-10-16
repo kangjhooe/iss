@@ -23,6 +23,7 @@ class TeacherAccess
             'teaching_journal',
             'grade_book',
             'schedule',
+            'online_exam',
         ];
     }
 

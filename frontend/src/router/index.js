@@ -38,31 +38,31 @@ const router = createRouter({
     {
       path: '/panduan',
       name: 'Panduan',
-      component: () => import('@/views/Panduan.vue'),
+      component: () => import('@/views/Guide.vue'),
       meta: { index: true }
     },
     {
       path: '/panduan/admin',
       name: 'PanduanAdmin',
-      component: () => import('@/views/PanduanAdmin.vue'),
+      component: () => import('@/views/AdminGuide.vue'),
       meta: { index: true }
     },
     {
       path: '/panduan/guru',
       name: 'PanduanGuru',
-      component: () => import('@/views/PanduanGuru.vue'),
+      component: () => import('@/views/TeacherGuide.vue'),
       meta: { index: true }
     },
     {
       path: '/panduan/siswa',
       name: 'PanduanSiswa',
-      component: () => import('@/views/PanduanSiswa.vue'),
+      component: () => import('@/views/StudentGuide.vue'),
       meta: { index: true }
     },
     {
       path: '/panduan/orang-tua',
       name: 'PanduanOrangTua',
-      component: () => import('@/views/PanduanOrangTua.vue'),
+      component: () => import('@/views/ParentGuide.vue'),
       meta: { index: true }
     },
     {
@@ -110,7 +110,7 @@ const router = createRouter({
     {
       path: '/lengkapi-berkas-ppdb',
       name: 'PpdbLengkapiBerkas',
-      component: () => import('@/views/PpdbLengkapiBerkas.vue'),
+      component: () => import('@/views/PpdbCompleteDocuments.vue'),
       meta: { index: true }
     },
     {
@@ -140,7 +140,7 @@ const router = createRouter({
     {
       path: '/teacher/wali',
       name: 'TeacherWali',
-      component: () => import('@/views/TeacherWali.vue'),
+      component: () => import('@/views/TeacherHomeroom.vue'),
       meta: { requiresAuth: true, requiresTeacher: true }
     },
     {
@@ -170,7 +170,7 @@ const router = createRouter({
     {
       path: '/guru-piket',
       name: 'GuruPiket',
-      component: () => import('@/views/GuruPiket.vue'),
+      component: () => import('@/views/TeacherDuty.vue'),
       meta: { requiresAuth: true, requiresAnyModule: ['guru_piket', 'guru_piket_manage'] }
     },
     {
@@ -390,13 +390,13 @@ const router = createRouter({
     {
       path: '/siswa-keluar',
       name: 'SiswaKeluar',
-      component: () => import('@/views/SiswaKeluar.vue'),
+      component: () => import('@/views/WithdrawnStudents.vue'),
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
       path: '/student/:id/buku-induk',
       name: 'BukuInduk',
-      component: () => import('@/views/BukuInduk.vue'),
+      component: () => import('@/views/StudentRegistry.vue'),
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
@@ -414,13 +414,13 @@ const router = createRouter({
     {
       path: '/luluskan-siswa',
       name: 'LuluskanSiswa',
-      component: () => import('@/views/LuluskanSiswa.vue'),
+      component: () => import('@/views/GraduateStudents.vue'),
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
       path: '/naik-kelas',
       name: 'NaikKelas',
-      component: () => import('@/views/NaikKelas.vue'),
+      component: () => import('@/views/PromoteClass.vue'),
       meta: { requiresAuth: true, requiresModule: 'student' }
     },
     {
@@ -452,25 +452,25 @@ const router = createRouter({
     {
       path: '/bk/laporan',
       name: 'LaporanBk',
-      component: () => import('../views/LaporanBk.vue'),
+      component: () => import('../views/CounselingReport.vue'),
       meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'combined' },
     },
     {
       path: '/bk/laporan/pelanggaran',
       name: 'LaporanPelanggaran',
-      component: () => import('../views/LaporanBk.vue'),
+      component: () => import('../views/CounselingReport.vue'),
       meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'violations' },
     },
     {
       path: '/bk/laporan/prestasi',
       name: 'LaporanPrestasi',
-      component: () => import('../views/LaporanBk.vue'),
+      component: () => import('../views/CounselingReport.vue'),
       meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'achievements', reportPurpose: 'akreditasi' },
     },
     {
       path: '/bk/laporan/apresiasi',
       name: 'LaporanApresiasi',
-      component: () => import('../views/LaporanBk.vue'),
+      component: () => import('../views/CounselingReport.vue'),
       meta: { requiresAuth: true, requiresAnyModule: ['violation', 'counseling', 'bk_report'], reportScope: 'achievements', reportPurpose: 'apresiasi' },
     },
     {
@@ -488,7 +488,7 @@ const router = createRouter({
     {
       path: '/laporan-uks',
       name: 'LaporanUks',
-      component: () => import('../views/LaporanUks.vue'),
+      component: () => import('../views/UksReport.vue'),
       meta: { requiresAuth: true, requiresModule: 'uks' }
     },
     {
@@ -572,13 +572,13 @@ const router = createRouter({
     {
       path: '/raport',
       name: 'Raport',
-      component: () => import('@/views/Raport.vue'),
+      component: () => import('@/views/ReportCard.vue'),
       meta: { requiresAuth: true, requiresModule: 'grade_book' }
     },
     {
       path: '/raport-kelas',
       name: 'RaportKelas',
-      component: () => import('@/views/RaportKelas.vue'),
+      component: () => import('@/views/ClassReportCard.vue'),
       meta: { requiresAuth: true, requiresModule: 'grade_book' }
     },
     {
@@ -590,7 +590,7 @@ const router = createRouter({
     {
       path: '/kepegawaian',
       name: 'Kepegawaian',
-      component: () => import('@/views/Kepegawaian.vue'),
+      component: () => import('@/views/Personnel.vue'),
       meta: { requiresAuth: true, requiresModule: 'kepegawaian' }
     },
     {
@@ -644,7 +644,7 @@ const router = createRouter({
     {
       path: '/program-keahlian',
       name: 'ProgramKeahlian',
-      component: () => import('@/views/ProgramKeahlian.vue'),
+      component: () => import('@/views/VocationalProgram.vue'),
       meta: { requiresAuth: true, requiresModule: 'class', requiresVocational: true }
     },
     {
@@ -698,25 +698,25 @@ const router = createRouter({
     {
       path: '/correspondence',
       name: 'Correspondence',
-      component: () => import('@/views/Surat/Index.vue'),
+      component: () => import('@/views/Correspondence/Index.vue'),
       meta: { requiresAuth: true, requiresModule: 'correspondence' }
     },
     {
       path: '/correspondence/templates',
       name: 'CorrespondenceTemplates',
-      component: () => import('@/views/Surat/Template/Index.vue'),
+      component: () => import('@/views/Correspondence/Template/Index.vue'),
       meta: { requiresAuth: true, requiresModule: 'correspondence' }
     },
     {
       path: '/correspondence/kop',
       name: 'CorrespondenceKop',
-      component: () => import('@/views/Surat/Kop/Index.vue'),
+      component: () => import('@/views/Correspondence/Letterhead/Index.vue'),
       meta: { requiresAuth: true, requiresModule: 'correspondence' }
     },
     {
       path: '/correspondence/tanda-tangan',
       name: 'CorrespondenceTandaTangan',
-      component: () => import('@/views/Surat/TandaTangan/Index.vue'),
+      component: () => import('@/views/Correspondence/Signature/Index.vue'),
       meta: { requiresAuth: true, requiresModule: 'correspondence' }
     },
     {
@@ -734,7 +734,7 @@ const router = createRouter({
     {
       path: '/buku-tamu',
       name: 'BukuTamu',
-      component: () => import('@/views/BukuTamu.vue'),
+      component: () => import('@/views/GuestBook.vue'),
       meta: { requiresAuth: true, requiresModule: 'guest_book' }
     },
     {
@@ -836,125 +836,137 @@ const router = createRouter({
     {
       path: '/ppdb/konfigurasi',
       name: 'PpdbKonfigurasi',
-      component: () => import('@/views/Ppdb/Konfigurasi.vue'),
+      component: () => import('@/views/Ppdb/Settings.vue'),
       meta: { requiresAuth: true, requiresModule: 'ppdb' }
     },
     {
       path: '/ppdb/pendaftar',
       name: 'PpdbPendaftar',
-      component: () => import('@/views/Ppdb/Pendaftar.vue'),
+      component: () => import('@/views/Ppdb/Applicants.vue'),
       meta: { requiresAuth: true, requiresModule: 'ppdb' }
     },
     {
       path: '/ppdb/pendaftar/:id',
       name: 'PpdbPendaftarDetail',
-      component: () => import('@/views/Ppdb/PendaftarDetail.vue'),
+      component: () => import('@/views/Ppdb/ApplicantDetail.vue'),
       meta: { requiresAuth: true, requiresModule: 'ppdb' }
     },
     {
       path: '/ppdb/statistik',
       name: 'PpdbStatistik',
-      component: () => import('@/views/Ppdb/Statistik.vue'),
+      component: () => import('@/views/Ppdb/Statistics.vue'),
       meta: { requiresAuth: true, requiresModule: 'ppdb' }
     },
     {
       path: '/ppdb/pembayaran',
       name: 'PpdbPembayaran',
-      component: () => import('@/views/Ppdb/Pembayaran.vue'),
+      component: () => import('@/views/Ppdb/Payment.vue'),
       meta: { requiresAuth: true, requiresModule: 'ppdb' }
     },
     {
-      path: '/keuangan',
-      name: 'Keuangan',
-      redirect: { name: 'KeuanganJenisBiaya' }
+      path: '/finance',
+      name: 'Finance',
+      redirect: { name: 'FinanceFeeType' }
     },
     {
-      path: '/keuangan/jenis-biaya',
-      name: 'KeuanganJenisBiaya',
-      component: () => import('@/views/Keuangan/JenisBiaya.vue'),
+      path: '/finance/fee-types',
+      name: 'FinanceFeeType',
+      component: () => import('@/views/Finance/FeeType.vue'),
       meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
-      path: '/keuangan/spp',
-      name: 'KeuanganSpp',
-      component: () => import('@/views/Keuangan/Spp.vue'),
+      path: '/finance/spp',
+      name: 'FinanceSpp',
+      component: () => import('@/views/Finance/Spp.vue'),
       meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
-      path: '/keuangan/tagihan',
-      name: 'KeuanganTagihan',
-      component: () => import('@/views/Keuangan/Tagihan.vue'),
+      path: '/finance/invoices',
+      name: 'FinanceInvoice',
+      component: () => import('@/views/Finance/Invoice.vue'),
       meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
-      path: '/keuangan/pembayaran',
-      name: 'KeuanganPembayaran',
-      component: () => import('@/views/Keuangan/Pembayaran.vue'),
+      path: '/finance/payments',
+      name: 'FinancePayment',
+      component: () => import('@/views/Finance/Payment.vue'),
       meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
-      path: '/keuangan/pengeluaran',
-      name: 'KeuanganPengeluaran',
-      component: () => import('@/views/Keuangan/Pengeluaran.vue'),
+      path: '/finance/expenses',
+      name: 'FinanceExpense',
+      component: () => import('@/views/Finance/Expense.vue'),
       meta: { requiresAuth: true, requiresAnyModule: ['finance', 'payroll'] }
     },
     {
-      path: '/keuangan/tunggakan',
-      name: 'KeuanganTunggakan',
-      component: () => import('@/views/Keuangan/Tunggakan.vue'),
+      path: '/finance/arrears',
+      name: 'FinanceArrears',
+      component: () => import('@/views/Finance/Arrears.vue'),
       meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
-      path: '/keuangan/laporan',
-      name: 'KeuanganLaporan',
-      component: () => import('@/views/Keuangan/Laporan.vue'),
+      path: '/finance/report',
+      name: 'FinanceReport',
+      component: () => import('@/views/Finance/Report.vue'),
       meta: { requiresAuth: true, requiresModule: 'finance' }
     },
     {
-      path: '/penggajian',
-      name: 'Penggajian',
-      redirect: { name: 'PenggajianProses' }
+      path: '/payroll',
+      name: 'Payroll',
+      redirect: { name: 'PayrollRun' }
     },
     {
-      path: '/penggajian/komponen',
-      name: 'PenggajianKomponen',
-      component: () => import('@/views/Penggajian/Komponen.vue'),
+      path: '/payroll/components',
+      name: 'PayrollComponent',
+      component: () => import('@/views/Payroll/Component.vue'),
       meta: { requiresAuth: true, requiresModule: 'payroll' }
     },
     {
-      path: '/penggajian/tunjangan-jabatan',
-      name: 'PenggajianTunjanganJabatan',
-      component: () => import('@/views/Penggajian/TunjanganJabatan.vue'),
+      path: '/payroll/position-allowances',
+      name: 'PayrollPositionAllowance',
+      component: () => import('@/views/Payroll/PositionAllowance.vue'),
       meta: { requiresAuth: true, requiresModule: 'payroll' }
     },
     {
-      path: '/penggajian/profil',
-      name: 'PenggajianProfil',
-      component: () => import('@/views/Penggajian/Profil.vue'),
+      path: '/payroll/profiles',
+      name: 'PayrollProfile',
+      component: () => import('@/views/Payroll/Profile.vue'),
       meta: { requiresAuth: true, requiresModule: 'payroll' }
     },
     {
-      path: '/penggajian/periode',
-      name: 'PenggajianPeriode',
-      component: () => import('@/views/Penggajian/Periode.vue'),
+      path: '/payroll/periods',
+      name: 'PayrollPeriod',
+      component: () => import('@/views/Payroll/Period.vue'),
       meta: { requiresAuth: true, requiresModule: 'payroll' }
     },
     {
-      path: '/penggajian/proses',
-      name: 'PenggajianProses',
-      component: () => import('@/views/Penggajian/Proses.vue'),
+      path: '/payroll/runs',
+      name: 'PayrollRun',
+      component: () => import('@/views/Payroll/Run.vue'),
       meta: { requiresAuth: true, requiresModule: 'payroll' }
     },
     {
-      path: '/teacher/slip-gaji',
-      name: 'TeacherSlipGaji',
-      component: () => import('@/views/Penggajian/SlipGaji.vue'),
+      path: '/teacher/payslip',
+      name: 'TeacherPayslip',
+      component: () => import('@/views/Payroll/Payslip.vue'),
       meta: { requiresAuth: true, requiresTeacher: true }
     },
     {
       path: '/ujian-online',
       name: 'OnlineExam',
-      redirect: { name: 'OnlineExamList' }
+      redirect: { name: 'OnlineExamPeriods' }
+    },
+    {
+      path: '/ujian-online/gelombang',
+      name: 'OnlineExamPeriods',
+      component: () => import('@/views/OnlineExam/ExamPeriodList.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
+    },
+    {
+      path: '/ujian-online/gelombang/:id',
+      name: 'OnlineExamPeriodDetail',
+      component: () => import('@/views/OnlineExam/ExamPeriodDetail.vue'),
+      meta: { requiresAuth: true, requiresModule: 'online_exam' }
     },
     {
       path: '/ujian-online/exams',

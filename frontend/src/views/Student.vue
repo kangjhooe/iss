@@ -557,8 +557,53 @@
               <div class="form-row">
                 <div class="form-group">
                   <label>NIS</label>
-                  <input v-model="form.nis" placeholder="Nomor Induk Siswa" />
-                  <p class="field-hint">Kosongkan untuk generate otomatis sesuai format sekolah.</p>
+                  <input
+                    v-model="form.nis"
+                    placeholder="Nomor Induk Siswa"
+                    @input="onFormNisManualInput"
+                  />
+                  <template v-if="!editingId">
+                    <div v-if="nisNumbering.preview_error" class="nis-form-preview nis-form-preview--error">
+                      <p>Format NIS belum siap: {{ nisNumbering.preview_error }}</p>
+                      <button type="button" class="btn-secondary btn-compact" @click="openNisSettings">Atur format</button>
+                    </div>
+                    <div v-else-if="formNisChoice !== 'rejected'" class="nis-form-preview">
+                      <p>
+                        Usulan NIS lokal:
+                        <strong>{{ nisNumbering.preview || '—' }}</strong>
+                        <span v-if="nisNumbering.settings?.preset" class="nis-form-preview-meta">
+                          (format sekolah)
+                        </span>
+                      </p>
+                      <div class="nis-form-preview-actions">
+                        <button
+                          type="button"
+                          class="btn-primary btn-compact"
+                          :disabled="!nisNumbering.preview || (formNisChoice === 'accepted' && form.nis === nisNumbering.preview)"
+                          @click="acceptProposedNis"
+                        >
+                          {{ formNisChoice === 'accepted' && form.nis === nisNumbering.preview ? 'Diterima' : 'Terima' }}
+                        </button>
+                        <button type="button" class="btn-secondary btn-compact" @click="rejectProposedNis">
+                          Tolak
+                        </button>
+                        <button type="button" class="btn-secondary btn-compact" @click="openNisSettings">
+                          Format NIS
+                        </button>
+                      </div>
+                    </div>
+                    <p v-if="formNisChoice === 'rejected'" class="field-hint">
+                      NIS ditolak. Isi manual, atau biarkan kosong lalu generate nanti lewat pratinjau NIS.
+                      <button type="button" class="btn-link-inline" @click="resetFormNisChoice">Lihat usulan lagi</button>
+                    </p>
+                    <p v-else-if="formNisChoice === 'accepted'" class="field-hint">
+                      Usulan diterima. Nomor masih bisa diubah manual sebelum disimpan.
+                    </p>
+                    <p v-else class="field-hint">
+                      Terima usulan sesuai format sekolah, isi manual, atau kosongkan (generate nanti).
+                    </p>
+                  </template>
+                  <p v-else class="field-hint">NIS lokal sekolah. Ubah hanya jika perlu koreksi.</p>
                 </div>
                 <div class="form-group">
                   <label>Nama Lengkap <span class="required">*</span></label>
@@ -1761,9 +1806,9 @@
             </div>
           </template>
           <template v-else>
-            <p class="modal-message">
-              {{ nisAssignPreview.rows.length }} siswa akan mendapat NIS jika Anda menerapkan.
-              Nomor di bawah belum disimpan.
+            <p v-if="!nisAssignPreview.loading" class="modal-message">
+              {{ nisAssignSelectedCount }} siswa akan mendapat NIS.
+              Siswa yang tidak dicentang tidak mendapat nomor. Nomor di bawah belum disimpan.
             </p>
             <div class="nis-start-seq-row">
               <div class="form-group nis-start-seq-field">
@@ -1779,6 +1824,19 @@
                   @keyup.enter="refreshNisAssignPreview"
                 />
               </div>
+              <div class="form-group nis-start-seq-field">
+                <label for="nis-sort">Urutkan</label>
+                <select
+                  id="nis-sort"
+                  v-model="nisAssignPreview.sort"
+                  class="form-input"
+                  :disabled="nisAssignPreview.loading || nisAssignPreview.applying"
+                  @change="refreshNisAssignPreview"
+                >
+                  <option value="name">Abjad (nama)</option>
+                  <option value="class">Kelas</option>
+                </select>
+              </div>
               <button
                 type="button"
                 class="btn-secondary btn-compact"
@@ -1789,13 +1847,14 @@
               </button>
             </div>
             <p class="hint">
-              Default: {{ nisAssignPreview.next_seq || 1 }}.
+              Default nomor urut: {{ nisAssignPreview.next_seq || 1 }}.
               Ubah jika ingin loncat (mis. mulai dari 150).
-              Centang siswa yang akan diisi. Jika sebagian tidak dicentang, nomor urut dihitung ulang saat terapkan.
+              NIS hanya dihitung untuk siswa yang dicentang, mengikuti urutan di atas.
             </p>
             <p v-if="nisAssignPreview.truncated" class="hint">
               Hanya {{ nisAssignPreview.rows.length }} dari {{ nisAssignPreview.total_missing }} siswa ditampilkan. Terapkan per batch.
             </p>
+            <p v-if="nisAssignPreview.numbering" class="hint">Memperbarui nomor…</p>
             <p v-if="nisAssignPreview.error" class="error-text">{{ nisAssignPreview.error }}</p>
             <div v-if="nisAssignPreview.loading" class="hint">Memuat pratinjau…</div>
             <div v-else-if="nisAssignPreview.rows.length" class="import-preview-table-wrap">
@@ -1807,6 +1866,7 @@
                         type="checkbox"
                         :checked="nisAssignAllSelected"
                         :indeterminate.prop="nisAssignSomeSelected && !nisAssignAllSelected"
+                        :disabled="nisAssignPreview.applying"
                         @change="toggleNisAssignAll($event.target.checked)"
                       />
                     </th>
@@ -1816,13 +1876,26 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in nisAssignPreview.rows" :key="row.id">
+                  <tr
+                    v-for="row in nisAssignPreview.rows"
+                    :key="row.id"
+                    :class="{ 'nis-row-skipped': !nisAssignPreview.selected[row.id] }"
+                  >
                     <td class="col-check">
-                      <input v-model="nisAssignPreview.selected[row.id]" type="checkbox" />
+                      <input
+                        v-model="nisAssignPreview.selected[row.id]"
+                        type="checkbox"
+                        :disabled="nisAssignPreview.applying"
+                        @change="scheduleNisPreviewRefresh"
+                      />
                     </td>
                     <td>{{ row.name }}</td>
                     <td>{{ row.class || row.tingkat || '—' }}</td>
-                    <td><strong>{{ row.proposed_nis }}</strong></td>
+                    <td>
+                      <strong v-if="nisAssignPreview.selected[row.id] && row.proposed_nis && !nisAssignPreview.numbering">{{ row.proposed_nis }}</strong>
+                      <span v-else-if="nisAssignPreview.selected[row.id] && nisAssignPreview.numbering">…</span>
+                      <span v-else>—</span>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -1838,7 +1911,7 @@
             <button
               type="button"
               class="btn-primary"
-              :disabled="nisAssignPreview.loading || nisAssignPreview.applying || nisAssignSelectedCount === 0"
+              :disabled="nisAssignPreview.loading || nisAssignPreview.numbering || nisAssignPreview.applying || nisAssignSelectedCount === 0"
               @click="applyNisAssignPreview"
             >
               {{ nisAssignPreview.applying ? 'Menerapkan…' : `Terapkan (${nisAssignSelectedCount})` }}
@@ -1955,6 +2028,7 @@ const nisGenerateLoading = ref(false)
 const nisAssignPreview = ref({
   open: false,
   loading: false,
+  numbering: false,
   applying: false,
   rows: [],
   selected: {},
@@ -1964,8 +2038,11 @@ const nisAssignPreview = ref({
   result: null,
   start_seq: 1,
   next_seq: 1,
+  sort: 'name',
   student_ids: null,
 })
+let nisPreviewTimer = null
+let nisPreviewRequestSeq = 0
 const nisAssignSelectedCount = computed(() => {
   return nisAssignPreview.value.rows.filter((row) => nisAssignPreview.value.selected[row.id]).length
 })
@@ -2000,6 +2077,8 @@ const nisSettings = ref({
     pattern: '',
   },
 })
+/** null | 'accepted' | 'rejected' | 'manual' — pilihan NIS saat tambah siswa */
+const formNisChoice = ref(null)
 const needsNisPrefix = computed(() => {
   const preset = nisSettings.value.form.preset
   return preset === 'prefix_tahun_urut' || preset === 'prefix_tahun2_urut' || preset === 'custom'
@@ -2149,6 +2228,41 @@ function openNisSettings() {
   nisSettings.value.open = true
 }
 
+function resetFormNisChoice() {
+  formNisChoice.value = null
+}
+
+function onFormNisManualInput() {
+  if (editingId) return
+  const value = (form.value.nis || '').trim()
+  if (!value) {
+    formNisChoice.value = formNisChoice.value === 'rejected' ? 'rejected' : null
+    return
+  }
+  if (value === (nisNumbering.value.preview || '').trim()) {
+    formNisChoice.value = 'accepted'
+    return
+  }
+  formNisChoice.value = 'manual'
+}
+
+async function acceptProposedNis() {
+  if (editingId) return
+  await loadNisNumbering()
+  if (nisNumbering.value.preview_error || !nisNumbering.value.preview) {
+    toast.error('Format belum siap', nisNumbering.value.preview_error || 'Atur format NIS sekolah dulu')
+    return
+  }
+  form.value.nis = nisNumbering.value.preview
+  formNisChoice.value = 'accepted'
+}
+
+function rejectProposedNis() {
+  if (editingId) return
+  form.value.nis = ''
+  formNisChoice.value = 'rejected'
+}
+
 async function saveNisSettings() {
   if (nisSettings.value.saving) return
   nisSettings.value.saving = true
@@ -2172,6 +2286,9 @@ async function saveNisSettings() {
     }
     nisSettings.value.open = false
     toast.success('Berhasil', res.data?.message || 'Format NIS disimpan')
+    if (!editingId && formNisChoice.value === 'accepted') {
+      form.value.nis = nisNumbering.value.preview || form.value.nis
+    }
   } catch (err) {
     toast.error('Gagal', err.response?.data?.message || err.response?.data?.errors?.prefix?.[0] || 'Gagal menyimpan format NIS')
   } finally {
@@ -2195,9 +2312,15 @@ async function bulkGenerateNis() {
 
 function closeNisAssignPreview() {
   if (nisAssignPreview.value.applying) return
+  if (nisPreviewTimer) {
+    clearTimeout(nisPreviewTimer)
+    nisPreviewTimer = null
+  }
+  nisPreviewRequestSeq += 1
   nisAssignPreview.value.open = false
   nisAssignPreview.value.result = null
   nisAssignPreview.value.error = null
+  nisAssignPreview.value.numbering = false
 }
 
 function toggleNisAssignAll(checked) {
@@ -2206,14 +2329,30 @@ function toggleNisAssignAll(checked) {
     next[row.id] = !!checked
   })
   nisAssignPreview.value.selected = next
+  scheduleNisPreviewRefresh()
+}
+
+function scheduleNisPreviewRefresh() {
+  if (nisAssignPreview.value.applying) return
+  if (nisPreviewTimer) clearTimeout(nisPreviewTimer)
+  nisAssignPreview.value.numbering = true
+  nisPreviewTimer = setTimeout(() => {
+    nisPreviewTimer = null
+    refreshNisAssignPreview()
+  }, 250)
 }
 
 async function openNisAssignPreview(studentIds) {
   const defaultStart = nisNumbering.value.next_seq || 1
+  if (nisPreviewTimer) {
+    clearTimeout(nisPreviewTimer)
+    nisPreviewTimer = null
+  }
   nisGenerateLoading.value = true
   nisAssignPreview.value = {
     open: true,
     loading: true,
+    numbering: false,
     applying: false,
     rows: [],
     selected: {},
@@ -2223,6 +2362,7 @@ async function openNisAssignPreview(studentIds) {
     result: null,
     start_seq: defaultStart,
     next_seq: defaultStart,
+    sort: 'name',
     student_ids: studentIds?.length ? [...studentIds] : null,
   }
   await fetchNisAssignPreview({ resetSelection: true })
@@ -2230,21 +2370,36 @@ async function openNisAssignPreview(studentIds) {
 }
 
 async function refreshNisAssignPreview() {
-  if (nisAssignPreview.value.loading || nisAssignPreview.value.applying) return
+  if (nisAssignPreview.value.applying) return
+  if (nisPreviewTimer) {
+    clearTimeout(nisPreviewTimer)
+    nisPreviewTimer = null
+  }
   const start = Number(nisAssignPreview.value.start_seq)
   if (!Number.isInteger(start) || start < 1) {
+    nisAssignPreview.value.numbering = false
     toast.error('Nomor tidak valid', 'Nomor urut awal minimal 1')
     return
   }
-  await fetchNisAssignPreview({ resetSelection: false })
+  await fetchNisAssignPreview({
+    resetSelection: false,
+    silent: nisAssignPreview.value.rows.length > 0,
+  })
 }
 
-async function fetchNisAssignPreview({ resetSelection }) {
-  nisAssignPreview.value.loading = true
+async function fetchNisAssignPreview({ resetSelection, silent = false }) {
+  const seq = ++nisPreviewRequestSeq
+  if (silent && nisAssignPreview.value.rows.length) {
+    nisAssignPreview.value.numbering = true
+  } else {
+    nisAssignPreview.value.loading = true
+  }
   nisAssignPreview.value.error = null
-  const prevSelected = { ...nisAssignPreview.value.selected }
   try {
-    const payload = { limit: 500 }
+    const payload = {
+      limit: 500,
+      sort: nisAssignPreview.value.sort === 'class' ? 'class' : 'name',
+    }
     const start = Number(nisAssignPreview.value.start_seq)
     if (Number.isInteger(start) && start >= 1) {
       payload.start_seq = start
@@ -2252,17 +2407,28 @@ async function fetchNisAssignPreview({ resetSelection }) {
     if (nisAssignPreview.value.student_ids?.length) {
       payload.student_ids = nisAssignPreview.value.student_ids
     }
+    if (!resetSelection) {
+      payload.selected_ids = nisAssignPreview.value.rows
+        .filter((row) => nisAssignPreview.value.selected[row.id])
+        .map((row) => row.id)
+    }
     const res = await studentApi.previewGenerateNis(payload)
+    if (seq !== nisPreviewRequestSeq) return
     const rows = res.data?.data?.rows || []
-    const selected = {}
-    rows.forEach((row) => {
-      selected[row.id] = resetSelection ? true : (prevSelected[row.id] !== false)
-    })
+    if (resetSelection) {
+      const selected = {}
+      rows.forEach((row) => {
+        selected[row.id] = true
+      })
+      nisAssignPreview.value.selected = selected
+    }
     nisAssignPreview.value.rows = rows
-    nisAssignPreview.value.selected = selected
     nisAssignPreview.value.truncated = !!res.data?.data?.truncated
     nisAssignPreview.value.total_missing = res.data?.data?.total_missing || rows.length
     nisAssignPreview.value.next_seq = res.data?.data?.next_seq || nisAssignPreview.value.next_seq || 1
+    if (res.data?.data?.sort === 'class' || res.data?.data?.sort === 'name') {
+      nisAssignPreview.value.sort = res.data.data.sort
+    }
     if (res.data?.data?.start_seq) {
       nisAssignPreview.value.start_seq = res.data.data.start_seq
     }
@@ -2270,9 +2436,13 @@ async function fetchNisAssignPreview({ resetSelection }) {
       nisAssignPreview.value.error = 'Tidak ada siswa tanpa NIS untuk dipratinjau.'
     }
   } catch (err) {
+    if (seq !== nisPreviewRequestSeq) return
     nisAssignPreview.value.error = err.response?.data?.message || 'Gagal memuat pratinjau NIS'
   } finally {
-    nisAssignPreview.value.loading = false
+    if (seq === nisPreviewRequestSeq) {
+      nisAssignPreview.value.loading = false
+      nisAssignPreview.value.numbering = false
+    }
   }
 }
 
@@ -2292,6 +2462,7 @@ async function applyNisAssignPreview() {
       student_ids: ids,
       limit: 2000,
       start_seq: start,
+      sort: nisAssignPreview.value.sort === 'class' ? 'class' : 'name',
     })
     nisAssignPreview.value.result = {
       assigned: res.data?.data?.assigned || 0,
@@ -2710,6 +2881,7 @@ async function openAddModal() {
   addMode.value = 'choose'
   showEditModal.value = false
   editingId = null
+  formNisChoice.value = null
   fillStudentForm()
   currentStudentDocuments.value = []
   formPhotoUrl.value = ''
@@ -2728,6 +2900,7 @@ async function openAddModal() {
   } finally {
     formClassListLoading.value = false
   }
+  loadNisNumbering()
   showAddModal.value = true
 }
 
@@ -2978,6 +3151,11 @@ const handleSubmit = async () => {
       closeModal()
       loadStudents()
     } else {
+      if (formNisChoice.value === 'accepted') {
+        // Server yang reserve nomor (counter naik atomik); preview di form hanya usulan.
+        payload.nis = null
+        payload.generate_nis = true
+      }
       const res = await studentApi.create(payload)
       const newId = res.data?.data?.id
       if (newId && pendingPhotoFile.value) {
@@ -3015,6 +3193,7 @@ const closeModal = () => {
   showAddModal.value = false
   showEditModal.value = false
   editingId = null
+  formNisChoice.value = null
   activeTab.value = 1
   fillStudentForm()
   // Reset dokumen
@@ -3475,7 +3654,7 @@ const previewBukuIndukPdf = async () => {
   try {
     const res = await studentApi.downloadBukuIndukPdf(viewingStudent.value.id)
     const filename = `Buku_Induk_${viewingStudent.value.name || viewingStudent.value.id}.pdf`
-    if (!openPdfBlob(res, filename)) {
+    if (!(await openPdfBlob(res, filename))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan pop-up untuk preview PDF.')
       return
     }
@@ -3495,7 +3674,7 @@ const printBiodataPdf = async (mode = 'lengkap') => {
     const res = await studentApi.printBiodataPdf(viewingStudent.value.id, mode)
     const label = mode === 'singkat' ? 'Singkat' : 'Lengkap'
     const filename = `Biodata_${label}_${viewingStudent.value.name || viewingStudent.value.id}.pdf`
-    if (!openPdfBlob(res, filename)) {
+    if (!(await openPdfBlob(res, filename))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan pop-up untuk preview PDF.')
       return
     }
@@ -3905,6 +4084,50 @@ watch(() => route.query.trashed, (value) => {
   color: #64748b;
 }
 
+.btn-link-inline {
+  display: inline;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #0f766e;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.nis-form-preview {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  font-size: 13px;
+  color: #14532d;
+}
+
+.nis-form-preview--error {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.nis-form-preview p {
+  margin: 0 0 8px;
+}
+
+.nis-form-preview-meta {
+  color: #64748b;
+  font-weight: 400;
+}
+
+.nis-form-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .btn-inline-nis {
   margin-left: 8px;
   vertical-align: middle;
@@ -3940,9 +4163,14 @@ watch(() => route.query.trashed, (value) => {
   margin-bottom: 0;
 }
 
-.nis-start-seq-field input {
+.nis-start-seq-field input,
+.nis-start-seq-field select {
   width: 100%;
-  max-width: 160px;
+  max-width: 180px;
+}
+
+.nis-row-skipped {
+  color: #94a3b8;
 }
 
 .nis-assign-modal .col-check {

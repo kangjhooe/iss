@@ -223,7 +223,7 @@ const codePlaceholder = computed(() => selectedJenjangOpt.value?.code_hint || '1
 const codeHint = computed(() => {
   const opt = selectedJenjangOpt.value
   if (!opt) return 'Pilih jenjang dulu. Contoh: 1001 Bahasa Indonesia (SD/MI).'
-  return `Untuk ${opt.label}, kode harus diawali ${opt.code_prefix}. Contoh: ${opt.code_hint}`
+  return `Untuk ${opt.label}, kode diawali ${opt.code_prefix}. Saran berikutnya: ${opt.code_hint} (bisa diubah).`
 })
 
 function displayValue(v) {
@@ -265,10 +265,10 @@ function changePerPage(n) {
 function onJenjangChange() {
   const opt = selectedJenjangOpt.value
   if (!opt) return
-  // Prefill prefix when adding new and code empty / wrong prefix
+  // Soft-fill saran kode berikutnya (MAX+1); user tetap bisa ubah
   if (!editing.value) {
     if (!form.code || form.code.length < 1 || form.code[0] !== opt.code_prefix) {
-      form.code = opt.code_hint
+      form.code = opt.code_hint || `${opt.code_prefix}001`
     }
   }
 }
@@ -316,7 +316,7 @@ async function loadItems() {
   }
 }
 
-function openAddModal() {
+async function openAddModal() {
   editing.value = null
   form.code = ''
   form.name = ''
@@ -325,6 +325,8 @@ function openAddModal() {
   form.is_active = true
   form.sort_order = 0
   error.value = ''
+  // Refresh saran kode agar mengikuti data terbaru
+  await loadMeta()
   if (form.jenjang) onJenjangChange()
   showModal.value = true
 }
@@ -366,6 +368,7 @@ async function save() {
       toast.success('Katalog mapel ditambahkan')
     }
     closeModal()
+    await loadMeta()
     loadItems()
   } catch (e) {
     error.value = e.formattedMessage || e.message || 'Gagal menyimpan.'
@@ -386,6 +389,7 @@ async function doDelete() {
     toast.success('Katalog mapel dihapus')
     showConfirm.value = false
     toDelete.value = null
+    await loadMeta()
     loadItems()
   } catch (e) {
     toast.error(e.formattedMessage || e.message || 'Gagal menghapus.')

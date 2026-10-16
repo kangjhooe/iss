@@ -120,6 +120,14 @@ class Room extends Model
     }
 
     /**
+     * Dedicated lab usage schedules (separate from lesson_schedules).
+     */
+    public function labSchedules()
+    {
+        return $this->hasMany(LabSchedule::class, 'room_id');
+    }
+
+    /**
      * Lab usage journals for this room.
      */
     public function labUsageJournals()

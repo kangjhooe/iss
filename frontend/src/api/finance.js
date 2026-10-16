@@ -94,8 +94,8 @@ export const financePaymentApi = {
   },
   /** Buka kwitansi PDF (DomPDF + kop resmi) di tab baru */
   openReceipt(id) {
-    return api.get(`/v1/finance/payments/${id}/receipt`, { responseType: 'blob' }).then((res) => {
-      openPdfBlob(res, `kwitansi-${id}.pdf`)
+    return api.get(`/v1/finance/payments/${id}/receipt`, { responseType: 'blob' }).then(async (res) => {
+      await openPdfBlob(res, `kwitansi-${id}.pdf`)
       return res
     })
   },
@@ -142,8 +142,8 @@ export const studentFinanceApi = {
     return api.get('/v1/finance/my/payments', { params })
   },
   openReceipt(id) {
-    return api.get(`/v1/finance/my/payments/${id}/receipt`, { responseType: 'blob' }).then((res) => {
-      openPdfBlob(res, `kwitansi-${id}.pdf`)
+    return api.get(`/v1/finance/my/payments/${id}/receipt`, { responseType: 'blob' }).then(async (res) => {
+      await openPdfBlob(res, `kwitansi-${id}.pdf`)
       return res
     })
   },

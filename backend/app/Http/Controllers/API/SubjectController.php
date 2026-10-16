@@ -66,7 +66,11 @@ class SubjectController extends Controller
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
             $subject = $this->subjectService->create($institutionId, $request->validated());
+            $subject->load(['catalog:id,code,name,jenjang']);
+
             return (new SubjectResource($subject))->response()->setStatusCode(201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             Log::error('Subject store failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -94,6 +98,8 @@ class SubjectController extends Controller
             }
             $subject = $this->subjectService->update($subject, $request->validated());
             return new SubjectResource($subject);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             Log::error('Subject update failed', ['error' => $e->getMessage()]);
             return response()->json([
@@ -109,11 +115,29 @@ class SubjectController extends Controller
         if (!$this->canAccessSubject($user, $subject)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        if ($subject->lessonSchedules()->exists()) {
+
+        $usage = $subject->lessonSchedules()
+            ->with(['schoolClass:id,name'])
+            ->get(['id', 'class_id', 'semester_id', 'day_of_week', 'period']);
+
+        if ($usage->isNotEmpty()) {
+            $byClass = $usage->groupBy('class_id')->map(function ($rows) {
+                $name = $rows->first()?->schoolClass?->name ?: ('Kelas #'.$rows->first()->class_id);
+
+                return $name.' ('.$rows->count().' slot)';
+            })->values()->take(5)->all();
+
+            $more = $usage->groupBy('class_id')->count() > 5
+                ? ' …'
+                : '';
+
             return response()->json([
-                'message' => 'Mata pelajaran tidak dapat dihapus karena sudah digunakan di jadwal.',
+                'message' => 'Mata pelajaran tidak dapat dihapus karena masih dipakai di '.$usage->count()
+                    .' slot jadwal: '.implode(', ', $byClass).$more
+                    .'. Kosongkan jadwal terkait dulu.',
             ], 422);
         }
+
         $subject->delete();
         return response()->json(['message' => 'Mata pelajaran berhasil dihapus.']);
     }

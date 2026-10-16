@@ -18,9 +18,10 @@ class QuestionStimulusResource extends JsonResource
             'content' => $this->content,
             'type' => $this->type,
             'attachment_path' => $this->attachment_path,
+            'media' => is_array($this->media) ? $this->media : [],
             'questions_count' => $this->when(isset($this->questions_count), fn () => $this->questions_count),
-            'created_at' => $this->created_at->toIso8601String(),
-            'updated_at' => $this->updated_at->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }
 }

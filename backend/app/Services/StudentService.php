@@ -413,23 +413,35 @@ class StudentService
      */
     public function create(array $data): Student
     {
+        $generateNis = filter_var($data['generate_nis'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        unset($data['generate_nis']);
+
         $data = $this->onlyPersistable($this->syncClassLabel($this->syncAcademicYearLabel($data)));
 
-        if (! $this->localNisService->hasNis($data['nis'] ?? null) && ! empty($data['institution_id'])) {
+        $usedGenerator = false;
+        if ($generateNis && ! $this->localNisService->hasNis($data['nis'] ?? null) && ! empty($data['institution_id'])) {
             $institution = Institution::with('activeAcademicYear')->find($data['institution_id']);
             if ($institution && $this->localNisService->sequencesAvailable()) {
-                try {
-                    $data['nis'] = $this->localNisService->next(
-                        $institution,
-                        isset($data['academic_year_id']) ? (int) $data['academic_year_id'] : null
-                    );
-                } catch (InvalidArgumentException $e) {
-                    throw $e;
-                }
+                $data['nis'] = $this->localNisService->next(
+                    $institution,
+                    isset($data['academic_year_id']) ? (int) $data['academic_year_id'] : null
+                );
+                $usedGenerator = true;
             }
         }
 
         $student = Student::create($data);
+
+        if (! $usedGenerator && $this->localNisService->hasNis($student->nis) && $student->institution_id) {
+            $institution = Institution::with('activeAcademicYear')->find($student->institution_id);
+            if ($institution) {
+                $this->localNisService->absorbIssuedNis(
+                    $institution,
+                    (string) $student->nis,
+                    $student->academic_year_id ? (int) $student->academic_year_id : null
+                );
+            }
+        }
 
         // Create initial class history if class_id is provided
         if (isset($data['class_id']) && isset($data['academic_year_id'])) {

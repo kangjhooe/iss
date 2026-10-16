@@ -34,6 +34,7 @@ class InstitutionContext
         'teaching_journal',
         'grade_book',
         'schedule',
+        'online_exam',
     ];
 
     private static function requestBag(?Request $request = null): ?Request
@@ -138,6 +139,7 @@ class InstitutionContext
                     'id' => (int) $home->id,
                     'name' => $home->name,
                     'npsn' => $home->npsn,
+                    'level' => $home->level,
                     'is_demo' => (bool) ($home->is_demo ?? false),
                     'affiliation' => 'induk',
                 ]);
@@ -154,7 +156,7 @@ class InstitutionContext
         $assignments = EmployeeInstitutionAssignment::query()
             ->approved()
             ->where('employee_id', $employee->id)
-            ->with('institution:id,name,npsn,is_demo')
+            ->with('institution:id,name,npsn,level,is_demo')
             ->get();
 
         foreach ($assignments as $assignment) {
@@ -169,6 +171,7 @@ class InstitutionContext
                 'id' => (int) $inst->id,
                 'name' => $inst->name,
                 'npsn' => $inst->npsn,
+                'level' => $inst->level,
                 'is_demo' => (bool) ($inst->is_demo ?? false),
                 'affiliation' => 'non_induk',
             ]);

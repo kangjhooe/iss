@@ -19,11 +19,18 @@ class StoreQuestionBankRequest extends FormRequest
     {
         return [
             'bank_soal_id' => 'nullable|exists:bank_soal,id',
-            'subject_id' => 'required_unless:bank_soal_id,*|nullable|exists:subjects,id',
+            // Mapel wajib hanya jika tidak membuat soal lewat bank_soal_id (subject diambil dari bank)
+            'subject_id' => 'required_without:bank_soal_id|nullable|exists:subjects,id',
             'stimulus_id' => 'nullable|exists:question_stimuli,id',
             'type' => 'required|in:pg,isian,uraian,pg_kompleks,matching',
+            'status' => 'nullable|in:draft,ready',
+            'topic' => 'nullable|string|max:120',
             'body' => 'required|string|max:50000',
             'weight' => 'numeric|min:0|max:100',
+            'cognitive_level' => 'nullable|in:c1,c2,c3,c4,c5,c6',
+            'difficulty' => 'nullable|in:mudah,sedang,sulit',
+            'tags' => 'nullable|array|max:8',
+            'tags.*' => 'string|max:40',
             'key_answer' => 'nullable|string|max:500',
             'key_answer_aliases' => 'nullable|array|max:20',
             'key_answer_aliases.*' => 'string|max:500',
@@ -42,6 +49,17 @@ class StoreQuestionBankRequest extends FormRequest
             'matching_data.correct' => 'required_with:matching_data|array',
             'matching_data.correct.*.left_id' => 'nullable|string',
             'matching_data.correct.*.right_id' => 'nullable|string',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'subject_id.required_without' => 'Mapel wajib diisi jika soal tidak dibuat dari bank soal.',
+            'body.required' => 'Pertanyaan wajib diisi.',
+            'type.required' => 'Tipe soal wajib dipilih.',
+            'matching_data.left.*.text.required' => 'Teks kolom kiri tidak boleh kosong.',
+            'matching_data.right.*.text.required' => 'Teks kolom kanan tidak boleh kosong.',
         ];
     }
 

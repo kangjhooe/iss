@@ -1,4 +1,5 @@
-<template>    <div class="lab-detail-page">
+<template>
+    <div class="lab-detail-page">
       <div class="detail-top">
         <router-link to="/lab" class="btn-back">← Kembali ke Manajemen Lab</router-link>
         <div v-if="room" class="detail-actions">
@@ -153,21 +154,21 @@
           </table>
         </section>
 
-        <!-- Jadwal -->
+        <!-- Jadwal Lab (terpisah dari Jadwal Pelajaran) -->
         <section v-show="section === 'schedule'" class="panel">
           <div class="panel-head">
-            <h2>Jadwal Penggunaan Lab</h2>
+            <h2>Jadwal Lab</h2>
             <button v-if="canManage && activeSemesterId" type="button" class="btn-primary btn-compact" @click="openScheduleModal()">Tambah Jadwal</button>
           </div>
+          <p class="muted" style="margin-top:0">Jadwal khusus pemakaian lab — terpisah dari menu Jadwal Pelajaran.</p>
           <p v-if="!activeSemesterId" class="muted">Pilih semester aktif di profil instansi untuk mengelola jadwal.</p>
           <div v-else-if="sectionLoading.schedule" class="muted">Memuat...</div>
           <table v-else class="data-table">
-            <thead><tr><th>Hari</th><th>Jam</th><th>Waktu</th><th>Mapel</th><th>Kelas</th><th>Guru</th><th v-if="canManage">Aksi</th></tr></thead>
+            <thead><tr><th>Hari</th><th>Jam</th><th>Mapel</th><th>Kelas</th><th>Guru</th><th v-if="canManage">Aksi</th></tr></thead>
             <tbody>
               <tr v-for="s in schedules" :key="s.id">
                 <td>{{ s.day_name || dayNamesMap[s.day_of_week] }}</td>
-                <td>{{ s.period }}</td>
-                <td>{{ s.start_time }}-{{ s.end_time }}</td>
+                <td>{{ formatLabPeriod(s) }}</td>
                 <td>{{ s.subject?.name || '-' }}</td>
                 <td>{{ s.school_class?.name || '-' }}</td>
                 <td>{{ s.employee?.name || '-' }}</td>
@@ -176,7 +177,7 @@
                   <TableAction kind="delete" @click="deleteSchedule(s)" />
                 </td>
               </tr>
-              <tr v-if="!schedules.length"><td :colspan="canManage ? 7 : 6" class="muted">Belum ada jadwal.</td></tr>
+              <tr v-if="!schedules.length"><td :colspan="canManage ? 6 : 5" class="muted">Belum ada jadwal lab. Tambah dengan jam mulai + berapa JP.</td></tr>
             </tbody>
           </table>
         </section>
@@ -331,16 +332,31 @@
 
       <div v-if="showScheduleModal" class="modal-overlay" @click.self="showScheduleModal = false">
         <div class="modal-content" @click.stop>
-          <div class="modal-header"><h3>{{ editingSchedule ? 'Edit Jadwal' : 'Tambah Jadwal' }}</h3><button type="button" class="btn-close" @click="showScheduleModal = false">×</button></div>
+          <div class="modal-header"><h3>{{ editingSchedule ? 'Edit Jadwal Lab' : 'Tambah Jadwal Lab' }}</h3><button type="button" class="btn-close" @click="showScheduleModal = false">×</button></div>
           <form class="modal-body" @submit.prevent="saveSchedule">
+            <p class="muted" style="margin-top:0">Isi sekali: jam mulai + berapa JP (tidak perlu input per jam).</p>
             <div class="form-row">
               <div class="form-group"><label>Hari *</label>
                 <select v-model.number="scheduleForm.day_of_week" required class="form-input">
                   <option v-for="(n, d) in dayNamesMap" :key="d" :value="Number(d)">{{ n }}</option>
                 </select>
               </div>
-              <div class="form-group"><label>Jam ke *</label><input v-model.number="scheduleForm.period" type="number" min="1" max="10" required class="form-input" /></div>
+              <div class="form-group"><label>Jam ke (mulai) *</label>
+                <select v-model.number="scheduleForm.period" required class="form-input">
+                  <option v-for="p in 10" :key="p" :value="p">{{ p }}</option>
+                </select>
+              </div>
+              <div class="form-group"><label>Berapa JP *</label>
+                <select v-model.number="scheduleForm.duration" required class="form-input">
+                  <option v-for="n in labDurationOptions" :key="n" :value="n">{{ n }} JP</option>
+                </select>
+              </div>
             </div>
+            <p class="muted" style="margin-top:0;font-size:0.85rem">
+              Jam ke-{{ scheduleForm.period }}
+              <template v-if="scheduleForm.duration > 1"> s/d {{ scheduleForm.period + scheduleForm.duration - 1 }}</template>
+              ({{ scheduleForm.duration }} JP)
+            </p>
             <div class="form-group"><label>Kelas *</label>
               <select v-model="scheduleForm.class_id" required class="form-input"><option value="">Pilih</option><option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option></select>
             </div>
@@ -502,7 +518,8 @@
           </form>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
@@ -510,13 +527,13 @@ import { useRoute } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { inventoryApi } from '@/api/inventory'
-import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { institutionApi } from '@/api/institution'
 import { classApi } from '@/api/class'
 import { subjectApi } from '@/api/subject'
 import { employeeApi } from '@/api/teacher'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import { ensurePdfBlob, openPdfPreviewWindow } from '@/utils/pdfPreview'
 import {
   LOAN_DURATION_PRESETS,
   addDaysToDateString,
@@ -599,7 +616,20 @@ const itemForm = reactive({ name: '', code: '', category_id: '', quantity: 1, un
 
 const showScheduleModal = ref(false)
 const editingSchedule = ref(null)
-const scheduleForm = reactive({ day_of_week: 1, period: 1, class_id: '', subject_id: '', employee_id: '' })
+const scheduleForm = reactive({ day_of_week: 1, period: 1, duration: 1, class_id: '', subject_id: '', employee_id: '' })
+const labDurationOptions = computed(() => {
+  const start = Number(scheduleForm.period) || 1
+  const max = Math.max(1, 10 - start + 1)
+  return Array.from({ length: max }, (_, i) => i + 1)
+})
+
+function formatLabPeriod(s) {
+  if (s?.period_label) return `Jam ${s.period_label}`
+  const start = Number(s?.period) || 1
+  const dur = Number(s?.duration) || 1
+  const end = start + dur - 1
+  return start === end ? `Jam ${start}` : `Jam ${start}–${end}`
+}
 
 const showLoanModal = ref(false)
 const loanForm = reactive({
@@ -692,7 +722,7 @@ async function loadSection(key, { force = false } = {}) {
       items.value = unwrapList(res)
     } else if (key === 'schedule') {
       if (activeSemesterId.value) {
-        const res = await lessonScheduleApi.getByRoom(id, { semester_id: activeSemesterId.value })
+        const res = await facilityApi.getLabSchedules({ room_id: id, semester_id: activeSemesterId.value })
         schedules.value = unwrapList(res)
       } else {
         schedules.value = []
@@ -847,6 +877,7 @@ async function openScheduleModal(s = null) {
   editingSchedule.value = s
   scheduleForm.day_of_week = s?.day_of_week ?? 1
   scheduleForm.period = s?.period ?? 1
+  scheduleForm.duration = s?.duration ?? 1
   scheduleForm.class_id = s?.class_id || s?.school_class?.id || ''
   scheduleForm.subject_id = s?.subject_id || s?.subject?.id || ''
   scheduleForm.employee_id = s?.employee_id || s?.employee?.id || ''
@@ -861,25 +892,26 @@ async function saveSchedule() {
       class_id: Number(scheduleForm.class_id),
       day_of_week: Number(scheduleForm.day_of_week),
       period: Number(scheduleForm.period),
+      duration: Number(scheduleForm.duration) || 1,
       subject_id: Number(scheduleForm.subject_id),
       employee_id: Number(scheduleForm.employee_id),
       room_id: room.value.id,
     }
-    if (editingSchedule.value) await lessonScheduleApi.update(editingSchedule.value.id, payload)
-    else await lessonScheduleApi.create(payload)
-    toast.success('Berhasil', 'Jadwal disimpan')
+    if (editingSchedule.value) await facilityApi.updateLabSchedule(editingSchedule.value.id, payload)
+    else await facilityApi.createLabSchedule(payload)
+    toast.success('Berhasil', 'Jadwal lab disimpan')
     showScheduleModal.value = false
     await refreshSections(['schedule'])
   } catch (e) {
-    toast.error('Gagal', e.response?.data?.message || 'Gagal menyimpan jadwal')
+    toast.error('Gagal', e.response?.data?.message || 'Gagal menyimpan jadwal lab')
   } finally { saving.value = false }
 }
 
 async function deleteSchedule(s) {
-  if (!confirm('Hapus jadwal ini?')) return
+  if (!confirm('Hapus jadwal lab ini?')) return
   try {
-    await lessonScheduleApi.delete(s.id)
-    toast.success('Berhasil', 'Jadwal dihapus')
+    await facilityApi.deleteLabSchedule(s.id)
+    toast.success('Berhasil', 'Jadwal lab dihapus')
     await refreshSections(['schedule'])
   } catch (e) {
     toast.error('Gagal', e.response?.data?.message || 'Gagal menghapus')
@@ -1198,50 +1230,20 @@ async function saveCondition() {
 async function exportPdf() {
   try {
     const res = await facilityApi.exportLab(room.value.id)
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const win = window.open('', '_blank')
-    if (!win) {
-      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview.')
-      URL.revokeObjectURL(url)
-      return
-    }
+    const blob = await ensurePdfBlob(res, 'Gagal membuka preview laporan PDF')
     const title = `Preview Laporan — ${room.value.name || 'Lab'}`
-    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
-      <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
-        .toolbar {
-          display: flex; align-items: center; justify-content: space-between; gap: 12px;
-          padding: 10px 14px; background: #0f172a; color: #f8fafc;
-          border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
-        }
-        .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
-        .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
-        .actions { display: flex; gap: 8px; }
-        .actions button {
-          border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
-          cursor: pointer; font-size: 13px;
-        }
-        .btn-print { background: #059669; color: #fff; }
-        .btn-close { background: #334155; color: #e2e8f0; }
-        iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
-      </style></head><body>
-      <div class="toolbar">
-        <h1>${title}<span class="hint">Preview — cetak dari tombol di bawah atau dari viewer PDF</span></h1>
-        <div class="actions">
-          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-        </div>
-      </div>
-      <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
-    </body></html>`)
-    win.document.close()
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    if (!openPdfPreviewWindow(blob, title)) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview.')
+    }
   } catch (e) {
-    toast.error('Gagal', 'Gagal membuka preview laporan PDF')
+    toast.error('Gagal', e.message || 'Gagal membuka preview laporan PDF')
   }
 }
+
+watch(() => scheduleForm.period, () => {
+  const max = Math.max(1, 10 - (Number(scheduleForm.period) || 1) + 1)
+  if (scheduleForm.duration > max) scheduleForm.duration = max
+})
 
 watch(() => route.params.id, async () => {
   resetSectionCache()

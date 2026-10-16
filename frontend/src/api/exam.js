@@ -25,6 +25,38 @@ export const examApi = {
   attachQuestions(examId, questionBankIds) {
     return api.post(`${base}/exams/${examId}/questions`, { question_bank_ids: questionBankIds })
   },
+  /** mode: 'stimulus' | 'random' — mengembalikan question_bank_ids (belum attach) */
+  suggestQuestions(examId, payload) {
+    return api.post(`${base}/exams/${examId}/questions/suggest`, payload)
+  },
+
+  // Gelombang ujian (UAS/UTS global)
+  listPeriods(params = {}) {
+    return api.get(`${base}/periods`, { params })
+  },
+  getPeriod(id) {
+    return api.get(`${base}/periods/${id}`)
+  },
+  createPeriod(data) {
+    return api.post(`${base}/periods`, data)
+  },
+  updatePeriod(id, data) {
+    return api.put(`${base}/periods/${id}`, data)
+  },
+  deletePeriod(id) {
+    return api.delete(`${base}/periods/${id}`)
+  },
+  addPeriodSubjects(periodId, subjectIds, durationMinutes = 90) {
+    return api.post(`${base}/periods/${periodId}/subjects`, {
+      subject_ids: subjectIds,
+      duration_minutes: durationMinutes
+    })
+  },
+  syncPeriodParticipants(periodId, classIds, examIds = null) {
+    const payload = { class_ids: classIds }
+    if (examIds?.length) payload.exam_ids = examIds
+    return api.post(`${base}/periods/${periodId}/participants`, payload)
+  },
 
   // Sessions
   listSessions(params = {}) {
@@ -60,8 +92,29 @@ export const examApi = {
   exportSessionResults(sessionId) {
     return api.get(`${base}/sessions/${sessionId}/export-results`, { responseType: 'blob' })
   },
+  beritaAcara(sessionId) {
+    return api.get(`${base}/sessions/${sessionId}/berita-acara`, { responseType: 'blob' })
+  },
   releaseAllScores(sessionId) {
     return api.post(`${base}/sessions/${sessionId}/release-scores`)
+  },
+  itemAnalysis(sessionId) {
+    return api.get(`${base}/sessions/${sessionId}/item-analysis`)
+  },
+  essayBoard(sessionId) {
+    return api.get(`${base}/sessions/${sessionId}/essay-board`)
+  },
+  scoreEssay(sessionId, payload) {
+    return api.post(`${base}/sessions/${sessionId}/essay-score`, payload)
+  },
+  copyToGrades(sessionId, gradeType) {
+    return api.post(`${base}/sessions/${sessionId}/copy-to-grades`, { grade_type: gradeType })
+  },
+  extraTime(participantId, minutes) {
+    return api.post(`${base}/participants/${participantId}/extra-time`, { minutes })
+  },
+  forceSubmit(participantId) {
+    return api.post(`${base}/participants/${participantId}/force-submit`)
   },
 
   // Participants
@@ -171,18 +224,26 @@ export const examApi = {
   listSubjectsReady() {
     return api.get('/v1/exam/subjects-ready')
   },
-  // Upload gambar untuk soal/opsi (rich text)
-  uploadQuestionImage(file) {
+  // Upload media untuk soal/opsi/stimulus (rich text atau blok media)
+  // kind: 'image' | 'audio' | 'video'
+  uploadQuestionImage(file, kind = 'image') {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('kind', kind || 'image')
     return api.post('/v1/exam/question-assets/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+  },
+  uploadQuestionAsset(file, kind = 'image') {
+    return this.uploadQuestionImage(file, kind)
   },
 
   // Question bank
   listQuestions(params = {}) {
     return api.get('/v1/question-bank', { params })
+  },
+  listQuestionTopics(bankSoalId) {
+    return api.get('/v1/question-bank/topics', { params: { bank_soal_id: bankSoalId } })
   },
   getQuestion(id) {
     return api.get(`/v1/question-bank/${id}`)
@@ -198,6 +259,12 @@ export const examApi = {
   },
   duplicateQuestion(id) {
     return api.post(`/v1/question-bank/${id}/duplicate`)
+  },
+  bulkDeleteQuestions(ids) {
+    return api.post('/v1/question-bank/bulk-delete', { ids })
+  },
+  bulkDuplicateQuestions(ids) {
+    return api.post('/v1/question-bank/bulk-duplicate', { ids })
   },
   reorderQuestions(bankSoalId, questionIds) {
     return api.post('/v1/question-bank/reorder', {
@@ -239,5 +306,21 @@ export const examAttemptApi = {
   },
   submit(loginToken) {
     return api.post('/v1/exam/attempt/submit', { login_token: loginToken })
+  },
+  progress(loginToken) {
+    return api.get('/v1/exam/attempt/progress', { params: { login_token: loginToken } })
+  },
+  flagQuestion(loginToken, questionBankId, flagged) {
+    return api.put('/v1/exam/attempt/flag', {
+      login_token: loginToken,
+      question_bank_id: questionBankId,
+      flagged
+    })
+  },
+  review(loginToken) {
+    return api.get('/v1/exam/attempt/review', { params: { login_token: loginToken } })
+  },
+  retry(loginToken) {
+    return api.post('/v1/exam/attempt/retry', { login_token: loginToken })
   }
 }

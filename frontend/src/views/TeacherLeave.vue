@@ -101,7 +101,7 @@ import { onMounted, reactive, ref } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { useToast } from '@/composables/useToast'
-import { employeeLeaveApi } from '@/api/kepegawaian'
+import { employeeLeaveApi } from '@/api/personnel'
 
 const toast = useToast()
 const loading = ref(false)

@@ -668,6 +668,7 @@ class AuthController extends Controller
                 'id' => $active['id'],
                 'name' => $active['name'],
                 'npsn' => $active['npsn'] ?? null,
+                'level' => $active['level'] ?? $institution?->level,
                 'is_demo' => (bool) ($active['is_demo'] ?? false),
                 'affiliation' => $active['affiliation'],
                 'active_academic_year_id' => $activeAcademicYear['id'] ?? null,

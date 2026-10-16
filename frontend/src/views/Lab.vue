@@ -1,4 +1,5 @@
-<template>    <div class="lab-page">
+<template>
+    <div class="lab-page">
       <div class="tab-shell">
         <nav class="section-nav" role="tablist" aria-label="Modul Lab">
           <button
@@ -211,7 +212,8 @@
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M8 7V3M16 7V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                           </svg>
-                          Jadwal Penggunaan Lab
+                          Jadwal Lab
+                          <span class="muted" style="font-weight:400;font-size:0.85em;margin-left:0.35rem">(terpisah dari Jadwal Pelajaran)</span>
                         </span>
                         <button type="button" class="btn-sm btn-primary" @click="openScheduleModal(room)" :disabled="!activeSemesterId">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -220,13 +222,12 @@
                       </div>
                       <div v-if="getRoomSchedule(room.id).loading" class="inventory-loading">Memuat jadwal...</div>
                       <div v-else-if="!activeSemesterId" class="inventory-empty">Pilih semester aktif di profil instansi untuk menampilkan dan mengelola jadwal.</div>
-                      <div v-else-if="getRoomSchedule(room.id).items.length === 0" class="inventory-empty">Belum ada jadwal di lab ini. Klik <strong>Tambah Jadwal</strong> untuk menambah slot.</div>
+                      <div v-else-if="getRoomSchedule(room.id).items.length === 0" class="inventory-empty">Belum ada jadwal lab. Klik <strong>Tambah Jadwal</strong> — isi jam mulai + berapa JP.</div>
                       <table v-else class="inventory-subtable">
                         <thead>
                           <tr>
                             <th>Hari</th>
-                            <th>Jam ke</th>
-                            <th>Waktu</th>
+                            <th>Jam</th>
                             <th>Mapel</th>
                             <th>Kelas</th>
                             <th>Guru</th>
@@ -236,8 +237,7 @@
                         <tbody>
                           <tr v-for="s in getRoomSchedule(room.id).items" :key="s.id">
                             <td>{{ displayValue(s.day_name) }}</td>
-                            <td>{{ s.period }}</td>
-                            <td>{{ displayValue(s.start_time) }}-{{ displayValue(s.end_time) }}</td>
+                            <td>{{ formatLabPeriod(s) }}</td>
                             <td>{{ displayValue(s.subject?.name) }}</td>
                             <td>{{ displayValue(s.school_class?.name) }}</td>
                             <td>{{ displayValue(s.employee?.name) }}</td>
@@ -610,10 +610,11 @@
       <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
-            <h3>{{ editingSchedule ? 'Edit Jadwal' : 'Tambah Jadwal di Lab' }}</h3>
+            <h3>{{ editingSchedule ? 'Edit Jadwal Lab' : 'Tambah Jadwal Lab' }}</h3>
             <button type="button" class="btn-close" @click="closeScheduleModal">×</button>
           </div>
           <form @submit.prevent="saveSchedule" class="modal-body">
+            <p class="muted" style="margin:0 0 0.75rem;font-size:0.9rem">Jadwal khusus pemakaian lab — bukan Jadwal Pelajaran.</p>
             <div class="form-row">
               <div class="form-group">
                 <label>Semester <span class="required">*</span></label>
@@ -638,12 +639,23 @@
                 </select>
               </div>
               <div class="form-group">
-                <label>Jam ke <span class="required">*</span></label>
+                <label>Jam ke (mulai) <span class="required">*</span></label>
                 <select v-model.number="scheduleForm.period" required class="form-input">
                   <option v-for="p in 10" :key="p" :value="p">{{ p }}</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Berapa JP <span class="required">*</span></label>
+                <select v-model.number="scheduleForm.duration" required class="form-input">
+                  <option v-for="n in labDurationOptions" :key="n" :value="n">{{ n }} JP</option>
+                </select>
+              </div>
             </div>
+            <p class="muted" style="margin:-0.25rem 0 0.75rem;font-size:0.85rem">
+              Mengisi jam ke-{{ scheduleForm.period }}
+              <template v-if="scheduleForm.duration > 1"> s/d {{ scheduleForm.period + scheduleForm.duration - 1 }}</template>
+              ({{ scheduleForm.duration }} JP).
+            </p>
             <div class="form-group">
               <label>Mata Pelajaran <span class="required">*</span></label>
               <select v-model="scheduleForm.subject_id" required class="form-input">
@@ -700,21 +712,22 @@
           </div>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'
 import { inventoryApi } from '@/api/inventory'
-import { lessonScheduleApi } from '@/api/lessonSchedule'
 import { institutionApi } from '@/api/institution'
 import { semesterApi } from '@/api/semester'
 import { classApi } from '@/api/class'
 import { subjectApi } from '@/api/subject'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import { ensurePdfBlob, openPdfPreviewWindow } from '@/utils/pdfPreview'
 
 const toast = useToast()
 const authStore = useAuthStore()
@@ -815,11 +828,30 @@ const scheduleForm = reactive({
   class_id: '',
   day_of_week: 1,
   period: 1,
+  duration: 1,
   subject_id: '',
   employee_id: ''
 })
 const scheduleFormError = ref('')
 const scheduleSaving = ref(false)
+const labDurationOptions = computed(() => {
+  const start = Number(scheduleForm.period) || 1
+  const max = Math.max(1, 10 - start + 1)
+  return Array.from({ length: max }, (_, i) => i + 1)
+})
+
+function formatLabPeriod(s) {
+  if (s?.period_label) return `Jam ${s.period_label}`
+  const start = Number(s?.period) || 1
+  const dur = Number(s?.duration) || 1
+  const end = start + dur - 1
+  return start === end ? `Jam ${start}` : `Jam ${start}–${end}`
+}
+
+watch(() => scheduleForm.period, () => {
+  const max = Math.max(1, 10 - (Number(scheduleForm.period) || 1) + 1)
+  if (scheduleForm.duration > max) scheduleForm.duration = max
+})
 
 const showDeleteScheduleModal = ref(false)
 const deleteScheduleRoom = ref(null)
@@ -1065,6 +1097,7 @@ async function openScheduleModal(room, schedule = null) {
     scheduleForm.class_id = schedule.class_id || schedule.school_class?.id || ''
     scheduleForm.day_of_week = schedule.day_of_week ?? 1
     scheduleForm.period = schedule.period ?? 1
+    scheduleForm.duration = schedule.duration ?? 1
     scheduleForm.subject_id = schedule.subject_id || schedule.subject?.id || ''
     scheduleForm.employee_id = schedule.employee_id || schedule.employee?.id || ''
   } else {
@@ -1072,6 +1105,7 @@ async function openScheduleModal(room, schedule = null) {
     scheduleForm.class_id = ''
     scheduleForm.day_of_week = 1
     scheduleForm.period = 1
+    scheduleForm.duration = 1
     scheduleForm.subject_id = ''
     scheduleForm.employee_id = ''
   }
@@ -1086,6 +1120,13 @@ function closeScheduleModal() {
   scheduleFormError.value = ''
 }
 
+async function reloadRoomSchedule(roomId) {
+  if (!activeSemesterId.value) return
+  const res = await facilityApi.getLabSchedules({ room_id: roomId, semester_id: activeSemesterId.value })
+  const items = res?.data?.data ?? (Array.isArray(res?.data) ? res.data : [])
+  roomScheduleMap.value = { ...roomScheduleMap.value, [roomId]: { items, loading: false, loaded: true } }
+}
+
 async function saveSchedule() {
   if (!scheduleModalRoom.value) return
   scheduleFormError.value = ''
@@ -1097,23 +1138,20 @@ async function saveSchedule() {
       class_id: Number(scheduleForm.class_id),
       day_of_week: Number(scheduleForm.day_of_week),
       period: Number(scheduleForm.period),
+      duration: Number(scheduleForm.duration) || 1,
       subject_id: Number(scheduleForm.subject_id),
       employee_id: Number(scheduleForm.employee_id),
       room_id: roomId
     }
     if (editingSchedule.value) {
-      await lessonScheduleApi.update(editingSchedule.value.id, payload)
-      toast.success('Berhasil', 'Jadwal berhasil diperbarui')
+      await facilityApi.updateLabSchedule(editingSchedule.value.id, payload)
+      toast.success('Berhasil', 'Jadwal lab diperbarui')
     } else {
-      await lessonScheduleApi.create(payload)
-      toast.success('Berhasil', 'Jadwal berhasil ditambahkan')
+      await facilityApi.createLabSchedule(payload)
+      toast.success('Berhasil', 'Jadwal lab ditambahkan')
     }
     closeScheduleModal()
-    if (activeSemesterId.value) {
-      const res = await lessonScheduleApi.getByRoom(roomId, { semester_id: activeSemesterId.value })
-      const items = res?.data?.data ?? (Array.isArray(res?.data) ? res.data : [])
-      roomScheduleMap.value = { ...roomScheduleMap.value, [roomId]: { items, loading: false, loaded: true } }
-    }
+    await reloadRoomSchedule(roomId)
   } catch (e) {
     scheduleFormError.value = e.response?.data?.message || e.message || 'Gagal menyimpan'
     toast.error('Gagal', scheduleFormError.value)
@@ -1139,14 +1177,10 @@ async function doDeleteSchedule() {
   deleteScheduleLoading.value = true
   const roomId = deleteScheduleRoom.value.id
   try {
-    await lessonScheduleApi.delete(deleteScheduleId.value)
-    toast.success('Berhasil', 'Jadwal dihapus')
+    await facilityApi.deleteLabSchedule(deleteScheduleId.value)
+    toast.success('Berhasil', 'Jadwal lab dihapus')
     cancelDeleteSchedule()
-    if (activeSemesterId.value) {
-      const res = await lessonScheduleApi.getByRoom(roomId, { semester_id: activeSemesterId.value })
-      const items = res?.data?.data ?? (Array.isArray(res?.data) ? res.data : [])
-      roomScheduleMap.value = { ...roomScheduleMap.value, [roomId]: { items, loading: false, loaded: true } }
-    }
+    await reloadRoomSchedule(roomId)
   } catch (e) {
     toast.error('Gagal', e.response?.data?.message || e.message || 'Gagal menghapus')
   } finally {
@@ -1307,7 +1341,7 @@ async function toggleInventory(room) {
   if (!sched?.loaded && activeSemesterId.value) {
     roomScheduleMap.value = { ...roomScheduleMap.value, [id]: { items: [], loading: true, loaded: false } }
     try {
-      const res = await lessonScheduleApi.getByRoom(id, { semester_id: activeSemesterId.value })
+      const res = await facilityApi.getLabSchedules({ room_id: id, semester_id: activeSemesterId.value })
       const items = res?.data?.data ?? (Array.isArray(res?.data) ? res.data : [])
       roomScheduleMap.value = { ...roomScheduleMap.value, [id]: { items, loading: false, loaded: true } }
     } catch {
@@ -1392,37 +1426,12 @@ async function loadTeachers() {
 async function exportAllLabsPdf() {
   try {
     const res = await facilityApi.exportLabReport()
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const win = window.open('', '_blank')
-    if (!win) {
+    const blob = await ensurePdfBlob(res, 'Gagal membuka preview laporan PDF')
+    if (!openPdfPreviewWindow(blob, 'Preview Rekapitulasi Lab')) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview.')
-      URL.revokeObjectURL(url)
-      return
     }
-    win.document.write(`<!DOCTYPE html><html><head><title>Preview Rekap Lab</title>
-      <style>
-        body{margin:0;font-family:system-ui,sans-serif;background:#0f172a}
-        .toolbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#f8fafc;border-bottom:1px solid #1e293b}
-        .toolbar h1{margin:0;font-size:14px}
-        .actions button{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
-        .btn-print{background:#059669;color:#fff}
-        .btn-close{background:#334155;color:#e2e8f0;margin-left:8px}
-        iframe{width:100%;height:calc(100vh - 52px);border:0;background:#525659}
-      </style></head><body>
-      <div class="toolbar">
-        <h1>Preview Rekapitulasi Lab</h1>
-        <div class="actions">
-          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus();document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-        </div>
-      </div>
-      <iframe id="pdfFrame" src="${url}"></iframe>
-    </body></html>`)
-    win.document.close()
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
   } catch (e) {
-    toast.error('Gagal', 'Gagal membuka preview laporan PDF')
+    toast.error('Gagal', e.message || 'Gagal membuka preview laporan PDF')
   }
 }
 

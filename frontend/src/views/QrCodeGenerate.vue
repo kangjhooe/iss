@@ -454,8 +454,7 @@ async function openPdf() {
       const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
       throw new Error(json.message || 'Gagal mencetak PDF.')
     }
-    const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' })
-    if (!openPdfBlob(blob, `qr-absensi-${qrType.value}.pdf`)) {
+    if (!(await openPdfBlob(res, `qr-absensi-${qrType.value}.pdf`))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat PDF.')
     }
   } catch (e) {

@@ -16,6 +16,12 @@ class RotateExamEntryPins extends Command
     {
         $cutoff = now()->subMinutes(20);
         $sessions = ExamSession::where('status', ExamSession::STATUS_STARTED)
+            ->whereHas('exam', function ($q) {
+                $q->where(function ($inner) {
+                    $inner->whereNull('delivery_mode')
+                        ->orWhere('delivery_mode', '!=', \App\Models\Exam::DELIVERY_PRACTICE);
+                });
+            })
             ->where(function ($q) use ($cutoff) {
                 $q->whereNull('entry_pin_updated_at')
                     ->orWhere('entry_pin_updated_at', '<', $cutoff);

@@ -13,7 +13,7 @@ use App\Models\InventoryMaintenance;
 use App\Models\LabBooking;
 use App\Models\LabUsageJournal;
 use App\Models\Land;
-use App\Models\LessonSchedule;
+use App\Models\LabSchedule;
 use App\Models\Room;
 use App\Notifications\LabNotification;
 use App\Support\InstitutionContext;
@@ -725,7 +725,7 @@ class FacilityController extends Controller
 
             $scheduleCounts = [];
             if ($activeSemesterId) {
-                $scheduleCounts = LessonSchedule::whereIn('room_id', $roomIds)
+                $scheduleCounts = LabSchedule::whereIn('room_id', $roomIds)
                     ->where('semester_id', $activeSemesterId)
                     ->selectRaw('room_id, COUNT(*) as cnt')
                     ->groupBy('room_id')
@@ -819,7 +819,7 @@ class FacilityController extends Controller
             $today = now()->dayOfWeekIso; // 1=Mon .. 7=Sun
             $todayScheduleCounts = [];
             if ($activeSemesterId && $roomIds) {
-                $todayScheduleCounts = LessonSchedule::whereIn('room_id', $roomIds)
+                $todayScheduleCounts = LabSchedule::whereIn('room_id', $roomIds)
                     ->where('semester_id', $activeSemesterId)
                     ->where('day_of_week', $today)
                     ->selectRaw('room_id, COUNT(*) as cnt')
@@ -838,7 +838,7 @@ class FacilityController extends Controller
 
             $scheduleCounts = [];
             if ($activeSemesterId && $roomIds) {
-                $scheduleCounts = LessonSchedule::whereIn('room_id', $roomIds)
+                $scheduleCounts = LabSchedule::whereIn('room_id', $roomIds)
                     ->where('semester_id', $activeSemesterId)
                     ->selectRaw('room_id, COUNT(*) as cnt')
                     ->groupBy('room_id')

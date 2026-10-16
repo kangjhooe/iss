@@ -26,6 +26,16 @@ class ExamParticipantResource extends JsonResource
             }),
             'login_token' => $this->when($request->user()?->isAdminOrSuperAdmin() || $request->user()?->isInstitutionAdmin(), $this->login_token),
             'started_at' => $this->started_at?->toIso8601String(),
+            'extra_seconds' => (int) ($this->extra_seconds ?? 0),
+            'attempt_number' => (int) ($this->attempt_number ?? 1),
+            'last_seen_at' => $this->last_seen_at?->toIso8601String(),
+            'presence' => $this->status === \App\Models\ExamParticipant::STATUS_STARTED
+                ? ($this->last_seen_at && $this->last_seen_at->greaterThan(now()->subSeconds(50)) ? 'online' : 'away')
+                : null,
+            'seconds_remaining' => $this->when(
+                $this->status === \App\Models\ExamParticipant::STATUS_STARTED && $this->relationLoaded('examSession'),
+                fn () => app(\App\Services\ExamService::class)->secondsRemaining($this->resource)
+            ),
             'submitted_at' => $this->submitted_at?->toIso8601String(),
             'score' => $this->when($this->score_released || $request->user()?->isAdminOrSuperAdmin() || $request->user()?->isInstitutionAdmin() || $request->user()?->isTeacher(), $this->score !== null ? (float) $this->score : null),
             'score_max' => $this->when($this->score_released || $request->user()?->isAdminOrSuperAdmin() || $request->user()?->isInstitutionAdmin() || $request->user()?->isTeacher(), $this->score_max !== null ? (float) $this->score_max : null),

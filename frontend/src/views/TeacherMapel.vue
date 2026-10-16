@@ -315,6 +315,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { gradeBookApi } from '@/api/gradeBook'
 import { studentAttendanceApi } from '@/api/attendance'
+import { hasModuleAccess } from '@/utils/moduleAccess'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -331,7 +332,10 @@ const assignment = computed(() => {
   ) || null
 })
 
-const canAccessModule = (key) => (authStore.user?.permissions || []).includes(key)
+const canAccessModule = (key) => {
+  if (key === 'online_exam' && !authStore.isOnlineExamEntitled) return false
+  return hasModuleAccess(authStore.user, key)
+}
 
 const semesterId = computed(() => (
   assignment.value?.semester_id
@@ -370,12 +374,7 @@ const attendanceRekapLink = computed(() => {
   if (semesterId.value) params.set('semester_id', String(semesterId.value))
   return `/attendance/student?${params.toString()}`
 })
-const examLink = computed(() => {
-  const params = new URLSearchParams()
-  if (assignment.value?.subject_id) params.set('subject_id', String(assignment.value.subject_id))
-  const qs = params.toString()
-  return qs ? `/ujian-online/exams?${qs}` : '/ujian-online/exams'
-})
+const examLink = computed(() => '/ujian-online/gelombang')
 const bankSoalLink = computed(() => {
   const params = new URLSearchParams()
   if (assignment.value?.subject_id) params.set('subject_id', String(assignment.value.subject_id))

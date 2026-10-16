@@ -20,9 +20,10 @@
     # Root → Vue SPA (jangan biarkan DirectoryIndex ke index.php / JSON API)
     RewriteRule ^$ index.html [L]
 
-    # Laravel API (+ Sanctum CSRF)
-    RewriteCond %{REQUEST_URI} ^/api [OR]
-    RewriteCond %{REQUEST_URI} ^/sanctum
+    # Laravel API (+ Sanctum CSRF). Cocok di document root (/api)
+    # maupun subdirectory (/iss/public/api) — jangan hanya ^/api.
+    RewriteCond %{REQUEST_URI} /api(/|$) [OR]
+    RewriteCond %{REQUEST_URI} /sanctum(/|$)
     RewriteRule ^ index.php [L]
 
     # Existing files/dirs (FE assets, storage, favicon, …)

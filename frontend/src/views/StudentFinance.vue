@@ -196,7 +196,7 @@ import TableAction from '@/components/TableAction.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { studentFinanceApi } from '@/api/finance'
-import { formatRp, methodLabel, statusLabel } from '@/views/Keuangan/keuanganConstants'
+import { formatRp, methodLabel, statusLabel } from '@/views/Finance/financeConstants'
 import '@/assets/student-portal.css'
 
 const authStore = useAuthStore()

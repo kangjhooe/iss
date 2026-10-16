@@ -265,6 +265,46 @@ export const inventoryApi = {
       downloadExcelBlob(res, `Laporan_Inventaris_${type}_${new Date().toISOString().slice(0, 10)}.xlsx`)
       return res
     })
+  },
+
+  getNeedAnalyses(params = {}) {
+    return api.get('/v1/inventory/need-analyses', { params })
+  },
+  getNeedSources() {
+    return api.get('/v1/inventory/need-analyses/sources')
+  },
+  getNeedAnalysis(id) {
+    return api.get(`/v1/inventory/need-analyses/${id}`)
+  },
+  createNeedAnalysis(data) {
+    return api.post('/v1/inventory/need-analyses', data)
+  },
+  updateNeedAnalysis(id, data) {
+    return api.put(`/v1/inventory/need-analyses/${id}`, data)
+  },
+  deleteNeedAnalysis(id) {
+    return api.delete(`/v1/inventory/need-analyses/${id}`)
+  },
+  refreshNeedAnalysis(id) {
+    return api.post(`/v1/inventory/need-analyses/${id}/refresh`)
+  },
+  finalizeNeedAnalysis(id) {
+    return api.post(`/v1/inventory/need-analyses/${id}/finalize`)
+  },
+  reopenNeedAnalysis(id) {
+    return api.post(`/v1/inventory/need-analyses/${id}/reopen`)
+  },
+  createNeedLine(analysisId, data) {
+    return api.post(`/v1/inventory/need-analyses/${analysisId}/lines`, data)
+  },
+  updateNeedLine(analysisId, lineId, data) {
+    return api.put(`/v1/inventory/need-analyses/${analysisId}/lines/${lineId}`, data)
+  },
+  deleteNeedLine(analysisId, lineId) {
+    return api.delete(`/v1/inventory/need-analyses/${analysisId}/lines/${lineId}`)
+  },
+  exportNeedAnalysisPdf(id) {
+    return api.get(`/v1/inventory/need-analyses/${id}/export/pdf`, { responseType: 'blob' })
   }
 }
 

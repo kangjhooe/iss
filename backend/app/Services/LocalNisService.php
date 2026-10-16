@@ -166,11 +166,13 @@ class LocalNisService
 
     /**
      * Simulasi NIS untuk siswa tanpa nomor. Tidak menulis data dan tidak menaikkan counter.
+     * selectedIds null = semua kandidat dinomori. Array (termasuk kosong) = hanya id itu yang dapat NIS.
      *
      * @param  array<int>|null  $studentIds
-     * @return array{rows: array<int, array{id:int, name:?string, class:?string, tingkat:?int, proposed_nis:string}>, truncated: bool, total_missing: int, next_seq: int, start_seq: int}
+     * @param  array<int>|null  $selectedIds
+     * @return array{rows: array<int, array{id:int, name:?string, class:?string, tingkat:?int, proposed_nis:?string}>, truncated: bool, total_missing: int, next_seq: int, start_seq: int, sort: string}
      */
-    public function previewAssignments(int $institutionId, ?array $studentIds = null, int $limit = 500, ?int $startSeq = null): array
+    public function previewAssignments(int $institutionId, ?array $studentIds = null, int $limit = 500, ?int $startSeq = null, string $sort = 'name', ?array $selectedIds = null): array
     {
         $institution = Institution::with('activeAcademicYear')->find($institutionId);
         if (! $institution) {
@@ -180,23 +182,25 @@ class LocalNisService
         $settings = $this->settingsFor($institution);
         $nextSeq = $this->nextSeq($institution, $settings);
         $resolvedStart = $this->resolveStartSeq($startSeq, $nextSeq);
+        $sort = $this->normalizeSort($sort);
 
         $limit = max(1, min(2000, $limit));
         $aktifOnly = empty($studentIds);
         $totalMissing = $this->missingNisQuery($institutionId, $studentIds, $aktifOnly)->count();
-        $students = $this->missingNisQuery($institutionId, $studentIds, $aktifOnly)
-            ->orderBy('id')
-            ->limit($limit)
-            ->get(['id', 'name', 'class', 'tingkat', 'nis', 'academic_year_id']);
-
-        $proposed = $this->proposeForStudents($institution, $students, $resolvedStart - 1);
+        $students = $this->orderedMissingStudents($institutionId, $studentIds, $aktifOnly, $sort, $limit);
+        $proposed = $this->proposeForStudents(
+            $institution,
+            $this->onlySelected($students, $selectedIds),
+            $resolvedStart - 1
+        );
 
         return [
-            'rows' => $proposed['rows'],
+            'rows' => $this->mergeProposedRows($students, $proposed['rows']),
             'truncated' => $totalMissing > $students->count(),
             'total_missing' => $totalMissing,
             'next_seq' => $nextSeq,
             'start_seq' => $resolvedStart,
+            'sort' => $sort,
         ];
     }
 
@@ -204,9 +208,9 @@ class LocalNisService
      * Terapkan NIS hanya untuk siswa yang dipilih. Wajib student_ids agar tidak generate massal tanpa pratinjau.
      *
      * @param  array<int>  $studentIds
-     * @return array{processed:int, assigned:int, skipped:int, errors:array<int, string>, assigned_rows:array<int, array{id:int, name:?string, class:?string, tingkat:?int, nis:string}>, start_seq: int}
+     * @return array{processed:int, assigned:int, skipped:int, errors:array<int, string>, assigned_rows:array<int, array{id:int, name:?string, class:?string, tingkat:?int, nis:string}>, start_seq: int, sort: string}
      */
-    public function assignMany(int $institutionId, array $studentIds, int $limit = 500, ?int $startSeq = null): array
+    public function assignMany(int $institutionId, array $studentIds, int $limit = 500, ?int $startSeq = null, string $sort = 'name'): array
     {
         $ids = array_values(array_unique(array_map('intval', $studentIds)));
         $ids = array_values(array_filter($ids, fn ($id) => $id > 0));
@@ -224,11 +228,12 @@ class LocalNisService
         $this->assertCanGenerate($institution, $settings);
 
         $limit = max(1, min(2000, $limit));
+        $sort = $this->normalizeSort($sort);
         if ($startSeq !== null) {
             $this->resolveStartSeq($startSeq, 1);
         }
 
-        return DB::transaction(function () use ($institution, $settings, $ids, $limit, $startSeq) {
+        return DB::transaction(function () use ($institution, $settings, $ids, $limit, $startSeq, $sort) {
             $yearCode = $this->yearCode($institution);
             $periodKey = $this->periodKey($settings, $yearCode);
             $seqRow = InstitutionNisSequence::query()
@@ -246,13 +251,35 @@ class LocalNisService
                 $seqRow = InstitutionNisSequence::query()->whereKey($seqRow->id)->lockForUpdate()->firstOrFail();
             }
 
-            $students = $this->missingNisQuery($institution->id, $ids, false)
-                ->orderBy('id')
-                ->limit($limit)
-                ->lockForUpdate()
-                ->get(['id', 'name', 'class', 'tingkat', 'nis', 'academic_year_id', 'institution_id']);
-
+            $orderedIds = $this->orderedMissingStudents($institution->id, $ids, false, $sort, $limit)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
             $resolvedStart = $this->resolveStartSeq($startSeq, (int) $seqRow->last_seq + 1);
+            if ($orderedIds === []) {
+                return [
+                    'processed' => 0,
+                    'assigned' => 0,
+                    'skipped' => count($ids),
+                    'errors' => [],
+                    'assigned_rows' => [],
+                    'start_seq' => $resolvedStart,
+                    'sort' => $sort,
+                ];
+            }
+            $position = array_flip($orderedIds);
+            $students = Student::query()
+                ->where('institution_id', $institution->id)
+                ->whereIn('id', $orderedIds)
+                ->where(function ($q) {
+                    $q->whereNull('nis')->orWhere('nis', '');
+                })
+                ->lockForUpdate()
+                ->get(['id', 'name', 'class', 'tingkat', 'nis', 'academic_year_id', 'institution_id', 'class_id'])
+                ->sortBy(fn (Student $student) => $position[(int) $student->id] ?? PHP_INT_MAX)
+                ->values();
+            $this->loadClassForSort($students);
+
             $proposed = $this->proposeForStudents($institution, $students, $resolvedStart - 1);
             $assignedRows = [];
             $errors = [];
@@ -293,6 +320,7 @@ class LocalNisService
                 'errors' => $errors,
                 'assigned_rows' => $assignedRows,
                 'start_seq' => $resolvedStart,
+                'sort' => $sort,
             ];
         });
     }
@@ -393,6 +421,62 @@ class LocalNisService
         return $nis;
     }
 
+    /**
+     * Naikkan counter jika NIS yang diisi manual cocok dengan urutan format sekolah.
+     * Mencegah usulan berikutnya mengulang nomor yang sudah dipakai.
+     */
+    public function absorbIssuedNis(Institution $institution, string $nis, ?int $academicYearId = null): void
+    {
+        $nis = trim($nis);
+        if ($nis === '' || ! $this->sequencesAvailable()) {
+            return;
+        }
+
+        $institution->loadMissing('activeAcademicYear');
+        $settings = $this->settingsFor($institution);
+
+        try {
+            $this->assertCanGenerate($institution, $settings);
+        } catch (InvalidArgumentException) {
+            return;
+        }
+
+        $yearCode = $this->yearCode($institution, $academicYearId);
+        $periodKey = $this->periodKey($settings, $yearCode);
+
+        DB::transaction(function () use ($institution, $settings, $yearCode, $periodKey, $nis) {
+            $row = InstitutionNisSequence::query()
+                ->where('institution_id', $institution->id)
+                ->where('period_key', $periodKey)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $row) {
+                $row = InstitutionNisSequence::create([
+                    'institution_id' => $institution->id,
+                    'period_key' => $periodKey,
+                    'last_seq' => 0,
+                ]);
+                $row = InstitutionNisSequence::query()->whereKey($row->id)->lockForUpdate()->firstOrFail();
+            }
+
+            $seq = (int) $row->last_seq;
+            $matchedSeq = null;
+            for ($i = 1; $i <= 200; $i++) {
+                $candidate = $seq + $i;
+                if ($this->render($institution, $settings, $yearCode, $candidate) === $nis) {
+                    $matchedSeq = $candidate;
+                    break;
+                }
+            }
+
+            if ($matchedSeq !== null && $matchedSeq > (int) $row->last_seq) {
+                $row->last_seq = $matchedSeq;
+                $row->save();
+            }
+        });
+    }
+
     public static function uniqueRule(?int $institutionId, mixed $ignoreStudentId = null): Unique
     {
         $rule = Rule::unique('student', 'nis')->where(function ($query) use ($institutionId) {
@@ -441,20 +525,135 @@ class LocalNisService
     private function missingNisQuery(int $institutionId, ?array $studentIds, bool $aktifOnly)
     {
         $query = Student::query()
-            ->where('institution_id', $institutionId)
+            ->where('student.institution_id', $institutionId)
             ->where(function ($q) {
-                $q->whereNull('nis')->orWhere('nis', '');
+                $q->whereNull('student.nis')->orWhere('student.nis', '');
             });
 
         if ($aktifOnly) {
-            $query->where('status', 'Aktif');
+            $query->where('student.status', 'Aktif');
         }
 
         if (! empty($studentIds)) {
-            $query->whereIn('id', $studentIds);
+            $query->whereIn('student.id', $studentIds);
         }
 
         return $query;
+    }
+
+    private function normalizeSort(?string $sort): string
+    {
+        return $sort === 'class' ? 'class' : 'name';
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Student>  $students
+     * @param  array<int>|null  $selectedIds
+     * @return \Illuminate\Support\Collection<int, Student>
+     */
+    private function onlySelected($students, ?array $selectedIds)
+    {
+        if ($selectedIds === null) {
+            return $students->values();
+        }
+
+        $lookup = array_flip(array_map('intval', $selectedIds));
+
+        return $students
+            ->filter(fn (Student $student) => isset($lookup[(int) $student->id]))
+            ->values();
+    }
+
+    /**
+     * @param  array<int>|null  $studentIds
+     * @return \Illuminate\Support\Collection<int, Student>
+     */
+    private function orderedMissingStudents(int $institutionId, ?array $studentIds, bool $aktifOnly, string $sort, int $limit)
+    {
+        $query = $this->missingNisQuery($institutionId, $studentIds, $aktifOnly);
+        $this->applyCandidateOrder($query, $sort);
+        $students = $query
+            ->select([
+                'student.id',
+                'student.name',
+                'student.class',
+                'student.tingkat',
+                'student.nis',
+                'student.academic_year_id',
+                'student.class_id',
+                'student.institution_id',
+            ])
+            ->limit($limit)
+            ->get();
+        $this->loadClassForSort($students);
+
+        return $students->values();
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<Student>  $query
+     */
+    private function applyCandidateOrder($query, string $sort): void
+    {
+        if ($this->normalizeSort($sort) === 'name') {
+            $query->orderBy('student.name')->orderBy('student.id');
+
+            return;
+        }
+
+        $query->leftJoin('class as nis_sort_class', function ($join) {
+            $join->on('student.class_id', '=', 'nis_sort_class.id')
+                ->whereNull('nis_sort_class.deleted_at');
+        });
+        $query->orderByRaw("CASE WHEN COALESCE(NULLIF(`nis_sort_class`.`name`, ''), NULLIF(`student`.`class`, '')) IS NULL THEN 1 ELSE 0 END")
+            ->orderByRaw('CASE WHEN COALESCE(`nis_sort_class`.`grade`, `student`.`tingkat`) IS NULL THEN 999 ELSE COALESCE(`nis_sort_class`.`grade`, `student`.`tingkat`) END')
+            ->orderByRaw("COALESCE(NULLIF(`nis_sort_class`.`name`, ''), `student`.`class`)")
+            ->orderBy('student.name')
+            ->orderBy('student.id');
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Student>  $students
+     */
+    private function loadClassForSort($students): void
+    {
+        $students->load(['schoolClass' => function ($query) {
+            $query->select('id', 'name', 'grade');
+        }]);
+    }
+
+    /**
+     * Baris tetap urut sesuai kandidat. Yang tidak dipilih proposed_nis-nya kosong.
+     *
+     * @param  \Illuminate\Support\Collection<int, Student>  $students
+     * @param  array<int, array{id:int, name:?string, class:?string, tingkat:?int, proposed_nis:string}>  $proposedRows
+     * @return array<int, array{id:int, name:?string, class:?string, tingkat:?int, proposed_nis:?string}>
+     */
+    private function mergeProposedRows($students, array $proposedRows): array
+    {
+        $byId = [];
+        foreach ($proposedRows as $row) {
+            $byId[$row['id']] = $row;
+        }
+
+        $rows = [];
+        foreach ($students as $student) {
+            $id = (int) $student->id;
+            if (isset($byId[$id])) {
+                $rows[] = $byId[$id];
+                continue;
+            }
+
+            $rows[] = [
+                'id' => $id,
+                'name' => $student->name,
+                'class' => $student->resolvedClassName(),
+                'tingkat' => $student->tingkat !== null ? (int) $student->tingkat : null,
+                'proposed_nis' => null,
+            ];
+        }
+
+        return $rows;
     }
 
     /**
@@ -502,7 +701,7 @@ class LocalNisService
             $rows[] = [
                 'id' => (int) $student->id,
                 'name' => $student->name,
-                'class' => is_string($student->class) ? $student->class : ($student->class?->name ?? null),
+                'class' => $student->resolvedClassName(),
                 'tingkat' => $student->tingkat !== null ? (int) $student->tingkat : null,
                 'proposed_nis' => $nis,
             ];

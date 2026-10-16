@@ -1,4 +1,5 @@
-<template>    <div class="mutation-page">
+<template>
+    <div class="mutation-page">
       <div class="page-header">
         <div class="header-content">
           <div class="header-icon-wrap">
@@ -876,7 +877,8 @@
           </form>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
@@ -885,6 +887,7 @@ import PaginationBar from '@/components/PaginationBar.vue'
 import { teacherMutationApi } from '@/api/teacherMutation'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { openPdfFromAxios } from '@/utils/pdfPreview'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -1391,12 +1394,6 @@ async function exportBukuMutasi(format) {
     if (reportFrom.value) params.from = reportFrom.value
     if (reportTo.value) params.to = reportTo.value
     const res = await teacherMutationApi.exportBukuMutasi(params)
-    const contentType = res.headers?.['content-type'] || ''
-    if (res.status !== 200 || contentType.includes('application/json')) {
-      const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
-      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
-      throw new Error(json.message || 'Gagal mengekspor Buku Mutasi Guru.')
-    }
     const blob = res.data instanceof Blob ? res.data : new Blob([res.data])
 
     if (format === 'csv') {
@@ -1412,35 +1409,11 @@ async function exportBukuMutasi(format) {
       return
     }
 
-    const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-    const win = window.open('', '_blank')
-    if (!win) {
+    const title = `Preview Buku Mutasi Guru ${reportFrom.value || ''} - ${reportTo.value || ''}`
+    if (!(await openPdfFromAxios(res, title, 'Gagal mengekspor Buku Mutasi Guru.'))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-      URL.revokeObjectURL(url)
       return
     }
-    const title = `Preview Buku Mutasi Guru ${reportFrom.value || ''} - ${reportTo.value || ''}`
-    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
-      <style>
-        body{margin:0;font-family:system-ui,sans-serif;background:#0f172a}
-        .toolbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#f8fafc;border-bottom:1px solid #1e293b}
-        .toolbar h1{margin:0;font-size:14px;font-weight:600}
-        .actions button{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
-        .btn-print{background:#059669;color:#fff}
-        .btn-close{background:#334155;color:#e2e8f0;margin-left:8px}
-        iframe{width:100%;height:calc(100vh - 52px);border:0;background:#525659}
-      </style></head><body>
-      <div class="toolbar">
-        <h1>Preview Buku Mutasi Guru</h1>
-        <div class="actions">
-          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus();document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-        </div>
-      </div>
-      <iframe id="pdfFrame" src="${url}"></iframe>
-    </body></html>`)
-    win.document.close()
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
     toast.success('Berhasil', 'Preview PDF Buku Mutasi Guru dibuka.')
   } catch (err) {
     toast.error('Gagal', err.message || err.response?.data?.message || err.formattedMessage || 'Gagal mengekspor Buku Mutasi Guru.')

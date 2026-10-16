@@ -11,6 +11,7 @@ use App\Models\Exam;
 use App\Models\QuestionBank;
 use App\Models\Subject;
 use App\Services\ExamQuestionSnapshot;
+use App\Services\ExamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -32,6 +33,9 @@ class ExamController extends Controller
 
             if ($request->filled('subject_id')) {
                 $query->where('subject_id', $request->get('subject_id'));
+            }
+            if ($request->filled('exam_period_id')) {
+                $query->where('exam_period_id', $request->get('exam_period_id'));
             }
             if ($request->filled('search')) {
                 $search = $request->get('search');
@@ -75,12 +79,31 @@ class ExamController extends Controller
 
     public function show(Request $request, Exam $exam): ExamResource|JsonResponse
     {
-        $institutionId = $this->resolveInstitutionId($request);
-        if (!$institutionId || $exam->institution_id != $institutionId) {
-            return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId || $exam->institution_id != $institutionId) {
+                return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
+            }
+            $exam->load([
+                'subject',
+                'examPeriod',
+                'sessions' => fn ($q) => $q->withCount('participants'),
+                'examQuestions.questionBank.bankSoal',
+                'examQuestions.questionBank.stimulus',
+            ]);
+
+            return new ExamResource($exam);
+        } catch (\Throwable $e) {
+            Log::error('Exam show failed', [
+                'exam_id' => $exam->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Gagal memuat ujian.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
-        $exam->load(['subject', 'sessions', 'examQuestions.questionBank.bankSoal']);
-        return new ExamResource($exam);
     }
 
     /**
@@ -88,18 +111,38 @@ class ExamController extends Controller
      */
     public function showByCode(Request $request, string $code): ExamResource|JsonResponse
     {
-        $institutionId = $this->resolveInstitutionId($request);
-        if (!$institutionId) {
-            return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+        try {
+            $institutionId = $this->resolveInstitutionId($request);
+            if (!$institutionId) {
+                return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
+            }
+            $exam = Exam::forInstitution($institutionId)
+                ->where('code', $code)
+                ->first();
+            if (!$exam) {
+                return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
+            }
+            $exam->load([
+                'subject',
+                'examPeriod',
+                'sessions' => fn ($q) => $q->withCount('participants'),
+                'examQuestions.questionBank.bankSoal',
+                'examQuestions.questionBank.stimulus',
+            ]);
+
+            return new ExamResource($exam);
+        } catch (\Throwable $e) {
+            Log::error('Exam showByCode failed', [
+                'code' => $code,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile().':'.$e->getLine(),
+            ]);
+
+            return response()->json([
+                'message' => 'Gagal memuat ujian.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
-        $exam = Exam::forInstitution($institutionId)
-            ->where('code', $code)
-            ->first();
-        if (!$exam) {
-            return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
-        }
-        $exam->load(['subject', 'sessions', 'examQuestions.questionBank.bankSoal']);
-        return new ExamResource($exam);
     }
 
     public function update(UpdateExamRequest $request, Exam $exam): ExamResource|JsonResponse
@@ -187,7 +230,15 @@ class ExamController extends Controller
                     'message' => 'Soal harus dari mata pelajaran yang sama dengan ujian. Tingkat kelas tidak membatasi.',
                 ], 422);
             }
+            if (($questions->get($qbId)->status ?? QuestionBank::STATUS_READY) === QuestionBank::STATUS_DRAFT) {
+                return response()->json([
+                    'message' => 'Soal berstatus draf tidak bisa masuk paket ujian. Tandai siap di bank soal terlebih dahulu.',
+                ], 422);
+            }
         }
+
+        // Rapikan: soal se-stimulus digandeng berurutan (urut sort_order bank).
+        $ids = ExamService::orderKeepingStimulusGroups($ids, $questions);
 
         DB::transaction(function () use ($exam, $ids, $questions) {
             $exam->examQuestions()->delete();
@@ -200,7 +251,159 @@ class ExamController extends Controller
             }
         });
 
-        $exam->load(['subject', 'sessions', 'examQuestions.questionBank.bankSoal']);
+        $exam->load(['subject', 'sessions', 'examQuestions.questionBank.bankSoal', 'examQuestions.questionBank.stimulus']);
         return response()->json(['message' => 'Paket soal ujian disimpan.', 'exam' => new ExamResource($exam)]);
+    }
+
+    /**
+     * Usulan ID soal untuk paket: set stimulus lengkap, atau acak N (unit stimulus dijaga).
+     * Tidak menempel ke ujian — frontend menggabungkan ke keranjang lalu attach.
+     */
+    public function suggestQuestions(Request $request, Exam $exam): JsonResponse
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if (! $institutionId || $exam->institution_id != $institutionId) {
+            return response()->json(['message' => 'Ujian tidak ditemukan.'], 404);
+        }
+
+        $data = $request->validate([
+            'mode' => 'required|in:stimulus,random',
+            'stimulus_id' => 'required_if:mode,stimulus|nullable|integer|exists:question_stimuli,id',
+            'count' => 'required_if:mode,random|nullable|integer|min:1|max:200',
+            'bank_soal_id' => 'nullable|integer|exists:bank_soal,id',
+            'type' => 'nullable|string|in:pg,pg_kompleks,matching,isian,uraian',
+            'grade' => 'nullable|integer|min:1|max:12',
+            'difficulty' => 'nullable|string|in:mudah,sedang,sulit',
+            'tag' => 'nullable|string|max:40',
+            'cognitive_level' => 'nullable|string|in:c1,c2,c3,c4,c5,c6',
+            'topic' => 'nullable|string|max:120',
+            'exclude_ids' => 'nullable|array',
+            'exclude_ids.*' => 'integer',
+        ]);
+
+        $query = QuestionBank::query()
+            ->where('institution_id', $institutionId)
+            ->where(function ($q) {
+                $q->where('status', QuestionBank::STATUS_READY)->orWhereNull('status');
+            })
+            ->with(['stimulus', 'bankSoal']);
+
+        if ($exam->subject_id) {
+            $query->where('subject_id', $exam->subject_id);
+        }
+        if (! empty($data['bank_soal_id'])) {
+            $query->where('bank_soal_id', $data['bank_soal_id']);
+        }
+        if (! empty($data['type'])) {
+            $query->where('type', $data['type']);
+        }
+        if (! empty($data['grade'])) {
+            $query->whereHas('bankSoal', fn ($q) => $q->where('grade', $data['grade']));
+        }
+        if (! empty($data['difficulty'])) {
+            $query->where('difficulty', $data['difficulty']);
+        }
+        if (! empty($data['cognitive_level'])) {
+            $query->where('cognitive_level', $data['cognitive_level']);
+        }
+        if (! empty($data['tag'])) {
+            $query->whereJsonContains('tags', mb_strtolower(trim((string) $data['tag'])));
+        }
+        if (! empty($data['topic'])) {
+            $query->where('topic', trim((string) $data['topic']));
+        }
+        $exclude = array_values(array_unique(array_map('intval', $data['exclude_ids'] ?? [])));
+        if ($exclude !== []) {
+            $query->whereNotIn('id', $exclude);
+        }
+
+        if ($data['mode'] === 'stimulus') {
+            $query->where('stimulus_id', $data['stimulus_id'])
+                ->orderBy('sort_order')
+                ->orderBy('id');
+            $questions = $query->get();
+            if ($questions->isEmpty()) {
+                return response()->json([
+                    'message' => 'Tidak ada soal untuk stimulus ini (atau sudah dipilih semua).',
+                    'question_bank_ids' => [],
+                ], 422);
+            }
+            $ids = $questions->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+
+            return response()->json([
+                'question_bank_ids' => $ids,
+                'count' => count($ids),
+                'mode' => 'stimulus',
+                'stimulus_id' => (int) $data['stimulus_id'],
+            ]);
+        }
+
+        // random: bangun unit (set stimulus / soal tunggal), acak unit, ambil sampai count soal
+        $candidates = $query->orderBy('sort_order')->orderBy('id')->get();
+        if ($candidates->isEmpty()) {
+            return response()->json([
+                'message' => 'Tidak ada soal yang cocok untuk diacak.',
+                'question_bank_ids' => [],
+            ], 422);
+        }
+
+        $byStimulus = [];
+        $singles = [];
+        foreach ($candidates as $q) {
+            if ($q->stimulus_id) {
+                $byStimulus[(int) $q->stimulus_id][] = $q;
+            } else {
+                $singles[] = $q;
+            }
+        }
+        $units = [];
+        foreach ($byStimulus as $group) {
+            usort($group, fn ($a, $b) => ((int) $a->sort_order <=> (int) $b->sort_order) ?: ($a->id <=> $b->id));
+            $units[] = array_map(fn ($q) => (int) $q->id, $group);
+        }
+        foreach ($singles as $q) {
+            $units[] = [(int) $q->id];
+        }
+        shuffle($units);
+
+        $picked = [];
+        $target = (int) $data['count'];
+        foreach ($units as $unit) {
+            if (count($picked) >= $target) {
+                break;
+            }
+            // jika unit stimulus melebihi sisa kuota, skip unit itu (jaga set utuh)
+            if (count($unit) > 1 && count($picked) + count($unit) > $target) {
+                continue;
+            }
+            foreach ($unit as $qid) {
+                $picked[] = $qid;
+            }
+        }
+        // jika masih kurang (karena skip set besar), isi dengan single yang tersisa
+        if (count($picked) < $target) {
+            $pickedSet = array_fill_keys($picked, true);
+            foreach ($units as $unit) {
+                if (count($unit) !== 1) {
+                    continue;
+                }
+                $qid = $unit[0];
+                if (isset($pickedSet[$qid])) {
+                    continue;
+                }
+                $picked[] = $qid;
+                $pickedSet[$qid] = true;
+                if (count($picked) >= $target) {
+                    break;
+                }
+            }
+        }
+
+        return response()->json([
+            'question_bank_ids' => $picked,
+            'count' => count($picked),
+            'mode' => 'random',
+            'requested' => $target,
+        ]);
     }
 }

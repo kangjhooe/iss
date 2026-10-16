@@ -62,6 +62,10 @@
           @changed="loadSummaryStats"
         />
 
+        <InventoryNeedPanel
+          v-else-if="activeTab === 'needs'"
+        />
+
         <InventoryReportPanel
           v-else-if="activeTab === 'reports'"
           :buildings="buildings"
@@ -106,6 +110,7 @@ import InventoryMaintenanceList from '@/components/inventory/InventoryMaintenanc
 import InventoryLoanList from '@/components/inventory/InventoryLoanList.vue'
 import InventoryDisposalPanel from '@/components/inventory/InventoryDisposalPanel.vue'
 import InventoryOpnamePanel from '@/components/inventory/InventoryOpnamePanel.vue'
+import InventoryNeedPanel from '@/components/inventory/InventoryNeedPanel.vue'
 import InventoryReportPanel from '@/components/inventory/InventoryReportPanel.vue'
 import InventoryCategorySettings from '@/components/inventory/InventoryCategorySettings.vue'
 import { inventoryApi } from '@/api/inventory'

@@ -40,7 +40,7 @@ class QuestionBankController extends Controller
             }
 
             $compact = $request->boolean('compact');
-            $query->with($compact ? ['bankSoal'] : ['subject', 'stimulus', 'options', 'bankSoal'])
+            $query->with($compact ? ['bankSoal', 'stimulus'] : ['subject', 'stimulus', 'options', 'bankSoal'])
                 ->withCount('examQuestions');
 
             if ($request->filled('subject_id')) {
@@ -59,6 +59,48 @@ class QuestionBankController extends Controller
             }
             if ($request->filled('type')) {
                 $query->where('type', $request->get('type'));
+            }
+            if ($request->filled('status')) {
+                $status = strtolower(trim((string) $request->get('status')));
+                if (in_array($status, [QuestionBank::STATUS_DRAFT, QuestionBank::STATUS_READY], true)) {
+                    $query->where('status', $status);
+                }
+            }
+            if ($request->filled('topic')) {
+                $topic = trim((string) $request->get('topic'));
+                if ($topic === 'none' || $topic === 'null') {
+                    $query->where(function ($q) {
+                        $q->whereNull('topic')->orWhere('topic', '');
+                    });
+                } elseif ($topic !== '') {
+                    $query->where('topic', $topic);
+                }
+            }
+            if ($request->filled('cognitive_level')) {
+                $level = strtolower(trim((string) $request->get('cognitive_level')));
+                if ($level === 'none' || $level === 'null') {
+                    $query->whereNull('cognitive_level');
+                } elseif (array_key_exists($level, QuestionBank::COGNITIVE_LEVELS)) {
+                    $query->where('cognitive_level', $level);
+                }
+            }
+            if ($request->filled('difficulty')) {
+                $difficulty = strtolower(trim((string) $request->get('difficulty')));
+                if ($difficulty === 'none' || $difficulty === 'null') {
+                    $query->whereNull('difficulty');
+                } elseif (array_key_exists($difficulty, QuestionBank::DIFFICULTIES)) {
+                    $query->where('difficulty', $difficulty);
+                }
+            }
+            if ($request->filled('tag')) {
+                $tag = mb_strtolower(trim((string) $request->get('tag')));
+                if ($tag === 'none' || $tag === 'null') {
+                    $query->where(function ($q) {
+                        $q->whereNull('tags')->orWhereJsonLength('tags', 0);
+                    });
+                } elseif ($tag !== '') {
+                    $query->whereJsonContains('tags', $tag);
+                }
             }
             if ($request->filled('search')) {
                 $search = $request->get('search');
@@ -115,6 +157,11 @@ class QuestionBankController extends Controller
             if (array_key_exists('key_answer_aliases', $data)) {
                 $data['key_answer_aliases'] = $this->normalizeAliases($data['key_answer_aliases'] ?? []);
             }
+            if (array_key_exists('tags', $data)) {
+                $data['tags'] = $this->normalizeTags($data['tags']);
+            }
+            $data['status'] = $data['status'] ?? QuestionBank::STATUS_READY;
+            $data['topic'] = $this->normalizeTopic($data['topic'] ?? null);
 
             $data['body'] = $this->sanitizeQuestionHtml($data['body'] ?? '');
             if (!empty($options)) {
@@ -197,6 +244,15 @@ class QuestionBankController extends Controller
 
         if (array_key_exists('key_answer_aliases', $data)) {
             $data['key_answer_aliases'] = $this->normalizeAliases($data['key_answer_aliases'] ?? []);
+        }
+        if (array_key_exists('tags', $data)) {
+            $data['tags'] = $this->normalizeTags($data['tags']);
+        }
+        if (array_key_exists('topic', $data)) {
+            $data['topic'] = $this->normalizeTopic($data['topic']);
+        }
+        if (array_key_exists('status', $data) && ($data['status'] === null || $data['status'] === '')) {
+            $data['status'] = QuestionBank::STATUS_READY;
         }
 
         $data['body'] = $this->sanitizeQuestionHtml($data['body'] ?? '');
@@ -340,9 +396,9 @@ class QuestionBankController extends Controller
     {
         $headers = \App\Services\QuestionBankImportService::TEMPLATE_HEADERS;
         $sample = [
-            ['pg', 'Ibu kota Indonesia adalah…', 1, '', '', 'Jakarta', 'Bandung', 'Surabaya', 'Medan', '', 'A', ''],
-            ['isian', 'Lambang kimia air adalah…', 1, 'H2O', 'h2o|air', '', '', '', '', '', '', ''],
-            ['uraian', 'Jelaskan proses fotosintesis.', 5, '', '', '', '', '', '', '', '', 'Bacaan Fotosintesis'],
+            ['pg', 'Ibu kota Indonesia adalah…', 1, 'c1', '', '', 'Jakarta', 'Bandung', 'Surabaya', 'Medan', '', 'A', ''],
+            ['isian', 'Lambang kimia air adalah…', 1, 'c2', 'H2O', 'h2o|air', '', '', '', '', '', '', ''],
+            ['uraian', 'Jelaskan proses fotosintesis.', 5, 'c4', '', '', '', '', '', '', '', '', 'Bacaan Fotosintesis'],
         ];
 
         $export = new class($headers, $sample) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithTitle {
@@ -384,35 +440,138 @@ class QuestionBankController extends Controller
     }
 
     /**
+     * Daftar topik/bab yang sudah dipakai di satu bank.
+     */
+    public function topics(Request $request): JsonResponse
+    {
+        $bankId = (int) $request->validate(['bank_soal_id' => 'required|integer'])['bank_soal_id'];
+        $bank = BankSoal::accessibleBy($request)->find($bankId);
+        if (! $bank) {
+            return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
+        }
+        $topics = QuestionBank::query()
+            ->where('bank_soal_id', $bank->id)
+            ->whereNotNull('topic')
+            ->where('topic', '!=', '')
+            ->distinct()
+            ->orderBy('topic')
+            ->pluck('topic')
+            ->values();
+
+        return response()->json(['data' => $topics]);
+    }
+
+    /**
      * Duplicate a question (same bank, same stimulus if any, copied options/matching).
      */
     public function duplicate(Request $request, QuestionBank $question_bank): JsonResponse
     {
-        $institutionId = $this->resolveInstitutionId($request);
-        $sameInstitution = $question_bank->institution_id == $institutionId;
-        $bankAccessible = $question_bank->bank_soal_id && BankSoal::accessibleBy($request)->where('id', $question_bank->bank_soal_id)->exists();
-        if (!$sameInstitution && !$bankAccessible) {
+        if (! $this->canAccessQuestion($request, $question_bank)) {
             return response()->json(['message' => 'Soal tidak ditemukan.'], 404);
         }
 
-        $question_bank->load(['options']);
+        $copy = $this->replicateQuestion($question_bank);
+        $copy->load(['subject', 'stimulus', 'options']);
 
-        $copy = $question_bank->replicate([
-            'created_at',
-            'updated_at',
-        ]);
-        $plain = trim(html_entity_decode(strip_tags((string) $question_bank->body), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-        $suffix = ' (salinan)';
-        if (! str_ends_with($plain, '(salinan)')) {
-            $copy->body = rtrim((string) $question_bank->body).$suffix;
+        return (new QuestionBankResource($copy))->response()->setStatusCode(201);
+    }
+
+    /**
+     * Hapus banyak soal. Yang sudah terpasang di paket ujian dilewati.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $ids = $this->validatedBulkIds($request);
+        $questions = QuestionBank::query()->whereIn('id', $ids)->withCount('examQuestions')->get();
+        $deleted = 0;
+        $skipped = 0;
+        foreach ($questions as $question) {
+            if (! $this->canAccessQuestion($request, $question) || (int) $question->exam_questions_count > 0) {
+                $skipped++;
+                continue;
+            }
+            $question->delete();
+            $deleted++;
         }
-        if ($question_bank->bank_soal_id) {
-            $maxOrder = (int) QuestionBank::query()->where('bank_soal_id', $question_bank->bank_soal_id)->max('sort_order');
+        $missing = count($ids) - $questions->count();
+        $skipped += max(0, $missing);
+
+        return response()->json([
+            'message' => $deleted > 0
+                ? "{$deleted} soal dihapus.".($skipped > 0 ? " {$skipped} dilewati karena terpasang di ujian atau tidak ditemukan." : '')
+                : 'Tidak ada soal yang dihapus. Soal yang terpasang di ujian tidak bisa dihapus.',
+            'deleted' => $deleted,
+            'skipped' => $skipped,
+        ]);
+    }
+
+    /**
+     * Duplikat banyak soal di bank yang sama.
+     */
+    public function bulkDuplicate(Request $request): JsonResponse
+    {
+        $ids = $this->validatedBulkIds($request);
+        $questions = QuestionBank::query()->whereIn('id', $ids)->orderBy('sort_order')->orderBy('id')->get();
+        $copied = 0;
+        $skipped = 0;
+        foreach ($questions as $question) {
+            if (! $this->canAccessQuestion($request, $question)) {
+                $skipped++;
+                continue;
+            }
+            $this->replicateQuestion($question);
+            $copied++;
+        }
+        $skipped += max(0, count($ids) - $questions->count());
+
+        return response()->json([
+            'message' => $copied > 0
+                ? "{$copied} soal disalin."
+                : 'Tidak ada soal yang disalin.',
+            'copied' => $copied,
+            'skipped' => $skipped,
+        ], $copied > 0 ? 201 : 200);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function validatedBulkIds(Request $request): array
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1|max:100',
+            'ids.*' => 'integer',
+        ]);
+
+        return array_values(array_unique(array_map('intval', $data['ids'])));
+    }
+
+    private function canAccessQuestion(Request $request, QuestionBank $question): bool
+    {
+        $institutionId = $this->resolveInstitutionId($request);
+        if ($question->institution_id == $institutionId) {
+            return true;
+        }
+
+        return $question->bank_soal_id
+            && BankSoal::accessibleBy($request)->where('id', $question->bank_soal_id)->exists();
+    }
+
+    private function replicateQuestion(QuestionBank $question): QuestionBank
+    {
+        $question->loadMissing('options');
+        $copy = $question->replicate(['created_at', 'updated_at', 'deleted_at']);
+        $plain = trim(html_entity_decode(strip_tags((string) $question->body), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if (! str_ends_with($plain, '(salinan)')) {
+            $copy->body = rtrim((string) $question->body).' (salinan)';
+        }
+        if ($question->bank_soal_id) {
+            $maxOrder = (int) QuestionBank::query()->where('bank_soal_id', $question->bank_soal_id)->max('sort_order');
             $copy->sort_order = $maxOrder > 0 ? $maxOrder + 1 : 1;
         }
         $copy->save();
 
-        foreach ($question_bank->options as $opt) {
+        foreach ($question->options as $opt) {
             QuestionOption::create([
                 'question_bank_id' => $copy->id,
                 'option_key' => $opt->option_key,
@@ -423,9 +582,40 @@ class QuestionBankController extends Controller
             ]);
         }
 
-        $copy->load(['subject', 'stimulus', 'options']);
+        return $copy;
+    }
 
-        return (new QuestionBankResource($copy))->response()->setStatusCode(201);
+    /**
+     * @param  list<string>|null  $tags
+     * @return list<string>|null
+     */
+    private function normalizeTags(?array $tags): ?array
+    {
+        $out = [];
+        foreach ($tags ?? [] as $tag) {
+            $text = mb_strtolower(trim((string) $tag));
+            $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+            if ($text === '' || mb_strlen($text) > 40 || isset($out[$text])) {
+                continue;
+            }
+            $out[$text] = $text;
+            if (count($out) >= 8) {
+                break;
+            }
+        }
+
+        return $out === [] ? null : array_values($out);
+    }
+
+    private function normalizeTopic(mixed $topic): ?string
+    {
+        $text = trim((string) ($topic ?? ''));
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+        if ($text === '') {
+            return null;
+        }
+
+        return mb_substr($text, 0, 120);
     }
 
     private function sanitizeQuestionHtml(string $html): string

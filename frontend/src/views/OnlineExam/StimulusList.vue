@@ -1,81 +1,95 @@
-<template>    <div class="stimulus-page">
-      <header class="page-header">
-        <nav class="breadcrumb">
-          <router-link to="/ujian-online/bank-soal">Bank Soal</router-link>
-          <span v-if="currentBank" class="sep">/</span>
-          <router-link v-if="currentBank" :to="`/ujian-online/bank-soal/${bankId}/soal`" class="crumb-bank">{{ currentBank.name || currentBank.code }}</router-link>
-          <span v-if="currentBank" class="sep">/</span>
-          <span v-if="currentBank" class="current">Stimulus</span>
-        </nav>
-        <h2>Stimulus Soal</h2>
-        <p class="page-desc">Stimulus hanya dipakai di bank ini. Satu stimulus bisa dipakai untuk banyak soal (soal berkelompok).</p>
-        <button v-if="bankId" class="btn-primary" @click="openForm()">+ Tambah stimulus</button>
-      </header>
+<template>
+  <div class="stimulus-page">
+    <header class="page-header">
+      <nav class="breadcrumb">
+        <router-link to="/ujian-online/bank-soal">Bank Soal</router-link>
+        <span v-if="currentBank" class="sep">/</span>
+        <router-link v-if="currentBank" :to="`/ujian-online/bank-soal/${bankId}/soal`" class="crumb-bank">{{ currentBank.name || currentBank.code }}</router-link>
+        <span v-if="currentBank" class="sep">/</span>
+        <span v-if="currentBank" class="current">Stimulus</span>
+      </nav>
+      <h2>Stimulus Soal</h2>
+      <p class="page-desc">Stimulus hanya dipakai di bank ini. Satu stimulus bisa dipakai untuk banyak soal — teks, gambar, audio, video, atau YouTube.</p>
+      <button v-if="bankId" class="btn-primary" @click="openForm()">+ Tambah stimulus</button>
+    </header>
 
-      <div v-if="!bankId" class="content-card info-box">
-        <p>Pilih bank soal terlebih dahulu.</p>
-        <router-link to="/ujian-online/bank-soal" class="btn-primary">Daftar Bank Soal</router-link>
-      </div>
-      <div v-else-if="loading" class="content-card"><p>Memuat...</p></div>
-      <div v-else-if="stimuli.length === 0" class="empty-state content-card">
-        <h3>Belum ada stimulus</h3>
-        <p>Stimulus dipakai untuk satu teks/gambar yang dipakai beberapa soal (soal berkelompok). Buat stimulus dulu, lalu pilih saat menambah soal di bank ini.</p>
-        <button class="btn-primary" @click="openForm()">Tambah stimulus</button>
-      </div>
-      <div v-else class="table-wrap content-card">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Judul</th>
-              <th>Konten (ringkasan)</th>
-              <th>Digunakan oleh</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in stimuli" :key="s.id">
-              <td>{{ s.title || '(tanpa judul)' }}</td>
-              <td>{{ stripHtml(s.content || '').slice(0, 80) }}{{ stripHtml(s.content || '').length > 80 ? '…' : '' }}</td>
-              <td>{{ s.questions_count != null ? s.questions_count : '–' }} soal</td>
-              <td>
-                <TableAction kind="edit" @click="openForm(s)" />
-                <TableAction kind="delete" @click="confirmDelete(s)" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div v-if="!bankId" class="content-card info-box">
+      <p>Pilih bank soal terlebih dahulu.</p>
+      <router-link to="/ujian-online/bank-soal" class="btn-primary">Daftar Bank Soal</router-link>
+    </div>
+    <div v-else-if="loading" class="content-card"><p>Memuat...</p></div>
+    <div v-else-if="stimuli.length === 0" class="empty-state content-card">
+      <h3>Belum ada stimulus</h3>
+      <p>Stimulus dipakai untuk teks/media bersama beberapa soal (soal berkelompok). Buat stimulus dulu, lalu pilih saat menambah soal di bank ini.</p>
+      <button class="btn-primary" @click="openForm()">Tambah stimulus</button>
+    </div>
+    <div v-else class="table-wrap content-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Judul</th>
+            <th>Media</th>
+            <th>Konten (ringkasan)</th>
+            <th>Digunakan oleh</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in stimuli" :key="s.id">
+            <td>{{ s.title || '(tanpa judul)' }}</td>
+            <td>
+              <span v-if="(s.media || []).length" class="media-tags">
+                <span v-for="(m, i) in s.media.slice(0, 3)" :key="i" class="tag">{{ mediaTypeLabel(m.type) }}</span>
+                <span v-if="s.media.length > 3" class="tag more">+{{ s.media.length - 3 }}</span>
+              </span>
+              <span v-else class="muted">—</span>
+            </td>
+            <td>{{ stripHtml(s.content || '').slice(0, 80) }}{{ stripHtml(s.content || '').length > 80 ? '…' : '' }}</td>
+            <td>{{ s.questions_count != null ? s.questions_count : '–' }} soal</td>
+            <td>
+              <TableAction kind="edit" @click="openForm(s)" />
+              <TableAction kind="delete" @click="confirmDelete(s)" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-      <div v-if="showForm" class="modal-overlay" @click.self="showForm = false">
-        <div class="modal content-card modal-wide">
-          <h3>{{ editingId ? 'Edit stimulus' : 'Tambah stimulus' }}</h3>
-          <div class="form-group">
-            <label>Judul (untuk identifikasi di daftar soal)</label>
-            <input v-model="form.title" type="text" placeholder="Contoh: Bacaan tentang ekosistem" maxlength="255" />
-            <p class="hint">Isi judul singkat agar mudah memilih stimulus saat membuat soal.</p>
-          </div>
-          <div class="form-group">
-            <label>Konten *</label>
-            <RichTextEditor v-model="form.content" placeholder="Teks, gambar, atau tabel yang akan dipakai untuk beberapa soal" min-height="200px" />
-          </div>
-          <div class="modal-actions">
-            <button class="btn-primary" @click="submitForm" :disabled="saving">{{ saving ? 'Menyimpan...' : 'Simpan' }}</button>
-            <button type="button" class="btn-secondary" @click="showForm = false">Batal</button>
-          </div>
+    <div v-if="showForm" class="modal-overlay" @click.self="showForm = false">
+      <div class="modal content-card modal-wide">
+        <h3>{{ editingId ? 'Edit stimulus' : 'Tambah stimulus' }}</h3>
+        <div class="form-group">
+          <label>Judul (untuk identifikasi di daftar soal)</label>
+          <input v-model="form.title" type="text" placeholder="Contoh: Bacaan tentang ekosistem / Video fotosintesis" maxlength="255" />
+          <p class="hint">Isi judul singkat agar mudah memilih stimulus saat membuat soal.</p>
+        </div>
+        <StimulusMediaPanel v-model="form.media" />
+        <div class="form-group">
+          <label>Konten teks</label>
+          <RichTextEditor v-model="form.content" placeholder="Teks, tabel, atau gambar tambahan (opsional jika sudah ada media di atas)" min-height="180px" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" @click="submitForm" :disabled="saving">{{ saving ? 'Menyimpan...' : 'Simpan' }}</button>
+          <button type="button" class="btn-secondary" @click="showForm = false">Batal</button>
         </div>
       </div>
-    </div></template>
+    </div>
+  </div>
+</template>
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
+import StimulusMediaPanel from '@/components/StimulusMediaPanel.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
+import { mediaTypeLabel } from '@/utils/stimulusMedia'
+import { collapseMathHtml } from '@/utils/questionMath'
 
 const route = useRoute()
-const { toast } = useToast()
+const toast = useToast()
 const bankId = ref(route.params.bankId ? Number(route.params.bankId) : null)
 const currentBank = ref(null)
 const stimuli = ref([])
@@ -84,7 +98,7 @@ const showForm = ref(false)
 const editingId = ref(null)
 const saving = ref(false)
 
-const form = reactive({ title: '', content: '' })
+const form = reactive({ title: '', content: '', media: [] })
 
 function stripHtml(html) {
   if (!html) return ''
@@ -121,28 +135,30 @@ function openForm(s = null) {
   editingId.value = s?.id ?? null
   form.title = s?.title ?? ''
   form.content = s?.content ?? ''
+  form.media = Array.isArray(s?.media) ? s.media.map((m) => ({ ...m })) : []
   showForm.value = true
 }
 
 async function submitForm() {
-  const contentTrim = (form.content || '').trim()
-  if (!contentTrim) {
-    toast.error('Validasi', 'Konten wajib diisi.')
+  const contentTrim = stripHtml(form.content || '')
+  if (!contentTrim && !(form.media || []).length) {
+    toast.error('Validasi', 'Isi konten teks atau tambahkan minimal satu media.')
     return
   }
   saving.value = true
   try {
+    const payload = {
+      title: form.title || null,
+      content: collapseMathHtml(form.content || ''),
+      media: form.media || []
+    }
     if (editingId.value) {
-      await examApi.updateStimulus(editingId.value, {
-        title: form.title || null,
-        content: form.content
-      })
+      await examApi.updateStimulus(editingId.value, payload)
       toast.success('Berhasil', 'Stimulus diperbarui.')
     } else {
       await examApi.createStimulus({
         bank_soal_id: bankId.value,
-        title: form.title || null,
-        content: form.content
+        ...payload
       })
       toast.success('Berhasil', 'Stimulus ditambahkan.')
     }
@@ -185,22 +201,23 @@ watch(() => route.params.bankId, (id) => {
 .page-header { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
 .page-header h2 { margin: 0; flex-basis: 100%; }
 .page-desc { margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.9rem; flex-basis: 100%; }
-.btn-primary { padding: 0.5rem 1rem; background: #059669; color: #fff; border: none; border-radius: 6px; }
+.btn-primary { padding: 0.5rem 1rem; background: #059669; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
 .content-card { background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .data-table { width: 100%; border-collapse: collapse; }
-.data-table th, .data-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
-.btn-action { margin-right: 0.5rem; background: none; border: none; cursor: pointer; font-size: inherit; }
-.btn-edit { color: #059669; }
-.btn-delete { color: #dc2626; }
+.data-table th, .data-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+.media-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.tag { font-size: 0.75rem; background: #ecfdf5; color: #065f46; padding: 0.1rem 0.4rem; border-radius: 4px; }
+.tag.more { background: #f3f4f6; color: #4b5563; }
+.muted { color: #9ca3af; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; overflow-y: auto; padding: 1rem; }
 .modal { max-width: 560px; width: 100%; }
-.modal-wide { max-width: 720px; }
+.modal-wide { max-width: 760px; max-height: 90vh; overflow-y: auto; }
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.25rem; }
-.form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; }
+.form-group input { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; }
 .hint { margin: 0.25rem 0 0; font-size: 0.85rem; color: #6b7280; }
 .modal-actions { margin-top: 1rem; display: flex; gap: 0.5rem; }
-.btn-secondary { padding: 0.5rem 1rem; background: #e5e7eb; color: #374151; border: none; border-radius: 6px; }
+.btn-secondary { padding: 0.5rem 1rem; background: #e5e7eb; color: #374151; border: none; border-radius: 6px; cursor: pointer; }
 .empty-state { text-align: center; padding: 2rem; }
 .breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.5rem; font-size: 0.875rem; color: #6b7280; }
 .breadcrumb a { color: #059669; text-decoration: none; }

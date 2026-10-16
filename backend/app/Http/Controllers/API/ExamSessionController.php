@@ -65,6 +65,9 @@ class ExamSessionController extends Controller
 
             $data = $request->validated();
             $data['exam_id'] = $exam->id;
+            if (! empty($data['scheduled_start_at'])) {
+                $data['status'] = ExamSession::STATUS_SCHEDULED;
+            }
             $session = ExamSession::create($data);
             $session->load(['exam.subject']);
 

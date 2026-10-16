@@ -93,6 +93,38 @@ class SubjectCatalogService
         return $result;
     }
 
+    /**
+     * Saran kode berikutnya untuk jenjang: MAX(code) + 1, atau {prefix}001 jika belum ada.
+     */
+    public function nextCodeHint(string $jenjang): string
+    {
+        $prefix = SubjectCatalog::expectedPrefixForJenjang($jenjang);
+        if ($prefix === null) {
+            return '1001';
+        }
+
+        $default = $prefix.'001';
+        $maxAllowed = (int) ($prefix.'999');
+
+        $maxCode = SubjectCatalog::query()
+            ->where('jenjang', $jenjang)
+            ->where('code', 'like', $prefix.'%')
+            ->whereRaw('LENGTH(code) = 4')
+            ->orderByRaw('CAST(code AS UNSIGNED) DESC')
+            ->value('code');
+
+        if ($maxCode === null || $maxCode === '') {
+            return $default;
+        }
+
+        $next = (int) $maxCode + 1;
+        if ($next > $maxAllowed) {
+            return (string) $maxAllowed;
+        }
+
+        return str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+    }
+
     protected function assertCodeValid(string $code, string $jenjang): void
     {
         if (!preg_match('/^\d{4}$/', $code)) {

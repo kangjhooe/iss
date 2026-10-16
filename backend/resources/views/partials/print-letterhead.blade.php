@@ -33,7 +33,7 @@
         <tr>
             <td class="standard-kop-logo-cell">
                 @if($standardLogoPath)
-                    <img src="{{ $standardLogoPath }}" alt="Logo institusi" class="standard-kop-logo">
+                    <img src="{{ str_replace('\\', '/', $standardLogoPath) }}" alt="Logo institusi" class="standard-kop-logo">
                 @endif
             </td>
             <td class="standard-kop-text">

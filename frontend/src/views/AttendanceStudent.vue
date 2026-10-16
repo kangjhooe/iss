@@ -294,6 +294,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useActiveAcademicPeriod } from '@/composables/useActiveAcademicPeriod'
 import { studentAttendanceStorage, isOnline, onNetworkStatusChange } from '@/utils/offlineStorage'
 import { useOfflineSync } from '@/composables/useOfflineSync'
+import { openPdfFromAxios } from '@/utils/pdfPreview'
 
 const toast = useToast()
 const route = useRoute()
@@ -796,48 +797,11 @@ async function exportRekap(format) {
   try {
     const res = await studentAttendanceApi.exportRekap(cleanParams({ format }))
     if (format === 'pdf') {
-      const blob = res.data instanceof Blob
-        ? res.data
-        : new Blob([res.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const win = window.open('', '_blank')
-      if (!win) {
+      const title = 'Preview Rekap Absensi Siswa'
+      if (!(await openPdfFromAxios(res, title, 'Rekap tidak dapat diekspor. Periksa koneksi dan coba lagi.'))) {
         toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-        URL.revokeObjectURL(url)
         return
       }
-      const title = 'Preview Rekap Absensi Siswa'
-      win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
-        <style>
-          * { box-sizing: border-box; }
-          body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
-          .toolbar {
-            display: flex; align-items: center; justify-content: space-between; gap: 12px;
-            padding: 10px 14px; background: #0f172a; color: #f8fafc;
-            border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
-          }
-          .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
-          .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
-          .actions { display: flex; gap: 8px; flex-shrink: 0; }
-          .actions button {
-            border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
-            cursor: pointer; font-size: 13px;
-          }
-          .btn-print { background: #059669; color: #fff; }
-          .btn-close { background: #334155; color: #e2e8f0; }
-          iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
-        </style></head><body>
-        <div class="toolbar">
-          <h1>${title}<span class="hint">Preview cetak</span></h1>
-          <div class="actions">
-            <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-            <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-          </div>
-        </div>
-        <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
-      </body></html>`)
-      win.document.close()
-      setTimeout(() => URL.revokeObjectURL(url), 120_000)
       toast.success('Berhasil', 'Preview PDF dibuka di tab baru')
       return
     }

@@ -14,6 +14,7 @@ use App\Services\BankSoalBackupService;
 use App\Services\BankSoalShareService;
 use App\Services\ClassService;
 use App\Support\InstitutionContext;
+use App\Support\TeacherMenuContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -30,8 +31,8 @@ class BankSoalController extends Controller
     ) {}
 
     /**
-     * User can access bank if: active institution matches, or shared with user, or owner,
-     * or institution_admin for an accessible institution that owns the bank.
+     * User can access bank if: active institution matches (guru: mapel diampu),
+     * or shared with user, or institution_admin for the bank's institution.
      */
     private function canAccessBank(Request $request, BankSoal $bank): bool
     {
@@ -42,22 +43,41 @@ class BankSoalController extends Controller
         if ($user->isAdminOrSuperAdmin()) {
             return true;
         }
-        $institutionId = $this->resolveInstitutionId($request);
-        if ($institutionId && (int) $bank->institution_id === (int) $institutionId) {
-            return true;
-        }
-        if ($bank->created_by_user_id === $user->id) {
-            return true;
-        }
-        if ($bank->sharedWithUsers()->where('id', $user->id)->exists()) {
+        if ($bank->sharedWithUsers()->where('user.id', $user->id)->exists()) {
             return true;
         }
         if ($user->isInstitutionAdmin()
             && InstitutionContext::canAccessInstitution($user, (int) $bank->institution_id)) {
             return true;
         }
+        $institutionId = $this->resolveInstitutionId($request);
+        if (!$institutionId || (int) $bank->institution_id !== (int) $institutionId) {
+            return false;
+        }
+        $taughtSubjectIds = TeacherMenuContext::taughtSubjectIds($user, $request);
+        if (is_array($taughtSubjectIds)) {
+            return in_array((int) $bank->subject_id, $taughtSubjectIds, true);
+        }
 
-        return false;
+        return true;
+    }
+
+    /**
+     * Guru hanya boleh membuat/mengubah bank untuk mapel yang diampu.
+     */
+    private function assertCanUseSubject(Request $request, int $subjectId): ?JsonResponse
+    {
+        $taughtSubjectIds = TeacherMenuContext::taughtSubjectIds($request->user(), $request);
+        if (! is_array($taughtSubjectIds)) {
+            return null;
+        }
+        if (in_array($subjectId, $taughtSubjectIds, true)) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => 'Anda hanya dapat mengelola bank soal untuk mata pelajaran yang Anda ampu.',
+        ], 422);
     }
 
     /**
@@ -87,16 +107,17 @@ class BankSoalController extends Controller
             return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
         }
 
-        $userId = $request->user()->id;
-        $query = BankSoal::query()
-            ->where(function ($q) use ($institutionId, $userId) {
-                $q->where('institution_id', $institutionId)
-                    ->orWhereHas('sharedWithUsers', fn ($q2) => $q2->where('id', $userId));
-            })
-            ->with('subject');
+        $query = BankSoal::accessibleBy($request)->with('subject');
 
         if ($request->filled('subject_id')) {
-            $query->where('subject_id', $request->get('subject_id'));
+            $subjectId = (int) $request->get('subject_id');
+            $taughtSubjectIds = TeacherMenuContext::taughtSubjectIds($request->user(), $request);
+            if (is_array($taughtSubjectIds) && ! in_array($subjectId, $taughtSubjectIds, true)) {
+                return BankSoalResource::collection(
+                    BankSoal::query()->whereRaw('0 = 1')->paginate(1)
+                );
+            }
+            $query->where('subject_id', $subjectId);
         }
         if ($request->filled('grade')) {
             $query->where('grade', $request->get('grade'));
@@ -131,6 +152,10 @@ class BankSoalController extends Controller
         }
 
         $data = $request->validated();
+        $subjectErr = $this->assertCanUseSubject($request, (int) $data['subject_id']);
+        if ($subjectErr) {
+            return $subjectErr;
+        }
         $data['institution_id'] = $institutionId;
         $data['created_by_user_id'] = $request->user()->id;
         $err = $this->validateGradeForInstitution($institutionId, $data['grade'] ?? null);
@@ -159,6 +184,12 @@ class BankSoalController extends Controller
             return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
         }
         $data = $request->validated();
+        if (array_key_exists('subject_id', $data)) {
+            $subjectErr = $this->assertCanUseSubject($request, (int) $data['subject_id']);
+            if ($subjectErr) {
+                return $subjectErr;
+            }
+        }
         $err = $this->validateGradeForInstitution($bank_soal->institution_id, $data['grade'] ?? null);
         if ($err) {
             return $err;
@@ -250,7 +281,7 @@ class BankSoalController extends Controller
         if ($user->id === $bank_soal->created_by_user_id) {
             return response()->json(['message' => 'Pemilik bank sudah memiliki akses penuh.'], 422);
         }
-        if ($bank_soal->sharedWithUsers()->where('id', $user->id)->exists()) {
+        if ($bank_soal->sharedWithUsers()->where('user.id', $user->id)->exists()) {
             return response()->json(['message' => 'Guru ini sudah diundang.'], 422);
         }
         $bank_soal->sharedWithUsers()->attach($user->id);

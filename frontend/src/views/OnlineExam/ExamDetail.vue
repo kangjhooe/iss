@@ -1,11 +1,18 @@
-<template>    <div class="exam-detail-page">
+<template>
+    <div class="exam-detail-page">
       <div class="page-bg">
         <div class="page-bg-orb page-bg-orb-1"></div>
         <div class="page-bg-orb page-bg-orb-2"></div>
       </div>
 
       <div class="page-inner">
-        <router-link to="/ujian-online/exams" class="back-link">
+        <router-link v-if="exam?.exam_period" :to="`/ujian-online/gelombang/${exam.exam_period.id}`" class="back-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M5 12l7 7M5 12l7-7"/>
+          </svg>
+          {{ exam.exam_period.name }}
+        </router-link>
+        <router-link v-else to="/ujian-online/exams" class="back-link">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 12H5M5 12l7 7M5 12l7-7"/>
           </svg>
@@ -23,6 +30,8 @@
               <h1 class="exam-title">{{ exam.name }}</h1>
               <p v-if="exam.description" class="exam-desc">{{ exam.description }}</p>
               <p v-if="exam.subject" class="exam-subject">Mata pelajaran: {{ exam.subject.name }}</p>
+              <p v-if="exam.exam_period" class="exam-subject">Gelombang: {{ exam.exam_period.name }}</p>
+              <p v-if="exam.exam_period_id && !isExamAdmin" class="teacher-hint">Tugas Anda: pilih soal dari bank, lalu simpan paket. Jadwal & peserta diatur admin.</p>
             </div>
             <div class="header-actions">
               <router-link :to="`/ujian-online/exams/${encodeURIComponent(exam.code)}/edit`" class="btn-edit">
@@ -35,121 +44,206 @@
             </div>
           </header>
 
-          <!-- Paket soal: seleksi dari gudang, salinan saat dipasang -->
-          <section class="content-card section-card section-package">
+          <ol class="wizard-steps" aria-label="Langkah ujian">
+            <li class="wizard-step" :class="{ 'is-done': true }"><span class="wizard-num">1</span> Identitas</li>
+            <li class="wizard-step" :class="{ 'is-active': fokusPaket, 'is-done': !!attachedQuestions.length && !fokusPaket }"><span class="wizard-num">2</span> Paket soal</li>
+            <li class="wizard-step" :class="{ 'is-active': !fokusPaket && !!attachedQuestions.length, 'is-done': !!(exam.sessions || []).length }"><span class="wizard-num">3</span> Sesi</li>
+          </ol>
+
+          <!-- Paket soal: bank besar → filter blok + keranjang -->
+          <section ref="packageSectionRef" class="content-card section-card section-package" :class="{ 'section-focus': fokusPaket }">
             <h2 class="section-title">Paket soal ujian</h2>
             <p class="section-desc">
-              Pilih soal dari semua rak mapel ini. Tingkat hanya filter — soal rak kelas 7 boleh dipakai di ujian kelas 9.
-              Yang dipasang disalin ke paket ini; edit di bank tidak mengubah ujian.
+              Pilih per blok (stimulus / acak N), bukan scroll ratusan baris. Soal se-stimulus otomatis digandeng berurutan.
+              Yang dipasang disalin ke paket; edit di bank tidak mengubah ujian.
+              Bobot soal bersifat relatif — nilai akhir peserta dinormalisasi ke skala 0–100.
             </p>
 
-            <div v-if="attachedQuestions.length" class="attached-list">
-              <div v-for="(q, idx) in attachedQuestions" :key="q.question_bank_id" class="attached-row">
-                <span class="attached-num">{{ idx + 1 }}</span>
-                <div class="attached-main">
-                  <p class="attached-body">{{ q.body_preview || '—' }}</p>
-                  <p class="attached-meta">
-                    {{ typeLabel(q.type) }}
-                    <template v-if="q.bank_code"> · {{ q.bank_name || q.bank_code }}</template>
-                    <template v-if="q.bank_grade"> · rak kelas {{ q.bank_grade }}</template>
-                    · bobot {{ q.weight }}
-                  </p>
+            <p v-if="questionsLocked" class="lock-note">Paket terkunci karena sesi sudah berjalan atau selesai. Reset sesi ke draf untuk mengubah paket.</p>
+            <p v-if="!exam.subject_id" class="lock-note">Ujian belum punya mata pelajaran. Edit ujian dan tetapkan mapel dulu.</p>
+
+            <div class="package-layout">
+              <div class="package-cart">
+                <div class="cart-head">
+                  <h3 class="cart-title">Keranjang paket</h3>
+                  <span class="cart-count">{{ packageIds.length }} soal</span>
                 </div>
-                <button
-                  v-if="!questionsLocked"
-                  type="button"
-                  class="btn-remove-q"
-                  title="Lepas dari paket"
-                  @click="removeFromPackage(q.question_bank_id)"
-                >×</button>
+                <div v-if="attachedQuestions.length" class="attached-list">
+                  <div
+                    v-for="(q, idx) in attachedQuestions"
+                    :key="q.question_bank_id"
+                    class="attached-row"
+                    :class="{ 'is-set-start': isStimulusSetStart(idx), 'is-set-cont': isStimulusContinued(idx) }"
+                  >
+                    <div class="attached-reorder" v-if="!questionsLocked">
+                      <button type="button" class="btn-move" :disabled="idx === 0" title="Naik" @click="movePackageItem(idx, -1)">↑</button>
+                      <button type="button" class="btn-move" :disabled="idx === attachedQuestions.length - 1" title="Turun" @click="movePackageItem(idx, 1)">↓</button>
+                    </div>
+                    <span class="attached-num">{{ idx + 1 }}</span>
+                    <div class="attached-main">
+                      <p v-if="isStimulusSetStart(idx)" class="set-badge">Set: {{ q.stimulus_title || ('Stimulus #' + q.stimulus_id) }}</p>
+                      <p v-else-if="isStimulusContinued(idx)" class="set-cont-label">lanjutan set</p>
+                      <p class="attached-body">{{ q.body_preview || '—' }}</p>
+                      <p class="attached-meta">
+                        {{ typeLabel(q.type) }}
+                        <template v-if="q.bank_code"> · {{ q.bank_name || q.bank_code }}</template>
+                        <template v-if="q.bank_grade"> · rak kelas {{ q.bank_grade }}</template>
+                        · bobot {{ q.weight }}
+                      </p>
+                    </div>
+                    <button
+                      v-if="!questionsLocked"
+                      type="button"
+                      class="btn-remove-q"
+                      title="Lepas dari paket"
+                      @click="removeFromPackage(q.question_bank_id)"
+                    >×</button>
+                  </div>
+                </div>
+                <p v-else class="empty-hint">Belum ada soal. Tambah dari panel kanan.</p>
+                <div v-if="!questionsLocked" class="package-actions">
+                  <button type="button" class="btn-primary btn-sm" :disabled="savingPackage || !packageIds.length" @click="savePackage">
+                    {{ savingPackage ? 'Menyimpan…' : 'Simpan paket (' + packageIds.length + ' soal)' }}
+                  </button>
+                  <button v-if="packageIds.length" type="button" class="btn-secondary btn-sm" @click="clearPackage">Kosongkan</button>
+                </div>
+              </div>
+
+              <div v-if="!questionsLocked" class="package-picker">
+                <div class="quick-actions">
+                  <div class="quick-row">
+                    <select v-model="pickerStimulusId" class="field-input" @change="onStimulusFilterChange">
+                      <option value="">Semua / tanpa filter stimulus</option>
+                      <option value="none">Tanpa stimulus</option>
+                      <option v-for="s in pickerStimuli" :key="s.id" :value="String(s.id)">
+                        {{ s.title || ('Stimulus #' + s.id) }} ({{ s.questions_count ?? '?' }} soal)
+                      </option>
+                    </select>
+                    <button
+                      type="button"
+                      class="btn-secondary btn-sm"
+                      :disabled="!canAddStimulusSet || suggesting"
+                      @click="addStimulusSet"
+                    >
+                      {{ suggesting === 'stimulus' ? '…' : 'Tambah set stimulus' }}
+                    </button>
+                  </div>
+                  <div class="quick-row">
+                    <label class="random-label">Acak</label>
+                    <input v-model.number="randomCount" type="number" min="1" max="200" class="field-input field-narrow" />
+                    <span class="random-hint">soal</span>
+                    <button type="button" class="btn-secondary btn-sm" :disabled="suggesting || !exam.subject_id" @click="addRandomQuestions">
+                      {{ suggesting === 'random' ? '…' : 'Tambah acak' }}
+                    </button>
+                  </div>
+                  <p class="form-hint-inline">Acak menjaga set stimulus utuh (tidak memecah 1 bacaan jadi terpisah).</p>
+                </div>
+
+                <div class="picker-filters">
+                  <input
+                    v-model="pickerSearch"
+                    type="search"
+                    class="field-input"
+                    placeholder="Cari teks soal…"
+                    @keydown.enter.prevent="fetchPickerQuestions(1)"
+                  />
+                  <select v-model="pickerBankId" class="field-input" @change="onBankFilterChange">
+                    <option value="">Semua rak</option>
+                    <option v-for="b in pickerBanks" :key="b.id" :value="String(b.id)">
+                      {{ b.name || b.code }}<template v-if="b.grade"> (kelas {{ b.grade }})</template>
+                    </option>
+                  </select>
+                  <select v-if="gradeOptions.length" v-model="pickerGrade" class="field-input" @change="fetchPickerQuestions(1)">
+                    <option value="">Semua tingkat</option>
+                    <option v-for="g in gradeOptions" :key="g" :value="String(g)">Kelas {{ g }}</option>
+                  </select>
+                  <select v-model="pickerType" class="field-input" @change="fetchPickerQuestions(1)">
+                    <option value="">Semua tipe</option>
+                    <option value="pg">Pilihan ganda</option>
+                    <option value="pg_kompleks">PG kompleks</option>
+                    <option value="matching">Mencocokkan</option>
+                    <option value="isian">Isian</option>
+                    <option value="uraian">Uraian</option>
+                  </select>
+                  <select v-model="pickerDifficulty" class="field-input" @change="fetchPickerQuestions(1)">
+                    <option value="">Semua kesulitan</option>
+                    <option value="mudah">Mudah</option>
+                    <option value="sedang">Sedang</option>
+                    <option value="sulit">Sulit</option>
+                  </select>
+                  <select v-if="pickerBankId" v-model="pickerTopic" class="field-input" @change="fetchPickerQuestions(1)">
+                    <option value="">Semua topik</option>
+                    <option v-for="topic in pickerTopics" :key="topic" :value="topic">{{ topic }}</option>
+                  </select>
+                  <input
+                    v-model="pickerTag"
+                    type="search"
+                    class="field-input"
+                    placeholder="Tag"
+                    @keydown.enter.prevent="fetchPickerQuestions(1)"
+                  />
+                  <button type="button" class="btn-secondary btn-sm" @click="fetchPickerQuestions(1)">Cari</button>
+                </div>
+
+                <div v-if="pickerLoading" class="loading-inline">Memuat soal bank…</div>
+                <div v-else class="picker-table-wrap">
+                  <table class="picker-table">
+                    <thead>
+                      <tr>
+                        <th class="col-check"></th>
+                        <th>Soal</th>
+                        <th>Stimulus</th>
+                        <th>Rak</th>
+                        <th>Tipe</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="q in pickerQuestions" :key="q.id">
+                        <td class="col-check">
+                          <input
+                            type="checkbox"
+                            :checked="packageIds.includes(q.id)"
+                            @change="togglePicker(q, $event.target.checked)"
+                          />
+                        </td>
+                        <td>
+                          {{ stripHtml(q.body || '').slice(0, 80) }}{{ stripHtml(q.body || '').length > 80 ? '…' : '' }}
+                          <div v-if="q.difficulty_label || q.topic || q.tags?.length" class="picker-meta">
+                            <span v-if="q.difficulty_label">{{ q.difficulty_label }}</span>
+                            <span v-if="q.topic">{{ q.topic }}</span>
+                            <span v-for="tag in (q.tags || [])" :key="tag">{{ tag }}</span>
+                          </div>
+                        </td>
+                        <td class="col-stimulus">{{ q.stimulus?.title || (q.stimulus_id ? '#' + q.stimulus_id : '—') }}</td>
+                        <td>
+                          {{ q.bank?.name || q.bank?.code || '—' }}
+                          <span v-if="q.bank?.grade" class="rak-grade">kelas {{ q.bank.grade }}</span>
+                        </td>
+                        <td>{{ typeLabel(q.type) }}</td>
+                      </tr>
+                      <tr v-if="!pickerQuestions.length">
+                        <td colspan="5" class="empty-hint">Tidak ada soal yang cocok. Ubah filter atau isi bank mapel ini.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <PaginationBar
+                    v-if="pickerMeta"
+                    embedded
+                    :page="pickerMeta.current_page"
+                    :last-page="pickerMeta.last_page"
+                    :per-page="pickerMeta.per_page"
+                    :total="pickerMeta.total"
+                    item-label="soal"
+                    @page-change="fetchPickerQuestions"
+                    @per-page-change="changePickerPerPage"
+                  />
+                </div>
+                <router-link
+                  :to="exam.subject_id ? `/ujian-online/bank-soal?subject_id=${exam.subject_id}` : '/ujian-online/bank-soal'"
+                  class="btn-link-bank"
+                >Kelola bank soal</router-link>
               </div>
             </div>
-            <p v-else class="empty-hint">Belum ada soal di paket ini.</p>
-
-            <p v-if="questionsLocked" class="lock-note">Paket terkunci karena sesi sudah berjalan atau selesai. Reset sesi ke draf untuk mengubah paket.</p>
-
-            <template v-else>
-              <div class="picker-filters">
-                <input
-                  v-model="pickerSearch"
-                  type="search"
-                  class="field-input"
-                  placeholder="Cari teks soal…"
-                  @keydown.enter.prevent="fetchPickerQuestions(1)"
-                />
-                <select v-model="pickerBankId" class="field-input" @change="fetchPickerQuestions(1)">
-                  <option value="">Semua rak</option>
-                  <option v-for="b in pickerBanks" :key="b.id" :value="String(b.id)">
-                    {{ b.name || b.code }}<template v-if="b.grade"> (kelas {{ b.grade }})</template>
-                  </option>
-                </select>
-                <select v-if="gradeOptions.length" v-model="pickerGrade" class="field-input" @change="fetchPickerQuestions(1)">
-                  <option value="">Semua tingkat</option>
-                  <option v-for="g in gradeOptions" :key="g" :value="String(g)">Kelas {{ g }}</option>
-                </select>
-                <select v-model="pickerType" class="field-input" @change="fetchPickerQuestions(1)">
-                  <option value="">Semua tipe</option>
-                  <option value="pg">Pilihan ganda</option>
-                  <option value="pg_kompleks">PG kompleks</option>
-                  <option value="matching">Mencocokkan</option>
-                  <option value="isian">Isian</option>
-                  <option value="uraian">Uraian</option>
-                </select>
-                <button type="button" class="btn-secondary btn-sm" @click="fetchPickerQuestions(1)">Cari</button>
-              </div>
-              <p v-if="!exam.subject_id" class="lock-note">Tetapkan mata pelajaran ujian agar pilihan dibatasi ke mapel yang sama.</p>
-              <div v-if="pickerLoading" class="loading-inline">Memuat soal bank…</div>
-              <div v-else class="picker-table-wrap">
-                <table class="picker-table">
-                  <thead>
-                    <tr>
-                      <th class="col-check"></th>
-                      <th>Soal</th>
-                      <th>Rak</th>
-                      <th>Tipe</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="q in pickerQuestions" :key="q.id">
-                      <td class="col-check">
-                        <input
-                          type="checkbox"
-                          :checked="packageIds.includes(q.id)"
-                          :disabled="packageIds.includes(q.id)"
-                          @change="togglePicker(q, $event.target.checked)"
-                        />
-                      </td>
-                      <td>{{ stripHtml(q.body || '').slice(0, 90) }}{{ stripHtml(q.body || '').length > 90 ? '…' : '' }}</td>
-                      <td>
-                        {{ q.bank?.name || q.bank?.code || '—' }}
-                        <span v-if="q.bank?.grade" class="rak-grade">kelas {{ q.bank.grade }}</span>
-                      </td>
-                      <td>{{ typeLabel(q.type) }}</td>
-                    </tr>
-                    <tr v-if="!pickerQuestions.length">
-                      <td colspan="4" class="empty-hint">Tidak ada soal yang cocok. Ubah filter atau isi bank mapel ini.</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <PaginationBar
-                  v-if="pickerMeta"
-                  embedded
-                  :page="pickerMeta.current_page"
-                  :last-page="pickerMeta.last_page"
-                  :per-page="pickerMeta.per_page"
-                  :total="pickerMeta.total"
-                  item-label="soal"
-                  @page-change="fetchPickerQuestions"
-                  @per-page-change="changePickerPerPage"
-                />
-              </div>
-              <div class="package-actions">
-                <button type="button" class="btn-primary btn-sm" :disabled="savingPackage || !packageIds.length" @click="savePackage">
-                  {{ savingPackage ? 'Menyimpan…' : 'Simpan paket (' + packageIds.length + ' soal)' }}
-                </button>
-                <router-link to="/ujian-online/bank-soal" class="btn-link-bank">Kelola bank soal</router-link>
-              </div>
-            </template>
           </section>
 
           <div class="stats-row">
@@ -177,20 +271,28 @@
               </div>
               <label class="checkbox-inline">
                 <input v-model="settingsForm.shuffle_questions" type="checkbox" />
-                <span>Acak soal</span>
+                <span>Acak urutan set (soal se-stimulus tetap berurutan)</span>
               </label>
               <label class="checkbox-inline">
                 <input v-model="settingsForm.shuffle_options" type="checkbox" />
                 <span>Acak opsi</span>
               </label>
+              <label class="checkbox-inline">
+                <input v-model="settingsForm.practice" type="checkbox" />
+                <span>Mode latihan (nilai langsung tampil, boleh diulang, kode ujian tidak berganti)</span>
+              </label>
+              <div v-if="settingsForm.practice" class="setting-item">
+                <label>Maksimal percobaan</label>
+                <input v-model.number="settingsForm.max_attempts" type="number" min="1" max="20" class="field-input field-narrow" placeholder="Kosong = tanpa batas" />
+              </div>
               <button type="button" class="btn-primary btn-sm" :disabled="savingSettings" @click="saveSettings">
                 {{ savingSettings ? 'Menyimpan...' : 'Simpan' }}
               </button>
             </div>
           </section>
 
-          <!-- Sesi (disederhanakan) -->
-          <section class="content-card section-card section-sessions">
+          <!-- Sesi: admin (atau ujian lepas tanpa gelombang) -->
+          <section v-if="showSessionAdmin" class="content-card section-card section-sessions">
             <h2 class="section-title">Sesi ujian</h2>
             <p class="section-desc">Tambah sesi lalu kelola peserta di halaman sesi.</p>
             <div class="add-session-inline">
@@ -224,10 +326,11 @@
           </section>
         </template>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { examApi } from '@/api/exam'
@@ -248,20 +351,42 @@ const savingSettings = ref(false)
 const settingsForm = ref({
   duration_minutes: 60,
   shuffle_questions: true,
-  shuffle_options: true
+  shuffle_options: true,
+  practice: false,
+  max_attempts: null
 })
 
 const packageIds = ref([])
+const packageMeta = ref({}) // id -> { body_preview, type, weight, bank_*, stimulus_* }
 const pickerBanks = ref([])
+const pickerStimuli = ref([])
 const pickerQuestions = ref([])
 const pickerLoading = ref(false)
 const pickerSearch = ref('')
 const pickerBankId = ref('')
 const pickerGrade = ref('')
 const pickerType = ref('')
+const pickerDifficulty = ref('')
+const pickerTag = ref('')
+const pickerTopic = ref('')
+const pickerTopics = ref([])
+const pickerStimulusId = ref('')
 const pickerMeta = ref(null)
 const pickerPerPage = ref(20)
 const savingPackage = ref(false)
+const suggesting = ref(null) // 'stimulus' | 'random' | null
+const randomCount = ref(10)
+const packageSectionRef = ref(null)
+const fokusPaket = computed(() => route.query.fokus === 'paket' || !packageIds.value.length)
+const isExamAdmin = computed(() => {
+  const role = auth.user?.role
+  return role === 'admin' || role === 'institution_admin' || role === 'super_admin'
+})
+const showSessionAdmin = computed(() => isExamAdmin.value || !exam.value?.exam_period_id)
+const canAddStimulusSet = computed(() => {
+  const v = pickerStimulusId.value
+  return v && v !== 'none' && /^\d+$/.test(v)
+})
 
 function typeLabel(type) {
   const map = {
@@ -286,23 +411,59 @@ const gradeOptions = computed(() => {
 const attachedQuestions = computed(() => {
   const byId = new Map()
   for (const q of exam.value?.exam_questions || []) {
-    byId.set(q.question_bank_id, q)
+    byId.set(q.question_bank_id, {
+      question_bank_id: q.question_bank_id,
+      body_preview: q.body_preview,
+      type: q.type,
+      weight: q.weight,
+      bank_code: q.bank_code,
+      bank_name: q.bank_name,
+      bank_grade: q.bank_grade,
+      stimulus_id: q.stimulus_id ?? null,
+      stimulus_title: q.stimulus_title || null
+    })
+  }
+  for (const [id, meta] of Object.entries(packageMeta.value)) {
+    const nid = Number(id)
+    if (!byId.has(nid)) byId.set(nid, { question_bank_id: nid, ...meta })
+    else byId.set(nid, { ...byId.get(nid), ...meta })
   }
   for (const q of pickerQuestions.value) {
-    if (!byId.has(q.id)) {
-      byId.set(q.id, {
-        question_bank_id: q.id,
-        body_preview: stripHtml(q.body || '').slice(0, 120),
-        type: q.type,
-        weight: q.weight,
-        bank_code: q.bank?.code,
-        bank_name: q.bank?.name,
-        bank_grade: q.bank?.grade
-      })
-    }
+    const meta = metaFromPickerQuestion(q)
+    if (!byId.has(q.id)) byId.set(q.id, meta)
+    else byId.set(q.id, { ...byId.get(q.id), ...meta })
   }
   return packageIds.value.map((id) => byId.get(id)).filter(Boolean)
 })
+
+function metaFromPickerQuestion(q) {
+  return {
+    question_bank_id: q.id,
+    body_preview: stripHtml(q.body || '').slice(0, 120),
+    type: q.type,
+    weight: q.weight,
+    bank_code: q.bank?.code,
+    bank_name: q.bank?.name,
+    bank_grade: q.bank?.grade,
+    stimulus_id: q.stimulus_id ?? q.stimulus?.id ?? null,
+    stimulus_title: q.stimulus?.title || null
+  }
+}
+
+function isStimulusSetStart(idx) {
+  const list = attachedQuestions.value
+  const q = list[idx]
+  if (!q?.stimulus_id) return false
+  if (idx === 0) return true
+  return list[idx - 1]?.stimulus_id !== q.stimulus_id
+}
+
+function isStimulusContinued(idx) {
+  const list = attachedQuestions.value
+  const q = list[idx]
+  if (!q?.stimulus_id || idx === 0) return false
+  return list[idx - 1]?.stimulus_id === q.stimulus_id
+}
 
 function statusBadgeLabel(status) {
   const map = { draft: 'Draf', scheduled: 'Terjadwal', started: 'Berlangsung', ended: 'Selesai' }
@@ -328,14 +489,34 @@ async function fetchPickerBanks() {
   }
 }
 
+async function fetchPickerStimuli() {
+  if (!exam.value?.subject_id && !pickerBankId.value) {
+    pickerStimuli.value = []
+    return
+  }
+  try {
+    const params = { per_page: 100 }
+    if (pickerBankId.value) params.bank_soal_id = pickerBankId.value
+    else params.subject_id = exam.value.subject_id
+    const res = await examApi.listStimuli(params)
+    pickerStimuli.value = res.data?.data ?? res.data ?? []
+  } catch (_) {
+    pickerStimuli.value = []
+  }
+}
+
 async function fetchPickerQuestions(page = 1) {
   pickerLoading.value = true
   try {
-    const params = { compact: 1, per_page: pickerPerPage.value, page }
+    const params = { compact: 1, per_page: pickerPerPage.value, page, status: 'ready' }
     if (exam.value?.subject_id) params.subject_id = exam.value.subject_id
     if (pickerBankId.value) params.bank_soal_id = pickerBankId.value
     if (pickerGrade.value) params.grade = pickerGrade.value
     if (pickerType.value) params.type = pickerType.value
+    if (pickerDifficulty.value) params.difficulty = pickerDifficulty.value
+    if (pickerTopic.value) params.topic = pickerTopic.value
+    if (pickerTag.value.trim()) params.tag = pickerTag.value.trim()
+    if (pickerStimulusId.value) params.stimulus_id = pickerStimulusId.value
     if (pickerSearch.value.trim()) params.search = pickerSearch.value.trim()
     const res = await examApi.listQuestions(params)
     pickerQuestions.value = res.data?.data ?? []
@@ -362,20 +543,167 @@ function changePickerPerPage(n) {
   fetchPickerQuestions(1)
 }
 
+function onBankFilterChange() {
+  pickerStimulusId.value = ''
+  pickerTopic.value = ''
+  fetchPickerStimuli()
+  loadPickerTopics()
+  fetchPickerQuestions(1)
+}
+
+async function loadPickerTopics() {
+  if (!pickerBankId.value) {
+    pickerTopics.value = []
+    return
+  }
+  try {
+    const res = await examApi.listQuestionTopics(pickerBankId.value)
+    const list = res.data?.data ?? res.data ?? []
+    pickerTopics.value = Array.isArray(list) ? list : []
+  } catch (_) {
+    pickerTopics.value = []
+  }
+}
+
+function onStimulusFilterChange() {
+  fetchPickerQuestions(1)
+}
+
 function syncPackageFromExam() {
   const rows = exam.value?.exam_questions || []
   packageIds.value = rows.map((q) => q.question_bank_id)
+  const meta = { ...packageMeta.value }
+  for (const q of rows) {
+    meta[q.question_bank_id] = {
+      body_preview: q.body_preview,
+      type: q.type,
+      weight: q.weight,
+      bank_code: q.bank_code,
+      bank_name: q.bank_name,
+      bank_grade: q.bank_grade,
+      stimulus_id: q.stimulus_id ?? null,
+      stimulus_title: q.stimulus_title || null
+    }
+  }
+  packageMeta.value = meta
+}
+
+function rememberMeta(q) {
+  packageMeta.value = {
+    ...packageMeta.value,
+    [q.id]: metaFromPickerQuestion(q)
+  }
+}
+
+function mergeIdsIntoPackage(ids) {
+  const next = [...packageIds.value]
+  const seen = new Set(next)
+  for (const id of ids) {
+    const nid = Number(id)
+    if (!seen.has(nid)) {
+      next.push(nid)
+      seen.add(nid)
+    }
+  }
+  packageIds.value = next
 }
 
 function togglePicker(q, checked) {
-  if (!checked) return
-  if (!packageIds.value.includes(q.id)) {
-    packageIds.value = [...packageIds.value, q.id]
+  rememberMeta(q)
+  if (checked) {
+    if (!packageIds.value.includes(q.id)) {
+      packageIds.value = [...packageIds.value, q.id]
+    }
+  } else {
+    removeFromPackage(q.id)
   }
 }
 
 function removeFromPackage(id) {
   packageIds.value = packageIds.value.filter((x) => x !== id)
+}
+
+function clearPackage() {
+  packageIds.value = []
+}
+
+function movePackageItem(idx, delta) {
+  const next = [...packageIds.value]
+  const j = idx + delta
+  if (j < 0 || j >= next.length) return
+  const tmp = next[idx]
+  next[idx] = next[j]
+  next[j] = tmp
+  packageIds.value = next
+}
+
+async function addStimulusSet() {
+  if (!exam.value || !canAddStimulusSet.value) return
+  suggesting.value = 'stimulus'
+  try {
+    const res = await examApi.suggestQuestions(exam.value.id, {
+      mode: 'stimulus',
+      stimulus_id: Number(pickerStimulusId.value),
+      bank_soal_id: pickerBankId.value ? Number(pickerBankId.value) : undefined,
+      exclude_ids: packageIds.value
+    })
+    const ids = res.data?.question_bank_ids ?? []
+    if (!ids.length) {
+      toast.error('Kosong', res.data?.message || 'Tidak ada soal baru untuk stimulus ini.')
+      return
+    }
+    const stim = pickerStimuli.value.find((s) => String(s.id) === String(pickerStimulusId.value))
+    for (const id of ids) {
+      packageMeta.value = {
+        ...packageMeta.value,
+        [id]: {
+          ...(packageMeta.value[id] || {}),
+          question_bank_id: id,
+          stimulus_id: Number(pickerStimulusId.value),
+          stimulus_title: stim?.title || null,
+          body_preview: packageMeta.value[id]?.body_preview || 'Soal set stimulus'
+        }
+      }
+    }
+    mergeIdsIntoPackage(ids)
+    toast.success('Ditambahkan', `${ids.length} soal dari set stimulus masuk keranjang.`)
+    fetchPickerQuestions(pickerMeta.value?.current_page || 1)
+  } catch (e) {
+    toast.error('Gagal', e.response?.data?.message || 'Tidak dapat menambah set stimulus.')
+  } finally {
+    suggesting.value = null
+  }
+}
+
+async function addRandomQuestions() {
+  if (!exam.value) return
+  const count = Math.max(1, Math.min(200, Number(randomCount.value) || 10))
+  suggesting.value = 'random'
+  try {
+    const res = await examApi.suggestQuestions(exam.value.id, {
+      mode: 'random',
+      count,
+      bank_soal_id: pickerBankId.value ? Number(pickerBankId.value) : undefined,
+      type: pickerType.value || undefined,
+      grade: pickerGrade.value ? Number(pickerGrade.value) : undefined,
+      difficulty: pickerDifficulty.value || undefined,
+      tag: pickerTag.value.trim() || undefined,
+      topic: pickerTopic.value || undefined,
+      exclude_ids: packageIds.value
+    })
+    const ids = res.data?.question_bank_ids ?? []
+    if (!ids.length) {
+      toast.error('Kosong', res.data?.message || 'Tidak ada soal untuk diacak.')
+      return
+    }
+    mergeIdsIntoPackage(ids)
+    toast.success('Ditambahkan', `${ids.length} soal acak masuk keranjang (set stimulus dijaga utuh).`)
+    fetchPickerQuestions(pickerMeta.value?.current_page || 1)
+  } catch (e) {
+    toast.error('Gagal', e.response?.data?.message || 'Tidak dapat mengacak soal.')
+  } finally {
+    suggesting.value = null
+  }
 }
 
 async function savePackage() {
@@ -404,11 +732,18 @@ async function fetchExam() {
     settingsForm.value = {
       duration_minutes: e.duration_minutes ?? 60,
       shuffle_questions: e.shuffle_questions !== false,
-      shuffle_options: e.shuffle_options !== false
+      shuffle_options: e.shuffle_options !== false,
+      practice: e.delivery_mode === 'practice',
+      max_attempts: e.max_attempts ?? null
     }
     syncPackageFromExam()
     fetchPickerBanks()
+    fetchPickerStimuli()
     if (!questionsLocked.value) fetchPickerQuestions(1)
+    if (route.query.fokus === 'paket') {
+      await nextTick()
+      packageSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
   } catch (e) {
     toast.error('Gagal memuat ujian', e.response?.data?.message || 'Data ujian tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   } finally {
@@ -427,6 +762,10 @@ async function saveSettings() {
       duration_minutes: settingsForm.value.duration_minutes ?? 60,
       shuffle_questions: settingsForm.value.shuffle_questions,
       shuffle_options: settingsForm.value.shuffle_options,
+      delivery_mode: settingsForm.value.practice ? 'practice' : 'proctored',
+      max_attempts: settingsForm.value.practice && settingsForm.value.max_attempts
+        ? Number(settingsForm.value.max_attempts)
+        : null,
       start_type: exam.value.start_type || 'manual',
       scheduled_start_at: exam.value.scheduled_start_at ?? null,
       scheduled_end_at: exam.value.scheduled_end_at ?? null
@@ -539,8 +878,188 @@ watch(() => route.params.code, () => fetchExam())
   position: relative;
   z-index: 1;
   padding: 1.5rem 1rem 2rem;
-  max-width: 880px;
+  max-width: 1100px;
   margin: 0 auto;
+}
+
+.wizard-steps {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.wizard-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+.wizard-step.is-active {
+  color: #047857;
+  background: rgba(5, 150, 105, 0.12);
+}
+
+.wizard-step.is-done {
+  color: #0f766e;
+  background: rgba(13, 148, 136, 0.1);
+}
+
+.wizard-num {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.wizard-step.is-active .wizard-num,
+.wizard-step.is-done .wizard-num {
+  background: #059669;
+  color: #fff;
+}
+
+.section-focus {
+  outline: 2px solid rgba(5, 150, 105, 0.35);
+  outline-offset: 2px;
+}
+
+.package-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.35fr);
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 860px) {
+  .package-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.package-cart,
+.package-picker {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #f8fafc;
+}
+
+.cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.cart-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cart-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #047857;
+  background: rgba(5, 150, 105, 0.12);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+}
+
+.attached-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.btn-move {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 4px;
+  width: 1.5rem;
+  height: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #475569;
+  padding: 0;
+}
+
+.btn-move:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.set-badge {
+  margin: 0 0 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0f766e;
+  text-transform: none;
+}
+
+.set-cont-label {
+  margin: 0 0 0.15rem;
+  font-size: 0.68rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.attached-row.is-set-start {
+  border-left: 3px solid #0d9488;
+}
+
+.attached-row.is-set-cont {
+  border-left: 3px solid #99f6e4;
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed #cbd5e1;
+}
+
+.quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.random-label,
+.random-hint {
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.form-hint-inline {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.col-stimulus {
+  font-size: 0.78rem;
+  color: #475569;
+  max-width: 120px;
 }
 
 .back-link {
@@ -615,6 +1134,15 @@ watch(() => route.params.code, () => fetchExam())
   font-size: 0.875rem;
   color: #475569;
   margin: 0.25rem 0 0 0;
+}
+
+.teacher-hint {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #ecfdf5;
+  border-radius: 8px;
+  color: #065f46;
+  font-size: 0.85rem;
 }
 
 .btn-edit {
@@ -762,6 +1290,19 @@ watch(() => route.params.code, () => fetchExam())
   margin-left: 0.25rem;
   font-size: 0.7rem;
   color: #0369a1;
+}
+.picker-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: #475569;
+}
+.picker-meta span {
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
 }
 
 .picker-pager {

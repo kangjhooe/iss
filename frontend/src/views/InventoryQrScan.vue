@@ -135,7 +135,7 @@ async function exportKib() {
   exportingKib.value = true
   try {
     const response = await inventoryApi.exportAssetKib(asset.value.id)
-    if (!openPdfBlob(response, `kib-aset-${asset.value.asset_number || asset.value.id}.pdf`)) {
+    if (!(await openPdfBlob(response, `kib-aset-${asset.value.asset_number || asset.value.id}.pdf`))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
     }
   } catch (err) {

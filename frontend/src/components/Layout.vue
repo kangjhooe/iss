@@ -1,5 +1,5 @@
 <template>
-  <div class="layout" :class="{ 'layout-super-admin': isSuperAdminLayout }">
+  <div class="layout" :class="{ 'layout-super-admin': isSuperAdminLayout, 'layout-menu-navbar': isNavbarLayout }">
     <div v-if="authStore.isImpersonating" class="impersonation-banner">
       <div class="impersonation-banner-inner">
         <span>
@@ -77,6 +77,18 @@
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4 6H20M4 12H14M4 18H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="sidebar-accordion-btn"
+          title="Ganti ke navbar"
+          aria-label="Ganti ke navbar"
+          @click="setMenuLayout('navbar')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5H20V9H4V5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+            <path d="M4 13H20M4 17H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
         </button>
       </div>
@@ -230,6 +242,13 @@
         </button>
         <Transition name="user-menu">
           <div v-show="userMenuOpen" class="user-menu-dropdown" role="menu">
+            <div class="menu-layout-switch" role="group" aria-label="Tampilan menu">
+              <span class="menu-layout-switch-label">Tampilan menu</span>
+              <div class="menu-layout-switch-btns">
+                <button type="button" :class="{ 'is-active': !isNavbarLayout }" @click="setMenuLayout('sidebar')">Sidebar</button>
+                <button type="button" :class="{ 'is-active': isNavbarLayout }" @click="setMenuLayout('navbar')">Navbar</button>
+              </div>
+            </div>
             <router-link
               to="/pengaturan-akun"
               class="user-menu-item"
@@ -265,6 +284,117 @@
     />
     
     <main class="main-content">
+      <div class="app-header">
+      <header v-if="isNavbarLayout" class="app-navbar" aria-label="Menu utama">
+        <router-link :to="homePath" class="app-navbar-brand">
+          <span class="app-navbar-logo"><AppLogo :size="28" /></span>
+          <span class="app-navbar-title">
+            <span class="app-navbar-name">{{ appName }}</span>
+            <span v-if="academicPeriodText" class="app-navbar-period">{{ academicPeriodText }}</span>
+          </span>
+        </router-link>
+
+        <div class="app-navbar-scroll">
+          <button
+            v-if="pinnedMenuItems.length"
+            type="button"
+            class="app-nav-btn"
+            :class="{ 'app-nav-btn--open': navbarOpenKey === 'pins', 'app-nav-btn--active': favoritActive }"
+            :aria-expanded="navbarOpenKey === 'pins'"
+            @click="toggleNavbarMenu('pins', $event)"
+          >
+            Favorit
+            <svg class="app-nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <template v-for="entry in menuEntries" :key="`hnav-${entry.key}`">
+            <span v-if="entry.type === 'divider'" class="app-nav-sep" aria-hidden="true" />
+            <router-link
+              v-else-if="entry.type === 'link'"
+              :to="entry.to"
+              class="app-nav-link"
+              @click="navbarOpenKey = null"
+            >
+              <span>{{ entry.label }}</span>
+              <span v-if="entry.maturity === 'beta'" class="app-nav-badge">Beta</span>
+              <span v-if="entry.badgeCount" class="app-nav-count">{{ entry.badgeCount }}</span>
+            </router-link>
+            <button
+              v-else-if="entry.type === 'group'"
+              type="button"
+              class="app-nav-btn"
+              :class="{ 'app-nav-btn--active': hasActiveChild(entry), 'app-nav-btn--open': navbarOpenKey === entry.key }"
+              :aria-expanded="navbarOpenKey === entry.key"
+              @click="toggleNavbarMenu(entry.key, $event)"
+            >
+              <span>{{ entry.label }}</span>
+              <span v-if="entry.maturity === 'beta'" class="app-nav-badge">Beta</span>
+              <svg class="app-nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </template>
+        </div>
+
+        <div class="app-navbar-tools">
+          <button type="button" class="app-navbar-icon-btn" title="Cari menu (Ctrl+K)" aria-label="Cari menu" @click="openMenuSearch">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+              <path d="M20 20L16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button type="button" class="app-navbar-icon-btn" title="Ganti ke sidebar" aria-label="Ganti ke sidebar" @click="setMenuLayout('sidebar')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 4H10V20H4V4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+              <path d="M14 6H20M14 12H20M14 18H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+          <div class="app-navbar-user user-section" ref="navbarUserMenuRef">
+            <button
+              type="button"
+              class="user-menu-trigger"
+              @click.stop="userMenuOpen = !userMenuOpen"
+              :aria-expanded="userMenuOpen"
+              aria-haspopup="true"
+              aria-label="Menu akun"
+            >
+              <div class="user-avatar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="user-details">
+                <p class="user-name">{{ authStore.user?.name || 'User' }}</p>
+              </div>
+            </button>
+            <Transition name="user-menu">
+              <div v-show="userMenuOpen" class="user-menu-dropdown" role="menu">
+                <div class="menu-layout-switch" role="group" aria-label="Tampilan menu">
+                  <span class="menu-layout-switch-label">Tampilan menu</span>
+                  <div class="menu-layout-switch-btns">
+                    <button type="button" :class="{ 'is-active': !isNavbarLayout }" @click="setMenuLayout('sidebar')">Sidebar</button>
+                    <button type="button" :class="{ 'is-active': isNavbarLayout }" @click="setMenuLayout('navbar')">Navbar</button>
+                  </div>
+                </div>
+                <router-link
+                  to="/pengaturan-akun"
+                  class="user-menu-item"
+                  :class="{ 'user-menu-item--active': $route.path === '/pengaturan-akun' }"
+                  role="menuitem"
+                  @click="userMenuOpen = false"
+                >
+                  <span>Pengaturan akun</span>
+                </router-link>
+                <button type="button" class="user-menu-item user-menu-item--logout" role="menuitem" @click="handleLogout">
+                  <span>Keluar</span>
+                </button>
+              </div>
+            </Transition>
+          </div>
+        </div>
+      </header>
       <header class="topbar">
         <div class="topbar-content">
           <h1 v-if="showTopbarTitle">{{ pageTitle }}</h1>
@@ -333,6 +463,7 @@
           </div>
         </div>
       </header>
+      </div>
       <div class="content">
         <ErrorBoundary>
           <slot />
@@ -468,6 +599,70 @@
         </button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="openNavbarEntry"
+        ref="navbarDropRef"
+        class="app-nav-dropdown"
+        :style="navbarDropStyle"
+        role="menu"
+      >
+        <template v-if="openNavbarEntry.kind === 'pins'">
+          <div v-for="item in openNavbarEntry.items" :key="item.pinId" class="app-nav-drop-row">
+            <router-link
+              :to="item.to"
+              class="app-nav-drop-link"
+              active-class=""
+              exact-active-class=""
+              :class="{ 'app-nav-drop-link--active': isMenuTargetActive(item.to) }"
+              @click="navbarOpenKey = null"
+            >
+              <span class="app-nav-drop-label">{{ item.label }}</span>
+              <span v-if="item.groupLabel" class="app-nav-drop-sub">{{ item.groupLabel }}</span>
+            </router-link>
+            <button type="button" class="app-nav-drop-pin" title="Lepas pin" aria-label="Lepas pin" @click.stop="removePin(item.pinId)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <div v-for="child in openNavbarEntry.children" :key="child.to" class="app-nav-drop-row">
+            <router-link
+              :to="child.to"
+              class="app-nav-drop-link"
+              active-class=""
+              exact-active-class=""
+              :class="{ 'app-nav-drop-link--active': child.active }"
+              @click="navbarOpenKey = null"
+            >
+              <span class="app-nav-drop-label">{{ child.label }}</span>
+              <span v-if="child.badgeCount" class="app-nav-count">{{ child.badgeCount }}</span>
+            </router-link>
+            <button
+              type="button"
+              class="app-nav-drop-pin"
+              :class="{ 'app-nav-drop-pin--on': isPinned(child.to) }"
+              :title="isPinned(child.to) ? 'Lepas pin' : 'Pin ke favorit'"
+              :aria-label="isPinned(child.to) ? 'Lepas pin' : 'Pin ke favorit'"
+              @click.stop="handleTogglePin(child.to)"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z"
+                  :fill="isPinned(child.to) ? 'currentColor' : 'none'"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -489,6 +684,7 @@ import {
 } from '@/composables/useSidebarState'
 import { useSidebarPins } from '@/composables/useSidebarPins'
 import { useSidebarAccordion } from '@/composables/useSidebarAccordion'
+import { useMenuLayout } from '@/composables/useMenuLayout'
 import { flattenMenuEntries } from '@/utils/sidebarMenu'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import AppLogo from '@/components/AppLogo.vue'
@@ -570,6 +766,36 @@ const expandedGroups = ref(readExpandedGroups())
 const menuSearchOpen = ref(false)
 const { pinnedIds, isPinned, togglePin, removePin, MAX_PINS } = useSidebarPins(() => authStore.user?.id)
 const { accordionEnabled, accordionModeLabel, cycleAccordionMode } = useSidebarAccordion()
+const { isNavbarLayout, setMenuLayout: writeMenuLayout } = useMenuLayout(() => authStore.user?.id)
+const navbarOpenKey = ref(null)
+const navbarDropStyle = ref({})
+const navbarDropRef = ref(null)
+const navbarUserMenuRef = ref(null)
+
+const homePath = computed(() => {
+  const role = authStore.user?.role
+  if (role === 'super_admin') return '/super-admin/dashboard'
+  if (role === 'teacher' || role === 'staff') return '/teacher/dashboard'
+  if (role === 'student') return '/student/dashboard'
+  if (role === 'parent') return '/parent/dashboard'
+  return '/dashboard'
+})
+
+function isMenuTargetActive(to) {
+  if (!to) return false
+  const toPath = to.split('?')[0]
+  let active = !!toPath && (route.path === toPath || route.path.startsWith(`${toPath}/`))
+  if (active && to.includes('?')) {
+    const params = new URLSearchParams(to.split('?')[1] || '')
+    for (const [k, v] of params) {
+      if (String(route.query[k] ?? '') !== v) {
+        active = false
+        break
+      }
+    }
+  }
+  return active
+}
 
 // Top-level menu icons (only these use icons per spec)
 const IconDashboard = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
@@ -986,12 +1212,12 @@ const menuEntries = computed(() => {
       { to: '/kepegawaian', label: 'Cuti, SK & Jabatan', visible: canAccessModule('kepegawaian') },
     ]}),
     addVisible({ type: 'group', key: 'penggajian', label: 'Penggajian', icon: IconFinance, children: [
-      { to: '/penggajian/periode', label: 'Periode', visible: canAccessModule('payroll') },
-      { to: '/penggajian/komponen', label: 'Komponen', visible: canAccessModule('payroll') },
-      { to: '/penggajian/tunjangan-jabatan', label: 'Tunj. Jabatan', visible: canAccessModule('payroll') },
-      { to: '/penggajian/profil', label: 'Profil Gaji', visible: canAccessModule('payroll') },
-      { to: '/penggajian/proses', label: 'Proses Gaji', visible: canAccessModule('payroll') },
-      { to: '/keuangan/pengeluaran', label: 'Pengeluaran Gaji', visible: canAccessModule('payroll') && !canAccessModule('finance') },
+      { to: '/payroll/periods', label: 'Periode', visible: canAccessModule('payroll') },
+      { to: '/payroll/components', label: 'Komponen', visible: canAccessModule('payroll') },
+      { to: '/payroll/position-allowances', label: 'Tunj. Jabatan', visible: canAccessModule('payroll') },
+      { to: '/payroll/profiles', label: 'Profil Gaji', visible: canAccessModule('payroll') },
+      { to: '/payroll/runs', label: 'Proses Gaji', visible: canAccessModule('payroll') },
+      { to: '/finance/expenses', label: 'Pengeluaran Gaji', visible: canAccessModule('payroll') && !canAccessModule('finance') },
     ]}),
     // Grup Absensi hanya untuk modul attendance (TU/admin): pegawai + QR.
     // Guru mapel mengisi absen siswa lewat Jam Mengajar / Hub Mapel / Wali.
@@ -1027,13 +1253,13 @@ const menuEntries = computed(() => {
       { to: '/bkk', label: 'BKK / Bursa Kerja', visible: isVocationalInstitution.value && canAccessModule('bkk') },
     ]}),
     addVisible({ type: 'group', key: 'keuangan', label: 'Keuangan', icon: IconFinance, children: [
-      { to: '/keuangan/jenis-biaya', label: 'Jenis Biaya', visible: canAccessModule('finance') },
-      { to: '/keuangan/spp', label: 'SPP', visible: canAccessModule('finance') },
-      { to: '/keuangan/tagihan', label: 'Tagihan', visible: canAccessModule('finance') },
-      { to: '/keuangan/pembayaran', label: 'Pembayaran', visible: canAccessModule('finance') },
-      { to: '/keuangan/pengeluaran', label: 'Pengeluaran', visible: canAccessModule('finance') },
-      { to: '/keuangan/tunggakan', label: 'Tunggakan', visible: canAccessModule('finance') },
-      { to: '/keuangan/laporan', label: 'Laporan', visible: canAccessModule('finance') },
+      { to: '/finance/fee-types', label: 'Jenis Biaya', visible: canAccessModule('finance') },
+      { to: '/finance/spp', label: 'SPP', visible: canAccessModule('finance') },
+      { to: '/finance/invoices', label: 'Tagihan', visible: canAccessModule('finance') },
+      { to: '/finance/payments', label: 'Pembayaran', visible: canAccessModule('finance') },
+      { to: '/finance/expenses', label: 'Pengeluaran', visible: canAccessModule('finance') },
+      { to: '/finance/arrears', label: 'Tunggakan', visible: canAccessModule('finance') },
+      { to: '/finance/report', label: 'Laporan', visible: canAccessModule('finance') },
     ]}),
     addVisible({ type: 'group', key: 'correspondence', label: 'Persuratan', icon: IconCorrespondence, children: [
       { to: '/correspondence', label: 'Buat Surat', visible: canAccessModule('correspondence'), exact: true },
@@ -1096,7 +1322,7 @@ const menuEntries = computed(() => {
           addVisible({ type: 'group', key: 'saya', label: 'Saya', icon: IconSettings, children: [
             { to: '/teacher/profile', label: 'Profil Saya', visible: true },
             { to: '/teacher/cuti', label: 'Cuti Saya', visible: true },
-            { to: '/teacher/slip-gaji', label: 'Slip Gaji', visible: true },
+            { to: '/teacher/payslip', label: 'Slip Gaji', visible: true },
             { to: '/teacher/poin', label: 'Poin & Prestasi Saya', visible: true },
             { to: '/feedback', label: 'Lapor Bug / Fitur', visible: true },
           ]}),
@@ -1115,6 +1341,7 @@ const menuEntries = computed(() => {
       : []),
     { type: 'divider', key: 'beta-divider', label: 'Sedang dikembangkan' },
     addVisible({ type: 'group', key: 'ujian-online', label: 'Ujian Online', icon: IconExam, maturity: 'beta', children: [
+      { to: '/ujian-online/gelombang', label: 'Gelombang Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/exams', label: 'Daftar Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/sesi?fokus=peserta', label: 'Peserta Ujian', visible: canAccessModule('online_exam') },
       { to: '/ujian-online/sesi?fokus=kontrol', label: 'Kontrol Ujian', visible: canAccessModule('online_exam') },
@@ -1143,6 +1370,38 @@ const pinnedMenuItems = computed(() => {
   const byPinId = new Map(searchableMenuItems.value.map((item) => [item.pinId, item]))
   return pinnedIds.value.map((id) => byPinId.get(id)).filter(Boolean)
 })
+
+const favoritActive = computed(() => pinnedMenuItems.value.some((item) => isMenuTargetActive(item.to)))
+
+const openNavbarEntry = computed(() => {
+  if (!navbarOpenKey.value) return null
+  if (navbarOpenKey.value === 'pins') {
+    if (!pinnedMenuItems.value.length) return null
+    return { kind: 'pins', items: pinnedMenuItems.value }
+  }
+  const entry = menuEntries.value.find((item) => item.type === 'group' && item.key === navbarOpenKey.value)
+  if (!entry?.visibleChildren?.length) return null
+  return { kind: 'group', children: entry.visibleChildren }
+})
+
+function toggleNavbarMenu(key, event) {
+  if (navbarOpenKey.value === key) {
+    navbarOpenKey.value = null
+    return
+  }
+  const rect = event.currentTarget.getBoundingClientRect()
+  const width = 260
+  let left = rect.left
+  if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8)
+  const spaceBelow = window.innerHeight - rect.bottom - 12
+  navbarDropStyle.value = {
+    top: `${rect.bottom + 6}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+    maxHeight: `${Math.max(160, spaceBelow)}px`,
+  }
+  navbarOpenKey.value = key
+}
 
 const displayMenuEntries = computed(() => {
   const pinnedTos = new Set(pinnedMenuItems.value.map((item) => item.to))
@@ -1180,6 +1439,10 @@ function onPinLimit() {
 }
 
 function onGlobalKeydown(e) {
+  if (e.key === 'Escape' && navbarOpenKey.value) {
+    navbarOpenKey.value = null
+    return
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault()
     menuSearchOpen.value = !menuSearchOpen.value
@@ -1371,6 +1634,17 @@ const showTopbarDivider = computed(() => showInstitutionInTopbar.value && showNo
 
 const { unreadCount: unreadNotificationCount, refreshUnreadCount } = useNotifications()
 const toast = useToast()
+
+function setMenuLayout(next) {
+  const mode = next === 'navbar' ? 'navbar' : 'sidebar'
+  userMenuOpen.value = false
+  navbarOpenKey.value = null
+  if (isNavbarLayout.value === (mode === 'navbar')) return
+  writeMenuLayout(mode)
+  if (mode === 'navbar' && window.innerWidth <= MOBILE_BREAKPOINT) {
+    toast.info('Tampilan navbar', 'Dipakai di layar lebar. Di HP, menu tetap dibuka dari tombol menu.')
+  }
+}
 const notificationPanelOpen = ref(false)
 const notificationBellRef = ref(null)
 
@@ -1420,12 +1694,20 @@ const handleRouteChange = () => {
     closeSidebar()
   }
   userMenuOpen.value = false
+  navbarOpenKey.value = null
   notificationPanelOpen.value = false
 }
 
 function closeUserMenuOnClickOutside(e) {
-  if (userMenuOpen.value && userMenuRef.value && !userMenuRef.value.contains(e.target)) {
+  const inSidebarUser = userMenuRef.value?.contains(e.target)
+  const inNavbarUser = navbarUserMenuRef.value?.contains(e.target)
+  if (userMenuOpen.value && !inSidebarUser && !inNavbarUser) {
     userMenuOpen.value = false
+  }
+  if (navbarOpenKey.value) {
+    const inDrop = navbarDropRef.value?.contains(e.target)
+    const inTrigger = e.target?.closest?.('.app-nav-btn')
+    if (!inDrop && !inTrigger) navbarOpenKey.value = null
   }
   if (notificationPanelOpen.value && notificationBellRef.value && !notificationBellRef.value.contains(e.target)) {
     notificationPanelOpen.value = false
@@ -1434,12 +1716,20 @@ function closeUserMenuOnClickOutside(e) {
 
 // Handle window resize: tutup sidebar saat ke desktop, pastikan tertutup saat ke mobile
 const handleResize = () => {
+  navbarOpenKey.value = null
   if (window.innerWidth > MOBILE_BREAKPOINT) {
     sidebarOpen.value = false
     document.body.style.overflow = ''
   } else {
     document.body.style.overflow = sidebarOpen.value ? 'hidden' : ''
   }
+}
+
+function closeNavbarOnScroll(e) {
+  if (!navbarOpenKey.value) return
+  const drop = navbarDropRef.value
+  if (drop && (e.target === drop || drop.contains(e.target))) return
+  navbarOpenKey.value = null
 }
 
 let notificationPollInterval = null
@@ -1454,6 +1744,7 @@ onMounted(() => {
   router.afterEach(handleRouteChange)
   window.addEventListener('resize', handleResize)
   window.addEventListener('keydown', onGlobalKeydown)
+  window.addEventListener('scroll', closeNavbarOnScroll, true)
   document.addEventListener('click', closeUserMenuOnClickOutside)
   fetchUnreadNotificationCount()
   fetchParentChildren()
@@ -1465,6 +1756,7 @@ onUnmounted(() => {
   persistExpandedGroups()
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('keydown', onGlobalKeydown)
+  window.removeEventListener('scroll', closeNavbarOnScroll, true)
   document.removeEventListener('click', closeUserMenuOnClickOutside)
   document.body.style.overflow = ''
   if (notificationPollInterval) clearInterval(notificationPollInterval)
@@ -2804,6 +3096,378 @@ const handleLogout = async () => {
 
   .user-section {
     padding: 10px 12px;
+  }
+}
+
+.app-header {
+  display: block;
+}
+
+.app-navbar {
+  display: none;
+  position: relative;
+  z-index: 5;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 12px 0 14px;
+  background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.app-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+  margin-right: 4px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-navbar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-navbar-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-navbar-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.app-navbar-period {
+  font-size: 10px;
+  color: #94a3b8;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-navbar-scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.app-navbar-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.app-navbar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+}
+
+.app-nav-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: rgba(255, 255, 255, 0.16);
+  flex-shrink: 0;
+}
+
+.app-nav-link,
+.app-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.app-nav-link:hover,
+.app-nav-btn:hover,
+.app-nav-btn--open {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.app-nav-link.router-link-active,
+.app-nav-btn--active {
+  background: rgba(5, 150, 105, 0.22);
+  color: #6ee7b7;
+}
+
+.app-nav-chevron {
+  transition: transform 0.15s ease;
+}
+
+.app-nav-btn--open .app-nav-chevron {
+  transform: rotate(180deg);
+}
+
+.app-nav-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.16);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.app-nav-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-navbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.app-navbar-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.app-navbar-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.app-navbar-user.user-section {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.app-navbar-user .user-menu-trigger {
+  width: auto;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 10px;
+}
+
+.app-navbar-user .user-email,
+.app-navbar-user .user-institution,
+.app-navbar-user .user-menu-chevron {
+  display: none;
+}
+
+.app-navbar-user .user-details {
+  max-width: 140px;
+}
+
+.app-navbar-user .user-name {
+  margin: 0;
+}
+
+.app-navbar-user .user-menu-dropdown {
+  left: auto;
+  right: 0;
+  bottom: auto;
+  top: calc(100% + 8px);
+  margin: 0;
+  min-width: 220px;
+  z-index: 30;
+}
+
+.app-nav-dropdown {
+  position: fixed;
+  z-index: 1400;
+  overflow: auto;
+  padding: 6px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.app-nav-drop-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.app-nav-drop-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.app-nav-drop-link:hover,
+.app-nav-drop-link--active {
+  background: rgba(5, 150, 105, 0.2);
+  color: #6ee7b7;
+}
+
+.app-nav-drop-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-nav-drop-pin {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.app-nav-drop-pin:hover,
+.app-nav-drop-pin--on {
+  color: #fbbf24;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.menu-layout-switch {
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.menu-layout-switch-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.menu-layout-switch-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.menu-layout-switch-btns button {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.menu-layout-switch-btns button.is-active {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
+}
+
+@media (max-width: 1099px) {
+  .app-navbar-user .user-details {
+    display: none;
+  }
+
+  .app-navbar-user .user-menu-trigger {
+    padding: 4px;
+  }
+}
+
+@media (min-width: 769px) {
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 110;
+  }
+
+  .app-header > .topbar {
+    position: static;
+  }
+
+  .layout-menu-navbar .app-header {
+    background: #fff;
+  }
+
+  .layout-menu-navbar .app-navbar {
+    display: flex;
+  }
+
+  .layout-menu-navbar .sidebar,
+  .layout-menu-navbar .sidebar-overlay {
+    display: none !important;
+  }
+
+  .layout-menu-navbar .main-content {
+    margin-left: 0 !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .layout-menu-navbar .topbar {
+    box-shadow: none;
+  }
+
+  .layout:has(.demo-school-banner) .app-header,
+  .layout:has(.impersonation-banner) .app-header {
+    top: 44px;
   }
 }
 </style>

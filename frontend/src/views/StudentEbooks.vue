@@ -1,4 +1,5 @@
-<template>    <div class="sp-page">
+<template>
+    <div class="sp-page">
       <div class="sp-page-header">
         <p class="sp-subtitle">Baca ebook PDF koleksi sekolah Anda</p>
       </div>
@@ -80,13 +81,16 @@
           <div v-else class="reader-loading">Memuat PDF...</div>
         </div>
       </Teleport>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { useToast } from '@/composables/useToast'
 import { libraryApi } from '@/api/library'
+import { ensurePdfBlob } from '@/utils/pdfPreview'
+import { parseBlobError } from '@/utils/blobError'
 
 const toast = useToast()
 
@@ -161,29 +165,14 @@ async function openReader(book) {
   openingId.value = book.id
   try {
     const res = await libraryApi.getEbookBlob(book.id)
-    const contentType = res.headers?.['content-type'] || ''
-    if (contentType.includes('application/json')) {
-      const text = await res.data.text?.()
-      let msg = 'Gagal membuka ebook.'
-      try { msg = JSON.parse(text)?.message || msg } catch (_) {}
-      throw new Error(msg)
-    }
+    const blob = await ensurePdfBlob(res, 'Gagal membuka ebook.')
     revokeObjectUrl()
-    objectUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+    objectUrl = URL.createObjectURL(blob)
     readerTitle.value = book.title
     readerUrl.value = objectUrl
     readerOpen.value = true
   } catch (e) {
-    let msg = e.formattedMessage || e.message || 'Tidak dapat membuka ebook.'
-    const data = e.response?.data
-    if (data instanceof Blob) {
-      try {
-        const text = await data.text()
-        const parsed = JSON.parse(text)
-        if (parsed?.message) msg = parsed.message
-      } catch (_) {}
-    }
-    toast.error('Gagal', msg)
+    toast.error('Gagal', await parseBlobError(e, e.message || 'Tidak dapat membuka ebook.'))
   } finally {
     openingId.value = null
   }

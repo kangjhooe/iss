@@ -1,4 +1,5 @@
-<template>    <div class="bank-page">
+<template>
+    <div class="bank-page">
       <header class="page-header">
         <nav class="breadcrumb">
           <router-link to="/ujian-online/bank-soal">Bank Soal</router-link>
@@ -40,6 +41,33 @@
             <option value="isian">Isian</option>
             <option value="uraian">Uraian</option>
           </select>
+          <select v-model="filterStatus" class="filter-select" @change="fetchQuestions(1)" aria-label="Filter status">
+            <option value="">Semua status</option>
+            <option value="ready">Siap</option>
+            <option value="draft">Draf</option>
+          </select>
+          <select v-model="filterTopic" class="filter-select" @change="fetchQuestions(1)" aria-label="Filter topik">
+            <option value="">Semua topik</option>
+            <option value="none">Tanpa topik</option>
+            <option v-for="topic in topicOptions" :key="topic" :value="topic">{{ topic }}</option>
+          </select>
+          <select v-model="filterCognitiveLevel" class="filter-select" @change="fetchQuestions(1)" aria-label="Filter level kognitif">
+            <option value="">Semua level</option>
+            <option value="none">Tanpa level</option>
+            <option v-for="opt in cognitiveLevelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+          <select v-model="filterDifficulty" class="filter-select" @change="fetchQuestions(1)" aria-label="Filter kesulitan">
+            <option value="">Semua kesulitan</option>
+            <option value="none">Tanpa kesulitan</option>
+            <option v-for="opt in difficultyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+          <input
+            v-model="filterTag"
+            type="search"
+            class="filter-search filter-tag"
+            placeholder="Tag, mis. aljabar"
+            @keydown.enter.prevent="fetchQuestions(1)"
+          />
           <select v-model="filterStimulusId" class="filter-select" @change="fetchQuestions(1)">
             <option value="">Semua stimulus</option>
             <option value="none">Tanpa stimulus</option>
@@ -68,13 +96,26 @@
         </div>
         <div v-else class="table-wrap content-card">
           <p class="reorder-hint">Urutan di rak ini. Ujian memilih soal sendiri — boleh campur dari rak/tingkat lain. Edit di sini tidak mengubah paket ujian yang sudah dipasang.</p>
+          <div v-if="selectedIds.length" class="bulk-bar">
+            <span>{{ selectedIds.length }} soal dipilih</span>
+            <button type="button" class="btn-secondary btn-sm" :disabled="bulkLoading" @click="bulkDuplicate">Duplikat</button>
+            <button type="button" class="btn-danger btn-sm" :disabled="bulkLoading" @click="bulkDelete">Hapus</button>
+            <button type="button" class="btn-secondary btn-sm" @click="selectedIds = []">Batal</button>
+          </div>
           <table class="data-table">
             <thead>
               <tr>
+                <th class="col-check">
+                  <input type="checkbox" :checked="pageAllSelected" aria-label="Pilih semua di halaman ini" @change="togglePage($event.target.checked)" />
+                </th>
                 <th class="col-ord">Urut</th>
                 <th>Soal</th>
                 <th>Stimulus</th>
                 <th>Tipe</th>
+                <th>Status</th>
+                <th>Topik</th>
+                <th>Level</th>
+                <th>Kesulitan</th>
                 <th>Bobot</th>
                 <th>Dipakai</th>
                 <th>Aksi</th>
@@ -88,6 +129,9 @@
                 @dragover.prevent="onDragOver($event, idx)"
                 @drop="onDrop($event, idx)"
               >
+                <td class="col-check">
+                  <input type="checkbox" :checked="selectedIds.includes(q.id)" :aria-label="'Pilih soal ' + (idx + 1)" @change="toggleSelected(q.id, $event.target.checked)" />
+                </td>
                 <td class="col-ord">
                   <span class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" @dragstart="onDragStart($event, idx)" @dragend="onDragEnd">⋮⋮</span>
                   <div class="move-buttons">
@@ -95,7 +139,12 @@
                     <button type="button" class="btn-move" title="Turun" :disabled="reorderLoading || idx === questions.length - 1" @click="moveQuestion(idx, 1)">↓</button>
                   </div>
                 </td>
-                <td>{{ stripHtml((q.body || '')).slice(0, 80) }}{{ stripHtml(q.body || '').length > 80 ? '…' : '' }}</td>
+                <td>
+                  {{ stripHtml((q.body || '')).slice(0, 80) }}{{ stripHtml(q.body || '').length > 80 ? '…' : '' }}
+                  <div v-if="q.tags?.length" class="tag-row">
+                    <span v-for="tag in q.tags" :key="tag" class="tag-chip">{{ tag }}</span>
+                  </div>
+                </td>
                 <td>
                   <button
                     v-if="q.stimulus"
@@ -109,6 +158,15 @@
                   <span v-else>–</span>
                 </td>
                 <td>{{ typeLabel(q.type) }}</td>
+                <td>
+                  <span class="status-chip" :class="q.status === 'draft' ? 'draft' : 'ready'">{{ q.status === 'draft' ? 'Draf' : 'Siap' }}</span>
+                </td>
+                <td>{{ q.topic || '—' }}</td>
+                <td>
+                  <span v-if="q.cognitive_level" class="level-chip" :title="cognitiveLevelLabel(q.cognitive_level)">{{ String(q.cognitive_level).toUpperCase() }}</span>
+                  <span v-else class="used-none">—</span>
+                </td>
+                <td>{{ q.difficulty_label || '—' }}</td>
                 <td>{{ q.weight }}</td>
                 <td>
                   <span v-if="(q.exams_count || 0) > 0" class="used-chip" :title="'Terpasang di ' + q.exams_count + ' ujian. Paket ujian tidak berubah jika soal diedit.'">
@@ -140,124 +198,218 @@
 
       <!-- Form tambah/edit -->
       <div v-if="showForm" class="modal-overlay" @click.self="showForm = false">
-        <div class="modal content-card modal-wide">
-          <h3>{{ editingId ? 'Edit soal' : 'Tambah soal' }}</h3>
-          <div v-if="currentBank" class="form-group info-row">
-            <span>Mapel: <strong>{{ currentBank.subject?.name }}</strong></span>
-            <span v-if="currentBank.grade"> — Rak kelas {{ currentBank.grade }} (label, bukan batasan)</span>
-          </div>
-          <div v-if="!bankId" class="form-group">
-            <label>Mapel *</label>
-            <select v-model="form.subject_id" required>
-              <option value="">Pilih</option>
-              <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Stimulus (opsional)</label>
-            <div class="stimulus-row">
-              <select v-model="form.stimulus_id">
-                <option value="">Tanpa stimulus</option>
-                <option v-for="st in filteredStimuli" :key="st.id" :value="String(st.id)">{{ stimulusOptionLabel(st) }}</option>
-              </select>
-              <button type="button" class="btn-secondary btn-add-stimulus" @click="openStimulusForm">+ Buat stimulus baru</button>
+        <div class="modal content-card modal-question-form">
+          <header class="qform-header">
+            <div>
+              <h3>{{ editingId ? 'Edit soal' : 'Tambah soal' }}</h3>
+              <p v-if="currentBank" class="qform-meta">
+                {{ currentBank.subject?.name || 'Mapel' }}
+                <span v-if="currentBank.grade"> · kelas {{ currentBank.grade }}</span>
+              </p>
             </div>
-            <p class="hint">Satu stimulus bisa dipakai untuk banyak soal. Pilih stimulus yang sama saat menambah soal berikutnya.</p>
-          </div>
-          <div class="form-group">
-            <label>Tipe *</label>
-            <select v-model="form.type">
-              <option value="pg">Pilihan ganda</option>
-              <option value="pg_kompleks">Pilihan ganda kompleks</option>
-              <option value="matching">Mencocokkan</option>
-              <option value="isian">Isian singkat</option>
-              <option value="uraian">Uraian</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Pertanyaan *</label>
-            <RichTextEditor v-model="form.body" placeholder="Tulis pertanyaan (bisa format teks, gambar, tabel)" min-height="180px" />
-          </div>
-          <div class="form-group">
-            <label>Bobot</label>
-            <input v-if="form.type !== 'pg_kompleks'" v-model.number="form.weight" type="number" min="0" step="0.01" />
-            <p v-else class="hint">Bobot soal dihitung otomatis dari jumlah bobot opsi yang benar.</p>
-          </div>
-          <div v-if="form.type === 'pg'" class="form-group">
-            <label>Opsi (A, B, C, D...). Pilih tepat satu jawaban benar.</label>
-            <div v-for="(opt, i) in form.options" :key="i" class="option-row option-row-rich">
-              <input v-model="opt.option_key" placeholder="A" class="opt-key" />
-              <RichTextEditor v-model="opt.body" :placeholder="'Opsi ' + (opt.option_key || (i+1))" min-height="80px" class="opt-editor" />
-              <label class="opt-correct">
-                <input type="radio" name="pg-correct" :checked="opt.is_correct" @change="setPgCorrect(i)" />
-                Benar
-              </label>
-              <button v-if="form.options.length > 2" type="button" class="btn-remove-opt" title="Hapus opsi" @click="form.options.splice(i, 1)">×</button>
-            </div>
-            <button type="button" class="btn-small" @click="form.options.push({ option_key: nextOptionKey(), body: '', is_correct: false })">+ Opsi</button>
-          </div>
-          <div v-if="form.type === 'pg_kompleks'" class="form-group">
-            <label>Opsi (A, B, C, D...). Centang jawaban yang benar dan isi bobot tiap opsi.</label>
-            <div v-for="(opt, i) in form.options" :key="i" class="option-row option-row-rich option-row-pg-kompleks">
-              <input v-model="opt.option_key" placeholder="A" class="opt-key" />
-              <RichTextEditor v-model="opt.body" :placeholder="'Opsi ' + (opt.option_key || (i+1))" min-height="80px" class="opt-editor" />
-              <label class="opt-correct"><input v-model="opt.is_correct" type="checkbox" /> Benar</label>
-              <div class="opt-weight-wrap">
-                <label class="opt-weight-label">Bobot</label>
-                <input v-model.number="opt.option_weight" type="number" min="0" step="0.01" class="opt-weight" />
-              </div>
-              <button v-if="form.options.length > 2" type="button" class="btn-remove-opt" title="Hapus opsi" @click="form.options.splice(i, 1)">×</button>
-            </div>
-            <button type="button" class="btn-small" @click="form.options.push({ option_key: nextOptionKey(), body: '', is_correct: false, option_weight: 0 })">+ Opsi</button>
-          </div>
-          <div v-if="form.type === 'matching'" class="form-group matching-form">
-            <label>Kolom kiri dan kanan — isi pasangan yang cocok.</label>
-            <div class="matching-columns">
-              <div class="matching-col">
-                <strong>Kolom kiri</strong>
-                <div v-for="(item, i) in form.matching_left" :key="'L'+i" class="matching-item">
-                  <span class="matching-num">{{ i + 1 }}.</span>
-                  <input v-model="item.text" placeholder="Teks kiri" />
-                </div>
-                <button type="button" class="btn-small" @click="addMatchingLeft">+ Baris kiri</button>
-              </div>
-              <div class="matching-col">
-                <strong>Kolom kanan</strong>
-                <div v-for="(item, i) in form.matching_right" :key="'R'+i" class="matching-item">
-                  <span class="matching-num">{{ i + 1 }}.</span>
-                  <input v-model="item.text" placeholder="Teks kanan" />
-                </div>
-                <button type="button" class="btn-small" @click="form.matching_right.push({ id: '', text: '' })">+ Baris kanan</button>
-              </div>
-            </div>
-            <div class="matching-correct">
-              <strong>Pasangan benar (kiri → kanan)</strong>
-              <p class="hint">Pilih untuk setiap nomor kiri, nomor kanan yang cocok.</p>
-              <div v-for="(leftItem, i) in form.matching_left" :key="'C'+i" class="correct-row">
-                <span>{{ i + 1 }}. {{ leftItem.text || '(kosong)' }}</span>
-                <select v-model="form.matching_correct[i]">
-                  <option value="">— Pilih kanan —</option>
-                  <option v-for="(r, j) in form.matching_right" :key="j" :value="String(j)">{{ j + 1 }}. {{ r.text || '(kosong)' }}</option>
+            <button type="button" class="btn-icon-close" title="Tutup" @click="showForm = false">×</button>
+          </header>
+
+          <div class="qform-body">
+            <section class="qform-section">
+              <h4 class="qform-section-title">Pengaturan</h4>
+              <div v-if="!bankId" class="form-group">
+                <label>Mapel *</label>
+                <select v-model="form.subject_id" required>
+                  <option value="">Pilih</option>
+                  <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
                 </select>
               </div>
-            </div>
+              <div class="qform-grid">
+                <div class="form-group">
+                  <label>Tipe soal *</label>
+                  <select v-model="form.type">
+                    <option value="pg">Pilihan ganda</option>
+                    <option value="pg_kompleks">Pilihan ganda kompleks</option>
+                    <option value="matching">Mencocokkan</option>
+                    <option value="isian">Isian singkat</option>
+                    <option value="uraian">Uraian</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Bobot</label>
+                  <input
+                    v-if="form.type !== 'pg_kompleks'"
+                    v-model.number="form.weight"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p v-else class="hint field-hint">Otomatis dari jumlah bobot opsi benar.</p>
+                  <p class="hint field-hint">Bobot relatif. Nilai ujian dinormalisasi ke 0–100.</p>
+                </div>
+                <div class="form-group">
+                  <label>Status</label>
+                  <select v-model="form.status">
+                    <option value="ready">Siap — boleh masuk paket ujian</option>
+                    <option value="draft">Draf — belum untuk ujian</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Topik / bab <span class="optional">(opsional)</span></label>
+                  <input v-model="form.topic" type="text" maxlength="120" list="topic-list" placeholder="mis. Bab 2 Persamaan linear" />
+                  <datalist id="topic-list">
+                    <option v-for="topic in topicOptions" :key="topic" :value="topic" />
+                  </datalist>
+                </div>
+                <div class="form-group">
+                  <label>Level kognitif <span class="optional">(opsional)</span></label>
+                  <select v-model="form.cognitive_level">
+                    <option value="">—</option>
+                    <option v-for="opt in cognitiveLevelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Kesulitan <span class="optional">(opsional)</span></label>
+                  <select v-model="form.difficulty">
+                    <option value="">—</option>
+                    <option v-for="opt in difficultyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Tag <span class="optional">(opsional)</span></label>
+                  <input v-model="form.tagsText" type="text" maxlength="200" placeholder="pisahkan dengan koma, mis. aljabar, persamaan" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Stimulus <span class="optional">(opsional)</span></label>
+                <div class="stimulus-row">
+                  <select v-model="form.stimulus_id">
+                    <option value="">Tanpa stimulus</option>
+                    <option v-for="st in filteredStimuli" :key="st.id" :value="String(st.id)">{{ stimulusOptionLabel(st) }}</option>
+                  </select>
+                  <button type="button" class="btn-secondary btn-add-stimulus" @click="openStimulusForm">+ Stimulus baru</button>
+                </div>
+                <p class="hint">Satu stimulus bisa dipakai banyak soal.</p>
+              </div>
+            </section>
+
+            <section class="qform-section">
+              <h4 class="qform-section-title">Pertanyaan *</h4>
+              <div class="form-group form-group-flush">
+                <RichTextEditor v-model="form.body" placeholder="Tulis pertanyaan (teks, gambar, tabel, rumus)" min-height="160px" />
+              </div>
+            </section>
+
+            <section v-if="form.type === 'pg'" class="qform-section">
+              <div class="qform-section-head">
+                <h4 class="qform-section-title">Opsi jawaban</h4>
+                <p class="hint">Pilih tepat satu jawaban benar.</p>
+              </div>
+              <div class="option-cards">
+                <div v-for="(opt, i) in form.options" :key="i" class="option-card" :class="{ 'is-correct': opt.is_correct }">
+                  <div class="option-card-top">
+                    <input v-model="opt.option_key" placeholder="A" class="opt-key" maxlength="4" title="Kunci opsi" />
+                    <label class="opt-correct">
+                      <input type="radio" name="pg-correct" :checked="opt.is_correct" @change="setPgCorrect(i)" />
+                      Jawaban benar
+                    </label>
+                    <button
+                      v-if="form.options.length > 2"
+                      type="button"
+                      class="btn-remove-opt"
+                      title="Hapus opsi"
+                      @click="form.options.splice(i, 1)"
+                    >×</button>
+                  </div>
+                  <RichTextEditor v-model="opt.body" :placeholder="'Isi opsi ' + (opt.option_key || (i + 1))" min-height="72px" />
+                </div>
+              </div>
+              <button type="button" class="btn-small" @click="form.options.push({ option_key: nextOptionKey(), body: '', is_correct: false })">+ Tambah opsi</button>
+            </section>
+
+            <section v-if="form.type === 'pg_kompleks'" class="qform-section">
+              <div class="qform-section-head">
+                <h4 class="qform-section-title">Opsi jawaban</h4>
+                <p class="hint">Centang opsi benar dan isi bobot masing-masing.</p>
+              </div>
+              <div class="option-cards">
+                <div v-for="(opt, i) in form.options" :key="i" class="option-card" :class="{ 'is-correct': opt.is_correct }">
+                  <div class="option-card-top">
+                    <input v-model="opt.option_key" placeholder="A" class="opt-key" maxlength="4" title="Kunci opsi" />
+                    <label class="opt-correct">
+                      <input v-model="opt.is_correct" type="checkbox" />
+                      Benar
+                    </label>
+                    <div class="opt-weight-wrap">
+                      <label class="opt-weight-label">Bobot</label>
+                      <input v-model.number="opt.option_weight" type="number" min="0" step="0.01" class="opt-weight" />
+                    </div>
+                    <button
+                      v-if="form.options.length > 2"
+                      type="button"
+                      class="btn-remove-opt"
+                      title="Hapus opsi"
+                      @click="form.options.splice(i, 1)"
+                    >×</button>
+                  </div>
+                  <RichTextEditor v-model="opt.body" :placeholder="'Isi opsi ' + (opt.option_key || (i + 1))" min-height="72px" />
+                </div>
+              </div>
+              <button type="button" class="btn-small" @click="form.options.push({ option_key: nextOptionKey(), body: '', is_correct: false, option_weight: 0 })">+ Tambah opsi</button>
+            </section>
+
+            <section v-if="form.type === 'matching'" class="qform-section matching-form">
+              <h4 class="qform-section-title">Pasangan mencocokkan</h4>
+              <div class="matching-columns">
+                <div class="matching-col">
+                  <strong>Kolom kiri</strong>
+                  <div v-for="(item, i) in form.matching_left" :key="'L'+i" class="matching-item">
+                    <span class="matching-num">{{ i + 1 }}.</span>
+                    <input v-model="item.text" placeholder="Teks kiri" />
+                  </div>
+                  <button type="button" class="btn-small" @click="addMatchingLeft">+ Baris kiri</button>
+                </div>
+                <div class="matching-col">
+                  <strong>Kolom kanan</strong>
+                  <div v-for="(item, i) in form.matching_right" :key="'R'+i" class="matching-item">
+                    <span class="matching-num">{{ i + 1 }}.</span>
+                    <input v-model="item.text" placeholder="Teks kanan" />
+                  </div>
+                  <button type="button" class="btn-small" @click="form.matching_right.push({ id: '', text: '' })">+ Baris kanan</button>
+                </div>
+              </div>
+              <div class="matching-correct">
+                <strong>Kunci pasangan (kiri → kanan)</strong>
+                <p class="hint">Untuk setiap item kiri, pilih pasangan kanan yang benar.</p>
+                <div v-for="(leftItem, i) in form.matching_left" :key="'C'+i" class="correct-row">
+                  <span class="correct-left">{{ i + 1 }}. {{ leftItem.text || '(kosong)' }}</span>
+                  <select v-model="form.matching_correct[i]">
+                    <option value="">— Pilih kanan —</option>
+                    <option v-for="(r, j) in form.matching_right" :key="j" :value="String(j)">{{ j + 1 }}. {{ r.text || '(kosong)' }}</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section v-if="form.type === 'isian'" class="qform-section">
+              <h4 class="qform-section-title">Kunci jawaban</h4>
+              <div class="form-group">
+                <label>Jawaban utama *</label>
+                <input v-model="form.key_answer" type="text" placeholder="Teks yang harus cocok" />
+                <p class="hint">Perbandingan tanpa membedakan huruf besar/kecil. Kunci isian hanya teks polos; rumus lebih aman di pilihan ganda atau uraian.</p>
+              </div>
+              <div class="form-group">
+                <label>Alias <span class="optional">(opsional)</span></label>
+                <div v-for="(alias, ai) in form.key_answer_aliases" :key="'alias'+ai" class="alias-row">
+                  <input v-model="form.key_answer_aliases[ai]" type="text" :placeholder="'Alias ' + (ai + 1)" />
+                  <button type="button" class="btn-remove-opt" title="Hapus alias" @click="form.key_answer_aliases.splice(ai, 1)">×</button>
+                </div>
+                <button type="button" class="btn-small" @click="form.key_answer_aliases.push('')">+ Alias</button>
+                <p class="hint">Contoh: kunci <code>H2O</code>, alias <code>h2o</code> / <code>air</code>.</p>
+              </div>
+            </section>
           </div>
-          <div v-if="form.type === 'isian'" class="form-group">
-            <label>Kunci jawaban (teks tepat) *</label>
-            <input v-model="form.key_answer" type="text" />
-            <p class="hint">Penilaian otomatis membandingkan teks (tanpa huruf besar/kecil).</p>
-            <label class="alias-label">Alias kunci (opsional)</label>
-            <div v-for="(alias, ai) in form.key_answer_aliases" :key="'alias'+ai" class="alias-row">
-              <input v-model="form.key_answer_aliases[ai]" type="text" :placeholder="'Alias ' + (ai + 1)" />
-              <button type="button" class="btn-remove-opt" title="Hapus alias" @click="form.key_answer_aliases.splice(ai, 1)">×</button>
-            </div>
-            <button type="button" class="btn-small" @click="form.key_answer_aliases.push('')">+ Alias</button>
-            <p class="hint">Contoh: kunci <code>H2O</code>, alias <code>h2o</code> / <code>air</code> — semua diterima benar.</p>
-          </div>
-          <div class="modal-actions">
-            <button class="btn-primary" @click="submitQuestion" :disabled="saving">{{ saving ? 'Menyimpan...' : 'Simpan' }}</button>
+
+          <footer class="qform-footer modal-actions">
             <button type="button" class="btn-secondary" @click="showForm = false">Batal</button>
-          </div>
+            <button class="btn-primary" @click="submitQuestion" :disabled="saving">{{ saving ? 'Menyimpan...' : 'Simpan soal' }}</button>
+          </footer>
         </div>
       </div>
 
@@ -265,14 +417,15 @@
       <div v-if="showStimulusForm" class="modal-overlay modal-overlay-stimulus" @click.self="showStimulusForm = false">
         <div class="modal content-card modal-wide">
           <h3>Buat stimulus baru</h3>
-          <p class="hint block">Stimulus hanya untuk bank ini. Setelah disimpan akan otomatis terpilih untuk soal ini, dan bisa dipilih lagi untuk soal lain.</p>
+          <p class="hint block">Stimulus hanya untuk bank ini. Setelah disimpan akan otomatis terpilih untuk soal ini, dan bisa dipilih lagi untuk soal lain. Bisa teks + gambar/audio/video/YouTube.</p>
           <div class="form-group">
             <label>Judul (untuk identifikasi di daftar)</label>
-            <input v-model="stimulusForm.title" type="text" placeholder="Contoh: Bacaan tentang ekosistem" maxlength="255" />
+            <input v-model="stimulusForm.title" type="text" placeholder="Contoh: Bacaan tentang ekosistem / Video fotosintesis" maxlength="255" />
           </div>
+          <StimulusMediaPanel v-model="stimulusForm.media" />
           <div class="form-group">
-            <label>Konten *</label>
-            <RichTextEditor v-model="stimulusForm.content" placeholder="Teks, gambar, atau tabel yang dipakai untuk beberapa soal" min-height="200px" />
+            <label>Konten teks</label>
+            <RichTextEditor v-model="stimulusForm.content" placeholder="Teks, tabel, atau gambar tambahan (opsional jika sudah ada media)" min-height="180px" />
           </div>
           <div class="modal-actions">
             <button class="btn-primary" @click="submitStimulusForm" :disabled="savingStimulus">{{ savingStimulus ? 'Menyimpan...' : 'Simpan' }}</button>
@@ -318,18 +471,23 @@
         <div class="modal content-card modal-wide preview-modal">
           <div class="preview-header">
             <h3>Preview soal</h3>
-            <span class="preview-badge">{{ typeLabel(previewQuestion?.type) }} · bobot {{ previewQuestion?.weight }}</span>
+            <span class="preview-badge">
+              {{ typeLabel(previewQuestion?.type) }}
+              · bobot {{ previewQuestion?.weight }}
+              <template v-if="previewQuestion?.cognitive_level"> · {{ cognitiveLevelLabel(previewQuestion.cognitive_level) }}</template>
+            </span>
           </div>
           <p class="hint">Tampilan mirip yang dilihat siswa (tanpa kunci jawaban).</p>
 
           <div v-if="previewQuestion?.stimulus" class="preview-stimulus">
             <div class="preview-stimulus-label">Stimulus</div>
             <div v-if="previewQuestion.stimulus.title" class="preview-stimulus-title">{{ previewQuestion.stimulus.title }}</div>
-            <div class="preview-html" v-html="previewQuestion.stimulus.content"></div>
+            <StimulusMediaView :media="previewQuestion.stimulus.media || []" />
+            <QuestionHtml class="preview-html" :html="previewQuestion.stimulus.content || ''" />
           </div>
 
           <div class="preview-body">
-            <div class="preview-html" v-html="previewQuestion?.body"></div>
+            <QuestionHtml class="preview-html" :html="previewQuestion?.body || ''" />
           </div>
 
           <div v-if="previewQuestion?.type === 'pg' || previewQuestion?.type === 'pg_kompleks'" class="preview-options">
@@ -344,7 +502,7 @@
                 :name="'preview-opt'"
               />
               <span class="preview-opt-key">{{ opt.option_key || String.fromCharCode(65 + i) }}.</span>
-              <span class="preview-html" v-html="opt.body"></span>
+              <QuestionHtml class="preview-html" tag="span" :html="opt.body || ''" />
             </label>
           </div>
 
@@ -379,7 +537,8 @@
           </div>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, reactive, onMounted, watch, computed } from 'vue'
@@ -387,6 +546,10 @@ import { useRoute } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
+import QuestionHtml from '@/components/QuestionHtml.vue'
+import { collapseMathHtml } from '@/utils/questionMath'
+import StimulusMediaPanel from '@/components/StimulusMediaPanel.vue'
+import StimulusMediaView from '@/components/StimulusMediaView.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
 
@@ -402,9 +565,30 @@ const loading = ref(false)
 const filterSubjectId = ref('')
 const filterSearch = ref('')
 const filterType = ref('')
+const filterStatus = ref('')
+const filterTopic = ref('')
+const topicOptions = ref([])
+const filterCognitiveLevel = ref('')
+const filterDifficulty = ref('')
+const filterTag = ref('')
 const filterStimulusId = ref('')
+const selectedIds = ref([])
+const bulkLoading = ref(false)
+const difficultyOptions = [
+  { value: 'mudah', label: 'Mudah' },
+  { value: 'sedang', label: 'Sedang' },
+  { value: 'sulit', label: 'Sulit' },
+]
 const pagination = ref(null)
 const perPage = ref(50)
+const cognitiveLevelOptions = [
+  { value: 'c1', label: 'C1 — Mengingat' },
+  { value: 'c2', label: 'C2 — Memahami' },
+  { value: 'c3', label: 'C3 — Menerapkan' },
+  { value: 'c4', label: 'C4 — Menganalisis' },
+  { value: 'c5', label: 'C5 — Mengevaluasi' },
+  { value: 'c6', label: 'C6 — Mencipta' },
+]
 const showForm = ref(false)
 const showStimulusForm = ref(false)
 const showPreview = ref(false)
@@ -426,8 +610,13 @@ const form = reactive({
   subject_id: '',
   stimulus_id: '',
   type: 'pg',
+  status: 'ready',
+  topic: '',
   body: '',
   weight: 1,
+  cognitive_level: '',
+  difficulty: '',
+  tagsText: '',
   key_answer: '',
   key_answer_aliases: [],
   options: [{ option_key: 'A', body: '', is_correct: false }, { option_key: 'B', body: '', is_correct: false }],
@@ -436,12 +625,16 @@ const form = reactive({
   matching_correct: []
 })
 
-const stimulusForm = reactive({ title: '', content: '' })
+const stimulusForm = reactive({ title: '', content: '', media: [] })
 
 const filteredStimuli = computed(() => stimuli.value || [])
 
 const hasActiveFilters = computed(() =>
-  !!(filterSearch.value.trim() || filterType.value || filterStimulusId.value)
+  !!(filterSearch.value.trim() || filterType.value || filterStatus.value || filterTopic.value || filterCognitiveLevel.value || filterDifficulty.value || filterTag.value.trim() || filterStimulusId.value)
+)
+
+const pageAllSelected = computed(() =>
+  questions.value.length > 0 && questions.value.every(q => selectedIds.value.includes(q.id))
 )
 
 const selectedStimulusLabel = computed(() => {
@@ -462,6 +655,11 @@ async function fetchQuestions(page = 1) {
     else if (filterSubjectId.value) params.subject_id = filterSubjectId.value
     if (filterSearch.value.trim()) params.search = filterSearch.value.trim()
     if (filterType.value) params.type = filterType.value
+    if (filterStatus.value) params.status = filterStatus.value
+    if (filterTopic.value) params.topic = filterTopic.value
+    if (filterCognitiveLevel.value) params.cognitive_level = filterCognitiveLevel.value
+    if (filterDifficulty.value) params.difficulty = filterDifficulty.value
+    if (filterTag.value.trim()) params.tag = filterTag.value.trim()
     if (filterStimulusId.value && filterStimulusId.value !== 'none') {
       params.stimulus_id = filterStimulusId.value
     } else if (filterStimulusId.value === 'none') {
@@ -493,8 +691,62 @@ function changePerPage(n) {
 function clearFilters() {
   filterSearch.value = ''
   filterType.value = ''
+  filterStatus.value = ''
+  filterTopic.value = ''
+  filterCognitiveLevel.value = ''
+  filterDifficulty.value = ''
+  filterTag.value = ''
   filterStimulusId.value = ''
+  selectedIds.value = []
   fetchQuestions(1)
+}
+
+function toggleSelected(id, checked) {
+  if (checked) {
+    if (!selectedIds.value.includes(id)) selectedIds.value = [...selectedIds.value, id]
+  } else {
+    selectedIds.value = selectedIds.value.filter(item => item !== id)
+  }
+}
+
+function togglePage(checked) {
+  const pageIds = questions.value.map(q => q.id)
+  if (checked) {
+    selectedIds.value = [...new Set([...selectedIds.value, ...pageIds])]
+  } else {
+    selectedIds.value = selectedIds.value.filter(id => !pageIds.includes(id))
+  }
+}
+
+async function bulkDelete() {
+  if (!selectedIds.value.length) return
+  if (!confirm(`Hapus ${selectedIds.value.length} soal? Yang sudah terpasang di ujian akan dilewati.`)) return
+  bulkLoading.value = true
+  try {
+    const res = await examApi.bulkDeleteQuestions(selectedIds.value)
+    toast.success('Selesai', res.data?.message || 'Soal dihapus.')
+    selectedIds.value = []
+    await fetchQuestions(pagination.value?.current_page || 1)
+  } catch (e) {
+    toast.error('Gagal menghapus', e.response?.data?.message || 'Coba lagi.')
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+async function bulkDuplicate() {
+  if (!selectedIds.value.length) return
+  bulkLoading.value = true
+  try {
+    const res = await examApi.bulkDuplicateQuestions(selectedIds.value)
+    toast.success('Selesai', res.data?.message || 'Soal disalin.')
+    selectedIds.value = []
+    await fetchQuestions(pagination.value?.current_page || 1)
+  } catch (e) {
+    toast.error('Gagal menyalin', e.response?.data?.message || 'Coba lagi.')
+  } finally {
+    bulkLoading.value = false
+  }
 }
 
 function filterByStimulus(stimulusId) {
@@ -507,9 +759,23 @@ async function loadBank() {
   try {
     const res = await examApi.getBank(bankId.value)
     currentBank.value = res.data?.data ?? res.data
-    await loadStimuli()
+    await Promise.all([loadStimuli(), loadTopics()])
   } catch (_) {
     currentBank.value = null
+  }
+}
+
+async function loadTopics() {
+  if (!bankId.value) {
+    topicOptions.value = []
+    return
+  }
+  try {
+    const res = await examApi.listQuestionTopics(bankId.value)
+    const list = res.data?.data ?? res.data ?? []
+    topicOptions.value = Array.isArray(list) ? list : []
+  } catch (_) {
+    topicOptions.value = []
   }
 }
 
@@ -544,6 +810,11 @@ function stimulusOptionLabel(st) {
 function typeLabel(type) {
   const map = { pg: 'PG', pg_kompleks: 'PG Kompleks', matching: 'Mencocokkan', isian: 'Isian', uraian: 'Uraian' }
   return map[type] || type
+}
+
+function cognitiveLevelLabel(level) {
+  const found = cognitiveLevelOptions.find(o => o.value === level)
+  return found ? found.label : (level ? String(level).toUpperCase() : '—')
 }
 
 function stripHtml(html) {
@@ -581,8 +852,13 @@ function openForm(q = null, opts = {}) {
     ? String(q.stimulus_id)
     : (prefer || (filterStimulusId.value && filterStimulusId.value !== 'none' ? filterStimulusId.value : ''))
   form.type = q?.type ?? 'pg'
+  form.status = q?.status === 'draft' ? 'draft' : 'ready'
+  form.topic = q?.topic ?? ''
   form.body = q?.body ?? ''
   form.weight = q?.weight ?? 1
+  form.cognitive_level = q?.cognitive_level ?? ''
+  form.difficulty = q?.difficulty ?? ''
+  form.tagsText = Array.isArray(q?.tags) ? q.tags.join(', ') : ''
   form.key_answer = q?.key_answer ?? ''
   form.key_answer_aliases = Array.isArray(q?.key_answer_aliases) ? [...q.key_answer_aliases] : []
   form.options = (q?.options && q.options.length) ? q.options.map(o => ({
@@ -595,18 +871,22 @@ function openForm(q = null, opts = {}) {
     : [{ option_key: 'A', body: '', is_correct: false }, { option_key: 'B', body: '', is_correct: false }])
   if (q?.type === 'matching' && q?.matching_data) {
     const md = q.matching_data
-    form.matching_left = (md.left && md.left.length) ? md.left.map((x, i) => ({ id: x.id || String(i + 1), text: x.text || '' })) : [{ id: '1', text: '' }, { id: '2', text: '' }]
-    form.matching_right = (md.right && md.right.length) ? md.right.map((x, i) => ({ id: x.id || String(form.matching_left.length + i + 1), text: x.text || '' })) : [{ id: '3', text: '' }, { id: '4', text: '' }]
-    form.matching_correct = (md.correct && md.correct.length) ? form.matching_left.map(l => {
-      const pair = md.correct.find(c => c.left_id === l.id || c.left_id === String(l.id))
+    form.matching_left = (md.left && md.left.length)
+      ? md.left.map((x, i) => ({ id: x.id || String(i + 1), text: x.text || '' }))
+      : [{ id: '1', text: '' }, { id: '2', text: '' }]
+    form.matching_right = (md.right && md.right.length)
+      ? md.right.map((x, i) => ({ id: x.id || String(form.matching_left.length + i + 1), text: x.text || '' }))
+      : [{ id: '3', text: '' }, { id: '4', text: '' }]
+    form.matching_correct = form.matching_left.map((l) => {
+      const pair = (md.correct || []).find((c) => String(c.left_id) === String(l.id))
       if (!pair) return ''
-      const rightIndex = form.matching_right.findIndex(r => r.id === pair.right_id || String(r.id) === pair.right_id)
+      const rightIndex = form.matching_right.findIndex((r) => String(r.id) === String(pair.right_id))
       return rightIndex >= 0 ? String(rightIndex) : ''
-    }) : form.matching_left.map(() => '')
+    })
   } else {
     form.matching_left = [{ id: '1', text: '' }, { id: '2', text: '' }]
     form.matching_right = [{ id: '3', text: '' }, { id: '4', text: '' }]
-    form.matching_correct = []
+    form.matching_correct = ['', '']
   }
   showForm.value = true
   loadStimuli()
@@ -625,13 +905,14 @@ function closePreview() {
 function openStimulusForm() {
   stimulusForm.title = ''
   stimulusForm.content = ''
+  stimulusForm.media = []
   showStimulusForm.value = true
 }
 
 async function submitStimulusForm() {
   const contentTrim = stripHtml(stimulusForm.content || '')
-  if (!contentTrim) {
-    toast.error('Validasi', 'Konten stimulus wajib diisi.')
+  if (!contentTrim && !(stimulusForm.media || []).length) {
+    toast.error('Validasi', 'Isi konten teks atau tambahkan minimal satu media.')
     return
   }
   if (!bankId.value) {
@@ -643,7 +924,8 @@ async function submitStimulusForm() {
     const res = await examApi.createStimulus({
       bank_soal_id: bankId.value,
       title: stimulusForm.title || null,
-      content: stimulusForm.content
+      content: collapseMathHtml(stimulusForm.content || ''),
+      media: stimulusForm.media || []
     })
     const created = res.data?.data ?? res.data
     const newId = created?.id
@@ -701,8 +983,13 @@ async function submitQuestion() {
     const payload = {
       stimulus_id: form.stimulus_id ? Number(form.stimulus_id) : null,
       type: form.type,
-      body: form.body,
+      status: form.status || 'ready',
+      topic: form.topic.trim() || null,
+      body: collapseMathHtml(form.body),
       weight: form.weight,
+      cognitive_level: form.cognitive_level || null,
+      difficulty: form.difficulty || null,
+      tags: form.tagsText.split(',').map(tag => tag.trim()).filter(Boolean).slice(0, 8),
       key_answer: form.key_answer || null,
       key_answer_aliases: form.type === 'isian'
         ? form.key_answer_aliases.map(a => (a || '').trim()).filter(Boolean)
@@ -714,25 +1001,28 @@ async function submitQuestion() {
         .filter(o => stripHtml(o.body || '') !== '')
         .map(o => ({
           option_key: o.option_key,
-          body: o.body,
+          body: collapseMathHtml(o.body),
           is_correct: !!o.is_correct,
           ...(form.type === 'pg_kompleks' && { option_weight: Number(o.option_weight) || 0 })
         }))
     }
     if (form.type === 'matching') {
-      const left = form.matching_left.filter(l => l.text.trim()).map((l, i) => ({ id: String(i + 1), text: l.text.trim() }))
-      const right = form.matching_right.filter(r => r.text.trim()).map((r, i) => ({ id: String(left.length + i + 1), text: r.text.trim() }))
+      const leftSource = form.matching_left
+        .map((l, origIdx) => ({ text: (l.text || '').trim(), origIdx }))
+        .filter((l) => l.text)
+      const rightSource = form.matching_right
+        .map((r, origIdx) => ({ text: (r.text || '').trim(), origIdx }))
+        .filter((r) => r.text)
+      const left = leftSource.map((l, i) => ({ id: String(i + 1), text: l.text }))
+      const right = rightSource.map((r, i) => ({ id: String(left.length + i + 1), text: r.text }))
+      const rightOrigToFiltered = new Map(rightSource.map((r, i) => [r.origIdx, i]))
       const correct = []
-      left.forEach((l, li) => {
-        const ri = form.matching_correct[li]
-        if (ri !== undefined && ri !== '') {
-          const rIdx = Number(ri)
-          if (form.matching_right[rIdx] && form.matching_right[rIdx].text.trim()) {
-            const filteredRightIndex = form.matching_right.slice(0, rIdx + 1).filter(r => r.text.trim()).length - 1
-            if (filteredRightIndex >= 0 && right[filteredRightIndex]) {
-              correct.push({ left_id: l.id, right_id: right[filteredRightIndex].id })
-            }
-          }
+      leftSource.forEach((l, li) => {
+        const ri = form.matching_correct[l.origIdx]
+        if (ri === undefined || ri === '' || ri === null) return
+        const filteredRightIndex = rightOrigToFiltered.get(Number(ri))
+        if (filteredRightIndex != null && right[filteredRightIndex]) {
+          correct.push({ left_id: left[li].id, right_id: right[filteredRightIndex].id })
         }
       })
       payload.matching_data = { left, right, correct }
@@ -747,12 +1037,15 @@ async function submitQuestion() {
       toast.success('Soal ditambahkan.')
     }
     showForm.value = false
-    await loadStimuli()
+    await Promise.all([loadStimuli(), loadTopics()])
     fetchQuestions(pagination.value?.current_page || 1)
   } catch (e) {
     const errors = e.response?.data?.errors
     const first = errors && typeof errors === 'object' ? Object.values(errors).flat().find(Boolean) : null
-    toast.error('Gagal menyimpan soal', first || e.response?.data?.message || 'Perubahan tidak dapat disimpan. Coba lagi.')
+    toast.error(
+      'Gagal menyimpan soal',
+      first || e.formattedMessage || e.response?.data?.message || 'Perubahan tidak dapat disimpan. Coba lagi.'
+    )
   } finally {
     saving.value = false
   }
@@ -906,7 +1199,14 @@ watch(() => route.params.bankId, (id) => {
   currentBank.value = null
   filterSearch.value = ''
   filterType.value = ''
+  filterStatus.value = ''
+  filterTopic.value = ''
+  filterCognitiveLevel.value = ''
+  filterDifficulty.value = ''
+  filterTag.value = ''
   filterStimulusId.value = ''
+  topicOptions.value = []
+  selectedIds.value = []
   if (bankId.value) {
     loadBank()
     fetchQuestions(1)
@@ -963,37 +1263,147 @@ watch(() => form.type, (newType) => {
 .pagination { display: flex; gap: 0.75rem; align-items: center; justify-content: center; margin-top: 1rem; }
 .pagination button { padding: 0.35rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; }
 .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1050; overflow-y: auto; padding: 1rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-start; justify-content: center; z-index: 1050; overflow-y: auto; padding: 1rem; }
 .modal-overlay-stimulus { z-index: 1060; }
 .modal { max-width: 560px; width: 100%; max-height: calc(100vh - 2rem); overflow-y: auto; }
 .modal-wide { max-width: 720px; }
-.form-group { margin-bottom: 1rem; }
-.form-group label { display: block; margin-bottom: 0.25rem; }
-.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; }
+.modal-question-form {
+  max-width: 820px;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  margin: 0.5rem 0 1.5rem;
+}
+.qform-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.qform-header h3 { margin: 0 0 0.2rem; font-size: 1.15rem; }
+.qform-meta { margin: 0; font-size: 0.85rem; color: #6b7280; }
+.btn-icon-close {
+  border: none; background: #f3f4f6; color: #4b5563; width: 32px; height: 32px;
+  border-radius: 6px; font-size: 1.25rem; line-height: 1; cursor: pointer; flex-shrink: 0;
+}
+.btn-icon-close:hover { background: #e5e7eb; }
+.qform-body { padding: 1rem 1.25rem; overflow-y: auto; flex: 1; min-height: 0; }
+.qform-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.qform-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.qform-section-title { margin: 0 0 0.75rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+.qform-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.35rem; margin-bottom: 0.75rem; }
+.qform-section-head .qform-section-title { margin: 0; }
+.qform-section-head .hint { margin: 0; }
+.qform-grid { display: grid; grid-template-columns: 1fr 140px; gap: 0.75rem; }
+.form-group { margin-bottom: 0.85rem; }
+.form-group:last-child { margin-bottom: 0; }
+.form-group-flush { margin-bottom: 0; }
+.form-group label { display: block; margin-bottom: 0.3rem; font-size: 0.9rem; font-weight: 500; color: #374151; }
+.form-group label .optional { font-weight: 400; color: #9ca3af; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; }
+.field-hint { margin: 0.35rem 0 0; padding: 0.5rem 0.65rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; }
 .hint { margin: 0.25rem 0 0; font-size: 0.85rem; color: #6b7280; }
 .hint.block { margin-bottom: 0.5rem; }
-.stimulus-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.stimulus-row select { flex: 1; min-width: 200px; }
+.stimulus-row { display: flex; gap: 0.5rem; align-items: center; }
+.stimulus-row select { flex: 1; min-width: 0; }
 .btn-add-stimulus { flex-shrink: 0; white-space: nowrap; }
-.option-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
-.option-row-rich { align-items: flex-start; flex-wrap: wrap; }
-.option-row-rich .opt-key { width: 44px; flex-shrink: 0; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; }
-.option-row-rich .opt-editor { flex: 1; min-width: 200px; }
-.option-row-rich .opt-correct { flex-shrink: 0; white-space: nowrap; }
-.btn-remove-opt { border: none; background: #fee2e2; color: #b91c1c; border-radius: 4px; width: 28px; height: 28px; cursor: pointer; flex-shrink: 0; }
-.option-row-pg-kompleks .opt-weight-wrap { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
-.option-row-pg-kompleks .opt-weight-label { font-size: 0.85rem; color: #6b7280; white-space: nowrap; }
-.option-row-pg-kompleks .opt-weight { width: 72px; padding: 0.35rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; }
-.matching-form .matching-columns { display: flex; gap: 1.5rem; margin-bottom: 1rem; }
-.matching-form .matching-col { flex: 1; }
-.matching-form .matching-col strong { display: block; margin-bottom: 0.5rem; }
+.option-cards { display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 0.65rem; }
+.option-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: #fafafa;
+}
+.option-card.is-correct {
+  border-color: #6ee7b7;
+  background: #f0fdf4;
+}
+.option-card :deep(.rich-text-editor) { width: 100%; }
+.option-card :deep(.ql-toolbar.ql-snow) {
+  flex-wrap: wrap;
+  padding: 4px;
+  background: #fff;
+  border-radius: 6px 6px 0 0;
+}
+.option-card :deep(.ql-container.ql-snow) {
+  border-radius: 0 0 6px 6px;
+  background: #fff;
+}
+.option-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.opt-key {
+  width: 48px;
+  flex-shrink: 0;
+  padding: 0.4rem 0.35rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 700;
+  background: #fff;
+}
+.opt-correct {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-right: auto;
+}
+.opt-weight-wrap { display: flex; align-items: center; gap: 0.35rem; }
+.opt-weight-label { font-size: 0.85rem; color: #6b7280; white-space: nowrap; margin: 0; }
+.opt-weight { width: 72px; padding: 0.35rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+.btn-remove-opt {
+  border: none; background: #fee2e2; color: #b91c1c; border-radius: 4px;
+  width: 28px; height: 28px; cursor: pointer; flex-shrink: 0; margin-left: auto;
+}
+.matching-form .matching-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.matching-form .matching-col {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+.matching-form .matching-col strong { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; }
 .matching-item { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-.matching-item .matching-num { min-width: 1.5rem; }
-.matching-item input { flex: 1; padding: 0.35rem; }
-.matching-correct { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
-.matching-correct .correct-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-.matching-correct .correct-row select { min-width: 200px; padding: 0.35rem; }
-.btn-small { margin-top: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.875rem; cursor: pointer; }
+.matching-item .matching-num { min-width: 1.5rem; color: #6b7280; font-size: 0.875rem; }
+.matching-item input { flex: 1; min-width: 0; padding: 0.4rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+.matching-correct { margin-top: 0.25rem; padding: 0.75rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; }
+.matching-correct strong { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; }
+.matching-correct .correct-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: center; margin-top: 0.5rem; }
+.matching-correct .correct-left { font-size: 0.875rem; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.matching-correct .correct-row select { min-width: 0; width: 100%; padding: 0.4rem 0.5rem; }
+.btn-small {
+  margin-top: 0.15rem; padding: 0.4rem 0.75rem; font-size: 0.875rem; cursor: pointer;
+  border: 1px dashed #94a3b8; background: #fff; color: #475569; border-radius: 6px;
+}
+.btn-small:hover { border-color: #059669; color: #059669; background: #ecfdf5; }
+.qform-footer {
+  margin: 0;
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
 .modal-actions { margin-top: 1rem; display: flex; gap: 0.5rem; }
 .btn-secondary { padding: 0.5rem 1rem; background: #e5e7eb; color: #374151; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
 .btn-link-stimulus { text-decoration: none; }
@@ -1032,6 +1442,54 @@ watch(() => form.type, (newType) => {
   white-space: nowrap;
 }
 .used-none { color: #94a3b8; }
+.col-check { width: 2.25rem; text-align: center; }
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-sm { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.25rem; }
+.tag-chip {
+  font-size: 0.7rem;
+  background: #f1f5f9;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+.filter-tag { max-width: 160px; }
+.status-chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+.status-chip.ready { color: #166534; background: #dcfce7; }
+.status-chip.draft { color: #92400e; background: #fef3c7; }
+.level-chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #5b21b6;
+  background: #ede9fe;
+  border-radius: 6px;
+  padding: 0.12rem 0.4rem;
+  letter-spacing: 0.02em;
+}
 .col-ord { width: 72px; vertical-align: middle; }
 .drag-handle { cursor: grab; color: #94a3b8; margin-right: 0.25rem; user-select: none; }
 .move-buttons { display: inline-flex; flex-direction: column; gap: 0.1rem; }
@@ -1059,16 +1517,31 @@ tr.dragging { opacity: 0.6; }
     flex-direction: column;
     align-items: stretch;
   }
+  .qform-grid {
+    grid-template-columns: 1fr;
+  }
   .stimulus-row,
-  .option-row-rich,
-  .alias-row {
+  .alias-row,
+  .option-card-top {
     flex-direction: column;
     align-items: stretch;
   }
+  .opt-correct { margin-right: 0; }
+  .btn-remove-opt { margin-left: 0; align-self: flex-end; }
   .stimulus-row select,
-  .option-row-rich .opt-editor,
   .matching-correct .correct-row select {
     min-width: 0;
+    width: 100%;
+  }
+  .matching-form .matching-columns,
+  .matching-correct .correct-row {
+    grid-template-columns: 1fr;
+  }
+  .qform-footer {
+    flex-direction: column-reverse;
+  }
+  .qform-footer .btn-primary,
+  .qform-footer .btn-secondary {
     width: 100%;
   }
 }

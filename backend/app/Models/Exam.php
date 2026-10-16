@@ -14,9 +14,12 @@ class Exam extends Model
 
     public const START_TYPE_SCHEDULED = 'scheduled';
     public const START_TYPE_MANUAL = 'manual';
+    public const DELIVERY_PROCTORED = 'proctored';
+    public const DELIVERY_PRACTICE = 'practice';
 
     protected $fillable = [
         'institution_id',
+        'exam_period_id',
         'subject_id',
         'code',
         'name',
@@ -25,6 +28,8 @@ class Exam extends Model
         'shuffle_questions',
         'shuffle_options',
         'start_type',
+        'delivery_mode',
+        'max_attempts',
         'scheduled_start_at',
         'scheduled_end_at',
         'created_by',
@@ -35,6 +40,7 @@ class Exam extends Model
         return [
             'shuffle_questions' => 'boolean',
             'shuffle_options' => 'boolean',
+            'max_attempts' => 'integer',
             'scheduled_start_at' => 'datetime',
             'scheduled_end_at' => 'datetime',
         ];
@@ -48,6 +54,11 @@ class Exam extends Model
     public function subject()
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    public function examPeriod()
+    {
+        return $this->belongsTo(ExamPeriod::class, 'exam_period_id');
     }
 
     public function createdByUser()
@@ -68,6 +79,11 @@ class Exam extends Model
     /**
      * Paket soal tidak boleh diubah setelah ada sesi yang berjalan atau selesai.
      */
+    public function isPractice(): bool
+    {
+        return $this->delivery_mode === self::DELIVERY_PRACTICE;
+    }
+
     public function questionsAreLocked(): bool
     {
         if ($this->relationLoaded('sessions')) {

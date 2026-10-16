@@ -339,19 +339,12 @@ async function exportKib() {
   exportingKib.value = true
   try {
     const response = await inventoryApi.exportKib(props.itemId)
-    const contentType = response.headers?.['content-type'] || ''
-    if (response.status !== 200 || contentType.includes('application/json')) {
-      throw new Error('Gagal mencetak KIB.')
-    }
-    const blob = response.data instanceof Blob
-      ? response.data
-      : new Blob([response.data], { type: 'application/pdf' })
     const label = item.value?.code || props.itemId
-    if (openPdfBlob(blob, `KIB-${label}.pdf`)) {
-      toast.success('Berhasil', 'Preview KIB dibuka.')
-    } else {
+    if (!(await openPdfBlob(response, `KIB-${label}.pdf`))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      return
     }
+    toast.success('Berhasil', 'Preview KIB dibuka.')
   } catch (err) {
     toast.error('Gagal', err.message || err.formattedMessage || err.response?.data?.message || 'Gagal mencetak KIB.')
   } finally {

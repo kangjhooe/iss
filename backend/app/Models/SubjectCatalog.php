@@ -79,4 +79,23 @@ class SubjectCatalog extends Model
 
         return preg_match('/^\d{4}$/', $code) === 1 && str_starts_with($code, $prefix);
     }
+
+    /**
+     * Map institution.level (SD/MI/SMP/MTs/…) ke jenjang katalog (SD/SMP/SMA/SMK/PAUD).
+     */
+    public static function jenjangFromInstitutionLevel(?string $level): ?string
+    {
+        if ($level === null || trim($level) === '') {
+            return null;
+        }
+
+        return match (strtoupper(trim($level))) {
+            'SD', 'MI' => 'SD',
+            'SMP', 'MTS' => 'SMP',
+            'SMA', 'MA' => 'SMA',
+            'SMK', 'MAK' => 'SMK',
+            'PAUD', 'TK', 'KB' => 'PAUD',
+            default => null,
+        };
+    }
 }

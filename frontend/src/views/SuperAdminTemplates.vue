@@ -5,16 +5,16 @@ import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
-import EditorSurat from '@/views/Surat/components/EditorSurat.vue'
-import Paper from '@/views/Surat/components/Paper.vue'
-import PreviewDialog from '@/views/Surat/components/PreviewDialog.vue'
-import { templateService } from '@/views/Surat/services/templateService'
+import LetterEditor from '@/views/Correspondence/components/LetterEditor.vue'
+import Paper from '@/views/Correspondence/components/Paper.vue'
+import PreviewDialog from '@/views/Correspondence/components/PreviewDialog.vue'
+import { templateService } from '@/views/Correspondence/services/templateService'
 import {
   DEFAULT_LETTER_TYPE_CODE,
   LETTER_TYPES,
   exampleLetterNumber,
   letterTypeLabel
-} from '@/views/Surat/utils/letterTypes'
+} from '@/views/Correspondence/utils/letterTypes'
 
 const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel } = useConfirmDelete()
@@ -244,7 +244,7 @@ onMounted(load)
 
           <div class="editor-area">
             <Paper :zoom="0.85">
-              <EditorSurat v-model="form.isi_html" />
+              <LetterEditor v-model="form.isi_html" />
             </Paper>
           </div>
 

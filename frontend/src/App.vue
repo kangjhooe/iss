@@ -455,7 +455,7 @@ input, textarea, select {
 
 /* Layout sidebar: tampil di desktop & tablet (≥769px), sembunyi hanya di mobile (≤768px) */
 @media screen and (min-width: 769px) {
-  .layout .sidebar {
+  .layout:not(.layout-menu-navbar) .sidebar {
     left: 0 !important;
     top: 0 !important;
     position: fixed !important;
@@ -466,17 +466,25 @@ input, textarea, select {
     visibility: visible !important;
     opacity: 1 !important;
   }
-  .layout .main-content {
+  .layout:not(.layout-menu-navbar) .main-content {
     margin-left: 280px !important;
+  }
+  .layout.layout-menu-navbar .sidebar {
+    display: none !important;
+  }
+  .layout.layout-menu-navbar .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }
 
 @media screen and (min-width: 769px) and (max-width: 1440px) {
-  .layout .sidebar {
+  .layout:not(.layout-menu-navbar) .sidebar {
     width: 240px !important;
     min-width: 240px !important;
   }
-  .layout .main-content {
+  .layout:not(.layout-menu-navbar) .main-content {
     margin-left: 240px !important;
   }
 }

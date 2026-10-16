@@ -207,6 +207,20 @@ export const facilityApi = {
     return api.get(`/v1/facility/labs/${id}/export`, { params, responseType: 'blob' })
   },
 
+  // ==================== Lab Schedule (terpisah dari jadwal pelajaran) ====================
+  getLabSchedules(params = {}) {
+    return api.get('/v1/facility/lab-schedules', { params })
+  },
+  createLabSchedule(data) {
+    return api.post('/v1/facility/lab-schedules', data)
+  },
+  updateLabSchedule(id, data) {
+    return api.put(`/v1/facility/lab-schedules/${id}`, data)
+  },
+  deleteLabSchedule(id) {
+    return api.delete(`/v1/facility/lab-schedules/${id}`)
+  },
+
   // ==================== Lab Booking ====================
   getLabBookings(params = {}) {
     return api.get('/v1/facility/lab-bookings', { params })

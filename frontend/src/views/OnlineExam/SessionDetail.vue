@@ -1,4 +1,5 @@
-<template>    <div class="session-detail-page">
+<template>
+    <div class="session-detail-page">
       <router-link :to="backLink" class="back-link">← {{ backLabel }}</router-link>
 
       <header class="session-header">
@@ -57,7 +58,13 @@
             <button v-if="session.status === 'draft' || session.status === 'scheduled'" class="btn-primary" @click="startSession" :disabled="controlLoading">Mulai ujian</button>
             <button v-if="session.status === 'started'" class="btn-danger" @click="endSession" :disabled="controlLoading">Akhiri ujian</button>
             <button v-if="session.status !== 'draft'" class="btn-secondary" @click="resetSession" :disabled="controlLoading">Reset sesi</button>
-            <button v-if="session.status === 'ended'" class="btn-secondary" @click="computeScores" :disabled="controlLoading">Hitung nilai otomatis</button>
+            <button
+              v-if="session.status === 'ended'"
+              class="btn-secondary"
+              title="Hitung skor otomatis lalu normalisasi ke skala 0–100"
+              @click="computeScores"
+              :disabled="controlLoading"
+            >Hitung nilai otomatis (0–100)</button>
           </div>
           <div v-if="session.status === 'started'" class="entry-pin-block">
             <p class="entry-pin-label">Kode ujian untuk siswa (6 huruf, diperbarui tiap 20 menit):</p>
@@ -95,6 +102,17 @@
               >
                 {{ exportLoading ? 'Mengekspor...' : 'Export Excel' }}
               </button>
+              <button
+                type="button"
+                class="btn-secondary"
+                :disabled="beritaLoading || !participants.length"
+                @click="openBeritaAcara"
+              >
+                {{ beritaLoading ? 'Menyiapkan...' : 'Berita acara' }}
+              </button>
+              <button type="button" class="btn-secondary" @click="openEssayBoard">Koreksi uraian</button>
+              <button type="button" class="btn-secondary" @click="openItemAnalysis">Analisis butir</button>
+              <button type="button" class="btn-secondary" :disabled="!participants.some(p => p.status === 'submitted' && p.score != null)" @click="showCopyGrades = true">Salin ke buku nilai</button>
               <button
                 type="button"
                 class="btn-primary"
@@ -175,6 +193,9 @@
                       <td>{{ p.student?.class?.name || '–' }}</td>
                       <td>
                         <span :class="['status-pill', p.status]">{{ participantStatusLabel(p.status) }}</span>
+                        <div v-if="p.status === 'started' && p.seconds_remaining != null" class="cell-meta">Sisa {{ formatRemaining(p.seconds_remaining) }}</div>
+                        <div v-if="p.presence === 'online'" class="cell-meta presence-online">Di halaman ujian</div>
+                        <div v-else-if="p.presence === 'away'" class="cell-meta presence-away">Terputus</div>
                       </td>
                       <td>{{ formatEntryPinTime(p.started_at) || '–' }}</td>
                       <td>{{ formatEntryPinTime(p.submitted_at) || '–' }}</td>
@@ -187,6 +208,22 @@
                       </td>
                       <td>{{ p.score_released ? 'Ya' : 'Tidak' }}</td>
                       <td class="monitor-row-actions">
+                        <button
+                          v-if="p.status === 'started'"
+                          type="button"
+                          class="btn-action"
+                          @click="openExtraTime(p)"
+                        >
+                          +Waktu
+                        </button>
+                        <button
+                          v-if="p.status === 'started'"
+                          type="button"
+                          class="btn-action"
+                          @click="forceSubmit(p)"
+                        >
+                          Kumpulkan
+                        </button>
                         <button
                           type="button"
                           class="btn-action"
@@ -390,6 +427,115 @@
           </div>
         </div>
 
+        <div v-if="extraTimeParticipant" class="modal-overlay" @click.self="extraTimeParticipant = null">
+          <div class="modal content-card">
+            <h3>Tambah waktu — {{ extraTimeParticipant.student?.name }}</h3>
+            <p class="hint">Waktu tambahan hanya berlaku untuk peserta ini, selama statusnya masih mengerjakan.</p>
+            <div class="form-group">
+              <label class="filter-label">Menit (1–60)</label>
+              <input v-model.number="extraMinutes" type="number" min="1" max="60" class="filter-select" />
+            </div>
+            <div class="modal-actions">
+              <button class="btn-primary" :disabled="extraTimeSaving || extraMinutes < 1" @click="saveExtraTime">Simpan</button>
+              <button class="btn-secondary" @click="extraTimeParticipant = null">Batal</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showCopyGrades" class="modal-overlay" @click.self="showCopyGrades = false">
+          <div class="modal content-card">
+            <h3>Salin nilai ke buku nilai</h3>
+            <p class="hint">Nilai diubah ke skala 0–100 lalu ditulis ke semester aktif. Kolom yang sama untuk siswa dan mapel ini akan ditimpa. Nilai akhir tidak diubah.</p>
+            <div class="form-group">
+              <label class="filter-label">Kolom nilai</label>
+              <select v-model="copyGradeType" class="filter-select">
+                <option value="uts">UTS</option>
+                <option value="uas">UAS</option>
+                <option v-for="n in 8" :key="n" :value="'penilaian_' + n">Penilaian {{ n }}</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button class="btn-primary" :disabled="copyGradesSaving" @click="copyToGrades">{{ copyGradesSaving ? 'Menyalin...' : 'Salin' }}</button>
+              <button class="btn-secondary" @click="showCopyGrades = false">Batal</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showEssayBoard" class="modal-overlay" @click.self="showEssayBoard = false">
+          <div class="modal content-card grading-modal essay-board">
+            <h3>Koreksi uraian per soal</h3>
+            <div v-if="essayLoading" class="loading-text">Memuat...</div>
+            <p v-else-if="!essayQuestions.length" class="hint">Tidak ada soal uraian pada paket ini, atau belum ada peserta yang mengumpulkan.</p>
+            <template v-else>
+              <div class="form-group">
+                <label class="filter-label">Soal</label>
+                <select v-model="essayQuestionId" class="filter-select">
+                  <option v-for="q in essayQuestions" :key="q.question_bank_id" :value="q.question_bank_id">
+                    Soal {{ q.number }} — {{ essayPendingLabel(q) }}
+                  </option>
+                </select>
+              </div>
+              <QuestionHtml v-if="activeEssay" class="essay-question" :html="activeEssay.body || ''" />
+              <div v-if="activeEssay" class="grading-list">
+                <div v-for="row in activeEssay.answers" :key="row.participant_id" class="grading-item">
+                  <strong>{{ row.student_name }}</strong>
+                  <span v-if="row.class_name" class="cell-meta">{{ row.class_name }}</span>
+                  <div class="grading-answer">{{ row.answer_text || '(kosong)' }}</div>
+                  <div class="grading-score-row">
+                    <label>Nilai (maks {{ row.weight }})</label>
+                    <input v-model.number="essayScores[row.participant_id]" type="number" min="0" :max="row.weight" step="0.01" class="score-input" />
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div class="modal-actions">
+              <button class="btn-primary" :disabled="essaySaving || !activeEssay" @click="saveEssayBoard">Simpan</button>
+              <button class="btn-secondary" @click="showEssayBoard = false">Tutup</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showItemAnalysis" class="modal-overlay" @click.self="showItemAnalysis = false">
+          <div class="modal content-card grading-modal">
+            <h3>Analisis butir</h3>
+            <p v-if="itemAnalysis" class="hint">{{ itemAnalysis.note }} {{ itemAnalysis.submitted }} peserta sudah mengumpulkan.</p>
+            <div v-if="itemAnalysisLoading" class="loading-text">Memuat...</div>
+            <div v-else-if="itemAnalysis" class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>Soal</th>
+                    <th>Tipe</th>
+                    <th>% benar</th>
+                    <th>Penuh</th>
+                    <th>Sebagian</th>
+                    <th>Salah</th>
+                    <th>Kosong</th>
+                    <th>Belum dinilai</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in itemAnalysis.items" :key="item.question_bank_id">
+                    <td>{{ item.number }}</td>
+                    <td>{{ item.body || '—' }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.percent_full != null ? item.percent_full + '%' : '–' }}</td>
+                    <td>{{ item.full }}</td>
+                    <td>{{ item.partial }}</td>
+                    <td>{{ item.zero }}</td>
+                    <td>{{ item.unanswered }}</td>
+                    <td>{{ item.unscored }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-actions">
+              <button class="btn-secondary" @click="showItemAnalysis = false">Tutup</button>
+            </div>
+          </div>
+        </div>
+
         <div v-if="showGradingModal" class="modal-overlay" @click.self="closeGradingModal">
           <div class="modal content-card grading-modal">
             <h3>Koreksi nilai — {{ gradingParticipant?.student?.name }}</h3>
@@ -397,7 +543,7 @@
             <div v-if="gradingAnswersLoading" class="loading-text">Memuat jawaban...</div>
             <div v-else class="grading-list">
               <div v-for="a in gradingAnswers" :key="a.id" class="grading-item">
-                <div class="grading-question">{{ a.body }}</div>
+                <QuestionHtml class="grading-question" :html="a.body || ''" />
                 <div v-if="a.type === 'uraian'" class="grading-answer">
                   <strong>Jawaban:</strong> {{ a.answer_text || '(kosong)' }}
                 </div>
@@ -433,7 +579,8 @@
           </div>
         </div>
       </template>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
@@ -441,9 +588,11 @@ import { useRoute } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { examApi } from '@/api/exam'
+import { openPdfFromAxios } from '@/utils/pdfPreview'
 import { classApi } from '@/api/class'
 import api from '@/api'
 import { useToast } from '@/composables/useToast'
+import QuestionHtml from '@/components/QuestionHtml.vue'
 
 const route = useRoute()
 const toast = useToast()
@@ -453,6 +602,7 @@ const loading = ref(true)
 const controlLoading = ref(false)
 const monitorLoading = ref(false)
 const exportLoading = ref(false)
+const beritaLoading = ref(false)
 const releaseAllLoading = ref(false)
 const resetParticipantLoading = ref(null)
 const lastMonitorAt = ref('')
@@ -473,6 +623,21 @@ const gradingAnswers = ref([])
 const gradingAnswersLoading = ref(false)
 const gradingScores = ref({})
 const gradingSaving = ref(false)
+const extraTimeParticipant = ref(null)
+const extraMinutes = ref(5)
+const extraTimeSaving = ref(false)
+const showCopyGrades = ref(false)
+const copyGradeType = ref('uts')
+const copyGradesSaving = ref(false)
+const showEssayBoard = ref(false)
+const essayLoading = ref(false)
+const essaySaving = ref(false)
+const essayQuestions = ref([])
+const essayQuestionId = ref(null)
+const essayScores = ref({})
+const showItemAnalysis = ref(false)
+const itemAnalysisLoading = ref(false)
+const itemAnalysis = ref(null)
 const entryPinLoading = ref(false)
 const showEditParticipantModal = ref(false)
 const editParticipant = ref(null)
@@ -637,6 +802,128 @@ const printSessionCardsPreviewUrl = computed(() => {
   return base + (base.includes('?') ? '&' : '?') + 'preview=1'
 })
 
+const activeEssay = computed(() => essayQuestions.value.find(q => q.question_bank_id === essayQuestionId.value) || null)
+
+watch(essayQuestionId, () => {
+  const q = activeEssay.value
+  const scores = {}
+  ;(q?.answers || []).forEach(row => {
+    scores[row.participant_id] = row.score != null ? row.score : ''
+  })
+  essayScores.value = scores
+})
+
+function formatRemaining(seconds) {
+  const s = Math.max(0, Number(seconds) || 0)
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  return `${m}:${String(r).padStart(2, '0')}`
+}
+
+function openExtraTime(p) {
+  extraTimeParticipant.value = p
+  extraMinutes.value = 5
+}
+
+async function saveExtraTime() {
+  if (!extraTimeParticipant.value) return
+  extraTimeSaving.value = true
+  try {
+    await examApi.extraTime(extraTimeParticipant.value.id, Number(extraMinutes.value))
+    toast.success('Waktu ditambah')
+    extraTimeParticipant.value = null
+    await fetchSession(true)
+  } catch (e) {
+    toast.error('Gagal menambah waktu', e.response?.data?.message || 'Coba lagi.')
+  } finally {
+    extraTimeSaving.value = false
+  }
+}
+
+async function forceSubmit(p) {
+  if (!confirm(`Kumpulkan jawaban ${p.student?.name || 'peserta'} sekarang?`)) return
+  try {
+    await examApi.forceSubmit(p.id)
+    toast.success('Jawaban dikumpulkan')
+    await fetchSession(true)
+  } catch (e) {
+    toast.error('Gagal mengumpulkan', e.response?.data?.message || 'Coba lagi.')
+  }
+}
+
+async function copyToGrades() {
+  if (!confirm('Salin nilai sesi ini ke buku nilai? Kolom yang sama akan ditimpa.')) return
+  copyGradesSaving.value = true
+  try {
+    const res = await examApi.copyToGrades(route.params.id, copyGradeType.value)
+    toast.success(res.data?.message || 'Nilai disalin')
+    showCopyGrades.value = false
+  } catch (e) {
+    toast.error('Gagal menyalin nilai', e.response?.data?.message || 'Coba lagi.')
+  } finally {
+    copyGradesSaving.value = false
+  }
+}
+
+function essayPendingLabel(q) {
+  const pending = q.pending || 0
+  return pending ? `${pending} belum dinilai` : 'selesai'
+}
+
+async function openEssayBoard() {
+  showEssayBoard.value = true
+  essayLoading.value = true
+  try {
+    const res = await examApi.essayBoard(route.params.id)
+    essayQuestionId.value = null
+    essayQuestions.value = res.data?.data?.questions || []
+    essayQuestionId.value = essayQuestions.value[0]?.question_bank_id ?? null
+  } catch (e) {
+    toast.error('Gagal memuat uraian', e.response?.data?.message || 'Coba lagi.')
+    essayQuestions.value = []
+  } finally {
+    essayLoading.value = false
+  }
+}
+
+async function saveEssayBoard() {
+  const q = activeEssay.value
+  if (!q) return
+  essaySaving.value = true
+  try {
+    for (const row of q.answers) {
+      const val = essayScores.value[row.participant_id]
+      if (val === '' || val === null || val === undefined) continue
+      await examApi.scoreEssay(route.params.id, {
+        exam_participant_id: row.participant_id,
+        question_bank_id: q.question_bank_id,
+        score: Number(val)
+      })
+    }
+    toast.success('Nilai uraian disimpan')
+    await openEssayBoard()
+    await fetchSession(true)
+  } catch (e) {
+    toast.error('Gagal menyimpan nilai', e.response?.data?.message || 'Coba lagi.')
+  } finally {
+    essaySaving.value = false
+  }
+}
+
+async function openItemAnalysis() {
+  showItemAnalysis.value = true
+  itemAnalysisLoading.value = true
+  try {
+    const res = await examApi.itemAnalysis(route.params.id)
+    itemAnalysis.value = res.data?.data || null
+  } catch (e) {
+    toast.error('Gagal memuat analisis', e.response?.data?.message || 'Coba lagi.')
+    itemAnalysis.value = null
+  } finally {
+    itemAnalysisLoading.value = false
+  }
+}
+
 function formatScore(val) {
   if (val == null || val === '') return '–'
   const n = Number(val)
@@ -753,6 +1040,20 @@ async function exportResults() {
     toast.error('Gagal export laporan', e.response?.data?.message || 'File laporan tidak dapat diunduh. Coba lagi.')
   } finally {
     exportLoading.value = false
+  }
+}
+
+async function openBeritaAcara() {
+  if (!session.value?.id) return
+  beritaLoading.value = true
+  try {
+    const res = await examApi.beritaAcara(session.value.id)
+    const opened = await openPdfFromAxios(res, 'Berita acara ujian')
+    if (!opened) toast.error('Gagal membuka berita acara', 'Izinkan pop-up untuk pratinjau PDF.')
+  } catch (e) {
+    toast.error('Gagal membuat berita acara', e.response?.data?.message || e.message || 'Coba lagi.')
+  } finally {
+    beritaLoading.value = false
   }
 }
 
@@ -1268,6 +1569,8 @@ watch([loading, () => route.query.fokus], async ([isLoading, qFokus]) => {
 .btn-page:disabled { opacity: 0.45; cursor: not-allowed; }
 .page-num { font-size: 12px; color: #475569; font-weight: 600; }
 .monitor-table .cell-meta { font-size: 0.75rem; color: #94a3b8; margin-top: 0.15rem; }
+.presence-online { color: #059669; }
+.presence-away { color: #b45309; }
 .monitor-table .score-max { color: #64748b; font-size: 0.8125rem; }
 .monitor-row-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .status-pill {
@@ -1380,6 +1683,9 @@ watch([loading, () => route.query.fokus], async ([isLoading, qFokus]) => {
 .full-width { width: 100%; }
 .modal-actions { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .grading-modal { max-width: 560px; max-height: 90vh; overflow: auto; }
+.essay-board { max-width: 720px; }
+.essay-question { background: #f8fafc; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; }
+.essay-question :deep(img) { max-width: 100%; height: auto; }
 .grading-list { margin: 1rem 0; }
 .grading-item { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
 .grading-question { font-weight: 500; margin-bottom: 0.25rem; }

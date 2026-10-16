@@ -299,6 +299,7 @@ class LessonScheduleTemplateController extends Controller
             $validated = $request->validate([
                 'lesson_schedule_template_id' => 'nullable|integer|exists:lesson_schedule_templates,id',
                 'prune_out_of_bounds' => 'nullable|boolean',
+                'clear_schedules' => 'nullable|boolean',
             ]);
 
             $result = $this->templateService->assignToClass(
@@ -308,7 +309,8 @@ class LessonScheduleTemplateController extends Controller
                     && $validated['lesson_schedule_template_id'] !== null
                     ? (int) $validated['lesson_schedule_template_id']
                     : null,
-                (bool) ($validated['prune_out_of_bounds'] ?? false)
+                (bool) ($validated['prune_out_of_bounds'] ?? false),
+                (bool) ($validated['clear_schedules'] ?? false)
             );
 
             if (! empty($result['requires_prune'])) {
@@ -324,9 +326,14 @@ class LessonScheduleTemplateController extends Controller
             }
 
             $pruned = (int) ($result['pruned_count'] ?? 0);
-            $message = $pruned > 0
-                ? "Template kelas disimpan. {$pruned} slot di luar batas dihapus."
-                : 'Template kelas berhasil disimpan.';
+            $cleared = (int) ($result['cleared_count'] ?? 0);
+            if ($cleared > 0) {
+                $message = "Template kelas disimpan. {$cleared} slot jadwal dikosongkan.";
+            } elseif ($pruned > 0) {
+                $message = "Template kelas disimpan. {$pruned} slot di luar batas dihapus.";
+            } else {
+                $message = 'Template kelas berhasil disimpan.';
+            }
 
             return response()->json([
                 'message' => $message,
@@ -334,6 +341,7 @@ class LessonScheduleTemplateController extends Controller
                     'class_id' => $result['class']->id,
                     'lesson_schedule_template_id' => $result['class']->lesson_schedule_template_id,
                     'pruned_count' => $pruned,
+                    'cleared_count' => $cleared,
                 ],
             ]);
         } catch (\InvalidArgumentException $e) {

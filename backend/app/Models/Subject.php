@@ -15,6 +15,7 @@ class Subject extends Model
 
     protected $fillable = [
         'institution_id',
+        'subject_catalog_id',
         'code',
         'name',
         'description',
@@ -31,6 +32,11 @@ class Subject extends Model
     public function institution()
     {
         return $this->belongsTo(Institution::class);
+    }
+
+    public function catalog()
+    {
+        return $this->belongsTo(SubjectCatalog::class, 'subject_catalog_id');
     }
 
     public function lessonSchedules()

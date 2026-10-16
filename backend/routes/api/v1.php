@@ -39,6 +39,7 @@ use App\Http\Controllers\API\EmployeeStructuralPositionController;
 use App\Http\Controllers\API\ExamAttemptController;
 use App\Http\Controllers\API\ExamControlController;
 use App\Http\Controllers\API\ExamController;
+use App\Http\Controllers\API\ExamPeriodController;
 use App\Http\Controllers\API\ExamParticipantController;
 use App\Http\Controllers\API\ExamSessionController;
 use App\Http\Controllers\API\ExtracurricularActivityController;
@@ -68,11 +69,13 @@ use App\Http\Controllers\API\InventoryController;
 use App\Http\Controllers\API\InventoryDisposalController;
 use App\Http\Controllers\API\InventoryLoanController;
 use App\Http\Controllers\API\InventoryMaintenanceController;
+use App\Http\Controllers\API\InventoryNeedAnalysisController;
 use App\Http\Controllers\API\InventoryReportController;
 use App\Http\Controllers\API\InventoryStockOpnameController;
 use App\Http\Controllers\API\InventoryTransactionController;
 use App\Http\Controllers\API\KopSuratController;
 use App\Http\Controllers\API\LabBookingController;
+use App\Http\Controllers\API\LabScheduleController;
 use App\Http\Controllers\API\LabUsageJournalController;
 use App\Http\Controllers\API\LessonScheduleController;
 use App\Http\Controllers\API\LessonScheduleTemplateController;
@@ -242,6 +245,10 @@ Route::middleware('throttle:60,1')->prefix('exam/attempt')->group(function () {
     Route::get('/question', [ExamAttemptController::class, 'question'])->name('exam.attempt.question');
     Route::put('/answer', [ExamAttemptController::class, 'saveAnswer'])->name('exam.attempt.answer');
     Route::post('/submit', [ExamAttemptController::class, 'submit'])->name('exam.attempt.submit');
+    Route::get('/progress', [ExamAttemptController::class, 'progress'])->name('exam.attempt.progress');
+    Route::put('/flag', [ExamAttemptController::class, 'flag'])->name('exam.attempt.flag');
+    Route::get('/review', [ExamAttemptController::class, 'review'])->name('exam.attempt.review');
+    Route::post('/retry', [ExamAttemptController::class, 'retry'])->name('exam.attempt.retry');
 });
 
 // Public school landing: institusi by NPSN, buku tamu submit
@@ -983,6 +990,12 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/lab-bookings/{id}/reject', [LabBookingController::class, 'reject']);
         Route::post('/lab-bookings/{id}/cancel', [LabBookingController::class, 'cancel']);
 
+        // Lab schedule (terpisah dari jadwal pelajaran)
+        Route::get('/lab-schedules', [LabScheduleController::class, 'index']);
+        Route::post('/lab-schedules', [LabScheduleController::class, 'store']);
+        Route::put('/lab-schedules/{lab_schedule}', [LabScheduleController::class, 'update']);
+        Route::delete('/lab-schedules/{lab_schedule}', [LabScheduleController::class, 'destroy']);
+
         // Lab usage journal
         Route::get('/lab-journals', [LabUsageJournalController::class, 'index']);
         Route::post('/lab-journals', [LabUsageJournalController::class, 'store']);
@@ -1056,6 +1069,20 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('/disposals/{disposal}/document', [InventoryDisposalController::class, 'uploadDocument'])->name('inventory.disposals.upload-document');
         Route::delete('/disposals/{disposal}/document', [InventoryDisposalController::class, 'deleteDocument'])->name('inventory.disposals.delete-document');
         Route::delete('/disposals/{disposal}', [InventoryDisposalController::class, 'destroy'])->name('inventory.disposals.destroy');
+
+        Route::get('/need-analyses/sources', [InventoryNeedAnalysisController::class, 'sources'])->name('inventory.need-analyses.sources');
+        Route::get('/need-analyses', [InventoryNeedAnalysisController::class, 'index'])->name('inventory.need-analyses.index');
+        Route::post('/need-analyses', [InventoryNeedAnalysisController::class, 'store'])->name('inventory.need-analyses.store');
+        Route::get('/need-analyses/{analysis}/export/pdf', [InventoryNeedAnalysisController::class, 'exportPdf'])->name('inventory.need-analyses.export.pdf');
+        Route::post('/need-analyses/{analysis}/refresh', [InventoryNeedAnalysisController::class, 'refresh'])->name('inventory.need-analyses.refresh');
+        Route::post('/need-analyses/{analysis}/finalize', [InventoryNeedAnalysisController::class, 'finalize'])->name('inventory.need-analyses.finalize');
+        Route::post('/need-analyses/{analysis}/reopen', [InventoryNeedAnalysisController::class, 'reopen'])->name('inventory.need-analyses.reopen');
+        Route::post('/need-analyses/{analysis}/lines', [InventoryNeedAnalysisController::class, 'storeLine'])->name('inventory.need-analyses.lines.store');
+        Route::put('/need-analyses/{analysis}/lines/{line}', [InventoryNeedAnalysisController::class, 'updateLine'])->name('inventory.need-analyses.lines.update');
+        Route::delete('/need-analyses/{analysis}/lines/{line}', [InventoryNeedAnalysisController::class, 'destroyLine'])->name('inventory.need-analyses.lines.destroy');
+        Route::get('/need-analyses/{analysis}', [InventoryNeedAnalysisController::class, 'show'])->name('inventory.need-analyses.show');
+        Route::put('/need-analyses/{analysis}', [InventoryNeedAnalysisController::class, 'update'])->name('inventory.need-analyses.update');
+        Route::delete('/need-analyses/{analysis}', [InventoryNeedAnalysisController::class, 'destroy'])->name('inventory.need-analyses.destroy');
 
         // Report routes
         Route::prefix('reports')->group(function () {
@@ -1456,6 +1483,14 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('exams/by-code/{code}', [ExamController::class, 'showByCode'])->name('exams.by-code');
         Route::apiResource('exams', ExamController::class);
         Route::post('exams/{exam}/questions', [ExamController::class, 'attachQuestions'])->name('exams.attach-questions');
+        Route::post('exams/{exam}/questions/suggest', [ExamController::class, 'suggestQuestions'])->name('exams.suggest-questions');
+        Route::get('periods', [ExamPeriodController::class, 'index'])->name('exam.periods.index');
+        Route::post('periods', [ExamPeriodController::class, 'store'])->name('exam.periods.store');
+        Route::get('periods/{exam_period}', [ExamPeriodController::class, 'show'])->name('exam.periods.show');
+        Route::put('periods/{exam_period}', [ExamPeriodController::class, 'update'])->name('exam.periods.update');
+        Route::delete('periods/{exam_period}', [ExamPeriodController::class, 'destroy'])->name('exam.periods.destroy');
+        Route::post('periods/{exam_period}/subjects', [ExamPeriodController::class, 'addSubjects'])->name('exam.periods.add-subjects');
+        Route::post('periods/{exam_period}/participants', [ExamPeriodController::class, 'syncParticipants'])->name('exam.periods.sync-participants');
         Route::get('sessions', [ExamSessionController::class, 'index'])->name('exam.sessions.index');
         Route::post('sessions', [ExamSessionController::class, 'store'])->name('exam.sessions.store');
         Route::get('sessions/{exam_session}', [ExamSessionController::class, 'show'])->name('exam.sessions.show');
@@ -1468,7 +1503,12 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('sessions/{exam_session}/compute-scores', [ExamControlController::class, 'computeScores'])->name('exam.sessions.compute-scores');
         Route::get('sessions/{exam_session}/monitor', [ExamControlController::class, 'monitor'])->name('exam.sessions.monitor');
         Route::get('sessions/{exam_session}/export-results', [ExamControlController::class, 'exportResults'])->name('exam.sessions.export-results');
+        Route::get('sessions/{exam_session}/berita-acara', [ExamControlController::class, 'beritaAcara'])->name('exam.sessions.berita-acara');
         Route::post('sessions/{exam_session}/release-scores', [ExamControlController::class, 'releaseAllScores'])->name('exam.sessions.release-scores');
+        Route::get('sessions/{exam_session}/item-analysis', [ExamControlController::class, 'itemAnalysis'])->name('exam.sessions.item-analysis');
+        Route::get('sessions/{exam_session}/essay-board', [ExamControlController::class, 'essayBoard'])->name('exam.sessions.essay-board');
+        Route::post('sessions/{exam_session}/essay-score', [ExamControlController::class, 'scoreEssay'])->name('exam.sessions.essay-score');
+        Route::post('sessions/{exam_session}/copy-to-grades', [ExamControlController::class, 'copyToGrades'])->name('exam.sessions.copy-to-grades');
         Route::get('sessions/{exam_session}/participants', [ExamParticipantController::class, 'index'])->name('exam.sessions.participants.index');
         Route::post('sessions/{exam_session}/participants', [ExamParticipantController::class, 'store'])->name('exam.sessions.participants.store');
         Route::post('sessions/{exam_session}/participants/generate-numbers', [ExamParticipantController::class, 'generateNumbers'])->name('exam.sessions.participants.generate-numbers');
@@ -1483,8 +1523,12 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::post('participants/{exam_participant}/regenerate-token', [ExamParticipantController::class, 'regenerateToken'])->name('exam.participants.regenerate-token');
         Route::get('participants/{exam_participant}/print-card', [ExamParticipantController::class, 'printCard'])->name('exam.participants.print-card');
         Route::post('participants/{exam_participant}/release-score', [ExamControlController::class, 'releaseScore'])->name('exam.participants.release-score');
+        Route::post('participants/{exam_participant}/extra-time', [ExamControlController::class, 'extraTime'])->name('exam.participants.extra-time');
+        Route::post('participants/{exam_participant}/force-submit', [ExamControlController::class, 'forceSubmit'])->name('exam.participants.force-submit');
         Route::get('subjects', [SubjectController::class, 'index'])->name('exam.subjects.index');
         Route::get('subjects-ready', [ExamController::class, 'subjectsReady'])->name('exam.subjects.ready');
+        // Upload aset soal/stimulus (path yang dipakai frontend: /v1/exam/question-assets/upload)
+        Route::post('question-assets/upload', [QuestionAssetController::class, 'uploadImage'])->name('exam.question-assets.upload');
     });
     Route::middleware(['module:online_exam', 'online_exam.entitled'])->group(function () {
         Route::apiResource('question-stimuli', QuestionStimulusController::class);
@@ -1498,7 +1542,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('banks/{bank_soal}/shares', [BankSoalController::class, 'listShares'])->name('exam.banks.shares.index');
         Route::post('banks/{bank_soal}/share', [BankSoalController::class, 'invite'])->name('exam.banks.share.invite');
         Route::delete('banks/{bank_soal}/share/{user_id}', [BankSoalController::class, 'revoke'])->name('exam.banks.share.revoke');
-        Route::post('question-assets/upload', [QuestionAssetController::class, 'uploadImage'])->name('exam.question-assets.upload');
+        // Alias lama (tanpa prefix exam) — tetap diterima
+        Route::post('question-assets/upload', [QuestionAssetController::class, 'uploadImage'])->name('exam.question-assets.upload.alias');
+        Route::get('question-bank/topics', [QuestionBankController::class, 'topics'])->name('exam.question-bank.topics');
+        Route::post('question-bank/bulk-delete', [QuestionBankController::class, 'bulkDestroy'])->name('exam.question-bank.bulk-delete');
+        Route::post('question-bank/bulk-duplicate', [QuestionBankController::class, 'bulkDuplicate'])->name('exam.question-bank.bulk-duplicate');
         Route::post('question-bank/reorder', [QuestionBankController::class, 'reorder'])->name('exam.question-bank.reorder');
         Route::get('question-bank/import-template', [QuestionBankController::class, 'importTemplate'])->name('exam.question-bank.import-template');
         Route::post('question-bank/import', [QuestionBankController::class, 'import'])->name('exam.question-bank.import');

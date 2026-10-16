@@ -19,6 +19,9 @@ class ExamQuestionResource extends JsonResource
         $body = $snap['body'] ?? $live?->body ?? '';
         $plain = trim(html_entity_decode(strip_tags((string) $body), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
+        $stimulus = $snap['stimulus'] ?? null;
+        $liveStimulus = $live?->relationLoaded('stimulus') ? $live->stimulus : null;
+
         return [
             'id' => $this->id,
             'question_bank_id' => $this->question_bank_id,
@@ -27,6 +30,9 @@ class ExamQuestionResource extends JsonResource
             'type' => $snap['type'] ?? $live?->type,
             'body_preview' => mb_substr($plain, 0, 120),
             'weight' => (float) ($snap['weight'] ?? $live?->weight ?? 0),
+            'cognitive_level' => $snap['cognitive_level'] ?? $live?->cognitive_level,
+            'stimulus_id' => $stimulus['id'] ?? $live?->stimulus_id,
+            'stimulus_title' => $stimulus['title'] ?? $liveStimulus?->title,
             'bank_soal_id' => $snap['bank_soal_id'] ?? $live?->bank_soal_id,
             'bank_code' => $snap['bank_code'] ?? $bank?->code,
             'bank_name' => $snap['bank_name'] ?? $bank?->name,

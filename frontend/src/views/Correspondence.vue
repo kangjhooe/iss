@@ -1,4 +1,5 @@
-<template>    <div class="correspondence-page">
+<template>
+    <div class="correspondence-page">
       <div class="page-header">
         <div class="header-content">
           <div>
@@ -886,7 +887,8 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    /></template>
+    />
+</template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
@@ -900,6 +902,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { ensurePdfBlob } from '@/utils/pdfPreview'
 
 const toast = useToast()
 const referenceData = useReferenceDataStore()
@@ -1819,7 +1822,7 @@ const sendCorrespondence = async (id) => {
 const printCorrespondence = async (id) => {
   try {
     const response = await correspondenceApi.print(id)
-    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const blob = await ensurePdfBlob(response, 'Gagal mencetak surat')
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

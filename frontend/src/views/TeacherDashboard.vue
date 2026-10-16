@@ -495,7 +495,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppChart from '@/components/AppChart.vue'
 import { teacherApi } from '@/api/teacher'
-import { waliKelasApi } from '@/api/waliKelas'
+import { homeroomApi } from '@/api/homeroom'
 import { myTeacherAppreciationApi } from '@/api/teacherAppreciation'
 import correspondenceApi from '@/api/correspondence'
 import { useAuthStore } from '@/stores/auth'
@@ -679,7 +679,7 @@ async function loadWaliSnapshot() {
   waliDashLoading.value = true
   waliDashError.value = ''
   try {
-    const res = await waliKelasApi.getDashboard(waliClassId.value)
+    const res = await homeroomApi.getDashboard(waliClassId.value)
     waliDash.value = res.data?.data || null
   } catch (error) {
     waliDash.value = null
@@ -696,9 +696,17 @@ const canAccessModule = (moduleKey) => {
   const role = authStore.user?.role
   if (!role) return false
   if (role === 'super_admin' || role === 'admin' || role === 'institution_admin') return true
+  if (moduleKey === 'online_exam' && !authStore.isOnlineExamEntitled) return false
   if ((authStore.user?.permissions || []).includes(moduleKey)) return true
   if (moduleKey === 'guru_piket'
     && (authStore.user?.is_piket_scheduled || authStore.user?.is_piket_on_duty || piketToday.value?.is_on_duty)) {
+    return true
+  }
+  if (
+    moduleKey === 'online_exam'
+    && (role === 'teacher' || role === 'staff')
+    && (authStore.user?.teaching_assignments || []).length > 0
+  ) {
     return true
   }
   return false

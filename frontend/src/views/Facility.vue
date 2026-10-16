@@ -1,4 +1,5 @@
-<template>    <div class="facility-page">
+<template>
+    <div class="facility-page">
       <div class="tab-shell">
         <nav class="section-nav" role="tablist" aria-label="Sarana prasarana">
           <button type="button" @click="activeTab = 'land'" :class="['sec-btn', { active: activeTab === 'land' }]">
@@ -642,13 +643,15 @@
           </div>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'
 import { useToast } from '@/composables/useToast'
+import { ensurePdfBlob, openPdfPreviewWindow } from '@/utils/pdfPreview'
 
 const toast = useToast()
 
@@ -1108,64 +1111,16 @@ const confirmDelete = async () => {
   }
 }
 
-const openPdfPreview = (blob, title) => {
-  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-  const win = window.open('', '_blank')
-  if (!win) {
-    toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-    URL.revokeObjectURL(url)
-    return false
-  }
-  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
-    <style>
-      * { box-sizing: border-box; }
-      body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
-      .toolbar {
-        display: flex; align-items: center; justify-content: space-between; gap: 12px;
-        padding: 10px 14px; background: #0f172a; color: #f8fafc;
-        border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
-      }
-      .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
-      .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
-      .actions { display: flex; gap: 8px; flex-shrink: 0; }
-      .actions button {
-        border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
-        cursor: pointer; font-size: 13px;
-      }
-      .btn-print { background: #059669; color: #fff; }
-      .btn-close { background: #334155; color: #e2e8f0; }
-      iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
-    </style></head><body>
-    <div class="toolbar">
-      <h1>${title}<span class="hint">Preview cetak</span></h1>
-      <div class="actions">
-        <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-        <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-      </div>
-    </div>
-    <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
-  </body></html>`)
-  win.document.close()
-  setTimeout(() => URL.revokeObjectURL(url), 120_000)
-  return true
-}
-
 const exportPdf = async () => {
   exportingPdf.value = true
   try {
     const response = await facilityApi.exportPdf()
-    const contentType = response.headers?.['content-type'] || ''
-    if (response.status !== 200 || contentType.includes('application/json')) {
-      const text = typeof response.data?.text === 'function' ? await response.data.text() : String(response.data)
-      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
-      throw new Error(json.message || 'Gagal mencetak laporan sarana prasarana.')
+    const blob = await ensurePdfBlob(response, 'Gagal mencetak laporan sarana prasarana.')
+    if (!openPdfPreviewWindow(blob, 'Preview Laporan Sarana Prasarana')) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      return
     }
-    const blob = response.data instanceof Blob
-      ? response.data
-      : new Blob([response.data], { type: 'application/pdf' })
-    if (openPdfPreview(blob, 'Preview Laporan Sarana Prasarana')) {
-      toast.success('Berhasil', 'Preview PDF Sarana Prasarana dibuka.')
-    }
+    toast.success('Berhasil', 'Preview PDF Sarana Prasarana dibuka.')
   } catch (err) {
     toast.error('Gagal', err.message || err.formattedMessage || err.response?.data?.message || 'Gagal mencetak laporan sarana prasarana.')
   } finally {

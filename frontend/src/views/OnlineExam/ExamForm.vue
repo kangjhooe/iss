@@ -1,4 +1,5 @@
-<template>    <div class="exam-form-page">
+<template>
+    <div class="exam-form-page">
       <div class="page-bg">
         <div class="page-bg-orb page-bg-orb-1"></div>
         <div class="page-bg-orb page-bg-orb-2"></div>
@@ -25,12 +26,29 @@
             </div>
             <h1 class="card-title">{{ isEdit ? 'Edit Ujian' : 'Buat Ujian Baru' }}</h1>
             <p class="card-subtitle">
-              {{ isEdit ? 'Perbarui identitas ujian.' : 'Isi identitas ujian. Soal, waktu, dan jadwal diatur nanti di halaman detail ujian.' }}
+              {{ isEdit ? 'Perbarui identitas ujian.' : 'Langkah 1 dari 3: identitas & mata pelajaran. Berikutnya pilih paket soal, lalu sesi.' }}
             </p>
           </div>
 
+          <ol v-if="!isEdit" class="wizard-steps" aria-label="Langkah membuat ujian">
+            <li class="wizard-step is-active"><span class="wizard-num">1</span> Identitas</li>
+            <li class="wizard-step"><span class="wizard-num">2</span> Paket soal</li>
+            <li class="wizard-step"><span class="wizard-num">3</span> Sesi</li>
+          </ol>
+
           <form @submit.prevent="submit" class="exam-form">
             <div class="form-section">
+              <div class="form-group">
+                <label class="field-label">Mata pelajaran <span class="required">*</span></label>
+                <div class="input-wrapper input-wrapper-select">
+                  <select v-model="form.subject_id" required class="field-input field-select" :disabled="subjectsLoading">
+                    <option disabled value="">{{ subjectsLoading ? 'Memuat…' : 'Pilih mata pelajaran' }}</option>
+                    <option v-for="s in subjects" :key="s.id" :value="Number(s.id)">{{ s.name }}</option>
+                  </select>
+                </div>
+                <span class="form-hint">Menentukan bank soal yang bisa dipilih ke paket ujian.</span>
+              </div>
+
               <div class="form-group">
                 <label class="field-label">Kode Ujian <span class="required">*</span></label>
                 <div class="input-wrapper">
@@ -90,14 +108,15 @@
             <div class="form-actions">
               <button type="submit" class="btn-submit" :disabled="saving">
                 <span v-if="saving" class="btn-spinner"></span>
-                <span class="btn-text">{{ saving ? 'Menyimpan...' : (isEdit ? 'Simpan Perubahan' : 'Buat Ujian') }}</span>
+                <span class="btn-text">{{ saving ? 'Menyimpan...' : (isEdit ? 'Simpan Perubahan' : 'Lanjut: pilih soal') }}</span>
               </button>
               <router-link to="/ujian-online/exams" class="btn-cancel">Batal</router-link>
             </div>
           </form>
         </div>
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
@@ -110,14 +129,36 @@ const router = useRouter()
 const toast = useToast()
 const isEdit = computed(() => !!route.params.code && route.params.code !== 'buat')
 const saving = ref(false)
-const examId = ref(null) // set when loading exam for edit (untuk panggilan API update)
+const examId = ref(null)
+const subjects = ref([])
+const subjectsLoading = ref(false)
 
 const form = reactive({
   code: '',
   name: '',
   description: '',
-  subject_id: null // untuk edit: disimpan dari API, dikirim saat update
+  subject_id: ''
 })
+
+async function loadSubjects() {
+  subjectsLoading.value = true
+  try {
+    const res = await examApi.listSubjects({ per_page: 'all', active_only: true })
+    const list = res.data?.data ?? res.data ?? []
+    subjects.value = Array.isArray(list) ? list : []
+    const qSid = route.query.subject_id
+    if (!isEdit.value && qSid && !form.subject_id) {
+      form.subject_id = Number(qSid)
+    }
+    if (!isEdit.value && !form.subject_id && subjects.value.length === 1) {
+      form.subject_id = Number(subjects.value[0].id)
+    }
+  } catch (_) {
+    subjects.value = []
+  } finally {
+    subjectsLoading.value = false
+  }
+}
 
 async function loadExam() {
   if (!isEdit.value) return
@@ -128,25 +169,27 @@ async function loadExam() {
     form.code = d.code ?? ''
     form.name = d.name ?? ''
     form.description = d.description ?? ''
-    form.subject_id = d.subject_id ?? null
+    form.subject_id = d.subject_id != null ? Number(d.subject_id) : ''
   } catch (e) {
     toast.error('Gagal memuat ujian', e.response?.data?.message || 'Data ujian tidak dapat dimuat. Periksa koneksi dan coba lagi.')
   }
 }
 
 async function submit() {
+  if (!form.subject_id) {
+    toast.error('Validasi', 'Mata pelajaran wajib dipilih.')
+    return
+  }
   saving.value = true
   try {
     const payload = {
       code: form.code.trim(),
       name: form.name.trim(),
       description: form.description?.trim() || null,
+      subject_id: Number(form.subject_id),
       start_type: 'manual',
       scheduled_start_at: null,
       scheduled_end_at: null
-    }
-    if (isEdit.value) {
-      if (form.subject_id != null && form.subject_id !== '') payload.subject_id = form.subject_id
     }
     if (isEdit.value) {
       await examApi.updateExam(examId.value, payload)
@@ -154,11 +197,11 @@ async function submit() {
       router.push(`/ujian-online/exams/${encodeURIComponent(form.code)}`)
     } else {
       const res = await examApi.createExam(payload)
-      toast.success('Berhasil', 'Ujian dibuat. Selanjutnya: pilih soal dari bank (boleh lintas tingkat), lalu atur sesi.')
+      toast.success('Berhasil', 'Langkah 1 selesai. Sekarang pilih paket soal dari bank mapel ini.')
       const created = res.data?.data ?? res.data
       const code = created?.code
-      if (code) router.push(`/ujian-online/exams/${encodeURIComponent(code)}`)
-      else if (created?.id) router.push(`/ujian-online/exams/${created.id}`)
+      if (code) router.push(`/ujian-online/exams/${encodeURIComponent(code)}?fokus=paket`)
+      else if (created?.id) router.push(`/ujian-online/exams/${created.id}?fokus=paket`)
       else router.push('/ujian-online/exams')
     }
   } catch (e) {
@@ -168,8 +211,9 @@ async function submit() {
   }
 }
 
-onMounted(() => {
-  loadExam()
+onMounted(async () => {
+  await loadSubjects()
+  await loadExam()
 })
 </script>
 
@@ -324,6 +368,60 @@ onMounted(() => {
   color: #64748b;
   margin: 0;
   line-height: 1.5;
+}
+
+.wizard-steps {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.wizard-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+.wizard-step.is-active {
+  color: #047857;
+  background: rgba(5, 150, 105, 0.12);
+}
+
+.wizard-num {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.wizard-step.is-active .wizard-num {
+  background: #059669;
+  color: #fff;
+}
+
+.input-wrapper-select .field-select {
+  appearance: none;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+.field-select {
+  width: 100%;
 }
 
 .exam-form {

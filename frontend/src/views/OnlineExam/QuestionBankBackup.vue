@@ -70,8 +70,9 @@ import TableAction from '@/components/TableAction.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { examApi } from '@/api/exam'
 import { useToast } from '@/composables/useToast'
+import { collapseMathHtml } from '@/utils/questionMath'
 
-const { toast } = useToast()
+const toast = useToast()
 const stimuli = ref([])
 const subjects = ref([])
 const loading = ref(false)
@@ -132,14 +133,14 @@ async function submitForm() {
       await examApi.updateStimulus(editingId.value, {
         subject_id: form.subject_id || null,
         title: form.title || null,
-        content: form.content
+        content: collapseMathHtml(form.content)
       })
       toast.success('Berhasil', 'Stimulus diperbarui.')
     } else {
       await examApi.createStimulus({
         subject_id: form.subject_id || null,
         title: form.title || null,
-        content: form.content
+        content: collapseMathHtml(form.content)
       })
       toast.success('Berhasil', 'Stimulus ditambahkan.')
     }

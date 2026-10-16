@@ -63,6 +63,21 @@ class LessonScheduleService
      */
     public function getByClass(int $classId, int $semesterId, int $institutionId): array
     {
+        $class = SchoolClass::query()
+            ->where('id', $classId)
+            ->where('institution_id', $institutionId)
+            ->first();
+
+        // Bersihkan jadwal orphan (semester_id ≠ semester kelas/filter) agar tidak
+        // menghilang dari UI tapi tetap memblokir hapus mata pelajaran.
+        if ($class) {
+            $this->templateService->purgeOrphanClassSchedules(
+                $institutionId,
+                $classId,
+                $semesterId
+            );
+        }
+
         $schedules = LessonSchedule::with(['subject:id,code,name', 'employee:id,name', 'room:id,name'])
             ->forInstitution($institutionId)
             ->forSemester($semesterId)
@@ -70,11 +85,6 @@ class LessonScheduleService
             ->orderBy('day_of_week')
             ->orderBy('period')
             ->get();
-
-        $class = SchoolClass::query()
-            ->where('id', $classId)
-            ->where('institution_id', $institutionId)
-            ->first();
 
         $template = $this->templateService->getForClass($institutionId, $semesterId, $classId);
         $days = LessonScheduleTemplate::normalizeDays($template->days ?? []);
@@ -259,6 +269,7 @@ class LessonScheduleService
         unset($data['allow_teacher_conflict']);
 
         $this->validateBelongsToInstitution($institutionId, $data);
+        $this->assertScheduleSemesterMatchesClass($data);
         $this->assertWithinTemplate(
             (int) $data['semester_id'],
             $institutionId,
@@ -352,6 +363,10 @@ class LessonScheduleService
 
         $this->purgeTrashedSlot($semesterId, $classId, $dayOfWeek, $period, $schedule->id);
         $this->assertSlotUnique($semesterId, $classId, $dayOfWeek, $period, $schedule->id);
+        $this->assertScheduleSemesterMatchesClass([
+            'class_id' => $classId,
+            'semester_id' => $semesterId,
+        ]);
         $this->assertWithinTemplate($semesterId, (int) $schedule->institution_id, $dayOfWeek, $period, $classId);
         if (! $allowTeacherConflict) {
             $this->assertTeacherAvailable($employeeId, $semesterId, $dayOfWeek, $period, $schedule->id);
@@ -575,6 +590,28 @@ class LessonScheduleService
         }
         if (!empty($data['room_id'])) {
             \App\Models\Room::where('id', $data['room_id'])->where('institution_id', $institutionId)->firstOrFail();
+        }
+    }
+
+    /**
+     * Prevent orphan rows where schedule.semester_id ≠ class.semester_id.
+     * Those rows vanish from the class matrix UI but still block subject deletion.
+     */
+    private function assertScheduleSemesterMatchesClass(array $data): void
+    {
+        if (empty($data['class_id']) || empty($data['semester_id'])) {
+            return;
+        }
+
+        $class = SchoolClass::query()->find((int) $data['class_id']);
+        if (! $class) {
+            return;
+        }
+
+        if ((int) $class->semester_id !== (int) $data['semester_id']) {
+            throw new \InvalidArgumentException(
+                'Semester jadwal harus sama dengan semester kelas.'
+            );
         }
     }
 

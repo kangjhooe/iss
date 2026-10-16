@@ -87,6 +87,13 @@ class LessonScheduleController extends Controller
 
             $data = $request->validated();
             if (empty($data['semester_id'])) {
+                // Prefer semester kelas agar tidak tercipta orphan vs semester aktif institusi.
+                if (! empty($data['class_id'])) {
+                    $class = \App\Models\SchoolClass::query()->find((int) $data['class_id']);
+                    $data['semester_id'] = $class?->semester_id;
+                }
+            }
+            if (empty($data['semester_id'])) {
                 $institution = Institution::find($institutionId);
                 $data['semester_id'] = $institution?->active_semester_id;
             }

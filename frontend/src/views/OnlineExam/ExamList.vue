@@ -1,4 +1,5 @@
-<template>    <div class="exam-list-page">
+<template>
+    <div class="exam-list-page">
       <header class="page-header">
         <div class="header-content">
           <div>
@@ -6,7 +7,7 @@
             <p class="page-subtitle">Kelola ujian dan sesi</p>
           </div>
           <div class="header-actions">
-            <router-link to="/ujian-online/exams/buat" class="btn-primary btn-compact btn-add">
+            <router-link :to="createExamLink" class="btn-primary btn-compact btn-add">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -23,7 +24,7 @@
       <div v-else-if="exams.length === 0" class="empty-state content-card">
         <h3>Belum ada ujian</h3>
         <p>Buat ujian baru, lalu pilih soal dari bank (boleh lintas tingkat, selama mapel sama).</p>
-        <router-link to="/ujian-online/exams/buat" class="btn-primary btn-compact btn-add">Buat Ujian</router-link>
+        <router-link :to="createExamLink" class="btn-primary btn-compact btn-add">Buat Ujian</router-link>
       </div>
       <div v-else class="table-wrap content-card">
         <div class="table-scroll">
@@ -82,10 +83,11 @@
           @per-page-change="changePerPage"
         />
       </div>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { examApi } from '@/api/exam'
@@ -97,6 +99,12 @@ const exams = ref([])
 const loading = ref(true)
 const pagination = ref(null)
 const perPage = ref(15)
+const createExamLink = computed(() => {
+  const sid = route.query.subject_id
+  return sid
+    ? { path: '/ujian-online/exams/buat', query: { subject_id: String(sid) } }
+    : '/ujian-online/exams/buat'
+})
 
 async function fetchExams(page = 1) {
   loading.value = true

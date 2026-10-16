@@ -16,6 +16,7 @@ class QuestionBankImportService
         'type',
         'body',
         'weight',
+        'cognitive_level',
         'key_answer',
         'key_aliases',
         'option_a',
@@ -102,6 +103,13 @@ class QuestionBankImportService
             $weight = 0;
         }
 
+        $cognitiveLevel = strtolower(trim((string) ($row['cognitive_level'] ?? '')));
+        if ($cognitiveLevel === '') {
+            $cognitiveLevel = null;
+        } elseif (! array_key_exists($cognitiveLevel, QuestionBank::COGNITIVE_LEVELS)) {
+            throw new \InvalidArgumentException('cognitive_level harus c1–c6 atau kosong.');
+        }
+
         $stimulusId = null;
         $stimulusTitle = trim((string) ($row['stimulus_title'] ?? ''));
         if ($stimulusTitle !== '') {
@@ -139,6 +147,7 @@ class QuestionBankImportService
             'type' => $type,
             'body' => '<p>'.e($body).'</p>',
             'weight' => $weight,
+            'cognitive_level' => $cognitiveLevel,
             'sort_order' => $sortOrder,
             'key_answer' => $type === 'isian' ? $keyAnswer : null,
             'key_answer_aliases' => $type === 'isian' && $aliases !== [] ? $aliases : null,
@@ -254,6 +263,11 @@ class QuestionBankImportService
             'pertanyaan' => 'body',
             'soal' => 'body',
             'bobot' => 'weight',
+            'cognitive_level' => 'cognitive_level',
+            'level' => 'cognitive_level',
+            'level_kognitif' => 'cognitive_level',
+            'taksonomi' => 'cognitive_level',
+            'c1_c6' => 'cognitive_level',
             'kunci' => 'key_answer',
             'kunci_jawaban' => 'key_answer',
             'alias' => 'key_aliases',

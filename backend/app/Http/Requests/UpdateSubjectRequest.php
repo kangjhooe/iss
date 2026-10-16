@@ -20,6 +20,7 @@ class UpdateSubjectRequest extends FormRequest
         $institutionId = $subject?->institution_id
             ?? ($user ? InstitutionContext::resolveForUser($user, $this, $this->get('institution_id')) : null);
         return [
+            'subject_catalog_id' => 'nullable|integer|exists:subject_catalog,id',
             'code' => [
                 'sometimes',
                 'string',

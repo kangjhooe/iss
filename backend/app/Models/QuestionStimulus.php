@@ -19,6 +19,11 @@ class QuestionStimulus extends Model
         'content',
         'type',
         'attachment_path',
+        'media',
+    ];
+
+    protected $casts = [
+        'media' => 'array',
     ];
 
     public function institution()

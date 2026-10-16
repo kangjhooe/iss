@@ -1,4 +1,5 @@
-<template>    <div class="sp-page">
+<template>
+    <div class="sp-page">
       <div v-if="!studentId && authStore.user?.role === 'student'" class="sp-alert sp-alert-warning">
         <strong>Profil siswa tidak ditemukan.</strong> Data Anda mungkin belum dihubungkan dengan data siswa di sekolah.
       </div>
@@ -105,7 +106,8 @@
           </article>
         </div>
       </template>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
@@ -114,6 +116,7 @@ import { countStatuses, ATTENDANCE_LABELS } from '@/composables/useChart'
 import { useToast } from '@/composables/useToast'
 import { semesterApi } from '@/api/semester'
 import { studentAttendanceApi } from '@/api/attendance'
+import { ensurePdfBlob } from '@/utils/pdfPreview'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -223,7 +226,7 @@ async function exportPdf() {
   exporting.value = true
   try {
     const res = await studentAttendanceApi.exportMy(cleanParams())
-    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const blob = await ensurePdfBlob(res, 'Riwayat absensi tidak dapat diekspor.')
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -234,7 +237,7 @@ async function exportPdf() {
     window.URL.revokeObjectURL(url)
     toast.success('Berhasil', 'Riwayat absensi PDF berhasil diunduh')
   } catch (e) {
-    toast.error('Gagal mengekspor', e.formattedMessage || 'Riwayat absensi tidak dapat diekspor.')
+    toast.error('Gagal mengekspor', e.message || e.formattedMessage || 'Riwayat absensi tidak dapat diekspor.')
   } finally {
     exporting.value = false
   }

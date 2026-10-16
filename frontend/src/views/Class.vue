@@ -1,4 +1,5 @@
-<template>    <div class="class-page">
+<template>
+    <div class="class-page">
       <div class="toolbar">
         <div class="filters filters-inline">
           <input 
@@ -391,7 +392,8 @@
       @confirm="handleConfirm"
       @cancel="handleCancel"
       @update:show="confirmDialog.show = $event"
-    /></template>
+    />
+</template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
@@ -400,7 +402,7 @@ import { classApi } from '@/api/class'
 import { institutionApi } from '@/api/institution'
 import { facilityApi } from '@/api/facility'
 import { teacherApi } from '@/api/teacher'
-import { programKeahlianApi } from '@/api/programKeahlian'
+import { vocationalProgramApi } from '@/api/vocationalProgram'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { studentApi } from '@/api/student'
 import { useToast } from '@/composables/useToast'
@@ -408,6 +410,7 @@ import { useConfirmDelete } from '@/composables/useConfirmDelete'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { isVocationalLevel } from '@/utils/institution'
+import { openPdfFromAxios } from '@/utils/pdfPreview'
 
 const toast = useToast()
 const { confirmDialog, showConfirm, handleConfirm, handleCancel, setLoading: setDeleteLoading } = useConfirmDelete()
@@ -514,7 +517,7 @@ const loadProgramKeahlian = async () => {
     return
   }
   try {
-    const response = await programKeahlianApi.getAll({ status: 'Aktif', all: 1 })
+    const response = await vocationalProgramApi.getAll({ status: 'Aktif', all: 1 })
     programKeahlianList.value = response.data?.data || response.data || []
   } catch (err) {
     console.error('Failed to load program keahlian:', err)
@@ -855,56 +858,11 @@ const exportPdf = async () => {
     })
 
     const response = await classApi.exportPdf(params)
-    const contentType = response.headers?.['content-type'] || ''
-    if (response.status !== 200 || contentType.includes('application/json')) {
-      const text = typeof response.data?.text === 'function' ? await response.data.text() : String(response.data)
-      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
-      throw new Error(json.message || 'Gagal mencetak data kelas.')
-    }
-
-    const blob = response.data instanceof Blob
-      ? response.data
-      : new Blob([response.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-    const win = window.open('', '_blank')
-    if (!win) {
+    const title = 'Preview Data Kelas'
+    if (!(await openPdfFromAxios(response, title, 'Gagal mencetak data kelas.'))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-      URL.revokeObjectURL(url)
       return
     }
-
-    const title = 'Preview Data Kelas'
-    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
-      <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
-        .toolbar {
-          display: flex; align-items: center; justify-content: space-between; gap: 12px;
-          padding: 10px 14px; background: #0f172a; color: #f8fafc;
-          border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
-        }
-        .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
-        .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
-        .actions { display: flex; gap: 8px; flex-shrink: 0; }
-        .actions button {
-          border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
-          cursor: pointer; font-size: 13px;
-        }
-        .btn-print { background: #059669; color: #fff; }
-        .btn-close { background: #334155; color: #e2e8f0; }
-        iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
-      </style></head><body>
-      <div class="toolbar">
-        <h1>${title}<span class="hint">Preview cetak</span></h1>
-        <div class="actions">
-          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-        </div>
-      </div>
-      <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
-    </body></html>`)
-    win.document.close()
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
     toast.success('Berhasil', 'Preview PDF Data Kelas dibuka.')
   } catch (err) {
     console.error('Failed to export PDF:', err)

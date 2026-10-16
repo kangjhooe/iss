@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { clearAuth } from '@/utils/tokenStorage'
 import { shouldHardRedirectToLogin } from '@/utils/appLayout'
+import { isNonFileBlobResponse, parseBlobError } from '@/utils/blobError'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -98,7 +99,22 @@ async function refreshAccessToken() {
 
 // Response interceptor untuk handle error
 api.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    // Blob 200 yang isinya HTML SPA / JSON error → tolak di sini agar semua
+    // export PDF/Excel tidak membuka sampah sebagai file.
+    if (await isNonFileBlobResponse(response)) {
+      const message = await parseBlobError(
+        { response },
+        'Server mengembalikan halaman HTML/JSON, bukan berkas unduhan.'
+      )
+      const error = new Error(message)
+      error.response = response
+      error.formattedMessage = message
+      error.isBlobContentMismatch = true
+      return Promise.reject(error)
+    }
+    return response
+  },
   async (error) => {
     const originalRequest = error.config
 

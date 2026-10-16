@@ -1,4 +1,5 @@
-<template>    <div class="banks-page">
+<template>
+    <div class="banks-page">
       <!-- Breadcrumb -->
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <router-link to="/ujian-online" class="breadcrumb-link">Ujian Online</router-link>
@@ -31,17 +32,17 @@
           class="filter-search"
           placeholder="Cari kode atau nama bank..."
           autocomplete="off"
-          @keydown.enter.prevent="fetchBanks"
+          @keydown.enter.prevent="applyFilters"
         />
-        <select v-model="filterSubjectId" @change="fetchBanks" class="filter-select" aria-label="Filter mata pelajaran">
-          <option value="">Semua mapel</option>
-          <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
+        <select v-model="filterSubjectId" @change="applyFilters" class="filter-select" aria-label="Filter mata pelajaran">
+          <option value="">{{ isSubjectScopedTeacher ? 'Semua mapel diampu' : 'Semua mapel' }}</option>
+          <option v-for="s in subjectOptions" :key="s.id" :value="s.id">{{ s.name }}</option>
         </select>
-        <select v-if="gradeOptions.length" v-model="filterGrade" @change="fetchBanks" class="filter-select" aria-label="Filter tingkat rak">
+        <select v-if="gradeOptions.length" v-model="filterGrade" @change="applyFilters" class="filter-select" aria-label="Filter tingkat rak">
           <option value="">Semua tingkat</option>
           <option v-for="g in gradeOptions" :key="g" :value="String(g)">Kelas {{ g }}</option>
         </select>
-        <button type="button" class="btn-secondary btn-filter" @click="fetchBanks">Cari</button>
+        <button type="button" class="btn-secondary btn-filter" @click="applyFilters">Cari</button>
       </div>
 
       <!-- Loading -->
@@ -61,9 +62,10 @@
             <path d="M8 7h8M8 11h8M8 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h3>Belum ada bank soal</h3>
-        <p>Buat bank soal per mapel sebagai gudang jangka panjang. Tingkat rak opsional — soal tetap bisa dipakai di ujian tingkat lain.</p>
-        <button type="button" class="btn-primary btn-compact" @click="openForm()">
+        <h3>{{ hasActiveFilters ? 'Tidak ada hasil' : 'Belum ada bank soal' }}</h3>
+        <p v-if="hasActiveFilters">Tidak ada bank yang cocok dengan filter. Ubah pencarian atau filter lalu coba lagi.</p>
+        <p v-else>Buat bank soal per mapel sebagai gudang jangka panjang. Tingkat rak opsional — soal tetap bisa dipakai di ujian tingkat lain.</p>
+        <button v-if="!hasActiveFilters" type="button" class="btn-primary btn-compact" @click="openForm()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -78,6 +80,7 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th class="col-no">No</th>
                 <th class="col-kode">Kode</th>
                 <th class="col-nama">Nama</th>
                 <th class="col-mapel">Mapel</th>
@@ -89,15 +92,16 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="b in banks" :key="b.id">
+              <tr v-for="(b, index) in banks" :key="b.id">
+                <td class="col-no">{{ rowNumber(index) }}</td>
                 <td><span class="cell-code">{{ b.code }}</span></td>
-                <td class="col-nama">{{ b.name || '—' }}</td>
-                <td>{{ b.subject?.name ?? '—' }}</td>
+                <td class="col-nama" :title="b.name || ''">{{ b.name || '—' }}</td>
+                <td class="col-mapel" :title="b.subject?.name || ''">{{ b.subject?.name ?? '—' }}</td>
                 <td class="col-grade">
                   <span v-if="b.grade" class="grade-chip" title="Label rak, bukan batasan pemakaian">Kelas {{ b.grade }}</span>
                   <span v-else class="muted">Campur</span>
                 </td>
-                <td class="cell-keterangan">{{ (b.keterangan || '').slice(0, 50) }}{{ (b.keterangan && b.keterangan.length > 50) ? '…' : '' }}</td>
+                <td class="cell-keterangan" :title="b.keterangan || ''">{{ (b.keterangan || '').slice(0, 50) }}{{ (b.keterangan && b.keterangan.length > 50) ? '…' : '' }}</td>
                 <td class="col-count"><span class="badge-count">{{ b.questions_count ?? 0 }}</span></td>
                 <td class="col-types">
                   <div class="type-chips" :title="typeSummaryTitle(b)">
@@ -138,6 +142,17 @@
             </tbody>
           </table>
         </div>
+        <PaginationBar
+          v-if="pagination"
+          embedded
+          :page="pagination.current_page"
+          :last-page="pagination.last_page"
+          :per-page="pagination.per_page"
+          :total="pagination.total"
+          item-label="bank"
+          @page-change="fetchBanks"
+          @per-page-change="changePerPage"
+        />
       </div>
 
       <!-- Modal Tambah/Edit -->
@@ -174,9 +189,14 @@
               </div>
               <div class="form-group">
                 <label for="bank-subject">Mata pelajaran <span class="required">*</span></label>
-                <select id="bank-subject" v-model="form.subject_id" required :disabled="formLoading">
+                <select
+                  id="bank-subject"
+                  v-model="form.subject_id"
+                  required
+                  :disabled="formLoading || (isSubjectScopedTeacher && subjectOptions.length === 1)"
+                >
                   <option value="">{{ formLoading ? 'Memuat...' : 'Pilih mapel' }}</option>
-                  <option v-for="s in subjects" :key="s.id" :value="Number(s.id)">{{ s.name }}</option>
+                  <option v-for="s in subjectOptions" :key="s.id" :value="Number(s.id)">{{ s.name }}</option>
                 </select>
               </div>
               <div v-if="gradeOptions.length" class="form-group">
@@ -306,12 +326,14 @@
           </div>
         </div>
       </Teleport>
-    </div></template>
+    </div>
+</template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { examApi } from '@/api/exam'
 import { subjectApi } from '@/api/subject'
 import { useToast } from '@/composables/useToast'
@@ -328,6 +350,8 @@ const loading = ref(false)
 const filterSubjectId = ref('')
 const filterGrade = ref('')
 const filterSearch = ref('')
+const perPage = ref(15)
+const pagination = ref(null)
 const openMenuId = ref(null)
 const showForm = ref(false)
 const formLoading = ref(false) // loading mapel & institusi saat modal dibuka
@@ -361,16 +385,79 @@ const gradeOptions = computed(() => {
   return getValidGradesForLevel(level) || []
 })
 
-async function fetchBanks() {
+const isSubjectScopedTeacher = computed(() => {
+  const role = auth.user?.role
+  return (role === 'teacher' || role === 'staff')
+    && (auth.user?.teaching_assignments || []).length > 0
+})
+
+const taughtSubjects = computed(() => {
+  const map = new Map()
+  for (const a of auth.user?.teaching_assignments || []) {
+    const id = Number(a.subject_id)
+    if (!id || map.has(id)) continue
+    map.set(id, { id, name: a.subject_name || `Mapel #${id}` })
+  }
+  return [...map.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'id'))
+})
+
+const subjectOptions = computed(() => (
+  isSubjectScopedTeacher.value ? taughtSubjects.value : subjects.value
+))
+
+const hasActiveFilters = computed(() =>
+  Boolean(filterSubjectId.value || filterGrade.value || filterSearch.value.trim())
+)
+
+function rowNumber(index) {
+  const page = Number(pagination.value?.current_page) || 1
+  const size = Number(pagination.value?.per_page || perPage.value) || 15
+  return (page - 1) * size + index + 1
+}
+
+function applyFilters() {
+  fetchBanks(1)
+}
+
+function changePerPage(n) {
+  perPage.value = n
+  if (pagination.value) pagination.value.per_page = n
+  fetchBanks(1)
+}
+
+async function fetchBanks(page = 1) {
   loading.value = true
   openMenuId.value = null
   try {
-    const params = { per_page: 100 }
+    const params = { page, per_page: perPage.value }
     if (filterSubjectId.value) params.subject_id = filterSubjectId.value
     if (filterGrade.value) params.grade = filterGrade.value
     if (filterSearch.value.trim()) params.search = filterSearch.value.trim()
     const res = await examApi.listBanks(params)
-    banks.value = res.data?.data ?? res.data ?? []
+    const data = res.data
+    banks.value = data?.data ?? data ?? []
+    if (data?.meta) {
+      pagination.value = {
+        current_page: data.meta.current_page ?? page,
+        last_page: data.meta.last_page ?? 1,
+        per_page: data.meta.per_page ?? perPage.value,
+        total: data.meta.total ?? banks.value.length
+      }
+      perPage.value = pagination.value.per_page
+    } else {
+      pagination.value = banks.value.length
+        ? {
+            current_page: 1,
+            last_page: 1,
+            per_page: banks.value.length,
+            total: banks.value.length
+          }
+        : null
+    }
+  } catch (e) {
+    banks.value = []
+    pagination.value = null
+    toast.error('Gagal memuat bank soal', e.response?.data?.message || e.formattedMessage || 'Coba lagi.')
   } finally {
     loading.value = false
   }
@@ -403,6 +490,10 @@ function normalizeSubjectList(raw) {
 }
 
 async function loadSubjects() {
+  if (isSubjectScopedTeacher.value) {
+    subjects.value = taughtSubjects.value
+    return
+  }
   subjects.value = []
   const sources = [
     () => examApi.listSubjects({ per_page: 100 }),
@@ -420,6 +511,17 @@ async function loadSubjects() {
   }
 }
 
+function applyDefaultSubjectFilter() {
+  if (!isSubjectScopedTeacher.value) return
+  const allowed = new Set(taughtSubjects.value.map((s) => String(s.id)))
+  if (filterSubjectId.value && !allowed.has(String(filterSubjectId.value))) {
+    filterSubjectId.value = ''
+  }
+  if (!filterSubjectId.value && taughtSubjects.value.length === 1) {
+    filterSubjectId.value = String(taughtSubjects.value[0].id)
+  }
+}
+
 async function openForm(b = null) {
   editingId.value = b?.id ?? null
   form.code = b?.code ?? ''
@@ -431,6 +533,9 @@ async function openForm(b = null) {
   formLoading.value = true
   try {
     await loadSubjects()
+    if (!form.subject_id && subjectOptions.value.length === 1) {
+      form.subject_id = subjectOptions.value[0].id
+    }
   } finally {
     formLoading.value = false
   }
@@ -591,6 +696,7 @@ onMounted(() => {
   if (route.query.subject_id) {
     filterSubjectId.value = String(route.query.subject_id)
   }
+  applyDefaultSubjectFilter()
   document.addEventListener('click', onDocClick)
   loadSubjects()
   fetchBanks()
@@ -873,33 +979,55 @@ onUnmounted(() => {
 .data-table tbody tr:hover {
   background: #f8fafc;
 }
-.data-table tbody tr:last-child td {
-  border-bottom: none;
-}
 /* Kolom ringkas agar muat di layar PC */
+.data-table .col-no {
+  width: 48px;
+  text-align: center;
+  white-space: nowrap;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.data-table th.col-no {
+  color: #475569;
+}
 .data-table .col-kode {
-  width: 72px;
+  width: 88px;
 }
 .data-table .col-nama {
-  width: 16%;
+  width: 15%;
   min-width: 0;
 }
 .data-table .col-mapel {
   width: 12%;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
 }
 .data-table .col-grade {
   width: 88px;
 }
 .data-table .col-keterangan {
-  width: 18%;
+  width: 16%;
   min-width: 0;
 }
 .data-table .col-count {
-  width: 72px;
+  width: 88px;
+  text-align: center;
+}
+.data-table th.col-count {
+  text-align: center;
+}
+.data-table .col-types {
+  width: 140px;
 }
 .data-table .col-actions {
-  width: 112px;
+  width: 280px;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: 1px solid #f1f5f9;
 }
 .cell-code {
   font-weight: 600;

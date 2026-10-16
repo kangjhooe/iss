@@ -412,6 +412,54 @@
         </div>
       </div>
 
+      <!-- Modal ganti template: keep vs clear -->
+      <div v-if="templateChangeDialog.show" class="modal-overlay" @click.self="resolveTemplateChange('cancel')">
+        <div class="modal-content modal-wide" @click.stop>
+          <div class="modal-header">
+            <h3>Ganti Template</h3>
+            <button type="button" class="modal-close" @click="resolveTemplateChange('cancel')">×</button>
+          </div>
+          <div class="modal-body">
+            <p>
+              Kelas ini sudah punya
+              <strong>{{ templateChangeDialog.existingCount }}</strong>
+              slot jadwal terisi.
+              Template tujuan:
+              <strong>{{ templateChangeDialog.templateName || 'baru' }}</strong>.
+            </p>
+            <p v-if="templateChangeDialog.affectedCount > 0" class="field-hint template-change-warn">
+              Jika dipertahankan, {{ templateChangeDialog.affectedCount }} slot yang tidak muat di template baru akan dihapus otomatis.
+            </p>
+            <div class="template-change-actions">
+              <button
+                type="button"
+                class="btn-primary template-change-btn"
+                :disabled="savingClassTemplate"
+                @click="resolveTemplateChange('keep')"
+              >
+                Pertahankan jadwal
+              </button>
+              <button
+                type="button"
+                class="btn-danger template-change-btn"
+                :disabled="savingClassTemplate"
+                @click="resolveTemplateChange('clear')"
+              >
+                Kosongkan jadwal
+              </button>
+              <button
+                type="button"
+                class="btn-secondary template-change-btn"
+                :disabled="savingClassTemplate"
+                @click="resolveTemplateChange('cancel')"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Modal slot -->
       <div v-if="showSlotModal" class="modal-overlay" @click="closeSlotModal">
         <div class="modal-content modal-wide" @click.stop>
@@ -485,6 +533,7 @@ import { semesterApi } from '@/api/semester'
 import { teacherApi } from '@/api/teacher'
 import { facilityApi } from '@/api/facility'
 import { useToast } from '@/composables/useToast'
+import { openPdfFromAxios } from '@/utils/pdfPreview'
 
 const toast = useToast()
 const activeTab = ref('template')
@@ -526,6 +575,13 @@ const classTemplateId = ref('')
 const previousClassTemplateId = ref('')
 const savingClassTemplate = ref(false)
 const exportingPdf = ref(false)
+const templateChangeDialog = reactive({
+  show: false,
+  existingCount: 0,
+  affectedCount: 0,
+  templateName: '',
+  resolve: null,
+})
 
 const printForm = reactive({
   mode: 'class',
@@ -686,43 +742,12 @@ async function exportSchedulePdf(mode, params) {
   exportingPdf.value = true
   try {
     const res = await lessonScheduleApi.exportPdf({ mode, ...params })
-    const contentType = res.headers?.['content-type'] || ''
-    if (res.status !== 200 || contentType.includes('application/json')) {
-      const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
-      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
-      throw new Error(json.message || 'Gagal mencetak jadwal.')
-    }
-    const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const win = window.open('', '_blank')
-    if (!win) {
-      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-      URL.revokeObjectURL(url)
-      return
-    }
     const modeLabel = mode === 'class' ? 'Per Kelas' : mode === 'teacher' ? 'Per Guru' : 'Per Mapel'
     const title = `Preview Jadwal ${modeLabel}`
-    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
-      <style>
-        body{margin:0;font-family:system-ui,sans-serif;background:#0f172a}
-        .toolbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#f8fafc;border-bottom:1px solid #1e293b}
-        .toolbar h1{margin:0;font-size:14px;font-weight:600}
-        .actions button{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
-        .btn-print{background:#059669;color:#fff}
-        .btn-close{background:#334155;color:#e2e8f0;margin-left:8px}
-        iframe{width:100%;height:calc(100vh - 52px);border:0;background:#525659}
-      </style></head><body>
-      <div class="toolbar">
-        <h1>${title}</h1>
-        <div class="actions">
-          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus();document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-        </div>
-      </div>
-      <iframe id="pdfFrame" src="${url}"></iframe>
-    </body></html>`)
-    win.document.close()
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    if (!(await openPdfFromAxios(res, title, 'Gagal mencetak jadwal.'))) {
+      toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      return
+    }
     toast.success('Berhasil', 'Preview PDF jadwal dibuka.')
   } catch (err) {
     toast.error('Gagal', err.message || err.response?.data?.message || err.formattedMessage || 'Gagal mencetak jadwal.')
@@ -1029,6 +1054,23 @@ async function refreshTemplateFlag() {
   await loadClassTemplates()
 }
 
+function askTemplateChangeAction(preview) {
+  return new Promise((resolve) => {
+    templateChangeDialog.existingCount = Number(preview.existing_count || 0)
+    templateChangeDialog.affectedCount = Number(preview.affected_count || 0)
+    templateChangeDialog.templateName = preview.target_template_name || ''
+    templateChangeDialog.resolve = resolve
+    templateChangeDialog.show = true
+  })
+}
+
+function resolveTemplateChange(action) {
+  const resolve = templateChangeDialog.resolve
+  templateChangeDialog.show = false
+  templateChangeDialog.resolve = null
+  if (resolve) resolve(action)
+}
+
 async function saveClassTemplate() {
   if (!filterClassId.value) return
 
@@ -1051,41 +1093,46 @@ async function saveClassTemplate() {
     }
   }
 
-  savingClassTemplate.value = true
-  try {
-    let prune = false
+  let prune = false
+  let clearSchedules = false
 
+  try {
     if (targetId) {
       const previewRes = await lessonScheduleApi.previewClassTemplate(filterClassId.value, {
         lesson_schedule_template_id: targetId,
       })
       const preview = previewRes.data?.data ?? previewRes.data ?? {}
+      const existing = Number(preview.existing_count || 0)
       const affected = Number(preview.affected_count || 0)
 
-      if (affected > 0) {
-        const samples = Array.isArray(preview.affected_slots) ? preview.affected_slots : []
-        const sampleText = samples
-          .slice(0, 5)
-          .map((s) => `- ${s.day_name} jam ke-${s.period}${s.subject_name ? ` (${s.subject_name})` : ''}`)
-          .join('\n')
-        const more = affected > samples.length ? `\n… dan ${affected - Math.min(5, samples.length)} lainnya` : ''
-        const ok = confirm(
-          `Ada ${affected} slot jadwal yang tidak muat di template "${preview.target_template_name || 'baru'}".\n` +
-          `Slot tersebut akan dihapus jika Anda lanjutkan.\n\n` +
-          (sampleText ? `${sampleText}${more}\n\n` : '') +
-          `Lanjutkan dan hapus slot tersebut?`
-        )
-        if (!ok) {
+      if (existing > 0) {
+        const action = await askTemplateChangeAction(preview)
+        if (action === 'cancel') {
           classTemplateId.value = previousId
           return
         }
+        if (action === 'clear') {
+          clearSchedules = true
+        } else if (affected > 0) {
+          // Pertahankan: slot di luar batas ikut dibersihkan agar grid konsisten
+          prune = true
+        }
+      } else if (affected > 0) {
         prune = true
       }
     }
+  } catch (e) {
+    classTemplateId.value = previousId
+    toast.error('Gagal', e.formattedMessage || e.response?.data?.message || 'Gagal memeriksa dampak ganti template.')
+    return
+  }
 
+  savingClassTemplate.value = true
+  try {
     const res = await lessonScheduleApi.assignClassTemplate(filterClassId.value, {
       lesson_schedule_template_id: targetId,
       prune_out_of_bounds: prune,
+      clear_schedules: clearSchedules,
     })
 
     previousClassTemplateId.value = classTemplateId.value
@@ -1102,7 +1149,6 @@ async function saveClassTemplate() {
         `Slot tersebut akan dihapus jika Anda lanjutkan.\n\nLanjutkan?`
       )
       if (ok) {
-        savingClassTemplate.value = true
         try {
           classTemplateId.value = targetId ? String(targetId) : ''
           const res = await lessonScheduleApi.assignClassTemplate(filterClassId.value, {
@@ -1577,6 +1623,14 @@ onMounted(async () => {
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { background: white; border-radius: 8px; max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; }
 .modal-wide { max-width: 520px; }
+.template-change-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+.template-change-btn { width: 100%; justify-content: center; text-align: center; }
+.template-change-warn { color: #b45309; margin-top: 0.5rem; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; }
 .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
 .modal-body { padding: 1.25rem; }

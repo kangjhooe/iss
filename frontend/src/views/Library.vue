@@ -1618,7 +1618,7 @@ async function previewLoansPdf() {
     if (reportDateFrom.value) params.date_from = reportDateFrom.value
     if (reportDateTo.value) params.date_to = reportDateTo.value
     const res = await libraryApi.exportLoansPdf(params)
-    if (!openPdfBlob(res, 'laporan-peminjaman.pdf')) {
+    if (!(await openPdfBlob(res, 'laporan-peminjaman.pdf'))) {
       toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
       return
     }
@@ -1637,7 +1637,7 @@ async function previewFinesPdf() {
     if (reportDateFrom.value) params.date_from = reportDateFrom.value
     if (reportDateTo.value) params.date_to = reportDateTo.value
     const res = await libraryApi.exportFinesPdf(params)
-    if (!openPdfBlob(res, 'laporan-denda.pdf')) {
+    if (!(await openPdfBlob(res, 'laporan-denda.pdf'))) {
       toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
       return
     }
@@ -1682,7 +1682,7 @@ async function exportBooksPdf() {
   exportingBooksPdf.value = true
   try {
     const res = await libraryApi.exportBooksPdf(bookExportParams())
-    if (!openPdfBlob(res, 'katalog-buku.pdf')) {
+    if (!(await openPdfBlob(res, 'katalog-buku.pdf'))) {
       toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
       return
     }

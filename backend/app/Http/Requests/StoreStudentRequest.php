@@ -55,6 +55,7 @@ class StoreStudentRequest extends FormRequest
                 'max:50',
                 \App\Services\LocalNisService::uniqueRule($institutionId),
             ],
+            'generate_nis' => ['sometimes', 'boolean'],
             'nisn' => [
                 'nullable',
                 'string',

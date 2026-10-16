@@ -173,7 +173,7 @@ import { semesterApi } from '@/api/semester'
 import { academicCalendarApi } from '@/api/academicCalendar'
 import { studentAttendanceApi } from '@/api/attendance'
 import { studentFinanceApi } from '@/api/finance'
-import { formatRp } from '@/views/Keuangan/keuanganConstants'
+import { formatRp } from '@/views/Finance/financeConstants'
 
 const authStore = useAuthStore()
 

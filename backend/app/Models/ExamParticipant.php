@@ -22,7 +22,11 @@ class ExamParticipant extends Model
         'participant_order',
         'login_token',
         'question_order',
+        'flagged_question_ids',
         'started_at',
+        'extra_seconds',
+        'last_seen_at',
+        'attempt_number',
         'submitted_at',
         'score',
         'score_max',
@@ -35,6 +39,10 @@ class ExamParticipant extends Model
     {
         return [
             'question_order' => 'array',
+            'flagged_question_ids' => 'array',
+            'extra_seconds' => 'integer',
+            'attempt_number' => 'integer',
+            'last_seen_at' => 'datetime',
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
             'score_released_at' => 'datetime',

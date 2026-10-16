@@ -629,18 +629,11 @@ async function exportReportPdf() {
   exportingReportPdf.value = true
   try {
     const response = await inventoryApi.exportReportPdf(buildReportParams())
-    const contentType = response.headers?.['content-type'] || ''
-    if (response.status !== 200 || contentType.includes('application/json')) {
-      throw new Error('Gagal mencetak laporan inventaris.')
-    }
-    const blob = response.data instanceof Blob
-      ? response.data
-      : new Blob([response.data], { type: 'application/pdf' })
-    if (openPdfBlob(blob, `${currentReportLabel.value}.pdf`)) {
-      toast.success('Berhasil', 'Preview PDF Inventaris dibuka.')
-    } else {
+    if (!(await openPdfBlob(response, `${currentReportLabel.value}.pdf`))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
+      return
     }
+    toast.success('Berhasil', 'Preview PDF Inventaris dibuka.')
   } catch (err) {
     toast.error('Gagal', err.message || err.formattedMessage || err.response?.data?.message || 'Gagal mencetak laporan inventaris.')
   } finally {

@@ -244,7 +244,7 @@ async function printSingleQr(row) {
   printingQrId.value = row.id
   try {
     const response = await inventoryApi.printAssetQrPdf({ asset_ids: [row.id] })
-    if (!openPdfBlob(response, `qr-aset-${row.asset_number || row.id}.pdf`)) {
+    if (!(await openPdfBlob(response, `qr-aset-${row.asset_number || row.id}.pdf`))) {
       toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
       return
     }
@@ -263,7 +263,7 @@ async function printBulkQr() {
     if (filters.value.room_id) params.room_id = filters.value.room_id
     if (filters.value.item_id) params.item_id = filters.value.item_id
     const response = await inventoryApi.printAssetQrPdf(params)
-    if (!openPdfBlob(response, 'label-qr-inventaris.pdf')) {
+    if (!(await openPdfBlob(response, 'label-qr-inventaris.pdf'))) {
       toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
       return
     }
@@ -279,7 +279,7 @@ async function exportKib(asset) {
   exportingKib.value = true
   try {
     const response = await inventoryApi.exportAssetKib(asset.id)
-    if (!openPdfBlob(response, `kib-aset-${asset.asset_number || asset.id}.pdf`)) {
+    if (!(await openPdfBlob(response, `kib-aset-${asset.asset_number || asset.id}.pdf`))) {
       toast.error('Gagal', 'Pop-up diblokir atau file bukan PDF.')
       return
     }

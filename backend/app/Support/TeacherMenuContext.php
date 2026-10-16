@@ -133,6 +133,38 @@ class TeacherMenuContext
     }
 
     /**
+     * Subject IDs yang diampu guru di semester aktif.
+     * null = tidak dibatasi (admin / non-guru).
+     *
+     * @return list<int>|null
+     */
+    public static function taughtSubjectIds(User $user, ?Request $request = null): ?array
+    {
+        if ($user->isAdminOrSuperAdmin() || $user->isInstitutionAdmin()) {
+            return null;
+        }
+
+        if (! in_array($user->role, ['teacher', 'staff'], true)) {
+            return null;
+        }
+
+        return self::teachingAssignments($user, $request)
+            ->pluck('subject_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public static function hasTeachingAssignments(User $user, ?Request $request = null): bool
+    {
+        $ids = self::taughtSubjectIds($user, $request);
+
+        return is_array($ids) && count($ids) > 0;
+    }
+
+    /**
      * Ekskul yang dibina guru di sekolah aktif.
      *
      * @return Collection<int, array{id:int,name:?string,status:?string}>

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Support\InstitutionContext;
 use App\Support\InstitutionModuleVisibility;
 use App\Support\PiketAccess;
+use App\Support\TeacherMenuContext;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -41,6 +42,8 @@ class EnsureModuleAccess
         }
 
         // Kepala Lab (penanggung jawab lab) may use facility/schedule APIs without full module grants.
+        // Penting untuk guru sekolah A yang jadi kepala lab di sekolah B (non-induk):
+        // permission facility ter-strip, akses lewat jabatan PJ lab di sekolah aktif.
         if (! $hasAccess) {
             $labOnlyModules = ['facility', 'schedule'];
             $needsLabBypass = count(array_intersect($keys, $labOnlyModules)) > 0;
@@ -69,6 +72,13 @@ class EnsureModuleAccess
             if ($needsPiketBypass && PiketAccess::isScheduled($user, $activeInstitutionId)) {
                 $hasAccess = true;
             }
+        }
+
+        // Guru pengampu mapel boleh akses Ujian Online / Bank Soal tanpa grant manual.
+        if (! $hasAccess && in_array('online_exam', $keys, true)
+            && in_array($user->role, ['teacher', 'staff'], true)
+            && TeacherMenuContext::hasTeachingAssignments($user, $request)) {
+            $hasAccess = true;
         }
 
         // hasModuleAccess sudah cek visibility; ulang hanya untuk jalur bypass jabatan.

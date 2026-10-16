@@ -19,14 +19,49 @@ class QuestionBank extends Model
     public const TYPE_PG_KOMPLEKS = 'pg_kompleks';
     public const TYPE_MATCHING = 'matching';
 
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_READY = 'ready';
+
+    /** Taksonomi Bloom (level kognitif). */
+    public const COGNITIVE_C1 = 'c1';
+    public const COGNITIVE_C2 = 'c2';
+    public const COGNITIVE_C3 = 'c3';
+    public const COGNITIVE_C4 = 'c4';
+    public const COGNITIVE_C5 = 'c5';
+    public const COGNITIVE_C6 = 'c6';
+
+    public const COGNITIVE_LEVELS = [
+        self::COGNITIVE_C1 => 'C1 — Mengingat',
+        self::COGNITIVE_C2 => 'C2 — Memahami',
+        self::COGNITIVE_C3 => 'C3 — Menerapkan',
+        self::COGNITIVE_C4 => 'C4 — Menganalisis',
+        self::COGNITIVE_C5 => 'C5 — Mengevaluasi',
+        self::COGNITIVE_C6 => 'C6 — Mencipta',
+    ];
+
+    public const DIFFICULTY_MUDAH = 'mudah';
+    public const DIFFICULTY_SEDANG = 'sedang';
+    public const DIFFICULTY_SULIT = 'sulit';
+
+    public const DIFFICULTIES = [
+        self::DIFFICULTY_MUDAH => 'Mudah',
+        self::DIFFICULTY_SEDANG => 'Sedang',
+        self::DIFFICULTY_SULIT => 'Sulit',
+    ];
+
     protected $fillable = [
         'institution_id',
         'bank_soal_id',
         'subject_id',
         'stimulus_id',
         'type',
+        'status',
+        'topic',
         'body',
         'weight',
+        'cognitive_level',
+        'difficulty',
+        'tags',
         'sort_order',
         'key_answer',
         'key_answer_aliases',
@@ -40,6 +75,7 @@ class QuestionBank extends Model
             'sort_order' => 'integer',
             'matching_data' => 'array',
             'key_answer_aliases' => 'array',
+            'tags' => 'array',
         ];
     }
 

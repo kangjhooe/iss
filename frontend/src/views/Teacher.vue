@@ -1,4 +1,5 @@
-<template>    <div class="teacher-page">
+<template>
+    <div class="teacher-page">
       <div class="page-header">
         <div class="header-content">
           <div>
@@ -1453,7 +1454,8 @@
       :file="photoCropSourceFile"
       @confirm="onEmployeePhotoCropped"
       @cancel="onEmployeePhotoCropCancel"
-    /></template>
+    />
+</template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
@@ -1467,7 +1469,7 @@ import { useTeacherList } from '@/composables/useTeacherList'
 import { employeeApi } from '@/api/teacher'
 import { institutionApi } from '@/api/institution'
 import { permissionApi } from '@/api/permissions'
-import { programKeahlianApi } from '@/api/programKeahlian'
+import { vocationalProgramApi } from '@/api/vocationalProgram'
 import { useReferenceDataStore } from '@/stores/referenceData'
 import { getInstitutionTypeLabel, getPrincipalTitle, getNssLabel, isVocationalLevel, getActiveInstitutionLevel, VOCATIONAL_DUTY_KEYS, VOCATIONAL_PERMISSION_KEYS } from '@/utils/institution'
 import { PRINCIPAL_ONLY_MODULES } from '@/utils/moduleAccess'
@@ -1481,6 +1483,7 @@ import AccountCredentialsModal from '@/components/AccountCredentialsModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { PROFILE_PHOTO_ACCEPT, profilePhotoFormData, validateProfilePhoto, validateProfilePhotoSource } from '@/utils/profilePhoto'
 import * as XLSX from 'xlsx'
+import { openPdfFromAxios } from '@/utils/pdfPreview'
 
 const toast = useToast()
 const authStore = useAuthStore()
@@ -1528,7 +1531,7 @@ const loadProgramKeahlianOptions = async () => {
   }
   loadingProgramKeahlian.value = true
   try {
-    const res = await programKeahlianApi.getAll({ status: 'Aktif', all: 1 })
+    const res = await vocationalProgramApi.getAll({ status: 'Aktif', all: 1 })
     programKeahlianOptions.value = res.data?.data || res.data || []
   } catch {
     programKeahlianOptions.value = []
@@ -2774,56 +2777,11 @@ const exportToPdf = async () => {
     if (filters.value.employment_status) params.employment_status = filters.value.employment_status
 
     const res = await employeeApi.exportPdf(params)
-    const contentType = res.headers?.['content-type'] || ''
-    if (res.status !== 200 || contentType.includes('application/json')) {
-      const text = typeof res.data?.text === 'function' ? await res.data.text() : String(res.data)
-      const json = (() => { try { return JSON.parse(text) } catch { return {} } })()
-      throw new Error(json.message || 'Gagal mencetak data guru.')
-    }
-
-    const blob = res.data instanceof Blob
-      ? res.data
-      : new Blob([res.data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-    const win = window.open('', '_blank')
-    if (!win) {
+    const title = 'Preview Data Guru'
+    if (!(await openPdfFromAxios(res, title, 'Gagal mencetak data guru.'))) {
       toast.error('Gagal', 'Pop-up diblokir. Izinkan tab baru untuk melihat preview PDF.')
-      URL.revokeObjectURL(url)
       return
     }
-
-    const title = 'Preview Data Guru'
-    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
-      <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; }
-        .toolbar {
-          display: flex; align-items: center; justify-content: space-between; gap: 12px;
-          padding: 10px 14px; background: #0f172a; color: #f8fafc;
-          border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 2;
-        }
-        .toolbar h1 { margin: 0; font-size: 14px; font-weight: 600; }
-        .toolbar .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; font-weight: 400; }
-        .actions { display: flex; gap: 8px; flex-shrink: 0; }
-        .actions button {
-          border: none; border-radius: 8px; padding: 8px 14px; font-weight: 600;
-          cursor: pointer; font-size: 13px;
-        }
-        .btn-print { background: #059669; color: #fff; }
-        .btn-close { background: #334155; color: #e2e8f0; }
-        iframe { width: 100%; height: calc(100vh - 52px); border: 0; background: #525659; }
-      </style></head><body>
-      <div class="toolbar">
-        <h1>${title}<span class="hint">Preview cetak</span></h1>
-        <div class="actions">
-          <button class="btn-print" type="button" onclick="document.getElementById('pdfFrame').contentWindow.focus(); document.getElementById('pdfFrame').contentWindow.print();">Cetak</button>
-          <button class="btn-close" type="button" onclick="window.close()">Tutup</button>
-        </div>
-      </div>
-      <iframe id="pdfFrame" src="${url}" title="Preview PDF"></iframe>
-    </body></html>`)
-    win.document.close()
-    setTimeout(() => URL.revokeObjectURL(url), 120_000)
     toast.success('Berhasil', 'Preview PDF Data Guru dibuka.')
   } catch (err) {
     toast.error('Gagal', err.message || err.response?.data?.message || err.formattedMessage || 'Gagal mencetak data guru.')

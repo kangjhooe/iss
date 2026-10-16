@@ -31,6 +31,7 @@ class SubjectCatalogController extends Controller
 
     /**
      * Meta opsi jenjang + aturan prefix kode.
+     * code_hint = saran kode berikutnya (MAX+1) per jenjang; tetap bisa diubah di form.
      */
     public function meta(Request $request)
     {
@@ -40,7 +41,7 @@ class SubjectCatalogController extends Controller
                 'value' => $key,
                 'label' => SubjectCatalog::JENJANG_LABELS[$key] ?? $key,
                 'code_prefix' => $prefix,
-                'code_hint' => $prefix . '001',
+                'code_hint' => $this->subjectCatalogService->nextCodeHint($key),
             ];
         }
 
