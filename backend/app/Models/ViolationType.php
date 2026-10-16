@@ -11,6 +11,13 @@ class ViolationType extends Model
 
     protected $table = 'violation_types';
 
+    public const CATEGORIES = [
+        'ringan',
+        'sedang',
+        'berat',
+        'sangat_berat',
+    ];
+
     protected $fillable = [
         'institution_id',
         'name',

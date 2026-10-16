@@ -207,9 +207,9 @@ export function validateForm(form, rules) {
         error = rule.validator(value, rule.message)
       }
       
-      if (error) {
+      if (typeof error === 'string' && error.trim() !== '') {
         errors[field] = error
-        break // Stop at first error
+        break
       }
     }
   }

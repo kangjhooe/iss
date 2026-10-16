@@ -453,7 +453,7 @@
               <button 
                 type="button"
                 @click="activeTab = 1" 
-                :class="['form-tab-btn', { active: activeTab === 1 }]"
+                :class="['form-tab-btn', { active: activeTab === 1, 'has-error': tabHasError(1) }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -464,7 +464,7 @@
               <button 
                 type="button"
                 @click="activeTab = 2" 
-                :class="['form-tab-btn', { active: activeTab === 2 }]"
+                :class="['form-tab-btn', { active: activeTab === 2, 'has-error': tabHasError(2) }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -476,7 +476,7 @@
               <button 
                 type="button"
                 @click="activeTab = 3" 
-                :class="['form-tab-btn', { active: activeTab === 3 }]"
+                :class="['form-tab-btn', { active: activeTab === 3, 'has-error': tabHasError(3) }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -489,7 +489,7 @@
               <button 
                 type="button"
                 @click="activeTab = 4" 
-                :class="['form-tab-btn', { active: activeTab === 4 }]"
+                :class="['form-tab-btn', { active: activeTab === 4, 'has-error': tabHasError(4) }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -500,7 +500,7 @@
               <button 
                 type="button"
                 @click="activeTab = 5" 
-                :class="['form-tab-btn', { active: activeTab === 5 }]"
+                :class="['form-tab-btn', { active: activeTab === 5, 'has-error': tabHasError(5) }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -513,7 +513,7 @@
               <button 
                 type="button"
                 @click="activeTab = 6" 
-                :class="['form-tab-btn', { active: activeTab === 6 }]"
+                :class="['form-tab-btn', { active: activeTab === 6, 'has-error': tabHasError(6) }]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -544,24 +544,27 @@
                 </div>
               </div>
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" data-field="nik" :class="{ 'has-error': fieldError('nik') }">
                   <label>NIK <span class="required">*</span></label>
                   <input v-model="form.nik" required placeholder="Nomor Induk Kependudukan" />
+                  <p v-if="fieldError('nik')" class="field-error">{{ fieldError('nik') }}</p>
                 </div>
-                <div class="form-group">
+                <div class="form-group" data-field="nisn" :class="{ 'has-error': fieldError('nisn') }">
                   <label>NISN</label>
                   <input v-model="form.nisn" placeholder="Nomor Induk Siswa Nasional" />
+                  <p v-if="fieldError('nisn')" class="field-error">{{ fieldError('nisn') }}</p>
                 </div>
               </div>
 
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" data-field="nis" :class="{ 'has-error': fieldError('nis') }">
                   <label>NIS</label>
                   <input
                     v-model="form.nis"
                     placeholder="Nomor Induk Siswa"
                     @input="onFormNisManualInput"
                   />
+                  <p v-if="fieldError('nis')" class="field-error">{{ fieldError('nis') }}</p>
                   <template v-if="!editingId">
                     <div v-if="nisNumbering.preview_error" class="nis-form-preview nis-form-preview--error">
                       <p>Format NIS belum siap: {{ nisNumbering.preview_error }}</p>
@@ -605,33 +608,37 @@
                   </template>
                   <p v-else class="field-hint">NIS lokal sekolah. Ubah hanya jika perlu koreksi.</p>
                 </div>
-                <div class="form-group">
+                <div class="form-group" data-field="name" :class="{ 'has-error': fieldError('name') }">
                   <label>Nama Lengkap <span class="required">*</span></label>
                   <input v-model="form.name" required placeholder="Nama lengkap siswa" />
+                  <p v-if="fieldError('name')" class="field-error">{{ fieldError('name') }}</p>
                 </div>
               </div>
 
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" data-field="gender" :class="{ 'has-error': fieldError('gender') }">
                   <label>Jenis Kelamin <span class="required">*</span></label>
                   <select v-model="form.gender" required>
                     <option value="">Pilih jenis kelamin</option>
                     <option value="L">Laki-laki</option>
                     <option value="P">Perempuan</option>
                   </select>
+                  <p v-if="fieldError('gender')" class="field-error">{{ fieldError('gender') }}</p>
                 </div>
-                <div class="form-group">
+                <div class="form-group" data-field="birth_place" :class="{ 'has-error': fieldError('birth_place') }">
                   <label>Tempat Lahir <span class="required">*</span></label>
                   <input v-model="form.birth_place" required placeholder="Kota/kabupaten" />
+                  <p v-if="fieldError('birth_place')" class="field-error">{{ fieldError('birth_place') }}</p>
                 </div>
               </div>
 
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" data-field="birth_date" :class="{ 'has-error': fieldError('birth_date') }">
                   <label>Tanggal Lahir <span class="required">*</span></label>
                   <input type="date" v-model="form.birth_date" required />
+                  <p v-if="fieldError('birth_date')" class="field-error">{{ fieldError('birth_date') }}</p>
                 </div>
-                <div v-if="availableStudentGrades.length" class="form-group">
+                <div v-if="availableStudentGrades.length" class="form-group" data-field="tingkat" :class="{ 'has-error': fieldError('tingkat') }">
                   <label>Tingkat <span class="required">*</span></label>
                   <select v-model.number="form.tingkat" required @change="onTingkatChange">
                     <option :value="null">Pilih tingkat</option>
@@ -639,6 +646,7 @@
                       Tingkat {{ grade }}
                     </option>
                   </select>
+                  <p v-if="fieldError('tingkat')" class="field-error">{{ fieldError('tingkat') }}</p>
                 </div>
               </div>
 
@@ -646,13 +654,15 @@
               <AddressCascade v-model="form" street-label="Jalan / RT / RW" />
 
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" data-field="phone" :class="{ 'has-error': fieldError('phone') }">
                   <label>Telepon</label>
                   <input v-model="form.phone" placeholder="Nomor HP siswa / orang tua" />
+                  <p v-if="fieldError('phone')" class="field-error">{{ fieldError('phone') }}</p>
                 </div>
-                <div class="form-group">
+                <div class="form-group" data-field="email" :class="{ 'has-error': fieldError('email') }">
                   <label>Email</label>
                   <input type="email" v-model="form.email" placeholder="email@contoh.com" />
+                  <p v-if="fieldError('email')" class="field-error">{{ fieldError('email') }}</p>
                 </div>
               </div>
             </div>
@@ -774,7 +784,7 @@
               </div>
 
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" data-field="class_id" :class="{ 'has-error': fieldError('class_id') }">
                   <label>Kelas</label>
                   <template v-if="formClassListLoading">
                     <div class="form-field-skeleton" aria-hidden="true">
@@ -798,6 +808,7 @@
                     </select>
                   </template>
                   <small v-if="!formClassListLoading && ((showAddModal && !myInstitution?.active_semester_id) || (showEditModal && !form.semester_id))" class="text-muted">Semester belum ditetapkan; pilih tahun ajaran/semester aktif di pengaturan institusi.</small>
+                  <p v-if="fieldError('class_id')" class="field-error">{{ fieldError('class_id') }}</p>
                 </div>
               </div>
             </div>
@@ -814,9 +825,10 @@
                     <option value="tidak_diketahui">Tidak Diketahui</option>
                   </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" data-field="father_nik" :class="{ 'has-error': fieldError('father_nik') }">
                   <label>NIK</label>
                   <input v-model="form.father_nik" />
+                  <p v-if="fieldError('father_nik')" class="field-error">{{ fieldError('father_nik') }}</p>
                 </div>
               </div>
 
@@ -890,9 +902,10 @@
                     <option value="tidak_diketahui">Tidak Diketahui</option>
                   </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" data-field="mother_nik" :class="{ 'has-error': fieldError('mother_nik') }">
                   <label>NIK</label>
                   <input v-model="form.mother_nik" />
+                  <p v-if="fieldError('mother_nik')" class="field-error">{{ fieldError('mother_nik') }}</p>
                 </div>
               </div>
 
@@ -979,9 +992,10 @@
                       <option value="tidak_diketahui">Tidak Diketahui</option>
                     </select>
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" data-field="guardian_nik" :class="{ 'has-error': fieldError('guardian_nik') }">
                     <label>NIK</label>
                     <input v-model="form.guardian_nik" />
+                    <p v-if="fieldError('guardian_nik')" class="field-error">{{ fieldError('guardian_nik') }}</p>
                   </div>
                 </div>
 
@@ -990,9 +1004,10 @@
                     <label>Nama Lengkap</label>
                     <input v-model="form.guardian_name" />
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" data-field="guardian_phone" :class="{ 'has-error': fieldError('guardian_phone') }">
                     <label>Telepon</label>
                     <input v-model="form.guardian_phone" />
+                    <p v-if="fieldError('guardian_phone')" class="field-error">{{ fieldError('guardian_phone') }}</p>
                   </div>
                 </div>
 
@@ -1124,7 +1139,16 @@
               </div>
             </div>
 
-            <div v-if="error" class="error-message">{{ error }}</div>
+            <div v-if="error || formErrorItems.length" class="error-message">
+              <p>{{ error || 'Beberapa isian belum benar.' }}</p>
+              <ul v-if="formErrorItems.length" class="form-error-list">
+                <li v-for="item in formErrorItems" :key="item.field">
+                  <button type="button" class="form-error-link" @click="focusFormField(item)">
+                    {{ item.tabLabel }} · {{ item.label }}: {{ item.message }}
+                  </button>
+                </li>
+              </ul>
+            </div>
 
             <div class="form-modal-footer">
               <div class="form-modal-footer-actions">
@@ -1955,7 +1979,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MoneyInput from '@/components/MoneyInput.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
@@ -3073,9 +3097,86 @@ async function handleForceDeleteStudent(student) {
   }
 }
 
+const FORM_TAB_LABELS = {
+  1: 'Identitas',
+  2: 'Tambahan',
+  3: 'Data Ayah',
+  4: 'Data Ibu',
+  5: 'Data Wali',
+  6: 'Dokumen'
+}
+
+const STUDENT_FIELD_META = {
+  nik: { label: 'NIK', tab: 1 },
+  nis: { label: 'NIS', tab: 1 },
+  nisn: { label: 'NISN', tab: 1 },
+  name: { label: 'Nama lengkap', tab: 1 },
+  gender: { label: 'Jenis kelamin', tab: 1 },
+  birth_place: { label: 'Tempat lahir', tab: 1 },
+  birth_date: { label: 'Tanggal lahir', tab: 1 },
+  address: { label: 'Alamat', tab: 1 },
+  village: { label: 'Desa/kelurahan', tab: 1 },
+  sub_district: { label: 'Kecamatan', tab: 1 },
+  district: { label: 'Kabupaten/kota', tab: 1 },
+  province: { label: 'Provinsi', tab: 1 },
+  postal_code: { label: 'Kode pos', tab: 1 },
+  phone: { label: 'Telepon', tab: 1 },
+  email: { label: 'Email', tab: 1 },
+  tingkat: { label: 'Tingkat', tab: 1 },
+  no_kk: { label: 'No KK', tab: 2 },
+  aspiration: { label: 'Cita-cita', tab: 2 },
+  hobby: { label: 'Hobi', tab: 2 },
+  religion: { label: 'Agama', tab: 2 },
+  disability: { label: 'Disabilitas', tab: 2 },
+  residence_type: { label: 'Tempat tinggal', tab: 2 },
+  height: { label: 'Tinggi badan', tab: 2 },
+  weight: { label: 'Berat badan', tab: 2 },
+  previous_school: { label: 'Asal sekolah', tab: 2 },
+  previous_school_npsn: { label: 'NPSN sekolah asal', tab: 2 },
+  previous_school_address: { label: 'Alamat sekolah asal', tab: 2 },
+  notes: { label: 'Catatan', tab: 2 },
+  class: { label: 'Kelas', tab: 2 },
+  class_id: { label: 'Kelas', tab: 2 },
+  academic_year: { label: 'Tahun ajaran', tab: 2 },
+  academic_year_id: { label: 'Tahun ajaran', tab: 2 },
+  semester_id: { label: 'Semester', tab: 2 },
+  status: { label: 'Status', tab: 2 },
+  graduation_year: { label: 'Tahun lulus', tab: 2 },
+  father_name: { label: 'Nama ayah', tab: 3 },
+  father_status: { label: 'Status ayah', tab: 3 },
+  father_nik: { label: 'NIK ayah', tab: 3 },
+  father_birth_place: { label: 'Tempat lahir ayah', tab: 3 },
+  father_birth_date: { label: 'Tanggal lahir ayah', tab: 3 },
+  father_education: { label: 'Pendidikan ayah', tab: 3 },
+  father_occupation: { label: 'Pekerjaan ayah', tab: 3 },
+  father_income: { label: 'Penghasilan ayah', tab: 3 },
+  mother_name: { label: 'Nama ibu', tab: 4 },
+  mother_status: { label: 'Status ibu', tab: 4 },
+  mother_nik: { label: 'NIK ibu', tab: 4 },
+  mother_birth_place: { label: 'Tempat lahir ibu', tab: 4 },
+  mother_birth_date: { label: 'Tanggal lahir ibu', tab: 4 },
+  mother_education: { label: 'Pendidikan ibu', tab: 4 },
+  mother_occupation: { label: 'Pekerjaan ibu', tab: 4 },
+  mother_income: { label: 'Penghasilan ibu', tab: 4 },
+  guardian_name: { label: 'Nama wali', tab: 5 },
+  guardian_phone: { label: 'Telepon wali', tab: 5 },
+  guardian_type: { label: 'Jenis wali', tab: 5 },
+  guardian_status: { label: 'Status wali', tab: 5 },
+  guardian_nik: { label: 'NIK wali', tab: 5 },
+  guardian_birth_place: { label: 'Tempat lahir wali', tab: 5 },
+  guardian_birth_date: { label: 'Tanggal lahir wali', tab: 5 },
+  guardian_education: { label: 'Pendidikan wali', tab: 5 },
+  guardian_occupation: { label: 'Pekerjaan wali', tab: 5 },
+  guardian_income: { label: 'Penghasilan wali', tab: 5 }
+}
+
 const validationRules = {
   nik: [
-    (value) => validators.required(value, 'NIK wajib diisi')
+    (value) => validators.required(value, 'NIK wajib diisi'),
+    (value) => validators.nik(value, 'NIK harus 16 digit angka')
+  ],
+  nisn: [
+    (value) => validators.nisn(value, 'NISN harus 10 digit angka')
   ],
   name: [
     (value) => validators.required(value, 'Nama lengkap wajib diisi'),
@@ -3092,23 +3193,72 @@ const validationRules = {
     (value) => validators.required(value, 'Tempat lahir wajib diisi')
   ],
   tingkat: [
-    (value) => availableStudentGrades.value.length === 0 || validators.required(value, 'Tingkat siswa wajib diisi')
+    (value) => {
+      if (!availableStudentGrades.value.length) return null
+      return validators.required(value, 'Tingkat siswa wajib diisi')
+    }
   ],
   email: [
     (value) => validators.email(value, 'Format email tidak valid'),
     (value) => validators.maxLength(value, 255, 'Email maksimal 255 karakter')
   ],
   phone: [
-    (value) => validators.phone(value, 'Format nomor telepon tidak valid')
+    (value) => validators.phone(value, 'Nomor telepon harus 10–15 digit')
+  ],
+  guardian_phone: [
+    (value) => validators.phone(value, 'Nomor telepon wali harus 10–15 digit')
   ]
 }
 
 // Setup form validation
-const { validateAll, setErrors } = useFormValidation({
+const { validateAll, setErrors, fieldErrors, clearErrors } = useFormValidation({
   form,
   initialValues: {},
   rules: validationRules
 })
+
+const formErrorItems = computed(() =>
+  Object.entries(fieldErrors)
+    .filter(([, message]) => typeof message === 'string' && message !== '')
+    .map(([field, message]) => {
+      const meta = STUDENT_FIELD_META[field] || { label: field, tab: 1 }
+      return {
+        field,
+        message,
+        label: meta.label,
+        tab: meta.tab,
+        tabLabel: FORM_TAB_LABELS[meta.tab] || 'Form'
+      }
+    })
+)
+
+function fieldError(name) {
+  const message = fieldErrors[name]
+  return typeof message === 'string' ? message : ''
+}
+
+function tabHasError(tab) {
+  return formErrorItems.value.some((item) => item.tab === tab)
+}
+
+function focusFormField(item) {
+  activeTab.value = item.tab
+  nextTick(() => {
+    document.querySelector(`[data-field="${item.field}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  })
+}
+
+function revealFormErrors(fallback = 'Mohon perbaiki kesalahan pada form') {
+  const items = formErrorItems.value
+  if (!items.length) {
+    error.value = fallback
+    return
+  }
+  error.value = items.length === 1
+    ? 'Ada 1 isian yang perlu diperbaiki.'
+    : `Ada ${items.length} isian yang perlu diperbaiki.`
+  focusFormField(items[0])
+}
 
 const handleSubmit = async () => {
   error.value = ''
@@ -3137,7 +3287,7 @@ const handleSubmit = async () => {
   // Validate form
   const isValid = validateAll()
   if (!isValid) {
-    error.value = 'Mohon perbaiki kesalahan pada form'
+    revealFormErrors()
     return
   }
   
@@ -3177,13 +3327,13 @@ const handleSubmit = async () => {
     }
   } catch (err) {
     const errorMsg = err.formattedMessage || err.response?.data?.message || 'Gagal menyimpan data'
-    error.value = errorMsg
-    toast.error('Gagal', errorMsg)
-    
-    // Set field errors from server
     if (err.response?.data?.errors) {
       setErrors(err.response.data.errors)
+      revealFormErrors(errorMsg)
+    } else {
+      error.value = errorMsg
     }
+    toast.error('Gagal', error.value || errorMsg)
   } finally {
     saving.value = false
   }
@@ -3206,6 +3356,7 @@ const closeModal = () => {
     fileInput.value.value = ''
   }
   error.value = ''
+  clearErrors()
   resetFeederForm()
   addMode.value = 'choose'
 }
@@ -4084,6 +4235,42 @@ watch(() => route.query.trashed, (value) => {
   color: #64748b;
 }
 
+.field-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.form-group.has-error input,
+.form-group.has-error select,
+.form-group.has-error textarea {
+  border-color: #dc2626;
+}
+
+.form-error-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.form-error-list li + li {
+  margin-top: 4px;
+}
+
+.form-error-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.error-message p {
+  margin: 0;
+}
+
 .btn-link-inline {
   display: inline;
   margin-left: 4px;
@@ -4773,6 +4960,25 @@ watch(() => route.query.trashed, (value) => {
   border-bottom-color: #059669;
   font-weight: 600;
   background: #ecfdf5;
+}
+
+.form-tab-btn.has-error {
+  color: #b91c1c;
+}
+
+.form-tab-btn.has-error::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #dc2626;
+  flex: none;
+}
+
+.form-tab-btn.active.has-error {
+  color: #b91c1c;
+  border-bottom-color: #dc2626;
+  background: #fef2f2;
 }
 
 .add-choice-panel {

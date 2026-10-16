@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ViolationType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreViolationTypeRequest extends FormRequest
 {
@@ -16,7 +18,7 @@ class StoreViolationTypeRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:50',
-            'category' => 'required|in:ringan,sedang,berat',
+            'category' => ['required', Rule::in(ViolationType::CATEGORIES)],
             'point_weight' => 'nullable|integer|min:0|max:100',
             'default_sanction' => 'nullable|string|max:255',
             'description' => 'nullable|string',

@@ -124,7 +124,7 @@
           </select>
           <select v-model="filters.violation_type_id" @change="loadViolations" class="filter-select">
             <option value="">Semua Jenis</option>
-            <option v-for="t in violationTypes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.category }})</option>
+            <option v-for="t in violationTypes" :key="t.id" :value="t.id">{{ t.name }} ({{ violationCategoryLabel(t.category) }})</option>
           </select>
           <button type="button" class="filter-toggle" @click="showAdvancedFilters = !showAdvancedFilters" :aria-expanded="showAdvancedFilters">
             {{ showAdvancedFilters ? 'Sembunyikan filter' : 'Filter lanjutan' }}
@@ -190,7 +190,7 @@
                   </span>
                 </td>
                 <td>{{ v.violation_type?.name }}</td>
-                <td><span :class="['category-badge', v.violation_type?.category]">{{ v.violation_type?.category }}</span></td>
+                <td><span :class="['category-badge', v.violation_type?.category]">{{ violationCategoryLabel(v.violation_type?.category) }}</span></td>
                 <td><span class="point-add">+{{ v.violation_type?.point_weight || 0 }}</span></td>
                 <td>{{ v.sanction || '-' }}</td>
                 <td><span :class="['status-badge', 'status-' + v.status]">{{ getStatusLabel(v.status) }}</span></td>
@@ -240,26 +240,103 @@
           <p class="empty-desc">Tambahkan jenis pelanggaran (mis. Terlambat, Tidak pakai atribut) beserta kategori dan bobot point.</p>
           <button @click="openAddTypeModal" class="btn-primary btn-empty-cta">Tambah Jenis Pelanggaran</button>
         </div>
-        <div v-else class="types-grid">
-          <div v-for="t in violationTypes" :key="t.id" class="type-card">
-            <div class="type-header">
-              <span class="type-name">{{ t.name }}</span>
-              <span :class="['category-badge', t.category]">{{ t.category }}</span>
-            </div>
-            <div class="type-body">
-              <p v-if="t.default_sanction" class="type-sanction">Sanksi default: {{ t.default_sanction }}</p>
-              <p class="type-point">Menambah skor: <strong>+{{ t.point_weight ?? 0 }}</strong></p>
-            </div>
-            <div class="type-actions">
-              <button type="button" @click="openEditTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis pelanggaran">
-                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
-              </button>
-              <button type="button" @click="confirmDeleteType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis pelanggaran">
-                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
-              </button>
+        <template v-else>
+          <div class="types-view-bar">
+            <button
+              v-if="typeViewMode === 'table'"
+              type="button"
+              class="btn-secondary btn-compact"
+              :disabled="typesPrinting"
+              @click="printViolationTypes"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>{{ typesPrinting ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
+            </button>
+            <div class="view-toggle" role="group" aria-label="Mode tampilan jenis pelanggaran">
+              <button
+                type="button"
+                :class="['sub-nav-btn', { active: typeViewMode === 'cards' }]"
+                @click="typeViewMode = 'cards'"
+              >Kartu</button>
+              <button
+                type="button"
+                :class="['sub-nav-btn', { active: typeViewMode === 'table' }]"
+                @click="typeViewMode = 'table'"
+              >Tabel</button>
             </div>
           </div>
-        </div>
+          <div v-if="typeViewMode === 'cards'" class="types-grid">
+            <div v-for="t in sortedViolationTypes" :key="t.id" class="type-card">
+              <div class="type-header">
+                <span class="type-name">{{ t.name }}</span>
+                <span :class="['category-badge', t.category]">{{ violationCategoryLabel(t.category) }}</span>
+              </div>
+              <div class="type-body">
+                <p v-if="t.default_sanction" class="type-sanction">Sanksi default: {{ t.default_sanction }}</p>
+                <p class="type-point">Menambah skor: <strong>+{{ t.point_weight ?? 0 }}</strong></p>
+              </div>
+              <div class="type-actions">
+                <button type="button" @click="openEditTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis pelanggaran">
+                  <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                </button>
+                <button type="button" @click="confirmDeleteType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis pelanggaran">
+                  <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <template v-else>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-no">No</th>
+                    <th>Jenis</th>
+                    <th>Kategori</th>
+                    <th>Sanksi default</th>
+                    <th>Point</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(t, index) in pagedViolationTypes" :key="t.id">
+                    <td class="col-no">{{ (typesPage - 1) * typesPagination.per_page + index + 1 }}</td>
+                    <td>{{ t.name }}</td>
+                    <td><span :class="['category-badge', t.category]">{{ violationCategoryLabel(t.category) }}</span></td>
+                    <td>{{ t.default_sanction || '—' }}</td>
+                    <td><span class="point-add">+{{ t.point_weight ?? 0 }}</span></td>
+                    <td>
+                      <div class="action-buttons">
+                        <button type="button" @click="openEditTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis pelanggaran">
+                          <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                        </button>
+                        <button type="button" @click="confirmDeleteType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis pelanggaran">
+                          <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="types-pagination">
+              <PaginationBar
+                :page="typesPage"
+                :last-page="typesLastPage"
+                :per-page="typesPagination.per_page"
+                :total="sortedViolationTypes.length"
+                item-label="jenis"
+                @page-change="goToTypesPage"
+                @per-page-change="changeTypesPerPage"
+              />
+            </div>
+          </template>
+        </template>
       </template>
 
       <!-- Tab: Tindakan (skor pelanggaran → tindakan BK) -->
@@ -749,7 +826,7 @@
               <label>Jenis Pelanggaran *</label>
               <select v-model="form.violation_type_id" required class="form-select">
                 <option value="">Pilih jenis</option>
-                <option v-for="t in violationTypes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.category }})</option>
+                <option v-for="t in violationTypes" :key="t.id" :value="t.id">{{ t.name }} ({{ violationCategoryLabel(t.category) }})</option>
               </select>
             </div>
             <div class="form-group">
@@ -807,9 +884,7 @@
             <div class="form-group">
               <label>Kategori *</label>
               <select v-model="typeForm.category" required class="form-select">
-                <option value="ringan">Ringan</option>
-                <option value="sedang">Sedang</option>
-                <option value="berat">Berat</option>
+                <option v-for="c in VIOLATION_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -1161,10 +1236,15 @@ import StudentPicker from '@/components/StudentPicker.vue'
 import { violationApi, violationTypeApi, achievementApi, achievementTypeApi, pointThresholdApi, studentActionLogApi, studentPointApi } from '@/api/violation'
 import { institutionApi } from '@/api/institution'
 import { useReferenceDataStore } from '@/stores/referenceData'
+import { useAuthStore } from '@/stores/auth'
 import { semesterApi } from '@/api/semester'
 import { useToast } from '@/composables/useToast'
+import { getPrincipalTitle } from '@/utils/institution'
+import { formatPrintFooterLine } from '@/utils/printFooter'
+import { renderStandardLetterheadHtml } from '@/utils/standardLetterhead'
 
 const toast = useToast()
+const authStore = useAuthStore()
 const route = useRoute()
 
 const bkMode = computed(() => route.meta.bkMode || 'pelanggaran')
@@ -1189,6 +1269,13 @@ const RANK_LABELS = {
   peserta: 'Peserta',
   lainnya: 'Lainnya',
 }
+
+const VIOLATION_CATEGORIES = [
+  { value: 'ringan', label: 'Ringan' },
+  { value: 'sedang', label: 'Sedang' },
+  { value: 'berat', label: 'Berat' },
+  { value: 'sangat_berat', label: 'Sangat Berat' },
+]
 
 const ACHIEVEMENT_CATEGORY_LABELS = {
   akademik: 'Akademik',
@@ -1244,6 +1331,155 @@ function rankLabel(v) {
 
 function categoryLabel(v) {
   return ACHIEVEMENT_CATEGORY_LABELS[v] || v || ''
+}
+
+function violationCategoryLabel(v) {
+  return VIOLATION_CATEGORIES.find((c) => c.value === v)?.label || v || ''
+}
+
+const typeViewMode = ref('cards')
+const typesPrinting = ref(false)
+const typesPagination = ref({ current_page: 1, per_page: 15 })
+
+const sortedViolationTypes = computed(() => {
+  const order = Object.fromEntries(VIOLATION_CATEGORIES.map((c, i) => [c.value, i]))
+  return [...violationTypes.value].sort((a, b) => {
+    const byCategory = (order[a.category] ?? 99) - (order[b.category] ?? 99)
+    if (byCategory !== 0) return byCategory
+    return (a.name || '').localeCompare(b.name || '', 'id')
+  })
+})
+
+const typesLastPage = computed(() => Math.max(1, Math.ceil(sortedViolationTypes.value.length / typesPagination.value.per_page) || 1))
+
+const typesPage = computed(() => Math.min(Math.max(1, typesPagination.value.current_page), typesLastPage.value))
+
+const pagedViolationTypes = computed(() => {
+  const start = (typesPage.value - 1) * typesPagination.value.per_page
+  return sortedViolationTypes.value.slice(start, start + typesPagination.value.per_page)
+})
+
+function goToTypesPage(page) {
+  typesPagination.value.current_page = page
+}
+
+function changeTypesPerPage(n) {
+  typesPagination.value.per_page = n
+  typesPagination.value.current_page = 1
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+async function printViolationTypes() {
+  const rows = sortedViolationTypes.value
+  if (!rows.length) {
+    toast.error('Gagal', 'Tidak ada jenis pelanggaran untuk dicetak')
+    return
+  }
+
+  typesPrinting.value = true
+  try {
+    if (!institution.value?.name) {
+      const res = await institutionApi.getMy()
+      institution.value = res.data?.data ?? res.data ?? null
+    }
+    const inst = institution.value || {}
+    const filename = `Jenis_Pelanggaran_${new Date().toISOString().slice(0, 10)}.pdf`
+    const placeDate = `${inst.district || inst.city || '........................'}, ${new Date().toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    })}`
+    const printFooterLine = formatPrintFooterLine(authStore.user?.name)
+    const tableRows = rows.map((t, index) => `
+      <tr>
+        <td class="num">${index + 1}</td>
+        <td>${escapeHtml(t.name || '-')}</td>
+        <td>${escapeHtml(violationCategoryLabel(t.category) || '-')}</td>
+        <td>${escapeHtml(t.default_sanction || '—')}</td>
+        <td class="num">+${Number(t.point_weight ?? 0)}</td>
+      </tr>
+    `).join('')
+
+    const content = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(filename)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 16px; }
+    h1 { font-size: 16px; margin: 12px 0 4px; text-align: center; text-transform: uppercase; }
+    .subtitle { text-align: center; color: #444; margin-bottom: 12px; }
+    table.data { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 8px; }
+    table.data th, table.data td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
+    table.data th { background: #eee; font-size: 10px; text-transform: uppercase; }
+    td.num, th.num { text-align: center; width: 36px; }
+    tr { page-break-inside: avoid; }
+    .note { font-size: 10px; color: #444; margin: 0 0 10px; }
+    .footer { display: flex; justify-content: flex-end; margin-top: 28px; page-break-inside: avoid; }
+    .footer-right { text-align: center; min-width: 220px; }
+    .sig-space { height: 56px; }
+    .printed-at { font-size: 9px; color: #555; text-align: center; margin-top: 16px; }
+    @media print {
+      @page { size: A4 portrait; margin: 10mm 12mm 14mm 10mm; }
+      body { margin: 0; padding-right: 1px; }
+      .printed-at { position: fixed; bottom: 0; left: 0; right: 0; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  ${renderStandardLetterheadHtml(inst)}
+  <h1>Daftar Jenis Pelanggaran</h1>
+  <div class="subtitle">Diurutkan dari kategori ringan hingga sangat berat</div>
+  <p class="note">Jumlah data: ${rows.length}</p>
+  <table class="data">
+    <thead>
+      <tr>
+        <th class="num">No</th>
+        <th>Jenis</th>
+        <th>Kategori</th>
+        <th>Sanksi default</th>
+        <th class="num">Point</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <div class="footer">
+    <div class="footer-right">
+      ${escapeHtml(placeDate)}<br>
+      ${escapeHtml(getPrincipalTitle(inst.level))}
+      <div class="sig-space"></div>
+      <strong>${escapeHtml(inst.principal_name || '___________________')}</strong>
+      <br>NIP. ${escapeHtml(inst.principal_nip || '___________________')}
+    </div>
+  </div>
+  <div class="printed-at">${escapeHtml(printFooterLine)}</div>
+</body>
+</html>`
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Gagal', 'Popup diblokir. Izinkan popup untuk mencetak PDF.')
+      return
+    }
+    printWindow.document.write(content)
+    printWindow.document.close()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.document.title = filename
+    }, 250)
+  } catch (err) {
+    if (import.meta.env.DEV) console.error('Error printing violation types:', err)
+    toast.error('Gagal', 'Gagal menyiapkan cetak PDF')
+  } finally {
+    typesPrinting.value = false
+  }
 }
 
 function setPrestasiPurpose(purpose) {
@@ -2656,6 +2892,7 @@ onMounted(async () => {
 .category-badge.ringan { background: #fef3c7; color: #92400e; }
 .category-badge.sedang { background: #fed7aa; color: #c2410c; }
 .category-badge.berat { background: #fecaca; color: #b91c1c; }
+.category-badge.sangat_berat { background: #7f1d1d; color: #fff; }
 .status-badge {
   display: inline-block;
   padding: 0.2rem 0.5rem;
@@ -3087,6 +3324,27 @@ onMounted(async () => {
 .btn-page:hover:not(:disabled) { background: #f1f5f9; border-color: #cbd5e1; }
 .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
 .page-num { font-size: 0.85rem; color: #64748b; }
+.types-view-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+.types-view-bar .view-toggle {
+  display: inline-flex;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-left: auto;
+}
+.data-table .col-no {
+  width: 3.25rem;
+  text-align: center;
+}
+.types-pagination { margin-top: 0.85rem; }
 .types-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -3223,7 +3481,8 @@ onMounted(async () => {
   transform: translateY(-1px);
 }
 .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-.btn-secondary:hover { background: #e2e8f0; }
+.btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
+.btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-compact {
   display: inline-flex;
   align-items: center;

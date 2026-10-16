@@ -56,10 +56,12 @@ export function useFormValidation(config = {}) {
    */
   const validateAll = () => {
     const validation = validateFormUtil(getFormData(), rules)
-    
-    // Update all field errors
+
     Object.keys(fieldErrors).forEach(key => {
-      fieldErrors[key] = validation.errors[key] || ''
+      fieldErrors[key] = ''
+    })
+    Object.entries(validation.errors).forEach(([key, message]) => {
+      fieldErrors[key] = message
     })
 
     return validation.isValid
@@ -118,9 +120,8 @@ export function useFormValidation(config = {}) {
     })
 
     Object.entries(errors).forEach(([key, value]) => {
-      if (Object.prototype.hasOwnProperty.call(fieldErrors, key)) {
-        fieldErrors[key] = Array.isArray(value) ? value[0] : value
-      }
+      const message = Array.isArray(value) ? value[0] : value
+      fieldErrors[key] = typeof message === 'string' ? message : ''
     })
   }
 

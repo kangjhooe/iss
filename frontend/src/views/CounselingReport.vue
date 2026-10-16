@@ -565,8 +565,19 @@ const LEVEL_ORDER = {
   sekolah: 5,
 }
 
+const VIOLATION_CATEGORY_LABELS = {
+  ringan: 'Ringan',
+  sedang: 'Sedang',
+  berat: 'Berat',
+  sangat_berat: 'Sangat Berat',
+}
+
 function categoryLabel(v) {
   return ACHIEVEMENT_CATEGORY_LABELS[v] || v || '—'
+}
+
+function violationCategoryLabel(v) {
+  return VIOLATION_CATEGORY_LABELS[v] || v || '—'
 }
 
 function sortAchievementsForAkreditasi(rows) {
@@ -1200,7 +1211,7 @@ function buildPrintViolationsTableHtml() {
       <td>${escapeHtml(row.student_name || '—')}</td>
       <td>${escapeHtml(row.class_name)}</td>
       <td>${escapeHtml(row.violation_type)}</td>
-      <td>${escapeHtml(row.category)}</td>
+      <td>${escapeHtml(violationCategoryLabel(row.category))}</td>
       <td class="num">${escapeHtml(row.point_weight)}</td>
       <td>${escapeHtml(statusLabel(row.status))}</td>
       <td>${escapeHtml(row.reporter_name || '—')}</td>
@@ -1404,7 +1415,7 @@ function buildPrintSummaryHtml() {
       <tr>
         <td>${idx + 1}</td>
         <td>${escapeHtml(row.type_name)}</td>
-        <td>${escapeHtml(row.category)}</td>
+        <td>${escapeHtml(violationCategoryLabel(row.category))}</td>
         <td class="num">${escapeHtml(row.count)}</td>
         <td class="num">${escapeHtml(row.total_points)}</td>
       </tr>
