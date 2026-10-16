@@ -6,6 +6,7 @@ use App\Exports\InventoryReportExport;
 use App\Http\Controllers\API\Concerns\ResolvesActiveInstitution;
 use App\Http\Controllers\Controller;
 use App\Support\StructuralPositionResolver;
+use App\Models\Institution;
 use App\Models\InventoryAsset;
 use App\Models\InventoryItem;
 use App\Services\InventoryReportService;

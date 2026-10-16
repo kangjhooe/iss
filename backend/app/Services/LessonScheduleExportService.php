@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\StructuralPositionResolver;
+use App\Models\Employee;
 use App\Models\Institution;
 use App\Models\LessonSchedule;
 use App\Models\SchoolClass;
