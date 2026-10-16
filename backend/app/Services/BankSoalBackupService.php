@@ -22,11 +22,11 @@ class BankSoalBackupService
         $bankSoal->loadMissing(['questions.options', 'questions.stimulus']);
         $questions = $bankSoal->questions()->with(['options', 'stimulus'])->get();
 
-        $tmpDir = storage_path('app/temp/bank-backup-' . $bankSoal->id . '-' . time());
-        if (!is_dir($tmpDir)) {
+        $tmpDir = storage_path('app/temp/bank-backup-'.$bankSoal->id.'-'.time());
+        if (! is_dir($tmpDir)) {
             mkdir($tmpDir, 0755, true);
         }
-        $assetsDir = $tmpDir . '/assets';
+        $assetsDir = $tmpDir.'/assets';
         mkdir($assetsDir, 0755, true);
 
         $assetMap = []; // old path -> filename in ZIP
@@ -42,9 +42,9 @@ class BankSoalBackupService
             $assetName = null;
             if ($attachmentPath && Storage::disk('public')->exists($attachmentPath)) {
                 $ext = pathinfo($attachmentPath, PATHINFO_EXTENSION) ?: 'bin';
-                $assetName = 'stimulus_' . $s->id . '.' . $ext;
-                copy(Storage::disk('public')->path($attachmentPath), $assetsDir . '/' . $assetName);
-                $assetMap[$attachmentPath] = 'assets/' . $assetName;
+                $assetName = 'stimulus_'.$s->id.'.'.$ext;
+                copy(Storage::disk('public')->path($attachmentPath), $assetsDir.'/'.$assetName);
+                $assetMap[$attachmentPath] = 'assets/'.$assetName;
             }
             $media = is_array($s->media) ? $s->media : [];
             foreach ($media as $mi => $mItem) {
@@ -58,9 +58,9 @@ class BankSoalBackupService
                 }
                 if (Storage::disk('public')->exists($storageRel) && ! isset($assetMap[$storageRel])) {
                     $ext = pathinfo($storageRel, PATHINFO_EXTENSION) ?: 'bin';
-                    $assetName = 'stimulus_' . $s->id . '_m' . $mi . '.' . $ext;
-                    copy(Storage::disk('public')->path($storageRel), $assetsDir . '/' . $assetName);
-                    $assetMap[$storageRel] = 'assets/' . $assetName;
+                    $assetName = 'stimulus_'.$s->id.'_m'.$mi.'.'.$ext;
+                    copy(Storage::disk('public')->path($storageRel), $assetsDir.'/'.$assetName);
+                    $assetMap[$storageRel] = 'assets/'.$assetName;
                 }
                 if (isset($assetMap[$storageRel])) {
                     $media[$mi]['url'] = $assetMap[$storageRel];
@@ -90,6 +90,10 @@ class BankSoalBackupService
                 'body' => $this->rewriteBodyPathsForBackup($q->body, $assetsDir, $assetMap),
                 'weight' => $q->weight,
                 'cognitive_level' => $q->cognitive_level,
+                'difficulty' => $q->difficulty,
+                'status' => $q->status,
+                'topic' => $q->topic,
+                'tags' => $q->tags,
                 'key_answer' => $q->key_answer,
                 'key_answer_aliases' => $q->key_answer_aliases,
                 'matching_data' => $q->matching_data,
@@ -114,13 +118,13 @@ class BankSoalBackupService
             'asset_map' => $assetMap,
         ];
 
-        file_put_contents($tmpDir . '/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        file_put_contents($tmpDir . '/stimuli.json', json_encode($stimuliData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        file_put_contents($tmpDir . '/questions.json', json_encode($questionsData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        file_put_contents($tmpDir . '/options.json', json_encode($optionsData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        file_put_contents($tmpDir.'/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($tmpDir.'/stimuli.json', json_encode($stimuliData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        file_put_contents($tmpDir.'/questions.json', json_encode($questionsData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        file_put_contents($tmpDir.'/options.json', json_encode($optionsData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-        $zipPath = storage_path('app/temp/bank-soal-backup-' . $bankSoal->id . '-' . time() . '.zip');
-        $zip = new ZipArchive();
+        $zipPath = storage_path('app/temp/bank-soal-backup-'.$bankSoal->id.'-'.time().'.zip');
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new \RuntimeException('Tidak dapat membuat file ZIP.');
         }
@@ -128,6 +132,7 @@ class BankSoalBackupService
         $zip->close();
 
         $this->removeDirectory($tmpDir);
+
         return $zipPath;
     }
 
@@ -142,21 +147,23 @@ class BankSoalBackupService
             $fullValue = $m[2]; // full URL or path
             $storagePath = $m[4]; // question_assets/... (path relative to public disk)
             $fullPath = Storage::disk('public')->path($storagePath);
-            if (!file_exists($fullPath)) {
+            if (! file_exists($fullPath)) {
                 return $m[0];
             }
             $base = basename($storagePath);
             $i = 0;
             $assetName = $base;
-            while (isset($assetMap[$storagePath]) || file_exists($assetsDir . '/' . $assetName)) {
+            while (isset($assetMap[$storagePath]) || file_exists($assetsDir.'/'.$assetName)) {
                 $i++;
-                $assetName = pathinfo($base, PATHINFO_FILENAME) . '_' . $i . '.' . (pathinfo($base, PATHINFO_EXTENSION) ?: 'bin');
+                $assetName = pathinfo($base, PATHINFO_FILENAME).'_'.$i.'.'.(pathinfo($base, PATHINFO_EXTENSION) ?: 'bin');
             }
-            copy($fullPath, $assetsDir . '/' . $assetName);
-            $assetMap[$storagePath] = 'assets/' . $assetName;
-            $placeholder = '{{ASSET:' . $assetMap[$storagePath] . '}}';
+            copy($fullPath, $assetsDir.'/'.$assetName);
+            $assetMap[$storagePath] = 'assets/'.$assetName;
+            $placeholder = '{{ASSET:'.$assetMap[$storagePath].'}}';
+
             return str_replace($fullValue, $placeholder, $m[0]);
         }, $body);
+
         return $out ?: $body;
     }
 
@@ -167,8 +174,8 @@ class BankSoalBackupService
             if ($item === '.' || $item === '..') {
                 continue;
             }
-            $full = $dir . '/' . $item;
-            $entry = $zipPath ? $zipPath . '/' . $item : $item;
+            $full = $dir.'/'.$item;
+            $entry = $zipPath ? $zipPath.'/'.$item : $item;
             if (is_dir($full)) {
                 $this->addDirToZip($zip, $full, $entry);
             } else {
@@ -184,7 +191,7 @@ class BankSoalBackupService
             if ($item === '.' || $item === '..') {
                 continue;
             }
-            $full = $dir . '/' . $item;
+            $full = $dir.'/'.$item;
             if (is_dir($full)) {
                 $this->removeDirectory($full);
             } else {
@@ -199,12 +206,12 @@ class BankSoalBackupService
      */
     public function restore(UploadedFile $file, BankSoal $targetBank): array
     {
-        $tmpDir = storage_path('app/temp/restore-' . time());
-        if (!is_dir($tmpDir)) {
+        $tmpDir = storage_path('app/temp/restore-'.time());
+        if (! is_dir($tmpDir)) {
             mkdir($tmpDir, 0755, true);
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($file->getRealPath(), ZipArchive::RDONLY) !== true) {
             $this->removeDirectory($tmpDir);
             throw new \RuntimeException('File ZIP tidak valid.');
@@ -212,11 +219,11 @@ class BankSoalBackupService
         $zip->extractTo($tmpDir);
         $zip->close();
 
-        $manifestPath = $tmpDir . '/manifest.json';
-        $stimuliPath = $tmpDir . '/stimuli.json';
-        $questionsPath = $tmpDir . '/questions.json';
-        $optionsPath = $tmpDir . '/options.json';
-        if (!file_exists($manifestPath) || !file_exists($stimuliPath) || !file_exists($questionsPath) || !file_exists($optionsPath)) {
+        $manifestPath = $tmpDir.'/manifest.json';
+        $stimuliPath = $tmpDir.'/stimuli.json';
+        $questionsPath = $tmpDir.'/questions.json';
+        $optionsPath = $tmpDir.'/options.json';
+        if (! file_exists($manifestPath) || ! file_exists($stimuliPath) || ! file_exists($questionsPath) || ! file_exists($optionsPath)) {
             $this->removeDirectory($tmpDir);
             throw new \RuntimeException('Format backup tidak valid (file manifest/questions/options/stimuli tidak lengkap).');
         }
@@ -252,12 +259,12 @@ class BankSoalBackupService
             foreach ($stimuliData as $s) {
                 $oldId = $s['id'];
                 $attachmentPath = null;
-                if (!empty($s['attachment_path'])) {
+                if (! empty($s['attachment_path'])) {
                     $zipAssetPath = $s['attachment_path'];
                     if (str_starts_with($zipAssetPath, 'assets/')) {
-                        $localFile = $tmpDir . '/' . $zipAssetPath;
+                        $localFile = $tmpDir.'/'.$zipAssetPath;
                         if (file_exists($localFile)) {
-                            $storagePath = 'question_stimuli/' . $institutionId . '/' . date('Y/m') . '/' . basename($zipAssetPath);
+                            $storagePath = 'question_stimuli/'.$institutionId.'/'.date('Y/m').'/'.basename($zipAssetPath);
                             Storage::disk('public')->put($storagePath, file_get_contents($localFile));
                             $attachmentPath = $storagePath;
                         }
@@ -270,9 +277,9 @@ class BankSoalBackupService
                         continue;
                     }
                     if (str_starts_with($mUrl, 'assets/')) {
-                        $localFile = $tmpDir . '/' . $mUrl;
+                        $localFile = $tmpDir.'/'.$mUrl;
                         if (file_exists($localFile)) {
-                            $storagePath = 'question_assets/' . $institutionId . '/' . date('Y/m') . '/' . basename($mUrl);
+                            $storagePath = 'question_assets/'.$institutionId.'/'.date('Y/m').'/'.basename($mUrl);
                             Storage::disk('public')->put($storagePath, file_get_contents($localFile));
                             $media[$mi]['url'] = url(Storage::url($storagePath));
                         }
@@ -309,6 +316,10 @@ class BankSoalBackupService
                     'body' => $body,
                     'weight' => $q['weight'] ?? 1,
                     'cognitive_level' => $q['cognitive_level'] ?? null,
+                    'difficulty' => $q['difficulty'] ?? null,
+                    'status' => $q['status'] ?? 'ready',
+                    'topic' => $q['topic'] ?? null,
+                    'tags' => $q['tags'] ?? null,
                     'key_answer' => $q['key_answer'] ?? null,
                     'key_answer_aliases' => $q['key_answer_aliases'] ?? null,
                     'matching_data' => $q['matching_data'] ?? null,
@@ -320,7 +331,7 @@ class BankSoalBackupService
             // Buat opsi baru
             foreach ($optionsData as $opt) {
                 $oldQId = $opt['question_bank_id'];
-                if (!isset($oldToNewQuestionId[$oldQId])) {
+                if (! isset($oldToNewQuestionId[$oldQId])) {
                     continue;
                 }
                 $body = $this->rewriteBodyPathsForRestore($opt['body'] ?? '', $tmpDir, $assetMap, $institutionId);
@@ -337,6 +348,7 @@ class BankSoalBackupService
         });
 
         $this->removeDirectory($tmpDir);
+
         return $result;
     }
 
@@ -347,15 +359,16 @@ class BankSoalBackupService
         }
         // Ganti {{ASSET:assets/xxx}} dengan path storage baru setelah kita upload file
         $pattern = '#{{ASSET:(assets/[^}}]+)}}#';
-        $body = preg_replace_callback($pattern, function ($m) use ($tmpDir, $assetMap, $institutionId) {
+        $body = preg_replace_callback($pattern, function ($m) use ($tmpDir, $institutionId) {
             $zipRel = $m[1];
-            $localFile = $tmpDir . '/' . $zipRel;
-            if (!file_exists($localFile)) {
+            $localFile = $tmpDir.'/'.$zipRel;
+            if (! file_exists($localFile)) {
                 return '';
             }
-            $storagePath = 'question_assets/' . $institutionId . '/' . date('Y/m') . '/' . basename($zipRel);
+            $storagePath = 'question_assets/'.$institutionId.'/'.date('Y/m').'/'.basename($zipRel);
             Storage::disk('public')->put($storagePath, file_get_contents($localFile));
-            return '/storage/' . $storagePath;
+
+            return '/storage/'.$storagePath;
         }, $body);
 
         return $body;

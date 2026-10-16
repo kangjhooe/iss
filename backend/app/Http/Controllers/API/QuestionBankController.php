@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\API\Concerns\ResolvesInstitution;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreQuestionBankRequest;
 use App\Http\Requests\UpdateQuestionBankRequest;
 use App\Http\Resources\QuestionBankResource;
+use App\Models\BankSoal;
 use App\Models\QuestionBank;
 use App\Models\QuestionOption;
-use App\Models\BankSoal;
 use App\Models\QuestionStimulus;
+use App\Services\HtmlPurifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Log;
-use App\Services\HtmlPurifier;
 
 class QuestionBankController extends Controller
 {
@@ -25,13 +25,13 @@ class QuestionBankController extends Controller
     {
         try {
             $institutionId = $this->resolveInstitutionId($request);
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
             if ($request->filled('bank_soal_id')) {
                 $bank = BankSoal::accessibleBy($request)->find($request->input('bank_soal_id'));
-                if (!$bank) {
+                if (! $bank) {
                     return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
                 }
                 $query = QuestionBank::query()->where('bank_soal_id', $bank->id);
@@ -104,7 +104,7 @@ class QuestionBankController extends Controller
             }
             if ($request->filled('search')) {
                 $search = $request->get('search');
-                $query->where('body', 'like', '%' . $search . '%');
+                $query->where('body', 'like', '%'.$search.'%');
             }
 
             $query->orderBy('sort_order')->orderBy('id');
@@ -114,6 +114,7 @@ class QuestionBankController extends Controller
             return QuestionBankResource::collection($items);
         } catch (\Exception $e) {
             Log::error('QuestionBank index failed', ['error' => $e->getMessage()]);
+
             return response()->json(['message' => 'Gagal mengambil data bank soal.', 'error' => config('app.debug') ? $e->getMessage() : null], 500);
         }
     }
@@ -122,7 +123,7 @@ class QuestionBankController extends Controller
     {
         try {
             $institutionId = $this->resolveInstitutionId($request);
-            if (!$institutionId) {
+            if (! $institutionId) {
                 return response()->json(['message' => 'Institusi tidak ditemukan.'], 403);
             }
 
@@ -134,7 +135,7 @@ class QuestionBankController extends Controller
 
             if ($request->filled('bank_soal_id')) {
                 $bank = BankSoal::accessibleBy($request)->find($request->input('bank_soal_id'));
-                if (!$bank) {
+                if (! $bank) {
                     return response()->json(['message' => 'Bank soal tidak ditemukan.'], 404);
                 }
                 $data['bank_soal_id'] = $bank->id;
@@ -142,10 +143,10 @@ class QuestionBankController extends Controller
                 $data['institution_id'] = $bank->institution_id;
             }
 
-            if (!empty($data['stimulus_id']) && !empty($data['bank_soal_id'])) {
+            if (! empty($data['stimulus_id']) && ! empty($data['bank_soal_id'])) {
                 $stimulus = QuestionStimulus::where('bank_soal_id', $data['bank_soal_id'])
                     ->find($data['stimulus_id']);
-                if (!$stimulus) {
+                if (! $stimulus) {
                     return response()->json(['message' => 'Stimulus tidak ditemukan atau bukan milik bank soal ini.'], 422);
                 }
             }
@@ -164,13 +165,13 @@ class QuestionBankController extends Controller
             $data['topic'] = $this->normalizeTopic($data['topic'] ?? null);
 
             $data['body'] = $this->sanitizeQuestionHtml($data['body'] ?? '');
-            if (!empty($options)) {
+            if (! empty($options)) {
                 foreach ($options as $i => $opt) {
                     $options[$i]['body'] = $this->sanitizeQuestionHtml($opt['body'] ?? '');
                 }
             }
 
-            if (!empty($data['bank_soal_id'])) {
+            if (! empty($data['bank_soal_id'])) {
                 $maxOrder = (int) QuestionBank::query()->where('bank_soal_id', $data['bank_soal_id'])->max('sort_order');
                 $data['sort_order'] = $maxOrder > 0 ? $maxOrder + 1 : 1;
             } else {
@@ -178,7 +179,7 @@ class QuestionBankController extends Controller
             }
 
             $question = QuestionBank::create($data);
-            if (in_array($question->type, ['pg', 'pg_kompleks'], true) && !empty($options)) {
+            if (in_array($question->type, ['pg', 'pg_kompleks'], true) && ! empty($options)) {
                 foreach ($options as $i => $opt) {
                     QuestionOption::create([
                         'question_bank_id' => $question->id,
@@ -199,6 +200,7 @@ class QuestionBankController extends Controller
             return (new QuestionBankResource($question))->response()->setStatusCode(201);
         } catch (\Exception $e) {
             Log::error('QuestionBank store failed', ['error' => $e->getMessage()]);
+
             return response()->json(['message' => 'Gagal membuat soal.', 'error' => config('app.debug') ? $e->getMessage() : null], 500);
         }
     }
@@ -208,10 +210,11 @@ class QuestionBankController extends Controller
         $institutionId = $this->resolveInstitutionId($request);
         $sameInstitution = $question_bank->institution_id == $institutionId;
         $bankAccessible = $question_bank->bank_soal_id && BankSoal::accessibleBy($request)->where('id', $question_bank->bank_soal_id)->exists();
-        if (!$sameInstitution && !$bankAccessible) {
+        if (! $sameInstitution && ! $bankAccessible) {
             return response()->json(['message' => 'Soal tidak ditemukan.'], 404);
         }
         $question_bank->load(['subject', 'stimulus', 'options']);
+
         return new QuestionBankResource($question_bank);
     }
 
@@ -220,7 +223,7 @@ class QuestionBankController extends Controller
         $institutionId = $this->resolveInstitutionId($request);
         $sameInstitution = $question_bank->institution_id == $institutionId;
         $bankAccessible = $question_bank->bank_soal_id && BankSoal::accessibleBy($request)->where('id', $question_bank->bank_soal_id)->exists();
-        if (!$sameInstitution && !$bankAccessible) {
+        if (! $sameInstitution && ! $bankAccessible) {
             return response()->json(['message' => 'Soal tidak ditemukan.'], 404);
         }
 
@@ -233,7 +236,7 @@ class QuestionBankController extends Controller
             $stimulus = QuestionStimulus::where('institution_id', $question_bank->institution_id)
                 ->where('bank_soal_id', $question_bank->bank_soal_id)
                 ->find($data['stimulus_id']);
-            if (!$stimulus) {
+            if (! $stimulus) {
                 return response()->json(['message' => 'Stimulus tidak ditemukan atau bukan milik bank soal ini.'], 422);
             }
         }
@@ -282,6 +285,7 @@ class QuestionBankController extends Controller
             }
         }
         $question_bank->load(['subject', 'stimulus', 'options']);
+
         return new QuestionBankResource($question_bank);
     }
 
@@ -300,11 +304,11 @@ class QuestionBankController extends Controller
                 $right[$i]['id'] = (string) (count($left) + $i + 1);
             }
         }
+
         return ['left' => $left, 'right' => $right, 'correct' => $correct];
     }
 
     /**
-     * @param  mixed  $aliases
      * @return list<string>|null
      */
     private function normalizeAliases(mixed $aliases): ?array
@@ -396,12 +400,13 @@ class QuestionBankController extends Controller
     {
         $headers = \App\Services\QuestionBankImportService::TEMPLATE_HEADERS;
         $sample = [
-            ['pg', 'Ibu kota Indonesia adalah…', 1, 'c1', '', '', 'Jakarta', 'Bandung', 'Surabaya', 'Medan', '', 'A', ''],
-            ['isian', 'Lambang kimia air adalah…', 1, 'c2', 'H2O', 'h2o|air', '', '', '', '', '', '', ''],
-            ['uraian', 'Jelaskan proses fotosintesis.', 5, 'c4', '', '', '', '', '', '', '', '', 'Bacaan Fotosintesis'],
+            ['pg', 'Ibu kota Indonesia adalah…', 1, 'c1', 'mudah', 'ready', 'geografi', 'ibukota', '', '', 'Jakarta', 'Bandung', 'Surabaya', 'Medan', '', 'A', ''],
+            ['isian', 'Lambang kimia air adalah…', 1, 'c2', 'mudah', 'ready', '', '', 'H2O', 'h2o|air', '', '', '', '', '', '', ''],
+            ['uraian', 'Jelaskan proses fotosintesis.', 5, 'c4', 'sedang', 'ready', 'biologi', '', '', '', '', '', '', '', '', '', 'Bacaan Fotosintesis'],
         ];
 
-        $export = new class($headers, $sample) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithTitle {
+        $export = new class($headers, $sample) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithTitle
+        {
             public function __construct(private array $headers, private array $sample) {}
 
             public function array(): array
@@ -427,7 +432,7 @@ class QuestionBankController extends Controller
         $institutionId = $this->resolveInstitutionId($request);
         $sameInstitution = $question_bank->institution_id == $institutionId;
         $bankAccessible = $question_bank->bank_soal_id && BankSoal::accessibleBy($request)->where('id', $question_bank->bank_soal_id)->exists();
-        if (!$sameInstitution && !$bankAccessible) {
+        if (! $sameInstitution && ! $bankAccessible) {
             return response()->json(['message' => 'Soal tidak ditemukan.'], 404);
         }
         if ($question_bank->examQuestions()->exists()) {
@@ -436,6 +441,7 @@ class QuestionBankController extends Controller
             ], 422);
         }
         $question_bank->delete();
+
         return response()->json(['message' => 'Soal dihapus.']);
     }
 
@@ -488,6 +494,7 @@ class QuestionBankController extends Controller
         foreach ($questions as $question) {
             if (! $this->canAccessQuestion($request, $question) || (int) $question->exam_questions_count > 0) {
                 $skipped++;
+
                 continue;
             }
             $question->delete();
@@ -517,6 +524,7 @@ class QuestionBankController extends Controller
         foreach ($questions as $question) {
             if (! $this->canAccessQuestion($request, $question)) {
                 $skipped++;
+
                 continue;
             }
             $this->replicateQuestion($question);

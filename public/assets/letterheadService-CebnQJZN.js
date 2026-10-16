@@ -1,0 +1,1 @@
+import{m as t}from"./index-B3oid9nE.js";const o={list(e={}){return t.get("/v1/kop-surat",{params:e})},get(e){return t.get(`/v1/kop-surat/${e}`)},create(e){return t.post("/v1/kop-surat",e)},update(e,r){return r.append("_method","PUT"),t.post(`/v1/kop-surat/${e}`,r)},remove(e){return t.delete(`/v1/kop-surat/${e}`)}};export{o as l};

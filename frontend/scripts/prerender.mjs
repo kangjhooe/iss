@@ -3,10 +3,11 @@
  * Menulis HTML yang sudah di-render Vue agar crawler mendapat konten penuh.
  *
  * Skip: PRERENDER=0
- * Port: PRERENDER_PORT (default 4173)
+ * Port: PRERENDER_PORT (default 4173). Jika port itu sibuk, port berikutnya dipakai.
  */
 import { spawn } from 'node:child_process'
 import { mkdir, writeFile, access } from 'node:fs/promises'
+import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import process from 'node:process'
@@ -15,14 +16,15 @@ import { ensureHidePrerenderBoot } from './hidePrerenderBoot.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const distDir = path.join(root, 'dist')
+const viteBin = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js')
 
 const ROUTES = [
   { path: '/', out: 'index.html', ready: '.home-page h1#hero-heading, .home-page h1, [data-seo-shell] h1' },
   { path: '/catatan-rilis', out: path.join('catatan-rilis', 'index.html'), ready: '.release-page h1, .release-hero h1' },
 ]
 
-const PORT = Number(process.env.PRERENDER_PORT || 4173)
-const BASE = `http://127.0.0.1:${PORT}`
+const PORT_START = Number(process.env.PRERENDER_PORT || 4173)
+let baseUrl = ''
 
 function log(msg) {
   console.log(`[prerender] ${msg}`)
@@ -32,47 +34,134 @@ function fail(msg) {
   console.error(`[prerender] ${msg}`)
 }
 
-async function waitForServer(url, timeoutMs = 60000) {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url, { redirect: 'manual' })
-      if (res.ok || res.status === 304 || (res.status >= 300 && res.status < 400)) return
-    } catch {
-      // retry
-    }
-    await new Promise((r) => setTimeout(r, 300))
-  }
-  throw new Error(`Preview server tidak siap di ${url}`)
+function canBind(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer()
+    server.unref()
+    server.once('error', () => resolve(false))
+    server.listen({ port, host: '127.0.0.1', exclusive: true }, () => {
+      server.close(() => resolve(true))
+    })
+  })
 }
 
-function startPreview() {
+async function findFreePort(start, attempts = 20) {
+  for (let i = 0; i < attempts; i += 1) {
+    const port = start + i
+    if (await canBind(port)) return port
+  }
+  throw new Error(`Tidak ada port kosong mulai ${start} (${attempts} percobaan)`)
+}
+
+function waitForOwnServer(url, child, timeoutMs = 60000) {
+  return new Promise((resolve, reject) => {
+    const started = Date.now()
+    const timer = setInterval(async () => {
+      if (child.exitCode !== null || child.signalCode) {
+        clearInterval(timer)
+        reject(new Error((child.output || '').trim() || `Preview server berhenti (exit ${child.exitCode})`))
+        return
+      }
+      if (!/Local:\s+https?:\/\//i.test(child.output || '')) {
+        if (Date.now() - started > timeoutMs) {
+          clearInterval(timer)
+          reject(new Error(`Preview server tidak siap di ${url}`))
+        }
+        return
+      }
+      try {
+        const res = await fetch(url, { redirect: 'manual' })
+        if (res.ok || res.status === 304 || (res.status >= 300 && res.status < 400)) {
+          clearInterval(timer)
+          resolve()
+        }
+      } catch {
+        if (Date.now() - started > timeoutMs) {
+          clearInterval(timer)
+          reject(new Error(`Preview server tidak siap di ${url}`))
+        }
+      }
+    }, 200)
+  })
+}
+
+function startPreview(port) {
   const child = spawn(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
+    process.execPath,
+    [viteBin, 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
     {
       cwd: root,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, BROWSER: 'none' },
-      shell: process.platform === 'win32',
+      windowsHide: true,
     }
   )
 
-  let output = ''
-  child.stdout.on('data', (buf) => {
-    output += buf.toString()
-  })
-  child.stderr.on('data', (buf) => {
-    output += buf.toString()
-  })
+  child.output = ''
+  child.stopping = false
+  const capture = (buf) => {
+    child.output += buf.toString()
+  }
+  child.stdout.on('data', capture)
+  child.stderr.on('data', capture)
 
   child.on('exit', (code) => {
-    if (code && code !== 0 && code !== null) {
-      fail(`preview exit ${code}\n${output}`)
-    }
+    if (child.stopping || !code) return
+    fail(`preview exit ${code}\n${child.output}`)
   })
 
   return child
+}
+
+function stopPreview(child) {
+  if (!child || child.exitCode !== null) return Promise.resolve()
+  child.stopping = true
+  if (process.platform === 'win32') {
+    return new Promise((resolve) => {
+      let settled = false
+      const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+        stdio: 'ignore',
+        windowsHide: true,
+      })
+      const timer = setTimeout(finish, 4000)
+      killer.on('exit', finish)
+      killer.on('error', finish)
+      function finish() {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve()
+      }
+    })
+  }
+  try {
+    child.kill('SIGTERM')
+  } catch {
+    // ignore
+  }
+  return Promise.resolve()
+}
+
+async function startReadyPreview() {
+  let port = await findFreePort(PORT_START)
+  let lastError
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (attempt > 0) port = await findFreePort(port + 1)
+    if (port !== PORT_START) log(`port ${PORT_START} sibuk, memakai ${port}`)
+    const preview = startPreview(port)
+    const url = `http://127.0.0.1:${port}`
+    try {
+      await waitForOwnServer(url, preview)
+      return { preview, url }
+    } catch (err) {
+      lastError = err
+      await stopPreview(preview)
+      const busy = /already in use|EADDRINUSE/i.test(`${preview.output || ''}\n${err?.message || ''}`)
+      if (!busy || attempt === 4) break
+      log(`port ${port} tertangkap proses lain, coba lagi`)
+    }
+  }
+  throw lastError
 }
 
 async function loadPuppeteer() {
@@ -87,7 +176,7 @@ async function loadPuppeteer() {
 }
 
 async function prerenderRoute(page, route) {
-  const url = `${BASE}${route.path}`
+  const url = `${baseUrl}${route.path}`
   log(`render ${route.path}`)
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForSelector(route.ready, { timeout: 45000 })
@@ -134,12 +223,14 @@ async function main() {
   }
 
   const puppeteer = await loadPuppeteer()
-  const preview = startPreview()
 
   let browser
+  let preview
   try {
-    await waitForServer(BASE)
-    log(`preview siap di ${BASE}`)
+    const ready = await startReadyPreview()
+    preview = ready.preview
+    baseUrl = ready.url
+    log(`preview siap di ${baseUrl}`)
 
     browser = await puppeteer.launch({
       headless: true,
@@ -176,11 +267,7 @@ async function main() {
         // ignore
       }
     }
-    try {
-      preview.kill('SIGTERM')
-    } catch {
-      // ignore
-    }
+    if (preview) await stopPreview(preview)
   }
 }
 

@@ -134,16 +134,24 @@ export default defineConfig(({ mode }) => {
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('vue/') || id === 'vue') return 'vue'
-            if (id.includes('vue-router')) return 'vue-router'
-            if (id.includes('pinia')) return 'pinia'
-            if (id.includes('xlsx')) return 'xlsx'
-            if (id.includes('quill') || id.includes('@vueup/vue-quill')) return 'quill'
-            if (id.includes('chart.js') || id.includes('vue-chartjs')) return 'chart'
-            if (id.includes('axios')) return 'axios'
-            if (id.includes('pdfjs-dist')) return 'pdfjs'
-          }
+          const normalized = id.replace(/\\/g, '/')
+          if (!normalized.includes('/node_modules/')) return
+          // Hanya paket Vue inti. Pola "vue/" juga kena ckeditor5-vue dan
+          // membuat siklus chunk dengan quill (ReferenceError saat boot).
+          if (/\/node_modules\/(vue|@vue)\//.test(normalized)) return 'vue'
+          if (normalized.includes('/node_modules/vue-router/')) return 'vue-router'
+          if (normalized.includes('/node_modules/pinia/')) return 'pinia'
+          if (normalized.includes('/node_modules/xlsx/')) return 'xlsx'
+          if (
+            normalized.includes('/node_modules/quill/')
+            || normalized.includes('/node_modules/@vueup/vue-quill/')
+          ) return 'quill'
+          if (
+            normalized.includes('/node_modules/chart.js/')
+            || normalized.includes('/node_modules/vue-chartjs/')
+          ) return 'chart'
+          if (normalized.includes('/node_modules/axios/')) return 'axios'
+          if (normalized.includes('/node_modules/pdfjs-dist/')) return 'pdfjs'
         }
       }
     },

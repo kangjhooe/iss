@@ -17,6 +17,10 @@ class QuestionBankImportService
         'body',
         'weight',
         'cognitive_level',
+        'difficulty',
+        'status',
+        'topic',
+        'tags',
         'key_answer',
         'key_aliases',
         'option_a',
@@ -110,6 +114,24 @@ class QuestionBankImportService
             throw new \InvalidArgumentException('cognitive_level harus c1–c6 atau kosong.');
         }
 
+        $difficulty = strtolower(trim((string) ($row['difficulty'] ?? '')));
+        if ($difficulty === '') {
+            $difficulty = null;
+        } elseif (! array_key_exists($difficulty, QuestionBank::DIFFICULTIES)) {
+            throw new \InvalidArgumentException('difficulty harus mudah, sedang, sulit, atau kosong.');
+        }
+
+        $status = strtolower(trim((string) ($row['status'] ?? '')));
+        if ($status === '') {
+            $status = QuestionBank::STATUS_READY;
+        } elseif (! in_array($status, [QuestionBank::STATUS_DRAFT, QuestionBank::STATUS_READY], true)) {
+            throw new \InvalidArgumentException('status harus draft, ready, atau kosong.');
+        }
+
+        $topic = trim((string) ($row['topic'] ?? ''));
+        $topic = $topic === '' ? null : mb_substr($topic, 0, 120);
+        $tags = $this->parseTags((string) ($row['tags'] ?? ''));
+
         $stimulusId = null;
         $stimulusTitle = trim((string) ($row['stimulus_title'] ?? ''));
         if ($stimulusTitle !== '') {
@@ -148,6 +170,10 @@ class QuestionBankImportService
             'body' => '<p>'.e($body).'</p>',
             'weight' => $weight,
             'cognitive_level' => $cognitiveLevel,
+            'difficulty' => $difficulty,
+            'status' => $status,
+            'topic' => $topic,
+            'tags' => $tags !== [] ? $tags : null,
             'sort_order' => $sortOrder,
             'key_answer' => $type === 'isian' ? $keyAnswer : null,
             'key_answer_aliases' => $type === 'isian' && $aliases !== [] ? $aliases : null,
@@ -237,6 +263,32 @@ class QuestionBankImportService
     }
 
     /**
+     * @return list<string>
+     */
+    private function parseTags(string $raw): array
+    {
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[,|;]+/', $raw) ?: [];
+        $out = [];
+        foreach ($parts as $part) {
+            $text = mb_strtolower(trim($part));
+            $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+            if ($text === '' || mb_strlen($text) > 40 || isset($out[$text])) {
+                continue;
+            }
+            $out[$text] = $text;
+            if (count($out) >= 8) {
+                break;
+            }
+        }
+
+        return array_values($out);
+    }
+
+    /**
      * @param  list<string>  $headers
      * @param  list<mixed>  $raw
      * @return array<string, mixed>
@@ -268,6 +320,10 @@ class QuestionBankImportService
             'level_kognitif' => 'cognitive_level',
             'taksonomi' => 'cognitive_level',
             'c1_c6' => 'cognitive_level',
+            'kesulitan' => 'difficulty',
+            'tingkat_kesulitan' => 'difficulty',
+            'topik' => 'topic',
+            'tag' => 'tags',
             'kunci' => 'key_answer',
             'kunci_jawaban' => 'key_answer',
             'alias' => 'key_aliases',
