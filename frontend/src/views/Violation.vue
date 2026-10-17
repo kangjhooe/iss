@@ -295,7 +295,7 @@
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th class="col-no">No</th>
+                    <th class="col-no">No.</th>
                     <th>Jenis</th>
                     <th>Kategori</th>
                     <th>Sanksi default</th>
@@ -305,7 +305,7 @@
                 </thead>
                 <tbody>
                   <tr v-for="(t, index) in pagedViolationTypes" :key="t.id">
-                    <td class="col-no">{{ (typesPage - 1) * typesPagination.per_page + index + 1 }}</td>
+                    <td class="col-no">{{ typeRowNumber(typesPage, typesPagination.per_page, index) }}</td>
                     <td>{{ t.name }}</td>
                     <td><span :class="['category-badge', t.category]">{{ violationCategoryLabel(t.category) }}</span></td>
                     <td>{{ t.default_sanction || '—' }}</td>
@@ -684,23 +684,100 @@
           <p class="empty-desc">{{ prestasiPurpose === 'apresiasi' ? 'Contoh: Melaporkan kejadian, Menolong teman, Kejujuran.' : 'Contoh: Juara olimpiade, Juara lomba, Penghargaan sains.' }}</p>
           <button @click="openAddAchievementTypeModal" class="btn-primary btn-empty-cta">Tambah Jenis</button>
         </div>
-        <div v-else class="types-grid">
-          <div v-for="t in filteredAchievementTypes" :key="t.id" class="type-card">
-            <div class="type-header">
-              <span class="type-name">{{ t.name }}</span>
-              <span class="type-point">+{{ t.point_value }} poin</span>
-            </div>
-            <p v-if="t.category" class="type-meta">{{ categoryLabel(t.category) }}</p>
-            <div class="type-actions">
-              <button type="button" @click="openEditAchievementTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis prestasi">
-                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
-              </button>
-              <button type="button" @click="confirmDeleteAchievementType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis prestasi">
-                <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
-              </button>
+        <template v-else>
+          <div class="types-view-bar">
+            <button
+              v-if="achievementTypeViewMode === 'table'"
+              type="button"
+              class="btn-secondary btn-compact"
+              :disabled="achievementTypesPrinting"
+              @click="printAchievementTypes"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>{{ achievementTypesPrinting ? 'Menyiapkan...' : 'Cetak PDF' }}</span>
+            </button>
+            <div class="view-toggle" role="group" aria-label="Mode tampilan jenis prestasi">
+              <button
+                type="button"
+                :class="['sub-nav-btn', { active: achievementTypeViewMode === 'cards' }]"
+                @click="achievementTypeViewMode = 'cards'"
+              >Kartu</button>
+              <button
+                type="button"
+                :class="['sub-nav-btn', { active: achievementTypeViewMode === 'table' }]"
+                @click="achievementTypeViewMode = 'table'"
+              >Tabel</button>
             </div>
           </div>
-        </div>
+          <div v-if="achievementTypeViewMode === 'cards'" class="types-grid">
+            <div v-for="t in sortedAchievementTypes" :key="t.id" class="type-card">
+              <div class="type-header">
+                <span class="type-name">{{ t.name }}</span>
+                <span class="type-point">+{{ t.point_value }} poin</span>
+              </div>
+              <p v-if="t.category" class="type-meta">{{ categoryLabel(t.category) }}</p>
+              <div class="type-actions">
+                <button type="button" @click="openEditAchievementTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis prestasi">
+                  <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                </button>
+                <button type="button" @click="confirmDeleteAchievementType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis prestasi">
+                  <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <template v-else>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-no">No.</th>
+                    <th>Jenis</th>
+                    <th>Kategori</th>
+                    <th>Poin</th>
+                    <th v-if="prestasiPurpose === 'akreditasi'">Poin per tingkat</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(t, index) in pagedAchievementTypes" :key="t.id">
+                    <td class="col-no">{{ typeRowNumber(achievementTypesPage, achievementTypesPagination.per_page, index) }}</td>
+                    <td>{{ t.name }}</td>
+                    <td>{{ categoryLabel(t.category) || '—' }}</td>
+                    <td><span class="point-good">+{{ t.point_value ?? 0 }}</span></td>
+                    <td v-if="prestasiPurpose === 'akreditasi'">{{ formatLevelPoints(t) }}</td>
+                    <td>
+                      <div class="action-buttons">
+                        <button type="button" @click="openEditAchievementTypeModal(t)" class="btn-action btn-edit" title="Edit" aria-label="Edit jenis prestasi">
+                          <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                        </button>
+                        <button type="button" @click="confirmDeleteAchievementType(t)" class="btn-action btn-delete" title="Hapus" aria-label="Hapus jenis prestasi">
+                          <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-delete"/></svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="types-pagination">
+              <PaginationBar
+                :page="achievementTypesPage"
+                :last-page="achievementTypesLastPage"
+                :per-page="achievementTypesPagination.per_page"
+                :total="sortedAchievementTypes.length"
+                item-label="jenis"
+                @page-change="goToAchievementTypesPage"
+                @per-page-change="changeAchievementTypesPerPage"
+              />
+            </div>
+          </template>
+        </template>
       </template>
 
       <!-- Tab: Aturan Tindakan -->
@@ -823,11 +900,12 @@
             />
             </div>
             <div class="form-group">
-              <label>Jenis Pelanggaran *</label>
-              <select v-model="form.violation_type_id" required class="form-select">
-                <option value="">Pilih jenis</option>
-                <option v-for="t in violationTypes" :key="t.id" :value="t.id">{{ t.name }} ({{ violationCategoryLabel(t.category) }})</option>
-              </select>
+              <ViolationTypePicker
+                v-model="form.violation_type_id"
+                :types="violationTypes"
+                :fallback="editingViolation?.violation_type || null"
+                :loading="typesLoading"
+              />
             </div>
             <div class="form-group">
               <label>Tanggal Pelanggaran *</label>
@@ -953,12 +1031,14 @@
             />
             </div>
             <div class="form-group">
-              <label>Jenis {{ prestasiPurpose === 'apresiasi' ? 'Apresiasi' : 'Prestasi' }} *</label>
-              <select v-model="prestasiForm.achievement_type_id" required class="form-select">
-                <option value="">Pilih jenis</option>
-                <option v-for="t in filteredAchievementTypes" :key="t.id" :value="t.id">{{ t.name }} (+{{ t.point_value }})</option>
-              </select>
-              <p v-if="!filteredAchievementTypes.length" class="field-hint">Belum ada jenis untuk kategori ini. Buat dulu di tab Pengaturan.</p>
+              <AchievementTypePicker
+                v-model="prestasiForm.achievement_type_id"
+                :types="filteredAchievementTypes"
+                :fallback="editingPrestasi?.achievement_type || null"
+                :loading="achievementTypesLoading"
+                :label="prestasiPurpose === 'apresiasi' ? 'Jenis Apresiasi' : 'Jenis Prestasi'"
+                :empty-text="prestasiPurpose === 'apresiasi' ? 'Belum ada jenis apresiasi. Buat dulu di tab Pengaturan.' : 'Belum ada jenis prestasi. Buat dulu di tab Pengaturan.'"
+              />
             </div>
             <div class="form-group">
               <label>{{ prestasiPurpose === 'apresiasi' ? 'Uraian kejadian *' : 'Nama lomba / kegiatan *' }}</label>
@@ -1233,6 +1313,8 @@ import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import StudentPicker from '@/components/StudentPicker.vue'
+import ViolationTypePicker from '@/components/ViolationTypePicker.vue'
+import AchievementTypePicker from '@/components/AchievementTypePicker.vue'
 import { violationApi, violationTypeApi, achievementApi, achievementTypeApi, pointThresholdApi, studentActionLogApi, studentPointApi } from '@/api/violation'
 import { institutionApi } from '@/api/institution'
 import { useReferenceDataStore } from '@/stores/referenceData'
@@ -1283,9 +1365,50 @@ const ACHIEVEMENT_CATEGORY_LABELS = {
   sikap: 'Sikap',
 }
 
+const ACHIEVEMENT_CATEGORY_ORDER = ['akademik', 'non_akademik', 'sikap']
+
 const filteredAchievementTypes = computed(() =>
   achievementTypes.value.filter((t) => (t.purpose || 'akreditasi') === prestasiPurpose.value)
 )
+
+const achievementTypeViewMode = ref('cards')
+const achievementTypesPrinting = ref(false)
+const achievementTypesPagination = ref({ current_page: 1, per_page: 15 })
+
+const sortedAchievementTypes = computed(() => {
+  const order = Object.fromEntries(ACHIEVEMENT_CATEGORY_ORDER.map((c, i) => [c, i]))
+  return [...filteredAchievementTypes.value].sort((a, b) => {
+    const byCategory = (order[a.category] ?? 99) - (order[b.category] ?? 99)
+    if (byCategory !== 0) return byCategory
+    return (a.name || '').localeCompare(b.name || '', 'id')
+  })
+})
+
+const achievementTypesLastPage = computed(() => Math.max(1, Math.ceil(sortedAchievementTypes.value.length / achievementTypesPagination.value.per_page) || 1))
+
+const achievementTypesPage = computed(() => Math.min(Math.max(1, achievementTypesPagination.value.current_page), achievementTypesLastPage.value))
+
+const pagedAchievementTypes = computed(() => {
+  const start = (achievementTypesPage.value - 1) * achievementTypesPagination.value.per_page
+  return sortedAchievementTypes.value.slice(start, start + achievementTypesPagination.value.per_page)
+})
+
+function goToAchievementTypesPage(page) {
+  achievementTypesPagination.value.current_page = page
+}
+
+function changeAchievementTypesPerPage(n) {
+  achievementTypesPagination.value.per_page = n
+  achievementTypesPagination.value.current_page = 1
+}
+
+function formatLevelPoints(type) {
+  if (!hasLevelPointValues(type)) return '—'
+  return Object.entries(LEVEL_LABELS)
+    .filter(([key]) => type.level_point_values?.[key] != null && type.level_point_values[key] !== '')
+    .map(([key, label]) => `${label} +${type.level_point_values[key]}`)
+    .join(', ')
+}
 
 function defaultLevelPointValues() {
   return { sekolah: '', kabupaten: '', provinsi: '', nasional: '', internasional: '' }
@@ -1368,6 +1491,10 @@ function changeTypesPerPage(n) {
   typesPagination.value.current_page = 1
 }
 
+function typeRowNumber(page, perPage, index) {
+  return (Number(page) - 1) * Number(perPage) + index + 1
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -1402,7 +1529,7 @@ async function printViolationTypes() {
         <td>${escapeHtml(t.name || '-')}</td>
         <td>${escapeHtml(violationCategoryLabel(t.category) || '-')}</td>
         <td>${escapeHtml(t.default_sanction || '—')}</td>
-        <td class="num">+${Number(t.point_weight ?? 0)}</td>
+        <td class="points">+${Number(t.point_weight ?? 0)}</td>
       </tr>
     `).join('')
 
@@ -1419,7 +1546,8 @@ async function printViolationTypes() {
     table.data { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 8px; }
     table.data th, table.data td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
     table.data th { background: #eee; font-size: 10px; text-transform: uppercase; }
-    td.num, th.num { text-align: center; width: 36px; }
+    th.num, td.num { text-align: center; width: 42px; min-width: 42px; white-space: nowrap; }
+    td.points { text-align: center; white-space: nowrap; }
     tr { page-break-inside: avoid; }
     .note { font-size: 10px; color: #444; margin: 0 0 10px; }
     .footer { display: flex; justify-content: flex-end; margin-top: 28px; page-break-inside: avoid; }
@@ -1441,11 +1569,11 @@ async function printViolationTypes() {
   <table class="data">
     <thead>
       <tr>
-        <th class="num">No</th>
+        <th class="num">No.</th>
         <th>Jenis</th>
         <th>Kategori</th>
         <th>Sanksi default</th>
-        <th class="num">Point</th>
+        <th>Point</th>
       </tr>
     </thead>
     <tbody>${tableRows}</tbody>
@@ -1482,10 +1610,119 @@ async function printViolationTypes() {
   }
 }
 
+async function printAchievementTypes() {
+  const rows = sortedAchievementTypes.value
+  if (!rows.length) {
+    toast.error('Gagal', 'Tidak ada jenis untuk dicetak')
+    return
+  }
+
+  const isApresiasi = prestasiPurpose.value === 'apresiasi'
+  achievementTypesPrinting.value = true
+  try {
+    if (!institution.value?.name) {
+      const res = await institutionApi.getMy()
+      institution.value = res.data?.data ?? res.data ?? null
+    }
+    const inst = institution.value || {}
+    const kind = isApresiasi ? 'Apresiasi' : 'Prestasi'
+    const filename = `Jenis_${kind}_${new Date().toISOString().slice(0, 10)}.pdf`
+    const placeDate = `${inst.district || inst.city || '........................'}, ${new Date().toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    })}`
+    const printFooterLine = formatPrintFooterLine(authStore.user?.name)
+    const tableRows = rows.map((t, index) => `
+      <tr>
+        <td class="num">${index + 1}</td>
+        <td>${escapeHtml(t.name || '-')}</td>
+        <td>${escapeHtml(categoryLabel(t.category) || '—')}</td>
+        <td class="points">+${Number(t.point_value ?? 0)}</td>
+        ${isApresiasi ? '' : `<td>${escapeHtml(formatLevelPoints(t))}</td>`}
+      </tr>
+    `).join('')
+
+    const content = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(filename)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 16px; }
+    h1 { font-size: 16px; margin: 12px 0 4px; text-align: center; text-transform: uppercase; }
+    .subtitle { text-align: center; color: #444; margin-bottom: 12px; }
+    table.data { width: calc(100% - 2px); max-width: calc(100% - 2px); border-collapse: collapse; margin-bottom: 8px; }
+    table.data th, table.data td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
+    table.data th { background: #eee; font-size: 10px; text-transform: uppercase; }
+    th.num, td.num { text-align: center; width: 42px; min-width: 42px; white-space: nowrap; }
+    td.points { text-align: center; white-space: nowrap; }
+    tr { page-break-inside: avoid; }
+    .note { font-size: 10px; color: #444; margin: 0 0 10px; }
+    .footer { display: flex; justify-content: flex-end; margin-top: 28px; page-break-inside: avoid; }
+    .footer-right { text-align: center; min-width: 220px; }
+    .sig-space { height: 56px; }
+    .printed-at { font-size: 9px; color: #555; text-align: center; margin-top: 16px; }
+    @media print {
+      @page { size: A4 portrait; margin: 10mm 12mm 14mm 10mm; }
+      body { margin: 0; padding-right: 1px; }
+      .printed-at { position: fixed; bottom: 0; left: 0; right: 0; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  ${renderStandardLetterheadHtml(inst)}
+  <h1>Daftar Jenis ${escapeHtml(kind)}</h1>
+  <div class="subtitle">Diurutkan per kategori: Akademik, Non Akademik, lalu Sikap</div>
+  <p class="note">Jumlah data: ${rows.length}</p>
+  <table class="data">
+    <thead>
+      <tr>
+        <th class="num">No.</th>
+        <th>Jenis</th>
+        <th>Kategori</th>
+        <th>Poin</th>
+        ${isApresiasi ? '' : '<th>Poin per tingkat</th>'}
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <div class="footer">
+    <div class="footer-right">
+      ${escapeHtml(placeDate)}<br>
+      ${escapeHtml(getPrincipalTitle(inst.level))}
+      <div class="sig-space"></div>
+      <strong>${escapeHtml(inst.principal_name || '___________________')}</strong>
+      <br>NIP. ${escapeHtml(inst.principal_nip || '___________________')}
+    </div>
+  </div>
+  <div class="printed-at">${escapeHtml(printFooterLine)}</div>
+</body>
+</html>`
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Gagal', 'Popup diblokir. Izinkan popup untuk mencetak PDF.')
+      return
+    }
+    printWindow.document.write(content)
+    printWindow.document.close()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.document.title = filename
+    }, 250)
+  } catch (err) {
+    if (import.meta.env.DEV) console.error('Error printing achievement types:', err)
+    toast.error('Gagal', 'Gagal menyiapkan cetak PDF')
+  } finally {
+    achievementTypesPrinting.value = false
+  }
+}
+
 function setPrestasiPurpose(purpose) {
   if (prestasiPurpose.value === purpose) return
   prestasiPurpose.value = purpose
   achievementFilters.value.achievement_type_id = ''
+  achievementTypesPagination.value.current_page = 1
   if (activeTab.value === 'prestasi') {
     achievementsPagination.value.current_page = 1
     loadAchievements()
@@ -2018,6 +2255,10 @@ async function submitViolation() {
       formError.value = 'Pilih siswa terlebih dahulu.'
       return
     }
+    if (!form.value.violation_type_id) {
+      formError.value = 'Pilih jenis pelanggaran terlebih dahulu.'
+      return
+    }
     if (editingViolation.value) {
       await violationApi.update(editingViolation.value.id, {
         violation_type_id: form.value.violation_type_id,
@@ -2317,6 +2558,12 @@ async function submitPrestasi() {
   try {
     if (!editingPrestasi.value && !prestasiForm.value.student_id) {
       prestasiFormError.value = 'Pilih siswa terlebih dahulu.'
+      return
+    }
+    if (!prestasiForm.value.achievement_type_id) {
+      prestasiFormError.value = prestasiPurpose.value === 'apresiasi'
+        ? 'Pilih jenis apresiasi terlebih dahulu.'
+        : 'Pilih jenis prestasi terlebih dahulu.'
       return
     }
     const purpose = prestasiForm.value.purpose || prestasiPurpose.value
@@ -2933,6 +3180,7 @@ onMounted(async () => {
 .form-check-row .form-hint { margin: 0.35rem 0 0; font-size: 0.8rem; }
 .modal-wide { max-width: 640px; }
 .point-add { color: #b91c1c; font-weight: 600; }
+.point-good { color: #047857; font-weight: 600; }
 .points-info-banner {
   display: flex;
   align-items: flex-start;
@@ -3340,9 +3588,15 @@ onMounted(async () => {
   border-radius: 10px;
   margin-left: auto;
 }
-.data-table .col-no {
-  width: 3.25rem;
+.data-table th.col-no,
+.data-table td.col-no {
+  width: 72px;
+  min-width: 72px;
+  max-width: 88px;
   text-align: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  white-space: nowrap;
 }
 .types-pagination { margin-top: 0.85rem; }
 .types-grid {

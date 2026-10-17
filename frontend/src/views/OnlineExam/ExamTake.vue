@@ -106,14 +106,14 @@
               </label>
             </div>
             <div v-else-if="currentQuestion.type === 'pg_kompleks'" class="options">
-              <p class="option-hint">Pilih semua jawaban yang benar (boleh lebih dari satu).</p>
+              <p class="option-hint">Pilih semua jawaban yang benar. Satu pilihan yang salah membuat nilai soal ini 0.</p>
               <label v-for="opt in currentQuestion.options" :key="opt.id" class="option-label">
                 <input v-model="selectedOptionIds" type="checkbox" :value="opt.id" @change="saveCurrentAnswer" />
                 <span class="option-text"><span class="opt-key">{{ opt.option_key }}.</span> <QuestionHtml tag="span" :html="opt.body || ''" /></span>
               </label>
             </div>
             <div v-else-if="currentQuestion.type === 'matching'" class="matching-answer">
-              <p class="option-hint">Cocokkan kolom kiri dengan kolom kanan.</p>
+              <p class="option-hint">Cocokkan setiap baris kiri dengan satu baris kanan. Pasangan yang salah membuat nilai soal ini 0.</p>
               <div v-for="leftItem in currentQuestion.matching_left" :key="leftItem.id" class="matching-row">
                 <span class="matching-left-text">{{ leftItem.text }}</span>
                 <select :value="matchingAnswer[leftItem.id]" @change="onMatchingChange(leftItem.id, $event)">
@@ -194,6 +194,14 @@ async function enter() {
   try {
     const res = await examAttemptApi.enterWithPinAndNomorUrut(pin, num)
     const data = res.data
+    if (data.code === 'already_submitted' || data.participant) {
+      if (data.login_token) {
+        loginToken.value = data.login_token
+        sessionStorage.setItem(RESUME_KEY, data.login_token)
+      }
+      showSubmitted(data.message || '', data.participant)
+      return
+    }
     if (data.login_token) {
       loginToken.value = data.login_token
       sessionStorage.setItem(RESUME_KEY, data.login_token)
@@ -204,12 +212,6 @@ async function enter() {
       startProgressPoll()
       loadQuestion(0)
       refreshProgress()
-    } else if (data.message && data.participant) {
-      if (data.login_token) {
-        loginToken.value = data.login_token
-        sessionStorage.setItem(RESUME_KEY, data.login_token)
-      }
-      showSubmitted('', data.participant)
     } else if (data.message) {
       error.value = data.message
     }

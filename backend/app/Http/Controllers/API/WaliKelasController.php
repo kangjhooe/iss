@@ -638,9 +638,9 @@ class WaliKelasController extends Controller
             'class_id' => ['required', 'integer'],
             'student_id' => ['required', 'integer'],
             'achievement_type_id' => ['required', 'integer'],
+            'level' => ['nullable', 'string', Rule::in(Achievement::LEVELS)],
             'achievement_date' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'point_value' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $student = WaliKelasAccess::resolveHomeroomStudent($user, (int) $data['class_id'], (int) $data['student_id']);

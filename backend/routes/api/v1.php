@@ -307,9 +307,12 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
     Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->name('audit-logs.export');
     Route::get('/dashboard/charts', [DashboardChartsController::class, 'index'])->name('dashboard.charts');
 
+    // Identitas sekolah sendiri (kop cetak, tahun ajaran aktif).
+    // Di luar module:institution — guru BK hanya punya counseling/violation, bukan kelola institusi.
+    Route::get('/institution/my', [InstitutionController::class, 'myInstitution']);
+
     // Institution routes
     Route::middleware('module:institution')->group(function () {
-        Route::get('/institution/my', [InstitutionController::class, 'myInstitution']);
         Route::put('/institution/{id}/active-academic-year', [InstitutionController::class, 'updateActiveAcademicYear'])->name('institution.update-active-academic-year');
         Route::post('/institution/{id}/logo', [InstitutionController::class, 'uploadLogo'])->name('institution.upload-logo');
         Route::post('/institution/{id}/cover-image', [InstitutionController::class, 'uploadCoverImage'])->name('institution.upload-cover-image');

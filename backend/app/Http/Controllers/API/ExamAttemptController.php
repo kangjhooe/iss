@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveExamAnswerRequest;
 use App\Models\ExamAnswer;
 use App\Models\ExamParticipant;
+use App\Models\ExamQuestion;
 use App\Models\ExamSession;
+use App\Services\ExamQuestionSnapshot;
 use App\Services\ExamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,12 +65,15 @@ class ExamAttemptController extends Controller
         $session = ExamSession::where('status', 'started')
             ->where('entry_pin', $entryPin)
             ->with(['exam.subject'])
-            ->first();
-        if (!$session) {
+            ->get();
+        if ($session->count() !== 1) {
             return response()->json([
-                'message' => 'Kode ujian salah atau sudah berubah. Minta kode terbaru ke pengawas (diperbarui tiap 20 menit).',
+                'message' => $session->count() > 1
+                    ? 'Kode ujian bentrok. Minta pengawas merilis kode baru.'
+                    : 'Kode ujian salah atau sudah berubah. Minta kode terbaru ke pengawas (diperbarui tiap 20 menit).',
             ], 403);
         }
+        $session = $session->first();
         $participants = $session->participants()->with(['examSession.exam.subject', 'student'])
             ->orderByRaw('COALESCE(participant_order, 999999) ASC')
             ->orderBy('id')
@@ -182,10 +187,48 @@ class ExamAttemptController extends Controller
             return $participant;
         }
 
-        $qbId = $request->input('question_bank_id');
+        $qbId = (int) $request->input('question_bank_id');
         $order = $participant->question_order ?? [];
-        if (!in_array((int) $qbId, array_map('intval', $order))) {
+        if (! in_array($qbId, array_map('intval', $order), true)) {
             return response()->json(['message' => 'Soal tidak termasuk dalam ujian ini.'], 422);
+        }
+
+        $examQuestion = ExamQuestion::query()
+            ->where('exam_id', $participant->examSession->exam_id)
+            ->where('question_bank_id', $qbId)
+            ->first();
+        $snapshot = $examQuestion?->scoringPayload();
+        if (! $snapshot) {
+            return response()->json(['message' => 'Soal tidak termasuk dalam ujian ini.'], 422);
+        }
+        $type = (string) ($snapshot['type'] ?? '');
+        $answerError = ExamQuestionSnapshot::answerError(
+            $type,
+            $snapshot,
+            $request->input('question_option_id'),
+            $request->input('selected_option_ids'),
+            $request->input('matching_answer')
+        );
+        if ($answerError) {
+            return response()->json(['message' => $answerError], 422);
+        }
+
+        $fields = [
+            'answer_text' => null,
+            'question_option_id' => null,
+            'selected_option_ids' => null,
+            'matching_answer' => null,
+            'saved_at' => now(),
+        ];
+        if (in_array($type, ['isian', 'uraian'], true)) {
+            $fields['answer_text'] = $request->input('answer_text');
+        } elseif ($type === 'pg') {
+            $fields['question_option_id'] = $request->input('question_option_id') ?: null;
+        } elseif ($type === 'pg_kompleks') {
+            $selected = $request->input('selected_option_ids') ?? [];
+            $fields['selected_option_ids'] = array_values(array_unique(array_map('intval', is_array($selected) ? $selected : [])));
+        } elseif ($type === 'matching') {
+            $fields['matching_answer'] = $request->input('matching_answer');
         }
 
         $answer = ExamAnswer::updateOrCreate(
@@ -193,13 +236,7 @@ class ExamAttemptController extends Controller
                 'exam_participant_id' => $participant->id,
                 'question_bank_id' => $qbId,
             ],
-            [
-                'answer_text' => $request->input('answer_text'),
-                'question_option_id' => $request->input('question_option_id'),
-                'selected_option_ids' => $request->input('selected_option_ids'),
-                'matching_answer' => $request->input('matching_answer'),
-                'saved_at' => now(),
-            ]
+            $fields
         );
 
         $this->examService->touchPresence($participant);

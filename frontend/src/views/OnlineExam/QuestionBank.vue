@@ -326,7 +326,7 @@
             <section v-if="form.type === 'pg_kompleks'" class="qform-section">
               <div class="qform-section-head">
                 <h4 class="qform-section-title">Opsi jawaban</h4>
-                <p class="hint">Centang opsi benar dan isi bobot masing-masing.</p>
+                <p class="hint">Centang semua opsi benar dan isi bobotnya. Saat ujian, satu pilihan salah membuat nilai soal ini 0. Opsi benar yang belum dipilih mengurangi nilai sesuai bobotnya.</p>
               </div>
               <div class="option-cards">
                 <div v-for="(opt, i) in form.options" :key="i" class="option-card" :class="{ 'is-correct': opt.is_correct }">
@@ -356,6 +356,7 @@
 
             <section v-if="form.type === 'matching'" class="qform-section matching-form">
               <h4 class="qform-section-title">Pasangan mencocokkan</h4>
+              <p class="hint">Siswa yang memasangkan salah satu baris dengan jawaban yang salah mendapat 0 pada soal ini. Baris yang dikosongkan mengurangi nilai secara proporsional.</p>
               <div class="matching-columns">
                 <div class="matching-col">
                   <strong>Kolom kiri</strong>

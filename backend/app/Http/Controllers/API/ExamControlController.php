@@ -155,7 +155,12 @@ class ExamControlController extends Controller
         if ($exam_session->exam->institution_id != $this->resolveInstitutionId($request)) {
             return response()->json(['message' => 'Sesi ujian tidak ditemukan.'], 404);
         }
-        $session = $this->examService->startSession($exam_session);
+        try {
+            $session = $this->examService->startSession($exam_session);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
         return response()->json(['message' => 'Sesi ujian dimulai.', 'session' => $session]);
     }
 
@@ -255,9 +260,20 @@ class ExamControlController extends Controller
             return response()->json(['message' => 'Jawaban tidak ditemukan.'], 404);
         }
         $request->validate(['score' => 'required|numeric|min:0']);
-        $q = $exam_answer->questionBank;
-        $maxScore = $q ? (float) $q->weight : 100;
-        $score = min((float) $request->input('score'), $maxScore);
+        $participant->loadMissing('examSession.exam.examQuestions.questionBank');
+        $eq = $participant->examSession->exam->examQuestions->firstWhere(
+            'question_bank_id',
+            $exam_answer->question_bank_id
+        );
+        $snapshot = $eq?->scoringPayload($eq->questionBank ?? $exam_answer->questionBank);
+        if (! $snapshot || ($snapshot['type'] ?? '') !== \App\Models\QuestionBank::TYPE_URAIAN) {
+            return response()->json(['message' => 'Nilai manual hanya untuk soal uraian.'], 422);
+        }
+        $weight = (float) ($snapshot['weight'] ?? 0);
+        $score = max(0, (float) $request->input('score'));
+        if ($weight > 0) {
+            $score = min($score, $weight);
+        }
         $exam_answer->update(['score' => $score]);
         $this->examService->recomputeParticipantScore($participant);
         return response()->json(['message' => 'Nilai disimpan.', 'score' => $score]);

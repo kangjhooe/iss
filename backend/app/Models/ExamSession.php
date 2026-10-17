@@ -39,15 +39,25 @@ class ExamSession extends Model
         ];
     }
 
-    /** Generate 6 uppercase letters (A-Z) for student entry. */
+    /** Generate 6 uppercase letters (A-Z) for student entry. Avoids a PIN already used by a running session. */
     public static function generateEntryPin(): string
     {
         $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $pin = '';
         $max = strlen($chars) - 1;
-        for ($i = 0; $i < 6; $i++) {
-            $pin .= $chars[random_int(0, $max)];
+        for ($attempt = 0; $attempt < 8; $attempt++) {
+            $pin = '';
+            for ($i = 0; $i < 6; $i++) {
+                $pin .= $chars[random_int(0, $max)];
+            }
+            $taken = self::query()
+                ->where('status', self::STATUS_STARTED)
+                ->where('entry_pin', $pin)
+                ->exists();
+            if (! $taken) {
+                return $pin;
+            }
         }
+
         return $pin;
     }
 

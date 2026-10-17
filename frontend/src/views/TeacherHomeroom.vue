@@ -298,21 +298,23 @@
           <div v-if="usulanTab === 'violation'" class="usulan-grid">
             <form class="form-card" @submit.prevent="submitViolation">
               <h3>Ajukan pelanggaran</h3>
-              <label>Siswa
-                <select v-model="vioForm.student_id" required>
-                  <option value="">Pilih siswa</option>
-                  <option v-for="s in studentOptions" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-                </select>
-              </label>
-              <label>Jenis
-                <select v-model="vioForm.violation_type_id" required>
-                  <option value="">Pilih jenis</option>
-                  <option v-for="t in violationTypes" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
-                </select>
-              </label>
+              <div class="picker-block">
+                <StudentPicker
+                  v-model="vioForm.student_id"
+                  :roster="classStudentOptions"
+                  check-color="#dc2626"
+                  focus-ring-color="rgba(220, 38, 38, 0.12)"
+                />
+              </div>
+              <div class="picker-block">
+                <ViolationTypePicker
+                  v-model="vioForm.violation_type_id"
+                  :types="violationTypes"
+                  empty-text="Jenis pelanggaran belum tersedia. Minta BK menambahkan master jenis."
+                />
+              </div>
               <label>Tanggal <input v-model="vioForm.violation_date" type="date" required></label>
               <label>Keterangan <textarea v-model="vioForm.description" rows="2" placeholder="Opsional"></textarea></label>
-              <p v-if="!violationTypes.length" class="form-warn">Jenis pelanggaran belum tersedia. Minta BK/admin menambahkan master jenis.</p>
               <button type="submit" class="btn-primary" :disabled="usulanSubmitting || !violationTypes.length">Kirim usulan</button>
             </form>
             <div class="list-card">
@@ -334,21 +336,38 @@
           <div v-else-if="usulanTab === 'achievement'" class="usulan-grid">
             <form class="form-card" @submit.prevent="submitAchievement">
               <h3>Ajukan prestasi</h3>
-              <label>Siswa
-                <select v-model="achForm.student_id" required>
-                  <option value="">Pilih siswa</option>
-                  <option v-for="s in studentOptions" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+              <div class="picker-block">
+                <StudentPicker
+                  v-model="achForm.student_id"
+                  :roster="classStudentOptions"
+                />
+              </div>
+              <div class="picker-block">
+                <AchievementTypePicker
+                  v-model="achForm.achievement_type_id"
+                  :types="achievementTypes"
+                  :label="achievementPickerLabel"
+                  empty-text="Jenis prestasi atau apresiasi belum tersedia."
+                />
+              </div>
+              <label v-if="achievementNeedsLevel">Tingkat
+                <select v-model="achForm.level" :required="achievementLevelRequired">
+                  <option value="">Pilih tingkat</option>
+                  <option v-for="row in achievementLevelRows" :key="row.key" :value="row.key">{{ row.label }} · {{ row.points }} poin</option>
                 </select>
               </label>
-              <label>Jenis
-                <select v-model="achForm.achievement_type_id" required>
-                  <option value="">Pilih jenis</option>
-                  <option v-for="t in achievementTypes" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
-                </select>
-              </label>
+              <div v-if="selectedAchievementType" class="point-preview">
+                <p class="point-preview-value">Poin yang diajukan: <strong>{{ resolvedAchievementPoints }}</strong></p>
+                <ul v-if="achievementLevelRows.length" class="level-point-list">
+                  <li v-for="row in achievementLevelRows" :key="row.key" :class="{ active: achForm.level === row.key }">
+                    <span>{{ row.label }}</span>
+                    <strong>{{ row.points }} poin</strong>
+                  </li>
+                </ul>
+                <p v-if="achievementLevelRows.length" class="point-preview-hint">Poin mengikuti tingkat yang dipilih. Tingkat tanpa angka khusus memakai poin dasar jenis.</p>
+              </div>
               <label>Tanggal <input v-model="achForm.achievement_date" type="date" required></label>
               <label>Catatan <textarea v-model="achForm.notes" rows="2" placeholder="Opsional"></textarea></label>
-              <p v-if="!achievementTypes.length" class="form-warn">Jenis prestasi belum tersedia.</p>
               <button type="submit" class="btn-primary" :disabled="usulanSubmitting || !achievementTypes.length">Kirim usulan</button>
             </form>
             <div class="list-card">
@@ -359,7 +378,7 @@
                 <li v-for="a in achievements" :key="a.id">
                   <div>
                     <strong>{{ a.student?.name }}</strong>
-                    <span class="muted"> · {{ a.achievement_type?.name }} · {{ a.achievement_date }}</span>
+                    <span class="muted"> · {{ a.achievement_type?.name }}<template v-if="a.level"> · {{ achievementLevelLabel(a.level) }}</template> · {{ a.point_value ?? 0 }} poin · {{ a.achievement_date }}</span>
                   </div>
                   <span class="status-pill" :class="statusTone(a.status)">{{ statusLabel(a.status) }}</span>
                 </li>
@@ -370,12 +389,12 @@
           <div v-else class="usulan-grid">
             <form class="form-card" @submit.prevent="submitMutation">
               <h3>Ajukan mutasi keluar</h3>
-              <label>Siswa
-                <select v-model="mutForm.student_id" required>
-                  <option value="">Pilih siswa</option>
-                  <option v-for="s in studentOptions" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-                </select>
-              </label>
+              <div class="picker-block">
+                <StudentPicker
+                  v-model="mutForm.student_id"
+                  :roster="classStudentOptions"
+                />
+              </div>
               <label>NPSN tujuan <input v-model="mutForm.target_npsn" required placeholder="NPSN sekolah tujuan"></label>
               <label class="check-row">
                 <input v-model="mutForm.external" type="checkbox"> Sekolah belum terdaftar di sistem
@@ -1257,6 +1276,9 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import StudentPicker from '@/components/StudentPicker.vue'
+import ViolationTypePicker from '@/components/ViolationTypePicker.vue'
+import AchievementTypePicker from '@/components/AchievementTypePicker.vue'
 import { useRoute, useRouter } from 'vue-router'
 import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'
@@ -1409,7 +1431,57 @@ const mutationsLoading = ref(false)
 const studentOptions = ref([])
 
 const vioForm = ref({ student_id: '', violation_type_id: '', violation_date: new Date().toISOString().slice(0, 10), description: '' })
-const achForm = ref({ student_id: '', achievement_type_id: '', achievement_date: new Date().toISOString().slice(0, 10), notes: '' })
+const ACHIEVEMENT_LEVEL_LABELS = {
+  sekolah: 'Sekolah',
+  kabupaten: 'Kabupaten/Kota',
+  provinsi: 'Provinsi',
+  nasional: 'Nasional',
+  internasional: 'Internasional',
+}
+
+const achForm = ref({ student_id: '', achievement_type_id: '', level: '', achievement_date: new Date().toISOString().slice(0, 10), notes: '' })
+
+const selectedAchievementType = computed(() =>
+  achievementTypes.value.find((t) => String(t.id) === String(achForm.value.achievement_type_id)) || null
+)
+
+const achievementNeedsLevel = computed(() => {
+  const type = selectedAchievementType.value
+  if (!type) return false
+  return (type.purpose || 'akreditasi') === 'akreditasi'
+})
+
+function achievementHasLevelPoints(type) {
+  if (!type?.level_point_values) return false
+  return Object.values(type.level_point_values).some((v) => v != null && v !== '')
+}
+
+const achievementLevelRequired = computed(() =>
+  achievementNeedsLevel.value && achievementHasLevelPoints(selectedAchievementType.value)
+)
+
+const achievementLevelRows = computed(() => {
+  const type = selectedAchievementType.value
+  if (!type || !achievementNeedsLevel.value) return []
+  const base = Number(type.point_value) || 0
+  return Object.entries(ACHIEVEMENT_LEVEL_LABELS).map(([key, label]) => {
+    const raw = type.level_point_values?.[key]
+    const configured = raw != null && raw !== ''
+    return { key, label, points: configured ? Number(raw) : base, configured }
+  })
+})
+
+const resolvedAchievementPoints = computed(() => {
+  const type = selectedAchievementType.value
+  if (!type) return 0
+  const row = achievementLevelRows.value.find((item) => item.key === achForm.value.level)
+  if (row) return row.points
+  return Number(type.point_value) || 0
+})
+
+function achievementLevelLabel(level) {
+  return ACHIEVEMENT_LEVEL_LABELS[level] || level || ''
+}
 const mutForm = ref({ student_id: '', target_npsn: '', target_school_name: '', external: false, notes: '' })
 
 const schedule = ref(null)
@@ -1448,6 +1520,19 @@ let syncingQuery = false
 
 const homeroomClasses = computed(() => authStore.user?.homeroom_classes || [])
 const selectedClass = computed(() => homeroomClasses.value.find((c) => String(c.id) === String(selectedClassId.value)) || null)
+const classStudentOptions = computed(() => {
+  const className = selectedClass.value?.name || ''
+  return studentOptions.value.map((student) => ({
+    ...student,
+    class_name: student.class_name || student.class?.name || className,
+  }))
+})
+const achievementPickerLabel = computed(() => {
+  const purposes = new Set(achievementTypes.value.map((type) => type.purpose || 'akreditasi'))
+  if (purposes.has('akreditasi') && purposes.has('apresiasi')) return 'Jenis Prestasi / Apresiasi'
+  if (purposes.has('apresiasi')) return 'Jenis Apresiasi'
+  return 'Jenis Prestasi'
+})
 const classHeadcount = computed(() => {
   if (dashLoading.value) return { total: '…', male: '…', female: '…' }
   return {
@@ -2316,6 +2401,14 @@ async function loadMutations() {
 }
 
 async function submitViolation() {
+  if (!vioForm.value.student_id) {
+    toast.warning('Pilih siswa terlebih dahulu')
+    return
+  }
+  if (!vioForm.value.violation_type_id) {
+    toast.warning('Pilih jenis pelanggaran terlebih dahulu')
+    return
+  }
   usulanSubmitting.value = true
   try {
     await homeroomApi.proposeViolation({
@@ -2336,12 +2429,21 @@ async function submitViolation() {
 }
 
 async function submitAchievement() {
+  if (!achForm.value.student_id) {
+    toast.warning('Pilih siswa terlebih dahulu')
+    return
+  }
+  if (!achForm.value.achievement_type_id) {
+    toast.warning('Pilih jenis prestasi atau apresiasi terlebih dahulu')
+    return
+  }
   usulanSubmitting.value = true
   try {
     await homeroomApi.proposeAchievement({
       class_id: Number(selectedClassId.value),
       student_id: Number(achForm.value.student_id),
       achievement_type_id: Number(achForm.value.achievement_type_id),
+      level: achievementNeedsLevel.value ? (achForm.value.level || null) : null,
       achievement_date: achForm.value.achievement_date,
       notes: achForm.value.notes || null,
     })
@@ -2356,6 +2458,10 @@ async function submitAchievement() {
 }
 
 async function submitMutation() {
+  if (!mutForm.value.student_id) {
+    toast.warning('Pilih siswa terlebih dahulu')
+    return
+  }
   usulanSubmitting.value = true
   try {
     await homeroomApi.proposeMutation({
@@ -3025,12 +3131,21 @@ onBeforeUnmount(() => {
 .usulan-grid { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(280px, 1.2fr); gap: 1rem; }
 .form-card, .list-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; background: #f8fafc; }
 .form-card h3, .list-card h3 { margin: 0 0 .75rem; font-size: .98rem; }
+.picker-block { margin-bottom: .75rem; }
+.picker-block :deep(.student-picker),
+.picker-block :deep(.type-picker) { background: #fff; }
 .form-card label { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .7rem; font-size: .82rem; font-weight: 600; color: #475569; }
 .form-card input, .form-card select, .form-card textarea {
   border: 1px solid #e2e8f0; border-radius: 8px; padding: .5rem .65rem; font: inherit; font-weight: 400; background: #fff; color: #0f172a;
 }
 .check-row { flex-direction: row !important; align-items: center; gap: .5rem !important; font-weight: 500 !important; }
 .form-warn { color: #b45309; font-size: .8rem; margin: 0 0 .6rem; }
+.point-preview { margin: -.15rem 0 .75rem; padding: .65rem .75rem; border-radius: 10px; background: #fff; border: 1px solid #d1fae5; }
+.point-preview-value { margin: 0; font-size: .84rem; color: #065f46; }
+.point-preview-hint { margin: .45rem 0 0; font-size: .75rem; color: #64748b; font-weight: 500; }
+.level-point-list { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; }
+.level-point-list li { display: flex; justify-content: space-between; gap: .75rem; padding: .3rem .45rem; border-radius: 7px; font-size: .8rem; font-weight: 600; color: #334155; }
+.level-point-list li.active { background: #ecfdf5; color: #065f46; }
 .proposal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .55rem; }
 .proposal-list li { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-start; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: .65rem .75rem; }
 .status-pill { font-size: .72rem; font-weight: 700; text-transform: uppercase; padding: .15rem .45rem; border-radius: 999px; background: #f1f5f9; color: #475569; white-space: nowrap; }

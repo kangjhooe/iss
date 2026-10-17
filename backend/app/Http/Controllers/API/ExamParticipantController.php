@@ -229,7 +229,8 @@ class ExamParticipantController extends Controller
         if ($nomorUrut < 1) {
             $nomorUrut = 1;
         }
-        $nomorPeserta = $institution->buildNomorPeserta($nomorUrut, $session->scheduled_start_at ?? $session->started_at);
+        $orderForNomor = $exam_participant->participant_order ?? $nomorUrut;
+        $nomorPeserta = $institution->buildNomorPeserta((int) $orderForNomor, $session->scheduled_start_at ?? $session->started_at);
 
         $pdf = DomPDF::loadView('exam.participant_card', [
             'participant' => $exam_participant,

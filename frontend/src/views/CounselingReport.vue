@@ -1482,6 +1482,7 @@ async function printPdf() {
 
   printing.value = true
   try {
+    await ensureInstitutionForPrint()
     if (isAkreditasiReport.value) {
       await ensureDetailForPrint()
     }
@@ -1646,10 +1647,21 @@ async function printPdf() {
     }
     printWindow.document.write(content)
     printWindow.document.close()
-    setTimeout(() => {
-      printWindow.print()
-      printWindow.document.title = filename
-    }, 250)
+    const images = Array.from(printWindow.document.images || [])
+    const imagesReady = Promise.all(images.map((img) => {
+      if (img.complete) return Promise.resolve()
+      return new Promise((resolve) => {
+        img.onload = () => resolve()
+        img.onerror = () => resolve()
+      })
+    }))
+    await Promise.race([
+      imagesReady,
+      new Promise((resolve) => setTimeout(resolve, 2500)),
+    ])
+    printWindow.focus()
+    printWindow.print()
+    printWindow.document.title = filename
   } catch (err) {
     if (import.meta.env.DEV) console.error('Error printing PDF:', err)
     toast.error('Gagal', 'Gagal menyiapkan cetak PDF')
@@ -1694,6 +1706,17 @@ async function loadSemesters() {
     semesters.value = res.data?.data || []
   } catch {
     semesters.value = []
+  }
+}
+
+async function ensureInstitutionForPrint() {
+  if (institution.value?.name) return
+  try {
+    const res = await institutionApi.getMy()
+    const inst = res.data?.data || res.data
+    if (inst?.name) institution.value = inst
+  } catch {
+    // Kop memakai label sekolah jika identitas belum terbaca.
   }
 }
 

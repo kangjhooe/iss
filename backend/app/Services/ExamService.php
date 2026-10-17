@@ -21,6 +21,9 @@ class ExamService
         if ($session->status === ExamSession::STATUS_STARTED) {
             return $session;
         }
+        if ($session->status === ExamSession::STATUS_ENDED) {
+            throw new \InvalidArgumentException('Sesi yang sudah selesai harus direset ke draf sebelum dimulai lagi.');
+        }
         $pin = ExamSession::generateEntryPin();
         $session->update([
             'status' => ExamSession::STATUS_STARTED,
@@ -255,23 +258,7 @@ class ExamService
      */
     public function computeAutoScoreForParticipant(ExamParticipant $participant): void
     {
-        $participant->loadMissing(['answers.questionBank.options', 'examSession.exam.examQuestions']);
-        $byQuestionId = $participant->examSession->exam->examQuestions->keyBy('question_bank_id');
-
-        $total = 0;
-        $max = 0;
-        foreach ($participant->answers as $answer) {
-            $eq = $byQuestionId->get($answer->question_bank_id);
-            $snapshot = $eq
-                ? $eq->scoringPayload($answer->questionBank)
-                : ($answer->questionBank ? ExamQuestionSnapshot::capture($answer->questionBank) : null);
-            if (! $snapshot) {
-                continue;
-            }
-            $max += (float) ($snapshot['weight'] ?? 0);
-            $total += ExamQuestionSnapshot::applyAutoScore($answer, $snapshot);
-        }
-        $scaled = $this->scaleScoreToHundred($total, $max);
+        $scaled = $this->totalsForParticipant($participant, true);
         $participant->update([
             'score' => $scaled['score'],
             'score_max' => $scaled['score_max'],
@@ -367,27 +354,62 @@ class ExamService
      */
     public function recomputeParticipantScore(ExamParticipant $participant): void
     {
-        $participant->loadMissing(['answers.questionBank.options', 'examSession.exam.examQuestions']);
-        $byQuestionId = $participant->examSession->exam->examQuestions->keyBy('question_bank_id');
-
-        $total = 0;
-        $max = 0;
-        foreach ($participant->answers as $answer) {
-            $eq = $byQuestionId->get($answer->question_bank_id);
-            $snapshot = $eq
-                ? $eq->scoringPayload($answer->questionBank)
-                : ($answer->questionBank ? ExamQuestionSnapshot::capture($answer->questionBank) : null);
-            if ($snapshot) {
-                $max += (float) ($snapshot['weight'] ?? 0);
-            }
-            $score = $answer->score !== null ? (float) $answer->score : 0;
-            $total += $score;
-        }
-        $scaled = $this->scaleScoreToHundred($total, $max);
+        $scaled = $this->totalsForParticipant($participant, false);
         $participant->update([
             'score' => $scaled['score'],
             'score_max' => $scaled['score_max'],
         ]);
+    }
+
+    /**
+     * Skor mentah dari seluruh soal di urutan peserta. Soal kosong tetap masuk penyebut.
+     * Uraian memakai nilai yang sudah dikoreksi; hitung ulang otomatis tidak menimpa uraian.
+     *
+     * @return array{score: float, score_max: float}
+     */
+    private function totalsForParticipant(ExamParticipant $participant, bool $rescoreObjective): array
+    {
+        $participant->loadMissing(['answers', 'examSession.exam.examQuestions.questionBank']);
+        $examQuestions = $participant->examSession->exam->examQuestions->keyBy(
+            fn ($eq) => (int) $eq->question_bank_id
+        );
+        $answers = $participant->answers->keyBy(fn ($a) => (int) $a->question_bank_id);
+
+        $order = array_map('intval', $participant->question_order ?? []);
+        if ($order === []) {
+            $order = $examQuestions->keys()->map(fn ($id) => (int) $id)->values()->all();
+        }
+
+        $total = 0.0;
+        $max = 0.0;
+        foreach ($order as $qid) {
+            $eq = $examQuestions->get($qid);
+            if (! $eq) {
+                continue;
+            }
+            $answer = $answers->get($qid);
+            $snapshot = $eq->scoringPayload($answer?->questionBank ?? $eq->questionBank);
+            if (! $snapshot) {
+                continue;
+            }
+            $max += (float) ($snapshot['weight'] ?? 0);
+            $type = (string) ($snapshot['type'] ?? '');
+            if ($type === QuestionBank::TYPE_URAIAN) {
+                $total += $answer && $answer->score !== null ? (float) $answer->score : 0.0;
+
+                continue;
+            }
+            if (! $answer) {
+                continue;
+            }
+            if ($rescoreObjective) {
+                $total += ExamQuestionSnapshot::applyAutoScore($answer, $snapshot);
+            } else {
+                $total += $answer->score !== null ? (float) $answer->score : 0.0;
+            }
+        }
+
+        return $this->scaleScoreToHundred($total, $max);
     }
 
     /**
@@ -439,7 +461,8 @@ class ExamService
                 'question_option_id' => $saved->question_option_id,
                 'selected_option_ids' => $saved->selected_option_ids,
                 'matching_answer' => $saved->matching_answer,
-            ] : null
+            ] : null,
+            $participant->id.':'.$questionBankId
         );
         $payload['stimulus_continued'] = $stimulusContinued;
 
@@ -492,13 +515,34 @@ class ExamService
         $fresh = $participant->fresh();
         $this->computeAutoScoreForParticipant($fresh);
         $fresh = $fresh->fresh();
-        $fresh->loadMissing('examSession.exam');
-        if ($fresh->examSession->exam->isPractice()) {
+        $fresh->loadMissing(['answers', 'examSession.exam.examQuestions.questionBank']);
+        if ($fresh->examSession->exam->isPractice() && ! $this->hasUnscoredEssay($fresh)) {
             $this->releaseScore($fresh);
             $fresh = $fresh->fresh();
         }
 
         return $fresh;
+    }
+
+    /**
+     * Latihan tidak merilis nilai selama ada uraian yang belum dikoreksi.
+     */
+    private function hasUnscoredEssay(ExamParticipant $participant): bool
+    {
+        $participant->loadMissing(['answers', 'examSession.exam.examQuestions.questionBank']);
+        $answers = $participant->answers->keyBy(fn ($a) => (int) $a->question_bank_id);
+        foreach ($participant->examSession->exam->examQuestions as $eq) {
+            $snapshot = $eq->scoringPayload($eq->questionBank);
+            if (! $snapshot || ($snapshot['type'] ?? '') !== QuestionBank::TYPE_URAIAN) {
+                continue;
+            }
+            $answer = $answers->get((int) $eq->question_bank_id);
+            if (! $answer || $answer->score === null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function touchPresence(ExamParticipant $participant): void
@@ -693,7 +737,13 @@ class ExamService
                 continue;
             }
             $answer = $answers->get($qid);
-            $payload['questions'][] = $this->reviewQuestion($index, $snapshot, $answer);
+            $payload['questions'][] = $this->reviewQuestion(
+                $index,
+                $snapshot,
+                $answer,
+                (bool) $exam->shuffle_options,
+                $participant->id.':'.$qid
+            );
         }
 
         return $payload;
@@ -703,8 +753,9 @@ class ExamService
      * @param  array<string, mixed>  $snapshot
      * @return array<string, mixed>
      */
-    private function reviewQuestion(int $index, array $snapshot, ?ExamAnswer $answer): array
+    private function reviewQuestion(int $index, array $snapshot, ?ExamAnswer $answer, bool $shuffleOptions, string $shuffleSeed): array
     {
+        $snapshot = ExamQuestionSnapshot::forStudentDisplay($snapshot, $shuffleOptions, $shuffleSeed);
         $type = (string) ($snapshot['type'] ?? '');
         $weight = (float) ($snapshot['weight'] ?? 0);
         $score = $answer && $answer->score !== null ? (float) $answer->score : null;
@@ -895,14 +946,14 @@ class ExamService
                 'zero' => $zero,
                 'unanswered' => $unanswered,
                 'unscored' => $unscored,
-                'percent_full' => $scoredCount > 0 ? round($full / $scoredCount * 100, 1) : null,
+                'percent_full' => $submitted->count() > 0 ? round($full / $submitted->count() * 100, 1) : null,
                 'avg_score' => $scoredCount > 0 ? round($scoreSum / $scoredCount, 2) : null,
             ];
         }
 
         return [
             'submitted' => $submitted->count(),
-            'note' => 'Nomor mengikuti urutan paket ujian. Layar siswa bisa berbeda karena soal diacak.',
+            'note' => 'Nomor mengikuti urutan paket ujian. Layar siswa bisa berbeda karena soal diacak. Persen benar dihitung dari seluruh peserta yang mengumpulkan; jawaban kosong dihitung tidak benar.',
             'items' => $items,
         ];
     }

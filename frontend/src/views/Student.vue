@@ -1793,16 +1793,41 @@
     <div v-if="nisAssignPreview.open" class="modal-overlay" @click="!nisAssignPreview.applying && closeNisAssignPreview()">
       <div class="modal-content import-preview-modal nis-assign-modal" @click.stop>
         <div class="modal-header">
-          <h3>{{ nisAssignPreview.result ? 'NIS sudah diterapkan' : 'Pratinjau NIS lokal' }}</h3>
+          <div class="nis-assign-heading">
+            <h3>{{ nisAssignPreview.result ? 'NIS sudah diterapkan' : 'Pratinjau NIS lokal' }}</h3>
+            <p v-if="nisAssignPreview.result">
+              {{ nisAssignPreview.result.assigned }} siswa. Nomor sudah tersimpan.
+            </p>
+            <p v-else-if="!nisAssignPreview.loading">
+              {{ nisAssignSelectedCount }} dipilih
+              <template v-if="nisAssignRangeLabel"> · {{ nisAssignRangeLabel }}</template>
+              · belum disimpan
+            </p>
+          </div>
           <button type="button" class="btn-close" :disabled="nisAssignPreview.applying" @click="closeNisAssignPreview">×</button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body nis-assign-body">
           <template v-if="nisAssignPreview.result">
-            <p class="modal-message">
-              {{ nisAssignPreview.result.assigned }} siswa mendapat NIS. Nomor ini sudah tersimpan di data siswa.
-            </p>
-            <div v-if="nisAssignPreview.result.assigned_rows?.length" class="import-preview-table-wrap">
-              <table class="counseling-table">
+            <div v-if="nisAssignPreview.result.assigned_rows?.length" class="nis-assign-toolbar">
+              <div class="form-group nis-assign-search">
+                <label for="nis-result-query">Cari</label>
+                <input
+                  id="nis-result-query"
+                  v-model="nisAssignPreview.query"
+                  type="search"
+                  class="form-input"
+                  placeholder="Nama atau NIS"
+                />
+              </div>
+            </div>
+            <div v-if="nisAssignPreview.result.errors?.length" class="import-invalid-box nis-assign-errors">
+              <strong>Sebagian dilewati ({{ nisAssignPreview.result.errors.length }})</strong>
+              <ul>
+                <li v-for="(err, idx) in nisAssignPreview.result.errors.slice(0, 4)" :key="'ne'+idx">{{ err }}</li>
+              </ul>
+            </div>
+            <div v-if="nisAssignResultVisibleRows.length" class="nis-assign-table-wrap">
+              <table class="counseling-table nis-assign-table">
                 <thead>
                   <tr>
                     <th>Nama</th>
@@ -1811,32 +1836,22 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in nisAssignPreview.result.assigned_rows.slice(0, 40)" :key="'r'+row.id">
+                  <tr v-for="row in nisAssignResultVisibleRows" :key="'r'+row.id">
                     <td>{{ row.name }}</td>
                     <td>{{ row.class || row.tingkat || '—' }}</td>
-                    <td><strong>{{ row.nis }}</strong></td>
+                    <td class="nis-assign-nis"><strong>{{ row.nis }}</strong></td>
                   </tr>
                 </tbody>
               </table>
-              <p v-if="nisAssignPreview.result.assigned_rows.length > 40" class="hint">
-                …dan {{ nisAssignPreview.result.assigned_rows.length - 40 }} siswa lain
-              </p>
             </div>
-            <div v-if="nisAssignPreview.result.errors?.length" class="import-invalid-box">
-              <strong>Sebagian dilewati</strong>
-              <ul>
-                <li v-for="(err, idx) in nisAssignPreview.result.errors.slice(0, 8)" :key="'ne'+idx">{{ err }}</li>
-              </ul>
-            </div>
+            <p v-else class="nis-assign-empty">
+              {{ nisAssignPreview.query ? 'Tidak ada siswa yang cocok dengan pencarian.' : 'Tidak ada NIS yang diterapkan.' }}
+            </p>
           </template>
           <template v-else>
-            <p v-if="!nisAssignPreview.loading" class="modal-message">
-              {{ nisAssignSelectedCount }} siswa akan mendapat NIS.
-              Siswa yang tidak dicentang tidak mendapat nomor. Nomor di bawah belum disimpan.
-            </p>
-            <div class="nis-start-seq-row">
+            <div class="nis-assign-toolbar">
               <div class="form-group nis-start-seq-field">
-                <label for="nis-start-seq">Mulai dari nomor urut</label>
+                <label for="nis-start-seq">Mulai urut</label>
                 <input
                   id="nis-start-seq"
                   v-model.number="nisAssignPreview.start_seq"
@@ -1857,9 +1872,29 @@
                   :disabled="nisAssignPreview.loading || nisAssignPreview.applying"
                   @change="refreshNisAssignPreview"
                 >
-                  <option value="name">Abjad (nama)</option>
+                  <option value="name">Abjad</option>
                   <option value="class">Kelas</option>
                 </select>
+              </div>
+              <div v-if="nisAssignClassOptions.length > 1" class="form-group nis-start-seq-field">
+                <label for="nis-class-filter">Kelas</label>
+                <select id="nis-class-filter" v-model="nisAssignPreview.class_filter" class="form-input">
+                  <option value="">Semua</option>
+                  <option v-for="opt in nisAssignClassOptions" :key="opt.label" :value="opt.label">
+                    {{ opt.label }} ({{ opt.count }})
+                  </option>
+                </select>
+              </div>
+              <div class="form-group nis-assign-search">
+                <label for="nis-query">Cari</label>
+                <input
+                  id="nis-query"
+                  v-model="nisAssignPreview.query"
+                  type="search"
+                  class="form-input"
+                  placeholder="Nama atau NIS"
+                  :disabled="nisAssignPreview.loading"
+                />
               </div>
               <button
                 type="button"
@@ -1867,30 +1902,26 @@
                 :disabled="nisAssignPreview.loading || nisAssignPreview.applying || !nisAssignPreview.start_seq"
                 @click="refreshNisAssignPreview"
               >
-                Perbarui pratinjau
+                Perbarui
               </button>
             </div>
-            <p class="hint">
-              Default nomor urut: {{ nisAssignPreview.next_seq || 1 }}.
-              Ubah jika ingin loncat (mis. mulai dari 150).
-              NIS hanya dihitung untuk siswa yang dicentang, mengikuti urutan di atas.
+            <p v-if="nisAssignPreview.truncated" class="nis-assign-note">
+              Menampilkan {{ nisAssignPreview.rows.length }} dari {{ nisAssignPreview.total_missing }} siswa. Terapkan dulu, lalu buka pratinjau lagi untuk sisanya.
             </p>
-            <p v-if="nisAssignPreview.truncated" class="hint">
-              Hanya {{ nisAssignPreview.rows.length }} dari {{ nisAssignPreview.total_missing }} siswa ditampilkan. Terapkan per batch.
-            </p>
-            <p v-if="nisAssignPreview.numbering" class="hint">Memperbarui nomor…</p>
+            <p v-if="nisAssignPreview.numbering" class="nis-assign-note">Memperbarui nomor…</p>
             <p v-if="nisAssignPreview.error" class="error-text">{{ nisAssignPreview.error }}</p>
-            <div v-if="nisAssignPreview.loading" class="hint">Memuat pratinjau…</div>
-            <div v-else-if="nisAssignPreview.rows.length" class="import-preview-table-wrap">
-              <table class="counseling-table">
+            <div v-if="nisAssignPreview.loading" class="nis-assign-empty">Memuat pratinjau…</div>
+            <div v-else-if="nisAssignVisibleRows.length" class="nis-assign-table-wrap">
+              <table class="counseling-table nis-assign-table">
                 <thead>
                   <tr>
                     <th class="col-check">
                       <input
                         type="checkbox"
-                        :checked="nisAssignAllSelected"
-                        :indeterminate.prop="nisAssignSomeSelected && !nisAssignAllSelected"
+                        :checked="nisAssignVisibleAllSelected"
+                        :indeterminate.prop="nisAssignVisibleSomeSelected"
                         :disabled="nisAssignPreview.applying"
+                        :aria-label="nisAssignHasListFilter ? 'Pilih siswa yang tampil' : 'Pilih semua siswa'"
                         @change="toggleNisAssignAll($event.target.checked)"
                       />
                     </th>
@@ -1901,7 +1932,7 @@
                 </thead>
                 <tbody>
                   <tr
-                    v-for="row in nisAssignPreview.rows"
+                    v-for="row in nisAssignVisibleRows"
                     :key="row.id"
                     :class="{ 'nis-row-skipped': !nisAssignPreview.selected[row.id] }"
                   >
@@ -1910,12 +1941,13 @@
                         v-model="nisAssignPreview.selected[row.id]"
                         type="checkbox"
                         :disabled="nisAssignPreview.applying"
+                        :aria-label="`Pilih ${row.name}`"
                         @change="scheduleNisPreviewRefresh"
                       />
                     </td>
                     <td>{{ row.name }}</td>
-                    <td>{{ row.class || row.tingkat || '—' }}</td>
-                    <td>
+                    <td>{{ nisAssignClassLabel(row) }}</td>
+                    <td class="nis-assign-nis">
                       <strong v-if="nisAssignPreview.selected[row.id] && row.proposed_nis && !nisAssignPreview.numbering">{{ row.proposed_nis }}</strong>
                       <span v-else-if="nisAssignPreview.selected[row.id] && nisAssignPreview.numbering">…</span>
                       <span v-else>—</span>
@@ -1924,23 +1956,34 @@
                 </tbody>
               </table>
             </div>
+            <p v-else-if="nisAssignPreview.rows.length" class="nis-assign-empty">Tidak ada siswa yang cocok dengan pencarian.</p>
           </template>
         </div>
-        <div class="modal-footer">
-          <template v-if="nisAssignPreview.result">
-            <button type="button" class="btn-primary" @click="closeNisAssignPreview">Tutup</button>
-          </template>
-          <template v-else>
-            <button type="button" class="btn-secondary" :disabled="nisAssignPreview.applying" @click="closeNisAssignPreview">Batal</button>
-            <button
-              type="button"
-              class="btn-primary"
-              :disabled="nisAssignPreview.loading || nisAssignPreview.numbering || nisAssignPreview.applying || nisAssignSelectedCount === 0"
-              @click="applyNisAssignPreview"
-            >
-              {{ nisAssignPreview.applying ? 'Menerapkan…' : `Terapkan (${nisAssignSelectedCount})` }}
-            </button>
-          </template>
+        <div class="modal-footer nis-assign-footer">
+          <span v-if="!nisAssignPreview.result" class="nis-assign-footer-meta">
+            <template v-if="nisAssignHasListFilter">
+              {{ nisAssignVisibleRows.length }} tampil dari {{ nisAssignPreview.rows.length }}
+            </template>
+            <template v-else>
+              {{ nisAssignPreview.rows.length }} siswa
+            </template>
+          </span>
+          <div class="nis-assign-footer-actions">
+            <template v-if="nisAssignPreview.result">
+              <button type="button" class="btn-primary" @click="closeNisAssignPreview">Tutup</button>
+            </template>
+            <template v-else>
+              <button type="button" class="btn-secondary" :disabled="nisAssignPreview.applying" @click="closeNisAssignPreview">Batal</button>
+              <button
+                type="button"
+                class="btn-primary"
+                :disabled="nisAssignPreview.loading || nisAssignPreview.numbering || nisAssignPreview.applying || nisAssignSelectedCount === 0"
+                @click="applyNisAssignPreview"
+              >
+                {{ nisAssignPreview.applying ? 'Menerapkan…' : `Terapkan (${nisAssignSelectedCount})` }}
+              </button>
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -2064,17 +2107,67 @@ const nisAssignPreview = ref({
   next_seq: 1,
   sort: 'name',
   student_ids: null,
+  query: '',
+  class_filter: '',
 })
 let nisPreviewTimer = null
 let nisPreviewRequestSeq = 0
 const nisAssignSelectedCount = computed(() => {
   return nisAssignPreview.value.rows.filter((row) => nisAssignPreview.value.selected[row.id]).length
 })
-const nisAssignAllSelected = computed(() => {
-  const rows = nisAssignPreview.value.rows
-  return rows.length > 0 && rows.every((row) => nisAssignPreview.value.selected[row.id])
+function nisAssignClassLabel(row) {
+  return row?.class || (row?.tingkat ? `Tingkat ${row.tingkat}` : 'Tanpa kelas')
+}
+const nisAssignClassOptions = computed(() => {
+  const counts = new Map()
+  for (const row of nisAssignPreview.value.rows) {
+    const label = nisAssignClassLabel(row)
+    counts.set(label, (counts.get(label) || 0) + 1)
+  }
+  return [...counts.entries()].map(([label, count]) => ({ label, count }))
 })
-const nisAssignSomeSelected = computed(() => nisAssignSelectedCount.value > 0)
+const nisAssignHasListFilter = computed(() => {
+  return !!(nisAssignPreview.value.query || '').trim() || !!nisAssignPreview.value.class_filter
+})
+const nisAssignVisibleRows = computed(() => {
+  const query = (nisAssignPreview.value.query || '').trim().toLowerCase()
+  const classFilter = nisAssignPreview.value.class_filter || ''
+  return nisAssignPreview.value.rows.filter((row) => {
+    if (classFilter && nisAssignClassLabel(row) !== classFilter) return false
+    if (!query) return true
+    const name = String(row.name || '').toLowerCase()
+    const nis = String(row.proposed_nis || '').toLowerCase()
+    return name.includes(query) || nis.includes(query)
+  })
+})
+const nisAssignResultVisibleRows = computed(() => {
+  const rows = nisAssignPreview.value.result?.assigned_rows || []
+  const query = (nisAssignPreview.value.query || '').trim().toLowerCase()
+  if (!query) return rows
+  return rows.filter((row) => {
+    const name = String(row.name || '').toLowerCase()
+    const nis = String(row.nis || '').toLowerCase()
+    return name.includes(query) || nis.includes(query)
+  })
+})
+const nisAssignVisibleSelectedCount = computed(() => {
+  return nisAssignVisibleRows.value.filter((row) => nisAssignPreview.value.selected[row.id]).length
+})
+const nisAssignVisibleAllSelected = computed(() => {
+  const rows = nisAssignVisibleRows.value
+  return rows.length > 0 && nisAssignVisibleSelectedCount.value === rows.length
+})
+const nisAssignVisibleSomeSelected = computed(() => {
+  const count = nisAssignVisibleSelectedCount.value
+  return count > 0 && count < nisAssignVisibleRows.value.length
+})
+const nisAssignRangeLabel = computed(() => {
+  if (nisAssignPreview.value.numbering) return ''
+  const selected = nisAssignPreview.value.rows.filter((row) => nisAssignPreview.value.selected[row.id] && row.proposed_nis)
+  if (!selected.length) return ''
+  if (selected.length === 1) return selected[0].proposed_nis
+  return `${selected[0].proposed_nis} – ${selected[selected.length - 1].proposed_nis}`
+})
 const nisNumbering = ref({
   settings: {
     preset: 'tahun_urut',
@@ -2348,8 +2441,8 @@ function closeNisAssignPreview() {
 }
 
 function toggleNisAssignAll(checked) {
-  const next = {}
-  nisAssignPreview.value.rows.forEach((row) => {
+  const next = { ...nisAssignPreview.value.selected }
+  nisAssignVisibleRows.value.forEach((row) => {
     next[row.id] = !!checked
   })
   nisAssignPreview.value.selected = next
@@ -2388,6 +2481,8 @@ async function openNisAssignPreview(studentIds) {
     next_seq: defaultStart,
     sort: 'name',
     student_ids: studentIds?.length ? [...studentIds] : null,
+    query: '',
+    class_filter: '',
   }
   await fetchNisAssignPreview({ resetSelection: true })
   nisGenerateLoading.value = false
@@ -2488,6 +2583,8 @@ async function applyNisAssignPreview() {
       start_seq: start,
       sort: nisAssignPreview.value.sort === 'class' ? 'class' : 'name',
     })
+    nisAssignPreview.value.query = ''
+    nisAssignPreview.value.class_filter = ''
     nisAssignPreview.value.result = {
       assigned: res.data?.data?.assigned || 0,
       assigned_rows: res.data?.data?.assigned_rows || [],
@@ -4333,36 +4430,177 @@ watch(() => route.query.trashed, (value) => {
   margin-bottom: 12px;
 }
 
-.nis-assign-modal {
-  max-width: 720px;
+.modal-content.nis-assign-modal {
+  max-width: 760px;
+  width: min(760px, 94vw);
+  max-height: min(86vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.nis-start-seq-row {
+.nis-assign-modal .modal-header {
+  flex: 0 0 auto;
+  align-items: flex-start;
+  padding: 16px 20px;
+}
+
+.nis-assign-modal .modal-header h3 {
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.nis-assign-heading p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.nis-assign-modal .modal-body.nis-assign-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px 12px;
+  overflow: hidden;
+}
+
+.nis-assign-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 10px;
-  margin: 12px 0 4px;
+  flex: 0 0 auto;
 }
 
-.nis-start-seq-field {
-  flex: 0 1 200px;
+.nis-assign-toolbar .form-group {
   margin-bottom: 0;
 }
 
-.nis-start-seq-field input,
-.nis-start-seq-field select {
+.nis-start-seq-field {
+  flex: 0 1 140px;
+}
+
+.nis-assign-search {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.nis-assign-toolbar .form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.nis-assign-toolbar .form-group input,
+.nis-assign-toolbar .form-group select {
   width: 100%;
-  max-width: 180px;
+  max-width: none;
+  height: 36px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-width: 1px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.nis-assign-toolbar .form-group select {
+  padding-right: 28px;
+  background-position: right 8px center;
+}
+
+.nis-assign-toolbar .btn-compact {
+  height: 36px;
+}
+
+.nis-assign-note {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.nis-assign-empty {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.nis-assign-errors {
+  flex: 0 0 auto;
+  max-height: 96px;
+  overflow: auto;
+  margin-top: 0;
+}
+
+.nis-assign-table-wrap {
+  flex: 1 1 auto;
+  min-height: 180px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.nis-assign-table {
+  font-size: 13px;
+}
+
+.nis-assign-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  box-shadow: inset 0 -1px 0 #e2e8f0;
+}
+
+.nis-assign-table th,
+.nis-assign-table td {
+  padding: 7px 10px;
+}
+
+.nis-assign-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.nis-assign-nis {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .nis-row-skipped {
   color: #94a3b8;
 }
 
+.nis-row-skipped:hover {
+  background: #f8fafc;
+}
+
 .nis-assign-modal .col-check {
   width: 36px;
   text-align: center;
+}
+
+.nis-assign-modal .modal-footer.nis-assign-footer {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 0;
+  padding: 12px 20px 16px;
+}
+
+.nis-assign-footer-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.nis-assign-footer-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .import-preview-modal {

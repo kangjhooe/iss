@@ -131,17 +131,9 @@ class QuestionBank extends Model
      */
     public function acceptedIsianAnswers(): array
     {
-        $keys = [];
-        if ($this->key_answer !== null && trim((string) $this->key_answer) !== '') {
-            $keys[] = trim(mb_strtolower((string) $this->key_answer));
-        }
-        foreach ($this->key_answer_aliases ?? [] as $alias) {
-            $t = trim(mb_strtolower((string) $alias));
-            if ($t !== '') {
-                $keys[] = $t;
-            }
-        }
-
-        return array_values(array_unique($keys));
+        return \App\Services\ExamQuestionSnapshot::acceptedIsianAnswers([
+            'key_answer' => $this->key_answer,
+            'key_answer_aliases' => $this->key_answer_aliases,
+        ]);
     }
 }

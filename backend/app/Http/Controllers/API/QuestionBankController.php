@@ -12,6 +12,7 @@ use App\Models\QuestionBank;
 use App\Models\QuestionOption;
 use App\Models\QuestionStimulus;
 use App\Services\HtmlPurifier;
+use App\Support\TeacherMenuContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -37,6 +38,14 @@ class QuestionBankController extends Controller
                 $query = QuestionBank::query()->where('bank_soal_id', $bank->id);
             } else {
                 $query = QuestionBank::forInstitution($institutionId);
+                $taughtSubjectIds = TeacherMenuContext::taughtSubjectIds($request->user(), $request);
+                if (is_array($taughtSubjectIds)) {
+                    if ($taughtSubjectIds === []) {
+                        $query->whereRaw('0 = 1');
+                    } else {
+                        $query->whereIn('subject_id', $taughtSubjectIds);
+                    }
+                }
             }
 
             $compact = $request->boolean('compact');
@@ -399,11 +408,7 @@ class QuestionBankController extends Controller
     public function importTemplate()
     {
         $headers = \App\Services\QuestionBankImportService::TEMPLATE_HEADERS;
-        $sample = [
-            ['pg', 'Ibu kota Indonesia adalah…', 1, 'c1', 'mudah', 'ready', 'geografi', 'ibukota', '', '', 'Jakarta', 'Bandung', 'Surabaya', 'Medan', '', 'A', ''],
-            ['isian', 'Lambang kimia air adalah…', 1, 'c2', 'mudah', 'ready', '', '', 'H2O', 'h2o|air', '', '', '', '', '', '', ''],
-            ['uraian', 'Jelaskan proses fotosintesis.', 5, 'c4', 'sedang', 'ready', 'biologi', '', '', '', '', '', '', '', '', '', 'Bacaan Fotosintesis'],
-        ];
+        $sample = \App\Services\QuestionBankImportService::templateSampleRows();
 
         $export = new class($headers, $sample) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithTitle
         {

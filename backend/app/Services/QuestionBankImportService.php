@@ -30,7 +30,114 @@ class QuestionBankImportService
         'option_e',
         'correct',
         'stimulus_title',
+        'weight_a',
+        'weight_b',
+        'weight_c',
+        'weight_d',
+        'weight_e',
+        'left_1',
+        'left_2',
+        'left_3',
+        'left_4',
+        'right_1',
+        'right_2',
+        'right_3',
+        'right_4',
+        'match_1',
+        'match_2',
+        'match_3',
+        'match_4',
     ];
+
+    /**
+     * @return list<list<string|int|float>>
+     */
+    public static function templateSampleRows(): array
+    {
+        return [
+            self::sampleRow([
+                'type' => 'pg',
+                'body' => 'Ibu kota Indonesia adalah…',
+                'weight' => 1,
+                'cognitive_level' => 'c1',
+                'difficulty' => 'mudah',
+                'status' => 'ready',
+                'topic' => 'geografi',
+                'tags' => 'ibukota',
+                'option_a' => 'Jakarta',
+                'option_b' => 'Bandung',
+                'option_c' => 'Surabaya',
+                'option_d' => 'Medan',
+                'correct' => 'A',
+            ]),
+            self::sampleRow([
+                'type' => 'pg_kompleks',
+                'body' => 'Pilih bilangan genap.',
+                'cognitive_level' => 'c1',
+                'difficulty' => 'mudah',
+                'status' => 'ready',
+                'topic' => 'bilangan',
+                'option_a' => '2',
+                'option_b' => '3',
+                'option_c' => '4',
+                'option_d' => '5',
+                'correct' => 'A|C',
+                'weight_a' => 1,
+                'weight_c' => 1,
+            ]),
+            self::sampleRow([
+                'type' => 'isian',
+                'body' => 'Lambang kimia air adalah…',
+                'weight' => 1,
+                'cognitive_level' => 'c2',
+                'difficulty' => 'mudah',
+                'status' => 'ready',
+                'key_answer' => 'H2O',
+                'key_aliases' => 'h2o|air',
+            ]),
+            self::sampleRow([
+                'type' => 'uraian',
+                'body' => 'Jelaskan proses fotosintesis.',
+                'weight' => 5,
+                'cognitive_level' => 'c4',
+                'difficulty' => 'sedang',
+                'status' => 'ready',
+                'topic' => 'biologi',
+                'stimulus_title' => 'Bacaan Fotosintesis',
+            ]),
+            self::sampleRow([
+                'type' => 'matching',
+                'body' => 'Pasangkan ibu kota dengan negaranya.',
+                'weight' => 2,
+                'cognitive_level' => 'c1',
+                'difficulty' => 'mudah',
+                'status' => 'ready',
+                'topic' => 'geografi',
+                'left_1' => 'Indonesia',
+                'left_2' => 'Jepang',
+                'right_1' => 'Tokyo',
+                'right_2' => 'Jakarta',
+                'match_1' => 2,
+                'match_2' => 1,
+            ]),
+        ];
+    }
+
+    /**
+     * @param  array<string, string|int|float>  $values
+     * @return list<string|int|float>
+     */
+    private static function sampleRow(array $values): array
+    {
+        $row = array_fill(0, count(self::TEMPLATE_HEADERS), '');
+        foreach (self::TEMPLATE_HEADERS as $i => $key) {
+            if (array_key_exists($key, $values)) {
+                $row[$i] = $values[$key];
+            }
+        }
+
+        return $row;
+    }
 
     /**
      * @return array{created:int,failed:int,errors:list<string>}
@@ -92,9 +199,9 @@ class QuestionBankImportService
     private function importRow(array $row, BankSoal $bank, int $sortOrder, array &$stimulusCache): void
     {
         $type = strtolower(trim((string) ($row['type'] ?? '')));
-        $allowed = ['pg', 'isian', 'uraian', 'pg_kompleks'];
+        $allowed = ['pg', 'isian', 'uraian', 'pg_kompleks', 'matching'];
         if (! in_array($type, $allowed, true)) {
-            throw new \InvalidArgumentException('type harus salah satu: pg, isian, uraian, pg_kompleks.');
+            throw new \InvalidArgumentException('type harus salah satu: pg, isian, uraian, pg_kompleks, matching.');
         }
 
         $body = trim((string) ($row['body'] ?? ''));
@@ -182,6 +289,9 @@ class QuestionBankImportService
         if (in_array($type, ['pg', 'pg_kompleks'], true)) {
             $this->createOptionsFromRow($question, $row, $type);
         }
+        if ($type === 'matching') {
+            $this->createMatchingFromRow($question, $row);
+        }
     }
 
     /**
@@ -204,11 +314,19 @@ class QuestionBankImportService
             if (str_starts_with($text, '*')) {
                 $text = ltrim(substr($text, 1));
             }
+            $optionWeight = 0.0;
+            if ($isCorrect && $type === 'pg_kompleks') {
+                $explicit = $row['weight_'.$letter] ?? '';
+                $optionWeight = ($explicit !== '' && $explicit !== null) ? (float) $explicit : 1.0;
+                if ($optionWeight <= 0) {
+                    throw new \InvalidArgumentException('Bobot opsi benar '.strtoupper($letter).' harus lebih dari 0 (kolom weight_'.strtoupper($letter).').');
+                }
+            }
             $options[] = [
                 'key' => strtoupper($letter),
                 'body' => $text,
                 'is_correct' => $isCorrect,
-                'weight' => $isCorrect && $type === 'pg_kompleks' ? 1.0 : 0.0,
+                'weight' => $optionWeight,
                 'sort' => $i,
             ];
         }
@@ -240,6 +358,63 @@ class QuestionBankImportService
             $question->weight = $question->options()->where('is_correct', true)->sum('option_weight');
             $question->save();
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function createMatchingFromRow(QuestionBank $question, array $row): void
+    {
+        $left = [];
+        $right = [];
+        for ($i = 1; $i <= 4; $i++) {
+            $leftText = trim((string) ($row['left_'.$i] ?? ''));
+            $rightText = trim((string) ($row['right_'.$i] ?? ''));
+            if ($leftText !== '') {
+                $left[] = ['col' => $i, 'text' => $leftText];
+            }
+            if ($rightText !== '') {
+                $right[] = ['col' => $i, 'text' => $rightText];
+            }
+        }
+        if (count($left) < 2 || count($right) < 2) {
+            throw new \InvalidArgumentException('Soal mencocokkan minimal 2 baris kiri dan 2 baris kanan (left_1, right_1, ...).');
+        }
+
+        $leftItems = [];
+        foreach ($left as $i => $item) {
+            $leftItems[] = ['id' => (string) ($i + 1), 'text' => $item['text'], 'col' => $item['col']];
+        }
+        $rightItems = [];
+        $rightByCol = [];
+        foreach ($right as $i => $item) {
+            $built = ['id' => (string) (count($leftItems) + $i + 1), 'text' => $item['text']];
+            $rightItems[] = $built;
+            $rightByCol[$item['col']] = $built['id'];
+        }
+
+        $correct = [];
+        foreach ($leftItems as $item) {
+            $raw = trim((string) ($row['match_'.$item['col']] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+            $col = (int) $raw;
+            if (! isset($rightByCol[$col])) {
+                throw new \InvalidArgumentException('match_'.$item['col'].' harus nomor kolom kanan (1–4) yang terisi.');
+            }
+            $correct[] = ['left_id' => $item['id'], 'right_id' => $rightByCol[$col]];
+        }
+        if (count($correct) < 1) {
+            throw new \InvalidArgumentException('Soal mencocokkan wajib punya minimal satu pasangan (match_1, match_2, ...).');
+        }
+
+        $question->matching_data = [
+            'left' => array_map(fn ($item) => ['id' => $item['id'], 'text' => $item['text']], $leftItems),
+            'right' => $rightItems,
+            'correct' => $correct,
+        ];
+        $question->save();
     }
 
     /**
@@ -337,6 +512,23 @@ class QuestionBankImportService
             'opsi_c' => 'option_c',
             'opsi_d' => 'option_d',
             'opsi_e' => 'option_e',
+            'bobot_a' => 'weight_a',
+            'bobot_b' => 'weight_b',
+            'bobot_c' => 'weight_c',
+            'bobot_d' => 'weight_d',
+            'bobot_e' => 'weight_e',
+            'kiri_1' => 'left_1',
+            'kiri_2' => 'left_2',
+            'kiri_3' => 'left_3',
+            'kiri_4' => 'left_4',
+            'kanan_1' => 'right_1',
+            'kanan_2' => 'right_2',
+            'kanan_3' => 'right_3',
+            'kanan_4' => 'right_4',
+            'pasangan_1' => 'match_1',
+            'pasangan_2' => 'match_2',
+            'pasangan_3' => 'match_3',
+            'pasangan_4' => 'match_4',
         ];
 
         return $aliases[$h] ?? $h;

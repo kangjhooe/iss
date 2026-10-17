@@ -32,8 +32,8 @@
     </div>
 
     <div v-show="!selectedStudent || pickerPanelOpen" class="picker-panel">
-      <div class="picker-toolbar">
-        <label class="picker-field">
+      <div class="picker-toolbar" :class="{ 'is-search-only': isLocal }">
+        <label v-if="!isLocal" class="picker-field">
           <span>Kelas</span>
           <select v-model="pickerClassId" @change="onClassChange">
             <option value="">{{ requireClass ? 'Pilih kelas dulu' : 'Semua kelas' }}</option>
@@ -60,28 +60,31 @@
       </div>
 
       <div class="picker-list" role="listbox" :aria-label="label" :aria-busy="loading">
-        <div v-if="loading" class="picker-state">
+        <div v-if="!isLocal && loading" class="picker-state">
           <span class="picker-spinner"></span>
           Memuat siswa...
         </div>
-        <div v-else-if="requireClass && !pickerClassId" class="picker-state">
+        <div v-else-if="isLocal && !roster.length" class="picker-state">
+          <p>Tidak ada siswa di kelas ini.</p>
+        </div>
+        <div v-else-if="!isLocal && requireClass && !pickerClassId" class="picker-state">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <p>Pilih kelas untuk menampilkan daftar siswa.</p>
         </div>
-        <div v-else-if="!requireClass && !pickerClassId && !pickerStudentSearch.trim()" class="picker-state">
+        <div v-else-if="!isLocal && !requireClass && !pickerClassId && !pickerStudentSearch.trim()" class="picker-state">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <p>Pilih kelas atau ketik nama/NIS untuk menampilkan siswa.</p>
         </div>
-        <div v-else-if="error" class="picker-state is-error">{{ error }}</div>
-        <div v-else-if="!students.length" class="picker-state">Tidak ada siswa cocok.</div>
+        <div v-else-if="!isLocal && error" class="picker-state is-error">{{ error }}</div>
+        <div v-else-if="!visibleStudents.length" class="picker-state">Tidak ada siswa cocok.</div>
         <template v-else>
-          <div class="picker-list-meta">{{ students.length }} siswa — pilih satu</div>
+          <div class="picker-list-meta">{{ visibleStudents.length }} siswa — pilih satu</div>
           <button
-            v-for="s in students"
+            v-for="s in visibleStudents"
             :key="s.id"
             type="button"
             role="option"
@@ -110,7 +113,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { violationApi } from '@/api/violation'
 
 const props = defineProps({
@@ -121,6 +124,7 @@ const props = defineProps({
   requireClass: { type: Boolean, default: true },
   checkColor: { type: String, default: '#059669' },
   focusRingColor: { type: String, default: 'rgba(5, 150, 105, 0.12)' },
+  roster: { type: Array, default: null },
 })
 
 const emit = defineEmits(['update:modelValue', 'select'])
@@ -134,6 +138,21 @@ const error = ref('')
 const pickerPanelOpen = ref(true)
 const selectedStudent = ref(null)
 let searchTimer = null
+
+const isLocal = computed(() => Array.isArray(props.roster))
+
+const visibleStudents = computed(() => {
+  if (!isLocal.value) return students.value
+  const query = pickerStudentSearch.value.trim().toLowerCase()
+  if (!query) return props.roster
+  return props.roster.filter((student) => {
+    const haystack = [student.name, student.nis, student.nisn, student.nik]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+    return haystack.includes(query)
+  })
+})
 
 const AVATAR_COLORS = [
   { bg: '#d1fae5', fg: '#047857' },
@@ -222,16 +241,22 @@ async function loadStudents() {
   }
 }
 
+function findStudent(id) {
+  const list = isLocal.value ? props.roster : students.value
+  return list.find((student) => String(student.id) === String(id)) || null
+}
+
 function syncSelectedFromList() {
   if (!props.modelValue) {
     selectedStudent.value = null
     return
   }
-  const found = students.value.find((s) => String(s.id) === String(props.modelValue))
+  const found = findStudent(props.modelValue)
   if (found) selectedStudent.value = found
 }
 
 function debounceSearch() {
+  if (isLocal.value) return
   clearTimeout(searchTimer)
   searchTimer = setTimeout(() => loadStudents(), 300)
 }
@@ -261,12 +286,30 @@ watch(() => props.modelValue, (id) => {
     return
   }
   if (selectedStudent.value && String(selectedStudent.value.id) === String(id)) return
-  const found = students.value.find((s) => String(s.id) === String(id))
+  const found = findStudent(id)
   if (found) selectedStudent.value = found
 })
 
+watch(() => props.roster, (list) => {
+  if (!Array.isArray(list) || !props.modelValue) return
+  const found = list.find((student) => String(student.id) === String(props.modelValue))
+  if (found) {
+    selectedStudent.value = found
+    return
+  }
+  if (!list.length) return
+  selectedStudent.value = null
+  pickerPanelOpen.value = true
+  emit('update:modelValue', '')
+})
+
 onMounted(() => {
-  loadClasses()
+  if (!isLocal.value) {
+    loadClasses()
+    return
+  }
+  syncSelectedFromList()
+  if (selectedStudent.value) pickerPanelOpen.value = false
 })
 
 defineExpose({ reset, loadClasses })
@@ -382,6 +425,9 @@ defineExpose({ reset, loadClasses })
   display: grid;
   grid-template-columns: minmax(120px, 0.9fr) minmax(160px, 1.4fr);
   gap: 0.65rem;
+}
+.picker-toolbar.is-search-only {
+  grid-template-columns: 1fr;
 }
 .picker-field {
   display: flex;

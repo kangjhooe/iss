@@ -1,0 +1,1 @@
+import{m as a}from"./index-CpH1hCdp.js";const r={list(t={}){return a.get("/v1/aset-tanda-tangan",{params:t})},get(t){return a.get(`/v1/aset-tanda-tangan/${t}`)},create(t){return a.post("/v1/aset-tanda-tangan",t)},update(t,e){return e.append("_method","PUT"),a.post(`/v1/aset-tanda-tangan/${t}`,e)},remove(t){return a.delete(`/v1/aset-tanda-tangan/${t}`)}};export{r as s};
