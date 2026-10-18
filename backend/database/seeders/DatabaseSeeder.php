@@ -13,7 +13,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             SuperAdminSeeder::class,
-            AcademicYearSeeder::class,
             InventoryCategorySeeder::class,
             CorrespondenceCategorySeeder::class,
             TemplateSuratSeeder::class,
