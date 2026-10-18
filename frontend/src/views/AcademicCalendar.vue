@@ -34,7 +34,7 @@
       </header>
 
       <main class="page-main">
-        <div class="content-card filters-bar">
+        <ListFilterBar class="content-card filters-bar">
           <div class="filter-field grow">
             <label class="filter-label">Cari</label>
             <input
@@ -74,7 +74,7 @@
               <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
             </select>
           </div>
-        </div>
+        </ListFilterBar>
 
         <div v-if="viewMode === 'month'" class="content-card">
           <div class="month-nav">
@@ -308,6 +308,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

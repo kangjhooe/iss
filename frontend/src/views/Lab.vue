@@ -29,7 +29,7 @@
 
       <div v-show="labTab === 'list'" class="tab-panel">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <input
               v-model="search"
               @input="debounceLoad"
@@ -47,7 +47,7 @@
               <option value="Bahasa">Lab Bahasa</option>
               <option value="Lainnya">Lainnya</option>
             </select>
-          </div>
+          </ListFilterBar>
           <div class="tab-header-actions">
             <button v-if="isSchoolAdmin" type="button" class="btn-primary btn-compact" @click="openLabModal()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -716,6 +716,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import { facilityApi } from '@/api/facility'

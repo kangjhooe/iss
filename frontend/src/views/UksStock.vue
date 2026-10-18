@@ -38,7 +38,7 @@
       </div>
 
       <template v-if="activeTab === 'stock'">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input v-model="filters.search" type="text" class="search-input" placeholder="Cari nama / kode obat..." @input="debounceLoad" />
           <select v-model="filters.is_active" class="filter-select" @change="loadMedicines">
             <option value="">Semua status</option>
@@ -53,7 +53,7 @@
             <input v-model="filters.expired" type="checkbox" @change="loadMedicines" />
             Kedaluwarsa
           </label>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="8" :columns="7" />
@@ -120,7 +120,7 @@
       </template>
 
       <template v-else>
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <select v-model="txFilters.uks_medicine_id" class="filter-select" @change="loadTransactions">
             <option value="">Semua obat</option>
             <option v-for="m in allMedicines" :key="m.id" :value="m.id">{{ m.name }}</option>
@@ -133,7 +133,7 @@
           </select>
           <input v-model="txFilters.date_from" type="date" class="filter-select" @change="loadTransactions" />
           <input v-model="txFilters.date_to" type="date" class="filter-select" @change="loadTransactions" />
-        </div>
+        </ListFilterBar>
 
         <div v-if="txLoading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="8" :columns="6" />
@@ -266,6 +266,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'

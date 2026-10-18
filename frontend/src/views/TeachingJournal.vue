@@ -1,7 +1,7 @@
 <template>
     <div class="teaching-journal-page">
       <div class="toolbar">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <select v-model="filters.semester_id" @change="loadJournals" class="filter-select">
             <option value="">Semua Semester</option>
             <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
@@ -20,7 +20,7 @@
           </select>
           <input v-model="filters.date_from" type="date" class="filter-select" @change="loadJournals" />
           <input v-model="filters.date_to" type="date" class="filter-select" @change="loadJournals" />
-        </div>
+        </ListFilterBar>
         <div class="toolbar-actions">
           <button
             v-if="selectedIds.length"
@@ -210,6 +210,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'

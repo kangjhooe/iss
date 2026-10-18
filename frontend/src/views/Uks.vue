@@ -61,7 +61,7 @@
           </div>
         </div>
 
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input v-model="filters.search" type="text" class="search-input" placeholder="Cari nama, NIS, NISN..." @input="debounceLoad" />
           <select v-model="filters.status" class="filter-select" @change="loadVisits">
             <option value="">Semua status</option>
@@ -84,7 +84,7 @@
             <option v-for="y in academicYears" :key="y.id" :value="y.id">{{ y.name }}</option>
           </select>
           <button v-if="hasActiveFilters" type="button" class="btn-secondary btn-compact" @click="resetFilters">Reset</button>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="8" :columns="7" />
@@ -422,6 +422,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'

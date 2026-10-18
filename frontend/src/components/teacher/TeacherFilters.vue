@@ -1,5 +1,5 @@
 <template>
-  <div class="filters filters-inline">
+  <ListFilterBar class="filters filters-inline">
     <input
       :model-value="modelValue.search"
       @input="onSearchInput"
@@ -47,10 +47,12 @@
       <option value="Pegawai Honor">Pegawai Honor</option>
       <option value="Pegawai Kontrak">Pegawai Kontrak</option>
     </select>
-  </div>
+  </ListFilterBar>
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 const props = defineProps({
   modelValue: {
     type: Object,

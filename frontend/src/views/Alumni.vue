@@ -42,7 +42,7 @@
         </div>
       </div>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <input
           v-model="filters.search"
           @input="debouncedLoad"
@@ -56,7 +56,7 @@
         <button type="button" class="btn-ghost btn-compact" :disabled="loading" @click="resetFilters">
           Reset
         </button>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="8" :columns="9" :cell-widths="['48px', '100px', '120px', '180px', '100px', '120px', '100px', '160px', '100px']" />
@@ -283,6 +283,8 @@
     /></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, reactive, onMounted } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'

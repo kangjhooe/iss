@@ -1,7 +1,7 @@
 <template>
   <div class="tab-content">
     <div class="tab-header">
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <div class="search-wrap">
           <input
             v-model="filters.search"
@@ -24,7 +24,7 @@
           <option value="1">Aktif</option>
           <option value="0">Nonaktif</option>
         </select>
-      </div>
+      </ListFilterBar>
       <div class="tab-actions">
         <button type="button" class="btn-primary btn-add" @click="openModal()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -134,6 +134,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

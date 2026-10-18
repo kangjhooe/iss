@@ -11,7 +11,7 @@
         </div>
       </div>
 
-      <div class="filters-inline">
+      <ListFilterBar class="filters-inline">
         <input
           v-model="search"
           type="search"
@@ -29,7 +29,7 @@
           <option value="final">Final</option>
         </select>
         <button type="button" class="btn-secondary btn-compact" @click="loadList(1)">Cari</button>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-state"><p>Memuat data...</p></div>
       <div v-else class="table-container">
@@ -510,6 +510,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'

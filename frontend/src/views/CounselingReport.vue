@@ -85,7 +85,7 @@
             </button>
           </div>
 
-          <div class="filters">
+          <ListFilterBar class="filters">
             <select v-model="filters.academic_year_id" class="filter-select" @change="onPeriodChange">
               <option value="">Semua Tahun Ajaran</option>
               <option v-for="y in academicYears" :key="y.id" :value="String(y.id)">{{ y.name }}</option>
@@ -102,7 +102,7 @@
               {{ periodAdvanced ? 'Sembunyikan filter' : 'Filter lanjutan' }}
               <span class="filter-toggle-icon">{{ periodAdvanced ? '▼' : '▶' }}</span>
             </button>
-          </div>
+          </ListFilterBar>
 
           <div v-show="periodAdvanced" class="filters filters-advanced">
             <select v-model="filters.month" class="filter-select" @change="reload">
@@ -453,6 +453,7 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Bar } from 'vue-chartjs'

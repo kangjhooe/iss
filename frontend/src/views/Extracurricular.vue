@@ -1,7 +1,7 @@
 <template>
     <div class="extracurricular-page">
       <div class="toolbar">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input
             v-model="filters.search"
             type="text"
@@ -18,7 +18,7 @@
             <option value="">Semua Semester</option>
             <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div class="toolbar-actions">
           <button v-if="canManageAll" @click="openAddModal" class="btn-primary btn-compact">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -413,6 +413,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

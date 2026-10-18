@@ -62,7 +62,7 @@
       <!-- BOOKS TAB -->
       <div v-show="activeTab === 'books'" class="tab-content">
           <div class="tab-header">
-            <div class="filters filters-inline">
+            <ListFilterBar class="filters filters-inline">
               <div class="search-wrap">
                 <input
                   v-model="bookFilters.search"
@@ -76,7 +76,7 @@
                 <option value="">Semua Kategori</option>
                 <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.code }} - {{ c.name }}</option>
               </select>
-            </div>
+            </ListFilterBar>
             <div class="tab-actions">
               <button type="button" class="btn-icon-tool" :disabled="exportingBooksCsv" @click="exportBooksCsv" title="Export CSV" aria-label="Export CSV">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -214,7 +214,7 @@
       <!-- CATEGORIES TAB -->
       <div v-show="activeTab === 'categories'" class="tab-content">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <div class="search-wrap">
               <input v-model="categoryFilters.search" @input="debounceLoadCategories" placeholder="Cari kode / nama..." class="search-input" />
               <button v-if="categoryFilters.search" type="button" class="search-clear" @click="categoryFilters.search = ''; loadCategories(1)" aria-label="Hapus pencarian">×</button>
@@ -224,7 +224,7 @@
               <option value="1">Aktif</option>
               <option value="0">Nonaktif</option>
             </select>
-          </div>
+          </ListFilterBar>
           <button type="button" @click="openCategoryModal()" class="btn-primary btn-add">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -285,7 +285,7 @@
       <!-- COPIES TAB -->
       <div v-show="activeTab === 'copies'" class="tab-content">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <div class="search-wrap">
               <input v-model="copyFilters.search" @input="debounceLoadCopies" placeholder="Kode eksemplar..." class="search-input" />
               <button v-if="copyFilters.search" type="button" class="search-clear" @click="copyFilters.search = ''; loadCopies(1)" aria-label="Hapus pencarian">×</button>
@@ -301,7 +301,7 @@
               <option value="Rusak">Rusak</option>
               <option value="Hilang">Hilang</option>
             </select>
-          </div>
+          </ListFilterBar>
           <button type="button" @click="openCopyModal()" class="btn-primary btn-add">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -370,7 +370,7 @@
       <!-- LOANS TAB -->
       <div v-show="activeTab === 'loans'" class="tab-content">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <div class="search-wrap">
               <input v-model="loanFilters.search" @input="debounceLoadLoans" placeholder="Cari peminjam..." class="search-input" />
               <button v-if="loanFilters.search" type="button" class="search-clear" @click="loanFilters.search = ''; loadLoans(1)" aria-label="Hapus pencarian">×</button>
@@ -387,7 +387,7 @@
               <option value="Employee">Guru/Karyawan</option>
               <option value="External">Tamu</option>
             </select>
-          </div>
+          </ListFilterBar>
           <button type="button" @click="openLoanModal()" class="btn-primary btn-add">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -488,7 +488,7 @@
       <!-- FINES TAB -->
       <div v-show="activeTab === 'fines'" class="tab-content">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <div class="search-wrap">
               <input v-model="fineFilters.loan_id" @input="debounceLoadFinePayments" placeholder="ID peminjaman (opsional)..." class="search-input" />
               <button v-if="fineFilters.loan_id" type="button" class="search-clear" @click="fineFilters.loan_id = ''; loadFinePayments(1)" aria-label="Hapus">×</button>
@@ -500,7 +500,7 @@
                 <path d="M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-          </div>
+          </ListFilterBar>
         </div>
         <div v-if="finePaymentsLoading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="6" :columns="4" />
@@ -538,12 +538,12 @@
       <!-- REPORTS TAB -->
       <div v-show="activeTab === 'reports'" class="tab-content">
         <div class="report-export-bar">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <label class="filter-label">Periode:</label>
             <input v-model="reportDateFrom" type="date" class="filter-select" />
             <span class="filter-sep">s/d</span>
             <input v-model="reportDateTo" type="date" class="filter-select" />
-          </div>
+          </ListFilterBar>
           <button type="button" class="btn-primary btn-add" :disabled="exportingPdf" @click="previewLoansPdf" title="Preview / Cetak PDF Laporan Peminjaman">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M6 9V2h12v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -867,6 +867,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, watch, onMounted, computed } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'

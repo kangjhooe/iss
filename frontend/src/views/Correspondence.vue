@@ -143,7 +143,7 @@
         <button @click="resetFilters" class="btn-secondary btn-sm">Reset Filter</button>
       </div>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <select v-model="filters.academic_year_id" @change="onAcademicYearChange" class="filter-select filter-select-year">
           <option value="">Semua Tahun Pelajaran</option>
           <option v-for="year in academicYears" :key="year.id" :value="String(year.id)">
@@ -176,7 +176,7 @@
           <option value="penting">Penting</option>
           <option value="sangat_penting">Sangat Penting</option>
         </select>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="8" :columns="8" :cell-widths="['48px', '120px', '80px', '80px', '1fr', '140px', '100px', '90px']" />
@@ -891,6 +891,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted, computed } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'
@@ -2740,8 +2742,8 @@ textarea.form-input {
     display: inline !important;
   }
 
-  .correspondence-page .filters.filters-inline,
-  .filters.filters-inline {
+  .correspondence-page .filters.filters-inline:not(.list-filter-bar),
+  .filters.filters-inline:not(.list-filter-bar) {
     flex-direction: column !important;
     flex-wrap: wrap !important;
     overflow: visible !important;
@@ -2859,7 +2861,7 @@ textarea.form-input {
     display: inline;
   }
 
-  .filters.filters-inline {
+  .filters.filters-inline:not(.list-filter-bar) {
     flex-direction: column !important;
     padding: 12px !important;
     margin-bottom: 16px;

@@ -1,7 +1,7 @@
 <template>
   <div class="tab-content">
     <div class="tab-header">
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <select v-model="loanFilters.item_id" class="filter-select" @change="loadLoans(1)">
           <option value="">Semua Barang</option>
           <option v-for="it in itemOptions" :key="it.id" :value="it.id">{{ it.code }} - {{ it.name }}</option>
@@ -17,7 +17,7 @@
           <option value="Dipinjam">Dipinjam</option>
           <option value="Dikembalikan">Dikembalikan</option>
         </select>
-      </div>
+      </ListFilterBar>
       <button type="button" class="btn-primary" @click="openLoanModal()">
         <span>Tambah Peminjaman</span>
       </button>
@@ -286,6 +286,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted, ref, computed } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'

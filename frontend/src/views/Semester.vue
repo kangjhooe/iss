@@ -17,7 +17,7 @@
         </div>
       </div>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <input 
           v-model="filters.search" 
           @input="loadSemesters" 
@@ -36,7 +36,7 @@
           <option value="Arsip">Arsip</option>
           <option value="Draft">Draft</option>
         </select>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="6" :columns="7" :cell-widths="['100px', '120px', '80px', '120px', '120px', '80px', '120px']" />
@@ -227,6 +227,8 @@
     /></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

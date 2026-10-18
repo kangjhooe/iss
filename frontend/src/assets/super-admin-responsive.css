@@ -171,7 +171,7 @@
     text-align: center;
   }
 
-  .layout-super-admin .filters-inline {
+  .layout-super-admin .filters-inline:not(.list-filter-bar) {
     flex-direction: column !important;
     flex-wrap: nowrap !important;
     overflow: visible !important;
@@ -192,7 +192,7 @@
     align-items: stretch !important;
   }
 
-  .layout-super-admin .filters-bar {
+  .layout-super-admin .filters-bar:not(.list-filter-bar) {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;

@@ -59,6 +59,32 @@ class AchievementType extends Model
         return $query->where('is_active', true);
     }
 
+    public function hasLevelPointValues(): bool
+    {
+        if (!is_array($this->level_point_values)) {
+            return false;
+        }
+
+        foreach ($this->level_point_values as $value) {
+            if ($value !== null && $value !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Prestasi akreditasi yang punya angka per tingkat wajib memilih tingkat.
+     * Poin dasar hanya dipakai untuk tingkat yang kotaknya dikosongkan.
+     */
+    public function requiresLevel(?string $purpose = null): bool
+    {
+        $purpose = $purpose ?: ($this->purpose ?? self::PURPOSE_AKREDITASI);
+
+        return $purpose === self::PURPOSE_AKREDITASI && $this->hasLevelPointValues();
+    }
+
     /**
      * Poin prestasi: override manual > poin per tingkat > poin dasar jenis.
      */

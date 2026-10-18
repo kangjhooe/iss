@@ -1,7 +1,7 @@
 <template>
   <div class="tab-content">
     <div class="tab-header">
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <div class="search-wrap">
           <input
             v-model="search"
@@ -27,7 +27,7 @@
           <option value="">Semua Gedung</option>
           <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
         </select>
-      </div>
+      </ListFilterBar>
       <router-link to="/facility" class="btn-outline btn-compact">Kelola Ruangan</router-link>
     </div>
 
@@ -119,6 +119,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { computed, onMounted, ref } from 'vue'
 import { facilityApi } from '@/api/facility'

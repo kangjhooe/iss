@@ -13,7 +13,7 @@
       </div>
 
       <!-- Filters -->
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <div class="filter-group">
           <label>Bulan</label>
           <select v-model="filters.month" @change="loadReport" class="filter-select">
@@ -34,7 +34,7 @@
             Bandingkan dengan Tahun Ajaran Sebelumnya
           </label>
         </div>
-      </div>
+      </ListFilterBar>
 
       <!-- Loading State -->
       <div v-if="loading" class="loading-wrap">
@@ -479,6 +479,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import { Bar, Doughnut } from 'vue-chartjs'

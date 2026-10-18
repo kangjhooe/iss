@@ -33,13 +33,13 @@
 
       <!-- Tab: Template Jadwal (hari libur + JP) -->
       <template v-if="activeTab === 'template'">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <label>Semester</label>
           <select v-model="templateSemesterId" @change="onTemplateSemesterChange" class="filter-select">
             <option value="">Pilih Semester</option>
             <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }} ({{ s.academic_year?.name || '-' }})</option>
           </select>
-        </div>
+        </ListFilterBar>
 
         <div v-if="!templateSemesterId" class="empty-state">
           <p>Pilih semester untuk mengelola template jadwal.</p>
@@ -160,7 +160,7 @@
 
       <!-- Tab: Jadwal per Kelas -->
       <template v-if="activeTab === 'byClass'">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <label>Semester</label>
           <select v-model="filterSemesterId" @change="onFilterSemesterChange" class="filter-select">
             <option value="">Pilih Semester</option>
@@ -191,7 +191,7 @@
           >
             {{ exportingPdf ? 'Menyiapkan...' : 'Preview PDF' }}
           </button>
-        </div>
+        </ListFilterBar>
 
         <div v-if="filterSemesterId && !templatePersisted" class="notice-banner">
           Belum ada template tersimpan untuk semester ini.
@@ -296,7 +296,7 @@
       <!-- Tab: Daftar Slot -->
       <template v-if="activeTab === 'list'">
         <div class="list-toolbar">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <select v-model="listFilters.semester_id" @change="onListSemesterChange" class="filter-select">
               <option value="">Semua Semester</option>
               <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
@@ -309,7 +309,7 @@
               <option value="">Semua Hari</option>
               <option v-for="(label, key) in dayNamesMap" :key="key" :value="key">{{ label }}</option>
             </select>
-          </div>
+          </ListFilterBar>
           <button
             v-if="selectedSlotIds.length"
             type="button"
@@ -522,6 +522,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, reactive, onMounted, computed } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

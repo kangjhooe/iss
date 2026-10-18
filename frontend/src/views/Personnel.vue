@@ -59,7 +59,7 @@
 
       <!-- CUTI -->
       <template v-if="tab === 'cuti'">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <div class="search-wrap">
             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
@@ -75,7 +75,7 @@
             <option value="">Semua jenis</option>
             <option v-for="(label, key) in leaveTypes" :key="key" :value="key">{{ label }}</option>
           </select>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loadingLeaves" class="loading-wrap"><LoadingSkeleton type="table" :rows="6" :columns="6" /></div>
         <div v-else-if="!leaves.length" class="empty-state">
@@ -178,7 +178,7 @@
 
       <!-- SK -->
       <template v-if="tab === 'sk'">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <div class="search-wrap">
             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
@@ -190,7 +190,7 @@
             <option value="">Semua jenis SK</option>
             <option v-for="(label, key) in decreeTypes" :key="key" :value="key">{{ label }}</option>
           </select>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loadingDecrees" class="loading-wrap"><LoadingSkeleton type="table" :rows="6" :columns="5" /></div>
         <div v-else-if="!decrees.length" class="empty-state">
@@ -275,7 +275,7 @@
         <p class="hint-banner">
           Menetapkan jabatan di sini juga mengisi tugas tambahan dan akses modul. Jangan dicentang lagi di Data Pegawai.
         </p>
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <div class="search-wrap">
             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
@@ -291,7 +291,7 @@
             <input v-model="positionFilters.active_only" type="checkbox" @change="loadPositions(1)" />
             Aktif saja
           </label>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loadingPositions" class="loading-wrap"><LoadingSkeleton type="table" :rows="6" :columns="5" /></div>
         <div v-else-if="!positions.length" class="empty-state">
@@ -381,12 +381,12 @@
 
       <!-- RIWAYAT -->
       <template v-if="tab === 'riwayat'">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <select v-model="historyEmployeeId" class="filter-select filter-select-wide" @change="loadHistory">
             <option value="">Pilih pegawai...</option>
             <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }}{{ e.nip ? ` (${e.nip})` : '' }}</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div v-if="!historyEmployeeId" class="empty-state">
           <div class="empty-icon" aria-hidden="true">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
@@ -720,6 +720,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { computed, onMounted, reactive, ref } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

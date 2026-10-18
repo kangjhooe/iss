@@ -2522,8 +2522,14 @@
     grid-template-columns: 1fr;
   }
 
-  .inventory-page .filters-inline {
+  .inventory-page .filters-inline:not(.list-filter-bar) {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inventory-page .filters-advanced {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     align-items: stretch;
   }
 

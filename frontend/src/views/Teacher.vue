@@ -37,14 +37,14 @@
           @update:model-value="onFiltersUpdate"
           @filter="loadTeachers"
         />
-        <div v-else class="filters filters-inline">
+        <ListFilterBar v-else class="filters filters-inline">
           <input
             v-model="filters.search"
             @input="loadTeachers"
             placeholder="Cari nama, NIP, NUPTK..."
             class="search-input"
           />
-        </div>
+        </ListFilterBar>
         <div class="toolbar-actions">
           <template v-if="!filters.only_trashed">
             <div class="action-buttons-group">
@@ -1458,6 +1458,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted, computed } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import TeacherFilters from '@/components/teacher/TeacherFilters.vue'

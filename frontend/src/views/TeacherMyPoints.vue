@@ -20,7 +20,7 @@
         </button>
       </div>
 
-      <div class="filters-bar">
+      <ListFilterBar class="filters-bar">
         <div class="filter-group">
           <label for="year-filter">Tahun Ajaran</label>
           <select id="year-filter" v-model="period.academic_year_id" class="filter-select" @change="onPeriodChange">
@@ -35,7 +35,7 @@
             <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
           </select>
         </div>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="state-card">
         <div class="loading-spinner" aria-hidden="true"></div>
@@ -376,6 +376,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { computed, onMounted, reactive, ref } from 'vue'
 import { academicYearApi } from '@/api/academicYear'
 import { semesterApi } from '@/api/semester'

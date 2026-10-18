@@ -127,7 +127,7 @@
           </div>
         </div>
 
-        <div class="filter-bar">
+        <ListFilterBar class="filter-bar">
           <div class="search-wrap">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
@@ -178,7 +178,7 @@
           </template>
           <button v-if="filters.student_id" type="button" class="filter-chip" @click="clearStudentFilter">Filter siswa ×</button>
           <button v-if="hasActiveFilters" type="button" class="btn-secondary btn-compact" @click="resetFilters">Reset</button>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loading" class="table-panel">
           <LoadingSkeleton type="table" :rows="8" :columns="8" :cell-widths="['48px', '110px', '220px', '140px', '120px', '90px', '1fr', '110px']" />
@@ -561,6 +561,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'

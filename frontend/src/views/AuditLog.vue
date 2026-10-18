@@ -17,7 +17,7 @@
       </div>
 
       <!-- Filters -->
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <div class="filter-group">
           <label>User</label>
           <select v-model="filters.user_id" @change="loadLogs" class="filter-select">
@@ -48,7 +48,7 @@
           </select>
         </div>
         <button type="button" class="btn-secondary btn-compact" @click="resetFilters">Reset Filter</button>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="8" :columns="5" :cell-widths="['140px', '120px', '100px', '80px', '1fr']" />
@@ -100,6 +100,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted, computed } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

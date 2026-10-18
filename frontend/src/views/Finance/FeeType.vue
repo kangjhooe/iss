@@ -33,7 +33,7 @@
           </div>
         </div>
 
-        <div class="content-card filters-bar">
+        <ListFilterBar class="content-card filters-bar">
           <div class="filter-field" style="flex:1;min-width:180px">
             <label class="filter-label">Cari</label>
             <input v-model="filters.search" class="filter-input" placeholder="Nama / kode" @keyup.enter="reloadFromStart" />
@@ -46,7 +46,7 @@
             </select>
           </div>
           <button type="button" class="btn-secondary" @click="reloadFromStart">Terapkan</button>
-        </div>
+        </ListFilterBar>
 
         <div class="content-card">
           <div v-if="loading" class="loading-wrap"><LoadingSkeleton type="table" :rows="5" :columns="6" /></div>
@@ -154,6 +154,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted, reactive, ref } from 'vue'
 import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'

@@ -1,6 +1,6 @@
 <template>
     <div class="raport-page">
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <select v-model="filters.student_id" @change="onFilterChange" class="filter-select">
           <option value="">Pilih Siswa</option>
           <option v-for="s in students" :key="s.id" :value="s.id">{{ s.name }} ({{ s.nis || s.nisn || '-' }})</option>
@@ -18,7 +18,7 @@
         >
           {{ loading ? 'Memuat...' : 'Tampilkan Raport' }}
         </button>
-      </div>
+      </ListFilterBar>
 
       <div v-if="!hasSelection" class="empty-state empty-state-hint">
         <p class="empty-desc">Pilih <strong>Siswa</strong> dan <strong>Semester</strong> lalu klik Tampilkan Raport.</p>
@@ -90,6 +90,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { gradeBookApi } from '@/api/gradeBook'

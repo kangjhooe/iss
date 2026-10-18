@@ -52,7 +52,7 @@
               type="text"
               placeholder="Nama, NIS, NISN, atau NIK"
               autocomplete="off"
-              :disabled="requireClass && !pickerClassId"
+              :disabled="!isLocal && requireClass && !pickerClassId"
               @input="debounceSearch"
             />
           </div>

@@ -17,7 +17,7 @@
         </button>
       </div>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <select v-model="filters.semester_id" @change="onFilterChange" class="filter-select">
           <option value="">Pilih Semester</option>
           <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
@@ -30,7 +30,7 @@
           <option value="">Pilih Mata Pelajaran</option>
           <option v-for="sub in filteredSubjects" :key="sub.id" :value="String(sub.id)">{{ sub.name }}</option>
         </select>
-      </div>
+      </ListFilterBar>
 
       <div v-if="hasSelection && meta.grade" class="kkm-bar">
         <div class="kkm-info">
@@ -329,6 +329,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

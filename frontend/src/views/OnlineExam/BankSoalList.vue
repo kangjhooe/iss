@@ -25,7 +25,7 @@
       </header>
 
       <!-- Filters -->
-      <div class="filters">
+      <ListFilterBar class="filters">
         <input
           v-model="filterSearch"
           type="search"
@@ -43,7 +43,7 @@
           <option v-for="g in gradeOptions" :key="g" :value="String(g)">Kelas {{ g }}</option>
         </select>
         <button type="button" class="btn-secondary btn-filter" @click="applyFilters">Cari</button>
-      </div>
+      </ListFilterBar>
 
       <!-- Loading -->
       <div v-if="loading" class="loading-wrap content-card">
@@ -330,6 +330,7 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'

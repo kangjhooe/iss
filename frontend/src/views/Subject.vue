@@ -1,7 +1,7 @@
 <template>
     <div class="subject-page">
       <div class="toolbar">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input
             v-model="filters.search"
             @input="debounceLoad"
@@ -12,7 +12,7 @@
             <option :value="true">Aktif saja</option>
             <option :value="false">Semua</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div class="toolbar-actions">
           <template v-if="selectedIds.length">
             <button
@@ -303,6 +303,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, reactive, computed, onMounted } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

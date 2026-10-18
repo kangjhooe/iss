@@ -25,7 +25,7 @@
         </div>
       </div>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <input v-model="filters.date_from" type="date" class="filter-select" @change="onFilterChange" />
         <input v-model="filters.date_to" type="date" class="filter-select" @change="onFilterChange" />
         <select v-model="filters.employee_id" @change="onFilterChange" class="filter-select">
@@ -36,7 +36,7 @@
           <option value="">Semua Status</option>
           <option v-for="(label, val) in statusOptions" :key="val" :value="val">{{ label }}</option>
         </select>
-      </div>
+      </ListFilterBar>
 
       <div class="section-tabs" role="tablist">
         <button type="button" role="tab" :class="['sec-btn', { active: activeTab === 'isi' }]" @click="activeTab = 'isi'">Daftar Absensi</button>
@@ -284,6 +284,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

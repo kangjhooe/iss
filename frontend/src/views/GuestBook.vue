@@ -3,6 +3,7 @@
       <div class="toolbar">
         <div class="toolbar-left">
           <span class="stat-badge">{{ pagination.total }} kunjungan</span>
+          <ListFilterBar class="toolbar-filters">
           <div class="search-wrap">
             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
@@ -21,6 +22,7 @@
             <span class="date-sep">–</span>
             <input v-model="filters.date_to" type="date" class="filter-date" @change="loadList" />
           </div>
+          </ListFilterBar>
         </div>
         <div class="toolbar-right">
           <button type="button" @click="openAddModal" class="btn-primary">
@@ -233,6 +235,7 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'

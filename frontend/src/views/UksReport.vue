@@ -25,7 +25,7 @@
         </template>
       </p>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <select v-model="filters.academic_year_id" class="filter-select" @change="onPeriodChange">
           <option value="">Semua Tahun Ajaran</option>
           <option v-for="y in academicYears" :key="y.id" :value="String(y.id)">{{ y.name }}</option>
@@ -53,7 +53,7 @@
             <option value="rujuk">Rujuk</option>
           </select>
         </template>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner"></div>
@@ -276,6 +276,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'

@@ -178,7 +178,7 @@
 
         <!-- SCHEDULE -->
         <template v-else-if="tab === 'schedule'">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <select v-model="scheduleDayFilter" class="filter-select" @change="loadSchedules">
               <option value="">Semua Hari</option>
               <option v-for="(label, key) in days" :key="key" :value="String(key)">{{ label }}</option>
@@ -193,7 +193,7 @@
               </svg>
               Tambah Jadwal
             </button>
-          </div>
+          </ListFilterBar>
           <div v-if="loadingSchedules" class="loading-state">
             <div class="loading-spinner"></div>
             <p>Memuat jadwal...</p>
@@ -261,7 +261,7 @@
 
         <!-- LOGS -->
         <template v-else-if="tab === 'logs'">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <label class="filter-date-label">
               <span>Dari</span>
               <input v-model="logFilters.date_from" type="date" class="filter-select" @change="loadLogs" />
@@ -283,7 +283,7 @@
               </svg>
               Tambah Log
             </button>
-          </div>
+          </ListFilterBar>
           <div v-if="loadingLogs" class="loading-state">
             <div class="loading-spinner"></div>
             <p>Memuat log...</p>
@@ -342,7 +342,7 @@
 
         <!-- MONITOR -->
         <template v-else-if="tab === 'monitor'">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <input v-model="incidentFilters.date" type="date" class="filter-select" @change="onIncidentFilterChange" />
             <select v-model="incidentFilters.incident_type" class="filter-select" @change="onIncidentFilterChange">
               <option value="">Semua Jenis</option>
@@ -365,7 +365,7 @@
               </svg>
               Lapor Kejadian
             </button>
-          </div>
+          </ListFilterBar>
           <div v-if="loadingIncidents" class="loading-state">
             <div class="loading-spinner"></div>
             <p>Memuat kejadian...</p>
@@ -1122,6 +1122,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'

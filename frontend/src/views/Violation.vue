@@ -100,7 +100,7 @@
         <div v-if="activeTab === 'pending'" class="pending-banner">
           Usulan dari guru piket atau wali kelas. Setujui agar poin masuk ke skor siswa, atau tolak jika tidak sesuai.
         </div>
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input
             v-model="filters.search"
             type="text"
@@ -130,7 +130,7 @@
             {{ showAdvancedFilters ? 'Sembunyikan filter' : 'Filter lanjutan' }}
             <span class="filter-toggle-icon">{{ showAdvancedFilters ? '▼' : '▶' }}</span>
           </button>
-        </div>
+        </ListFilterBar>
         <div v-show="showAdvancedFilters" class="filters filters-advanced">
           <select v-model="filters.academic_year_id" @change="loadViolations" class="filter-select">
             <option value="">Semua Tahun</option>
@@ -378,7 +378,7 @@
           </div>
         </div>
 
-        <div class="filters filters-inline points-filters">
+        <ListFilterBar class="filters filters-inline points-filters">
           <input v-model="pointSearch" type="text" placeholder="Cari nama, NIS, NISN..." class="search-input" @input="debounceLoadStudentPoints" />
           <select v-model="pointFilters.academic_year_id" class="filter-select" @change="onPointPeriodChange">
             <option value="">Semua Tahun</option>
@@ -392,7 +392,7 @@
             <input v-model="pointFilters.pending_only" type="checkbox" @change="onPointPeriodChange" />
             Hanya menunggu
           </label>
-        </div>
+        </ListFilterBar>
 
         <div v-if="pointsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat poin siswa...</p></div>
         <div v-else-if="studentPoints.length === 0" class="empty-state">
@@ -560,7 +560,7 @@
         <div v-if="activeTab === 'pending_prestasi'" class="pending-banner">
           Usulan prestasi dari wali kelas. Setujui agar tercatat, atau tolak dengan alasan.
         </div>
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input
             v-model="achievementFilters.search"
             type="text"
@@ -586,7 +586,7 @@
             <option value="">Semua Semester</option>
             <option v-for="s in semesters" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div v-if="achievementsLoading" class="loading-state"><div class="loading-spinner"></div><p>Memuat prestasi...</p></div>
         <div v-else-if="achievements.length === 0" class="empty-state">
           <h3 class="empty-title">{{ activeTab === 'pending_prestasi' ? 'Tidak ada usulan menunggu' : (prestasiPurpose === 'apresiasi' ? 'Belum ada apresiasi' : 'Belum ada prestasi') }}</h3>
@@ -718,7 +718,7 @@
             <div v-for="t in sortedAchievementTypes" :key="t.id" class="type-card">
               <div class="type-header">
                 <span class="type-name">{{ t.name }}</span>
-                <span class="type-point">+{{ t.point_value }} poin</span>
+                <span class="type-point">+{{ achievementPointLabel(t) }} poin</span>
               </div>
               <p v-if="t.category" class="type-meta">{{ categoryLabel(t.category) }}</p>
               <div class="type-actions">
@@ -749,7 +749,7 @@
                     <td class="col-no">{{ typeRowNumber(achievementTypesPage, achievementTypesPagination.per_page, index) }}</td>
                     <td>{{ t.name }}</td>
                     <td>{{ categoryLabel(t.category) || '—' }}</td>
-                    <td><span class="point-good">+{{ t.point_value ?? 0 }}</span></td>
+                    <td><span class="point-good">+{{ achievementPointLabel(t) }}</span></td>
                     <td v-if="prestasiPurpose === 'akreditasi'">{{ formatLevelPoints(t) }}</td>
                     <td>
                       <div class="action-buttons">
@@ -1051,8 +1051,8 @@
             </div>
             <template v-if="prestasiPurpose === 'akreditasi'">
               <div class="form-group">
-                <label>Tingkat</label>
-                <select v-model="prestasiForm.level" class="form-select">
+                <label>Tingkat<template v-if="prestasiLevelRequired"> *</template></label>
+                <select v-model="prestasiForm.level" class="form-select" :required="prestasiLevelRequired">
                   <option value="">— Pilih —</option>
                   <option v-for="(label, key) in LEVEL_LABELS" :key="key" :value="key">{{ label }}</option>
                 </select>
@@ -1065,9 +1065,17 @@
                 </select>
               </div>
               <p v-if="selectedPrestasiType" class="field-hint">
-                Poin BK: <strong>{{ resolvedPrestasiPoints }}</strong>
-                <template v-if="prestasiForm.level && hasLevelPointValues(selectedPrestasiType)">
-                  (khusus tingkat {{ levelLabel(prestasiForm.level) }})
+                <template v-if="prestasiLevelRequired && !prestasiForm.level">
+                  Pilih tingkat. Poin mengikuti tingkat yang dipilih.
+                </template>
+                <template v-else>
+                  Poin BK: <strong>{{ resolvedPrestasiPoints }}</strong>
+                  <template v-if="selectedLevelHasOwnPoints">
+                    (khusus tingkat {{ levelLabel(prestasiForm.level) }})
+                  </template>
+                  <template v-else-if="prestasiForm.level && hasLevelPointValues(selectedPrestasiType)">
+                    (poin dasar — tingkat ini belum diatur khusus)
+                  </template>
                 </template>
               </p>
             </template>
@@ -1103,7 +1111,7 @@
             <div class="form-group">
               <label>{{ prestasiPurpose === 'apresiasi' ? 'Poin (plus) *' : 'Poin dasar *' }}</label>
               <input v-model.number="achievementTypeForm.point_value" type="number" min="0" max="100" required />
-              <p v-if="prestasiPurpose === 'akreditasi'" class="field-hint">Digunakan jika tingkat tidak diisi atau belum diatur khusus di bawah.</p>
+              <p v-if="prestasiPurpose === 'akreditasi'" class="field-hint">Dipakai untuk tingkat yang kotaknya dikosongkan. Jika ada angka per tingkat, pencatatan wajib memilih tingkat.</p>
             </div>
             <div v-if="prestasiPurpose === 'akreditasi'" class="form-group">
               <label>Poin per tingkat (opsional)</label>
@@ -1307,6 +1315,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'
@@ -1423,6 +1433,18 @@ function resolveAchievementPointValue(type, level) {
   return Number(type.point_value) || 0
 }
 
+function achievementPointLabel(type) {
+  const base = Number(type?.point_value) || 0
+  if ((type?.purpose || 'akreditasi') !== 'akreditasi' || !hasLevelPointValues(type)) return String(base)
+  const values = Object.keys(LEVEL_LABELS).map((key) => {
+    const raw = type.level_point_values?.[key]
+    return raw != null && raw !== '' ? Number(raw) : base
+  })
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  return min === max ? String(min) : `${min}–${max}`
+}
+
 function hasLevelPointValues(type) {
   if (!type?.level_point_values) return false
   return Object.values(type.level_point_values).some((v) => v != null && v !== '')
@@ -1432,9 +1454,22 @@ const selectedPrestasiType = computed(() =>
   filteredAchievementTypes.value.find((t) => String(t.id) === String(prestasiForm.value.achievement_type_id))
 )
 
-const resolvedPrestasiPoints = computed(() =>
-  resolveAchievementPointValue(selectedPrestasiType.value, prestasiForm.value.level)
+const prestasiLevelRequired = computed(() =>
+  prestasiPurpose.value === 'akreditasi' && hasLevelPointValues(selectedPrestasiType.value)
 )
+
+const selectedLevelHasOwnPoints = computed(() => {
+  const type = selectedPrestasiType.value
+  const level = prestasiForm.value.level
+  if (!type || !level) return false
+  const raw = type.level_point_values?.[level]
+  return raw != null && raw !== ''
+})
+
+const resolvedPrestasiPoints = computed(() => {
+  if (prestasiLevelRequired.value && !prestasiForm.value.level) return null
+  return resolveAchievementPointValue(selectedPrestasiType.value, prestasiForm.value.level)
+})
 
 function cleanLevelPointValues(values) {
   const out = {}
@@ -1636,7 +1671,7 @@ async function printAchievementTypes() {
         <td class="num">${index + 1}</td>
         <td>${escapeHtml(t.name || '-')}</td>
         <td>${escapeHtml(categoryLabel(t.category) || '—')}</td>
-        <td class="points">+${Number(t.point_value ?? 0)}</td>
+        <td class="points">+${escapeHtml(achievementPointLabel(t))}</td>
         ${isApresiasi ? '' : `<td>${escapeHtml(formatLevelPoints(t))}</td>`}
       </tr>
     `).join('')
@@ -2564,6 +2599,10 @@ async function submitPrestasi() {
       prestasiFormError.value = prestasiPurpose.value === 'apresiasi'
         ? 'Pilih jenis apresiasi terlebih dahulu.'
         : 'Pilih jenis prestasi terlebih dahulu.'
+      return
+    }
+    if (prestasiLevelRequired.value && !prestasiForm.value.level) {
+      prestasiFormError.value = 'Pilih tingkat. Jenis prestasi ini punya poin berbeda per tingkat.'
       return
     }
     const purpose = prestasiForm.value.purpose || prestasiPurpose.value

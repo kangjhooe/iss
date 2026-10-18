@@ -12,7 +12,7 @@
         </div>
       </div>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <input
           v-model="filters.search"
           @input="loadStudents(1)"
@@ -25,7 +25,7 @@
           <option value="Drop Out">Drop Out</option>
           <option value="Tidak Aktif">Tidak Aktif</option>
         </select>
-      </div>
+      </ListFilterBar>
 
       <div v-if="error && !loading" class="error-state">
         <p>{{ error }}</p>
@@ -86,6 +86,8 @@
     /></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PaginationBar from '@/components/PaginationBar.vue'

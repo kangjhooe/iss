@@ -1,7 +1,7 @@
 <template>
   <div class="tab-content">
     <div class="tab-header">
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <select v-model="transactionFilters.transaction_type" class="filter-select" @change="loadTransactions(1)">
           <option value="">Semua Jenis</option>
           <option value="Masuk">Masuk</option>
@@ -9,7 +9,7 @@
         </select>
         <input v-model="transactionFilters.date_from" type="date" class="filter-select" @change="loadTransactions(1)" />
         <input v-model="transactionFilters.date_to" type="date" class="filter-select" @change="loadTransactions(1)" />
-      </div>
+      </ListFilterBar>
     </div>
 
     <div v-if="transactionsLoading" class="loading-state"><p>Memuat data...</p></div>
@@ -73,6 +73,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted, ref } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { inventoryApi } from '@/api/inventory'

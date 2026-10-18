@@ -23,7 +23,7 @@
         <div v-if="error" class="error-banner">{{ error }}</div>
         <div v-if="success" class="success-banner">{{ success }}</div>
 
-        <div class="content-card filters-bar">
+        <ListFilterBar class="content-card filters-bar">
           <div class="filter-field">
             <label class="filter-label">Jenis SPP</label>
             <select v-model="filters.fee_type_id" class="filter-select" @change="reloadFromStart">
@@ -46,7 +46,7 @@
             <label class="filter-label">Cari siswa</label>
             <input v-model="filters.search" class="filter-input" placeholder="Nama / NIS" @keyup.enter="reloadFromStart" />
           </div>
-        </div>
+        </ListFilterBar>
 
         <div class="content-card">
           <div v-if="!monthlyTypes.length && !loadingTypes" class="empty-state">
@@ -230,6 +230,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'

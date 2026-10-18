@@ -1,7 +1,7 @@
 <template>
     <div class="class-page">
       <div class="toolbar">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input 
             v-model="filters.search" 
             @input="loadClasses" 
@@ -19,7 +19,7 @@
             <option value="Aktif">Aktif</option>
             <option value="Nonaktif">Nonaktif</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div class="toolbar-actions">
           <button @click="exportPdf" :disabled="exportingPdf" class="btn-secondary btn-compact" title="Preview PDF">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -396,6 +396,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted, computed, watch } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { classApi } from '@/api/class'

@@ -18,7 +18,7 @@
       <div v-if="error" class="error-banner">{{ error }}</div>
       <div v-if="success" class="success-banner">{{ success }}</div>
 
-      <div class="content-card filters-bar">
+      <ListFilterBar class="content-card filters-bar">
         <div class="filter-field">
           <label class="filter-label">Periode</label>
           <select v-model="filters.period_id" class="filter-select" @change="reloadRuns">
@@ -33,7 +33,7 @@
             <option v-for="o in runStatusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </div>
-      </div>
+      </ListFilterBar>
 
       <div class="content-card">
         <div v-if="loadingRuns" class="loading-wrap"><LoadingSkeleton type="table" :rows="4" :columns="6" /></div>
@@ -230,6 +230,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { computed, onMounted, reactive, ref } from 'vue'
 import MoneyInput from '@/components/MoneyInput.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

@@ -118,6 +118,8 @@ class AchievementController extends Controller
             );
 
             return (new AchievementResource($achievement))->response()->setStatusCode(201);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Siswa atau jenis prestasi tidak ditemukan.'], 404);
         } catch (\Exception $e) {
@@ -205,7 +207,9 @@ class AchievementController extends Controller
                 $incomingDate = (string) $request->achievement_date;
                 $incomingPoints = $request->input('point_value');
                 $currentDate = optional($achievement->achievement_date)?->format('Y-m-d');
-                $newPoint = $type->resolvePointValue(
+                $newPoint = $this->achievementService()->resolveStoredPoint(
+                    $type,
+                    $request->input('purpose', $type->purpose ?? Achievement::PURPOSE_AKREDITASI),
                     $request->input('level') ?: null,
                     $request->has('point_value') ? (int) $incomingPoints : null
                 );
@@ -243,7 +247,9 @@ class AchievementController extends Controller
             $institutionId = $this->resolveInstitutionId($request) ?: (int) $achievement->institution_id;
             $type = AchievementType::where('id', $request->achievement_type_id)->where('institution_id', $institutionId)->where('is_active', true)->firstOrFail();
 
-            $pointValue = $type->resolvePointValue(
+            $pointValue = $this->achievementService()->resolveStoredPoint(
+                $type,
+                $request->input('purpose', $type->purpose ?? Achievement::PURPOSE_AKREDITASI),
                 $request->input('level') ?: null,
                 $request->has('point_value') ? (int) $request->input('point_value') : null
             );
@@ -275,6 +281,8 @@ class AchievementController extends Controller
 
             $achievement->load(['student', 'achievementType', 'giver', 'reviewer', 'academicYear:id,name,code', 'semester:id,name']);
             return new AchievementResource($achievement);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Jenis prestasi tidak ditemukan.'], 404);
         } catch (\Exception $e) {

@@ -20,7 +20,7 @@
           </div>
         </div>
 
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input 
             v-model="filters.search" 
             @input="debouncedLoadInstitutions" 
@@ -50,7 +50,7 @@
             <option value="1">Aktif</option>
             <option value="0">Nonaktif (dibekukan)</option>
           </select>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loading" class="loading-wrap">
           <LoadingSkeleton type="table" :rows="6" :columns="8" :cell-widths="['52px', '100px', '1fr', '80px', '80px', '1fr', '120px', '120px']" />
@@ -921,6 +921,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted, computed, watch } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

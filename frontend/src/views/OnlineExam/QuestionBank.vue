@@ -24,7 +24,7 @@
       </div>
 
       <template v-else>
-        <div class="filters-bar content-card">
+        <ListFilterBar class="filters-bar content-card">
           <input
             v-model="filterSearch"
             type="search"
@@ -75,7 +75,7 @@
           </select>
           <button type="button" class="btn-secondary" @click="fetchQuestions(1)">Cari</button>
           <button v-if="hasActiveFilters" type="button" class="btn-secondary" @click="clearFilters">Reset</button>
-        </div>
+        </ListFilterBar>
 
         <div v-if="filterStimulusId && filterStimulusId !== 'none'" class="stimulus-banner content-card">
           <div>
@@ -542,6 +542,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'

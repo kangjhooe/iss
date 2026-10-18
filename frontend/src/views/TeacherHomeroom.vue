@@ -357,11 +357,16 @@
                 </select>
               </label>
               <div v-if="selectedAchievementType" class="point-preview">
-                <p class="point-preview-value">Poin yang diajukan: <strong>{{ resolvedAchievementPoints }}</strong></p>
+                <p class="point-preview-value">
+                  <template v-if="resolvedAchievementPoints == null">Pilih tingkat untuk melihat poin.</template>
+                  <template v-else>Poin yang diajukan: <strong>{{ resolvedAchievementPoints }}</strong>
+                    <template v-if="achForm.level && !selectedLevelUsesOwnPoints"> (poin dasar)</template>
+                  </template>
+                </p>
                 <ul v-if="achievementLevelRows.length" class="level-point-list">
                   <li v-for="row in achievementLevelRows" :key="row.key" :class="{ active: achForm.level === row.key }">
                     <span>{{ row.label }}</span>
-                    <strong>{{ row.points }} poin</strong>
+                    <strong>{{ row.points }} poin<template v-if="!row.configured"> · dasar</template></strong>
                   </li>
                 </ul>
                 <p v-if="achievementLevelRows.length" class="point-preview-hint">Poin mengikuti tingkat yang dipilih. Tingkat tanpa angka khusus memakai poin dasar jenis.</p>
@@ -466,7 +471,7 @@
               <div class="ov-stat" :class="{ warn: (financeSummary.student_count || 0) > 0 }"><strong>{{ financeSummary.student_count || 0 }}</strong><span>Siswa</span></div>
             </div>
 
-            <div class="finance-filters">
+            <ListFilterBar class="finance-filters">
               <select v-model="financeFilters.fee_type_id" class="filter-select" @change="reloadFinance">
                 <option value="">Semua jenis</option>
                 <option v-for="t in financeFeeTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
@@ -479,7 +484,7 @@
                 @keyup.enter="reloadFinance"
               />
               <button type="button" class="btn-secondary" @click="reloadFinance">Terapkan</button>
-            </div>
+            </ListFilterBar>
 
             <div v-if="financeLoading" class="state-card soft"><p>Memuat daftar…</p></div>
             <div v-else-if="!financeItems.length" class="state-card empty soft">
@@ -1275,6 +1280,7 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import StudentPicker from '@/components/StudentPicker.vue'
 import ViolationTypePicker from '@/components/ViolationTypePicker.vue'
@@ -1471,9 +1477,15 @@ const achievementLevelRows = computed(() => {
   })
 })
 
+const selectedLevelUsesOwnPoints = computed(() => {
+  const row = achievementLevelRows.value.find((item) => item.key === achForm.value.level)
+  return Boolean(row?.configured)
+})
+
 const resolvedAchievementPoints = computed(() => {
   const type = selectedAchievementType.value
   if (!type) return 0
+  if (achievementLevelRequired.value && !achForm.value.level) return null
   const row = achievementLevelRows.value.find((item) => item.key === achForm.value.level)
   if (row) return row.points
   return Number(type.point_value) || 0
@@ -2435,6 +2447,10 @@ async function submitAchievement() {
   }
   if (!achForm.value.achievement_type_id) {
     toast.warning('Pilih jenis prestasi atau apresiasi terlebih dahulu')
+    return
+  }
+  if (achievementLevelRequired.value && !achForm.value.level) {
+    toast.warning('Pilih tingkat. Jenis prestasi ini punya poin berbeda per tingkat.')
     return
   }
   usulanSubmitting.value = true

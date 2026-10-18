@@ -7,12 +7,12 @@
         <button type="button" class="btn-primary" @click="openModal">Ajukan Cuti</button>
       </div>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <select v-model="status" class="filter-select" @change="load">
           <option value="">Semua Status</option>
           <option v-for="(label, key) in statuses" :key="key" :value="key">{{ label }}</option>
         </select>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="5" :columns="5" />
@@ -97,6 +97,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted, reactive, ref } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

@@ -39,7 +39,7 @@
 
       <!-- PERIODS -->
       <template v-if="tab === 'periods'">
-        <div class="toolbar">
+        <ListFilterBar class="toolbar">
           <input v-model="periodFilters.search" class="search-input" placeholder="Cari periode..." @input="debouncePeriods" />
           <select v-model="periodFilters.status" class="filter-select" @change="loadPeriods">
             <option value="">Semua Status</option>
@@ -47,7 +47,7 @@
             <option value="berlangsung">Berlangsung</option>
             <option value="selesai">Selesai</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div v-if="loadingPeriods" class="loading-wrap"><p>Memuat periode...</p></div>
         <div v-else-if="!periods.length" class="empty-state">
           <h3>Belum ada periode PKL</h3>
@@ -83,7 +83,7 @@
 
       <!-- PLACEMENTS -->
       <template v-else>
-        <div class="toolbar">
+        <ListFilterBar class="toolbar">
           <select v-model="placementFilters.pkl_period_id" class="filter-select" @change="loadPlacements">
             <option value="">Semua Periode</option>
             <option v-for="p in periodOptions" :key="p.id" :value="String(p.id)">{{ p.name }}</option>
@@ -96,7 +96,7 @@
             <option value="selesai">Selesai</option>
             <option value="batal">Batal</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div v-if="loadingPlacements" class="loading-wrap"><p>Memuat penempatan...</p></div>
         <div v-else-if="!placements.length" class="empty-state">
           <h3>Belum ada penempatan</h3>
@@ -333,6 +333,7 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { onMounted, reactive, ref } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import { pklApi } from '@/api/pkl'

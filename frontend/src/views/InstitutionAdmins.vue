@@ -50,7 +50,7 @@
         </div>
       </section>
 
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <input
           v-model="filters.search"
           class="search-input"
@@ -68,7 +68,7 @@
           <option value="1">Aktif</option>
           <option value="0">Nonaktif</option>
         </select>
-      </div>
+      </ListFilterBar>
 
       <div v-if="loading" class="loading-wrap">
         <LoadingSkeleton type="table" :rows="6" :columns="6" :cell-widths="['52px', '1fr', '1fr', '1fr', '100px', '160px']" />
@@ -228,6 +228,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

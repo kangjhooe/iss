@@ -36,7 +36,7 @@
       <!-- Tab Content: Land -->
       <div v-show="activeTab === 'land'" class="tab-content">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <input 
               v-model="landFilters.search" 
               @input="loadLands" 
@@ -50,7 +50,7 @@
               <option value="Pinjam">Pinjam</option>
               <option value="Hak Pakai">Hak Pakai</option>
             </select>
-          </div>
+          </ListFilterBar>
           <button @click="openLandModal()" class="btn-primary">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -131,7 +131,7 @@
       <!-- Tab Content: Building -->
       <div v-show="activeTab === 'building'" class="tab-content">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <input 
               v-model="buildingFilters.search" 
               @input="handleBuildingSearch" 
@@ -149,7 +149,7 @@
               <option value="">Semua Tanah</option>
               <option v-for="land in lands" :key="land.id" :value="land.id">{{ land.name }}</option>
             </select>
-          </div>
+          </ListFilterBar>
           <button @click="openBuildingModal()" class="btn-primary">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -232,7 +232,7 @@
       <!-- Tab Content: Room -->
       <div v-show="activeTab === 'room'" class="tab-content">
         <div class="tab-header">
-          <div class="filters filters-inline">
+          <ListFilterBar class="filters filters-inline">
             <input 
               v-model="roomFilters.search" 
               @input="loadRooms" 
@@ -263,7 +263,7 @@
               <option value="Rusak Sedang">Rusak Sedang</option>
               <option value="Rusak Berat">Rusak Berat</option>
             </select>
-          </div>
+          </ListFilterBar>
           <button @click="openRoomModal()" class="btn-primary">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -647,6 +647,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted, watch } from 'vue'
 import { facilityApi } from '@/api/facility'
 import { employeeApi } from '@/api/teacher'

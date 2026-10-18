@@ -46,7 +46,7 @@
       </div>
 
       <!-- Filters -->
-      <div class="filters-bar">
+      <ListFilterBar class="filters-bar">
         <div class="filters-inner">
           <div class="search-wrap">
             <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -69,7 +69,7 @@
           <input v-model="filters.date_to" type="date" class="filter-date" @change="loadList" />
           <button type="button" @click="resetFilters" class="btn-reset">Reset</button>
         </div>
-      </div>
+      </ListFilterBar>
 
       <!-- Loading -->
       <div v-if="loading" class="loading-wrap">
@@ -234,6 +234,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import TableAction from '@/components/TableAction.vue'

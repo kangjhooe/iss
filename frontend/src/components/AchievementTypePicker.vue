@@ -2,12 +2,12 @@
   <div class="type-picker">
     <div class="picker-heading">
       <span class="field-label">{{ label }}<template v-if="required"> *</template></span>
-      <span v-if="selectedType" class="picker-point-hint">+{{ pointValue(selectedType) }} poin</span>
+      <span v-if="selectedType" class="picker-point-hint">+{{ pointLabel(selectedType) }} poin</span>
     </div>
 
     <div v-if="selectedType" class="picker-card" :class="{ 'is-selected': !panelOpen }">
       <span class="point-pill">
-        <strong>+{{ pointValue(selectedType) }}</strong>
+        <strong>+{{ pointLabel(selectedType) }}</strong>
         <span>poin</span>
       </span>
       <span class="type-copy">
@@ -92,7 +92,7 @@
             @click="selectType(type)"
           >
             <span class="point-pill">
-              <strong>+{{ pointValue(type) }}</strong>
+              <strong>+{{ pointLabel(type) }}</strong>
               <span>poin</span>
             </span>
             <span class="type-copy">
@@ -201,8 +201,25 @@ const selectedType = computed(() => {
   return null
 })
 
+const LEVEL_KEYS = ['sekolah', 'kabupaten', 'provinsi', 'nasional', 'internasional']
+
 function pointValue(type) {
   return Number(type?.point_value ?? 0)
+}
+
+function pointLabel(type) {
+  const base = pointValue(type)
+  if ((type?.purpose || 'akreditasi') !== 'akreditasi') return String(base)
+  const values = type?.level_point_values || {}
+  const configured = Object.values(values).some((value) => value != null && value !== '')
+  if (!configured) return String(base)
+  const possible = LEVEL_KEYS.map((key) => {
+    const raw = values[key]
+    return raw != null && raw !== '' ? Number(raw) : base
+  })
+  const min = Math.min(...possible)
+  const max = Math.max(...possible)
+  return min === max ? String(min) : `${min}–${max}`
 }
 
 function categoryLabel(value) {
@@ -407,8 +424,9 @@ watch(purpose, () => {
 }
 .point-pill {
   flex-shrink: 0;
-  width: 3.35rem;
-  padding: 0.35rem 0.2rem;
+  min-width: 3.35rem;
+  width: auto;
+  padding: 0.35rem 0.4rem;
   border-radius: 8px;
   text-align: center;
   background: #d1fae5;
@@ -419,6 +437,7 @@ watch(purpose, () => {
   display: block;
   font-size: 0.95rem;
   font-weight: 800;
+  white-space: nowrap;
 }
 .point-pill span {
   display: block;

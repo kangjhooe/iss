@@ -53,7 +53,7 @@
         </section>
 
         <section class="content-card">
-          <div class="filters-bar" style="padding: 0; box-shadow: none; border: none; margin-bottom: 1rem;">
+          <ListFilterBar class="filters-bar" style="padding: 0; box-shadow: none; border: none; margin-bottom: 1rem;">
             <h2 class="section-title" style="margin: 0; flex: 1;">Status pembayaran calon</h2>
             <select v-model="filters.ppdb_period_id" class="filter-select" @change="loadApplicants">
               <option value="">Semua Periode</option>
@@ -63,7 +63,7 @@
               <option value="">Semua status bayar</option>
               <option v-for="(l, k) in paymentStatusLabels" :key="k" :value="k">{{ l }}</option>
             </select>
-          </div>
+          </ListFilterBar>
 
           <div v-if="applicantsLoading" class="loading-wrap"><LoadingSkeleton type="table" :rows="6" :columns="6" /></div>
           <div v-else-if="applicants.length === 0" class="empty-inline">Tidak ada data sesuai filter.</div>
@@ -118,6 +118,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import MoneyInput from '@/components/MoneyInput.vue'

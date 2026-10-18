@@ -21,7 +21,7 @@
         <div v-if="error" class="error-banner">{{ error }}</div>
         <div v-if="success" class="success-banner">{{ success }}</div>
 
-        <div class="content-card filters-bar">
+        <ListFilterBar class="content-card filters-bar">
           <div class="filter-field">
             <label class="filter-label">Dari</label>
             <input v-model="filters.from" type="date" class="filter-input" @change="reloadFromStart" />
@@ -41,7 +41,7 @@
             <label class="filter-label">Cari</label>
             <input v-model="filters.search" class="filter-input" placeholder="Siswa / referensi" @keyup.enter="reloadFromStart" />
           </div>
-        </div>
+        </ListFilterBar>
 
         <div class="content-card">
           <div v-if="loading" class="loading-wrap"><LoadingSkeleton type="table" :rows="6" :columns="6" /></div>
@@ -154,6 +154,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import MoneyInput from '@/components/MoneyInput.vue'
 import TableAction from '@/components/TableAction.vue'

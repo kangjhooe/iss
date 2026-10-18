@@ -30,14 +30,14 @@
       </div>
 
       <template v-if="tab === 'vacancies'">
-        <div class="toolbar">
+        <ListFilterBar class="toolbar">
           <input v-model="vacancyFilters.search" class="search-input" placeholder="Cari lowongan..." @input="debounceVacancies" />
           <select v-model="vacancyFilters.status" class="filter-select" @change="loadVacancies">
             <option value="">Semua Status</option>
             <option value="buka">Buka</option>
             <option value="tutup">Tutup</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div v-if="loadingVacancies" class="loading-wrap"><p>Memuat lowongan...</p></div>
         <div v-else-if="!vacancies.length" class="empty-state">
           <h3>Belum ada lowongan</h3>
@@ -76,7 +76,7 @@
       </template>
 
       <template v-else>
-        <div class="toolbar">
+        <ListFilterBar class="toolbar">
           <select v-model="applicationFilters.bkk_vacancy_id" class="filter-select" @change="loadApplications">
             <option value="">Semua Lowongan</option>
             <option v-for="v in vacancyOptions" :key="v.id" :value="String(v.id)">{{ v.title }}</option>
@@ -89,7 +89,7 @@
             <option value="diterima">Diterima</option>
             <option value="ditolak">Ditolak</option>
           </select>
-        </div>
+        </ListFilterBar>
         <div v-if="loadingApplications" class="loading-wrap"><p>Memuat lamaran...</p></div>
         <div v-else-if="!applications.length" class="empty-state">
           <h3>Belum ada lamaran</h3>
@@ -207,6 +207,7 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { onMounted, reactive, ref } from 'vue'
 import TableAction from '@/components/TableAction.vue'
 import { bkkApi } from '@/api/bkk'

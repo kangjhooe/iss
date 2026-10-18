@@ -1,7 +1,7 @@
 <template>
   <div class="tab-content">
     <div class="tab-header">
-      <div class="filters filters-inline">
+      <ListFilterBar class="filters filters-inline">
         <div class="search-wrap">
           <input
             v-model="filters.search"
@@ -21,7 +21,7 @@
           <option value="">Semua Ruangan</option>
           <option v-for="r in rooms" :key="r.id" :value="r.id">{{ r.name }}</option>
         </select>
-      </div>
+      </ListFilterBar>
       <div class="header-actions">
         <button type="button" class="btn-secondary btn-compact" :disabled="printingQr" @click="printBulkQr">
           {{ printingQr ? 'Menyiapkan...' : 'Cetak Label QR' }}
@@ -142,6 +142,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted, ref } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

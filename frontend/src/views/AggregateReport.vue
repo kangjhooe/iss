@@ -5,7 +5,7 @@
           <h2>Laporan Agregat</h2>
           <p>Ringkasan lintas institusi: jenjang, jenis, kontak WA, dan per sekolah</p>
         </div>
-        <div class="filters-bar">
+        <ListFilterBar class="filters-bar">
           <select v-model="filters.level" class="filter-select" @change="loadReport">
             <option value="">Semua Jenjang</option>
             <option v-for="lvl in levels" :key="lvl" :value="lvl">{{ lvl }}</option>
@@ -23,7 +23,7 @@
           <button type="button" class="btn-export" :disabled="exporting" @click="handleExport">
             {{ exporting ? 'Mengekspor...' : 'Export Excel' }}
           </button>
-        </div>
+        </ListFilterBar>
       </div>
 
       <div v-if="loading" class="loading-wrap">
@@ -249,6 +249,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, watch, onMounted } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import PaginationBar from '@/components/PaginationBar.vue'

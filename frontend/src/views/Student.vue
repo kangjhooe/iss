@@ -20,7 +20,7 @@
         </button>
       </div>
       <div class="toolbar">
-        <div v-if="!filters.only_trashed" class="filters filters-inline">
+        <ListFilterBar v-if="!filters.only_trashed" class="filters filters-inline">
           <input 
             v-model="filters.search" 
             @input="loadStudents(1)"
@@ -39,15 +39,15 @@
               Tingkat {{ grade }}
             </option>
           </select>
-        </div>
-        <div v-else class="filters filters-inline">
+        </ListFilterBar>
+        <ListFilterBar v-else class="filters filters-inline">
           <input
             v-model="filters.search"
             @input="loadStudents(1)"
             placeholder="Cari nama, NIK, NIS, NISN..."
             class="search-input"
           />
-        </div>
+        </ListFilterBar>
         <div class="toolbar-actions">
           <template v-if="!filters.only_trashed">
           <button @click="exportToExcel" class="btn-secondary btn-compact">
@@ -2022,6 +2022,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MoneyInput from '@/components/MoneyInput.vue'
@@ -6615,7 +6617,7 @@ watch(() => route.query.trashed, (value) => {
   }
 
   /* Filter + pencarian: 1 baris ke samping, diperkecil */
-  .student-page .filters-inline {
+  .student-page .filters-inline:not(.list-filter-bar) {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
@@ -6680,7 +6682,7 @@ watch(() => route.query.trashed, (value) => {
   }
 
   /* Filter + pencarian: 1 baris ke samping, diperkecil */
-  .student-page .filters-inline {
+  .student-page .filters-inline:not(.list-filter-bar) {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
@@ -6949,7 +6951,7 @@ watch(() => route.query.trashed, (value) => {
   }
 
   /* Filter + pencarian: diperkecil agar tidak perlu scroll */
-  .student-page .filters-inline {
+  .student-page .filters-inline:not(.list-filter-bar) {
     padding: 4px 6px;
     margin-bottom: 8px;
     display: flex !important;

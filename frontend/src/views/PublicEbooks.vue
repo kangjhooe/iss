@@ -21,7 +21,7 @@
       </header>
 
       <div class="filters">
-        <div class="filters-row">
+        <ListFilterBar class="filters-row">
           <div class="filter-group search-wrap">
             <label for="pub-ebook-search">Cari</label>
             <input
@@ -40,7 +40,7 @@
               <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.code }} — {{ c.name }}</option>
             </select>
           </div>
-        </div>
+        </ListFilterBar>
       </div>
 
       <div v-if="loading" class="state-wrap">Memuat katalog ebook...</div>
@@ -94,6 +94,7 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { schoolPublicApi } from '@/api/schoolPublic'

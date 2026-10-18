@@ -1,14 +1,14 @@
 <template>
     <div class="academic-year-page">
       <div class="tab-header">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <input 
             v-model="filters.search" 
             @input="loadAcademicYears" 
             placeholder="Cari tahun ajaran..."
             class="search-input"
           />
-        </div>
+        </ListFilterBar>
         <button @click="showAddModal = true" class="btn-primary btn-add">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -173,6 +173,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, onMounted } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

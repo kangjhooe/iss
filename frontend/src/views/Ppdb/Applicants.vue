@@ -18,7 +18,7 @@
       </header>
 
       <main class="page-main">
-        <div class="filters-bar content-card">
+        <ListFilterBar class="filters-bar content-card">
           <div class="search-wrap">
             <input v-model="applicantFilters.search" type="text" placeholder="Cari nama, no. pendaftaran, NISN..." class="search-input" @input="debounceLoadApplicants" />
           </div>
@@ -62,7 +62,7 @@
             <button type="button" class="btn-export" :disabled="exportingApplicants" @click="exportApplicants('xlsx')">
               Export Excel
             </button>
-        </div>
+        </ListFilterBar>
 
         <div v-if="applicantsLoading" class="loading-wrap content-card"><LoadingSkeleton type="table" :rows="8" :columns="8" /></div>
         <div v-else-if="applicants.length === 0" class="empty-state content-card">
@@ -378,6 +378,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TableAction from '@/components/TableAction.vue'

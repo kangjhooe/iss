@@ -22,7 +22,7 @@
       <main class="page-main">
         <div v-if="error" class="error-banner">{{ error }}</div>
 
-        <div class="content-card filters-bar">
+        <ListFilterBar class="content-card filters-bar">
           <div class="filter-field">
             <label class="filter-label">Pembayaran dari</label>
             <input v-model="filters.from" type="date" class="filter-input" @change="load" />
@@ -32,7 +32,7 @@
             <input v-model="filters.to" type="date" class="filter-input" @change="load" />
           </div>
           <button type="button" class="btn-secondary" @click="load">Muat ulang</button>
-        </div>
+        </ListFilterBar>
 
         <div v-if="loading" class="content-card"><LoadingSkeleton type="table" :rows="3" :columns="4" /></div>
         <template v-else-if="summary">
@@ -121,6 +121,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { computed, onMounted, reactive, ref } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AppChart from '@/components/AppChart.vue'

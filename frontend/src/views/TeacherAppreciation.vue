@@ -100,7 +100,7 @@
         <button type="button" role="tab" :class="['sub-nav-btn', { active: tab === 'rewards' }]" @click="switchTab('rewards')">Aturan Reward</button>
       </div>
 
-      <div class="filters">
+      <ListFilterBar class="filters">
         <div class="filter-group">
           <label for="filter-year">Tahun Ajaran</label>
           <select id="filter-year" v-model="period.academic_year_id" class="filter-select" @change="onPeriodChange">
@@ -129,7 +129,7 @@
             />
           </div>
         </div>
-      </div>
+      </ListFilterBar>
 
       <p v-if="error" class="error-banner">{{ error }}</p>
       <p v-if="success" class="success-banner">{{ success }}</p>
@@ -921,6 +921,7 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { useAuthStore } from '@/stores/auth'

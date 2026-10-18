@@ -19,7 +19,7 @@
 
     <div class="tab-header">
       <div class="filters-toolbar">
-        <div class="filters filters-inline">
+        <ListFilterBar class="filters filters-inline">
           <div class="search-wrap">
             <input
               v-model="filters.search"
@@ -62,7 +62,7 @@
             <span v-if="advancedFiltersActive" class="filter-active-dot" aria-hidden="true" />
             <span class="filter-toggle-icon">{{ showAdvancedFilters ? '▼' : '▶' }}</span>
           </button>
-        </div>
+        </ListFilterBar>
         <div v-show="showAdvancedFilters" class="filters filters-inline filters-advanced">
           <select v-model="filters.tracking_type" class="filter-select" @change="loadItems(1)">
             <option value="">Semua Tipe</option>
@@ -472,6 +472,8 @@
 </template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { onMounted, ref, computed } from 'vue'
 import MoneyInput from '@/components/MoneyInput.vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'

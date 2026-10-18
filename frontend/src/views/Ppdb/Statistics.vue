@@ -12,13 +12,13 @@
       </header>
 
       <main class="page-main">
-        <div class="filters-bar content-card">
+        <ListFilterBar class="filters-bar content-card">
           <label class="filter-label">Periode</label>
           <select v-model="statsPeriodId" class="filter-select" @change="loadStatistics">
             <option value="">Pilih periode</option>
             <option v-for="p in periods" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
-        </div>
+        </ListFilterBar>
 
         <div v-if="statsLoading" class="loading-wrap content-card">
           <LoadingSkeleton type="table" :rows="4" :columns="4" />
@@ -93,6 +93,8 @@
     </div></template>
 
 <script setup>
+import ListFilterBar from '@/components/ListFilterBar.vue'
+
 import { ref, computed, onMounted } from 'vue'
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue'
 import AppChart from '@/components/AppChart.vue'

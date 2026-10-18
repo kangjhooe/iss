@@ -83,11 +83,14 @@ class AchievementService
         $institution = Institution::find($institutionId);
         $academicYearId = $student->academic_year_id ?: $institution?->active_academic_year_id;
         $semesterId = $student->semester_id ?: $institution?->active_semester_id;
-        $pointValue = $type->resolvePointValue(
-            !empty($data['level']) ? $data['level'] : null,
+        $purpose = $data['purpose'] ?? $type->purpose ?? Achievement::PURPOSE_AKREDITASI;
+        $level = !empty($data['level']) ? $data['level'] : null;
+        $pointValue = $this->resolveStoredPoint(
+            $type,
+            $purpose,
+            $level,
             isset($data['point_value']) ? (int) $data['point_value'] : null
         );
-        $purpose = $data['purpose'] ?? $type->purpose ?? Achievement::PURPOSE_AKREDITASI;
 
         $status = $asPending ? Achievement::STATUS_PENDING : Achievement::STATUS_DICATAT;
 
@@ -97,7 +100,7 @@ class AchievementService
             'achievement_type_id' => $type->id,
             'purpose' => $purpose,
             'title' => $data['title'] ?? null,
-            'level' => $data['level'] ?? null,
+            'level' => $level,
             'rank' => $data['rank'] ?? null,
             'given_by' => $givenBy,
             'achievement_date' => $data['achievement_date'],
@@ -130,9 +133,18 @@ class AchievementService
 
         $achievement->loadMissing('achievementType');
         $type = $achievement->achievementType;
-        $pointValue = isset($data['point_value'])
-            ? (int) $data['point_value']
-            : ($type ? $type->resolvePointValue($achievement->level) : (int) $achievement->point_value);
+        if (
+            $type
+            && !isset($data['point_value'])
+            && $type->requiresLevel($achievement->purpose)
+            && !$achievement->level
+        ) {
+            $pointValue = (int) $achievement->point_value;
+        } else {
+            $pointValue = isset($data['point_value'])
+                ? (int) $data['point_value']
+                : ($type ? $type->resolvePointValue($achievement->level) : (int) $achievement->point_value);
+        }
 
         $achievement->update([
             'status' => Achievement::STATUS_DICATAT,
@@ -150,6 +162,21 @@ class AchievementService
             'academicYear:id,name,code',
             'semester:id,name',
         ]);
+    }
+
+    /**
+     * Angka yang disimpan: override manual, atau poin tingkat, atau poin dasar.
+     * Jenis yang punya poin per tingkat tidak boleh disimpan tanpa tingkat.
+     */
+    public function resolveStoredPoint(AchievementType $type, ?string $purpose, ?string $level, ?int $override = null): int
+    {
+        if ($override === null && $type->requiresLevel($purpose) && !$level) {
+            throw ValidationException::withMessages([
+                'level' => ['Pilih tingkat. Jenis prestasi ini punya poin berbeda per tingkat.'],
+            ]);
+        }
+
+        return $type->resolvePointValue($level, $override);
     }
 
     public function reject(Achievement $achievement, User $reviewer, string $reviewNotes): Achievement
