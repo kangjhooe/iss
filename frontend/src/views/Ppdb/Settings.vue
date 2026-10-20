@@ -262,7 +262,7 @@
         </div>
       </div>
 
-      <ConfirmDialog v-if="deletePeriodTarget" :show="!!deletePeriodTarget" title="Hapus Periode" message="Yakin menghapus periode ini? Periode yang sudah memiliki calon tidak dapat dihapus." confirmText="Hapus" @confirm="doDeletePeriod" @cancel="deletePeriodTarget = null" />
+      <ConfirmDialog v-if="deletePeriodTarget" :show="!!deletePeriodTarget" title="Hapus Periode" :message="deletePeriodMessage" confirmText="Hapus" @confirm="doDeletePeriod" @cancel="deletePeriodTarget = null" />
       <ConfirmDialog v-if="deleteChannelTarget" :show="!!deleteChannelTarget" title="Hapus Jalur" message="Yakin menghapus jalur ini? Jalur yang sudah dipakai calon tidak dapat dihapus." confirmText="Hapus" @confirm="doDeleteChannel" @cancel="deleteChannelTarget = null" />
     </div>
 </template>
@@ -407,6 +407,21 @@ async function submitPeriod() {
     periodFormSubmitting.value = false
   }
 }
+
+const deletePeriodMessage = computed(() => {
+  const p = deletePeriodTarget.value
+  if (!p) return ''
+  const total = Number(p.applicants_count ?? 0)
+  const active = Number(p.active_applicants_count ?? total)
+  const finished = Math.max(0, total - active)
+  if (active > 0) {
+    return `Masih ada ${active} calon yang prosesnya belum selesai. Periode tidak dapat dihapus sampai data calon itu dihapus atau statusnya selesai (jadi siswa, ditolak, tidak lulus, atau dibatalkan).`
+  }
+  if (finished > 0) {
+    return `Periode ini hanya menyisakan ${finished} data pendaftaran yang sudah selesai (jadi siswa, ditolak, tidak lulus, dibatalkan, atau diterima di sekolah lain). Data pendaftaran itu akan ikut terhapus. Data siswa yang sudah masuk tidak ikut terhapus.`
+  }
+  return 'Yakin menghapus periode ini?'
+})
 
 function confirmDeletePeriod(p) {
   deletePeriodTarget.value = p

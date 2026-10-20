@@ -432,10 +432,10 @@
                     <span class="score-pill-label">Skor</span>
                     <span class="score-pill-value">{{ row.total_points }}</span>
                   </div>
-                  <div class="score-breakdown" title="Pelanggaran − Prestasi">
-                    <span class="bd-add">+{{ row.violation_points }}</span>
+                  <div class="score-breakdown" title="Skor = pelanggaran − prestasi. Makin besar, makin buruk.">
+                    <span class="bd-add">Pelanggaran {{ row.violation_points }}</span>
                     <span class="bd-sep">−</span>
-                    <span class="bd-sub">{{ row.achievement_points }}</span>
+                    <span class="bd-sub">Prestasi {{ row.achievement_points }}</span>
                   </div>
                   <span v-if="row.new_points_since_action > 0" class="new-points-badge">
                     +{{ row.new_points_since_action }} sejak tindakan
@@ -511,7 +511,7 @@
                     <span class="vmi-date">{{ formatDate(a.achievement_date) }}</span>
                   </div>
                   <div class="vmi-meta">
-                    <span class="vmi-points vmi-points-good">−{{ a.point_value }}</span>
+                    <span class="vmi-points vmi-points-good">{{ a.point_value }} poin</span>
                   </div>
                 </li>
               </ul>
@@ -559,6 +559,10 @@
       <template v-if="isPrestasiMode && (activeTab === 'prestasi' || activeTab === 'pending_prestasi')">
         <div v-if="activeTab === 'pending_prestasi'" class="pending-banner">
           Usulan prestasi dari wali kelas. Setujui agar tercatat, atau tolak dengan alasan.
+        </div>
+        <div v-else-if="pendingProposalCount" class="pending-banner">
+          Ada {{ pendingProposalCount }} usulan menunggu.
+          <button type="button" class="pending-banner-link" @click="switchMainTab('pending')">Buka tab Usulan</button>
         </div>
         <ListFilterBar class="filters filters-inline">
           <input
@@ -638,11 +642,14 @@
                 <td>{{ a.achievement_type?.name }}</td>
                 <td v-if="prestasiPurpose === 'akreditasi'">{{ levelLabel(a.level) }}<template v-if="a.rank"> · {{ rankLabel(a.rank) }}</template></td>
                 <td class="num-sub">+{{ a.point_value }}</td>
-                <td><span class="status-badge" :class="`status-${a.status || 'dicatat'}`">{{ a.status || 'dicatat' }}</span></td>
+                <td><span class="status-badge" :class="`status-${a.status || 'dicatat'}`">{{ getStatusLabel(a.status || 'dicatat') }}</span></td>
                 <td>{{ a.giver?.name }}</td>
                 <td>
                   <div class="action-buttons">
                     <template v-if="a.status === 'pending'">
+                      <button type="button" class="btn-action btn-edit" title="Ubah" aria-label="Ubah" @click="openEditPrestasiModal(a)">
+                        <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-edit"/></svg>
+                      </button>
                       <button type="button" class="btn-action btn-approve" title="Setujui" aria-label="Setujui" @click="approveAchievement(a)">
                         <svg width="18" height="18" aria-hidden="true"><use href="#vl-icon-check"/></svg>
                       </button>
@@ -718,7 +725,7 @@
             <div v-for="t in sortedAchievementTypes" :key="t.id" class="type-card">
               <div class="type-header">
                 <span class="type-name">{{ t.name }}</span>
-                <span class="type-point">+{{ achievementPointLabel(t) }} poin</span>
+                <span class="type-point">{{ achievementPointLabel(t) }} poin</span>
               </div>
               <p v-if="t.category" class="type-meta">{{ categoryLabel(t.category) }}</p>
               <div class="type-actions">
@@ -749,7 +756,7 @@
                     <td class="col-no">{{ typeRowNumber(achievementTypesPage, achievementTypesPagination.per_page, index) }}</td>
                     <td>{{ t.name }}</td>
                     <td>{{ categoryLabel(t.category) || '—' }}</td>
-                    <td><span class="point-good">+{{ achievementPointLabel(t) }}</span></td>
+                    <td><span class="point-good">{{ achievementPointLabel(t) }}</span></td>
                     <td v-if="prestasiPurpose === 'akreditasi'">{{ formatLevelPoints(t) }}</td>
                     <td>
                       <div class="action-buttons">
@@ -1063,6 +1070,7 @@
                   <option value="">— Pilih —</option>
                   <option v-for="(label, key) in RANK_LABELS" :key="key" :value="key">{{ label }}</option>
                 </select>
+                <p class="field-hint">Yang tidak juara pilih Peserta. Siswa yang lanjut ke tingkat berikutnya dicatat sebagai baris baru, nama lomba sama, tingkat berbeda. Poin mengikuti tingkat, bukan peringkat.</p>
               </div>
               <p v-if="selectedPrestasiType" class="field-hint">
                 <template v-if="prestasiLevelRequired && !prestasiForm.level">
@@ -1070,8 +1078,8 @@
                 </template>
                 <template v-else>
                   Poin BK: <strong>{{ resolvedPrestasiPoints }}</strong>
-                  <template v-if="selectedLevelHasOwnPoints">
-                    (khusus tingkat {{ levelLabel(prestasiForm.level) }})
+                  <template v-if="selectedLevelBonus > 0">
+                    (dasar {{ Number(selectedPrestasiType.point_value) || 0 }} + tambahan {{ selectedLevelBonus }})
                   </template>
                   <template v-else-if="prestasiForm.level && hasLevelPointValues(selectedPrestasiType)">
                     (poin dasar — tingkat ini belum diatur khusus)
@@ -1111,11 +1119,11 @@
             <div class="form-group">
               <label>{{ prestasiPurpose === 'apresiasi' ? 'Poin (plus) *' : 'Poin dasar *' }}</label>
               <input v-model.number="achievementTypeForm.point_value" type="number" min="0" max="100" required />
-              <p v-if="prestasiPurpose === 'akreditasi'" class="field-hint">Dipakai untuk tingkat yang kotaknya dikosongkan. Jika ada angka per tingkat, pencatatan wajib memilih tingkat.</p>
+              <p v-if="prestasiPurpose === 'akreditasi'" class="field-hint">Selalu dihitung. Tambahan tingkat dijumlahkan ke angka ini. Kotak yang dikosongkan hanya memakai poin dasar.</p>
             </div>
             <div v-if="prestasiPurpose === 'akreditasi'" class="form-group">
-              <label>Poin per tingkat (opsional)</label>
-              <p class="field-hint">Isi jika poin berbeda per tingkat lomba, mis. olimpiade kabupaten vs provinsi.</p>
+              <label>Tambahan per tingkat (opsional)</label>
+              <p class="field-hint">Diisi sebagai tambahan di atas poin dasar. Contoh: dasar 15, kabupaten 5, yang tercatat 20.</p>
               <div class="level-point-grid">
                 <div v-for="(label, key) in LEVEL_LABELS" :key="key" class="level-point-row">
                   <span class="level-point-label">{{ label }}</span>
@@ -1125,7 +1133,7 @@
                     min="0"
                     max="100"
                     class="level-point-input"
-                    :placeholder="String(achievementTypeForm.point_value || 0)"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -1205,8 +1213,9 @@
                 </div>
               </div>
               <div class="asc-breakdown">
-                <span><em>+{{ logActionRow.violation_points }}</em> pelanggaran</span>
-                <span><em>−{{ logActionRow.achievement_points }}</em> prestasi</span>
+                <span><em>{{ logActionRow.violation_points }}</em> pelanggaran</span>
+                <span><em>{{ logActionRow.achievement_points }}</em> prestasi</span>
+                <span class="asc-formula">Skor = pelanggaran − prestasi</span>
               </div>
               <div v-if="logActionRow.required_action" class="asc-required">
                 <span class="asc-required-label">Tindakan wajib</span>
@@ -1416,7 +1425,11 @@ function formatLevelPoints(type) {
   if (!hasLevelPointValues(type)) return '—'
   return Object.entries(LEVEL_LABELS)
     .filter(([key]) => type.level_point_values?.[key] != null && type.level_point_values[key] !== '')
-    .map(([key, label]) => `${label} +${type.level_point_values[key]}`)
+    .map(([key, label]) => {
+      const base = Number(type.point_value) || 0
+      const bonus = Number(type.level_point_values[key])
+      return `${label} +${bonus} = ${base + bonus}`
+    })
     .join(', ')
 }
 
@@ -1427,22 +1440,23 @@ function defaultLevelPointValues() {
 function resolveAchievementPointValue(type, level) {
   if (!type) return 0
   const levelPoints = type.level_point_values || {}
+  const base = Number(type.point_value) || 0
   if (level && levelPoints[level] != null && levelPoints[level] !== '') {
-    return Number(levelPoints[level])
+    return base + Number(levelPoints[level])
   }
-  return Number(type.point_value) || 0
+  return base
 }
 
 function achievementPointLabel(type) {
   const base = Number(type?.point_value) || 0
-  if ((type?.purpose || 'akreditasi') !== 'akreditasi' || !hasLevelPointValues(type)) return String(base)
+  if ((type?.purpose || 'akreditasi') !== 'akreditasi' || !hasLevelPointValues(type)) return `+${base}`
   const values = Object.keys(LEVEL_LABELS).map((key) => {
     const raw = type.level_point_values?.[key]
-    return raw != null && raw !== '' ? Number(raw) : base
+    return raw != null && raw !== '' ? base + Number(raw) : base
   })
   const min = Math.min(...values)
   const max = Math.max(...values)
-  return min === max ? String(min) : `${min}–${max}`
+  return min === max ? `+${min}` : `${min}–${max}`
 }
 
 function hasLevelPointValues(type) {
@@ -1457,6 +1471,14 @@ const selectedPrestasiType = computed(() =>
 const prestasiLevelRequired = computed(() =>
   prestasiPurpose.value === 'akreditasi' && hasLevelPointValues(selectedPrestasiType.value)
 )
+
+const selectedLevelBonus = computed(() => {
+  const type = selectedPrestasiType.value
+  const level = prestasiForm.value.level
+  if (!type || !level) return 0
+  const raw = type.level_point_values?.[level]
+  return raw != null && raw !== '' ? Number(raw) : 0
+})
 
 const selectedLevelHasOwnPoints = computed(() => {
   const type = selectedPrestasiType.value
@@ -1671,7 +1693,7 @@ async function printAchievementTypes() {
         <td class="num">${index + 1}</td>
         <td>${escapeHtml(t.name || '-')}</td>
         <td>${escapeHtml(categoryLabel(t.category) || '—')}</td>
-        <td class="points">+${escapeHtml(achievementPointLabel(t))}</td>
+        <td class="points">${escapeHtml(achievementPointLabel(t))}</td>
         ${isApresiasi ? '' : `<td>${escapeHtml(formatLevelPoints(t))}</td>`}
       </tr>
     `).join('')
@@ -1926,19 +1948,21 @@ async function loadPendingProposalCount() {
 }
 
 function initForMode() {
+  const openProposals = route.query.tab === 'usulan'
   if (isPrestasiMode.value) {
-    activeTab.value = 'prestasi'
+    activeTab.value = openProposals ? 'pending_prestasi' : 'prestasi'
+    achievementFilters.value.status = openProposals ? 'pending' : (achievementFilters.value.status === 'pending' ? '' : achievementFilters.value.status)
     loadAchievements()
     loadAchievementTypes()
   } else {
-    activeTab.value = 'list'
+    activeTab.value = openProposals ? 'pending' : 'list'
     loadViolations()
     loadTypes()
   }
   loadPendingProposalCount()
 }
 
-watch(() => route.path, () => {
+watch(() => route.fullPath, () => {
   initForMode()
 })
 const showRejectModal = ref(false)
@@ -2466,21 +2490,26 @@ async function loadAchievements() {
     if (achievementTypes.value.length === 0) {
       loadAchievementTypes()
     }
+    const listingPending = activeTab.value === 'pending_prestasi'
     const params = {
       page: achievementsPagination.value.current_page,
       per_page: achievementsPagination.value.per_page || 15,
       search: achievementFilters.value.search || undefined,
-      status: achievementFilters.value.status || undefined,
+      status: listingPending ? 'pending' : (achievementFilters.value.status || undefined),
       achievement_type_id: achievementFilters.value.achievement_type_id || undefined,
-      academic_year_id: achievementFilters.value.academic_year_id,
-      semester_id: achievementFilters.value.semester_id,
+      academic_year_id: listingPending ? undefined : achievementFilters.value.academic_year_id,
+      semester_id: listingPending ? undefined : achievementFilters.value.semester_id,
     }
-    if (activeTab.value !== 'pending_prestasi') {
+    if (!listingPending) {
       params.purpose = prestasiPurpose.value
     }
     const res = await achievementApi.getAll(params)
     achievements.value = res.data.data || []
     const meta = res.data.meta || {}
+    const metaExtra = res.data.meta_extra || {}
+    if (typeof metaExtra.pending_count === 'number') {
+      pendingProposalCount.value = metaExtra.pending_count
+    }
     achievementsPagination.value = {
       current_page: meta.current_page ?? 1,
       last_page: meta.last_page ?? 1,
@@ -3195,6 +3224,17 @@ onMounted(async () => {
   background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
   border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px;
 }
+.pending-banner-link {
+  margin-left: .35rem;
+  border: none;
+  background: transparent;
+  color: #92400e;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
 .piket-source { display: block; color: #2563eb; }
 .btn-sm-approve, .btn-sm-reject {
   border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
@@ -3446,6 +3486,7 @@ onMounted(async () => {
 .score-pill.score-good { background: #ecfdf5; color: #047857; }
 .score-breakdown {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
   font-size: 0.75rem;
@@ -3844,7 +3885,8 @@ onMounted(async () => {
 }
 .asc-breakdown em { font-style: normal; font-weight: 700; }
 .asc-breakdown span:first-child em { color: #b91c1c; }
-.asc-breakdown span:last-child em { color: #059669; }
+.asc-breakdown span:nth-child(2) em { color: #059669; }
+.asc-formula { flex-basis: 100%; }
 .asc-required {
   display: flex;
   flex-direction: column;

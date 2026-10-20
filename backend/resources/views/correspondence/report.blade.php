@@ -2,206 +2,170 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laporan Surat Menyurat</title>
+    <title>
+        @if(($filters['type'] ?? null) === 'masuk')
+            Laporan Surat Masuk
+        @elseif(($filters['type'] ?? null) === 'keluar')
+            Laporan Surat Keluar
+        @elseif(($filters['type'] ?? null) === 'internal')
+            Laporan Surat Internal
+        @else
+            Laporan Surat Menyurat
+        @endif
+    </title>
     <style>
-        @page {
-            size: A4 portrait;
-            margin: 15mm;
-        }
+        @page { margin: 1.1cm 1.1cm 1.5cm 1.1cm; size: A4 landscape; }
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 11px;
-            color: #333;
+            font-size: 8.5pt;
+            line-height: 1.35;
+            color: #111;
             margin: 0;
-            padding: 10px;
+            padding: 0;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
-        }
+        .header { text-align: center; margin: 2px 0 10px; }
         .header h1 {
-            margin: 0;
-            font-size: 20px;
+            font-size: 13pt;
             font-weight: bold;
+            margin: 0 0 3px;
+            letter-spacing: 0.04em;
         }
-        .header p {
-            margin: 5px 0;
-            font-size: 11px;
+        .header p { font-size: 8pt; margin: 0; color: #444; }
+        .meta {
+            margin: 0 0 8px;
+            padding: 5px 8px;
+            background: #f4f4f4;
+            border: 1px solid #ccc;
+            font-size: 8pt;
+            color: #333;
         }
-        .info-section {
-            margin-bottom: 15px;
-        }
-        .info-section table {
+        table.data {
             width: calc(100% - 2px);
             max-width: calc(100% - 2px);
             border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 8pt;
         }
-        .info-section td {
-            padding: 8px;
-            font-size: 11px;
-            vertical-align: top;
-        }
-        .info-section td:first-child {
-            font-weight: bold;
-            width: 150px;
-            background-color: #f2f2f2;
-        }
-        table {
-            width: calc(100% - 2px);
-            max-width: calc(100% - 2px);
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 6px 8px;
+        table.data th,
+        table.data td {
+            border: 1px solid #333;
+            padding: 4px 5px;
             text-align: left;
-            font-size: 9px;
+            vertical-align: top;
+            word-wrap: break-word;
         }
-        th:nth-child(1), td:nth-child(1) {
-            width: 3%;
-        }
-        th:nth-child(2), td:nth-child(2) {
-            width: 12%;
-        }
-        th:nth-child(3), td:nth-child(3) {
-            width: 15%;
-        }
-        th:nth-child(4), td:nth-child(4) {
-            width: 25%;
-        }
-        th:nth-child(5), td:nth-child(5) {
-            width: 15%;
-        }
-        th:nth-child(6), td:nth-child(6) {
-            width: 8%;
-        }
-        th:nth-child(7), td:nth-child(7) {
-            width: 10%;
-        }
-        th:nth-child(8), td:nth-child(8) {
-            width: 12%;
-        }
-        .info-section td:last-child {
-            border: 1px solid #ddd;
-            background-color: #f9f9f9;
-            min-height: 20px;
-        }
-        th {
-            background-color: #f2f2f2;
+        table.data th {
+            background: #e8e8e8;
             font-weight: bold;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .footer {
-            margin-top: 20px;
-            text-align: right;
-            font-size: 9px;
-            color: #666;
-        }
-        .no-data {
             text-align: center;
-            padding: 40px;
-            color: #999;
-            font-style: italic;
+            vertical-align: middle;
         }
+        table.data thead { display: table-header-group; }
+        table.data tr { page-break-inside: avoid; }
+        table.data td.num,
+        table.data th.num { width: 4%; text-align: center; }
+        table.data .col-jenis { width: 16%; }
+        table.data .col-nomor { width: 30%; }
+        table.data .col-perihal { width: 26%; }
+        table.data .col-pihak { width: 16%; }
+        table.data .col-tanggal { width: 8%; text-align: center; }
+        .empty { text-align: center; padding: 16px; color: #666; }
+        .standard-signature-wrap { margin-top: 16px; }
+        .standard-signature-space { height: 46px; }
         @include('partials.print-letterhead-styles')
         @include('partials.print-signature-styles')
     </style>
 </head>
 <body>
-    @include('partials.print-letterhead', ['institution' => $institution])
-    <div class="header">
-        <h1>
-            @if(isset($filters['type']))
-                @if($filters['type'] === 'masuk')
-                    LAPORAN SURAT MASUK
-                @elseif($filters['type'] === 'keluar')
-                    LAPORAN SURAT KELUAR
-                @elseif($filters['type'] === 'internal')
-                    LAPORAN SURAT INTERNAL
-                @else
-                    LAPORAN SURAT MENYURAT
-                @endif
-            @else
-                LAPORAN SURAT MENYURAT
-            @endif
-        </h1>
-        <p>Dicetak pada: {{ $generated_at->format('d F Y H:i:s') }}</p>
-    </div>
-
     @php
-        $hasOtherFilters = false;
-        $filterText = '';
-        
-        if (isset($filters['status']) && !empty($filters['status'])) {
-            $hasOtherFilters = true;
-            $filterText .= 'Status: ' . ucfirst($filters['status']) . '<br>';
+        $typeLabels = [
+            'masuk' => 'Surat Masuk',
+            'keluar' => 'Surat Keluar',
+            'internal' => 'Surat Internal',
+        ];
+        $statusLabels = [
+            'draft' => 'Draft',
+            'pending' => 'Menunggu',
+            'approved' => 'Disetujui',
+            'sent' => 'Terkirim',
+            'archived' => 'Diarsipkan',
+        ];
+        $priorityLabels = [
+            'biasa' => 'Biasa',
+            'penting' => 'Penting',
+            'sangat_penting' => 'Sangat Penting',
+        ];
+        $reportTitle = isset($filters['type']) && isset($typeLabels[$filters['type']])
+            ? 'LAPORAN '.strtoupper($typeLabels[$filters['type']])
+            : 'LAPORAN SURAT MENYURAT';
+        $partyHeading = match ($filters['type'] ?? null) {
+            'masuk' => 'Dari',
+            'keluar', 'internal' => 'Kepada',
+            default => 'Dari / Kepada',
+        };
+
+        $filterParts = [];
+        if (!empty($filters['status'])) {
+            $filterParts[] = 'Status: '.($statusLabels[$filters['status']] ?? ucfirst($filters['status']));
         }
-        
-        if (isset($filters['priority']) && !empty($filters['priority'])) {
-            $hasOtherFilters = true;
-            $filterText .= 'Prioritas: ' . ucfirst(str_replace('_', ' ', $filters['priority'])) . '<br>';
+        if (!empty($filters['priority'])) {
+            $filterParts[] = 'Prioritas: '.($priorityLabels[$filters['priority']] ?? ucfirst(str_replace('_', ' ', $filters['priority'])));
         }
-        
-        if ((isset($filters['date_from']) && !empty($filters['date_from'])) || (isset($filters['date_to']) && !empty($filters['date_to']))) {
-            $hasOtherFilters = true;
-            $filterText .= 'Periode: ';
-            $filterText .= isset($filters['date_from']) && !empty($filters['date_from']) ? date('d/m/Y', strtotime($filters['date_from'])) : 'Awal';
-            $filterText .= ' - ';
-            $filterText .= isset($filters['date_to']) && !empty($filters['date_to']) ? date('d/m/Y', strtotime($filters['date_to'])) : 'Akhir';
+        if (!empty($filters['search'])) {
+            $filterParts[] = 'Pencarian: '.$filters['search'];
+        }
+        if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
+            $from = !empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : 'Awal';
+            $to = !empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : 'Akhir';
+            $filterParts[] = 'Periode: '.$from.' – '.$to;
         }
     @endphp
 
-    @if($hasOtherFilters)
-    <div class="info-section">
-        <table>
-            <tr>
-                <td>Filter yang Diterapkan:</td>
-                <td>{!! $filterText !!}</td>
-            </tr>
-        </table>
+    @include('partials.print-letterhead', ['institution' => $institution])
+
+    <div class="header">
+        <h1>{{ $reportTitle }}</h1>
+        <p>Dicetak pada {{ $generated_at->locale('id')->translatedFormat('d F Y, H:i') }}</p>
     </div>
+
+    @if(count($filterParts))
+    <div class="meta">{{ implode('   ·   ', $filterParts) }}</div>
     @endif
 
-    @if(count($correspondence) > 0)
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>No</th>
-                <th>Jenis</th>
-                <th>Nomor Surat</th>
-                <th>Perihal</th>
-                <th>Dari/Kepada</th>
-                <th>Tanggal</th>
-                <th>Prioritas</th>
-                <th>Status</th>
+                <th class="num">No</th>
+                <th class="col-jenis">Jenis</th>
+                <th class="col-nomor">Nomor Surat</th>
+                <th class="col-perihal">Perihal</th>
+                <th class="col-pihak">{{ $partyHeading }}</th>
+                <th class="col-tanggal">Tanggal</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($correspondence as $index => $item)
+            @forelse($correspondence as $index => $item)
             <tr>
-                <td>{{ $index + 1 }}</td>
-                <td>{{ $item->letter_type_name ?? '-' }}</td>
+                <td class="num">{{ $index + 1 }}</td>
+                <td>
+                    @if($item->letter_type_name)
+                        {{ $item->letter_type_abbr }} — {{ $item->letter_type_name }}
+                    @else
+                        -
+                    @endif
+                </td>
                 <td>{{ $item->letter_number ?? $item->reference_number ?? '-' }}</td>
                 <td>{{ $item->subject }}</td>
                 <td>{{ $item->type === 'masuk' ? ($item->from ?? '-') : ($item->to ?? '-') }}</td>
-                <td>{{ $item->date ? $item->date->format('d/m/Y') : '-' }}</td>
-                <td>{{ ucfirst(str_replace('_', ' ', $item->priority)) }}</td>
-                <td>{{ ucfirst($item->status) }}</td>
+                <td class="col-tanggal">{{ $item->date ? $item->date->format('d/m/Y') : '-' }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="6" class="empty">Tidak ada data surat yang ditemukan.</td>
+            </tr>
+            @endforelse
         </tbody>
     </table>
-    @else
-    <div class="no-data">
-        Tidak ada data surat yang ditemukan
-    </div>
-    @endif
 
     <div class="standard-signature-wrap">
         <div class="standard-signature-left"></div>

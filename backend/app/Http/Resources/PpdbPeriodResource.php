@@ -28,6 +28,7 @@ class PpdbPeriodResource extends JsonResource
             'registration_fee' => $this->registration_fee !== null ? (float) $this->registration_fee : null,
             're_registration_fee' => $this->re_registration_fee !== null ? (float) $this->re_registration_fee : null,
             'applicants_count' => $this->when(isset($this->applicants_count), $this->applicants_count),
+            'active_applicants_count' => $this->when(isset($this->active_applicants_count), $this->active_applicants_count),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

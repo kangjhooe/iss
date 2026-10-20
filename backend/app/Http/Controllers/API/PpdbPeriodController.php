@@ -7,7 +7,10 @@ use App\Http\Controllers\API\Concerns\ResolvesInstitution;
 use App\Http\Requests\StorePpdbPeriodRequest;
 use App\Http\Requests\UpdatePpdbPeriodRequest;
 use App\Http\Resources\PpdbPeriodResource;
+use App\Models\PpdbApplicant;
+use App\Models\PpdbApplicantDocument;
 use App\Models\PpdbPeriod;
+use App\Support\PpdbDocumentStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -27,7 +30,12 @@ class PpdbPeriodController extends Controller
 
             $query = PpdbPeriod::forInstitution($institutionId)
                 ->with('academicYear:id,code,name')
-                ->withCount('applicants')
+                ->withCount([
+                    'applicants',
+                    'applicants as active_applicants_count' => function ($q) {
+                        $q->whereNotIn('status', PpdbApplicant::TERMINAL_STATUSES);
+                    },
+                ])
                 ->orderByDesc('open_date');
 
             if ($request->has('status')) {
@@ -81,7 +89,12 @@ class PpdbPeriodController extends Controller
             return $resp;
         }
         $ppdb_period->load(['academicYear', 'institution']);
-        $ppdb_period->loadCount('applicants');
+        $ppdb_period->loadCount([
+            'applicants',
+            'applicants as active_applicants_count' => function ($q) {
+                $q->whereNotIn('status', PpdbApplicant::TERMINAL_STATUSES);
+            },
+        ]);
         return new PpdbPeriodResource($ppdb_period);
     }
 
@@ -109,13 +122,28 @@ class PpdbPeriodController extends Controller
             return $resp;
         }
 
-        if ($ppdb_period->applicants()->exists()) {
+        $activeCount = $ppdb_period->applicants()
+            ->whereNotIn('status', PpdbApplicant::TERMINAL_STATUSES)
+            ->count();
+
+        if ($activeCount > 0) {
             return response()->json([
-                'message' => 'Periode tidak dapat dihapus karena sudah ada calon peserta didik.',
+                'message' => 'Periode tidak dapat dihapus karena masih ada '.$activeCount.' calon yang prosesnya belum selesai. Hapus data calon itu, atau selesaikan dulu (jadi siswa, ditolak, tidak lulus, atau dibatalkan).',
             ], 422);
         }
 
+        $documentPaths = PpdbApplicantDocument::query()
+            ->whereIn('ppdb_applicant_id', $ppdb_period->applicants()->select('id'))
+            ->pluck('file_path');
+
         $ppdb_period->delete();
+
+        foreach ($documentPaths as $path) {
+            if (is_string($path) && $path !== '') {
+                PpdbDocumentStorage::delete($path);
+            }
+        }
+
         return response()->json(['message' => 'Periode PPDB berhasil dihapus.']);
     }
 

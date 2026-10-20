@@ -27,6 +27,7 @@ use App\Models\Violation;
 use App\Models\ViolationType;
 use App\Models\WaliNote;
 use App\Services\AchievementService;
+use App\Services\BkProposalNotifier;
 use App\Services\FinanceService;
 use App\Services\LessonScheduleExportService;
 use App\Services\LessonScheduleService;
@@ -60,6 +61,7 @@ class WaliKelasController extends Controller
         protected StudentAccountService $studentAccountService,
         protected StudentService $studentService,
         protected FinanceService $financeService,
+        protected BkProposalNotifier $bkProposalNotifier,
     ) {}
 
     public function showStudent(Request $request, int $classId, int $studentId): JsonResponse
@@ -600,6 +602,7 @@ class WaliKelasController extends Controller
             $user->id,
             true
         );
+        $this->bkProposalNotifier->violationProposed($violation, $user);
 
         return (new ViolationResource($violation))->response()->setStatusCode(201);
     }
@@ -634,28 +637,118 @@ class WaliKelasController extends Controller
     public function storeAchievement(Request $request): JsonResponse
     {
         $user = $request->user();
-        $data = $request->validate([
-            'class_id' => ['required', 'integer'],
-            'student_id' => ['required', 'integer'],
-            'achievement_type_id' => ['required', 'integer'],
-            'level' => ['nullable', 'string', Rule::in(Achievement::LEVELS)],
-            'achievement_date' => ['required', 'date'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+        $data = $request->validate($this->waliAchievementRules());
 
         $student = WaliKelasAccess::resolveHomeroomStudent($user, (int) $data['class_id'], (int) $data['student_id']);
         if (!$student) {
             return response()->json(['message' => 'Siswa harus berada di kelas yang Anda waliki.'], 403);
         }
 
-        $achievement = $this->achievementService->create(
-            (int) $student->institution_id,
-            $data,
-            $user->id,
-            true
-        );
+        try {
+            $data = $this->prepareWaliAchievementPayload($data, (int) $student->institution_id);
+            $achievement = $this->achievementService->create(
+                (int) $student->institution_id,
+                $data,
+                $user->id,
+                true
+            );
+            $this->bkProposalNotifier->achievementProposed($achievement, $user);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Jenis prestasi tidak ditemukan.'], 404);
+        }
 
         return (new AchievementResource($achievement))->response()->setStatusCode(201);
+    }
+
+    public function updateAchievement(Request $request, Achievement $achievement): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate($this->waliAchievementRules());
+
+        if ((int) $achievement->given_by !== (int) $user->id) {
+            return response()->json(['message' => 'Usulan ini bukan milik Anda.'], 403);
+        }
+        if (!$achievement->isPending()) {
+            return response()->json(['message' => 'Usulan yang sudah ditinjau guru BK tidak dapat diubah.'], 422);
+        }
+
+        $class = WaliKelasAccess::resolveHomeroomClass($user, (int) $data['class_id']);
+        $student = WaliKelasAccess::resolveHomeroomStudent($user, (int) $data['class_id'], (int) $data['student_id']);
+        if (
+            !$class
+            || !$student
+            || (int) $class->institution_id !== (int) $achievement->institution_id
+            || (int) $student->institution_id !== (int) $achievement->institution_id
+        ) {
+            return response()->json(['message' => 'Siswa harus berada di kelas yang Anda waliki.'], 403);
+        }
+
+        try {
+            $data = $this->prepareWaliAchievementPayload($data, (int) $achievement->institution_id);
+            $updated = $this->achievementService->updatePending($achievement, $data);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Jenis prestasi tidak ditemukan.'], 404);
+        }
+
+        return (new AchievementResource($updated))->response();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function waliAchievementRules(): array
+    {
+        return [
+            'class_id' => ['required', 'integer'],
+            'student_id' => ['required', 'integer'],
+            'achievement_type_id' => ['required', 'integer'],
+            'title' => ['required', 'string', 'max:255'],
+            'level' => ['nullable', 'string', Rule::in(Achievement::LEVELS)],
+            'rank' => ['nullable', 'string', Rule::in(Achievement::RANKS)],
+            'achievement_date' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function prepareWaliAchievementPayload(array $data, int $institutionId): array
+    {
+        $type = AchievementType::query()
+            ->where('id', $data['achievement_type_id'])
+            ->where('institution_id', $institutionId)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$type) {
+            throw ValidationException::withMessages([
+                'achievement_type_id' => ['Jenis prestasi tidak ditemukan.'],
+            ]);
+        }
+
+        $purpose = $type->purpose ?? Achievement::PURPOSE_AKREDITASI;
+        $data['purpose'] = $purpose;
+
+        if ($purpose !== Achievement::PURPOSE_AKREDITASI) {
+            $data['level'] = null;
+            $data['rank'] = null;
+
+            return $data;
+        }
+
+        if (empty($data['rank'])) {
+            throw ValidationException::withMessages([
+                'rank' => ['Pilih peringkat. Yang tidak juara dicatat sebagai peserta.'],
+            ]);
+        }
+
+        return $data;
     }
 
     public function indexMutations(Request $request): JsonResponse

@@ -16,6 +16,7 @@ const TYPE_META = {
   academic_calendar_parent: { label: 'Kalender', color: '#ca8a04', bg: '#fefce8' },
   inventory: { label: 'Inventaris', color: '#059669', bg: '#ecfdf5' },
   lab: { label: 'Laboratorium', color: '#9333ea', bg: '#faf5ff' },
+  bk_proposal: { label: 'Usulan BK', color: '#b45309', bg: '#fffbeb' },
 }
 
 export function formatNotificationDate(iso) {
@@ -65,6 +66,8 @@ export function getNotificationRoute(notification) {
       return '/inventory/beranda'
     case 'lab':
       return d.booking_id ? '/lab-booking' : '/lab'
+    case 'bk_proposal':
+      return d.link || (d.action === 'violation' ? '/bk/pelanggaran?tab=usulan' : '/bk/prestasi?tab=usulan')
     case 'broadcast':
       return null
     default:
@@ -104,6 +107,8 @@ export function getNotificationActionLabel(notification) {
       return 'Buka inventaris'
     case 'lab':
       return 'Buka laboratorium'
+    case 'bk_proposal':
+      return 'Buka usulan'
     case 'broadcast':
       return null
     default:

@@ -691,6 +691,7 @@ import AppLogo from '@/components/AppLogo.vue'
 import MenuSearchPalette from '@/components/MenuSearchPalette.vue'
 import NotificationPanel from '@/components/NotificationPanel.vue'
 import { useNotifications } from '@/composables/useNotifications'
+import { achievementApi, violationApi } from '@/api/violation'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -871,6 +872,8 @@ const IconFeedback = () => h('svg', { class: 'nav-icon', width: 20, height: 20, 
 ])
 const openFeedbackCount = ref(0)
 const pendingPasswordResetCount = ref(0)
+const bkViolationPendingCount = ref(0)
+const bkAchievementPendingCount = ref(0)
 const IconExam = () => h('svg', { class: 'nav-icon', width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
   h('path', { d: 'M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   h('path', { d: 'M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
@@ -1237,8 +1240,8 @@ const menuEntries = computed(() => {
       { to: '/ppdb/pembayaran', label: 'Pembayaran', visible: canAccessModule('ppdb') },
     ]}),
     addVisible({ type: 'group', key: 'bk', label: 'Bimbingan Konseling', icon: IconCounseling, children: [
-      { to: '/bk/pelanggaran', label: 'Pelanggaran', visible: canAccessModule('violation') },
-      { to: '/bk/prestasi', label: 'Prestasi', visible: canAccessModule('violation') },
+      { to: '/bk/pelanggaran', label: 'Pelanggaran', visible: canAccessModule('violation'), badgeCount: bkViolationPendingCount.value || null },
+      { to: '/bk/prestasi', label: 'Prestasi', visible: canAccessModule('violation'), badgeCount: bkAchievementPendingCount.value || null },
       { to: '/counseling', label: 'Konseling', visible: canAccessModule('counseling') },
       { to: '/bk/laporan', label: 'Laporan', visible: showBkReportInBkGroup },
     ]}),
@@ -1660,9 +1663,29 @@ function closeNotificationPanel() {
   refreshUnreadCount()
 }
 
+async function fetchBkPendingCounts() {
+  if (!authStore.user || !canAccessModule('violation')) {
+    bkViolationPendingCount.value = 0
+    bkAchievementPendingCount.value = 0
+    return
+  }
+  try {
+    const [violations, achievements] = await Promise.all([
+      violationApi.getAll({ status: 'pending', per_page: 1 }),
+      achievementApi.getAll({ status: 'pending', per_page: 1 }),
+    ])
+    bkViolationPendingCount.value = violations.data?.meta_extra?.pending_count ?? 0
+    bkAchievementPendingCount.value = achievements.data?.meta_extra?.pending_count ?? 0
+  } catch {
+    bkViolationPendingCount.value = 0
+    bkAchievementPendingCount.value = 0
+  }
+}
+
 async function fetchUnreadNotificationCount() {
   if (!authStore.user) return
   await refreshUnreadCount()
+  fetchBkPendingCounts()
   if (authStore.user?.role === 'super_admin') {
     try {
       const countRes = await import('@/api/feedbackTicket').then(m => m.feedbackTicketApi.getOpenCount())

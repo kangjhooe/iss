@@ -75,8 +75,8 @@ class AchievementType extends Model
     }
 
     /**
-     * Prestasi akreditasi yang punya angka per tingkat wajib memilih tingkat.
-     * Poin dasar hanya dipakai untuk tingkat yang kotaknya dikosongkan.
+     * Prestasi akreditasi yang punya tambahan per tingkat wajib memilih tingkat.
+     * Kotak tingkat yang kosong memakai poin dasar saja.
      */
     public function requiresLevel(?string $purpose = null): bool
     {
@@ -86,7 +86,8 @@ class AchievementType extends Model
     }
 
     /**
-     * Poin prestasi: override manual > poin per tingkat > poin dasar jenis.
+     * Poin prestasi: override manual, atau poin dasar + tambahan tingkat.
+     * Kotak tingkat yang kosong memakai poin dasar saja.
      */
     public function resolvePointValue(?string $level = null, ?int $override = null): int
     {
@@ -94,13 +95,15 @@ class AchievementType extends Model
             return max(0, $override);
         }
 
+        $base = max(0, (int) $this->point_value);
+
         if ($level && is_array($this->level_point_values) && array_key_exists($level, $this->level_point_values)) {
             $levelPoint = $this->level_point_values[$level];
             if ($levelPoint !== null && $levelPoint !== '') {
-                return max(0, (int) $levelPoint);
+                return $base + max(0, (int) $levelPoint);
             }
         }
 
-        return max(0, (int) $this->point_value);
+        return $base;
     }
 }

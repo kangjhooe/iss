@@ -123,6 +123,58 @@ class AchievementService
         ]);
     }
 
+    /**
+     * Wali kelas may correct a proposal until BK approves or rejects it.
+     */
+    public function updatePending(Achievement $achievement, array $data): Achievement
+    {
+        if (!$achievement->isPending()) {
+            throw ValidationException::withMessages([
+                'status' => ['Hanya usulan yang belum ditinjau guru BK yang dapat diubah.'],
+            ]);
+        }
+
+        $institutionId = (int) $achievement->institution_id;
+        $student = Student::where('id', $data['student_id'])
+            ->where('institution_id', $institutionId)
+            ->firstOrFail();
+
+        $type = AchievementType::where('id', $data['achievement_type_id'])
+            ->where('institution_id', $institutionId)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $purpose = $data['purpose'] ?? $type->purpose ?? Achievement::PURPOSE_AKREDITASI;
+        $isAccreditation = $purpose === Achievement::PURPOSE_AKREDITASI;
+        $level = $isAccreditation && !empty($data['level']) ? $data['level'] : null;
+        $rank = $isAccreditation && !empty($data['rank']) ? $data['rank'] : null;
+        $pointValue = $this->resolveStoredPoint($type, $purpose, $level, null);
+        $institution = Institution::find($institutionId);
+
+        $achievement->update([
+            'student_id' => $student->id,
+            'achievement_type_id' => $type->id,
+            'purpose' => $purpose,
+            'title' => $data['title'] ?? null,
+            'level' => $level,
+            'rank' => $rank,
+            'achievement_date' => $data['achievement_date'],
+            'point_value' => $pointValue,
+            'notes' => $data['notes'] ?? null,
+            'academic_year_id' => $student->academic_year_id ?: $institution?->active_academic_year_id,
+            'semester_id' => $student->semester_id ?: $institution?->active_semester_id,
+        ]);
+
+        return $achievement->fresh([
+            'student',
+            'achievementType',
+            'giver',
+            'reviewer',
+            'academicYear:id,name,code',
+            'semester:id,name',
+        ]);
+    }
+
     public function approve(Achievement $achievement, User $reviewer, array $data = []): Achievement
     {
         if (!$achievement->isPending()) {
@@ -165,7 +217,7 @@ class AchievementService
     }
 
     /**
-     * Angka yang disimpan: override manual, atau poin tingkat, atau poin dasar.
+     * Angka yang disimpan: override manual, atau poin dasar + tambahan tingkat.
      * Jenis yang punya poin per tingkat tidak boleh disimpan tanpa tingkat.
      */
     public function resolveStoredPoint(AchievementType $type, ?string $purpose, ?string $level, ?int $override = null): int

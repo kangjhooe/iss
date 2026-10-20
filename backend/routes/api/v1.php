@@ -1141,6 +1141,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'institution.context', 'stor
         Route::get('/violation-types', [WaliKelasController::class, 'violationTypes']);
         Route::get('/achievements', [WaliKelasController::class, 'indexAchievements']);
         Route::post('/achievements', [WaliKelasController::class, 'storeAchievement']);
+        Route::put('/achievements/{achievement}', [WaliKelasController::class, 'updateAchievement']);
         Route::get('/achievement-types', [WaliKelasController::class, 'achievementTypes']);
         Route::get('/mutations', [WaliKelasController::class, 'indexMutations']);
         Route::post('/mutations', [WaliKelasController::class, 'storeMutation']);

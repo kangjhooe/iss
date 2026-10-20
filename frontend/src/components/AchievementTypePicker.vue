@@ -2,12 +2,12 @@
   <div class="type-picker">
     <div class="picker-heading">
       <span class="field-label">{{ label }}<template v-if="required"> *</template></span>
-      <span v-if="selectedType" class="picker-point-hint">+{{ pointLabel(selectedType) }} poin</span>
+      <span v-if="selectedType" class="picker-point-hint">{{ pointLabel(selectedType) }} poin</span>
     </div>
 
     <div v-if="selectedType" class="picker-card" :class="{ 'is-selected': !panelOpen }">
       <span class="point-pill">
-        <strong>+{{ pointLabel(selectedType) }}</strong>
+        <strong>{{ pointLabel(selectedType) }}</strong>
         <span>poin</span>
       </span>
       <span class="type-copy">
@@ -92,7 +92,7 @@
             @click="selectType(type)"
           >
             <span class="point-pill">
-              <strong>+{{ pointLabel(type) }}</strong>
+              <strong>{{ pointLabel(type) }}</strong>
               <span>poin</span>
             </span>
             <span class="type-copy">
@@ -134,7 +134,7 @@ const props = defineProps({
   emptyText: { type: String, default: 'Belum ada jenis prestasi.' },
   hint: {
     type: String,
-    default: 'Angka di kiri adalah poin. Poin ini mengurangi skor pelanggaran.',
+    default: 'Angka di kiri adalah poin prestasi. Rentang seperti 5–15 berarti poin berbeda tiap tingkat, bukan pengurangan.',
   },
 })
 
@@ -209,17 +209,17 @@ function pointValue(type) {
 
 function pointLabel(type) {
   const base = pointValue(type)
-  if ((type?.purpose || 'akreditasi') !== 'akreditasi') return String(base)
+  if ((type?.purpose || 'akreditasi') !== 'akreditasi') return `+${base}`
   const values = type?.level_point_values || {}
   const configured = Object.values(values).some((value) => value != null && value !== '')
-  if (!configured) return String(base)
+  if (!configured) return `+${base}`
   const possible = LEVEL_KEYS.map((key) => {
     const raw = values[key]
-    return raw != null && raw !== '' ? Number(raw) : base
+    return raw != null && raw !== '' ? base + Number(raw) : base
   })
   const min = Math.min(...possible)
   const max = Math.max(...possible)
-  return min === max ? String(min) : `${min}–${max}`
+  return min === max ? `+${min}` : `${min}–${max}`
 }
 
 function categoryLabel(value) {

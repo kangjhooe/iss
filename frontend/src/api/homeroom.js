@@ -79,6 +79,9 @@ export const homeroomApi = {
   proposeAchievement(data) {
     return api.post('/v1/teacher/wali/achievements', data)
   },
+  updateAchievement(id, data) {
+    return api.put(`/v1/teacher/wali/achievements/${id}`, data)
+  },
   getAchievementTypes(params) {
     return api.get('/v1/teacher/wali/achievement-types', { params })
   },

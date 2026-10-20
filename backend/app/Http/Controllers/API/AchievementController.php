@@ -34,18 +34,24 @@ class AchievementController extends Controller
             $academicYearId = $request->get('academic_year_id');
             $semesterId = $request->get('semester_id');
             $institution = Institution::find($institutionId);
+            $listingPending = $request->input('status') === Achievement::STATUS_PENDING;
 
-            // Explicit empty = semua periode; jika param tidak dikirim, default ke aktif
-            if ($request->has('academic_year_id') && $request->academic_year_id === '') {
+            // Usulan menunggu tidak disaring periode, supaya antrean BK tidak hilang.
+            if (!$listingPending) {
+                if ($request->has('academic_year_id') && $request->academic_year_id === '') {
+                    $academicYearId = null;
+                } elseif (!$request->has('academic_year_id') && $institution?->active_academic_year_id) {
+                    $academicYearId = $institution->active_academic_year_id;
+                }
+
+                if ($request->has('semester_id') && $request->semester_id === '') {
+                    $semesterId = null;
+                } elseif (!$request->has('semester_id') && $institution?->active_semester_id) {
+                    $semesterId = $institution->active_semester_id;
+                }
+            } else {
                 $academicYearId = null;
-            } elseif (!$request->has('academic_year_id') && $institution?->active_academic_year_id) {
-                $academicYearId = $institution->active_academic_year_id;
-            }
-
-            if ($request->has('semester_id') && $request->semester_id === '') {
                 $semesterId = null;
-            } elseif (!$request->has('semester_id') && $institution?->active_semester_id) {
-                $semesterId = $institution->active_semester_id;
             }
 
             $query = Achievement::with(['student:id,name,nis,nisn', 'achievementType:id,name,point_value', 'giver:id,name', 'reviewer:id,name', 'academicYear:id,name,code', 'semester:id,name'])

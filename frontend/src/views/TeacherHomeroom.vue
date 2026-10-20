@@ -335,7 +335,8 @@
 
           <div v-else-if="usulanTab === 'achievement'" class="usulan-grid">
             <form class="form-card" @submit.prevent="submitAchievement">
-              <h3>Ajukan prestasi</h3>
+              <h3>{{ editingAchievementId ? 'Ubah usulan prestasi' : 'Ajukan prestasi' }}</h3>
+              <p v-if="editingAchievementId" class="point-preview-hint form-lead">Usulan ini masih menunggu guru BK. Setelah ditinjau, data tidak bisa diubah dari sini.</p>
               <div class="picker-block">
                 <StudentPicker
                   v-model="achForm.student_id"
@@ -350,42 +351,58 @@
                   empty-text="Jenis prestasi atau apresiasi belum tersedia."
                 />
               </div>
+              <label>{{ achievementTitleLabel }}
+                <input v-model="achForm.title" type="text" required maxlength="255" :placeholder="achievementTitlePlaceholder">
+              </label>
               <label v-if="achievementNeedsLevel">Tingkat
                 <select v-model="achForm.level" :required="achievementLevelRequired">
                   <option value="">Pilih tingkat</option>
                   <option v-for="row in achievementLevelRows" :key="row.key" :value="row.key">{{ row.label }} · {{ row.points }} poin</option>
                 </select>
               </label>
+              <label v-if="achievementNeedsRank">Peringkat
+                <select v-model="achForm.rank" required>
+                  <option value="">Pilih peringkat</option>
+                  <option v-for="(label, key) in ACHIEVEMENT_RANK_LABELS" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </label>
+              <p v-if="achievementNeedsRank" class="point-preview-hint form-lead">Satu usulan = satu siswa pada satu tingkat. Yang tidak juara pilih Peserta. Yang lanjut ke provinsi atau nasional diajukan lagi dengan nama lomba yang sama.</p>
               <div v-if="selectedAchievementType" class="point-preview">
                 <p class="point-preview-value">
                   <template v-if="resolvedAchievementPoints == null">Pilih tingkat untuk melihat poin.</template>
-                  <template v-else>Poin yang diajukan: <strong>{{ resolvedAchievementPoints }}</strong>
+                  <template v-else>Poin tingkat ini: <strong>{{ resolvedAchievementPoints }}</strong>
                     <template v-if="achForm.level && !selectedLevelUsesOwnPoints"> (poin dasar)</template>
                   </template>
                 </p>
                 <ul v-if="achievementLevelRows.length" class="level-point-list">
                   <li v-for="row in achievementLevelRows" :key="row.key" :class="{ active: achForm.level === row.key }">
                     <span>{{ row.label }}</span>
-                    <strong>{{ row.points }} poin<template v-if="!row.configured"> · dasar</template></strong>
+                    <strong>{{ row.points }} poin<template v-if="row.bonus"> · dasar {{ row.base }} + tambahan {{ row.bonus }}</template><template v-else> · dasar</template></strong>
                   </li>
                 </ul>
-                <p v-if="achievementLevelRows.length" class="point-preview-hint">Poin mengikuti tingkat yang dipilih. Tingkat tanpa angka khusus memakai poin dasar jenis.</p>
+                <p v-if="achievementLevelRows.length" class="point-preview-hint">Poin yang tercatat = poin dasar + tambahan tingkat. Juara dan peserta di tingkat yang sama mendapat poin yang sama.</p>
               </div>
               <label>Tanggal <input v-model="achForm.achievement_date" type="date" required></label>
               <label>Catatan <textarea v-model="achForm.notes" rows="2" placeholder="Opsional"></textarea></label>
-              <button type="submit" class="btn-primary" :disabled="usulanSubmitting || !achievementTypes.length">Kirim usulan</button>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary" :disabled="usulanSubmitting || !achievementTypes.length">{{ editingAchievementId ? 'Simpan perubahan' : 'Kirim usulan' }}</button>
+                <button v-if="editingAchievementId" type="button" class="btn-secondary" :disabled="usulanSubmitting" @click="cancelEditAchievement">Batal</button>
+              </div>
             </form>
             <div class="list-card">
               <h3>Riwayat usulan</h3>
               <div v-if="achievementsLoading" class="muted">Memuat…</div>
               <div v-else-if="!achievements.length" class="muted">Belum ada usulan.</div>
               <ul v-else class="proposal-list">
-                <li v-for="a in achievements" :key="a.id">
+                <li v-for="a in achievements" :key="a.id" :class="{ 'is-editing': editingAchievementId === a.id }">
                   <div>
                     <strong>{{ a.student?.name }}</strong>
-                    <span class="muted"> · {{ a.achievement_type?.name }}<template v-if="a.level"> · {{ achievementLevelLabel(a.level) }}</template> · {{ a.point_value ?? 0 }} poin · {{ a.achievement_date }}</span>
+                    <span class="muted"> · {{ a.title || a.achievement_type?.name }}<template v-if="a.achievement_type?.name && a.title"> · {{ a.achievement_type.name }}</template><template v-if="a.level"> · {{ achievementLevelLabel(a.level) }}</template><template v-if="a.rank"> · {{ achievementRankLabel(a.rank) }}</template> · {{ a.point_value ?? 0 }} poin · {{ a.achievement_date }}</span>
                   </div>
-                  <span class="status-pill" :class="statusTone(a.status)">{{ statusLabel(a.status) }}</span>
+                  <div class="proposal-side">
+                    <span class="status-pill" :class="statusTone(a.status)">{{ statusLabel(a.status) }}</span>
+                    <button v-if="a.status === 'pending'" type="button" class="btn-secondary btn-tiny" @click="startEditAchievement(a)">Ubah</button>
+                  </div>
                 </li>
               </ul>
             </div>
@@ -1445,7 +1462,29 @@ const ACHIEVEMENT_LEVEL_LABELS = {
   internasional: 'Internasional',
 }
 
-const achForm = ref({ student_id: '', achievement_type_id: '', level: '', achievement_date: new Date().toISOString().slice(0, 10), notes: '' })
+const ACHIEVEMENT_RANK_LABELS = {
+  juara_1: 'Juara 1',
+  juara_2: 'Juara 2',
+  juara_3: 'Juara 3',
+  finalis: 'Finalis',
+  peserta: 'Peserta',
+  lainnya: 'Lainnya',
+}
+
+function emptyAchievementForm() {
+  return {
+    student_id: '',
+    achievement_type_id: '',
+    title: '',
+    level: '',
+    rank: '',
+    achievement_date: new Date().toISOString().slice(0, 10),
+    notes: '',
+  }
+}
+
+const achForm = ref(emptyAchievementForm())
+const editingAchievementId = ref(null)
 
 const selectedAchievementType = computed(() =>
   achievementTypes.value.find((t) => String(t.id) === String(achForm.value.achievement_type_id)) || null
@@ -1456,6 +1495,18 @@ const achievementNeedsLevel = computed(() => {
   if (!type) return false
   return (type.purpose || 'akreditasi') === 'akreditasi'
 })
+
+const achievementNeedsRank = computed(() => achievementNeedsLevel.value)
+
+const achievementTitleLabel = computed(() => (
+  achievementNeedsLevel.value || !selectedAchievementType.value ? 'Nama lomba / kegiatan' : 'Uraian kejadian'
+))
+
+const achievementTitlePlaceholder = computed(() => (
+  achievementNeedsLevel.value || !selectedAchievementType.value
+    ? 'Contoh: Olimpiade Matematika 2026'
+    : 'Contoh: Melaporkan tindakan bullying'
+))
 
 function achievementHasLevelPoints(type) {
   if (!type?.level_point_values) return false
@@ -1473,7 +1524,8 @@ const achievementLevelRows = computed(() => {
   return Object.entries(ACHIEVEMENT_LEVEL_LABELS).map(([key, label]) => {
     const raw = type.level_point_values?.[key]
     const configured = raw != null && raw !== ''
-    return { key, label, points: configured ? Number(raw) : base, configured }
+    const bonus = configured ? Number(raw) : 0
+    return { key, label, base, bonus, points: base + bonus, configured }
   })
 })
 
@@ -1493,6 +1545,33 @@ const resolvedAchievementPoints = computed(() => {
 
 function achievementLevelLabel(level) {
   return ACHIEVEMENT_LEVEL_LABELS[level] || level || ''
+}
+
+function achievementRankLabel(rank) {
+  return ACHIEVEMENT_RANK_LABELS[rank] || rank || ''
+}
+
+function resetAchievementForm() {
+  editingAchievementId.value = null
+  achForm.value = emptyAchievementForm()
+}
+
+function startEditAchievement(item) {
+  if (item?.status !== 'pending') return
+  editingAchievementId.value = item.id
+  achForm.value = {
+    student_id: String(item.student_id ?? item.student?.id ?? ''),
+    achievement_type_id: String(item.achievement_type_id ?? item.achievement_type?.id ?? ''),
+    title: item.title || '',
+    level: item.level || '',
+    rank: item.rank || '',
+    achievement_date: item.achievement_date || new Date().toISOString().slice(0, 10),
+    notes: item.notes || '',
+  }
+}
+
+function cancelEditAchievement() {
+  resetAchievementForm()
 }
 const mutForm = ref({ student_id: '', target_npsn: '', target_school_name: '', external: false, notes: '' })
 
@@ -1809,6 +1888,7 @@ function selectClass(id) {
   studentQuery.value = ''
   listFilter.value = null
   accountFilterMode.value = ''
+  resetAchievementForm()
   replaceQuery({ class_id: String(id) })
   refreshClassData()
 }
@@ -2449,25 +2529,42 @@ async function submitAchievement() {
     toast.warning('Pilih jenis prestasi atau apresiasi terlebih dahulu')
     return
   }
+  if (!achForm.value.title?.trim()) {
+    toast.warning(achievementNeedsLevel.value ? 'Isi nama lomba atau kegiatan' : 'Isi uraian kejadian')
+    return
+  }
   if (achievementLevelRequired.value && !achForm.value.level) {
     toast.warning('Pilih tingkat. Jenis prestasi ini punya poin berbeda per tingkat.')
     return
   }
+  if (achievementNeedsRank.value && !achForm.value.rank) {
+    toast.warning('Pilih peringkat. Yang tidak juara dicatat sebagai peserta.')
+    return
+  }
   usulanSubmitting.value = true
+  const editingId = editingAchievementId.value
+  const payload = {
+    class_id: Number(selectedClassId.value),
+    student_id: Number(achForm.value.student_id),
+    achievement_type_id: Number(achForm.value.achievement_type_id),
+    title: achForm.value.title.trim(),
+    level: achievementNeedsLevel.value ? (achForm.value.level || null) : null,
+    rank: achievementNeedsRank.value ? (achForm.value.rank || null) : null,
+    achievement_date: achForm.value.achievement_date,
+    notes: achForm.value.notes || null,
+  }
   try {
-    await homeroomApi.proposeAchievement({
-      class_id: Number(selectedClassId.value),
-      student_id: Number(achForm.value.student_id),
-      achievement_type_id: Number(achForm.value.achievement_type_id),
-      level: achievementNeedsLevel.value ? (achForm.value.level || null) : null,
-      achievement_date: achForm.value.achievement_date,
-      notes: achForm.value.notes || null,
-    })
-    toast.success('Usulan prestasi terkirim')
-    achForm.value.notes = ''
+    if (editingId) {
+      await homeroomApi.updateAchievement(editingId, payload)
+      toast.success('Usulan prestasi diperbarui')
+    } else {
+      await homeroomApi.proposeAchievement(payload)
+      toast.success('Usulan prestasi terkirim')
+    }
+    resetAchievementForm()
     await Promise.all([loadAchievements(), loadDashboard()])
   } catch (e) {
-    toast.error('Gagal mengajukan', e.formattedMessage || e.response?.data?.message || e.message)
+    toast.error(editingId ? 'Gagal menyimpan usulan' : 'Gagal mengajukan', e.formattedMessage || e.response?.data?.message || e.message)
   } finally {
     usulanSubmitting.value = false
   }
@@ -3159,6 +3256,11 @@ onBeforeUnmount(() => {
 .point-preview { margin: -.15rem 0 .75rem; padding: .65rem .75rem; border-radius: 10px; background: #fff; border: 1px solid #d1fae5; }
 .point-preview-value { margin: 0; font-size: .84rem; color: #065f46; }
 .point-preview-hint { margin: .45rem 0 0; font-size: .75rem; color: #64748b; font-weight: 500; }
+.form-lead { margin: 0 0 .75rem; }
+.form-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.proposal-side { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
+.btn-secondary.btn-tiny { height: 28px; padding: 0 .55rem; font-size: .75rem; border-radius: 8px; }
+.proposal-list li.is-editing { border-color: #6ee7b7; background: #f0fdf4; }
 .level-point-list { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; }
 .level-point-list li { display: flex; justify-content: space-between; gap: .75rem; padding: .3rem .45rem; border-radius: 7px; font-size: .8rem; font-weight: 600; color: #334155; }
 .level-point-list li.active { background: #ecfdf5; color: #065f46; }
